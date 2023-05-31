@@ -24,9 +24,12 @@ from setuptools import setup
 from setuptools.command.egg_info import egg_info
 from setuptools.command.build_py import build_py
 
-version = '0.1'
+exec(open("mindone/version.py").read())
+
+version = __version__
+package_name = "mindone"
 cur_dir = os.path.dirname(os.path.realpath(__file__))
-pkg_dir = os.path.join(cur_dir, 'build')
+pkg_dir = os.path.join(cur_dir, "build")
 
 
 def clean():
