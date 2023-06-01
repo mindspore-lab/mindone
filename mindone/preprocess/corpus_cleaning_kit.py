@@ -1,24 +1,21 @@
 
-quanjiao2b = ['……', '。。。', '。', '，', '；', '：', '？', '！', '“', '”', '‘', '’', '（', '）', '【', '】', '、']
-banjiao = ['...', '...', '.', ',', ';', ':', '?', '!', '"', '"', "'", "'", "(", ")", '[', ']', ',']
+full_width2b = ['……', '。。。', '。', '，', '；', '：', '？', '！', '“', '”', '‘', '’', '（', '）', '【', '】', '、']
+half_width = ['...', '...', '.', ',', ';', ':', '?', '!', '"', '"', "'", "'", "(", ")", '[', ']', ',']
 
-quanjiao = ['……', '。。。', '。', '，', '；', '：', '？', '！', '（', '）', '【', '】']
-banjiao2q = ['...', '...', '.', ',', ';', ':', '?', '!', "(", ")", '[', ']', ',']
+full_width = ['……', '。。。', '。', '，', '；', '：', '？', '！', '（', '）', '【', '】']
+half_width2q = ['...', '...', '.', ',', ';', ':', '?', '!', "(", ")", '[', ']']
 
 
-def repl(data, fromjiao, tojiao):
-    assert len(fromjiao) == len(tojiao)
-    for i, j in zip(fromjiao, tojiao):
+def repl(data, from_width, to_width):
+    assert len(from_width) == len(to_width)
+    for i, j in zip(from_width, to_width):
         data = data.replace(i, j)
     return data
 
 
 def process(line):
     new_line = line.replace('\n', ' ')
-    puncs = [',', '.', ';', ':', '"', "'", '?', '!']
     p1 = [',', '.', ';', ':', '?', '!']
-    p2 = ["'"]
-    p3 = []
     for _ in range(5):
         for p in p1:
             new_line = new_line.replace(' ' + p + ' ', p)
@@ -50,10 +47,17 @@ def process(line):
 
 
 def en_cleaning(data):
-    d = repl(data, quanjiao2b, banjiao)
+    d = repl(data, full_width2b, half_width)
     d = process(d)
     new_d = d.replace('  ', ' ')
     while new_d != d:
         d = new_d
         new_d = d.replace('  ', ' ')
     return new_d
+
+
+def zh_cleaning(data):
+    d = repl(data, half_width2q, full_width)
+    d = d.replace(' ', '')
+    d = d.replace('\n', '')
+    return d
