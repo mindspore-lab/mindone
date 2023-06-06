@@ -11,6 +11,7 @@ class SequenceClassificationPipeline():
         model_name='bert_base',
         config_path='config.json',
         tokenizer_path='tokenizer.json',
+        amp_level='O1',
     ):
         super().__init__()
         with open(config_path, 'r') as file:
@@ -21,19 +22,23 @@ class SequenceClassificationPipeline():
             from mindnlp.models.bert import BertConfig
             from mindnlp.transforms import BertTokenizer
             from mindnlp.models import BertForSequenceClassification
+            from mindnlp._legacy.amp import auto_mixed_precision
             pad_token_id = config.get('pad_token_id', 0)
             self.config = BertConfig(**config)
             self.tokenizer = BertTokenizer(tokenizer_path)
             self.backbone = BertForSequenceClassification(self.config)
+            self.backbone = auto_mixed_precision(self.backbone, amp_level)
             self.clean = zh_cleaning
         elif model_name == 'roberta_base':
             from mindnlp.models.roberta import RobertaConfig
             from mindnlp.transforms import RobertaTokenizer
             from mindnlp.models import RobertaForSequenceClassification
+            from mindnlp._legacy.amp import auto_mixed_precision
             pad_token_id = config.get('pad_token_id', 1)
             self.config = RobertaConfig(**config)
             self.tokenizer = RobertaTokenizer(tokenizer_path)
             self.backbone = RobertaForSequenceClassification(self.config)
+            self.backbone = auto_mixed_precision(self.backbone, amp_level)
             self.clean = en_cleaning
         self.tokenizer._pad_token = pad_token_id
 
@@ -41,10 +46,10 @@ class SequenceClassificationPipeline():
 
     def load_from_pretrained(self, ckpt_path: str):
         if os.path.exists(ckpt_path):
-            ms.load_checkpoint(ckpt_path, self.backbone, strict_load=True)
+            ms.load_checkpoint(ckpt_path, self.backbone, strict_load=False)
 
     def tokenize_truncate_pad(self, text: str):
-        tokens = self.tokenizer.encode(text).ids
+        tokens = self.tokenizer(text).tolist()
         output_length = min(len(tokens), self.max_sequence_length)
         start = 0 if len(tokens) <= output_length else self.rng(0, len(tokens) - output_length + 1)
         end = start + output_length
