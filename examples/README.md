@@ -1,2 +1,1 @@
-# examples
-#### Here we provide example usage of this repo. Stay tuned!
+Here we provide example applications of MindONE. Stay tuned!
