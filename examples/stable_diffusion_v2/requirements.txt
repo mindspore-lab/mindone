@@ -1,0 +1,10 @@
+opencv-python
+omegaconf
+einops
+ftfy
+regex
+albumentations
+pandas
+imagesize
+toolz
+pillow
