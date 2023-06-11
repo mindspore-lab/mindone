@@ -12,4 +12,4 @@ ONE is short for "ONE for all" and "Optimal generators with No Exception" (credi
 
 ## Awesome List
 
-- [Awesome Large Vision and Fundation Models](awesome_vision.md)
+- [Awesome Large Vision and Foundation Models](awesome_vision.md)
