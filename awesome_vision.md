@@ -1,4 +1,4 @@
-# Awesome Large Vision Models and Fundation Models
+# Awesome Large Vision Models and Foundation Models
 
 This page keeps tracking awesome large vision models (LVM) and their dependent foundation models (FM). 
 
