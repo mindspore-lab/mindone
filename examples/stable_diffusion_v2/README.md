@@ -1,11 +1,11 @@
 # Stable Diffusion
 
-This folder contains Stable Diffusion models implemented with MindSpore. It targets at a full support for inference, finetuning, and training from scratch.  New checkoints and features will be continusoulsy updated.
+This folder contains Stable Diffusion models implemented with MindSpore. It targets full support for inference, finetuning, and training from scratch. New checkpoints and features will be continuously updated
 
 ## Features
-- [x] SD1.4 inference, support Chinese prompt. Though runable with English prompt, the generation quality is much worse than CN prompts.
-- [x] SD1.4 finetune, support Chinese image-text pair data. 
-- [x] SD2.0 inference, support Enlgish prompt. It does not support Chinese prompt.
+- [x] SD1.4 inference, support Chinese prompt. Though runnable with English prompts, the generation quality is much worse than CN prompts.
+- [x] SD1.4 finetune, support Chinese image-text pair data.
+- [x] SD2.0 inference, support English prompt. It does not support Chinese prompts.
 - [x] SD2.0 finetune, support English image-text par data.
 
 ## Quick Start
@@ -44,7 +44,7 @@ data_path
 └── img_txt.csv
 ```
 
-img_txt.csv is the annotation file in the follow format
+img_txt.csv is the annotation file in the following format
 ```text
 dir,text
 img1.jpg,a cartoon character with a potted plant on his head
@@ -64,9 +64,9 @@ python text_to_image.py --prompt "A wolf in winter"
 
 For more argument usages, please run `python text_to_image.py -h`.
 
-### Vanilla Fintuning
+### Vanilla Finetuning
 
-Vanilla fintuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are freezed.  
+Vanilla finetuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are frozen.  
 
 ```shell
 sh scripts/run_train_v2.sh
@@ -76,7 +76,7 @@ Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want
 
 ### LoRA Finetuning
 
-LoRA finetuning has lower memory requirement and allows finetuning on images higher-resolution such as 768x768.
+LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
 Coming soon.
 
@@ -101,6 +101,11 @@ sh scripts/run_train_v1.sh
 ```
 
 Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
+
+
+## What's New
+
+- 2023.06.12  Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in configs/your_train.yaml  
 
 
 ## TODO
