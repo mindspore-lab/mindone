@@ -157,6 +157,7 @@ class AttnBlock(nn.Cell):
         super().__init__()
         self.in_channels = in_channels
         self.dtype = dtype
+        self.bmm = P.BatchMatMul()
         self.norm = Normalize(in_channels)
         self.q = nn.Conv2d(in_channels,
                            in_channels,
@@ -195,14 +196,14 @@ class AttnBlock(nn.Cell):
         q = P.reshape(q, (b, c, h*w))
         q = P.transpose(q, (0, 2, 1)) # b,hw,c
         k = P.reshape(k, (b, c, h*w)) # b,c,hw
-        w_ = P.bmm(q,k)     # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
+        w_ = self.bmm(q,k)     # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
         w_ = w_ * (int(c)**(-0.5))
         w_ = P.Softmax(axis=2)(w_)
 
         # attend to values
         v = P.reshape(v, (b, c, h*w))
         w_ = P.transpose(w_, (0, 2, 1))   # b,hw,hw (first hw of k, second of q)
-        h_ = P.bmm(v, w_)     # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
+        h_ = self.bmm(v, w_)     # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
         h_ = P.reshape(h_, (b, c, h, w))
 
         h_ = self.proj_out(h_)
