@@ -14,7 +14,7 @@
 # ============================================================================
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as P
+from mindspore import ops
 
 from ldm.modules.diffusionmodules.model import Encoder, Decoder
 from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
@@ -47,9 +47,9 @@ class AutoencoderKL(nn.Cell):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
             
-        self.split = P.Split(axis=1, output_num=2)
-        self.exp = P.Exp()
-        self.stdnormal = P.StandardNormal()
+        self.split = ops.Split(axis=1, output_num=2)
+        self.exp = ops.Exp()
+        self.stdnormal = ops.StandardNormal()
 
     def init_from_ckpt(self, path, ignore_keys=list()):
         sd = ms.load_checkpoint(path)["state_dict"]
@@ -71,7 +71,7 @@ class AutoencoderKL(nn.Cell):
         h = self.encoder(x)
         moments = self.quant_conv(h)
         mean, logvar = self.split(moments)
-        logvar = P.clip_by_value(logvar, -30.0, 20.0)
+        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
         x = mean + std * self.stdnormal(mean.shape)
         return x
