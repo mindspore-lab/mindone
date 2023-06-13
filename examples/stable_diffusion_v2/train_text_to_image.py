@@ -22,7 +22,7 @@ from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.callback import OverflowMonitor
 from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.models.clip_zh.simple_tokenizer import WordpieceTokenizer, get_tokenizer
+from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.cell_wrapper import ParallelTrainOneStepWithLossScaleCell
 

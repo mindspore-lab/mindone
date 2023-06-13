@@ -64,6 +64,6 @@ model:
           attn_resolutions: []
 
     cond_stage_config:
-      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder_ZH
+      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
         use_fp16: True

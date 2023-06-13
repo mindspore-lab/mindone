@@ -17,7 +17,7 @@ Utils function for the parallel training.
 This is an experimental interface that is subject to change and/or deletion.
 """
 
-from mindspore.ops import operations as P
+from mindspore import ops
 import mindspore.common.dtype as mstype
 from mindspore.common.tensor import Tensor
 from mindspore.nn.learning_rate_schedule import LearningRateSchedule, PolynomialDecayLR, WarmUpLR, CosineDecayLR
@@ -44,9 +44,9 @@ class LearningRate(LearningRateSchedule):
         self.decay_lr = PolynomialDecayLR(start_learning_rate, end_learning_rate, decay_steps, power)
         self.cosine_decay_lr = CosineDecayLR(end_learning_rate, start_learning_rate, decay_steps)
         self.warmup_steps = Tensor(np.array([warmup_steps]).astype(np.float32))
-        self.greater = P.Greater()
+        self.greater = ops.Greater()
         self.one = Tensor(np.array([1.0]).astype(np.float32))
-        self.cast = P.Cast()
+        self.cast = ops.Cast()
         self.use_cosine = use_cosine
 
     def construct(self, global_step):

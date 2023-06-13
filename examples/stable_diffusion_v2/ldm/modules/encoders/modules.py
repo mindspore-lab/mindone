@@ -17,15 +17,15 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-from ldm.models.clip_zh.simple_tokenizer import WordpieceTokenizer, BpeTokenizer, get_tokenizer
+from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, BpeTokenizer, get_tokenizer
 from .text_encoder import TextEncoder
 
 
 SD_VERSION = os.getenv('SD_VERSION', default='2.0')
 
-class FrozenCLIPEmbedder_ZH(nn.Cell):
+class FrozenCLIPEmbedder(nn.Cell):
     def __init__(self, max_length=77, use_fp16=False):
-        super(FrozenCLIPEmbedder_ZH, self).__init__()
+        super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.max_length = max_length
 
@@ -34,7 +34,9 @@ class FrozenCLIPEmbedder_ZH(nn.Cell):
         if SD_VERSION.startswith('1.'):
             self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=768, width=768, layers=12, heads=12, dtype=self.dtype)
         else:
+            # TODO: in original implementation, layers=24. But it seems the weights in the last layer are not converted yet and leads to worse generalization result.
             self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=23, heads=16, dtype=self.dtype)
+            #self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=24, heads=16, dtype=self.dtype)
 
 
     def tokenize(self, texts):
