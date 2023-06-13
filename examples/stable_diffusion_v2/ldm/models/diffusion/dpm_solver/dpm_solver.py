@@ -237,7 +237,7 @@ def model_wrapper(
     ===============================================================
     Args:
         model: A diffusion model with the corresponding format described above.
-        noise_schedule: A noise schedule object, such as NoiseScheduleVops.
+        noise_schedule: A noise schedule object, such as NoiseScheduleVP.
         model_type: A `str`. The parameterization type of the diffusion model.
                     "noise" or "x_start" or "v" or "score".
         model_kwargs: A `dict`. A dict for the other inputs of the model function.
@@ -351,7 +351,7 @@ class DPM_Solver:
                 def model_fn(x, t_continuous):
                     return noise
                 ``
-            noise_schedule: A noise schedule object, such as NoiseScheduleVops.
+            noise_schedule: A noise schedule object, such as NoiseScheduleVP.
             predict_x0: A `bool`. If true, use the data prediction model; else, use the noise prediction model.
             thresholding: A `bool`. Valid when `predict_x0` is True. Whether to use the "dynamic thresholding" in [1].
             max_val: A `float`. Valid when both `predict_x0` and `thresholding` are True. The max value for thresholding.
