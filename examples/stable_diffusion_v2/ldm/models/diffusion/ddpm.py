@@ -28,7 +28,11 @@ def disabled_train(self, mode=True):
     return self
 
 class DDPM(nn.Cell):
-    # classic DDPM with Gaussian diffusion, in image space
+    """
+    Classic DDPM with Gaussian diffusion, in image space
+
+    parameterization: option: eps - epsilon (predicting the noise of the diffusion process) , x0 - orginal (latent) image (directly predicting the noisy sample), velocity - velocity of z  (see section 2.4 https://imagen.research.google/video/paper.pdf). 
+    """
     def __init__(self,
                  unet_config,
                  timesteps=1000,
@@ -60,7 +64,7 @@ class DDPM(nn.Cell):
                  use_fp16=False,
                  ):
         super().__init__()
-        assert parameterization in ["eps", "x0"], 'currently only supporting "eps" and "x0"'
+        assert parameterization in ["eps", "x0", "velocity"], 'currently only supporting "eps", "velocity" and "x0"'
         self.parameterization = parameterization
         print(f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode")
         self.cond_stage_model = None
@@ -78,6 +82,8 @@ class DDPM(nn.Cell):
 
         self.v_posterior = v_posterior
         self.original_elbo_weight = original_elbo_weight
+        assert original_elbo_weight==0., "Variational lower bound loss has been removed." 
+        
         self.l_simple_weight = l_simple_weight
 
         if monitor is not None:
@@ -139,15 +145,25 @@ class DDPM(nn.Cell):
         self.posterior_mean_coef2 = to_mindspore(
             (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod))
 
-        if self.parameterization == "eps":
-            lvlb_weights = self.betas ** 2 / (
-                        2 * self.posterior_variance * to_mindspore(alphas) * (1 - self.alphas_cumprod))
-        elif self.parameterization == "x0":
-            lvlb_weights = 0.5 * msnp.sqrt(Tensor(alphas_cumprod)) / (2. * 1 - Tensor(alphas_cumprod))
-        else:
-            raise NotImplementedError("mu not supported")
-        lvlb_weights[0] = lvlb_weights[1]
-        self.lvlb_weights = to_mindspore(lvlb_weights)
+        #if self.parameterization == "eps":
+        #    lvlb_weights = self.betas ** 2 / (
+        #                2 * self.posterior_variance * to_mindspore(alphas) * (1 - self.alphas_cumprod))
+        #elif self.parameterization == "x0":
+        #    lvlb_weights = 0.5 * msnp.sqrt(Tensor(alphas_cumprod)) / (2. * 1 - Tensor(alphas_cumprod))
+        #elif self.parameterization == "velocity":
+        #    # TODO: confirm
+        #    lvlb_weights = self.betas ** 2 / (
+        #                2 * self.posterior_variance * to_mindspore(alphas) * (1 - self.alphas_cumprod))
+        #else:
+        #    raise NotImplementedError("mu not supported")
+        #lvlb_weights[0] = lvlb_weights[1]
+        #self.lvlb_weights = to_mindspore(lvlb_weights)
+
+    def get_velocity(self, sample, noise, t): 
+        # TODO: how t affects noise mean and variance here. all variance fixed?
+        v = (extract_into_tensor(self.sqrt_alphas_cumprod, t, sample.shape) * noise -
+                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, sample.shape) * sample)
+        return v
 
     @contextmanager
     def ema_scope(self, context=None):
@@ -310,6 +326,9 @@ class LatentDiffusion(DDPM):
             target = x_start
         elif self.parameterization == "eps":
             target = noise
+        elif self.parameterization == "velocity":
+            #target = sqrt_alpha_cum * noise - sqrt_one_minus_alpha_prod * x_start
+            target =self.get_velocity(x_start, noise, t) # TODO: parse train step from randint
         else:
             raise NotImplementedError()
 
@@ -318,10 +337,11 @@ class LatentDiffusion(DDPM):
         logvar_t = self.logvar[t]
         loss = loss_simple / ops.exp(logvar_t) + logvar_t
         loss = self.l_simple_weight * loss.mean()
-
-        loss_vlb = self.get_loss(model_output, target, mean=False).mean((1, 2, 3))
-        loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
-        loss += (self.original_elbo_weight * loss_vlb)
+        
+        # NOTE: original_elbo_weight is never set larger than 0. Diffuser remove it too. Let's remove it to save mem.
+        #loss_vlb = self.get_loss(model_output, target, mean=False).mean((1, 2, 3))
+        #loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
+        #loss += (self.original_elbo_weight * loss_vlb)
         
         return loss
 
@@ -492,6 +512,9 @@ class LatentDiffusionDB(DDPM):
             target = x_start
         elif self.parameterization == "eps":
             target = noise
+        elif self.parameterization == "velocity":
+            #target = sqrt_alpha_cum * noise - sqrt_one_minus_alpha_prod * x_start
+            target =self.get_velocity(x_start, noise, t) # TODO: parse train step from randint
         else:
             raise NotImplementedError()
 
@@ -501,9 +524,9 @@ class LatentDiffusionDB(DDPM):
         loss = loss_simple / ops.exp(logvar_t) + logvar_t
         loss = self.l_simple_weight * loss.mean()
 
-        loss_vlb = self.get_loss(model_output, target, mean=False).mean((1, 2, 3))
-        loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
-        loss += (self.original_elbo_weight * loss_vlb)
+        #loss_vlb = self.get_loss(model_output, target, mean=False).mean((1, 2, 3))
+        #loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
+        #loss += (self.original_elbo_weight * loss_vlb)
         
         return loss
 
