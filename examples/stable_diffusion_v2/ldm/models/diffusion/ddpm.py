@@ -270,6 +270,8 @@ class LatentDiffusion(DDPM):
         if not self.cond_stage_trainable:
             model = instantiate_from_config(config)
             self.cond_stage_model = model
+            for param in self.cond_stage_model.get_parameters():
+                param.requires_grad = False
         else:
             assert config != '__is_first_stage__'
             assert config != '__is_unconditional__'

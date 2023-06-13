@@ -29,6 +29,7 @@ data_path=/home/yx/datasets/diffusion/pokemon
 pretrained_model_path=models/
 pretrained_model_file=stablediffusionv2_512.ckpt
 train_config_file=configs/train_config_v2.json
+image_size=512 # v2-base 512, v2.1 768
 
 rm -rf ${output_path:?}/${task_name:?}
 mkdir -p ${output_path:?}/${task_name:?}
@@ -41,4 +42,5 @@ python train_text_to_image.py \
     --use_parallel=False \
     --pretrained_model_path=$pretrained_model_path \
     --pretrained_model_file=$pretrained_model_file \
+    --image_size=$image_size \
 #    > $output_path/$task_name/log_train_v2 2>&1 &

@@ -22,17 +22,20 @@ from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.callback import OverflowMonitor
 from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.models.clip_zh.simple_tokenizer import WordpieceTokenizer
+from ldm.models.clip_zh.simple_tokenizer import WordpieceTokenizer, get_tokenizer
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.cell_wrapper import ParallelTrainOneStepWithLossScaleCell
 
 
 os.environ['HCCL_CONNECT_TIMEOUT'] = '6000'
+SD_VERSION = os.getenv('SD_VERSION', default='2.0') # TODO: parse via arg
 
 
 def init_env(opts):
     """ init_env """
     set_random_seed(opts.seed)
+
+    ms.set_context(mode=context.GRAPH_MODE) # needed for MS2.0
     if opts.use_parallel:
         init()
         device_id = int(os.getenv('DEVICE_ID'))
@@ -45,6 +48,7 @@ def init_env(opts):
         context.reset_auto_parallel_context()
         context.set_auto_parallel_context(
             parallel_mode=context.ParallelMode.DATA_PARALLEL,
+            #parallel_mode=context.ParallelMode.AUTO_PARALLEL,
             gradients_mean=True,
             device_num=device_num)
     else:
@@ -56,11 +60,13 @@ def init_env(opts):
     context.set_context(mode=context.GRAPH_MODE,
                         device_target="Ascend",
                         device_id=device_id,
-                        max_device_memory="30GB",
+                        max_device_memory="30GB", #TODO: why limit? 
                         )
 
     """ create dataset"""
-    tokenizer = WordpieceTokenizer()
+    #tokenizer = WordpieceTokenizer()
+    tokenizer = get_tokenizer(SD_VERSION)
+
     dataset = load_data(
                 data_path=opts.data_path,
                 batch_size=opts.train_batch_size,
@@ -73,7 +79,7 @@ def init_env(opts):
                 filter_small_size = opts.filter_small_size,
                 sample_num=-1
                 )
-    print(f"rank id {rank_id}, sample num is {dataset.get_dataset_size()}")
+    print(f"rank id {rank_id}, batch_size: {opts.train_batch_size}, batch num {dataset.get_dataset_size()}")
 
     return dataset, rank_id, device_id, device_num
 
@@ -152,6 +158,7 @@ def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
 def main(opts):
     dataset, rank_id, device_id, device_num = init_env(opts)
     LatentDiffusionWithLoss = instantiate_from_config(opts.model_config)
+    #print('Arch: ', LatentDiffusionWithLoss)
     pretrained_ckpt = os.path.join(opts.pretrained_model_path, opts.pretrained_model_file)
     load_pretrained_model(pretrained_ckpt, LatentDiffusionWithLoss)
 
@@ -186,7 +193,7 @@ def main(opts):
         config_ck = CheckpointConfig(save_checkpoint_steps=opts.save_checkpoint_steps,
                                      keep_checkpoint_max=10,
                                      integrated_save=False)
-        ckpoint_cb = ModelCheckpoint(prefix="wkhh_txt2img",
+        ckpoint_cb = ModelCheckpoint(prefix=f"sd",
                                      directory=ckpt_dir,
                                      config=config_ck)
         callback.append(ckpoint_cb)

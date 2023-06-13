@@ -17,7 +17,7 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-from ldm.models.clip_zh.simple_tokenizer import WordpieceTokenizer, BpeTokenizer
+from ldm.models.clip_zh.simple_tokenizer import WordpieceTokenizer, BpeTokenizer, get_tokenizer
 from .text_encoder import TextEncoder
 
 
@@ -28,13 +28,8 @@ class FrozenCLIPEmbedder_ZH(nn.Cell):
         super(FrozenCLIPEmbedder_ZH, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.max_length = max_length
-        lang = 'zh' if SD_VERSION.startswith('1.') else 'en' # TODO: use lang arg. currently 1.x supports zh, ad 2.x support en
-        if lang == 'zh':
-            self.tokenizer = WordpieceTokenizer() # for zh
-            print(f'Using tokenizer `WordPieceTokenizer` for {lang}.')
-        else:
-            self.tokenizer = BpeTokenizer() 
-            print(f'Using tokenizer `BpeTokenizer` for {lang}.')
+
+        self.tokenizer = get_tokenizer(SD_VERSION) # TODO: reuse the instantiated tokenized used in load dataset 
 
         if SD_VERSION.startswith('1.'):
             self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=768, width=768, layers=12, heads=12, dtype=self.dtype)
