@@ -10,7 +10,7 @@ def freeze_delta(model: nn.Cell, mode: str,
     目前已实现lora和prefixtuning两种微调算法的冻结模式。
 
     :param model: 需要冻结的模型实例，必填。
-    :param mode: 微调算法类型，必填。可选填'lora'或'prefixtuning'。
+    :param mode: 微调算法类型，必填。目前只接受‘lora'。
     :param include: 需要冻结的模块名列表， 选填。
                     模糊匹配列表中所有模块名，挨个将匹配到的模块的requires_grad设置为False。
                     列表项支持配置符号*，代表任意字符串，格式如 ['*', '*dense*'，'*.dense.*', '*.dense.*.bias']
@@ -27,7 +27,7 @@ def freeze_delta(model: nn.Cell, mode: str,
     if isinstance(mode, str) and mode.lower() == 'lora':
         _freeze_for_mode(model, mode)
     else:
-        raise ValueError(f"An argument of string type from {DELTA_LIST} is required.")
+        raise ValueError(f"An argument of string type 'lora' is required.")
 
     if include or exclude:
         try:

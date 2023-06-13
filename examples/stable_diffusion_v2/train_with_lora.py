@@ -134,8 +134,9 @@ def load_pretrained_model(pretrained_ckpt, net):
     print(f"start loading pretrained_ckpt {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
-        param_not_load = load_param_into_net(net, param_dict)
-        print("param not load:", param_not_load)
+        load_param_into_net(net, param_dict)
+        # param_not_load = load_param_into_net(net, param_dict)
+        # print("param not load:", param_not_load)
     else:
         print("ckpt file not exist!")
 
@@ -163,17 +164,48 @@ def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
 def main(opts):
     dataset, rank_id, device_id, device_num = init_env(opts)
     LatentDiffusionWithLoss = instantiate_from_config(opts.model_config)
-    #print('Arch: ', LatentDiffusionWithLoss)
     pretrained_ckpt = os.path.join(opts.pretrained_model_path, opts.pretrained_model_file)
     load_pretrained_model(pretrained_ckpt, LatentDiffusionWithLoss)
     # lora part ;>
     freeze_delta(model=LatentDiffusionWithLoss, mode='lora')
+    # print('Arch: ', LatentDiffusionWithLoss)
+    print("# of Trainable params",len(LatentDiffusionWithLoss.trainable_params()))
+
 
     if not opts.decay_steps:
         dataset_size = dataset.get_dataset_size()
         opts.decay_steps = opts.epochs * dataset_size
     lr = LearningRate(opts.start_learning_rate, opts.end_learning_rate, opts.warmup_steps, opts.decay_steps)
-    optimizer = build_optimizer(LatentDiffusionWithLoss, opts, lr)
+    
+    # rewrite build optimizer ;>
+    # optimizer = build_optimizer(LatentDiffusionWithLoss, opts, lr)
+    from mindspore.nn.optim.adam import Adam, AdamWeightDecay
+    # TODO: need to check the decay filter rule
+    decay_filter = lambda x: 'attn1' not in x.name.lower() and "lora_a" not in x.name.lower()
+    param_optimizer = LatentDiffusionWithLoss.trainable_params()
+    decay_params = list(filter(decay_filter, param_optimizer))
+    other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
+    group_params = [{
+        'params': decay_params,
+        'weight_decay': 1e-6
+    }, {
+        'params': other_params,
+        'weight_decay': 0.0
+    }, {
+        'order_params': param_optimizer
+    }]
+    if opts.optim == 'adam':
+        OptimCls = Adam
+    elif opts.optim == 'adamw':
+        OptimCls = AdamWeightDecay
+    else:
+        raise ValueError('invalid optimizer')
+    group_params = [{
+        'order_params': LatentDiffusionWithLoss.trainable_params()
+    }]
+    optimizer = OptimCls(group_params,
+                         learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1])
+
     update_cell = DynamicLossScaleUpdateCell(loss_scale_value=opts.init_loss_scale,
                                              scale_factor=opts.loss_scale_factor,
                                              scale_window=opts.scale_window)
