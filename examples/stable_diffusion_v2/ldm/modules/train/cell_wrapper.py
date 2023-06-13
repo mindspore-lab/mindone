@@ -16,7 +16,7 @@
 Cell Wrapper For the Parallel Training.
 This is an experimental interface that is subject to change and/or deletion.
 """
-from mindspore.ops import operations as P
+from mindspore import ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.nn.wrap.loss_scale import TrainOneStepWithLossScaleCell, shard_grad_scale, grad_scale
@@ -31,7 +31,7 @@ __all__ = [
 
 _grad_scale = C.MultitypeFuncGraph("_grad_scale")
 _shard_grad_scale = C.MultitypeFuncGraph("_shard_grad_scale")
-_reciprocal = P.Reciprocal()
+_reciprocal = ops.Reciprocal()
 
 
 @_grad_scale.register("Tensor", "Tensor")
@@ -87,7 +87,7 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
         ...         super(Net, self).__init__()
         ...         self.weight = Parameter(Tensor(np.ones([in_feature, out_feature]).astype(np.float32)),
         ...                                 name='weight')
-        ...         self.matmul = P.MatMul()
+        ...         self.matmul = ops.MatMul()
         ...
         ...     def construct(self, x):
         ...         output = self.matmul(x, self.weight)
@@ -149,11 +149,11 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
             self.micro_size = parallel_config.micro_size
             self.opt_shard = _get_enable_parallel_optimizer()
             self.degree = 1
-            self.cast = P.Cast()
-            self.alloc_status = P.NPUAllocFloatStatus()
-            self.get_status = P.NPUGetFloatStatus()
-            self.clear_before_grad = P.NPUClearFloatStatus()
-            self.reshape = P.Reshape()
+            self.cast = ops.Cast()
+            self.alloc_status = ops.NPUAllocFloatStatus()
+            self.get_status = ops.NPUGetFloatStatus()
+            self.clear_before_grad = ops.NPUClearFloatStatus()
+            self.reshape = ops.Reshape()
 
     def construct(self, *args):
 

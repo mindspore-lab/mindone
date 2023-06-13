@@ -19,7 +19,7 @@ This is an experimental interface that is subject to change and/or deletion.
 
 from multiprocessing import Process
 import mindspore.nn as nn
-from mindspore.ops import operations as P
+from mindspore import ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 import mindspore.common.dtype as mstype
@@ -37,7 +37,7 @@ _get_square_sum = C.MultitypeFuncGraph("_get_square_sum")
 
 @_get_square_sum.register("Tensor", "Number")
 def _get_square_sum_func(grad, value):
-    norm = P.ReduceSum(False)(F.square(grad), ()) / value
+    norm = ops.ReduceSum(False)(F.square(grad), ()) / value
     norm = F.expand_dims(F.cast(norm, mstype.float32), 0)
     return norm
 
@@ -102,10 +102,10 @@ class _GlobalNorm(nn.Cell):
             group_size = config.mp
             group_list, group_name = _get_model_parallel_group(config.mp)
             create_group(group_name, group_list)
-            self.allreduce = P.AllReduce(group=group_name)
+            self.allreduce = ops.AllReduce(group=group_name)
             pipeline_group_list, pipeline_group_name = _get_pipeline_group()
             create_group(pipeline_group_name, pipeline_group_list)
-            self.allreduce2 = P.AllReduce(group=pipeline_group_name)
+            self.allreduce2 = ops.AllReduce(group=pipeline_group_name)
         else:
             group_size = get_group_size()
         if config.vocab_emb_dp:
@@ -155,7 +155,7 @@ class _GlobalNorm(nn.Cell):
             global_square_reduce_sum = self.allreduce2(stage_square_reduce_sum)
             global_norms = F.sqrt(global_square_reduce_sum)
         else:
-            global_norms = F.sqrt(P.AllReduce()(square_reduce_sum))
+            global_norms = F.sqrt(ops.AllReduce()(square_reduce_sum))
         return global_norms
 
 
@@ -175,7 +175,7 @@ class _ClipByGlobalNorm(nn.Cell):
     def construct(self, grads):
         """Clip grads by global norm construct"""
         global_norm_value = self.global_norm(grads)
-        cond = P.GreaterEqual()(global_norm_value, self.clip_norm)
+        cond = ops.GreaterEqual()(global_norm_value, self.clip_norm)
         global_norm = F.select(cond, global_norm_value, self.clip_norm)
         grads = self.hyper_map(F.partial(_apply_global_norm, self.clip_norm, global_norm), grads)
         return grads
@@ -201,9 +201,9 @@ class LearningRate(LearningRateSchedule):
         self.decay_lr = PolynomialDecayLR(start_learning_rate, end_learning_rate, decay_steps, power)
         self.cosine_decay_lr = CosineDecayLR(end_learning_rate, start_learning_rate, decay_steps)
         self.warmup_steps = Tensor(np.array([warmup_steps]).astype(np.float32))
-        self.greater = P.Greater()
+        self.greater = ops.Greater()
         self.one = Tensor(np.array([1.0]).astype(np.float32))
-        self.cast = P.Cast()
+        self.cast = ops.Cast()
         self.use_cosine = use_cosine
 
     def construct(self, global_step):

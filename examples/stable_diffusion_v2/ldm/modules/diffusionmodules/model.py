@@ -16,12 +16,12 @@ from packaging import version
 import numpy as np
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as P
+from mindspore import ops
 
 
 def nonlinearity(x):
     # swish
-    return x * P.Sigmoid()(x)
+    return x * ops.Sigmoid()(x)
 
 
 def Normalize(in_channels, num_groups=32):
@@ -46,7 +46,7 @@ class Upsample(nn.Cell):
     def construct(self, x):
         in_shape = x.shape[-2:]
         out_shape = tuple(2 * x for x in in_shape)
-        x = P.ResizeNearestNeighbor(out_shape)(x)
+        x = ops.ResizeNearestNeighbor(out_shape)(x)
         
         if self.with_conv:
             x = self.conv(x)
@@ -74,7 +74,7 @@ class Downsample(nn.Cell):
             x = nn.Pad(paddings=pad)(x)
             x = self.conv(x)
         else:
-            x = P.AvgPool(kernel_size=2, stride=2)(x)
+            x = ops.AvgPool(kernel_size=2, stride=2)(x)
         return x
 
 
@@ -157,7 +157,7 @@ class AttnBlock(nn.Cell):
         super().__init__()
         self.in_channels = in_channels
         self.dtype = dtype
-        self.bmm = P.BatchMatMul()
+        self.bmm = ops.BatchMatMul()
         self.norm = Normalize(in_channels)
         self.q = nn.Conv2d(in_channels,
                            in_channels,
@@ -193,18 +193,19 @@ class AttnBlock(nn.Cell):
 
         # compute attention
         b,c,h,w = q.shape
-        q = P.reshape(q, (b, c, h*w))
-        q = P.transpose(q, (0, 2, 1)) # b,hw,c
-        k = P.reshape(k, (b, c, h*w)) # b,c,hw
+        q = ops.reshape(q, (b, c, h*w))
+        q = ops.transpose(q, (0, 2, 1)) # b,hw,c
+        k = ops.reshape(k, (b, c, h*w)) # b,c,hw
         w_ = self.bmm(q,k)     # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
+
         w_ = w_ * (int(c)**(-0.5))
-        w_ = P.Softmax(axis=2)(w_)
+        w_ = ops.Softmax(axis=2)(w_)
 
         # attend to values
-        v = P.reshape(v, (b, c, h*w))
-        w_ = P.transpose(w_, (0, 2, 1))   # b,hw,hw (first hw of k, second of q)
+        v = ops.reshape(v, (b, c, h*w))
+        w_ = ops.transpose(w_, (0, 2, 1))   # b,hw,hw (first hw of k, second of q)
         h_ = self.bmm(v, w_)     # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
-        h_ = P.reshape(h_, (b, c, h, w))
+        h_ = ops.reshape(h_, (b, c, h, w))
 
         h_ = self.proj_out(h_)
 
@@ -436,5 +437,5 @@ class Decoder(nn.Cell):
         h = nonlinearity(h)
         h = self.conv_out(h)
         if self.tanh_out:
-            h = P.tanh(h)
+            h = ops.tanh(h)
         return h

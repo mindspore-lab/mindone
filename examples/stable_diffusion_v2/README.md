@@ -15,7 +15,7 @@ Please refer to [demo](demo.md) for a quick tour.
 
 ### Environment and Dependency
 
-**Device:** Ascend 901
+**Device:** Ascend 910
 
 **Framework:** ms1.9, ms2.0rc1 (tested)
 

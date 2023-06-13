@@ -16,9 +16,8 @@ import os
 import numpy as np
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import ops
 from mindspore import dtype as mstype
-from mindspore.ops import operations as P
 from mindspore import Parameter, Tensor
 from mindspore.common.initializer import TruncatedNormal, initializer
 
@@ -39,7 +38,7 @@ class MultiheadAttention(nn.Cell):
         self.in_proj = nn.Dense(self.embed_dim, 3 * self.embed_dim).to_float(dtype)
         self.out_proj = nn.Dense(self.embed_dim, self.embed_dim).to_float(dtype)
         self.split = ops.Split(-1, 3)
-        self.expand_dims = P.ExpandDims()
+        self.expand_dims = ops.ExpandDims()
         self.softmax = nn.Softmax(-1)
         self.transpose = ops.Transpose()
         self.scaling = self.head_dim ** -0.5
