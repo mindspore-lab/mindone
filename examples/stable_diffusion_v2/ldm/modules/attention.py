@@ -96,7 +96,7 @@ class LinearAttention(nn.Cell):
         self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, has_bias = False, pad_mode="pad")
         self.to_out = nn.Conv2d(hidden_dim, dim, 1, has_bias = True, pad_mode="pad")
 
-
+from lora.lora import LoRADense
 class CrossAttention(nn.Cell):
     def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=1.0, dtype=ms.float32):
         super().__init__()
@@ -109,13 +109,27 @@ class CrossAttention(nn.Cell):
         self.reshape = ops.Reshape()
         self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
-        self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+        # cong edit here, to add lora matrices
+        # self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
+        # self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+        # self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+
+        # self.to_out = nn.SequentialCell(
+        #     nn.Dense(inner_dim, query_dim).to_float(dtype),
+        #     nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1-dropout)
+        #     )
+
+        # replace Dense Layer with LoRADense
+        self.to_q = LoRADense(in_channels=query_dim, out_channels=inner_dim, lora_rank=8, lora_alpha=16, has_bias=False).to_float(dtype)
+        self.to_k = LoRADense(in_channels=context_dim, out_channels=inner_dim, lora_rank=8, lora_alpha=16, has_bias=False).to_float(dtype)
+        self.to_v = LoRADense(in_channels=context_dim, out_channels=inner_dim, lora_rank=8, lora_alpha=16, has_bias=False).to_float(dtype)
+        # if distributed training is required, invoke shard method  
+
         self.to_out = nn.SequentialCell(
-            nn.Dense(inner_dim, query_dim).to_float(dtype),
+            LoRADense(inner_dim, query_dim, lora_rank=8, lora_alpha=16).to_float(dtype),
             nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1-dropout)
             )
+            
 
 
     def construct(self, x, context=None, mask=None):
