@@ -14,8 +14,10 @@ model:
     conditioning_key: crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
-    use_ema: False
+    use_ema: False # TODO: why not True? it should be
     use_fp16: True
+    parameterization: "eps" # default, original ldm
+    #parameterization: "velocity"
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
