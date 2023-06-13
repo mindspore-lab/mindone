@@ -5,6 +5,7 @@ Usage: python python convert_hf_datset.py
 
 The conversion is run serially and is slow now.
 '''
+import os
 from datasets import load_dataset
 import pandas as pd
 from tqdm import tqdm
@@ -44,7 +45,7 @@ def convert_hf_dataset_to_raw(
         texts.append(text)
 
     frame = pd.DataFrame({'dir':img_fns,'text':texts})
-    frame.to_csv(csv_fn,index=False,sep=',')
+    frame.to_csv(os.path.join(save_folder, csv_fn), index=False, sep=',')
 
     print('Completed! Output saved in ', save_folder)
 

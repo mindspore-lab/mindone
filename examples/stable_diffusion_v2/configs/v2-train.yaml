@@ -9,6 +9,7 @@ model:
     timesteps: 1000
     first_stage_key: "image"
     cond_stage_key: "caption"
+    cond_stage_trainable: False # wkhh missed this part
     image_size: 64
     channels: 4
     conditioning_key: crossattn

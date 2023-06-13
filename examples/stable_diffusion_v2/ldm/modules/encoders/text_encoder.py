@@ -67,6 +67,9 @@ class MultiheadAttention(nn.Cell):
         return attn_output
 
 
+# In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to: 
+# https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/blob/main/config.json
+# https://huggingface.co/openai/clip-vit-large-patch14/blob/main/config.json
 if SD_VERSION.startswith('1.'):
     class QuickGELU(nn.Cell):
         def __init__(self):
