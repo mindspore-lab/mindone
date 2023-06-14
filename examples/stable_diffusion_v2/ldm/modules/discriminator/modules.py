@@ -163,8 +163,9 @@ class NLayerDiscriminator(nn.Cell):
             nn.LeakyReLU(0.2)
         ]
 
+        # output 1 channel prediction map
         sequence += [
-            nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, pad_mode='pad', padding=padw).to_float(self.dtype)]  # output 1 channel prediction map
+            nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, pad_mode='pad', padding=padw).to_float(self.dtype)] 
         self.main = nn.SequentialCell(sequence)
         self.cast = ops.Cast()
 

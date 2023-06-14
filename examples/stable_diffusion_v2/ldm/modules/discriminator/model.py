@@ -16,7 +16,7 @@ def kl_diagonal_normal(mean, var, logvar, other_mean=0., other_var=1., other_log
     return 0.5 * ops.reduce_sum(
         ops.pow(mean - other_mean, 2) / other_var
         + var / other_var - 1.0 - logvar + other_logvar,
-        axis=[1, 2, 3])
+        [1, 2, 3])
 
 
 class LPIPSWithDiscriminator(nn.Cell):
@@ -105,8 +105,6 @@ class LPIPSWithDiscriminator(nn.Cell):
         kl_loss = kl_diagonal_normal(mean, var, logvar, other_mean=0., other_var=1., other_logvar=0.)
         # kl_loss = ops.reduce_sum(kl_loss) / kl_loss.shape[0]
         kl_loss = kl_loss.mean()
-        # if global_step <= 1:
-        #     print('recons:', recons, 'p:', p_loss, 'kl:', kl_loss)
 
         # generator update
         if cond is None:

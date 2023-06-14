@@ -86,68 +86,10 @@ def tensor_grad_scale(scale, grad):
 
 
 def calculate_adaptive_weight(nll_grads, g_grads):
-    axis = list(range(len(nll_grads.shape)))
-    d_weight = ops.norm(nll_grads, axis=axis) / (ops.norm(g_grads, axis=axis) + 1e-4)
+    axis = (0, 1, 2, 3) # conv kernel
+    d_weight = ops.norm(nll_grads, axis) / (ops.norm(g_grads, axis) + 1e-4)
     d_weight = (ms.ops.clip_by_value(d_weight, 0.0, 1e4))
     return d_weight
-
-
-class MyTrainOneStepCell2(nn.Cell):
-    def __init__(
-        self,
-        network,
-        optimizer,
-        max_grad_norm=1., 
-        grad_clip=True,
-        is_distributed=False,
-        adapt=False,
-    ):
-        super().__init__()
-        self.grad_clip = grad_clip
-        self.max_grad_norm = max_grad_norm
-        self.optimizer = optimizer
-        self.slr = ops.ScalarSummary()
-        def ff(x, gs, w, G):
-            loss, nll_loss, g_loss = network(x, gs, w, G)
-            loss = self.loss_scale.scale(loss)
-            return loss
-        self.ff = ms.ops.value_and_grad(ff, grad_position=None, has_aux=False, weights=optimizer.parameters)
-
-        self.adapt = adapt
-        w = [network.first_stage_model.get_last_layer()]
-        wpt = ms.ParameterTuple(w)
-        if self.adapt:
-            self.aw2 = ops.grad(Loss_2(network), grad_position=None, weights=wpt, has_aux=False)
-            self.aw3 = ops.grad(Loss_3(network), grad_position=None, weights=wpt, has_aux=False)
-
-        self.grad_reducer = None
-        if is_distributed:
-            mean = ms.context.get_auto_parallel_context('gradients_mean')
-            degree = ms.context.get_auto_parallel_context('device_num')
-            self.grad_reducer = nn.DistributedGradReducer(optimizer.parameters, mean, degree)
-            self.nll_grad_reducer = nn.DistributedGradReducer(wpt, mean, degree)
-
-    def construct(self, x, gs, w, G):
-        if self.adapt:
-            nll_grads = self.aw2(x, gs, 1., True)
-            g_grads = self.aw3(x, gs, 1., True)
-            if self.nll_grad_reducer is not None:
-                nll_grads = self.nll_grad_reducer(nll_grads)
-                g_grads = self.nll_grad_reducer(g_grads)
-            w = calculate_adaptive_weight(nll_grads[0], g_grads[0])
-
-        loss, grads = self.ff(x, gs, w, G)
-        loss = self.loss_scale.unscale(loss)
-        grads = self.loss_scale.unscale(grads)
-
-        if 1 or all_finite(grads):
-            if self.grad_clip:
-                grads = ops.clip_by_global_norm(grads, clip_norm=self.max_grad_norm)
-            if self.grad_reducer is not None:
-                grads = self.grad_reducer(grads)
-            self.optimizer(grads)
-
-        return loss
 
 
 class MyTrainOneStepCell(nn.Cell):
