@@ -75,3 +75,6 @@ class AutoencoderKL(nn.Cell):
         std = self.exp(0.5 * logvar)
         x = mean + std * self.stdnormal(mean.shape)
         return x
+
+    def get_last_layer(self):
+        return self.decoder.conv_out.weight
