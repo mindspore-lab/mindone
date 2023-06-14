@@ -200,9 +200,6 @@ def main(opts):
         OptimCls = AdamWeightDecay
     else:
         raise ValueError('invalid optimizer')
-    group_params = [{
-        'order_params': LatentDiffusionWithLoss.trainable_params()
-    }]
     optimizer = OptimCls(group_params,
                          learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1])
 
@@ -242,7 +239,7 @@ def main(opts):
     
     # save model ;>
     if args.save_lora:
-        model.init_parameters_data()
+        # model.init_parameters_data()
         param_dict = OrderedDict()
         for param in model.trainable_params():
             param_dict[param.name] = param
