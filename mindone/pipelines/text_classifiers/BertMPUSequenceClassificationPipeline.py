@@ -5,7 +5,7 @@ import numpy as np
 import mindspore as ms
 
 
-class SequenceClassificationPipeline():
+class BertMPUSequenceClassificationPipeline():
     def __init__(
         self,
         model_name='bert_base',
