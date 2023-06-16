@@ -30,8 +30,9 @@ def Normalize(in_channels, num_groups=32):
 
 
 class Upsample(nn.Cell):
-    def __init__(self, in_channels, with_conv, dtype=ms.float32):
+    def __init__(self, in_channels, with_conv, dtype=ms.float32, curr_res=None):
         super().__init__()
+        self.curr_res = curr_res
         self.dtype = dtype
         self.with_conv = with_conv
         if self.with_conv:
@@ -44,8 +45,7 @@ class Upsample(nn.Cell):
                                   has_bias=True).to_float(self.dtype)
 
     def construct(self, x):
-        in_shape = x.shape[-2:]
-        out_shape = tuple(2 * x for x in in_shape)
+        out_shape = (self.curr_res * 2, self.curr_res * 2)
         x = ops.ResizeNearestNeighbor(out_shape)(x)
         
         if self.with_conv:
@@ -265,7 +265,8 @@ class Encoder(nn.Cell):
             down = nn.Cell()
             down.block = block
             down.attn = attn
-            down.downsample = downsample
+            if i_level != self.num_resolutions-1:
+                down.downsample = downsample
             curr_res = curr_res // 2
             down.update_parameters_name(prefix=self.param_prefix + f"down.{i_level}.")
             self.down.append(down)
@@ -385,11 +386,12 @@ class Decoder(nn.Cell):
                 block_in = block_out
                 if curr_res in attn_resolutions:
                     attn.append(make_attn(block_in, attn_type=attn_type, dtype=self.dtype))
-            upsample = Upsample(block_in, resamp_with_conv, dtype=self.dtype)
+            upsample = Upsample(block_in, resamp_with_conv, dtype=self.dtype, curr_res=curr_res)
             up = nn.Cell()
             up.block = block
             up.attn = attn
-            up.upsample = upsample
+            if i_level != 0:
+                up.upsample = upsample
             curr_res = curr_res * 2
             up.update_parameters_name(prefix=self.param_prefix + f"up.{i_level}.")
             if len(self.up) != 0:
@@ -427,6 +429,7 @@ class Decoder(nn.Cell):
                 h = self.up[i_level].block[i_block](h, temb)
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h)
+
             if i_level != 0:
                 h = self.up[i_level].upsample(h)
 
