@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from packaging import version
 import mindspore as ms
 from mindspore import ops
 
+
+from ldm.util import is_old_ms_version 
 from ldm.modules.diffusionmodules.util import (
     make_ddim_sampling_parameters,
     make_ddim_timesteps,
@@ -204,7 +205,7 @@ class PLMSSampler():
                     c_in = ops.concat((unconditional_conditioning, c), axis=0)
                     ldm_output = self.model.apply_model(x_in, t_in, c_crossattn=c_in)
 
-                if version.parse(ms.__version__) < version.parse("1.10"): 
+                if is_old_ms_version():
                     e_t_uncond, e_t = ops.split(ldm_output, axis=0, output_num=2)
                 else:
                     e_t_uncond, e_t = ops.split(
