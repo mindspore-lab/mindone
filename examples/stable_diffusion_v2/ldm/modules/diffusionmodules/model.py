@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from packaging import version
 import numpy as np
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import ops
+from ldm.util import is_old_ms_version 
 
 
 def nonlinearity(x):
@@ -101,7 +101,7 @@ class ResnetBlock(nn.Cell):
                                       out_channels,
                                       bias_init='normal').to_float(dtype)
         self.norm2 = Normalize(out_channels)
-        if version.parse(ms.__version__) < version.parse("1.10"): 
+        if is_old_ms_version(): 
             self.dropout = nn.Dropout(1. - dropout)
         else:
             self.dropout = nn.Dropout(p=dropout)

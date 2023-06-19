@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from packaging import version
 import numpy as np
 from inspect import isfunction
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore.common.initializer import initializer
+from ldm.util import is_old_ms_version 
 
 
 def exists(val):
@@ -66,7 +66,7 @@ class FeedForward(nn.Cell):
         ) if not glu else GEGLU(dim, inner_dim, dtype=dtype)
         self.net = nn.SequentialCell(
             project_in,
-            nn.Dropout(dropout) if version.parse(ms.__version__) < version.parse("1.10") else nn.Dropout(p=1-dropout),
+            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1-dropout),
             nn.Dense(inner_dim, dim_out).to_float(dtype)
         )
 
@@ -114,7 +114,7 @@ class CrossAttention(nn.Cell):
         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_out = nn.SequentialCell(
             nn.Dense(inner_dim, query_dim).to_float(dtype),
-            nn.Dropout(dropout) if version.parse(ms.__version__) < version.parse("1.10") else nn.Dropout(p=1-dropout)
+            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1-dropout)
             )
 
 
