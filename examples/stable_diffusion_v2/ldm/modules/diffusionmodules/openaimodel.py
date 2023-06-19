@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from packaging import version
 from abc import abstractmethod
 
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
+from ldm.util import is_old_ms_version 
 from ldm.modules.attention import SpatialTransformer
 from ldm.modules.diffusionmodules.util import (
     conv_nd,
@@ -29,6 +29,7 @@ from ldm.modules.diffusionmodules.util import (
     normalization,
     timestep_embedding
 )
+
         
 
 class Upsample(nn.Cell):
@@ -160,7 +161,7 @@ class ResBlock(nn.Cell):
         self.out_layers_norm = normalization(self.out_channels)
         self.out_layers_silu = nn.SiLU().to_float(self.dtype)
         
-        if version.parse(ms.__version__) < version.parse("1.10"): 
+        if is_old_ms_version(): 
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
         else:
             self.out_layers_drop = nn.Dropout(p=1.0-self.dropout)
