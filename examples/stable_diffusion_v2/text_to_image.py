@@ -46,8 +46,9 @@ def load_model_from_config(config, ckpt, verbose=False):
     if os.path.exists(ckpt):
         param_dict = ms.load_checkpoint(ckpt)
         if param_dict:
-            param_not_load = ms.load_param_into_net(model, param_dict)
-            print("param not load:", param_not_load)
+            param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
+            print("param not load:", [p for p in param_not_load if not p.startswith('adam')])
+            print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
     else:
         print(f"!!!Warning!!!: {ckpt} doesn't exist")
 
@@ -207,6 +208,39 @@ def main():
 
     work_dir = os.path.dirname(os.path.abspath(__file__))
     print(f"WORK DIR:{work_dir}")
+
+    os.makedirs(opt.output_path, exist_ok=True)
+    outpath = opt.output_path
+    
+    #print("opt.data_path", opt.data_path)
+    batch_size = opt.n_samples
+    if not opt.data_path:
+        prompt = opt.prompt
+        assert prompt is not None
+        data = [batch_size * [prompt]]
+        print("Prompt to generate: ", prompt)
+    else:
+        print(f"Reading prompts from {opt.data_path}")
+        with open(opt.data_path, "r") as f:
+            prompts = f.read().splitlines()
+            num_prompts = len(prompts)
+            print("Num prompts to generate: ", num_prompts)
+            #data = [batch_size * [prompt for prompt in data]] 
+            # TODO: can we put different prompts into a batch?
+            data = [batch_size * [prompt] for prompt in prompts]
+            ''' 
+            data = []
+            bs = 2
+            num_batches = math.ceil(len(prompts) / bs)
+            for i in range(num_batches):
+                start_idx = i * 
+                data.append(prompts[])
+            '''
+
+    sample_path = os.path.join(outpath, "samples")
+    os.makedirs(sample_path, exist_ok=True)
+    base_count = len(os.listdir(sample_path))
+ 
     
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
@@ -227,25 +261,7 @@ def main():
         sampler = DPMSolverSampler(model)
     else:
         sampler = PLMSSampler(model)
-    os.makedirs(opt.output_path, exist_ok=True)
-    outpath = opt.output_path
-    
-    batch_size = opt.n_samples
-    if not opt.data_path:
-        prompt = opt.prompt
-        assert prompt is not None
-        data = [batch_size * [prompt]]
-    else:
-        opt.prompt = os.path.join(opt.data_path, opt.prompt)
-        print(f"reading prompts from {opt.prompt}")
-        with open(opt.prompt, "r") as f:
-            data = f.read().splitlines()
-            data = [batch_size * [prompt for prompt in data]] 
-
-    sample_path = os.path.join(outpath, "samples")
-    os.makedirs(sample_path, exist_ok=True)
-    base_count = len(os.listdir(sample_path))
-    
+   
     start_code = None
     if opt.fixed_code:
         stdnormal = ms.ops.StandardNormal()
@@ -253,6 +269,7 @@ def main():
 
     all_samples = list()
     for prompts in data:
+        print("Generating for prompts: ", prompts)
         for n in range(opt.n_iter):
             start_time = time.time()
 
@@ -291,8 +308,8 @@ def main():
             end_time = time.time()
             print(f"the infer time of a batch is {end_time-start_time}")
 
-        print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
-          f" \nEnjoy.")
+    print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
+      f" \nEnjoy.")
           
 if __name__ == "__main__":
     main()
