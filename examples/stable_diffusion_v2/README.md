@@ -86,8 +86,8 @@ A Van Gogh style oil painting of sunflower
 
 | PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
 | :----: | :----: | :----: | :----: | :----: |
-| <img src="./demo/sunflower/PLMS_1.png" width="155" height="155" /> | <img src="./demo/sunflower/DDIM_1.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver_1.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver++_1.png" width="155" height="155" /> | <img src="./demo/sunflower/UniPC_1.png" width="155" height="155" /> |
-| <img src="./demo/sunflower/PLMS_2.png" width="155" height="155" /> | <img src="./demo/sunflower/DDIM_2.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver_2.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver++_2.png" width="155" height="155" /> | <img src="./demo/sunflower/UniPC_2.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DDIM_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver++_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/UniPC_1.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DDIM_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver++_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/UniPC_2.png" width="155" height="155" /> |
 
 ```bash
 A photo of an astronaut riding a horse on mars
@@ -95,7 +95,15 @@ A photo of an astronaut riding a horse on mars
 
 | PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
 | :----: | :----: | :----: | :----: |
-| <img src="./demo/astronaut/PLMS_1.png" width="155" height="155" /> | <img src="./demo/astronaut/PLMS_2.png" width="155" height="155" /> | <img src="./demo/astronaut/PLMS_3.png" width="155" height="155" /> | <img src="./demo/astronaut/PLMS_4.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_3.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_4.png" width="155" height="155" /> |
+
+```bash
+A high tech solarpunk utopia in the Amazon rainforest
+```
+
+| PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
+| :----: | :----: | :----: | :----: |
+| <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_3.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_4.png" width="155" height="155" /> |
 
 ```bash
 The beautiful night view of the city has various buildings, traffic flow, and lights
@@ -103,7 +111,7 @@ The beautiful night view of the city has various buildings, traffic flow, and li
 
 | PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
 | :----: | :----: | :----: | :----: |
-| <img src="./demo/city/PLMS_1.png" width="155" height="155" /> | <img src="./demo/city/PLMS_2.png" width="155" height="155" /> | <img src="./demo/city/PLMS_3.png" width="155" height="155" /> | <img src="./demo/city/PLMS_4.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_3.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_4.png" width="155" height="155" /> |
 
 
 ### Vanilla Finetuning
