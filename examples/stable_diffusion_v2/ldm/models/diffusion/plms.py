@@ -15,7 +15,6 @@
 import mindspore as ms
 from mindspore import ops
 
-
 from ldm.util import is_old_ms_version 
 from ldm.modules.diffusionmodules.util import (
     make_ddim_sampling_parameters,
