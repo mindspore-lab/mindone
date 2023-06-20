@@ -16,8 +16,10 @@ workspace = os.path.dirname(os.path.abspath(__file__))
 print("workspace", workspace, flush=True)
 sys.path.append(workspace)
 from ldm.util import instantiate_from_config
+from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
+from ldm.models.diffusion.uni_pc import UniPCSampler
 
 
 #SD_VERSION = os.getenv('SD_VERSION', default='2.0')
@@ -138,9 +140,24 @@ def main():
         help="how many samples to produce for each given prompt. A.k.a. batch size",
     )
     parser.add_argument(
+        "--ddim",
+        action='store_true',
+        help="use ddim sampling",
+    )
+    parser.add_argument(
         "--dpm_solver",
         action='store_true',
         help="use dpm_solver sampling",
+    )
+    parser.add_argument(
+        "--dpm_solver_pp",
+        action='store_true',
+        help="use dpm_solver++ sampling",
+    )
+    parser.add_argument(
+        "--uni_pc",
+        action='store_true',
+        help="use uni_pc sampling",
     )
     parser.add_argument(
         "--n_rows",
@@ -222,9 +239,15 @@ def main():
         opt.config = os.path.join(work_dir, opt.config)
     config = OmegaConf.load(f"{opt.config}")
     model = load_model_from_config(config, f"{os.path.join(opt.ckpt_path, opt.ckpt_name)}")
-
-    if opt.dpm_solver:
-        sampler = DPMSolverSampler(model)
+    
+    if opt.ddim:
+        sampler = DDIMSampler(model)
+    elif opt.dpm_solver:
+        sampler = DPMSolverSampler(model, "dpmsolver")
+    elif opt.dpm_solver_pp:
+        sampler = DPMSolverSampler(model, "dpmsolver++")
+    elif opt.uni_pc:
+        sampler = UniPCSampler(model)
     else:
         sampler = PLMSSampler(model)
     os.makedirs(opt.output_path, exist_ok=True)

@@ -57,12 +57,54 @@ img3.jpg,a red and white ball with an angry look on its face
 ## Stable Diffusion 2.0 - EN
 ### Inference
 
-```shell
-# Text to image generation with SD2.0 
+Please first prepare the pre-trained SD model. The default path is `./models`.
+
+Then, inference SD with different samplers:
+
+```bash
+# Text to image generation with SD2.0, the default sampler is PLMS
 python text_to_image.py --prompt "A wolf in winter"
+# Text to image generation with SD2.0, using PLMS sampler
+bash scripts/tests/test_plms_sampler.py
+# Text to image generation with SD2.0, using DDIM sampler
+bash scripts/tests/test_ddim_sampler.py
+# Text to image generation with SD2.0, using DPM-Solver sampler
+bash scripts/tests/test_dpmsolver_sampler.py
+# Text to image generation with SD2.0, using DPM-Solver++ sampler
+bash scripts/tests/test_dpmsolverpp_sampler.py
+# Text to image generation with SD2.0, using UniPC sampler
+bash scripts/tests/test_unipc_sampler.py
 ```
 
 For more argument usages, please run `python text_to_image.py -h`.
+
+Some text-to-image generation examples are shown here:
+
+```bash
+A Van Gogh style oil painting of sunflower
+```
+
+| PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| <img src="./demo/sunflower/PLMS_1.png" width="155" height="155" /> | <img src="./demo/sunflower/DDIM_1.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver_1.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver++_1.png" width="155" height="155" /> | <img src="./demo/sunflower/UniPC_1.png" width="155" height="155" /> |
+| <img src="./demo/sunflower/PLMS_2.png" width="155" height="155" /> | <img src="./demo/sunflower/DDIM_2.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver_2.png" width="155" height="155" /> | <img src="./demo/sunflower/DPM-Solver++_2.png" width="155" height="155" /> | <img src="./demo/sunflower/UniPC_2.png" width="155" height="155" /> |
+
+```bash
+A photo of an astronaut riding a horse on mars
+```
+
+| PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
+| :----: | :----: | :----: | :----: |
+| <img src="./demo/astronaut/PLMS_1.png" width="155" height="155" /> | <img src="./demo/astronaut/PLMS_2.png" width="155" height="155" /> | <img src="./demo/astronaut/PLMS_3.png" width="155" height="155" /> | <img src="./demo/astronaut/PLMS_4.png" width="155" height="155" /> |
+
+```bash
+The beautiful night view of the city has various buildings, traffic flow, and lights
+```
+
+| PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
+| :----: | :----: | :----: | :----: |
+| <img src="./demo/city/PLMS_1.png" width="155" height="155" /> | <img src="./demo/city/PLMS_2.png" width="155" height="155" /> | <img src="./demo/city/PLMS_3.png" width="155" height="155" /> | <img src="./demo/city/PLMS_4.png" width="155" height="155" /> |
+
 
 ### Vanilla Finetuning
 
