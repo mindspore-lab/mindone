@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+from packaging import version
+import mindspore as ms
 import importlib
 from inspect import isfunction
 import mindspore.ops as ops
@@ -55,3 +57,8 @@ def extract_into_tensor(a, t, x_shape):
     b = t.shape[0]
     out = ops.GatherD()(a, -1, t)
     return out.reshape(b, *((1,) * (len(x_shape) - 1)))
+
+def is_old_ms_version(last_old_version="1.10.1"):
+    # some APIs are changed after ms 1.10.1 version, such as dropout
+    return version.parse(ms.__version__) <= version.parse(last_old_version) 
+
