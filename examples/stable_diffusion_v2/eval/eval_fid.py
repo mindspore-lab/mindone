@@ -34,8 +34,8 @@ def eval_fid(args):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--real_dir", type=str, help='Dir to real images' )
-    parser.add_argument("--gen_dir", type=str, help='Dir to generated images' )
+    parser.add_argument("--real_dir", type=str, help='Directory to real images' )
+    parser.add_argument("--gen_dir", type=str, help='Directory to generated images' )
     parser.add_argument("--backend", type=str, default='ms', help='Backend to do inception model inference for FID compute. Option: ms, pt.' )
     parser.add_argument("--batch_size", type=int, default=64)
     args = parser.parse_args()

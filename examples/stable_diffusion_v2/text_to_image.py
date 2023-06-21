@@ -212,7 +212,6 @@ def main():
     os.makedirs(opt.output_path, exist_ok=True)
     outpath = opt.output_path
     
-    #print("opt.data_path", opt.data_path)
     batch_size = opt.n_samples
     if not opt.data_path:
         prompt = opt.prompt
@@ -225,17 +224,8 @@ def main():
             prompts = f.read().splitlines()
             num_prompts = len(prompts)
             print("Num prompts to generate: ", num_prompts)
-            #data = [batch_size * [prompt for prompt in data]] 
-            # TODO: can we put different prompts into a batch?
+            # TODO: try to put different prompts in a batch
             data = [batch_size * [prompt] for prompt in prompts]
-            ''' 
-            data = []
-            bs = 2
-            num_batches = math.ceil(len(prompts) / bs)
-            for i in range(num_batches):
-                start_idx = i * 
-                data.append(prompts[])
-            '''
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)

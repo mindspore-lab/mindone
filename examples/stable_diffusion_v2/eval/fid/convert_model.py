@@ -1,9 +1,16 @@
 """
 Convert pytorch checkpoint to mindspore checkpoint for inception v3.
-The converted model `inception_v3_fid.ckpt` will be saved in the same directory as this file belonging to.
+To run this script, you should have installed both pytorch and mindspore.
 
-Require to install both pytorch and mindspore before running this script.
+Usage:
+
+```
+python convert_model.py
+```
+
+The converted model `inception_v3_fid.ckpt` will be saved in the same directory as this file belonging to.
 """
+
 import os
 import torch
 import mindspore as ms
