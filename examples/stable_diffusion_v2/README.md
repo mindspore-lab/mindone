@@ -52,6 +52,8 @@ img2.jpg,a drawing of a green pokemon with red eyes
 img3.jpg,a red and white ball with an angry look on its face
 ```
 
+You may download the **pokemon-blip-caption dataset** in [
+pokemon_raw.zip](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), which contains 833 pokemon-stype images with blip-generated captions and is converted to the above format for training. 
 
 - - -
 ## Stable Diffusion 2.0 - EN
@@ -78,7 +80,15 @@ Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want
 
 LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
-Coming soon.
+To run LoRA finetuning, please run` 
+
+```shell
+sh scripts/run_train_v2_lora.sh
+```
+
+after updating the `data_path` argument in shell script to your local path towards the training dataset.
+
+> Note that the learning rate used in lora finetuning here (~1e-4) is larger that that in vanilla finetuning (~1e-5).  
 
 
 ### Evaluation

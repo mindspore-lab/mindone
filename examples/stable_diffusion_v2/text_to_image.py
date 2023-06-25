@@ -18,9 +18,9 @@ sys.path.append(workspace)
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
+from ldm.modules.lora import inject_trainable_lora
+from ldm.util import str2bool 
 
-
-#SD_VERSION = os.getenv('SD_VERSION', default='2.0')
 
 def seed_everything(seed):
     if seed:
@@ -40,18 +40,51 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_only_ckpt=None, verbose=False):
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
-    if os.path.exists(ckpt):
-        param_dict = ms.load_checkpoint(ckpt)
-        if param_dict:
-            param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
-            print("param not load:", [p for p in param_not_load if not p.startswith('adam')])
-            print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
-    else:
-        print(f"!!!Warning!!!: {ckpt} doesn't exist")
 
+    def _load_model(_model, ckpt_fp):
+        if os.path.exists(ckpt_fp):
+            param_dict = ms.load_checkpoint(ckpt_fp)
+            if param_dict:
+                param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
+                print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
+                #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
+        else:
+            print(f"!!!Warning!!!: {ckpt} doesn't exist")
+
+    if use_lora:
+        print('Loading LoRA model.')
+        load_lora_only = True if lora_only_ckpt is not None else False
+        if not load_lora_only:
+            injected_attns, injected_trainable_params = inject_trainable_lora(
+                                                            model, 
+                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
+                                                                )
+            _load_model(model, ckpt)
+            
+        else:
+            # load the main pratrained model 
+            _load_model(model, ckpt)
+            # inject lora params
+            injected_attns, injected_trainable_params = inject_trainable_lora(
+                                                            model, 
+                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
+                                                                )
+            # load finetuned lora params
+            _load_model(model, lora_only_ckpt)
+
+        assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
+        assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
+
+    else:
+        _load_model(model, ckpt)
+            
+    model.set_train(False)
+    for param in model.trainable_params():
+        param.requires_grad = False
+    
     return model
 
 
@@ -168,6 +201,7 @@ def main():
         default=None,
         help="path to config which constructs model. If None, select by version",
     )
+    parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
     parser.add_argument(
         "--ckpt_path",
         type=str,
@@ -201,7 +235,7 @@ def main():
     if opt.ckpt_name is None:
         opt.ckpt_name = "wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "stablediffusionv2_512.ckpt"
     if opt.config is None:
-        opt.config = "configs/v1-inference-chinese.yaml" if opt.version.startswith('1.') else "configs/v2-inference.yaml" 
+        opt.config = "configs/v1-inference-chinese.yaml" if opt.version.startswith('1.') else "configs/v2-inference.yaml"
     if opt.scale is None:
         opt.scale = 7.5 if opt.version.startswith('1.') else 9.0
 
@@ -211,7 +245,7 @@ def main():
 
     os.makedirs(opt.output_path, exist_ok=True)
     outpath = opt.output_path
-    
+
     batch_size = opt.n_samples
     if not opt.data_path:
         prompt = opt.prompt
@@ -230,28 +264,36 @@ def main():
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
- 
-    
+
+
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
-        mode=ms.context.GRAPH_MODE,
+        mode=1, #ms.context.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB"
     )
-    
+
     seed_everything(opt.seed)
 
     if not os.path.isabs(opt.config):
         opt.config = os.path.join(work_dir, opt.config)
     config = OmegaConf.load(f"{opt.config}")
-    model = load_model_from_config(config, f"{os.path.join(opt.ckpt_path, opt.ckpt_name)}")
 
+    # TODO: pass use_fp16 from model config file or cli args 
+    model = load_model_from_config(
+                        config, 
+                        ckpt=f"{os.path.join(opt.ckpt_path, opt.ckpt_name)}",
+                        use_lora=opt.use_lora,
+                        use_fp16=True,
+                        )
+
+ 
     if opt.dpm_solver:
         sampler = DPMSolverSampler(model)
     else:
         sampler = PLMSSampler(model)
-   
+
     start_code = None
     if opt.fixed_code:
         stdnormal = ms.ops.StandardNormal()
@@ -281,17 +323,17 @@ def main():
                                             x_T=start_code
                                             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
-            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, 
+            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0,
                                                   clip_value_min=0.0, clip_value_max=1.0)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
-            
+
             if not opt.skip_save:
                 for x_sample in x_samples_ddim_numpy:
                     x_sample = 255. * x_sample.transpose(1, 2, 0)
                     img = Image.fromarray(x_sample.astype(np.uint8))
                     img.save(os.path.join(sample_path, f"{base_count:05}.png"))
                     base_count += 1
-                    
+
             if not opt.skip_grid:
                 all_samples.append(x_samples_ddim_numpy)
 
@@ -300,6 +342,6 @@ def main():
 
     print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
       f" \nEnjoy.")
-          
+
 if __name__ == "__main__":
     main()
