@@ -80,6 +80,11 @@ LoRA finetuning has lower memory requirement and allows finetuning on images wit
 
 Coming soon.
 
+
+### Evaluation
+
+Please refer to [Evaluation for Diffusion Models](eval/README.md) 
+
 - - -
 ## Stable Diffusion 1.x - CN
 
