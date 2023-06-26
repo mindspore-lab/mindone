@@ -18,7 +18,7 @@
 export GLOG_v=3
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
-export DEVICE_ID=4 
+export DEVICE_ID=4
 
 export SD_VERSOIN="2.0"
 
@@ -28,7 +28,7 @@ python text_to_image.py \
     --output_path ./output/ \
     --seed 42 \
     --n_iter 4 \
-    --n_samples 1 \
+    --n_samples 8 \
     --W 512 \
     --H 512 \
     --ddim_steps 50
