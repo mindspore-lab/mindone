@@ -184,10 +184,10 @@ class FrechetInceptionDistance():
 
 
 if __name__ == '__main__':
-    gen_imgs = ['/Users/Samit/Data/datasets/ic15/det/test/ch4_test_images/img_1.jpg',
-                '/Users/Samit/Data/datasets/ic15/det/test/ch4_test_images/img_2.jpg']
-    gt_imgs = ['/Users/Samit/Data/datasets/ic15/det/test/ch4_test_images/img_10.jpg',
-               '/Users/Samit/Data/datasets/ic15/det/test/ch4_test_images/img_11.jpg',
+    gen_imgs = ['data/img_1.jpg',
+                'data/img_2.jpg']
+    gt_imgs = ['data/img_10.jpg',
+               'data/img_11.jpg',
                ]
 
     #fid_scorer = FrechetInceptionDistance("./inception_v3_fid.ckpt")
