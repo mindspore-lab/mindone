@@ -29,6 +29,14 @@ def default(val, d):
     return d() if isfunction(d) else d
 
 
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
+
+
 def count_params(model, verbose=False):
     total_params = sum(p.numel() for p in model.parameters())
     if verbose:

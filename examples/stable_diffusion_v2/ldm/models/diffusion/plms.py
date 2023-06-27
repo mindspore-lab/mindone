@@ -14,6 +14,7 @@
 # ============================================================================
 import mindspore as ms
 from mindspore import ops
+from tqdm import tqdm
 
 
 from ldm.util import is_old_ms_version 
@@ -147,7 +148,7 @@ class PLMSSampler():
         iterator = time_range
         old_eps = []
         
-        for i, step in enumerate(iterator):
+        for i, step in tqdm(enumerate(iterator)):
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
             ts_next = ms.numpy.full((b,), time_range[min(i + 1, len(time_range) - 1)], dtype=ms.int64)
