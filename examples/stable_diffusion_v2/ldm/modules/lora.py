@@ -27,6 +27,8 @@ class LoRADenseLayer(nn.Cell):
         self.scale = scale
         self.dtype = dtype
 
+        print('D----: lora rank: ', rank)
+
         # main/orginal linear layer
         self.linear = nn.Dense(in_features, out_features, has_bias=has_bias).to_float(dtype)
 

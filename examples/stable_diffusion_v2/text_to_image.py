@@ -40,7 +40,7 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_only_ckpt=None, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_rank=4, lora_only_ckpt=None, verbose=False):
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
@@ -52,14 +52,16 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_on
                 print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
                 #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
-            print(f"!!!Warning!!!: {ckpt} doesn't exist")
+            print(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
     if use_lora:
         print('Loading LoRA model.')
+        print('D-- ', ckpt, lora_only_ckpt)
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
             injected_attns, injected_trainable_params = inject_trainable_lora(
                                                             model,
+                                                            rank=lora_rank,
                                                             use_fp16=(model.model.diffusion_model.dtype==ms.float16),
                                                                 )
             _load_model(model, ckpt)
@@ -67,13 +69,16 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_on
         else:
             # load the main pratrained model
             _load_model(model, ckpt)
+            print('Pretrained SD loaded')
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
                                                             model,
+                                                            rank=lora_rank,
                                                             use_fp16=(model.model.diffusion_model.dtype==ms.float16),
                                                                 )
             # load finetuned lora params
             _load_model(model, lora_only_ckpt)
+            print('LoRA params loaded.')
 
         assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
         assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
@@ -202,18 +207,18 @@ def main():
         help="path to config which constructs model. If None, select by version",
     )
     parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
+    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="models",
+        default=None,
         help="path to checkpoint of model",
     )
     parser.add_argument(
-        "--ckpt_name",
+        "--lora_ckpt_path",
         type=str,
-        #default="wukong-huahua-ms.ckpt" if SD_VERSION.startswith('1.') else "stablediffusionv2_512.ckpt",
         default=None,
-        help="path to checkpoint of model. If None, select by version",
+        help="path to lora only checkpoint. Set it if use_lora is not None",
     )
     parser.add_argument(
         "--seed",
@@ -232,8 +237,8 @@ def main():
     # overwrite env var by parsed arg
     if opt.version:
         os.environ['SD_VERSION'] = opt.version # TODO: don't rely on env var
-    if opt.ckpt_name is None:
-        opt.ckpt_name = "wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "stablediffusionv2_512.ckpt"
+    if opt.ckpt_path is None:
+        opt.ckpt_path = "models/wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "models/stablediffusionv2_512.ckpt"
     if opt.config is None:
         opt.config = "configs/v1-inference-chinese.yaml" if opt.version.startswith('1.') else "configs/v2-inference.yaml"
     if opt.scale is None:
@@ -282,8 +287,10 @@ def main():
     # TODO: pass use_fp16 from model config file or cli args
     model = load_model_from_config(
                         config,
-                        ckpt=f"{os.path.join(opt.ckpt_path, opt.ckpt_name)}",
+                        ckpt=opt.ckpt_path,
                         use_lora=opt.use_lora,
+                        lora_rank=opt.lora_rank,
+                        lora_only_ckpt=opt.lora_ckpt_path,
                         use_fp16=True,
                         )
 

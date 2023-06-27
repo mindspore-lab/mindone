@@ -18,6 +18,9 @@ from mindspore.communication.management import init, get_rank, get_group_size
 from mindspore.train.callback import LossMonitor, TimeMonitor, CheckpointConfig, ModelCheckpoint
 
 from ldm.data.dataset import load_data
+from ldm.modules.train.trainer import TrainOneStepWrapper
+from ldm.modules.train.callback import EvalSaveCallback 
+from ldm.modules.train.ema import EMA
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.callback import OverflowMonitor
 from ldm.modules.train.learningrate import LearningRate
@@ -152,41 +155,58 @@ def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
 
 def main(opts):
     dataset, rank_id, device_id, device_num = init_env(opts)
-    LatentDiffusionWithLoss = instantiate_from_config(opts.model_config)
+    latent_diffusion_with_loss = instantiate_from_config(opts.model_config)
     pretrained_ckpt = os.path.join(opts.pretrained_model_path, opts.pretrained_model_file)
-    load_pretrained_model(pretrained_ckpt, LatentDiffusionWithLoss)
-    
+    load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss) 
+
     # lora finetune
     if opts.use_lora:
         # freeze network
-        for param in LatentDiffusionWithLoss.model.get_parameters():
+        for param in latent_diffusion_with_loss.model.get_parameters():
             param.requires_grad = False
 
         # inject lora params
         injected_attns, injected_trainable_params = inject_trainable_lora(
-                                                        LatentDiffusionWithLoss, 
-                                                        use_fp16=(LatentDiffusionWithLoss.model.diffusion_model.dtype==ms.float16),
+                                                        latent_diffusion_with_loss, 
+                                                        rank=opts.lora_rank,
+                                                        use_fp16=(latent_diffusion_with_loss.model.diffusion_model.dtype==ms.float16),
                                                         )
         assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
         assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
-        assert len(LatentDiffusionWithLoss.model.trainable_params())==len(injected_trainable_params), 'Only lora params should be trainable. but got {} trainable params'.format(len(LatentDiffusionWithLoss.model.trainable_params()))
-        #print('Trainable params: ', LatentDiffusionWithLoss.model.trainable_params())
+        assert len(latent_diffusion_with_loss.model.trainable_params())==len(injected_trainable_params), 'Only lora params should be trainable. but got {} trainable params'.format(len(latent_diffusion_with_loss.model.trainable_params()))
+        #print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
+        
 
     if not opts.decay_steps:
         dataset_size = dataset.get_dataset_size()
         opts.decay_steps = opts.epochs * dataset_size - opts.warmup_steps # fix lr scheduling
     lr = LearningRate(opts.start_learning_rate, opts.end_learning_rate, opts.warmup_steps, opts.decay_steps)
-    optimizer = build_optimizer(LatentDiffusionWithLoss, opts, lr)
+    optimizer = build_optimizer(latent_diffusion_with_loss, opts, lr)
     update_cell = DynamicLossScaleUpdateCell(loss_scale_value=opts.init_loss_scale,
                                              scale_factor=opts.loss_scale_factor,
                                              scale_window=opts.scale_window)
 
     if opts.use_parallel:
-        net_with_grads = ParallelTrainOneStepWithLossScaleCell(LatentDiffusionWithLoss, optimizer=optimizer,
+        net_with_grads = ParallelTrainOneStepWithLossScaleCell(latent_diffusion_with_loss, optimizer=optimizer,
                                                                scale_sense=update_cell, parallel_config=ParallelConfig)
     else:
-        net_with_grads = TrainOneStepWithLossScaleCell(LatentDiffusionWithLoss, optimizer=optimizer,
-                                                       scale_sense=update_cell)
+        '''
+        ema = EMA(
+                latent_diffusion_with_loss.model, 
+                ema_decay=0.9999, 
+                ) if opts.use_ema else None
+        '''
+        net_with_grads = TrainOneStepWrapper(
+                latent_diffusion_with_loss,
+                optimizer=optimizer,
+                scale_sense=update_cell,
+                drop_overflow_update=True, # TODO: allow config
+                gradient_accumulation_steps=opts.gradient_accumulation_steps,
+                clip_grad=opts.clip_grad,
+                clip_norm=opts.max_grad_norm,
+                ema=None, #TODO: add ema after ddpm modified.
+            )
+
     model = Model(net_with_grads)
     callback = [TimeMonitor(opts.callback_size), LossMonitor(opts.callback_size)]
 
@@ -195,18 +215,22 @@ def main(opts):
 
     if rank_id == 0:
         dataset_size = dataset.get_dataset_size()
-        if not opts.save_checkpoint_steps:
-            opts.save_checkpoint_steps = dataset_size
         ckpt_dir = os.path.join(opts.output_path, "ckpt", f"rank_{str(rank_id)}")
         if not os.path.exists(ckpt_dir):
             os.makedirs(ckpt_dir)
-        config_ck = CheckpointConfig(save_checkpoint_steps=opts.save_checkpoint_steps,
-                                     keep_checkpoint_max=10,
-                                     integrated_save=False)
-        ckpoint_cb = ModelCheckpoint(prefix=f"sd",
-                                     directory=ckpt_dir,
-                                     config=config_ck)
-        callback.append(ckpoint_cb)
+        
+        save_cb = EvalSaveCallback(
+            network=latent_diffusion_with_loss.model,
+            use_lora=opts.use_lora,
+            rank_id=rank_id,
+            ckpt_save_dir=ckpt_dir,
+            ema=None,
+            ckpt_save_policy="latest_k",
+            ckpt_max_keep=10,
+            ckpt_save_interval=opts.ckpt_save_interval,
+            ) 
+
+        callback.append(save_cb)
 
     print("start_training...")
     model.train(opts.epochs, dataset, callbacks=callback, dataset_sink_mode=False)
@@ -224,6 +248,7 @@ if __name__ == "__main__":
     parser.add_argument('--pretrained_model_file', default="", type=str, help='pretrained model file name')
 
     parser.add_argument('--use_lora', default=False, type=str2bool, help='use lora finetuning')
+    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
 
     parser.add_argument('--optim', default="adamw", type=str, help='optimizer')
     parser.add_argument('--seed', default=3407, type=int, help='data path')
@@ -237,7 +262,12 @@ if __name__ == "__main__":
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
-    parser.add_argument("--save_checkpoint_steps", default=0, type=int, help="save checkpoint steps")
+    parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
+    parser.add_argument('--use_ema', default=False, type=str2bool, help='whether use EMA')
+    parser.add_argument('--clip_grad', default=False, type=str2bool, help='whether apply gradient clipping')
+    parser.add_argument("--max_grad_norm", default=1., type=float, help="max gradient norm for clipping, effective when `clip_grad` enabled.")
+
+    parser.add_argument("--ckpt_save_interval", default=4, type=int, help="save checkpoint every this epochs")
     parser.add_argument('--random_crop', default=False, type=str2bool, help='random crop')
     parser.add_argument('--filter_small_size', default=True, type=str2bool, help='filter small images')
     parser.add_argument('--image_size', default=512, type=int, help='images size')
