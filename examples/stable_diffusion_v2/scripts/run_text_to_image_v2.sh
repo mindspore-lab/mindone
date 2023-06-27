@@ -18,7 +18,7 @@
 export GLOG_v=3
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
-export DEVICE_ID=0 
+export DEVICE_ID=4
 
 export SD_VERSOIN="2.0"
 
