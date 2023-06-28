@@ -150,7 +150,7 @@ def test_finetune_and_save():
 
 
 def compare_before_after_lora_finetune(
-        pretrained_ckpt='test_lora_ori_net.ckpt', 
+        pretrained_ckpt='test_lora_ori_net.ckpt',
         lora_ft_ckpt='test_lora_net_after_ft.ckpt',
         ):
     ms.set_context(mode=0)
@@ -159,8 +159,8 @@ def compare_before_after_lora_finetune(
 
     # get to q
     ori_weight = 0
-    ori_param = None 
-    for p in ori_param_dict: 
+    ori_param = None
+    for p in ori_param_dict:
         if 'attn1.to_q.weight' in p:
             print('ori: ', p)
             ori_weight = ori_param_dict[p].data.sum()
@@ -170,12 +170,12 @@ def compare_before_after_lora_finetune(
     lora_param = None
     lora_weight = 0
     lora_up_weight = 0
-    for p in lora_param_dict: 
+    for p in lora_param_dict:
         if 'attn1.to_q.linear.weight' in p:
             lora_param = p
             lora_weight = lora_param_dict[p].data.sum()
             print('lora: ', p)
-            lora_up_param = p.replace('.linear.', '.lora_up.') 
+            lora_up_param = p.replace('.linear.', '.lora_up.')
             lora_up_weight = lora_param_dict[lora_up_param].data.sum()
             break
 
@@ -185,13 +185,13 @@ def compare_before_after_lora_finetune(
     print('lora up: ', lora_up_weight )
     assert lora_up_weight != 0
 
-    # TODO: expect 0 linear weight diff. on Ascend, diff: < 1e-5. on CPU, diff is 0. 
+    # TODO: expect 0 linear weight diff. on Ascend, diff: < 1e-5. on CPU, diff is 0.
     print('linear weight change: ', ori_weight, lora_weight)
     assert ori_weight==lora_weight
 
 
-    #for p in ori_param_dict: 
-    #    if 'attn1.to_q.lora_down.weight' in 
+    #for p in ori_param_dict:
+    #    if 'attn1.to_q.lora_down.weight' in
 
 def test_load_and_infer():
     ms.set_context(mode=0)
@@ -472,9 +472,9 @@ def test_finetune_and_save_debug():
 
 if __name__ == '__main__':
     #test_compare_pt()
-    #test_finetune_and_save()
+    test_finetune_and_save()
     #compare_before_after_lora_finetune()
-    #test_load_and_infer()
+    test_load_and_infer()
 
-    compare_before_after_lora_finetune('models/stablediffusionv2_512.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
+    #compare_before_after_lora_finetune('models/stablediffusionv2_512.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
 

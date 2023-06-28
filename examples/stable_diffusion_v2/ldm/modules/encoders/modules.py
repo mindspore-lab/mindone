@@ -23,7 +23,7 @@ from .text_encoder import TextEncoder
 
 SD_VERSION = os.getenv('SD_VERSION', default='2.0')
 
-class FrozenCLIPEmbedder(nn.Cell):
+class Frozendder(nn.Cell):
     def __init__(self, max_length=77, use_fp16=False):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
