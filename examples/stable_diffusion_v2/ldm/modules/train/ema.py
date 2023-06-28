@@ -17,10 +17,13 @@ class EMA(nn.Cell):
         updates: number of ema updates, which can be restored from resumed training.
     """
 
-    def __init__(self, network, ema_decay=0.9999, updates=0):
+    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True):
         super().__init__()
         # TODO: net.trainable_params() is more reasonable?
-        self.net_weight = ms.ParameterTuple(network.get_parameters())
+        if trainable_only:
+            self.net_weight = ms.ParameterTuple(network.trainable_params())
+        else:
+            self.net_weight = ms.ParameterTuple(network.get_parameters())
         self.ema_weight = self.net_weight.clone(prefix="ema", init="same")
         self.swap_cache = self.net_weight.clone(prefix="swap", init="zeros")
 

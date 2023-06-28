@@ -7,7 +7,7 @@ export SD_VERSION="2.0" # TODO: parse by args. or fix to 2.0 later
 
 device_id=4
 
-output_path=output/lora_pokemon_rank4_e72
+output_path=output/lora_pokemon_r128_ema
 task_name=txt2img
 data_path=/home/yx/datasets/diffusion/pokemon
 pretrained_model_path=models/
@@ -20,7 +20,7 @@ start_learning_rate=1e-4 #lr=1e-4, lr_min =0. in diffuser
 end_learning_rate=0
 warmup_steps=0 # ~3 epoch. diffuser 0
 epochs=72 #15000 steps=>18 epochs in diffuser
-use_ema=False
+use_ema=True
 clip_grad=True
 max_grad_norm=1.    # 1.0 in duffuser.
 ckpt_save_interval=5 # save every two epochs

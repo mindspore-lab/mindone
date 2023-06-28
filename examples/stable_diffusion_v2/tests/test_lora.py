@@ -472,9 +472,9 @@ def test_finetune_and_save_debug():
 
 if __name__ == '__main__':
     #test_compare_pt()
-    #test_finetune_and_save()
+    test_finetune_and_save()
     #compare_before_after_lora_finetune()
-    #test_load_and_infer()
+    test_load_and_infer()
 
-    compare_before_after_lora_finetune('models/stablediffusionv2_512.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
+    #compare_before_after_lora_finetune('models/stablediffusionv2_512.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
 

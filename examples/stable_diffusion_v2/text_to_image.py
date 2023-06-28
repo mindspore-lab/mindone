@@ -19,7 +19,7 @@ from ldm.util import instantiate_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.lora import inject_trainable_lora
-from ldm.util import str2bool
+from ldm.util import str2bool, is_old_ms_version
 
 
 def seed_everything(seed):
@@ -48,7 +48,10 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_ra
         if os.path.exists(ckpt_fp):
             param_dict = ms.load_checkpoint(ckpt_fp)
             if param_dict:
-                param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
+                if is_old_ms_version():
+                    param_not_load = ms.load_param_into_net(_model, param_dict)
+                else:
+                    param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
                 print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
                 #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
@@ -271,7 +274,7 @@ def main():
 
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
-        mode=1, #ms.context.GRAPH_MODE,
+        mode=ms.context.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB"

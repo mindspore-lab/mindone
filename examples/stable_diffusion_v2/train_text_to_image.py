@@ -29,7 +29,7 @@ from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.cell_wrapper import ParallelTrainOneStepWithLossScaleCell
 from ldm.modules.lora import inject_trainable_lora
-from ldm.util import str2bool 
+from ldm.util import str2bool, is_old_ms_version
 
 
 
@@ -127,7 +127,10 @@ def load_pretrained_model(pretrained_ckpt, net):
     print(f"start loading pretrained_ckpt {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
-        param_not_load = load_param_into_net(net, param_dict)
+        if is_old_ms_version():
+            param_not_load = load_param_into_net(net, param_dict)
+        else:
+            param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
         print("param not load:", param_not_load)
     else:
         print("ckpt file not exist!")
@@ -187,13 +190,10 @@ def main(opts):
                                              scale_window=opts.scale_window)
 
     # train in standalone or distributed mode
-    '''
-    # TODO: add after ddpm update
     ema = EMA(
             latent_diffusion_with_loss.model, 
             ema_decay=0.9999, 
             ) if opts.use_ema else None
-    '''
     net_with_grads = TrainOneStepWrapper(
             latent_diffusion_with_loss,
             optimizer=optimizer,
@@ -202,7 +202,7 @@ def main(opts):
             gradient_accumulation_steps=opts.gradient_accumulation_steps,
             clip_grad=opts.clip_grad,
             clip_norm=opts.max_grad_norm,
-            ema=None, #TODO: add ema after ddpm modified.
+            ema=ema, #TODO: add ema after ddpm modified.
         )
 
     model = Model(net_with_grads)
@@ -222,7 +222,7 @@ def main(opts):
             use_lora=opts.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
-            ema=None,
+            ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=10,
             ckpt_save_interval=opts.ckpt_save_interval,

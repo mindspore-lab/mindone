@@ -135,6 +135,7 @@ class EvalSaveCallback(Callback):
                 if self.ema is not None:
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
+                    print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt")
