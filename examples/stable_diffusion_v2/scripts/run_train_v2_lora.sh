@@ -7,7 +7,7 @@ export SD_VERSION="2.0" # TODO: parse by args. or fix to 2.0 later
 
 device_id=4
 
-output_path=output/lora_pokemon_rank64_e72
+output_path=output/lora_pokemon_rank4_e72
 task_name=txt2img
 data_path=/home/yx/datasets/diffusion/pokemon
 pretrained_model_path=models/
@@ -15,7 +15,7 @@ pretrained_model_file=stablediffusionv2_512.ckpt
 train_config_file=configs/train_config_v2.json
 image_size=512
 train_batch_size=4      # bs=1, grad_accu=4, in diffuser
-lora_rank=128
+lora_rank=4
 start_learning_rate=1e-4 #lr=1e-4, lr_min =0. in diffuser
 end_learning_rate=0
 warmup_steps=0 # ~3 epoch. diffuser 0

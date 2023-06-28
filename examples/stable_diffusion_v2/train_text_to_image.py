@@ -1,5 +1,5 @@
 '''
-run train single card
+run sd train/finetuning 
 '''
 import os
 import sys

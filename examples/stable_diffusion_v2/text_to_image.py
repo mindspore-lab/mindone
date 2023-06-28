@@ -56,7 +56,6 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_ra
 
     if use_lora:
         print('Loading LoRA model.')
-        print('D-- ', ckpt, lora_only_ckpt)
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
             injected_attns, injected_trainable_params = inject_trainable_lora(
