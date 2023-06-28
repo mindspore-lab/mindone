@@ -15,15 +15,14 @@ pretrained_model_file=stablediffusionv2_512.ckpt
 train_config_file=configs/train_config_v2.json
 image_size=512
 train_batch_size=4      # bs=1, grad_accu=4, in diffuser
-lora_rank=4
+lora_rank=128
 start_learning_rate=1e-4 #lr=1e-4, lr_min =0. in diffuser
 end_learning_rate=0
 warmup_steps=0 # ~3 epoch. diffuser 0
 epochs=72 #15000 steps=>18 epochs in diffuser
 use_ema=False
 clip_grad=True
-max_grad_norm=1. # TODO: NOT making effect. 1.0 in duffuser. But we don't support gard_norm or grad_accumulate currently.
-
+max_grad_norm=1.    # 1.0 in duffuser.
 ckpt_save_interval=5 # save every two epochs
 
 # uncomment the following two lines to finetune on 768x768 resolution.

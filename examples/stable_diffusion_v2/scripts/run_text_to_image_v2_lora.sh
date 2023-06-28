@@ -2,7 +2,7 @@
 export GLOG_v=3
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
-export DEVICE_ID=4
+export DEVICE_ID=7
 
 export SD_VERSOIN="2.0"
 
@@ -13,7 +13,7 @@ n_iter=1
 
 python text_to_image.py \
     --config configs/v2-inference.yaml \
-    --output_path output/lora_pokemon_rank64_e72 \
+    --output_path output/lora_pokemon_rank128_e72 \
     --seed 42 \
     --n_iter $n_iter \
     --n_samples $n_samples \

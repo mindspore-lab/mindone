@@ -186,26 +186,24 @@ def main(opts):
                                              scale_factor=opts.loss_scale_factor,
                                              scale_window=opts.scale_window)
 
-    if opts.use_parallel:
-        net_with_grads = ParallelTrainOneStepWithLossScaleCell(latent_diffusion_with_loss, optimizer=optimizer,
-                                                               scale_sense=update_cell, parallel_config=ParallelConfig)
-    else:
-        '''
-        ema = EMA(
-                latent_diffusion_with_loss.model, 
-                ema_decay=0.9999, 
-                ) if opts.use_ema else None
-        '''
-        net_with_grads = TrainOneStepWrapper(
-                latent_diffusion_with_loss,
-                optimizer=optimizer,
-                scale_sense=update_cell,
-                drop_overflow_update=True, # TODO: allow config
-                gradient_accumulation_steps=opts.gradient_accumulation_steps,
-                clip_grad=opts.clip_grad,
-                clip_norm=opts.max_grad_norm,
-                ema=None, #TODO: add ema after ddpm modified.
-            )
+    # train in standalone or distributed mode
+    '''
+    # TODO: add after ddpm update
+    ema = EMA(
+            latent_diffusion_with_loss.model, 
+            ema_decay=0.9999, 
+            ) if opts.use_ema else None
+    '''
+    net_with_grads = TrainOneStepWrapper(
+            latent_diffusion_with_loss,
+            optimizer=optimizer,
+            scale_sense=update_cell,
+            drop_overflow_update=True, # TODO: allow config
+            gradient_accumulation_steps=opts.gradient_accumulation_steps,
+            clip_grad=opts.clip_grad,
+            clip_norm=opts.max_grad_norm,
+            ema=None, #TODO: add ema after ddpm modified.
+        )
 
     model = Model(net_with_grads)
     callback = [TimeMonitor(opts.callback_size), LossMonitor(opts.callback_size)]
