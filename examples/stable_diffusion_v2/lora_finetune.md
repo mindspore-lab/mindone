@@ -70,7 +70,7 @@ img3.jpg,a red and white ball with an angry look on its face
 For convenience, we have prepared two public text-image datasets obeying the above format. 
 
 - [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions. 
-- [Chinese-art blip caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 100 chinese art-stype images with BLIP-generated captions.
+- [Chinese-art blip caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 100 chinese art-style images with BLIP-generated captions.
 
 To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
 
@@ -115,7 +115,7 @@ python text_to_image.py \
         --lora_rank 128 \
 ```
 
-Please update `lora_ckpt_path` and `lora_rank` according to your fineune settings.
+Please update `lora_ckpt_path` and `lora_rank` according to your finetune settings.
 
 To avoid typing too many arguments in CLI, you may modify and run the `scripts/run_text_to_image_v2_lora.sh` script. Note that you prefer single prompt inference, you should use the `prompt` argument instead of `data_path` for multiple prompts inference.
 
@@ -187,7 +187,7 @@ python eval/eval_fid.py --real_dir {path/to/test_images} --gen_dir {path/to/gene
 
 For details, please refer to the guideline [Diffusion Evaluation](eval/README.md). 
 
-Here are evaluation results for our implementation.
+Here are the evaluation results for our implementation.
 
 <div align="center">
 
@@ -198,7 +198,7 @@ Here are evaluation results for our implementation.
     
 </div>
 
-> Note that these numbers can not reflect the generation quality comprehensively. A visual evalution is also necessary.
+> Note that these numbers can not reflect the generation quality comprehensively. A visual evaluation is also necessary.
 
 
 ## Reference
