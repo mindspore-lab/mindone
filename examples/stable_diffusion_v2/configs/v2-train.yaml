@@ -1,5 +1,5 @@
 model:
-  base_learning_rate: 1.0e-05
+  #base_learning_rate: 1.0e-05
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.00085
@@ -15,7 +15,7 @@ model:
     conditioning_key: crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
-    use_ema: False # TODO: why not True? it should be
+    #use_ema: False # TODO: set in args 
     use_fp16: True
     parameterization: "eps" # default, original ldm
     #parameterization: "velocity"
