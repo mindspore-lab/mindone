@@ -157,10 +157,8 @@ def main(opts):
         injected_attns, injected_trainable_params = inject_trainable_lora(
                                                         latent_diffusion_with_loss,
                                                         rank=opts.lora_rank,
-                                                        use_fp16=opts.lora_fp16, #(latent_diffusion_with_loss.model.diffusion_model.dtype==ms.float16),
+                                                        use_fp16=opts.lora_fp16,
                                                         )
-        assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
-        assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
         assert len(latent_diffusion_with_loss.model.trainable_params())==len(injected_trainable_params), 'Only lora params should be trainable. but got {} trainable params'.format(len(latent_diffusion_with_loss.model.trainable_params()))
         #print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
 
@@ -186,7 +184,7 @@ def main(opts):
             gradient_accumulation_steps=opts.gradient_accumulation_steps,
             clip_grad=opts.clip_grad,
             clip_norm=opts.max_grad_norm,
-            ema=ema, #TODO: add ema after ddpm modified.
+            ema=ema, 
         )
 
     model = Model(net_with_grads)

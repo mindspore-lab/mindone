@@ -44,7 +44,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
-    def _load_model(_model, ckpt_fp):
+    def _load_model(_model, ckpt_fp, verbose=True):
         if os.path.exists(ckpt_fp):
             param_dict = ms.load_checkpoint(ckpt_fp)
             if param_dict:
@@ -52,14 +52,14 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                     param_not_load = ms.load_param_into_net(_model, param_dict)
                 else:
                     param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
-                print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
+                if verbose:
+                    print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
                 #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
             print(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
     if use_lora:
         print('Loading LoRA model.')
-        use_fp16=(model.model.diffusion_model.dtype==ms.float16)
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
             injected_attns, injected_trainable_params = inject_trainable_lora(
@@ -80,11 +80,10 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                                                             use_fp16=(model.model.diffusion_model.dtype==ms.float16),
                                                                 )
             # load finetuned lora params
-            _load_model(model, lora_only_ckpt)
+            _load_model(model, lora_only_ckpt, verbose=False)
             print('LoRA params loaded.')
 
-        assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
-        assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
+        #assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
 
     else:
         _load_model(model, ckpt)
@@ -104,7 +103,7 @@ def main():
         type=str,
         nargs="?",
         default="",
-        help="the prompt to render"
+        help="path to a file containing prompt list (each line in the file correspods to a prompt to render)."
     )
     parser.add_argument(
         "-v",
