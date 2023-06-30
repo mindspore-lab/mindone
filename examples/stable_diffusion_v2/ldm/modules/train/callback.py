@@ -148,7 +148,7 @@ class EvalSaveCallback(Callback):
                 '''
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
-                if (self.ema is not None) and eval_done:
+                if self.ema is not None:
                     self.ema.swap_after_eval()
 
             # tot_time = time.time() - self.last_epoch_end_time

@@ -108,20 +108,6 @@ def get_obj_from_str(string, reload=False):
     return getattr(importlib.import_module(module, package=None), cls)
 
 
-def load_model_from_config(config, ckpt, verbose=False):
-    print(f"Loading model from {ckpt}")
-    model = instantiate_from_config(config.model)
-    if os.path.exists(ckpt):
-        param_dict = ms.load_checkpoint(ckpt)
-        if param_dict:
-            param_not_load = ms.load_param_into_net(model, param_dict)
-            print("param not load:", param_not_load)
-    else:
-        print(f"{ckpt} not exist:")
-
-    return model
-
-
 def load_pretrained_model(pretrained_ckpt, net):
     print(f"start loading pretrained_ckpt {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
@@ -171,7 +157,7 @@ def main(opts):
         injected_attns, injected_trainable_params = inject_trainable_lora(
                                                         latent_diffusion_with_loss,
                                                         rank=opts.lora_rank,
-                                                        use_fp16=(latent_diffusion_with_loss.model.diffusion_model.dtype==ms.float16),
+                                                        use_fp16=opts.lora_fp16, #(latent_diffusion_with_loss.model.diffusion_model.dtype==ms.float16),
                                                         )
         assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
         assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
@@ -244,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument('--pretrained_model_file', default="", type=str, help='pretrained model file name')
     parser.add_argument('--use_lora', default=False, type=str2bool, help='use lora finetuning')
     parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
+    parser.add_argument('--lora_fp16', default=True, type=str2bool, help='Whether use fp16 for LoRA params.')
 
     parser.add_argument('--optim', default="adamw", type=str, help='optimizer')
     parser.add_argument('--seed', default=3407, type=int, help='data path')

@@ -40,7 +40,7 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_rank=4, lora_only_ckpt=None, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, verbose=False):
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
@@ -59,6 +59,7 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_ra
 
     if use_lora:
         print('Loading LoRA model.')
+        use_fp16=(model.model.diffusion_model.dtype==ms.float16)
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
             injected_attns, injected_trainable_params = inject_trainable_lora(
@@ -192,7 +193,6 @@ def main():
     parser.add_argument(
         "--scale",
         type=float,
-        #default=7.5 if SD_VERSION.startswith('1.') else 9.0,
         default=None,
         help="unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))",
     )
@@ -204,7 +204,6 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        #default="configs/v1-inference-chinese.yaml" if SD_VERSION.startswith('1.') else "configs/v2-inference.yaml" ,
         default=None,
         help="path to config which constructs model. If None, select by version",
     )
@@ -238,7 +237,7 @@ def main():
     opt = parser.parse_args()
     # overwrite env var by parsed arg
     if opt.version:
-        os.environ['SD_VERSION'] = opt.version # TODO: don't rely on env var
+        os.environ['SD_VERSION'] = opt.version
     if opt.ckpt_path is None:
         opt.ckpt_path = "models/wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "models/stablediffusionv2_512.ckpt"
     if opt.config is None:
@@ -274,7 +273,7 @@ def main():
 
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
-        mode=1, #ms.context.GRAPH_MODE,
+        mode=ms.context.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB"
@@ -286,14 +285,12 @@ def main():
         opt.config = os.path.join(work_dir, opt.config)
     config = OmegaConf.load(f"{opt.config}")
 
-    # TODO: pass use_fp16 from model config file or cli args
     model = load_model_from_config(
                         config,
                         ckpt=opt.ckpt_path,
                         use_lora=opt.use_lora,
                         lora_rank=opt.lora_rank,
                         lora_only_ckpt=opt.lora_ckpt_path,
-                        use_fp16=True,
                         )
 
 

@@ -20,6 +20,7 @@ warmup_steps=0 # ~3 epoch. diffuser 0
 epochs=72 #15000 steps=>18 epochs in diffuser
 use_ema=True
 clip_grad=True
+lora_fp16=True
 max_grad_norm=1.    # 1.0 in duffuser.
 ckpt_save_interval=5 # save every two epochs
 
@@ -44,6 +45,7 @@ python train_text_to_image.py \
     --epochs=$epochs \
     --use_lora=True \
     --lora_rank=$lora_rank \
+    --lora_fp16=$lora_fp16 \
     --start_learning_rate=$start_learning_rate \
     --end_learning_rate=$end_learning_rate \
     --warmup_steps=$warmup_steps \
