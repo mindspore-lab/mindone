@@ -77,6 +77,7 @@ class DDPM(nn.Cell):
         self.model = DiffusionWrapper(unet_config, conditioning_key)
         self.dtype = mstype.float16 if use_fp16 else mstype.float32
         self.use_scheduler = scheduler_config is not None
+        self.use_ema = use_ema
         if self.use_scheduler:
             self.scheduler_config = scheduler_config
 
@@ -164,7 +165,10 @@ class DDPM(nn.Cell):
         v = (extract_into_tensor(self.sqrt_alphas_cumprod, t, sample.shape) * noise -
                 extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, sample.shape) * sample)
         return v
-
+    
+    # TODO: it's a good practice. May adopt it later.
+    # with ema_scopte(): save_model(), run_eval()
+    '''
     @contextmanager
     def ema_scope(self, context=None):
         if self.use_ema:
@@ -183,6 +187,7 @@ class DDPM(nn.Cell):
                 self.model_ema.restore(iter(trained_parameters))
                 if context is not None:
                     print(f"{context}: Restored training weights")
+    '''
 
     def get_loss(self, pred, target, mean=True):
         if self.loss_type == 'l1':

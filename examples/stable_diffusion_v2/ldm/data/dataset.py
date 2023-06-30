@@ -101,6 +101,7 @@ def filter_small_image(all_images, all_captions, image_filter_size):
     for image, caption in zip(all_images, all_captions):
         w, h = imagesize.get(image)
         if min(w, h) < image_filter_size:
+            print(f'image {image} of size {w}x{h} is filtered.')
             continue
         else:
             filted_images.append(image)

@@ -7,6 +7,8 @@ This folder contains Stable Diffusion models implemented with MindSpore. It targ
 - [x] SD1.4 finetune, support Chinese image-text pair data.
 - [x] SD2.0 inference, support English prompt. It does not support Chinese prompts.
 - [x] SD2.0 finetune, support English image-text par data.
+- [x] Support LoRA finetuning.
+- [x] Support FID evaluation.
 
 ## Quick Start
 Please refer to [demo](demo.md) for a quick tour.
@@ -76,19 +78,11 @@ sh scripts/run_train_v2.sh
 
 Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
 
-### LoRA Finetuning
+### 🔥 LoRA Finetuning
 
 LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
-To use LoRA for efficient SD finetuning, please run 
-
-```shell
-sh scripts/run_train_v2_lora.sh
-```
-
-Please update the `data_path` argument in the script to your local dataset path.
-
-> Note that the learning rate used in here (~1e-4) is larger that that in vanilla finetuning (~1e-5).  
+Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_finetune.md)
 
 
 ### Evaluation

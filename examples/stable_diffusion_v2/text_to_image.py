@@ -19,7 +19,7 @@ from ldm.util import instantiate_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.lora import inject_trainable_lora
-from ldm.util import str2bool
+from ldm.util import str2bool, is_old_ms_version
 
 
 def seed_everything(seed):
@@ -40,19 +40,23 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_only_ckpt=None, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, verbose=False):
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
-    def _load_model(_model, ckpt_fp):
+    def _load_model(_model, ckpt_fp, verbose=True):
         if os.path.exists(ckpt_fp):
             param_dict = ms.load_checkpoint(ckpt_fp)
             if param_dict:
-                param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
-                print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
+                if is_old_ms_version():
+                    param_not_load = ms.load_param_into_net(_model, param_dict)
+                else:
+                    param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
+                if verbose:
+                    print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
                 #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
-            print(f"!!!Warning!!!: {ckpt} doesn't exist")
+            print(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
     if use_lora:
         print('Loading LoRA model.')
@@ -60,6 +64,7 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_on
         if not load_lora_only:
             injected_attns, injected_trainable_params = inject_trainable_lora(
                                                             model,
+                                                            rank=lora_rank,
                                                             use_fp16=(model.model.diffusion_model.dtype==ms.float16),
                                                                 )
             _load_model(model, ckpt)
@@ -67,16 +72,18 @@ def load_model_from_config(config, ckpt, use_lora=False, use_fp16=False, lora_on
         else:
             # load the main pratrained model
             _load_model(model, ckpt)
+            print('Pretrained SD loaded')
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
                                                             model,
+                                                            rank=lora_rank,
                                                             use_fp16=(model.model.diffusion_model.dtype==ms.float16),
                                                                 )
             # load finetuned lora params
-            _load_model(model, lora_only_ckpt)
+            _load_model(model, lora_only_ckpt, verbose=False)
+            print('LoRA params loaded.')
 
-        assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
-        assert len(injected_trainable_params)==32*4*2, 'Expecting 256 injected lora trainable params, but got {len(injected_trainable_params)}'
+        #assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
 
     else:
         _load_model(model, ckpt)
@@ -96,7 +103,7 @@ def main():
         type=str,
         nargs="?",
         default="",
-        help="the prompt to render"
+        help="path to a file containing prompt list (each line in the file correspods to a prompt to render)."
     )
     parser.add_argument(
         "-v",
@@ -185,7 +192,6 @@ def main():
     parser.add_argument(
         "--scale",
         type=float,
-        #default=7.5 if SD_VERSION.startswith('1.') else 9.0,
         default=None,
         help="unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))",
     )
@@ -197,23 +203,22 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        #default="configs/v1-inference-chinese.yaml" if SD_VERSION.startswith('1.') else "configs/v2-inference.yaml" ,
         default=None,
         help="path to config which constructs model. If None, select by version",
     )
     parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
+    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="models",
+        default=None,
         help="path to checkpoint of model",
     )
     parser.add_argument(
-        "--ckpt_name",
+        "--lora_ckpt_path",
         type=str,
-        #default="wukong-huahua-ms.ckpt" if SD_VERSION.startswith('1.') else "stablediffusionv2_512.ckpt",
         default=None,
-        help="path to checkpoint of model. If None, select by version",
+        help="path to lora only checkpoint. Set it if use_lora is not None",
     )
     parser.add_argument(
         "--seed",
@@ -231,9 +236,9 @@ def main():
     opt = parser.parse_args()
     # overwrite env var by parsed arg
     if opt.version:
-        os.environ['SD_VERSION'] = opt.version # TODO: don't rely on env var
-    if opt.ckpt_name is None:
-        opt.ckpt_name = "wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "stablediffusionv2_512.ckpt"
+        os.environ['SD_VERSION'] = opt.version
+    if opt.ckpt_path is None:
+        opt.ckpt_path = "models/wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "models/stablediffusionv2_512.ckpt"
     if opt.config is None:
         opt.config = "configs/v1-inference-chinese.yaml" if opt.version.startswith('1.') else "configs/v2-inference.yaml"
     if opt.scale is None:
@@ -267,7 +272,7 @@ def main():
 
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
-        mode=1, #ms.context.GRAPH_MODE,
+        mode=ms.context.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB"
@@ -279,12 +284,12 @@ def main():
         opt.config = os.path.join(work_dir, opt.config)
     config = OmegaConf.load(f"{opt.config}")
 
-    # TODO: pass use_fp16 from model config file or cli args
     model = load_model_from_config(
                         config,
-                        ckpt=f"{os.path.join(opt.ckpt_path, opt.ckpt_name)}",
+                        ckpt=opt.ckpt_path,
                         use_lora=opt.use_lora,
-                        use_fp16=True,
+                        lora_rank=opt.lora_rank,
+                        lora_only_ckpt=opt.lora_ckpt_path,
                         )
 
 

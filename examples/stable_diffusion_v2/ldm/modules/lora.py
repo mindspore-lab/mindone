@@ -160,6 +160,8 @@ def inject_trainable_lora(net: nn.Cell, target_modules=["CrossAttention"], rank=
                 if '.lora_down' in param.name or '.lora_up' in param.name:
                     injected_trainable_params[param.name] = param
 
+    injected_modules = catched_attns
+
     if verbose:
         print('Parameters in attention layers after lora injection: ', "\n".join([f"{p.name}\t{p}" for p in net.get_parameters() if 'to_' in p.name]))
         #print('=> New net after lora injection: ', net)
@@ -168,12 +170,12 @@ def inject_trainable_lora(net: nn.Cell, target_modules=["CrossAttention"], rank=
     new_net_stat = {}
     new_net_stat['num_params'] = len(list(net.get_parameters()))
     assert new_net_stat['num_params'] - ori_net_stat['num_params'] == len(catched_attns) * len(target_dense_layers) * 2, 'Num of parameters should be increased by num_attention_layers * 4 * 2 after injection.'
+    assert len(injected_trainable_params)==len(injected_modules)*4*2, f'Expecting the number of injected lora trainable params to be {len(injected_modules)*4*2}, but got {len(injected_trainable_params)}'
 
     print('Finish injecting LoRA params to the network. Number of injected params: {}'.format(new_net_stat['num_params'] - ori_net_stat['num_params'] ))
     if verbose:
         print("Detailed injected params: \n", "\n".join([p.name+'\t'+f'{p}' for p in injected_traninable_params]))
 
-    injected_modules = catched_attns
     return injected_modules, injected_trainable_params
 
 

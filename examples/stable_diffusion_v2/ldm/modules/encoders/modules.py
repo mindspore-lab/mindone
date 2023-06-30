@@ -29,7 +29,7 @@ class FrozenCLIPEmbedder(nn.Cell):
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.max_length = max_length
 
-        self.tokenizer = get_tokenizer(SD_VERSION) # TODO: reuse the instantiated tokenized used in load dataset 
+        self.tokenizer = get_tokenizer(SD_VERSION) # TODO: reuse the instantiated tokenized used in load dataset
 
         if SD_VERSION.startswith('1.'):
             self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=768, width=768, layers=12, heads=12, dtype=self.dtype)
