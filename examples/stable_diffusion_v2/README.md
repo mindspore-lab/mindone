@@ -89,11 +89,6 @@ Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_fine
 
 Please refer to [Evaluation for Diffusion Models](eval/README.md) 
 
-
-### Evaluation
-
-Please refer to [Evaluation for Diffusion Models](eval/README.md) 
-
 - - -
 ## Stable Diffusion 1.x - CN
 
