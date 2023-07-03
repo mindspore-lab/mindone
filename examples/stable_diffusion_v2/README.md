@@ -86,8 +86,8 @@ A Van Gogh style oil painting of sunflower
 
 | PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
 | :----: | :----: | :----: | :----: | :----: |
-| <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DDIM_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver++_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/UniPC_1.png" width="155" height="155" /> |
-| <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DDIM_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/DPM-Solver++_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/sunflower/UniPC_2.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/1105da61-4f12-47d3-a008-25117fddfe68" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/ba5f89e8-84a6-4805-a132-34d0aff4f91a" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/7adf2a87-a1ed-4963-8c00-4d70e34c820c" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/4cfed3e7-1dff-49f1-8399-e25593d29e83" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/e7d9e51f-50f8-4ed6-9685-431b813967d1" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/9f1a5530-87ac-4fa4-adc2-3b304bfc636d" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/430cc134-16cb-4327-9b88-1bc6de99f33b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/2ae82e37-f27a-4805-8d05-71c8a8f8676e" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/b71626a5-2d39-4c70-aee7-e68cc2c10651" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/b693bcaa-479c-4fdf-adce-22afd453f975" width="155" height="155" /> |
 
 ```bash
 A photo of an astronaut riding a horse on mars
@@ -95,7 +95,7 @@ A photo of an astronaut riding a horse on mars
 
 | PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
 | :----: | :----: | :----: | :----: |
-| <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_3.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/astronaut/PLMS_4.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/9c80d7fe-4709-4387-b51d-fe9b86d1e92a" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/a66c1c3d-4c81-4c21-8714-3afe28769122" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/ae6af084-7930-42fd-a91d-7aaf182f5f5b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/03384b6d-21ba-49ec-af6b-c029a2ff8e37" width="155" height="155" /> |
 
 ```bash
 A high tech solarpunk utopia in the Amazon rainforest
@@ -103,7 +103,7 @@ A high tech solarpunk utopia in the Amazon rainforest
 
 | PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
 | :----: | :----: | :----: | :----: |
-| <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_3.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/solarpunk/PLMS_4.png" width="155" height="155" /> |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/e1eeef11-0aeb-43f7-8b40-8e2a0c0e9a70" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/2faa35c9-c52b-4753-afdc-ea3b24afb2d2" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/fcb0a813-1bfc-4d3e-a6f3-eb4359fee72b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/5a5199f8-6a15-4930-889e-5876e25b01cb" width="155" height="155" /> |
 
 ```bash
 The beautiful night view of the city has various buildings, traffic flow, and lights
@@ -111,8 +111,7 @@ The beautiful night view of the city has various buildings, traffic flow, and li
 
 | PLMS #1 | PLMS #2 | PLMS #3 | PLMS #4 |
 | :----: | :----: | :----: | :----: |
-| <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_1.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_2.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_3.png" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/demo/city/PLMS_4.png" width="155" height="155" /> |
-
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/71658f30-d89d-4e34-9195-34e14a132d3b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/b3fdcf9b-699d-4717-a997-c7f7fac4858e" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/c1673c78-ec80-46aa-86b0-e087207ae390" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/2e099b94-99f6-4488-a625-58cbf1fce179" width="155" height="155" /> |
 
 ### Vanilla Finetuning
 
