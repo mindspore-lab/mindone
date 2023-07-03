@@ -7,7 +7,7 @@ This folder contains Stable Diffusion models implemented with MindSpore. It targ
 - [x] SD1.4 finetune, support Chinese image-text pair data.
 - [x] SD2.0 inference, support English prompt. It does not support Chinese prompts.
 - [x] SD2.0 finetune, support English image-text par data.
-- [x] Support LoRA finetuning.
+- [x] Support [LoRA finetuning](lora_finetune.md) 🔥 
 - [x] Support FID evaluation.
 
 ## Quick Start
@@ -78,7 +78,7 @@ sh scripts/run_train_v2.sh
 
 Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
 
-### 🔥 LoRA Finetuning
+### LoRA Finetuning 🔥 
 
 LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
@@ -113,13 +113,12 @@ Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want
 
 
 ## What's New
-
+- 2023.06.30  Add LoRA finetuning and FID evalution.
 - 2023.06.12  Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in configs/your_train.yaml  
 
 
 ## TODO
-- [ ] Support vanilla finetuning a.k.a second-stage training for 768x768 images. (Currently, it will lead to OOM on a single card)
-- [ ] Fix bugs in loading pretrained checkpoints (some network params are not in the pretrained checkpoint)
-- [ ] Support SD2.1 (768) inference and finetuning.
-- [ ] Support training from scratch including first-stage training
+- [ ] Fix warnings in loading pretrained checkpoints 
+- [ ] Support SD2.1 inference and finetuning in 768x768 resolution.
+- [ ] Support training from scratch including first-stage training.
 

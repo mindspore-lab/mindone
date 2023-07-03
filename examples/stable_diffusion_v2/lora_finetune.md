@@ -145,9 +145,14 @@ Here are the example results.
 
 We will evaluate the finetuned model on the split test set in `pokemon_blip.zip` and `chinese_art_blip.zip`. 
 
-Firstly, let us run text-to-image generation on the test set following the instruction below.
+Let us run text-to-image generation conditioned on the prompts in test set then evaluate the quality of the generated images by the following steps.   
 
-1. Update `data_path` argument to your prompt file path in `scripts/run_text_to_image_v2_lora.sh` script, update `output_path` to store the generated images, and update `lora_ckpt_path` for a new finetuned lora checkpoint.
+1. Update the following path settings in `scripts/run_text_to_image_v2_lora.sh`: 
+    - `data_path`: path to your prompt txt file 
+    - `output_path`: path to store the generated images
+    - `lora_ckpt_path`: path to the finetuned lora checkpoint that you want to evalute
+
+For example,
 
 ```shell
 data_path=./datasets/pokemon_blip/test/prompts.txt  # modify to your local data path
@@ -155,7 +160,7 @@ lora_ckpt_path=output/pokemon/txt2img/ckpt/rank_0/sd-72.ckpt  # modify to your l
 output_path=output/lora_pokemon  # modify to your output path
 ```
 
-`prompts.txt` is a file containing the prompts for the corresponding real images, for example
+`prompts.txt` is a file which contains multiple prompts, and each line is the caption for a real image in test set, for example
 
 ```text
 a drawing of a spider on a white background
@@ -178,6 +183,8 @@ Note that the following hyper-param configuration will affect the generation and
 - ddim_steps: the sampling steps
 - scale: unconditional guidance scale
 
+For more details, please run `python text_to_image.py -h`.
+
 3. Evaluate the generated images
 
 ```shell
@@ -198,7 +205,7 @@ Here are the evaluation results for our implementation.
     
 </div>
 
-> Note that these numbers can not reflect the generation quality comprehensively. A visual evaluation is also necessary.
+> Note that these numbers can not reflect the generation quality comprehensively!! A visual evaluation is also necessary.
 
 
 ## Reference
