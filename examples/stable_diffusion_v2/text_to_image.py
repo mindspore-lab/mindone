@@ -1,7 +1,7 @@
 '''
 Text to image generation
 '''
-
+import logging
 import os
 import time
 import sys
@@ -13,14 +13,15 @@ import numpy as np
 import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
-print("workspace", workspace, flush=True)
 sys.path.append(workspace)
 from ldm.util import instantiate_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.lora import inject_trainable_lora
+from ldm.modules.logger import set_logger
 from ldm.util import str2bool, is_old_ms_version
 
+logger = logging.getLogger("text_to_image")
 
 def seed_everything(seed):
     if seed:
@@ -41,7 +42,7 @@ def numpy_to_pil(images):
 
 
 def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, verbose=False):
-    print(f"Loading model from {ckpt}")
+    logger.info(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
     def _load_model(_model, ckpt_fp, verbose=True):
@@ -53,13 +54,13 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                 else:
                     param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
                 if verbose:
-                    print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
-                #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
+                    logger.info("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
+                #logger.info("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
-            print(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
+            logger.warning(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
     if use_lora:
-        print('Loading LoRA model.')
+        logger.info('Loading LoRA model.')
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
             injected_attns, injected_trainable_params = inject_trainable_lora(
@@ -72,7 +73,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
         else:
             # load the main pratrained model
             _load_model(model, ckpt)
-            print('Pretrained SD loaded')
+            logger.info('Pretrained SD loaded')
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
                                                             model,
@@ -81,7 +82,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                                                                 )
             # load finetuned lora params
             _load_model(model, lora_only_ckpt, verbose=False)
-            print('LoRA params loaded.')
+            logger.info('LoRA params loaded.')
 
         #assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
 
@@ -233,6 +234,12 @@ def main():
         choices=["full", "autocast"],
         default="autocast"
     )
+    parser.add_argument(
+        "--log_level",
+        type=str,
+        default='logging.INFO',
+        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
+    )
     opt = parser.parse_args()
     # overwrite env var by parsed arg
     if opt.version:
@@ -246,30 +253,39 @@ def main():
 
 
     work_dir = os.path.dirname(os.path.abspath(__file__))
-    print(f"WORK DIR:{work_dir}")
+    logger.debug(f"WORK DIR:{work_dir}")
 
     os.makedirs(opt.output_path, exist_ok=True)
     outpath = opt.output_path
 
+    # set logger
+    set_logger(
+            name="",
+            output_dir=outpath,
+            rank=0,
+            log_level=logging.INFO, #eval(opt.log_level),
+        )
+
+    
+    # read prompts
     batch_size = opt.n_samples
     if not opt.data_path:
         prompt = opt.prompt
         assert prompt is not None
         data = [batch_size * [prompt]]
-        print("Prompt to generate: ", prompt)
     else:
-        print(f"Reading prompts from {opt.data_path}")
+        logger.info(f"Reading prompts from {opt.data_path}")
         with open(opt.data_path, "r") as f:
             prompts = f.read().splitlines()
             num_prompts = len(prompts)
-            print("Num prompts to generate: ", num_prompts)
             # TODO: try to put different prompts in a batch
             data = [batch_size * [prompt] for prompt in prompts]
-
+    
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
 
+    # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
         mode=ms.context.GRAPH_MODE,
@@ -279,11 +295,11 @@ def main():
     )
 
     seed_everything(opt.seed)
-
+    
+    # create model
     if not os.path.isabs(opt.config):
         opt.config = os.path.join(work_dir, opt.config)
     config = OmegaConf.load(f"{opt.config}")
-
     model = load_model_from_config(
                         config,
                         ckpt=opt.ckpt_path,
@@ -292,20 +308,44 @@ def main():
                         lora_only_ckpt=opt.lora_ckpt_path,
                         )
 
-
+    
+    # create sampler
     if opt.dpm_solver:
         sampler = DPMSolverSampler(model)
+        sname = 'dpm_solver' 
     else:
         sampler = PLMSSampler(model)
+        sname = 'plms' 
 
+    # log
+    key_info = '\n' + '=' * 40 + '\n'
+    key_info += "\n".join(
+        [
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {0}",
+            f"Distributed mode: False",
+            f"Number of input prompts: {len(data)}",
+            f"Number of trials for each prompt: {opt.n_iter}",
+            f"Number of samples in each trial: {opt.n_samples}",
+            f"Model: StableDiffusion v{opt.version}",
+            f"Checkpont path: {opt.ckpt_path}",
+            f"Lora checkpoint path: {opt.lora_ckpt_path if opt.use_lora else None}",
+            f"Use fp16: {model.model.diffusion_model.dtype==ms.float16}",
+            f"Sampler: {sname}",
+            f"Sampling steps: {opt.ddim_steps}",
+        ]
+    )
+    key_info += "\n" + "=" * 40
+    logger.info(key_info) 
+
+    # infer
     start_code = None
     if opt.fixed_code:
         stdnormal = ms.ops.StandardNormal()
         start_code = stdnormal((opt.n_samples, 4, opt.H // 8, opt.W // 8))
 
     all_samples = list()
-    for prompts in data:
-        print("Generating for prompts: ", prompts)
+    for i, prompts in enumerate(data):
+        logger.info("[{}/{}] Generating {} images for prompts:\n{}".format(i, len(data), batch_size, prompts[0]))
         for n in range(opt.n_iter):
             start_time = time.time()
 
@@ -342,9 +382,9 @@ def main():
                 all_samples.append(x_samples_ddim_numpy)
 
             end_time = time.time()
-            print(f"the infer time of a batch is {end_time-start_time}")
+            logger.info(f"the infer time of a batch is {end_time-start_time}")
 
-    print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
+    logger.info(f"Your samples are ready and waiting for you here: \n{outpath} \n"
       f" \nEnjoy.")
 
 if __name__ == "__main__":
