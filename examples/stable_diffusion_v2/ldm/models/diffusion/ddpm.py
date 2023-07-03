@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
 import numpy as np
 from contextlib import contextmanager
 from functools import partial
@@ -20,6 +21,9 @@ from mindspore import dtype as mstype, numpy as msnp, nn, ops, Tensor, Parameter
 
 from ldm.util import exists, default, instantiate_from_config, extract_into_tensor
 from ldm.modules.diffusionmodules.util import make_beta_schedule
+
+_logger = logging.getLogger(__name__)
+
 
 def disabled_train(self, mode=True):
     """Overwrite model.set_train with this function to make sure train/eval mode
@@ -66,7 +70,7 @@ class DDPM(nn.Cell):
         super().__init__()
         assert parameterization in ["eps", "x0", "velocity"], 'currently only supporting "eps", "velocity" and "x0"'
         self.parameterization = parameterization
-        print(f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode")
+        _logger.debug(f"{self.__class__.__name__}: Running in {self.parameterization}-prediction mode")
         self.cond_stage_model = None
         self.clip_denoised = clip_denoised
         self.log_every_t = log_every_t

@@ -198,7 +198,7 @@ Here are the evaluation results for our implementation.
 
 <div align="center">
 
-| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (MindONE) |  FID (Diffuser)   |                                                                 
+| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   |                                                                 
 |--------------|------|-------------|-----------|--------|------------|
 | stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108   |   106  |
 | stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257    |   254  |

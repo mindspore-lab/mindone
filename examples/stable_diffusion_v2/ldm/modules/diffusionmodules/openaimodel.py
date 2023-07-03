@@ -13,6 +13,7 @@
 # limitations under the License.
 # ============================================================================
 from abc import abstractmethod
+import logging
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -30,6 +31,7 @@ from ldm.modules.diffusionmodules.util import (
     timestep_embedding
 )
 
+_logger = logging.getLogger(__name__)
         
 
 class Upsample(nn.Cell):
@@ -435,7 +437,7 @@ class UNetModel(nn.Cell):
         if legacy:
             dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
 
-        print('Attention: output_channels={}, num_heads={}, dim_head={}'.format(ch, num_heads, num_head_channels, dim_head))
+        _logger.debug('Attention: output_channels={}, num_heads={}, dim_head={}'.format(ch, num_heads, num_head_channels, dim_head))
 
         self.middle_block =  nn.CellList([
                     ResBlock(
