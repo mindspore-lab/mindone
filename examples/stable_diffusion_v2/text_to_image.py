@@ -20,9 +20,9 @@ from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.uni_pc import UniPCSampler
+from ldm.modules.lora import inject_trainable_lora
+from ldm.util import str2bool, is_old_ms_version
 
-
-#SD_VERSION = os.getenv('SD_VERSION', default='2.0')
 
 def seed_everything(seed):
     if seed:
@@ -42,16 +42,57 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, verbose=False):
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
-    if os.path.exists(ckpt):
-        param_dict = ms.load_checkpoint(ckpt)
-        if param_dict:
-            param_not_load = ms.load_param_into_net(model, param_dict)
-            print("param not load:", param_not_load)
+
+    def _load_model(_model, ckpt_fp, verbose=True):
+        if os.path.exists(ckpt_fp):
+            param_dict = ms.load_checkpoint(ckpt_fp)
+            if param_dict:
+                if is_old_ms_version():
+                    param_not_load = ms.load_param_into_net(_model, param_dict)
+                else:
+                    param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
+                if verbose:
+                    print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
+                #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
+        else:
+            print(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
+
+    if use_lora:
+        print('Loading LoRA model.')
+        load_lora_only = True if lora_only_ckpt is not None else False
+        if not load_lora_only:
+            injected_attns, injected_trainable_params = inject_trainable_lora(
+                                                            model,
+                                                            rank=lora_rank,
+                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
+                                                                )
+            _load_model(model, ckpt)
+
+        else:
+            # load the main pratrained model
+            _load_model(model, ckpt)
+            print('Pretrained SD loaded')
+            # inject lora params
+            injected_attns, injected_trainable_params = inject_trainable_lora(
+                                                            model,
+                                                            rank=lora_rank,
+                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
+                                                                )
+            # load finetuned lora params
+            _load_model(model, lora_only_ckpt, verbose=False)
+            print('LoRA params loaded.')
+
+        #assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
+
     else:
-        print(f"!!!Warning!!!: {ckpt} doesn't exist")
+        _load_model(model, ckpt)
+
+    model.set_train(False)
+    for param in model.trainable_params():
+        param.requires_grad = False
 
     return model
 
@@ -64,7 +105,7 @@ def main():
         type=str,
         nargs="?",
         default="",
-        help="the prompt to render"
+        help="path to a file containing prompt list (each line in the file correspods to a prompt to render)."
     )
     parser.add_argument(
         "-v",
@@ -168,7 +209,6 @@ def main():
     parser.add_argument(
         "--scale",
         type=float,
-        #default=7.5 if SD_VERSION.startswith('1.') else 9.0,
         default=None,
         help="unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))",
     )
@@ -180,22 +220,22 @@ def main():
     parser.add_argument(
         "--config",
         type=str,
-        #default="configs/v1-inference-chinese.yaml" if SD_VERSION.startswith('1.') else "configs/v2-inference.yaml" ,
         default=None,
         help="path to config which constructs model. If None, select by version",
     )
+    parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
+    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="models",
+        default=None,
         help="path to checkpoint of model",
     )
     parser.add_argument(
-        "--ckpt_name",
+        "--lora_ckpt_path",
         type=str,
-        #default="wukong-huahua-ms.ckpt" if SD_VERSION.startswith('1.') else "stablediffusionv2_512.ckpt",
         default=None,
-        help="path to checkpoint of model. If None, select by version",
+        help="path to lora only checkpoint. Set it if use_lora is not None",
     )
     parser.add_argument(
         "--seed",
@@ -213,18 +253,40 @@ def main():
     opt = parser.parse_args()
     # overwrite env var by parsed arg
     if opt.version:
-        os.environ['SD_VERSION'] = opt.version # TODO: don't rely on env var
-    if opt.ckpt_name is None:
-        opt.ckpt_name = "wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "stablediffusionv2_512.ckpt"
+        os.environ['SD_VERSION'] = opt.version
+    if opt.ckpt_path is None:
+        opt.ckpt_path = "models/wukong-huahua-ms.ckpt" if opt.version.startswith('1.') else "models/stablediffusionv2_512.ckpt"
     if opt.config is None:
-        opt.config = "configs/v1-inference-chinese.yaml" if opt.version.startswith('1.') else "configs/v2-inference.yaml" 
+        opt.config = "configs/v1-inference-chinese.yaml" if opt.version.startswith('1.') else "configs/v2-inference.yaml"
     if opt.scale is None:
         opt.scale = 7.5 if opt.version.startswith('1.') else 9.0
 
 
     work_dir = os.path.dirname(os.path.abspath(__file__))
     print(f"WORK DIR:{work_dir}")
-    
+
+    os.makedirs(opt.output_path, exist_ok=True)
+    outpath = opt.output_path
+
+    batch_size = opt.n_samples
+    if not opt.data_path:
+        prompt = opt.prompt
+        assert prompt is not None
+        data = [batch_size * [prompt]]
+        print("Prompt to generate: ", prompt)
+    else:
+        print(f"Reading prompts from {opt.data_path}")
+        with open(opt.data_path, "r") as f:
+            prompts = f.read().splitlines()
+            num_prompts = len(prompts)
+            print("Num prompts to generate: ", num_prompts)
+            # TODO: try to put different prompts in a batch
+            data = [batch_size * [prompt] for prompt in prompts]
+
+    sample_path = os.path.join(outpath, "samples")
+    os.makedirs(sample_path, exist_ok=True)
+    base_count = len(os.listdir(sample_path))
+
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
         mode=ms.context.GRAPH_MODE,
@@ -232,14 +294,21 @@ def main():
         device_id=device_id,
         max_device_memory="30GB"
     )
-    
+
     seed_everything(opt.seed)
 
     if not os.path.isabs(opt.config):
         opt.config = os.path.join(work_dir, opt.config)
     config = OmegaConf.load(f"{opt.config}")
-    model = load_model_from_config(config, f"{os.path.join(opt.ckpt_path, opt.ckpt_name)}")
-    
+
+    model = load_model_from_config(
+                        config,
+                        ckpt=opt.ckpt_path,
+                        use_lora=opt.use_lora,
+                        lora_rank=opt.lora_rank,
+                        lora_only_ckpt=opt.lora_ckpt_path,
+                        )
+
     if opt.ddim:
         sampler = DDIMSampler(model)
     elif opt.dpm_solver:
@@ -250,24 +319,6 @@ def main():
         sampler = UniPCSampler(model)
     else:
         sampler = PLMSSampler(model)
-    os.makedirs(opt.output_path, exist_ok=True)
-    outpath = opt.output_path
-    
-    batch_size = opt.n_samples
-    if not opt.data_path:
-        prompt = opt.prompt
-        assert prompt is not None
-        data = [batch_size * [prompt]]
-    else:
-        opt.prompt = os.path.join(opt.data_path, opt.prompt)
-        print(f"reading prompts from {opt.prompt}")
-        with open(opt.prompt, "r") as f:
-            data = f.read().splitlines()
-            data = [batch_size * [prompt for prompt in data]] 
-
-    sample_path = os.path.join(outpath, "samples")
-    os.makedirs(sample_path, exist_ok=True)
-    base_count = len(os.listdir(sample_path))
     
     start_code = None
     if opt.fixed_code:
@@ -276,6 +327,7 @@ def main():
 
     all_samples = list()
     for prompts in data:
+        print("Generating for prompts: ", prompts)
         for n in range(opt.n_iter):
             start_time = time.time()
 
@@ -297,25 +349,25 @@ def main():
                                             x_T=start_code
                                             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
-            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, 
+            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0,
                                                   clip_value_min=0.0, clip_value_max=1.0)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
-            
+
             if not opt.skip_save:
                 for x_sample in x_samples_ddim_numpy:
                     x_sample = 255. * x_sample.transpose(1, 2, 0)
                     img = Image.fromarray(x_sample.astype(np.uint8))
                     img.save(os.path.join(sample_path, f"{base_count:05}.png"))
                     base_count += 1
-                    
+
             if not opt.skip_grid:
                 all_samples.append(x_samples_ddim_numpy)
 
             end_time = time.time()
             print(f"the infer time of a batch is {end_time-start_time}")
 
-        print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
-          f" \nEnjoy.")
-          
+    print(f"Your samples are ready and waiting for you here: \n{outpath} \n"
+      f" \nEnjoy.")
+
 if __name__ == "__main__":
     main()
