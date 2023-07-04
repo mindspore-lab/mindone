@@ -146,7 +146,7 @@ class PLMSSampler():
         intermediates = {'x_inter': [img], 'pred_x0': [img]}
         time_range = list(reversed(range(0,timesteps))) if ddim_use_original_steps else ms.numpy.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
-        logger.info(f"Running PLMS Sampling with {total_steps} timesteps")
+        _logger.debug(f"Running PLMS Sampling with {total_steps} timesteps")
 
         # iterator = tqdm(time_range, desc='PLMS Sampler', total=total_steps)
         iterator = time_range

@@ -8,7 +8,7 @@ device_id=7
 # modify to your local data path
 data_path=./datasets/pokemon_blip/train
 #data_path=/home/yx/datasets/diffusion/pokemon
-output_path=output/lora_pokemon
+output_path=output/lora_pokemon_tmp
 
 task_name=txt2img
 pretrained_model_path=models/
