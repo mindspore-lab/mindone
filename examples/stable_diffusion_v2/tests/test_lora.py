@@ -476,5 +476,5 @@ if __name__ == '__main__':
     #compare_before_after_lora_finetune()
     test_load_and_infer()
 
-    #compare_before_after_lora_finetune('models/stablediffusionv2_512.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
+    #compare_before_after_lora_finetune('models/sd_v2_base-57526ee4.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
 

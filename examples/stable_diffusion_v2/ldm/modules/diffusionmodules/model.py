@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
 import numpy as np
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import ops
 from ldm.util import is_old_ms_version 
 
+_logger = logging.getLogger(__name__)
 
 def nonlinearity(x):
     # swish
@@ -214,7 +216,7 @@ class AttnBlock(nn.Cell):
 
 def make_attn(in_channels, attn_type="vanilla", dtype=ms.float32):
     assert attn_type == "vanilla", f'attn_type {attn_type} not supported'
-    print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
+    _logger.debug(f"making attention of type '{attn_type}' with {in_channels} in_channels")
     if attn_type == "vanilla":
         return AttnBlock(in_channels, dtype=dtype)
 
@@ -344,7 +346,7 @@ class Decoder(nn.Cell):
         block_in = ch*ch_mult[self.num_resolutions-1]
         curr_res = resolution // 2**(self.num_resolutions-1)
         self.z_shape = (1,z_channels,curr_res,curr_res)
-        print("Working with z of shape {} = {} dimensions.".format(
+        _logger.debug("Working with z of shape {} = {} dimensions.".format(
             self.z_shape, np.prod(self.z_shape)))
 
         # z to block_in
