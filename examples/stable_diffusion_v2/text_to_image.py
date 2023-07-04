@@ -105,7 +105,7 @@ def main(args):
     logger.debug(f"WORK DIR:{work_dir}")
     os.makedirs(args.output_path, exist_ok=True)
     outpath = args.output_path
-    
+
     # read prompts
     batch_size = args.n_samples
     if not args.data_path:
@@ -185,7 +185,7 @@ def main(args):
 
     all_samples = list()
     for i, prompts in enumerate(data):
-        logger.info("[{}/{}] Sampling for prompt(s): {}".format(i+1, len(data), prompts[0]))
+        logger.info("[{}/{}] Generating images for prompt(s):\n{}".format(i+1, len(data), prompts[0]))
         for n in range(args.n_iter):
             start_time = time.time()
 
@@ -222,7 +222,7 @@ def main(args):
                 all_samples.append(x_samples_ddim_numpy)
 
             end_time = time.time()
-            logger.info("Batch generated ({}/{} imgs), time cost for this trial: {:.3f}s".format(batch_size*(n+1), batch_size * args.n_iter, end_time-start_time))
+            logger.info("{}/{} images generated, time cost for current trial: {:.3f}s".format(batch_size*(n+1), batch_size * args.n_iter, end_time-start_time))
 
     logger.info(f"Done! All generated images are saved in: {outpath}/samples"
       f"\nEnjoy.")
@@ -336,6 +336,6 @@ if __name__ == "__main__":
         args.config = "configs/v1-inference-chinese.yaml" if args.version.startswith('1.') else "configs/v2-inference.yaml"
     if args.scale is None:
         args.scale = 7.5 if args.version.startswith('1.') else 9.0
-    
+
     # core task
     main(args)

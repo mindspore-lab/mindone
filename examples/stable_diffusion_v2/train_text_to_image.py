@@ -17,7 +17,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.communication.management import init, get_rank, get_group_size
 from mindspore.train.callback import LossMonitor, TimeMonitor, CheckpointConfig, ModelCheckpoint
 
-from ldm.data.dataset import build_dataset 
+from ldm.data.dataset import build_dataset
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.modules.train.callback import EvalSaveCallback
 from ldm.modules.train.ema import EMA
@@ -91,7 +91,7 @@ def get_obj_from_str(string, reload=False):
 
 
 def load_pretrained_model(pretrained_ckpt, net):
-    logger.info(f"Loading pretrained_ckpt {pretrained_ckpt}")
+    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
         if is_old_ms_version():
@@ -121,10 +121,10 @@ def main(args):
     # init
     rank_id, device_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
-    
+
     # build dataset
     dataset = build_dataset(args, rank_id, device_num)
-    
+
     # build model
     latent_diffusion_with_loss = build_model_from_config(args.model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
@@ -196,7 +196,7 @@ def main(args):
             )
 
         callback.append(save_cb)
-    
+
     # log
     if rank_id == 0:
         key_info = 'Key Settings:\n' + '=' * 50 + '\n'
