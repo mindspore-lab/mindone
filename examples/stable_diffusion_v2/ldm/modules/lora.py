@@ -1,3 +1,4 @@
+import logging
 import mindspore as ms
 from mindspore import nn
 from mindspore import ops
@@ -10,6 +11,8 @@ import ldm
 from ldm.util import is_old_ms_version
 
 __all__ = ['LoRADenseLayer', 'LowRankDense', 'inject_trainable_lora', 'freeze_non_lora_params', 'get_lora_params']
+
+_logger = logging.getLogger(__name__)
 
 
 class LoRADenseLayer(nn.Cell):
@@ -84,7 +87,6 @@ def inject_trainable_lora(net: nn.Cell, target_modules=["CrossAttention"], rank=
     ''' 
     target_modules = [getattr(ldm.modules.attention, m) for m in target_modules]
     
-    print('LoRA use_fp16: ', use_fp16)
     dtype = ms.float16 if use_fp16 else ms.float32
     ori_net_stat = {}
     ori_net_stat['num_params'] = len(list(net.get_parameters()))
@@ -172,7 +174,7 @@ def inject_trainable_lora(net: nn.Cell, target_modules=["CrossAttention"], rank=
     assert new_net_stat['num_params'] - ori_net_stat['num_params'] == len(catched_attns) * len(target_dense_layers) * 2, 'Num of parameters should be increased by num_attention_layers * 4 * 2 after injection.'
     assert len(injected_trainable_params)==len(injected_modules)*4*2, f'Expecting the number of injected lora trainable params to be {len(injected_modules)*4*2}, but got {len(injected_trainable_params)}'
 
-    print('Finish injecting LoRA params to the network. Number of injected params: {}'.format(new_net_stat['num_params'] - ori_net_stat['num_params'] ))
+    _logger.info('LoRA enabled. Number of injected params: {}'.format(new_net_stat['num_params'] - ori_net_stat['num_params'] ))
     if verbose:
         print("Detailed injected params: \n", "\n".join([p.name+'\t'+f'{p}' for p in injected_traninable_params]))
 
