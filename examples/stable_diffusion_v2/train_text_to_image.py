@@ -208,6 +208,7 @@ def main(opts):
             ckpt_save_policy="latest_k",
             ckpt_max_keep=10,
             ckpt_save_interval=opts.ckpt_save_interval,
+            lora_rank=opts.lora_rank
             )
 
         callback.append(save_cb)

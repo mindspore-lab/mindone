@@ -9,9 +9,6 @@ data_path=./datasets/pokemon_blip/test/prompts.txt
 lora_ckpt_path=output/pokemon/txt2img/ckpt/rank_0/sd-72.ckpt
 output_path=output/lora_pokemon
 
-# TODO: get lora rank from checkpoint append_dict
-lora_rank=128
-
 n_samples=2
 n_iter=1
 scale=9.0
@@ -26,7 +23,6 @@ python text_to_image.py \
     --W 512 \
     --H 512 \
     --use_lora True \
-    --lora_rank $lora_rank \
     --lora_ckpt_path $lora_ckpt_path \
     --dpm_solver \
     --ddim_steps 15 \

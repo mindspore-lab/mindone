@@ -112,10 +112,9 @@ python text_to_image.py \
         --prompt "A drawing of a fox with a red tail" \
         --use_lora True \
         --lora_ckpt_path {path/to/lora_checkpoint_after_finetune}
-        --lora_rank 128 \
 ```
 
-Please update `lora_ckpt_path` and `lora_rank` according to your finetune settings.
+Please update `lora_ckpt_path` according to your finetune settings.
 
 To avoid typing too many arguments in CLI, you may modify and run the `scripts/run_text_to_image_v2_lora.sh` script. Note that you prefer single prompt inference, you should use the `prompt` argument instead of `data_path` for multiple prompts inference.
 

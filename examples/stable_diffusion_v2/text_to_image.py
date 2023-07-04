@@ -2,15 +2,15 @@
 Text to image generation
 '''
 
-import os
-import time
-import sys
 import argparse
+import os
+import sys
+import time
+
+import mindspore as ms
+import numpy as np
 from PIL import Image
 from omegaconf import OmegaConf
-
-import numpy as np
-import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 print("workspace", workspace, flush=True)
@@ -19,7 +19,8 @@ from ldm.util import instantiate_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.lora import inject_trainable_lora
-from ldm.util import str2bool, is_old_ms_version
+from ldm.util import str2bool
+from utils import  model_utils
 
 
 def seed_everything(seed):
@@ -40,21 +41,18 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, lora_fp16=True, lora_only_ckpt=None, verbose=False):
     print(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
-    def _load_model(_model, ckpt_fp, verbose=True):
+    def _load_model(_model, ckpt_fp, verbose=True, filter=None):
         if os.path.exists(ckpt_fp):
             param_dict = ms.load_checkpoint(ckpt_fp)
             if param_dict:
-                if is_old_ms_version():
-                    param_not_load = ms.load_param_into_net(_model, param_dict)
-                else:
-                    param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
+                param_not_load, ckpt_not_load = model_utils.load_param_into_net_with_filter(
+                    _model, param_dict, filter=filter)
                 if verbose:
                     print("Net params not loaded:", [p for p in param_not_load if not p.startswith('adam')])
-                #print("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
             print(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
@@ -62,29 +60,27 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
         print('Loading LoRA model.')
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
-            injected_attns, injected_trainable_params = inject_trainable_lora(
-                                                            model,
-                                                            rank=lora_rank,
-                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
-                                                                )
             _load_model(model, ckpt)
-
         else:
-            # load the main pratrained model
-            _load_model(model, ckpt)
+            lora_rank = 4
+            if os.path.exists(lora_only_ckpt):
+                lora_param_dict = ms.load_checkpoint(lora_only_ckpt)
+                if "lora_rank" in lora_param_dict.keys():
+                    lora_rank = int(lora_param_dict["lora_rank"].value())
+            else:
+                raise ValueError(f"{ckpt} doesn't exist")
+            # load the main pretrained model
+            _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
             print('Pretrained SD loaded')
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
-                                                            model,
-                                                            rank=lora_rank,
-                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
-                                                                )
-            # load finetuned lora params
-            _load_model(model, lora_only_ckpt, verbose=False)
+                model,
+                rank=lora_rank,
+                use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+            )
+            # load fine-tuned lora params
+            _load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
             print('LoRA params loaded.')
-
-        #assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
-
     else:
         _load_model(model, ckpt)
 
@@ -207,7 +203,6 @@ def main():
         help="path to config which constructs model. If None, select by version",
     )
     parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
-    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         "--ckpt_path",
         type=str,
@@ -288,7 +283,6 @@ def main():
                         config,
                         ckpt=opt.ckpt_path,
                         use_lora=opt.use_lora,
-                        lora_rank=opt.lora_rank,
                         lora_only_ckpt=opt.lora_ckpt_path,
                         )
 
