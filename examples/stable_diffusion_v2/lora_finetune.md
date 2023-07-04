@@ -180,7 +180,7 @@ The generated images will be saved in the `{output_path}/samples` folder.
 Note that the following hyper-param configuration will affect the generation and evaluation results.
 
 - sampler: the diffusion sampler
-- ddim_steps: the sampling steps
+- sampling_steps: the sampling steps
 - scale: unconditional guidance scale
 
 For more details, please run `python text_to_image.py -h`.
