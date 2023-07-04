@@ -184,7 +184,7 @@ def main(opts):
             gradient_accumulation_steps=opts.gradient_accumulation_steps,
             clip_grad=opts.clip_grad,
             clip_norm=opts.max_grad_norm,
-            ema=ema, 
+            ema=ema,
         )
 
     model = Model(net_with_grads)

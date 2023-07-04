@@ -12,12 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-"""
-Copyright (c) Microsoft Corporation.
-Licensed under the MIT license.
-
-Misc utilities
-"""
 import json
 import os
 import sys
