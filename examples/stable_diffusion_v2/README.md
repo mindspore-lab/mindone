@@ -29,7 +29,7 @@ pip install -r requirements.txt
 ### Pretrained Checkpoint
 
 - SD2.0 
-  Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/stablediffusion/stablediffusionv2_512.ckpt) and put it under `models/` folder 
+  Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder 
 
 - SD1.x
 Download the [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder

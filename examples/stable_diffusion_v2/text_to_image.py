@@ -331,7 +331,7 @@ if __name__ == "__main__":
     if args.version:
         os.environ['SD_VERSION'] = args.version
     if args.ckpt_path is None:
-        args.ckpt_path = "models/wukong-huahua-ms.ckpt" if args.version.startswith('1.') else "models/stablediffusionv2_512.ckpt"
+        args.ckpt_path = "models/wukong-huahua-ms.ckpt" if args.version.startswith('1.') else "models/sd_v2_base-57526ee4.ckpt"
     if args.config is None:
         args.config = "configs/v1-inference-chinese.yaml" if args.version.startswith('1.') else "configs/v2-inference.yaml"
     if args.scale is None:

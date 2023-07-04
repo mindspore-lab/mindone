@@ -12,7 +12,7 @@ output_path=output/lora_pokemon_tmp
 
 task_name=txt2img
 pretrained_model_path=models/
-pretrained_model_file=stablediffusionv2_512.ckpt
+pretrained_model_file=sd_v2_base-57526ee4.ckpt
 train_config_file=configs/train_config_v2.json
 image_filter_size=200
 image_size=512

@@ -1,7 +1,7 @@
 {
     "model_config": "configs/v2-train.yaml",
     "pretrained_model_path": "models/",
-    "pretrained_model_file":"stablediffusionv2_512.ckpt",
+    "pretrained_model_file":"sd_v2_base-57526ee4.ckpt",
     "data_path": "/secHome/FFHQ",
     "train_batch_size": 3,
     "gradient_accumulation_steps": 1,
