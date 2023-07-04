@@ -12,17 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
 import mindspore as ms
 from mindspore import ops
 from tqdm import tqdm
 
 
-from ldm.util import is_old_ms_version 
+from ldm.util import is_old_ms_version
 from ldm.modules.diffusionmodules.util import (
     make_ddim_sampling_parameters,
     make_ddim_timesteps,
     noise_like
 )
+
+_logger = logging.getLogger(__name__)
+
 
 class PLMSSampler():
     def __init__(self, model, schedule="linear", **kwargs):
@@ -30,27 +34,27 @@ class PLMSSampler():
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
         self.schedule = schedule
-        
+
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0., verbose=True):
         if ddim_eta != 0:
             raise ValueError('ddim_eta must be 0 for PLMS')
         self.ddim_timesteps = make_ddim_timesteps(ddim_discr_method=ddim_discretize, num_ddim_timesteps=ddim_num_steps,
                                                   num_ddpm_timesteps=self.ddpm_num_timesteps,verbose=verbose)
-        
+
         alphas_cumprod = self.model.alphas_cumprod
         assert alphas_cumprod.shape[0] == self.ddpm_num_timesteps, 'alphas have to be defined for each timestep'
-        
+
         self.betas = self.model.betas
         self.alphas_cumprod = alphas_cumprod
         self.alphas_cumprod_prev = self.model.alphas_cumprod_prev
-        
+
         # calculations for diffusion q(x_t | x_{t-1}) and others
         self.sqrt_alphas_cumprod = ops.sqrt(alphas_cumprod)
         self.sqrt_one_minus_alphas_cumprod = ops.sqrt(1. - alphas_cumprod)
         self.log_one_minus_alphas_cumprod = ops.log(1. - alphas_cumprod)
         self.sqrt_recip_alphas_cumprod = ops.sqrt(1. / alphas_cumprod)
         self.sqrt_recipm1_alphas_cumprod = ops.sqrt(1. / alphas_cumprod - 1)
-        
+
         # ddim sampling parameters
         ddim_sigmas, ddim_alphas, ddim_alphas_prev = make_ddim_sampling_parameters(alphacums=alphas_cumprod,
                                                                                         ddim_timesteps=self.ddim_timesteps,
@@ -63,7 +67,7 @@ class PLMSSampler():
             (1 - self.alphas_cumprod_prev) / (1 - self.alphas_cumprod) * (
                         1 - self.alphas_cumprod / self.alphas_cumprod_prev))
         self.ddim_sigmas_for_original_num_steps = sigmas_for_original_sampling_steps
-        
+
     def sample(self,
                S,
                batch_size,
@@ -95,15 +99,15 @@ class PLMSSampler():
                     ctmp = ctmp[0]
                 cbs = ctmp.shape[0]
                 if cbs != batch_size:
-                    print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                    _logger.warning(f"Got {cbs} conditionings but batch-size is {batch_size}")
             else:
                 if conditioning.shape[0] != batch_size:
-                    print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
+                    _logger.warning(f"Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
-        print(f'Data shape for PLMS sampling is {size}')
+        _logger.debug(f'Data shape for PLMS sampling is {size}')
         samples, intermediates = self.plms_sampling(conditioning, size,
                                                     callback=callback,
                                                     img_callback=img_callback,
@@ -132,22 +136,22 @@ class PLMSSampler():
             img = ops.standard_normal(shape)
         else:
             img = x_T
-            
+
         if timesteps is None:
             timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
         elif timesteps is not None and not ddim_use_original_steps:
             subset_end = int(min(timesteps / self.ddim_timesteps.shape[0], 1) * self.ddim_timesteps.shape[0]) - 1
             timesteps = self.ddim_timesteps[:subset_end]
-            
+
         intermediates = {'x_inter': [img], 'pred_x0': [img]}
         time_range = list(reversed(range(0,timesteps))) if ddim_use_original_steps else ms.numpy.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
-        print(f"Running PLMS Sampling with {total_steps} timesteps")
+        _logger.debug(f"Running PLMS Sampling with {total_steps} timesteps")
 
         # iterator = tqdm(time_range, desc='PLMS Sampler', total=total_steps)
         iterator = time_range
         old_eps = []
-        
+
         for i, step in tqdm(enumerate(iterator)):
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
@@ -157,7 +161,7 @@ class PLMSSampler():
                 assert x0 is not None
                 img_orig = self.model.q_sample(x0, ts, ms.numpy.randn(x0.shape))
                 img = img_orig * mask + (1. - mask) * img
-                
+
             outs = self.p_sample_plms(img, cond, ts, index=index, use_original_steps=ddim_use_original_steps,
                                       quantize_denoised=quantize_denoised, temperature=temperature,
                                       noise_dropout=noise_dropout, score_corrector=score_corrector,
@@ -182,9 +186,9 @@ class PLMSSampler():
     def p_sample_plms(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None, old_eps=None, t_next=None):
-        
+
         b = x.shape[0]
-        
+
         def get_model_output(x, t):
             if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
                 e_t = self.model.apply_model(x, t, c_crossattn=c)
@@ -210,8 +214,8 @@ class PLMSSampler():
                     e_t_uncond, e_t = ops.split(ldm_output, axis=0, output_num=2)
                 else:
                     e_t_uncond, e_t = ops.split(
-                                    ldm_output, 
-                                    split_size_or_sections=ldm_output.shape[0]//2, 
+                                    ldm_output,
+                                    split_size_or_sections=ldm_output.shape[0]//2,
                                     axis=0)
 
                 e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
@@ -221,12 +225,12 @@ class PLMSSampler():
                 e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
 
             return e_t
-        
+
         alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
         alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
         sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
         sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
-        
+
         def get_x_prev_and_pred_x0(e_t, index):
             # select parameters corresponding to the currently considered timestep
             a_t = ms.numpy.full((b, 1, 1, 1), alphas[index])
@@ -244,9 +248,9 @@ class PLMSSampler():
             if noise_dropout > 0.:
                 noise, _ = ops.dropout(noise, p=noise_dropout)
             x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
-            
+
             return x_prev, pred_x0
-        
+
         e_t = get_model_output(x, t)
         if len(old_eps) == 0:
             # Pseudo Improved Euler (2nd order)
@@ -262,7 +266,7 @@ class PLMSSampler():
         elif len(old_eps) >= 3:
             # 4nd order Pseudo Linear Multistep (Adams-Bashforth)
             e_t_prime = (55 * e_t - 59 * old_eps[-1] + 37 * old_eps[-2] - 9 * old_eps[-3]) / 24
-            
+
         x_prev, pred_x0 = get_x_prev_and_pred_x0(e_t_prime, index)
-        
-        return x_prev, pred_x0, e_t 
+
+        return x_prev, pred_x0, e_t

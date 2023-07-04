@@ -29,7 +29,7 @@ python text_to_image.py \
     --lora_rank $lora_rank \
     --lora_ckpt_path $lora_ckpt_path \
     --dpm_solver \
-    --ddim_steps 15 \
+    --sampling_steps 15 \
     --data_path $data_path \
     #--prompt "a drawing of a flying dragon" \
     #--ckpt_path models/ \
