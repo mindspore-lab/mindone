@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-
+import logging
 import os
 import gc
 from random import randint
@@ -27,6 +27,10 @@ import mindspore as ms
 from mindspore.dataset import GeneratorDataset
 
 from ldm.data.t2i_collate import t2i_collate, data_column
+from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
+
+_logger = logging.getLogger(__name__)
+SD_VERSION = os.getenv('SD_VERSION', default='2.0') 
 
 def load_data(
             data_path,
@@ -41,15 +45,14 @@ def load_data(
             sample_num=-1
             ):
     
-    
     if not os.path.exists(data_path):
         raise ValueError("Data directory does not exist!")
     all_images, all_captions = list_image_files_captions_recursively(data_path)
     if filter_small_size:
-        print(f"Filter small images, filter size: {image_filter_size}")
+        #print(f"Filter small images, filter size: {image_filter_size}")
         all_images, all_captions = filter_small_image(all_images, all_captions, image_filter_size)
-    print(f"The first image path is {all_images[0]}, and the caption is {all_captions[0]}")
-    print(f"total data num: {len(all_images)}")
+    _logger.debug(f"The first image path is {all_images[0]}, and the caption is {all_captions[0]}")
+    _logger.info(f"Total number of training samples: {len(all_images)}")
     dataloaders = {}
     dataset = ImageDataset(
             batch_size,
@@ -101,7 +104,7 @@ def filter_small_image(all_images, all_captions, image_filter_size):
     for image, caption in zip(all_images, all_captions):
         w, h = imagesize.get(image)
         if min(w, h) < image_filter_size:
-            print(f'image {image} of size {w}x{h} is filtered.')
+            _logger.info(f'image {image} of size {w}x{h} is filtered.')
             continue
         else:
             filted_images.append(image)
@@ -339,3 +342,26 @@ class MetaLoader():
 
     def __len__(self):
         return self.datalen
+
+
+def build_dataset(args, rank_id, device_num):
+    #tokenizer = WordpieceTokenizer()
+    tokenizer = get_tokenizer(SD_VERSION)
+
+    dataset = load_data(
+                data_path=args.data_path,
+                batch_size=args.train_batch_size,
+                tokenizer=tokenizer,
+                image_size=args.image_size,
+                image_filter_size=args.image_filter_size,
+                device_num=device_num,
+                rank_id = rank_id,
+                random_crop = args.random_crop,
+                filter_small_size = args.filter_small_size,
+                sample_num=-1
+                )
+    _logger.info(f"Num batches for rank {rank_id}: {dataset.get_dataset_size()}")
+
+    return dataset
+
+
