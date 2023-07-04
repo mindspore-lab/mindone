@@ -44,7 +44,7 @@ pip install -r requirements.txt
 
 #### Pretrained Models 
 
-Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/stablediffusion/stablediffusionv2_512.ckpt) and put it under `stable_diffusion_v2/models` folder.
+Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `stable_diffusion_v2/models` folder.
 
 
 #### Text-image Dataset Preparation
