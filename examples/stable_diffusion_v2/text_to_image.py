@@ -15,6 +15,7 @@ import mindspore as ms
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
 from ldm.util import instantiate_from_config
+from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.lora import inject_trainable_lora
@@ -22,6 +23,7 @@ from ldm.modules.train.tools import set_random_seed
 from ldm.modules.logger import set_logger
 from ldm.util import str2bool, is_old_ms_version
 from utils import  model_utils
+from ldm.models.diffusion.uni_pc import UniPCSampler
 
 logger = logging.getLogger("text_to_image")
 
@@ -144,9 +146,18 @@ def main(args):
     )
 
     # create sampler
-    if args.dpm_solver:
-        sampler = DPMSolverSampler(model)
+    if args.ddim:
+        sampler = DDIMSampler(model)
+        sname = 'ddim'
+    elif args.dpm_solver:
+        sampler = DPMSolverSampler(model, "dpmsolver")
         sname = 'dpm_solver'
+    elif args.dpm_solver_pp:
+        sampler = DPMSolverSampler(model, "dpmsolver++")
+        sname = 'dpm_solver_pp'
+    elif args.uni_pc:
+        sampler = UniPCSampler(model)
+        sname = 'uni_pc'
     else:
         sampler = PLMSSampler(model)
         sname = 'plms'
@@ -279,8 +290,20 @@ if __name__ == "__main__":
         help="image width, in pixel space",
     )
     parser.add_argument(
+        "--ddim", action='store_true',
+        help="use ddim sampling",
+    )
+    parser.add_argument(
         "--dpm_solver", action='store_true',
         help="use dpm_solver sampling",
+    )
+    parser.add_argument(
+        "--dpm_solver_pp", action='store_true',
+        help="use dpm_solver++ sampling",
+    )
+    parser.add_argument(
+        "--uni_pc", action='store_true',
+        help="use uni_pc sampling",
     )
     parser.add_argument(
         "--n_rows", type=int, default=0,

@@ -68,6 +68,8 @@ python text_to_image.py --prompt "A wolf in winter"
 
 For more argument usages, please run `python text_to_image.py -h`.
 
+For the use of more schedulers/samplers, please refer to the information of [Schedulers](schedulers.md).
+
 ### Vanilla Finetuning
 
 Vanilla finetuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are frozen.  
