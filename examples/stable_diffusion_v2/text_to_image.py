@@ -15,12 +15,14 @@ import mindspore as ms
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
 from ldm.util import instantiate_from_config
+from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 from ldm.modules.logger import set_logger
 from ldm.util import str2bool, is_old_ms_version
+from ldm.models.diffusion.uni_pc import UniPCSampler
 
 logger = logging.getLogger("text_to_image")
 
@@ -303,6 +305,8 @@ if __name__ == "__main__":
         "--config", type=str, default=None,
         help="path to config which constructs model. If None, select by version",
     )
+    parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
+    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         '--use_lora', default=False, type=str2bool,
         help='whether the checkpoint used for inference is finetuned from LoRA')
