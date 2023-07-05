@@ -16,9 +16,7 @@ import logging
 import mindspore as ms
 from mindspore import ops
 from tqdm import tqdm
-
-
-from ldm.util import is_old_ms_version
+from ldm.util import is_old_ms_version 
 from ldm.modules.diffusionmodules.util import (
     make_ddim_sampling_parameters,
     make_ddim_timesteps,
