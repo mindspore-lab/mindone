@@ -2,7 +2,7 @@
 
 ## 1.1 Inference
 
-Step 1. Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/stablediffusion/stablediffusionv2_512.ckpt) and put it under `models/` folder
+Step 1. Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder
 
 Step 2. Run `text_to_image.py` to generate images for the prompt of your interest.
 
@@ -14,7 +14,7 @@ Step 2. Run `text_to_image.py` to generate images for the prompt of your interes
 
     workspace /home/yx/mindone/examples/stable_diffusion_v2
     WORK DIR:/home/yx/mindone/examples/stable_diffusion_v2
-    Loading model from models/stablediffusionv2_512.ckpt
+    Loading model from models/sd_v2_base-57526ee4.ckpt
     LatentDiffusion: Running in eps-prediction mode
     Attention: output_channels=1280, num_heads=20, dim_head=64
     making attention of type 'vanilla' with 512 in_channels
@@ -69,7 +69,7 @@ plt.show()
 
 ## 1.2 SD2.0 Finetune (Vanilla)
 
-Step 1. Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/stablediffusion/stablediffusionv2_512.ckpt) and put it under `models/` folder
+Step 1. Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder
 
 Step 2. Prepare your image-text pair data (referring to README.md) and change `data_path` in `scripts/run_train_v2.sh` accordingly.
 
@@ -83,7 +83,7 @@ Step 3. Run the training script as follows
 ```
 
     process id: 1488387
-    Namespace(betas=[0.9, 0.98], callback_size=1, data_path='/home/yx/datasets/diffusion/pokemon', decay_steps=0, dropout=0.1, end_learning_rate=1e-07, epochs=20, filter_small_size=True, gradient_accumulation_steps=1, image_filter_size=256, image_size=512, init_loss_scale=65536, loss_scale_factor=2, model_config='/home/yx/mindone/examples/stable_diffusion_v2/configs/v2-train-chinese.yaml', optim='adamw', output_path='output//txt2img', patch_size=32, pretrained_model_file='stablediffusionv2_512.ckpt', pretrained_model_path='models/', random_crop=False, save_checkpoint_steps=10000, scale_window=1000, seed=3407, start_learning_rate=1e-05, train_batch_size=3, train_config='/home/yx/mindone/examples/stable_diffusion_v2/configs/train_config_v2.json', use_parallel=False, warmup_steps=1000, weight_decay=0.01)
+    Namespace(betas=[0.9, 0.98], callback_size=1, data_path='/home/yx/datasets/diffusion/pokemon', decay_steps=0, dropout=0.1, end_learning_rate=1e-07, epochs=20, filter_small_size=True, gradient_accumulation_steps=1, image_filter_size=256, image_size=512, init_loss_scale=65536, loss_scale_factor=2, model_config='/home/yx/mindone/examples/stable_diffusion_v2/configs/v2-train-chinese.yaml', optim='adamw', output_path='output//txt2img', patch_size=32, pretrained_model_file='sd_v2_base-57526ee4.ckpt', pretrained_model_path='models/', random_crop=False, save_checkpoint_steps=10000, scale_window=1000, seed=3407, start_learning_rate=1e-05, train_batch_size=3, train_config='/home/yx/mindone/examples/stable_diffusion_v2/configs/train_config_v2.json', use_parallel=False, warmup_steps=1000, weight_decay=0.01)
     random seed:  3407
     Filter small images, filter size: 256
     The first image path is /home/yx/datasets/diffusion/pokemon/img1.jpg, and the caption is a cartoon character with a potted plant on his head
@@ -95,7 +95,7 @@ Step 3. Run the training script as follows
     Working with z of shape (1, 4, 32, 32) = 4096 dimensions.
     making attention of type 'vanilla' with 512 in_channels
     Using tokenizer `BpeTokenizer` for en.
-    start loading pretrained_ckpt models/stablediffusionv2_512.ckpt
+    start loading pretrained_ckpt models/sd_v2_base-57526ee4.ckpt
     param not load: (['first_stage_model.encoder.down.3.downsample.conv.weight', 'first_stage_model.encoder.down.3.downsample.conv.bias', 'first_stage_model.decoder.up.0.upsample.conv.weight', 'first_stage_model.decoder.up.0.upsample.conv.bias'], ['cond_stage_model.transformer.transformer_layer.resblocks.23.attn.attn.in_proj.bias', 'cond_stage_model.transformer.transformer_layer.resblocks.23.attn.attn.in_proj.weight', 'cond_stage_model.transformer.transformer_layer.resblocks.23.attn.attn.out_proj.bias', 'cond_stage_model.transformer.transformer_layer.resblocks.23.attn.attn.out_proj.weight', 'cond_stage_model.transformer.transformer_layer.resblocks.23.c_fc.bias', 'cond_stage_model.transformer.transformer_layer.resblocks.23.c_fc.weight', 'cond_stage_model.transformer.transformer_layer.resblocks.23.c_proj.bias', 'cond_stage_model.transformer.transformer_layer.resblocks.23.c_proj.weight', 'cond_stage_model.transformer.transformer_layer.resblocks.23.ln_1.beta', 'cond_stage_model.transformer.transformer_layer.resblocks.23.ln_1.gamma', 'cond_stage_model.transformer.transformer_layer.resblocks.23.ln_2.beta', 'cond_stage_model.transformer.transformer_layer.resblocks.23.ln_2.gamma'])
     end loading ckpt
     start_training...

@@ -31,4 +31,4 @@ python text_to_image.py \
     --n_samples 4 \
     --W 512 \
     --H 512 \
-    --ddim_steps 15
+    --sampling_steps 15

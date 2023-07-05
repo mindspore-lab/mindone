@@ -1,23 +1,23 @@
 '''
-run sd train/finetuning
+Stable diffusion model training/finetuning
 '''
 import os
 import sys
 import argparse
 import importlib
+import logging
 
 import albumentations
 import mindspore as ms
 from omegaconf import OmegaConf
 from mindspore import Model, context
-from mindspore.nn import DynamicLossScaleUpdateCell
 from mindspore.nn import TrainOneStepWithLossScaleCell
 from mindspore import load_checkpoint, load_param_into_net
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.communication.management import init, get_rank, get_group_size
 from mindspore.train.callback import LossMonitor, TimeMonitor, CheckpointConfig, ModelCheckpoint
 
-from ldm.data.dataset import load_data
+from ldm.data.dataset import build_dataset
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.modules.train.callback import EvalSaveCallback
 from ldm.modules.train.ema import EMA
@@ -25,30 +25,30 @@ from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.callback import OverflowMonitor
 from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.cell_wrapper import ParallelTrainOneStepWithLossScaleCell
 from ldm.modules.lora import inject_trainable_lora
 from ldm.util import str2bool, is_old_ms_version
-
+from ldm.modules.logger import set_logger
 
 os.environ['HCCL_CONNECT_TIMEOUT'] = '6000'
-SD_VERSION = os.getenv('SD_VERSION', default='2.0') # TODO: parse via arg
+SD_VERSION = os.getenv('SD_VERSION', default='2.0')
+
+logger = logging.getLogger(__name__)
 
 
-def init_env(opts):
-    """ init_env """
-    set_random_seed(opts.seed)
+def init_env(args):
+    set_random_seed(args.seed)
 
     ms.set_context(mode=context.GRAPH_MODE) # needed for MS2.0
-    if opts.use_parallel:
+    if args.use_parallel:
         init()
         device_id = int(os.getenv('DEVICE_ID'))
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
-        opts.rank = rank_id
-        print("device_id is {}, rank_id is {}, device_num is {}".format(
+        args.rank = rank_id
+        logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(
             device_id, rank_id, device_num))
         context.reset_auto_parallel_context()
         context.set_auto_parallel_context(
@@ -60,7 +60,7 @@ def init_env(opts):
         device_num = 1
         device_id = int(os.getenv('DEVICE_ID', 0))
         rank_id = 0
-        opts.rank = rank_id
+        args.rank = rank_id
 
     context.set_context(mode=context.GRAPH_MODE,
                         device_target="Ascend",
@@ -68,28 +68,10 @@ def init_env(opts):
                         max_device_memory="30GB", #TODO: why limit?
                         )
 
-    """ create dataset"""
-    #tokenizer = WordpieceTokenizer()
-    tokenizer = get_tokenizer(SD_VERSION)
-
-    dataset = load_data(
-                data_path=opts.data_path,
-                batch_size=opts.train_batch_size,
-                tokenizer=tokenizer,
-                image_size=opts.image_size,
-                image_filter_size=opts.image_filter_size,
-                device_num=device_num,
-                rank_id = rank_id,
-                random_crop = opts.random_crop,
-                filter_small_size = opts.filter_small_size,
-                sample_num=-1
-                )
-    print(f"rank id {rank_id}, batch_size: {opts.train_batch_size}, batch num {dataset.get_dataset_size()}")
-
-    return dataset, rank_id, device_id, device_num
+    return rank_id, device_id, device_num
 
 
-def instantiate_from_config(config):
+def build_model_from_config(config):
     config = OmegaConf.load(config).model
     if not "target" in config:
         if config == '__is_first_stage__':
@@ -109,46 +91,47 @@ def get_obj_from_str(string, reload=False):
 
 
 def load_pretrained_model(pretrained_ckpt, net):
-    print(f"start loading pretrained_ckpt {pretrained_ckpt}")
+    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict)
         else:
             param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
-        print("param not load:", param_not_load)
+        logger.info("Params not load: {}".format(param_not_load))
     else:
-        print("ckpt file not exist!")
-
-    print("end loading ckpt")
+        logger.warning("Checkpoint file not exists!!!")
 
 
 def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
     new_param_dict = {}
-    print(f"start loading pretrained_ckpt {pretrained_ckpt}")
+    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
         for key in param_dict:
             if key.startswith("first") or key.startswith("cond"):
                 new_param_dict[key] = param_dict[key]
         param_not_load = load_param_into_net(net, new_param_dict)
-        print("param not load:")
-        for param in param_not_load:
-            print(param)
+        logger.info("Params not load: {}".format(param_not_load))
     else:
-        print("ckpt file not exist!")
-
-    print("end loading ckpt")
+        logger.warning("Checkpoint file not exists!!!")
 
 
-def main(opts):
-    dataset, rank_id, device_id, device_num = init_env(opts)
-    latent_diffusion_with_loss = instantiate_from_config(opts.model_config)
-    pretrained_ckpt = os.path.join(opts.pretrained_model_path, opts.pretrained_model_file)
+def main(args):
+    # init
+    rank_id, device_id, device_num = init_env(args)
+    set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+
+    # build dataset
+    dataset = build_dataset(args, rank_id, device_num)
+
+    # build model
+    latent_diffusion_with_loss = build_model_from_config(args.model_config)
+    pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
     load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
 
-    # lora finetune
-    if opts.use_lora:
+    # lora injection
+    if args.use_lora:
         # freeze network
         for param in latent_diffusion_with_loss.model.get_parameters():
             param.requires_grad = False
@@ -156,73 +139,101 @@ def main(opts):
         # inject lora params
         injected_attns, injected_trainable_params = inject_trainable_lora(
                                                         latent_diffusion_with_loss,
-                                                        rank=opts.lora_rank,
-                                                        use_fp16=opts.lora_fp16,
+                                                        rank=args.lora_rank,
+                                                        use_fp16=args.lora_fp16,
                                                         )
         assert len(latent_diffusion_with_loss.model.trainable_params())==len(injected_trainable_params), 'Only lora params should be trainable. but got {} trainable params'.format(len(latent_diffusion_with_loss.model.trainable_params()))
         #print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
 
-    if not opts.decay_steps:
+    if not args.decay_steps:
         dataset_size = dataset.get_dataset_size()
-        opts.decay_steps = opts.epochs * dataset_size - opts.warmup_steps # fix lr scheduling
-    lr = LearningRate(opts.start_learning_rate, opts.end_learning_rate, opts.warmup_steps, opts.decay_steps)
-    optimizer = build_optimizer(latent_diffusion_with_loss, opts, lr)
-    update_cell = DynamicLossScaleUpdateCell(loss_scale_value=opts.init_loss_scale,
-                                             scale_factor=opts.loss_scale_factor,
-                                             scale_window=opts.scale_window)
+        args.decay_steps = args.epochs * dataset_size - args.warmup_steps # fix lr scheduling
+    lr = LearningRate(args.start_learning_rate, args.end_learning_rate, args.warmup_steps, args.decay_steps)
+    optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
 
-    # train in standalone or distributed mode
+    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=args.init_loss_scale,
+                                             scale_factor=args.loss_scale_factor,
+                                             scale_window=args.scale_window)
+
+    # trainer (standalone and distributed)
     ema = EMA(
             latent_diffusion_with_loss.model,
             ema_decay=0.9999,
-            ) if opts.use_ema else None
+            ) if args.use_ema else None
+
     net_with_grads = TrainOneStepWrapper(
             latent_diffusion_with_loss,
             optimizer=optimizer,
-            scale_sense=update_cell,
+            scale_sense=loss_scaler,
             drop_overflow_update=True, # TODO: allow config
-            gradient_accumulation_steps=opts.gradient_accumulation_steps,
-            clip_grad=opts.clip_grad,
-            clip_norm=opts.max_grad_norm,
-            ema=ema, 
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            clip_grad=args.clip_grad,
+            clip_norm=args.max_grad_norm,
+            ema=ema,
         )
 
     model = Model(net_with_grads)
-    callback = [TimeMonitor(opts.callback_size), LossMonitor(opts.callback_size)]
 
+    # callbacks
+    callback = [TimeMonitor(args.callback_size), LossMonitor(args.callback_size)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
     if rank_id == 0:
-        dataset_size = dataset.get_dataset_size()
-        ckpt_dir = os.path.join(opts.output_path, "ckpt", f"rank_{str(rank_id)}")
+        ckpt_dir = os.path.join(args.output_path, "ckpt", f"rank_{str(rank_id)}")
         if not os.path.exists(ckpt_dir):
             os.makedirs(ckpt_dir)
 
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss.model,
-            use_lora=opts.use_lora,
+            use_lora=args.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=10,
-            ckpt_save_interval=opts.ckpt_save_interval,
-            lora_rank=opts.lora_rank
+            ckpt_save_interval=args.ckpt_save_interval,
+            lora_rank=args.lora_rank
             )
 
         callback.append(save_cb)
 
-    print("start_training...")
-    model.train(opts.epochs, dataset, callbacks=callback, dataset_sink_mode=False)
+    # log
+    if rank_id == 0:
+        key_info = 'Key Settings:\n' + '=' * 50 + '\n'
+        key_info += "\n".join(
+            [
+                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
+                f"Distributed mode: {args.use_parallel}",
+                f"Data path: {args.data_path}",
+                f"Model: StableDiffusion v{SD_VERSION}",
+                f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
+                f"Use LoRA: {args.use_lora}",
+                f"LoRA rank: {args.lora_rank}",
+                f"Learning rate: {args.start_learning_rate}",
+                f"Batch size: {args.train_batch_size}",
+                f"Grad accumulation steps: {args.gradient_accumulation_steps}",
+                f"Num epochs: {args.epochs}",
+                f"Grad clipping: {args.clip_grad}",
+                f"Max grad norm: {args.max_grad_norm}",
+                f"EMA: {args.use_ema}",
+            ]
+        )
+        key_info += "\n" + "=" * 50
+        logger.info(key_info)
+
+        logger.info("Start training...")
+
+    # train
+    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False)
 
 
 if __name__ == "__main__":
-    print('process id:', os.getpid())
+    logger.debug('process id:', os.getpid())
     parser = argparse.ArgumentParser()
     parser.add_argument('--use_parallel', default=False, type=str2bool, help='use parallel')
     parser.add_argument('--data_path', default="dataset", type=str, help='data path')
-    parser.add_argument('--output_path', default="output/", type=str, help='use audio out')
+    parser.add_argument('--output_path', default="output/", type=str, help='output directory to save training results')
     parser.add_argument('--train_config', default="configs/train_config.json", type=str, help='train config path')
     parser.add_argument('--model_config', default="configs/v1-train-chinese.yaml", type=str, help='model config path')
     parser.add_argument('--pretrained_model_path', default="", type=str, help='pretrained model directory')
@@ -254,9 +265,14 @@ if __name__ == "__main__":
     parser.add_argument('--image_size', default=512, type=int, help='images size')
     parser.add_argument('--image_filter_size', default=256, type=int, help='image filter size')
 
+    parser.add_argument("--log_level", type=str, default='logging.INFO',
+        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
+    )
+
     args = parser.parse_args()
     args = parse_with_config(args)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     args.model_config = os.path.join(abs_path, args.model_config)
-    print(args)
+
+    logger.info(args)
     main(args)

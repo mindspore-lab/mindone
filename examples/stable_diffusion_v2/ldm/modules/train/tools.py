@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-"""
-Copyright (c) Microsoft Corporation.
-Licensed under the MIT license.
-
-Misc utilities
-"""
+import logging
 import json
 import os
 import sys
 import random
 import numpy as np
 import mindspore as ms
+
+_logger = logging.getLogger(__name__)
+
 
 class NoOp:
     """ useful for distributed training No-Ops """
@@ -51,7 +49,7 @@ def parse_with_config(args):
 
 def set_random_seed(seed):
     """Set Random Seed"""
-    print("random seed: ", seed)
+    _logger.debug("Random seed: ", seed)
     random.seed(seed)
     np.random.seed(seed)
     ms.set_seed(seed)

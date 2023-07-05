@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
 import gzip
 import html
 from functools import lru_cache
@@ -23,6 +24,8 @@ import os
 
 from .utils import is_control, is_whitespace, is_chinese_char, \
     is_punctuation, strip_accents
+
+_logger = logging.getLogger(__name__)
 
 SOT_TEXT = "<|startoftext|>"
 EOT_TEXT = "<|endoftext|>"
@@ -343,10 +346,10 @@ def get_tokenizer(sd_version): #SD_VERSION
     lang = 'zh' if sd_version.startswith('1.') else 'en' # TODO: use lang arg. currently 1.x supports zh, ad 2.x support en
     if lang == 'zh':
         tokenizer = WordpieceTokenizer() # for zh
-        print(f'Using tokenizer `WordPieceTokenizer` for {lang}-language.')
+        _logger.debug(f'Using tokenizer `WordPieceTokenizer` for {lang}-language.')
     else:
         tokenizer = BpeTokenizer() 
-        print(f'Using tokenizer `BpeTokenizer` for {lang}-language.')
+        _logger.debug(f'Using tokenizer `BpeTokenizer` for {lang}-language.')
     return tokenizer
 
 
