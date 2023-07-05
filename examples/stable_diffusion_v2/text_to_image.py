@@ -39,7 +39,7 @@ def numpy_to_pil(images):
 
 
 def load_model_from_config(config, ckpt, use_lora=False, lora_fp16=True, lora_only_ckpt=None, verbose=False):
-    print(f"Loading model from {ckpt}")
+    logger.info(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
