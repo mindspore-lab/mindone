@@ -326,8 +326,6 @@ if __name__ == "__main__":
         "--config", type=str, default=None,
         help="path to config which constructs model. If None, select by version",
     )
-    parser.add_argument('--use_lora', default=False, type=str2bool, help='whether the checkpoint used for inference is finetuned from LoRA')
-    parser.add_argument('--lora_rank', default=4, type=int, help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         '--use_lora', default=False, type=str2bool,
         help='whether the checkpoint used for inference is finetuned from LoRA')
