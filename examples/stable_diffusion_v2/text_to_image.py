@@ -22,6 +22,7 @@ from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 from ldm.modules.logger import set_logger
 from ldm.util import str2bool, is_old_ms_version
+from utils import  model_utils
 from ldm.models.diffusion.uni_pc import UniPCSampler
 
 logger = logging.getLogger("text_to_image")
@@ -39,21 +40,18 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, verbose=False):
+def load_model_from_config(config, ckpt, use_lora=False, lora_fp16=True, lora_only_ckpt=None, verbose=False):
     logger.info(f"Loading model from {ckpt}")
     model = instantiate_from_config(config.model)
 
-    def _load_model(_model, ckpt_fp, verbose=True):
+    def _load_model(_model, ckpt_fp, verbose=True, filter=None):
         if os.path.exists(ckpt_fp):
             param_dict = ms.load_checkpoint(ckpt_fp)
             if param_dict:
-                if is_old_ms_version():
-                    param_not_load = ms.load_param_into_net(_model, param_dict)
-                else:
-                    param_not_load, ckpt_not_load = ms.load_param_into_net(_model, param_dict)
+                param_not_load, ckpt_not_load = model_utils.load_param_into_net_with_filter(
+                    _model, param_dict, filter=filter)
                 if verbose:
                     logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith('adam')]))
-                #logger.info("ckpt not load:", [p for p in ckpt_not_load if not p.startswith('adam')])
         else:
             logger.warning(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
@@ -61,29 +59,27 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
         logger.info('Loading LoRA model.')
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
-            injected_attns, injected_trainable_params = inject_trainable_lora(
-                                                            model,
-                                                            rank=lora_rank,
-                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
-                                                                )
             _load_model(model, ckpt)
-
         else:
-            # load the main pratrained model
-            _load_model(model, ckpt)
+            lora_rank = 4
+            if os.path.exists(lora_only_ckpt):
+                lora_param_dict = ms.load_checkpoint(lora_only_ckpt)
+                if "lora_rank" in lora_param_dict.keys():
+                    lora_rank = int(lora_param_dict["lora_rank"].value())
+            else:
+                raise ValueError(f"{ckpt} doesn't exist")
+            # load the main pretrained model
+            _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
             logger.info('Pretrained SD loaded')
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
-                                                            model,
-                                                            rank=lora_rank,
-                                                            use_fp16=(model.model.diffusion_model.dtype==ms.float16),
-                                                                )
-            # load finetuned lora params
-            _load_model(model, lora_only_ckpt, verbose=False)
+                model,
+                rank=lora_rank,
+                use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+            )
+            # load fine-tuned lora params
+            _load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
             logger.info('LoRA params loaded.')
-
-        #assert len(injected_attns)==32, 'Expecting 32 injected attention modules, but got {len(injected_attns)}'
-
     else:
         _load_model(model, ckpt)
 
@@ -143,12 +139,11 @@ def main(args):
         args.config = os.path.join(work_dir, args.config)
     config = OmegaConf.load(f"{args.config}")
     model = load_model_from_config(
-                        config,
-                        ckpt=args.ckpt_path,
-                        use_lora=args.use_lora,
-                        lora_rank=args.lora_rank,
-                        lora_only_ckpt=args.lora_ckpt_path,
-                        )
+        config,
+        ckpt=args.ckpt_path,
+        use_lora=args.use_lora,
+        lora_only_ckpt=args.lora_ckpt_path,
+    )
 
     # create sampler
     if args.ddim:
@@ -329,9 +324,6 @@ if __name__ == "__main__":
     parser.add_argument(
         '--use_lora', default=False, type=str2bool,
         help='whether the checkpoint used for inference is finetuned from LoRA')
-    parser.add_argument(
-        '--lora_rank', default=4, type=int,
-        help='lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.')
     parser.add_argument(
         "--ckpt_path", type=str, default=None,
         help="path to checkpoint of model",

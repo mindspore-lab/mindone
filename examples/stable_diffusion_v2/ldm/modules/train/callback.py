@@ -52,6 +52,7 @@ class EvalSaveCallback(Callback):
         ckpt_save_policy="lastest_k",
         ckpt_max_keep=10,
         ckpt_save_interval=1,
+        lora_rank=None
     ):
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
@@ -76,6 +77,7 @@ class EvalSaveCallback(Callback):
         if use_lora:
             # save lora trainable params only
             self.net_to_save = [{"name":p.name, "data": p} for p in network.trainable_params()]
+            self.lora_rank = lora_rank
         else:
             self.net_to_save = network
 
@@ -138,7 +140,7 @@ class EvalSaveCallback(Callback):
                     #print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt")
+                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", lora_rank=self.lora_rank)
                 '''
                 ms.save_checkpoint(
                     cb_params.train_network,

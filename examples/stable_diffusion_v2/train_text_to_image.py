@@ -193,6 +193,7 @@ def main(args):
             ckpt_save_policy="latest_k",
             ckpt_max_keep=10,
             ckpt_save_interval=args.ckpt_save_interval,
+            lora_rank=args.lora_rank
             )
 
         callback.append(save_cb)
