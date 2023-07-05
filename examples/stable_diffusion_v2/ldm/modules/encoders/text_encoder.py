@@ -157,7 +157,7 @@ class TextEncoder(nn.Cell):
 
         self.positional_embedding = Parameter(initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype))
         self.ln_final = nn.LayerNorm([self.width]).to_float(self.dtype)
-        self.transformer_layer = Transformer(width, layers, heads, self.build_attntion_mask(context_length), dtype=self.dtype)
+        self.transformer_layer = Transformer(width, layers, heads, self.build_attntion_mask(context_length).astype(self.dtype), dtype=self.dtype)
 
     @staticmethod
     def build_attntion_mask(context_length):

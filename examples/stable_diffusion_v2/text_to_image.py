@@ -124,7 +124,7 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    mode = 0
+    mode = ms.context.GRAPH_MODE 
     ms.context.set_context(
         mode=mode,
         device_target="Ascend",
@@ -194,7 +194,6 @@ def main(args):
         logger.info("[{}/{}] Generating images for prompt(s):\n{}".format(i+1, len(data), prompts[0]))
         for n in range(args.n_iter):
             start_time = time.time()
-
             uc = None
             if args.scale != 1.0:
                 uc = model.get_learned_conditioning(batch_size * [""])

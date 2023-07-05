@@ -2,7 +2,7 @@ import copy
 
 import mindspore.nn as nn
 from mindspore import log as logger, Parameter
-from mindspore._checkparam import Validator
+# from mindspore._checkparam import Validator
 from mindspore.train.serialization import _update_param, _load_dismatch_prefix_params
 
 
@@ -54,7 +54,8 @@ def load_param_into_net_with_filter(net, parameter_dict, strict_load=False, filt
                    "'str' and 'Parameter' , but got {} and {}.".format(type(key), type(value)))
             raise TypeError(msg)
 
-    strict_load = Validator.check_bool(strict_load)
+    # TODO: replace by otherway to do check_bool
+    # strict_load = Validator.check_bool(strict_load)
     logger.info("Execute the process of loading parameters into net.")
     net.init_parameters_data()
     param_not_load = []
