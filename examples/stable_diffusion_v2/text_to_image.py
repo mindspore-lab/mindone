@@ -110,6 +110,10 @@ def main(args):
         prompt = args.prompt
         assert prompt is not None
         data = [batch_size * [prompt]]
+        # negative prompts
+        negative_prompt = args.negative_prompt
+        assert negative_prompt is not None
+        negative_data = [batch_size * [negative_prompt]]
     else:
         logger.info(f"Reading prompts from {args.data_path}")
         with open(args.data_path, "r") as f:
@@ -117,6 +121,12 @@ def main(args):
             num_prompts = len(prompts)
             # TODO: try to put different prompts in a batch
             data = [batch_size * [prompt] for prompt in prompts]
+        # negative prompts
+        args.negative_prompt = os.path.join(args.data_path, args.negative_prompt)
+        print(f"reading negative prompt from {args.negative_prompt}")
+        with open(args.negative_prompt, "r") as f:
+            negative_data = f.read().splitlines()
+            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]] 
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -169,6 +179,7 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
             f"Distributed mode: False",
             f"Number of input prompts: {len(data)}",
+            f"Number of input negative prompts: {len(negative_data)}",
             f"Number of trials for each prompt: {args.n_iter}",
             f"Number of samples in each trial: {args.n_samples}",
             f"Model: StableDiffusion v{args.version}",
@@ -190,13 +201,15 @@ def main(args):
         start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
 
     all_samples = list()
-    for i, prompts in enumerate(data):
-        logger.info("[{}/{}] Generating images for prompt(s):\n{}".format(i+1, len(data), prompts[0]))
+    for i, (prompts, negative_prompts) in enumerate(zip(data, negative_data)):
+        logger.info("[{}/{}] Generating images for prompt(s):\n{}--negative prompt(s):\n{}".format(i+1, len(data), prompts[0], negative_prompts[0]))
         for n in range(args.n_iter):
             start_time = time.time()
             uc = None
             if args.scale != 1.0:
-                uc = model.get_learned_conditioning(batch_size * [""])
+                if isinstance(negative_prompts, tuple):
+                    negative_prompts = list(negative_prompts)
+                uc = model.get_learned_conditioning(negative_prompts)                
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             c = model.get_learned_conditioning(prompts)
@@ -247,6 +260,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prompt", type=str, nargs="?", default="A cute wolf in winter forest",
         help="the prompt to render"
+    )
+    parser.add_argument(
+        "--negative_prompt", type=str, nargs="?", default="",
+        help="the negative prompt not to render"
     )
     parser.add_argument(
         "--output_path", type=str, nargs="?", default="output",
