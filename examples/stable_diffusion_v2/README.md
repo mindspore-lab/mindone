@@ -9,9 +9,10 @@ This folder contains Stable Diffusion models implemented with MindSpore. It targ
 - [x] SD2.0 finetune, support English image-text par data.
 - [x] Support [LoRA finetuning](lora_finetune.md) 🔥 
 - [x] Support FID evaluation.
+- [x] Support negative prompt input for text to image generation.
 
-## Quick Start
 Please refer to [demo](demo.md) for a quick tour.
+
 
 ## Preparation
 
@@ -19,7 +20,7 @@ Please refer to [demo](demo.md) for a quick tour.
 
 **Device:** Ascend 910
 
-**Framework:** ms1.9, ms2.0rc1 (tested)
+**Framework:** MindSpore >= 1.9
 
 Install dependent packages by:
 ```shell
@@ -31,15 +32,16 @@ pip install -r requirements.txt
 - SD2.0 
   Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder 
 
-- SD1.x
+- SD1.x (Chinese)
 Download the [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
 
-### Dataset for Finetuning (optional)
 
-Prepare image-caption pair data in the follow format
+#### Text-image Dataset Preparation
+
+The text-image pair dataset for finetuning should follow the file structure below
 
 ```text
-data_path
+dir
 ├── img1.jpg
 ├── img2.jpg
 ├── img3.jpg
@@ -54,8 +56,13 @@ img2.jpg,a drawing of a green pokemon with red eyes
 img3.jpg,a red and white ball with an angry look on its face
 ```
 
-You may download the **pokemon-blip-caption dataset** in [
-pokemon_raw.zip](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), which contains 833 pokemon-style images with BLIP-generated captions and is converted to the above format for training. 
+For convenience, we have prepared two public text-image datasets obeying the above format. 
+
+- [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions. 
+- [Chinese-art blip caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 100 chinese art-style images with BLIP-generated captions.
+
+To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
+
 
 - - -
 ## Stable Diffusion 2.0 - EN
@@ -65,8 +72,25 @@ pokemon_raw.zip](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), which con
 # Text to image generation with SD2.0 
 python text_to_image.py --prompt "A wolf in winter"
 ```
-
 For more argument usages, please run `python text_to_image.py -h`.
+
+#### Remove artifact with Negative Prompts
+
+While `--prompt` indicats what to render in the generated images, the negative prompt (arg name `--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing some specific artifacts. 
+
+
+
+
+
+
+
+#### Supported Samplers
+
+- DDIM
+- DPM Solver
+- DPM Solver++
+- PLMS
+- UniPC
 
 For the use of more schedulers/samplers, please refer to the information of [Schedulers](schedulers.md).
 

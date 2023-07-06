@@ -124,7 +124,7 @@ def main(args):
             data = [batch_size * [prompt] for prompt in prompts]
         # negative prompts
         args.negative_prompt = os.path.join(args.data_path, args.negative_prompt)
-        print(f"reading negative prompt from {args.negative_prompt}")
+        logger.info(f"reading negative prompt from {args.negative_prompt}")
         with open(args.negative_prompt, "r") as f:
             negative_data = f.read().splitlines()
             negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]] 
@@ -195,7 +195,6 @@ def main(args):
     )
     key_info += "\n" + "=" * 50
     logger.info(key_info)
-    logger.info("Running...")
 
     # infer
     start_code = None
@@ -205,7 +204,7 @@ def main(args):
 
     all_samples = list()
     for i, (prompts, negative_prompts) in enumerate(zip(data, negative_data)):
-        logger.info("[{}/{}] Generating images for prompt(s):\n{}--negative prompt(s):\n{}".format(i+1, len(data), prompts[0], negative_prompts[0]))
+        logger.info("[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(i+1, len(data), prompts[0], negative_prompts[0]))
         for n in range(args.n_iter):
             start_time = time.time()
             uc = None
