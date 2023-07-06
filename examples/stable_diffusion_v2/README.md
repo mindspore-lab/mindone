@@ -1,18 +1,17 @@
 # Stable Diffusion
 
-This folder contains Stable Diffusion models implemented with MindSpore. It targets full support for inference, finetuning, and training from scratch. New checkpoints and features will be continuously updated
+This folder contains Stable Diffusion (SD) models implemented with MindSpore. It targets at full support for inference, finetuning, and training from scratch. New checkpoints and features will be continuously updated
 
 ## Features
-- [x] SD1.4 inference, support Chinese prompt. Though runnable with English prompts, the generation quality is much worse than CN prompts.
-- [x] SD1.4 finetune, support Chinese image-text pair data.
-- [x] SD2.0 inference, support English prompt. It does not support Chinese prompts.
-- [x] SD2.0 finetune, support English image-text par data.
-- [x] Support [LoRA finetuning](lora_finetune.md) 🔥 
-- [x] Support FID evaluation.
-- [x] Support negative prompt input for text to image generation.
+- [x] Text-to-image generation based on Stable Diffusion 2.0.
+- [x] Support SoTA diffusion process schedulers including DDIM, DPM Solver, UniPC, etc. (under continuous update)
+- [x] Vanilla Stable Diffusion finetuning
+- [x] [Efficient SD finetuning with LoRA](lora_finetune.md) 🔥
+- [x] Quantitative evaluation for diffusion models: FID
+- [x] Chinese text-to-image generation thanks to Wukonghuahua (based on SD 1.x)
+- [x] Negative prompt guidance.
 
-Please refer to [demo](demo.md) for a quick tour.
-
+For a quick tour, please view [demo](demo.md).
 
 ## Installation & Preparation
 
@@ -67,7 +66,7 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 - - -
 ## Stable Diffusion 2.0
 
-### Inference
+### 1. Text-to-Image Generation
 
 ```shell
 # Text to image generation with SD2.0 
@@ -75,15 +74,23 @@ python text_to_image.py --prompt "A wolf in winter"
 ```
 For more argument usages, please run `python text_to_image.py -h`.
 
-#### Remove artifacts with Negative Prompts
+#### 1.1 Negative Prompt Guidance
 
-While `--prompt` indicats what to render in the generated images, the negative prompt (arg name `--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing some specific artifacts. 
+While `--prompt` indicates what to render in the generated images, the negative prompt (`--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing specific artifacts. Here is an examples for removing 'moss' from the 'elven forest':
 
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/1c35853d-036f-459c-944c-9953d2da8087" width="320" /> 
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/b1f037ca-4e03-40e4-8da2-d358801eadd5)" width="320" />  
+</div>
+<p align="center">
+  <em> Prompt: "elven forest"</em> 
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <em> With negative prompt: "moss" </em> 
+</p>
 
-
-
-
-#### Supported Samplers
+#### 1.2 Supported Diffusion Process Schedulers
 
 - DDIM
 - DPM Solver
@@ -91,9 +98,9 @@ While `--prompt` indicats what to render in the generated images, the negative p
 - PLMS
 - UniPC
 
-For the use of more schedulers/samplers, please refer to the information of [Schedulers](schedulers.md).
+For detailed usage of the schedulers/samplers, please refer to [Diffusion Process Schedulers](schedulers.md).
 
-### Vanilla Finetuning
+### 2. Vanilla Finetuning
 
 Vanilla finetuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are frozen.  
 
@@ -103,22 +110,21 @@ sh scripts/run_train_v2.sh
 
 Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
 
-### LoRA Finetuning 🔥 
+### 3. Efficient Finetuning with LoRA 🔥 
 
 LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
 Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_finetune.md)
 
 
-### Evaluation
+### 4. Evaluation
 
 Please refer to [Evaluation for Diffusion Models](eval/README.md) 
 
 - - -
-## Stable Diffusion 1.x - CN
+## Stable Diffusion 1.x
 
-
-### Inference
+### 1. Chinese Text-to-Image Generation
 
 ```shell
 # Text to image generation with SD1.x (Support Chinese) 
@@ -128,7 +134,7 @@ python text_to_image.py --prompt "雪中之狼"  -v 1.x
 
 For more argument usages, please run `python text_to_image.py -h`.
 
-### Vanilla Finetuning
+### 2. Vanilla Finetuning
 
 ```shell
 sh scripts/run_train_v1.sh
@@ -138,12 +144,10 @@ Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want
 
 
 ## What's New
+- 2023.07.05  Add negative prompts; Improve logger; Fix bugs for MS 2.0.
 - 2023.06.30  Add LoRA finetuning and FID evalution.
 - 2023.06.12  Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in configs/your_train.yaml  
 
 
-## TODO
-- [ ] Fix warnings in loading pretrained checkpoints 
-- [ ] Support SD2.1 inference and finetuning in 768x768 resolution.
-- [ ] Support training from scratch including first-stage training.
-
+## Contributing
+We appreciate all kinds of contributions including making **issues** or **pull requests** to make our work better.

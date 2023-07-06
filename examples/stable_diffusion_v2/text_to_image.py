@@ -329,7 +329,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--scale", type=float, default=None,
-        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uuncond)). Simplified: `uc + scale * (uc - prompt)`",
+        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
         "--from-file", type=str,
