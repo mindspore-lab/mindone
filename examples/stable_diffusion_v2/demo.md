@@ -58,7 +58,7 @@ plt.show()
 
 
     
-![png](output_4_0.png)
+![output_4_0](https://github.com/SamitHuang/mindone/assets/8156835/65fc481a-cbc9-4000-b1b7-94875ef76e43)
     
 
 
