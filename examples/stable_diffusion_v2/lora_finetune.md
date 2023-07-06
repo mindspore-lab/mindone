@@ -102,6 +102,16 @@ Below are some arguments that you may want to tune for a better performance on y
 
 For more argument illustration, please run `python train_text_to_image.py -h`.
 
+#### Config for v-prediction (Experimental)
+
+By default, the target of LDM model is to predict the noise of the diffusion process (called `eps-prediction`). `v-prediction` is another prediction type where the `v-parameterization` is involved (see section 2.4 in [this paper](https://imagen.research.google/video/paper.pdf)) and is claimed to have better convergence and numerical stability.
+
+To switch from `eps-prediction` to `v-prediction`, please modify `configs/v2-train.yaml` as follows.
+
+```yaml
+#parameterization: "eps"
+parameterization: "velocity"
+```
 
 ### Inference
 

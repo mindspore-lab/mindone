@@ -12,10 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
 import math
 import mindspore as ms
 from mindspore import ops
 from ldm.util import is_old_ms_version
+
+_logger = logging.getLogger(__name__)
+
 
 class NoiseScheduleVP:
     def __init__(
@@ -1017,7 +1021,7 @@ class DPM_Solver:
                 lambda_s = ns.marginal_lambda(s)
             h = ops.minimum(theta * h * ops.pow(E, -1. / order), lambda_0 - lambda_s)
             nfe += order
-        print('adaptive solver nfe', nfe)
+        _logger.debug('adaptive solver nfe', nfe)
         return x
 
     def add_noise(self, x, t, noise=None):
@@ -1160,10 +1164,10 @@ class DPM_Solver:
             x_end: A MindSpore tensor. The approximated solution at time `t_end`.
         """
         if self.algorithm_type == "dpmsolver" and steps > 30:
-            print('The selected sampling timesteps are not appropriate for DPM-Solver sampler')
+            _logger.warning('The selected sampling timesteps are not appropriate for DPM-Solver sampler')
         if self.algorithm_type == "dpmsolver++" and steps > 30:
-            print('The selected sampling timesteps are not appropriate for DPM-Solver++ sampler')
-        print(f"Running DPM-Solver sampling with {steps} timesteps") if self.algorithm_type == "dpmsolver" else print(f"Running DPM-Solver++ sampling with {steps} timesteps")
+            _logger.warning('The selected sampling timesteps are not appropriate for DPM-Solver++ sampler')
+        _logger.debug(f"Running DPM-Solver sampling with {steps} timesteps") if self.algorithm_type == "dpmsolver" else _logger.debug(f"Running DPM-Solver++ sampling with {steps} timesteps")
         t_0 = 1. / self.noise_schedule.total_N if t_end is None else t_end
         t_T = self.noise_schedule.T if t_start is None else t_start
         assert t_0 > 0 and t_T > 0, "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"

@@ -46,7 +46,7 @@ def load_data(
             ):
     
     if not os.path.exists(data_path):
-        raise ValueError("Data directory does not exist!")
+        raise ValueError(f"Data directory {data_path} does not exist!")
     all_images, all_captions = list_image_files_captions_recursively(data_path)
     if filter_small_size:
         #print(f"Filter small images, filter size: {image_filter_size}")

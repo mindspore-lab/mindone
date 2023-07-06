@@ -1,9 +1,10 @@
 
-This folder contains code and scripts for diffusion model evaluation, including 
+This folder contains code and scripts for diffusion model evaluation, e.g., 
 
 - Fréchet inception distance (FID)
 - CLIP score
 - CLIP directional similarity 
+- IS (Inception Score) 
 
 
 Note that all the above metrics are computed based on neural network models.
@@ -36,3 +37,4 @@ Coming soon
 ## Reference
 
 [1] https://huggingface.co/docs/diffusers/conceptual/evaluation
+[2] https://arxiv.org/abs/1606.03498
