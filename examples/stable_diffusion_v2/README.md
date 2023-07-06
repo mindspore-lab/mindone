@@ -13,8 +13,6 @@ This folder contains Stable Diffusion (SD) models implemented with MindSpore. It
 
 For a quick tour, please view [demo](demo.md).
 
-## Quick Start
-
 ## Installation & Preparation
 
 ### Environment and Dependency
