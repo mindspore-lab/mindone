@@ -65,7 +65,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                 lora_param_dict = ms.load_checkpoint(lora_only_ckpt)
                 if "lora_rank" in lora_param_dict.keys():
                     lora_rank = int(lora_param_dict["lora_rank"].value())
-                    logger.info("Lora rank found by append dict in checkpoint {lora_rank}.")
+                    logger.info("Lora rank is set to {lora_rank} according to the found value in lora checkpoint.")
             else:
                 raise ValueError(f"{ckpt} doesn't exist")
             # load the main pretrained model
@@ -127,7 +127,7 @@ def main(args):
         logger.info(f"reading negative prompt from {args.negative_prompt}")
         with open(args.negative_prompt, "r") as f:
             negative_data = f.read().splitlines()
-            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]] 
+            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]]
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -135,7 +135,7 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    mode = ms.context.GRAPH_MODE 
+    mode = ms.context.GRAPH_MODE
     ms.context.set_context(
         mode=mode,
         device_target="Ascend",
@@ -211,7 +211,7 @@ def main(args):
             if args.scale != 1.0:
                 if isinstance(negative_prompts, tuple):
                     negative_prompts = list(negative_prompts)
-                uc = model.get_learned_conditioning(negative_prompts)                
+                uc = model.get_learned_conditioning(negative_prompts)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             c = model.get_learned_conditioning(prompts)
