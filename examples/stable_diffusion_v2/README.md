@@ -14,7 +14,7 @@ This folder contains Stable Diffusion models implemented with MindSpore. It targ
 Please refer to [demo](demo.md) for a quick tour.
 
 
-## Preparation
+## Installation & Preparation
 
 ### Environment and Dependency
 
@@ -30,13 +30,13 @@ pip install -r requirements.txt
 ### Pretrained Checkpoint
 
 - SD2.0 
-  Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder 
+  Download [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder 
 
 - SD1.x (Chinese)
-Download the [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
+Download [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
 
 
-#### Text-image Dataset Preparation
+### Dataset Preparation for Finetuning (optional)
 
 The text-image pair dataset for finetuning should follow the file structure below
 
@@ -65,7 +65,8 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 
 
 - - -
-## Stable Diffusion 2.0 - EN
+## Stable Diffusion 2.0
+
 ### Inference
 
 ```shell
@@ -74,11 +75,9 @@ python text_to_image.py --prompt "A wolf in winter"
 ```
 For more argument usages, please run `python text_to_image.py -h`.
 
-#### Remove artifact with Negative Prompts
+#### Remove artifacts with Negative Prompts
 
 While `--prompt` indicats what to render in the generated images, the negative prompt (arg name `--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing some specific artifacts. 
-
-
 
 
 
