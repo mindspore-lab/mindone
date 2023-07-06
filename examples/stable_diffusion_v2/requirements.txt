@@ -7,5 +7,5 @@ albumentations
 pandas
 imagesize
 toolz
-pillow
+pillow==9.1.1
 tqdm

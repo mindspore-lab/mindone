@@ -4,7 +4,7 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 
 ONE is short for "ONE for all" and "Optimal generators with No Exception" (credits to GPT-4).
 ## News
-- 2023.07.01 stable diffusion 2.0 lora fine tune example can be found [here](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/lora_finetune.md)
+- 2023.07.01 stable diffusion 2.0 lora fine-tune example can be found [here](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/lora_finetune.md)
 
 ## Playground
 

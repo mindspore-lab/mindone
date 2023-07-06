@@ -40,8 +40,7 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, lora_fp16=True, lora_only_ckpt=None, verbose=False):
-    logger.info(f"Loading model from {ckpt}")
+def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None):
     model = instantiate_from_config(config.model)
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
@@ -51,26 +50,27 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_fp16=True, lora_on
                 param_not_load, ckpt_not_load = model_utils.load_param_into_net_with_filter(
                     _model, param_dict, filter=filter)
                 if verbose:
-                    logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith('adam')]))
+                    if len(param_not_load) > 0:
+                        logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith('adam')]))
         else:
             logger.warning(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
     if use_lora:
-        logger.info('Loading LoRA model.')
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
+            logger.info(f"Loading model from {ckpt}")
             _load_model(model, ckpt)
         else:
-            lora_rank = 4
             if os.path.exists(lora_only_ckpt):
                 lora_param_dict = ms.load_checkpoint(lora_only_ckpt)
                 if "lora_rank" in lora_param_dict.keys():
                     lora_rank = int(lora_param_dict["lora_rank"].value())
+                    logger.info("Lora rank is set to {lora_rank} according to the found value in lora checkpoint.")
             else:
                 raise ValueError(f"{ckpt} doesn't exist")
             # load the main pretrained model
+            logger.info(f'Loading pretrained model from {ckpt}')
             _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
-            logger.info('Pretrained SD loaded')
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
                 model,
@@ -78,9 +78,10 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_fp16=True, lora_on
                 use_fp16=(model.model.diffusion_model.dtype == ms.float16),
             )
             # load fine-tuned lora params
+            logger.info(f'Loading LoRA params from {lora_only_ckpt}')
             _load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
-            logger.info('LoRA params loaded.')
     else:
+        logger.info(f"Loading model from {ckpt}")
         _load_model(model, ckpt)
 
     model.set_train(False)
@@ -123,10 +124,10 @@ def main(args):
             data = [batch_size * [prompt] for prompt in prompts]
         # negative prompts
         args.negative_prompt = os.path.join(args.data_path, args.negative_prompt)
-        print(f"reading negative prompt from {args.negative_prompt}")
+        logger.info(f"reading negative prompt from {args.negative_prompt}")
         with open(args.negative_prompt, "r") as f:
             negative_data = f.read().splitlines()
-            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]] 
+            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]]
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -134,7 +135,7 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    mode = ms.context.GRAPH_MODE 
+    mode = ms.context.GRAPH_MODE
     ms.context.set_context(
         mode=mode,
         device_target="Ascend",
@@ -152,6 +153,7 @@ def main(args):
         config,
         ckpt=args.ckpt_path,
         use_lora=args.use_lora,
+        lora_rank=args.lora_rank,
         lora_only_ckpt=args.lora_ckpt_path,
     )
 
@@ -188,11 +190,11 @@ def main(args):
             f"Lora ckpt path: {args.lora_ckpt_path if args.use_lora else None}",
             f"Sampler: {sname}",
             f"Sampling steps: {args.sampling_steps}",
+            f"Uncondition guidance scale: {args.scale}",
         ]
     )
     key_info += "\n" + "=" * 50
     logger.info(key_info)
-    logger.info("Running...")
 
     # infer
     start_code = None
@@ -202,14 +204,14 @@ def main(args):
 
     all_samples = list()
     for i, (prompts, negative_prompts) in enumerate(zip(data, negative_data)):
-        logger.info("[{}/{}] Generating images for prompt(s):\n{}--negative prompt(s):\n{}".format(i+1, len(data), prompts[0], negative_prompts[0]))
+        logger.info("[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(i+1, len(data), prompts[0], negative_prompts[0]))
         for n in range(args.n_iter):
             start_time = time.time()
             uc = None
             if args.scale != 1.0:
                 if isinstance(negative_prompts, tuple):
                     negative_prompts = list(negative_prompts)
-                uc = model.get_learned_conditioning(negative_prompts)                
+                uc = model.get_learned_conditioning(negative_prompts)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             c = model.get_learned_conditioning(prompts)
@@ -327,7 +329,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--scale", type=float, default=None,
-        help="unconditional guidance scale: eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))",
+        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
         "--from-file", type=str,
@@ -339,7 +341,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         '--use_lora', default=False, type=str2bool,
-        help='whether the checkpoint used for inference is finetuned from LoRA')
+        help='whether the checkpoint used for inference is finetuned from LoRA'
+    )
+    parser.add_argument(
+        '--lora_rank', default=None, type=int,
+        help='LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.'
+    )
     parser.add_argument(
         "--ckpt_path", type=str, default=None,
         help="path to checkpoint of model",
