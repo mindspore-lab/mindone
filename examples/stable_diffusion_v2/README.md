@@ -68,7 +68,7 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 - - -
 ## Stable Diffusion 2.0
 
-### 1. Inference
+### 1. Text-to-Image Generation
 
 ```shell
 # Text to image generation with SD2.0 
@@ -89,7 +89,7 @@ While `--prompt` indicates what to render in the generated images, the negative 
   <em> Prompt: "elven forest"</em> 
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <em> With negative prompt: "moss" 
+  <em> With negative prompt: "moss" </em> 
 </p>
 
 #### 1.2 Supported Diffusion Process Schedulers
@@ -102,7 +102,7 @@ While `--prompt` indicates what to render in the generated images, the negative 
 
 For detailed usage of the schedulers/samplers, please refer to [Diffusion Process Schedulers](schedulers.md).
 
-### Vanilla Finetuning
+### 2. Vanilla Finetuning
 
 Vanilla finetuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are frozen.  
 
@@ -112,21 +112,21 @@ sh scripts/run_train_v2.sh
 
 Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
 
-### LoRA Finetuning 🔥 
+### 3. Efficient Finetuning with LoRA 🔥 
 
 LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
 Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_finetune.md)
 
 
-### Evaluation
+### 4. Evaluation
 
 Please refer to [Evaluation for Diffusion Models](eval/README.md) 
 
 - - -
-## Stable Diffusion 1.x - CN
+## Stable Diffusion 1.x
 
-### Inference
+### 1. Chinese Text-to-Image Generation
 
 ```shell
 # Text to image generation with SD1.x (Support Chinese) 
@@ -136,7 +136,7 @@ python text_to_image.py --prompt "雪中之狼"  -v 1.x
 
 For more argument usages, please run `python text_to_image.py -h`.
 
-### Vanilla Finetuning
+### 2. Vanilla Finetuning
 
 ```shell
 sh scripts/run_train_v1.sh
