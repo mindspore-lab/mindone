@@ -61,10 +61,12 @@ def get_obj_from_str(string, reload=False):
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
 
+
 def extract_into_tensor(a, t, x_shape):
     b = t.shape[0]
     out = ops.GatherD()(a, -1, t)
     return out.reshape(b, *((1,) * (len(x_shape) - 1)))
+
 
 def is_old_ms_version(last_old_version="1.10.1"):
     # some APIs are changed after ms 1.10.1 version, such as dropout

@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
 import mindspore as ms
 from mindspore import ops
 from .dpm_solver import NoiseScheduleVP, model_wrapper, DPM_Solver
+
+_logger = logging.getLogger(__name__)
+
 
 class DPMSolverSampler(object):
     def __init__(self, model, algorithm_type='dpmsolver', **kwargs):
@@ -62,15 +66,15 @@ class DPMSolverSampler(object):
             if isinstance(conditioning, dict):
                 cbs = conditioning[list(conditioning.keys())[0]].shape[0]
                 if cbs != batch_size:
-                    print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                    _logger.warning(f"Got {cbs} conditionings but batch-size is {batch_size}")
             else:
                 if conditioning.shape[0] != batch_size:
-                    print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
+                    _logger.warning(f"Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
 
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
-        print(f'Data shape for DPM-Solver sampling is {size}') if self.algorithm_type == "dpmsolver" else print(f'Data shape for DPM-Solver++ sampling is {size}')
+        _logger.debug(f'Data shape for DPM-Solver sampling is {size}') if self.algorithm_type == "dpmsolver" else _logger.debug(f'Data shape for DPM-Solver++ sampling is {size}')
 
         if x_T is None:
             img = ops.standard_normal(size)
@@ -117,10 +121,10 @@ class DPMSolverSampler(object):
             if isinstance(conditioning, dict):
                 cbs = conditioning[list(conditioning.keys())[0]].shape[0]
                 if cbs != x.shape[0]:
-                    print(f"Warning: Got {cbs} conditionings but batch-size is {x.shape[0]}")
+                    _logger.warning(f"Got {cbs} conditionings but batch-size is {x.shape[0]}")
             else:
                 if conditioning.shape[0] != x.shape[0]:
-                    print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {x.shape[0]}")
+                    _logger.warning(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {x.shape[0]}")
 
         model_fn = model_wrapper(
             lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),

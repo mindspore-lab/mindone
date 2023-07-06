@@ -100,7 +100,7 @@ def load_pretrained_model(pretrained_ckpt, net):
             param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
         logger.info("Params not load: {}".format(param_not_load))
     else:
-        logger.warning("Checkpoint file not exists!!!")
+        logger.warning("Checkpoint file {pretrained_ckpt} dose not exist!!!")
 
 
 def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
@@ -114,7 +114,7 @@ def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
         param_not_load = load_param_into_net(net, new_param_dict)
         logger.info("Params not load: {}".format(param_not_load))
     else:
-        logger.warning("Checkpoint file not exists!!!")
+        logger.warning("Checkpoint file {pretrained_ckpt} dose not exist!!!")
 
 
 def main(args):
