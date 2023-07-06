@@ -35,7 +35,7 @@ pip install -r requirements.txt
 Download [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
 
 
-### Dataset Preparation for Finetuning (optional)
+### Dataset Preparation for Finetuning (Optional)
 
 The text-image pair dataset for finetuning should follow the file structure below
 
