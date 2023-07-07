@@ -70,13 +70,13 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 
 ```shell
 # Text to image generation with SD2.0 
-python text_to_image.py --prompt "A wolf in winter"
+python text_to_image.py --prompt "elven forest"
 ```
 For more argument usages, please run `python text_to_image.py -h`.
 
 #### 1.1 Negative Prompt Guidance
 
-While `--prompt` indicates what to render in the generated images, the negative prompt (`--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing specific artifacts. Here is an examples for removing 'moss' from the 'elven forest':
+While `--prompt` indicates what to render in the generated images, the negative prompt (`--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing specific artifacts. Here is an example for removing 'moss' from the 'elven forest':
 
 <div align="center">
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/1c35853d-036f-459c-944c-9953d2da8087" width="320" /> 
