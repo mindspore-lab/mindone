@@ -29,8 +29,29 @@ For more usage, please run `python eval/eval_fid.py -h`.
 
 ### CLIP Score
 
-Coming soon
+To compute the CLIP score between images and texts, please run 
 
+- Mindspore backend
+```
+python eval/eval_clip_score.py --load_checkpoint <path-to-model> --image_path <path-to-image> --prompt <string/path-to-txt>
+```
+- PyTorch backend
+```
+python eval/eval_clip_score.py --backend pt --model_name <HF-model-name> --image_path <path-to-image> --prompt <string/path-to-txt>
+```
+By default, we use MindSpore backend for CLIP score computing (to run CLIP model inference and extract image & text features). You may swich to use `torchmetrics` by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable. 
+
+For more usage, please run `python eval/eval_clip_score.py -h`.
+
+You need to download the checkpoint file for a CLIP model of your choice. Download links for some models are provided below. 
+
+- [clip_vit_b_16](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_b_16.ckpt) (Default)
+- [clip_vit_b_32](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/clip_vit_b_32.ckpt)
+- [clip_vit_l_14](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt)
+
+For other compatible models, e.g., OpenCLIP, you can download `pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `eval/clip_score/utils/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `eval/clip_score/configs`.
+
+In addition, you should download the default tokenizer file bpe_simple_vocab_16e6.txt.gz [here](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/bpe_simple_vocab_16e6.txt.gz), and place it in the directory where you run the program or modify `--tokenizer_path` accordingly.
 
 
 
