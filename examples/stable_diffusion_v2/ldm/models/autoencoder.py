@@ -72,6 +72,15 @@ class AutoencoderKL(nn.Cell):
         moments = self.quant_conv(h)
         mean, logvar = self.split(moments)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+        var = self.exp(logvar)
         std = self.exp(0.5 * logvar)
         x = mean + std * self.stdnormal(mean.shape)
-        return x
+        return x, mean, var, logvar
+
+    def get_last_layer(self):
+        return self.decoder.conv_out.weight
+
+    def construct(self, x):
+        z, mean, var, logvar = self.encode(x)
+        yhat = self.decode(z)
+        return yhat
