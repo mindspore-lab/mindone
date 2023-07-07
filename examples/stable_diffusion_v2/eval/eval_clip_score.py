@@ -14,7 +14,7 @@ if __name__ == '__main__':
         '--config',
         default= 'eval/clip_score/configs/clip_vit_b_16.yaml', type=str,
         help='YAML config files for ms backend'
-             ' Default: ./configs/clip_vit_b_16.yaml')
+             ' Default: eval/clip_score/configs/clip_vit_b_16.yaml')
     parser.add_argument(
         '--model_name',
         default='openai/clip-vit-base-patch16', type=str,
@@ -51,6 +51,14 @@ if __name__ == '__main__':
         help='the path for saving results if save_result is set to True.'
         ' Default: results.jsonl'
     )
+    parser.add_argument(
+        '--quiet', action='store_true',
+        help='set this flag to avoid printing scores'
+    )
+    parser.add_argument(
+        '--no_check_certificate', action='store_true',
+        help='set this flag to avoid checking for certificate for downloads (checks)'
+    )
     args = parser.parse_args()
 
     # load images
@@ -77,13 +85,32 @@ if __name__ == '__main__':
         args.prompt = texts
     else:
         texts = [args.prompt]
-    assert len(images) == len(texts)
-    print(f'{len(images)} image-text pairs are loaded')
+    assert len(images) % len(texts) == 0
+    num_images = len(images) // len(texts)
+    if num_images == 1:
+        print(f'{len(images)} image-text pairs are loaded')
+    else:
+        print(f'{len(images)} images and {len(texts)} texts are loaded; Evaluate {num_images} images per prompt')
 
     print(f'Backend: {args.backend}')
     if args.backend == 'pt':
         from clip_score import compute_torchmetric_clip
-        score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
+        # equivalent to no-check-certificate flag in wget
+        if args.no_check_certificate:
+            import os
+            os.environ['CURL_CA_BUNDLE'] = ''
+
+        images = [image.resize((224, 224)) for image in images]
+        if num_images == 1:
+            score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
+        else:
+            scores = []
+            for i in range(num_images):
+                inputs = [images[i::num_images], texts]
+                score = compute_torchmetric_clip(*inputs, model_name=args.model_name)
+                scores.append(score)
+            score = sum(scores) / len(scores)
+
     elif args.backend == 'ms':
         image_processor = CLIPImageProcessor()
         text_processor = CLIPTokenizer(args.tokenizer_path, pad_token='!')
@@ -96,28 +123,36 @@ if __name__ == '__main__':
         config = parse(args.config, args.load_checkpoint)
         model = CLIPModel(config)
 
-        inputs = [(images[i], texts[i]) for i in range(len(images))]
         results = []
-        for i, (image, text) in enumerate(inputs):
-            image_feature = model.get_image_features(image)
-            image_feature = image_feature / image_feature.norm(1, keep_dims=True)
+        for i, text in enumerate(texts):
             text_feature = model.get_text_features(text)
             text_feature = text_feature / text_feature.norm(1, keep_dims=True)
-            result = float(ops.matmul(image_feature, text_feature.T)[0][0] * 100)
-            results.append(result)
-            print(args.image_path[i], args.prompt[i], '->', round(result, 4))
+            for j in range(num_images):
+                image_index = num_images * i + j
+                image = images[image_index]
+                image_feature = model.get_image_features(image)
+                image_feature = image_feature / image_feature.norm(1, keep_dims=True)
+                res = float(ops.matmul(image_feature, text_feature.T)[0][0] * 100)
+                results.append(res)
+                if not args.quiet:
+                    print(args.image_path[image_index], args.prompt[i], '->', round(res, 4))
+            if not args.quiet:
+                print('-' * 20)
+            
         score = sum(results) / len(results)
 
         # save results
         if args.save_result:
             with open(args.result_path, 'w') as f:
-                for i in range(len(inputs)):
-                    line = {
-                        'image_path': os.path.abspath(args.image_path[i]),
-                        'prompt': args.prompt[i],
-                        'clip_score': results[i]
-                    }
-                    f.write(json.dumps(line) + '\n')
+                for i, text in enumerate(texts):
+                    for j in range(num_images):
+                        index = num_images * i + j
+                        line = {
+                            'prompt': args.prompt[i],
+                            'image_path': os.path.abspath(args.image_path[index]),
+                            'clip_score': results[index]
+                        }
+                        f.write(json.dumps(line) + '\n')
     else:
         raise ValueError(f'Unknown backend: {args.backend}. Valid backend: [ms, pt]')
 

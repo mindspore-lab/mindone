@@ -51,7 +51,9 @@ You need to download the checkpoint file for a CLIP model of your choice. Downlo
 
 For other compatible models, e.g., OpenCLIP, you can download `pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `eval/clip_score/utils/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `eval/clip_score/configs`.
 
-In addition, you should download the default tokenizer file bpe_simple_vocab_16e6.txt.gz [here](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/bpe_simple_vocab_16e6.txt.gz), and place it in the directory where you run the program or modify `--tokenizer_path` accordingly.
+In addition, you should download the default tokenizer file bpe_simple_vocab_16e6.txt.gz [here](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/bpe_simple_vocab_16e6.txt.gz), and place it in the directory where you run the program or set `tokenizer_path` accordingly.
+
+`image_path` should lead to an image file or a directory containing images. If it is a directory, then the images are sorted by their filename in an ascending order. `prompt` can be either a piece of text or the path to an `.txt` file, where prompts are placed line by line. Images and prompts are matched such that each prompt corresponding to one or many images in order.
 
 
 
