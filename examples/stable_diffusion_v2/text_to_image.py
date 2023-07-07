@@ -111,10 +111,6 @@ def main(args):
         prompt = args.prompt
         assert prompt is not None
         data = [batch_size * [prompt]]
-        # negative prompts
-        negative_prompt = args.negative_prompt
-        assert negative_prompt is not None
-        negative_data = [batch_size * [negative_prompt]]
     else:
         logger.info(f"Reading prompts from {args.data_path}")
         with open(args.data_path, "r") as f:
@@ -122,12 +118,18 @@ def main(args):
             num_prompts = len(prompts)
             # TODO: try to put different prompts in a batch
             data = [batch_size * [prompt] for prompt in prompts]
-        # negative prompts
-        args.negative_prompt = os.path.join(args.data_path, args.negative_prompt)
-        logger.info(f"reading negative prompt from {args.negative_prompt}")
-        with open(args.negative_prompt, "r") as f:
-            negative_data = f.read().splitlines()
-            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_data]]
+
+    # read negative prompts
+    if not args.negative_data_path:
+        negative_prompt = args.negative_prompt
+        assert negative_prompt is not None
+        negative_data = [batch_size * [negative_prompt]]
+    else:
+        logger.info(f"Reading negative prompts from {args.negative_data_path}")
+        with open(args.negative_data_path, "r") as f:
+            negative_prompts = f.read().splitlines()
+            # TODO: try to put different prompts in a batch
+            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_prompts]]
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -253,7 +255,11 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data_path", type=str, nargs="?", default="",
-        help="path to a file containing prompt list (each line in the file correspods to a prompt to render)."
+        help="path to a file containing prompt list (each line in the file corresponds to a prompt to render)."
+    )
+    parser.add_argument(
+        "--negative_data_path", type=str, nargs="?", default="",
+        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to render)."
     )
     parser.add_argument(
         "-v", "--version", type=str, nargs="?", default="2.0",
