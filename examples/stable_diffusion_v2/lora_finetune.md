@@ -198,7 +198,7 @@ For more details, please run `python text_to_image.py -h`.
 
 ```shell
 python eval/eval_fid.py --real_dir {path/to/test_images} --gen_dir {path/to/generated_images}
-
+python eval/eval_clip_score.py --image_path {path/to/test_images} --prompt {path/to/prompts_file} --load_checkpoint {path/to/checkpoint}
 ```
 
 For details, please refer to the guideline [Diffusion Evaluation](eval/README.md). 
@@ -207,10 +207,10 @@ Here are the evaluation results for our implementation.
 
 <div align="center">
 
-| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   |                                                                 
-|--------------|------|-------------|-----------|--------|------------|
-| stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108   |   106  |
-| stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257    |   254  |
+| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   | CLIP Score of Original/Generated Images (Ours) | CLIP Score of Original/Generated Images (Diffuser) |                                                   
+|--------------|------|-------------|-----------|--------|------------|------------|------------|
+| stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108   |   106  | 28.8/30.8 | 28.8/30.8 |
+| stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257    |   254  | 32.7/33.2 | 33.3/33.6 |
     
 </div>
 
