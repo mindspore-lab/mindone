@@ -16,18 +16,16 @@
 Cell Wrapper For the Parallel Training.
 This is an experimental interface that is subject to change and/or deletion.
 """
+from ldm.modules.train.parallel_config import ParallelConfig as default_transformer_config
+from ldm.modules.train.utils import _ClipByGlobalNorm
+
 from mindspore import ops
+from mindspore.nn.wrap.loss_scale import TrainOneStepWithLossScaleCell, grad_scale, shard_grad_scale
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.nn.wrap.loss_scale import TrainOneStepWithLossScaleCell, shard_grad_scale, grad_scale
 from mindspore.parallel._utils import _get_enable_parallel_optimizer, _get_pipeline_stages
 
-from ldm.modules.train.utils import _ClipByGlobalNorm
-from ldm.modules.train.parallel_config import ParallelConfig as default_transformer_config
-
-__all__ = [
-    "ParallelTrainOneStepWithLossScaleCell"
-]
+__all__ = ["ParallelTrainOneStepWithLossScaleCell"]
 
 _grad_scale = C.MultitypeFuncGraph("_grad_scale")
 _shard_grad_scale = C.MultitypeFuncGraph("_shard_grad_scale")
@@ -119,15 +117,16 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
         >>> output = train_network(inputs, label)
     """
 
-    def __init__(self,
-                 network,
-                 optimizer,
-                 scale_sense=None,
-                 enable_global_norm=True,
-                 clip_norm=1.0,
-                 parallel_config=default_transformer_config):
-        super(ParallelTrainOneStepWithLossScaleCell,
-              self).__init__(network, optimizer, scale_sense)
+    def __init__(
+        self,
+        network,
+        optimizer,
+        scale_sense=None,
+        enable_global_norm=True,
+        clip_norm=1.0,
+        parallel_config=default_transformer_config,
+    ):
+        super(ParallelTrainOneStepWithLossScaleCell, self).__init__(network, optimizer, scale_sense)
         if not isinstance(clip_norm, float):
             raise TypeError("clip norm must be a float value.")
 
@@ -139,9 +138,7 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
         self.clip = None
         self.enabling_pipeline = False
         if enable_global_norm:
-            self.clip = _ClipByGlobalNorm(params=self.weights,
-                                          clip_norm=clip_norm,
-                                          parallel_config=parallel_config)
+            self.clip = _ClipByGlobalNorm(params=self.weights, clip_norm=clip_norm, parallel_config=parallel_config)
         if _get_pipeline_stages() > 1:
             self.enabling_pipeline = True
             self.network.add_flags(defer_inline=True)
@@ -156,7 +153,6 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
             self.reshape = ops.Reshape()
 
     def construct(self, *args):
-
         if self.enabling_pipeline:
             res = self._construct_pipeline(*args)
         else:
@@ -175,14 +171,11 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
         status, scaling_sens = self.start_overflow_check(loss, scaling_sens)
         scaling_sens_filled = C.ones_like(loss) * F.cast(scaling_sens, F.dtype(loss))
         # Backward process using loss scale
-        grads = self.grad(self.network,
-                          weights)(*args,
-                                   scaling_sens_filled)
+        grads = self.grad(self.network, weights)(*args, scaling_sens_filled)
 
         # apply grad reducer on grads
         grads = self.grad_reducer(grads)
-        grads = self.hyper_map(
-            F.partial(_grad_scale, scaling_sens), grads)
+        grads = self.hyper_map(F.partial(_grad_scale, scaling_sens), grads)
 
         if self.enable_global_norm:
             grads = self.clip(grads)
@@ -190,7 +183,7 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
         # Check whether overflow
         cond = self.get_overflow_status(status, grads)
         overflow = self.process_loss_scale(cond)
-        
+
         # if there is no overflow, do optimize
         if not overflow:
             loss = F.depend(loss, self.optimizer(grads))
@@ -198,7 +191,7 @@ class ParallelTrainOneStepWithLossScaleCell(TrainOneStepWithLossScaleCell):
 
     def _construct_pipeline(self, *args):
         r"""
-         Construct function for the pipeline mode
+        Construct function for the pipeline mode
         """
         weights = self.weights
         loss = self.network(*args)

@@ -35,7 +35,7 @@ ckpt_save_interval=5
 rm -rf ${output_path:?}/${task_name:?}
 mkdir -p ${output_path:?}/${task_name:?}
 export RANK_SIZE=1;export DEVICE_ID=$device_id;
-#export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}; 
+#export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?};
 #nohup python -u run_train.py \
 python train_text_to_image.py \
     --data_path=$data_path \

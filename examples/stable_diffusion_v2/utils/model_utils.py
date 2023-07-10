@@ -1,9 +1,11 @@
 import copy
 
 import mindspore.nn as nn
-from mindspore import log as logger, Parameter
+from mindspore import Parameter
+from mindspore import log as logger
+
 # from mindspore._checkparam import Validator
-from mindspore.train.serialization import _update_param, _load_dismatch_prefix_params
+from mindspore.train.serialization import _load_dismatch_prefix_params, _update_param
 
 
 def load_param_into_net_with_filter(net, parameter_dict, strict_load=False, filter=None):
@@ -39,19 +41,22 @@ def load_param_into_net_with_filter(net, parameter_dict, strict_load=False, filt
     """
     if not isinstance(net, nn.Cell):
         logger.critical("Failed to combine the net and the parameters.")
-        msg = ("For 'load_param_into_net', the argument 'net' should be a Cell, but got {}.".format(type(net)))
+        msg = "For 'load_param_into_net', the argument 'net' should be a Cell, but got {}.".format(type(net))
         raise TypeError(msg)
 
     if not isinstance(parameter_dict, dict):
         logger.critical("Failed to combine the net and the parameters.")
-        msg = ("For 'load_param_into_net', the argument 'parameter_dict' should be a dict, "
-               "but got {}.".format(type(parameter_dict)))
+        msg = "For 'load_param_into_net', the argument 'parameter_dict' should be a dict, " "but got {}.".format(
+            type(parameter_dict)
+        )
         raise TypeError(msg)
     for key, value in parameter_dict.items():
         if not isinstance(key, str) or not isinstance(value, (Parameter, str)):
             logger.critical("Load parameters into net failed.")
-            msg = ("For 'parameter_dict', the element in the argument 'parameter_dict' should be a "
-                   "'str' and 'Parameter' , but got {} and {}.".format(type(key), type(value)))
+            msg = (
+                "For 'parameter_dict', the element in the argument 'parameter_dict' should be a "
+                "'str' and 'Parameter' , but got {} and {}.".format(type(key), type(value))
+            )
             raise TypeError(msg)
 
     # TODO: replace by otherway to do check_bool
@@ -77,10 +82,12 @@ def load_param_into_net_with_filter(net, parameter_dict, strict_load=False, filt
         if param_all_load_flag:
             param_not_load.clear()
     if param_not_load:
-        logger.warning("For 'load_param_into_net', "
-                       "{} parameters in the 'net' are not loaded, because they are not in the "
-                       "'parameter_dict', please check whether the network structure is consistent "
-                       "when training and loading checkpoint.".format(len(param_not_load)))
+        logger.warning(
+            "For 'load_param_into_net', "
+            "{} parameters in the 'net' are not loaded, because they are not in the "
+            "'parameter_dict', please check whether the network structure is consistent "
+            "when training and loading checkpoint.".format(len(param_not_load))
+        )
         for param_name in param_not_load:
             logger.warning("{} is not loaded.".format(param_name))
     return param_not_load, ckpt_not_load

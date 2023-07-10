@@ -14,22 +14,19 @@
 # ============================================================================
 import logging
 import math
+
+from ldm.util import is_old_ms_version
+
 import mindspore as ms
 from mindspore import ops
-from ldm.util import is_old_ms_version
 
 _logger = logging.getLogger(__name__)
 
 
 class NoiseScheduleVP:
     def __init__(
-            self,
-            schedule='discrete',
-            betas=None,
-            alphas_cumprod=None,
-            continuous_beta_0=0.1,
-            continuous_beta_1=20.
-        ):
+        self, schedule="discrete", betas=None, alphas_cumprod=None, continuous_beta_0=0.1, continuous_beta_1=20.0
+    ):
         """
         Create a wrapper class for the forward SDE (VP type).
         ***
@@ -91,50 +88,63 @@ class NoiseScheduleVP:
         self.cos = ops.Cos()
         self.sqrt = ops.Sqrt()
 
-        if schedule not in ['discrete', 'linear', 'cosine']:
+        if schedule not in ["discrete", "linear", "cosine"]:
             raise ValueError(
                 "Unsupported noise schedule {}. The schedule needs to"
                 " be 'discrete' or 'linear' or 'cosine'".format(schedule)
             )
 
         self.schedule = schedule
-        if schedule == 'discrete':
+        if schedule == "discrete":
             if betas is not None:
                 log_alphas = 0.5 * self.log(1 - betas).cumsum(axis=0)
             else:
                 assert alphas_cumprod is not None
                 log_alphas = 0.5 * self.log(alphas_cumprod)
             self.total_N = len(log_alphas)
-            self.T = 1.
-            self.t_array = self.cast(ops.linspace(ms.Tensor(0., ms.float32),
-                                                  ms.Tensor(1., ms.float32),
-                                                  self.total_N + 1)[1:].reshape((1, -1)),
-                                     ms.float16)
-            self.log_alpha_array = log_alphas.reshape((1, -1,))
+            self.T = 1.0
+            self.t_array = self.cast(
+                ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(1.0, ms.float32), self.total_N + 1)[1:].reshape(
+                    (1, -1)
+                ),
+                ms.float16,
+            )
+            self.log_alpha_array = log_alphas.reshape(
+                (
+                    1,
+                    -1,
+                )
+            )
         else:
             self.total_N = 1000
             self.beta_0 = continuous_beta_0
             self.beta_1 = continuous_beta_1
             self.cosine_s = 0.008
-            self.cosine_beta_max = 999.
-            self.cosine_t_max = math.atan(self.cosine_beta_max * (1. + self.cosine_s) / math.pi) * 2. * (1. + self.cosine_s) / math.pi - self.cosine_s
-            self.cosine_log_alpha_0 = math.log(math.cos(self.cosine_s / (1. + self.cosine_s) * math.pi / 2.))
+            self.cosine_beta_max = 999.0
+            self.cosine_t_max = (
+                math.atan(self.cosine_beta_max * (1.0 + self.cosine_s) / math.pi)
+                * 2.0
+                * (1.0 + self.cosine_s)
+                / math.pi
+                - self.cosine_s
+            )
+            self.cosine_log_alpha_0 = math.log(math.cos(self.cosine_s / (1.0 + self.cosine_s) * math.pi / 2.0))
             self.schedule = schedule
-            if schedule == 'cosine':
+            if schedule == "cosine":
                 self.T = 0.9946
             else:
-                self.T = 1.
+                self.T = 1.0
 
     def marginal_log_mean_coeff(self, t):
         """
         Compute log(alpha_t) of a given continuous-time label t in [0, T].
         """
-        if self.schedule == 'discrete':
+        if self.schedule == "discrete":
             return ops.reshape(interpolate_fn(ops.reshape(t, (-1, 1)), self.t_array, self.log_alpha_array), (-1,))
-        elif self.schedule == 'linear':
-            return -0.25 * t ** 2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
-        elif self.schedule == 'cosine':
-            log_alpha_fn = lambda s: self.log(self.cos((s + self.cosine_s) / (1. + self.cosine_s) * math.pi / 2.))
+        elif self.schedule == "linear":
+            return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
+        elif self.schedule == "cosine":
+            log_alpha_fn = lambda s: self.log(self.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
             log_alpha_t = log_alpha_fn(t) - self.cosine_log_alpha_0
             return log_alpha_t
 
@@ -148,31 +158,41 @@ class NoiseScheduleVP:
         """
         Compute sigma_t of a given continuous-time label t in [0, T].
         """
-        return self.sqrt(1. - ops.exp(2. * self.marginal_log_mean_coeff(t)))
+        return self.sqrt(1.0 - ops.exp(2.0 * self.marginal_log_mean_coeff(t)))
 
     def marginal_lambda(self, t):
         """
         Compute lambda_t = log(alpha_t) - log(sigma_t) of a given continuous-time label t in [0, T].
         """
         log_mean_coeff = self.marginal_log_mean_coeff(t)
-        log_std = 0.5 * ops.log(1. - ops.exp(2. * log_mean_coeff))
+        log_std = 0.5 * ops.log(1.0 - ops.exp(2.0 * log_mean_coeff))
         return log_mean_coeff - log_std
 
     def inverse_lambda(self, lamb):
         """
         Compute the continuous-time label t in [0, T] of a given half-logSNR lambda_t.
         """
-        if self.schedule == 'linear':
-            tmp = 2. * (self.beta_1 - self.beta_0) * ops.log(ops.exp(-2. * lamb) + ops.exp(ops.Zeros()((1,))))
+        if self.schedule == "linear":
+            tmp = 2.0 * (self.beta_1 - self.beta_0) * ops.log(ops.exp(-2.0 * lamb) + ops.exp(ops.Zeros()((1,))))
             Delta = self.beta_0**2 + tmp
             return tmp / (ops.Sqrt()(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
-        elif self.schedule == 'discrete':
-            log_alpha = -0.5 * ops.log(ops.exp(ops.Zeros()((1,))) + ops.exp(-2. * lamb))
-            t = interpolate_fn(log_alpha.reshape((-1, 1)), ops.ReverseV2(axis=[1])(self.log_alpha_array), ops.ReverseV2(axis=[1])(self.t_array))
+        elif self.schedule == "discrete":
+            log_alpha = -0.5 * ops.log(ops.exp(ops.Zeros()((1,))) + ops.exp(-2.0 * lamb))
+            t = interpolate_fn(
+                log_alpha.reshape((-1, 1)),
+                ops.ReverseV2(axis=[1])(self.log_alpha_array),
+                ops.ReverseV2(axis=[1])(self.t_array),
+            )
             return t.reshape((-1,))
         else:
-            log_alpha = -0.5 * ops.log(ops.exp(-2. * lamb) + ops.exp(ops.Zeros()((1,))))
-            t_fn = lambda log_alpha_t: ops.ACos()(ops.exp(log_alpha_t + self.cosine_log_alpha_0)) * 2. * (1. + self.cosine_s) / math.pi - self.cosine_s
+            log_alpha = -0.5 * ops.log(ops.exp(-2.0 * lamb) + ops.exp(ops.Zeros()((1,))))
+            t_fn = (
+                lambda log_alpha_t: ops.ACos()(ops.exp(log_alpha_t + self.cosine_log_alpha_0))
+                * 2.0
+                * (1.0 + self.cosine_s)
+                / math.pi
+                - self.cosine_s
+            )
             t = t_fn(log_alpha)
             return t
 
@@ -185,7 +205,7 @@ def model_wrapper(
     guidance_type="uncond",
     condition=None,
     unconditional_condition=None,
-    guidance_scale=1.,
+    guidance_scale=1.0,
     classifier_fn=None,
     classifier_kwargs={},
 ):
@@ -217,7 +237,7 @@ def model_wrapper(
             The input `model` has the following format:
             ``
                 model(x, t_input, **model_kwargs) -> noise | x_start | v | score
-            `` 
+            ``
             The input `classifier_fn` has the following format:
             ``
                 classifier_fn(x, t_input, cond, **classifier_kwargs) -> logits(x, t_input, cond)
@@ -228,7 +248,7 @@ def model_wrapper(
             The input `model` has the following format:
             ``
                 model(x, t_input, cond, **model_kwargs) -> noise | x_start | v | score
-            `` 
+            ``
             And if cond == `unconditional_condition`, the model output is the unconditional DPM output.
             [4] Ho, Jonathan, and Tim Salimans. "Classifier-free diffusion guidance."
                 arXiv preprint arXiv:2207.12598 (2022).
@@ -238,7 +258,7 @@ def model_wrapper(
     ``
         def model_fn(x, t_continuous) -> noise:
             t_input = get_model_input_time(t_continuous)
-            return noise_pred(model, x, t_input, **model_kwargs)         
+            return noise_pred(model, x, t_input, **model_kwargs)
     ``
     where `t_continuous` is the continuous time labels (i.e. epsilon to T). And we use `model_fn` for DPM-Solver.
     ===============================================================
@@ -267,8 +287,8 @@ def model_wrapper(
         For discrete-time DPMs, we convert `t_continuous` in [1 / N, 1] to `t_input` in [0, 1000 * (N - 1) / N].
         For continuous-time DPMs, we just use `t_continuous`.
         """
-        if noise_schedule.schedule == 'discrete':
-            return (t_continuous - 1. / noise_schedule.total_N) * 1000.
+        if noise_schedule.schedule == "discrete":
+            return (t_continuous - 1.0 / noise_schedule.total_N) * 1000.0
         else:
             return t_continuous
 
@@ -323,7 +343,7 @@ def model_wrapper(
             noise = noise_pred_fn(x, t_continuous)
             return noise - guidance_scale * expand_dims(sigma_t, dims=cond_grad.ndim) * cond_grad
         elif guidance_type == "classifier-free":
-            if guidance_scale == 1. or unconditional_condition is None:
+            if guidance_scale == 1.0 or unconditional_condition is None:
                 return noise_pred_fn(x, t_continuous, cond=condition)
             else:
                 x_in = ops.concat([x] * 2)
@@ -333,9 +353,7 @@ def model_wrapper(
                 if is_old_ms_version():
                     noise_uncond, noise = ops.split(noise_output, output_num=2)
                 else:
-                    noise_uncond, noise = ops.split(
-                            noise_output, 
-                            split_size_or_sections=noise_output.shape[0]//2)
+                    noise_uncond, noise = ops.split(noise_output, split_size_or_sections=noise_output.shape[0] // 2)
                 return noise_uncond + guidance_scale * (noise - noise_uncond)
 
     assert model_type in ["noise", "x_start", "v", "score"]
@@ -351,11 +369,11 @@ class DPM_Solver:
         algorithm_type="dpmsolver++",
         correcting_x0_fn=None,
         correcting_xt_fn=None,
-        thresholding_max_val=1.,
+        thresholding_max_val=1.0,
         dynamic_thresholding_ratio=0.995,
     ):
         """
-        Construct a DPM-Solver. 
+        Construct a DPM-Solver.
         We support both DPM-Solver (`algorithm_type="dpmsolver"`) and DPM-Solver++ (`algorithm_type="dpmsolver++"`).
         We also support the "dynamic thresholding" method in Imagen[1]. For pixel-space diffusion models, you
         can set both `algorithm_type="dpmsolver++"` and `correcting_x0_fn="dynamic_thresholding"` to use the
@@ -422,20 +440,20 @@ class DPM_Solver:
 
     def dynamic_thresholding_fn(self, x0, t):
         """
-        The dynamic thresholding method. 
+        The dynamic thresholding method.
         """
         dims = x0.ndim
         p = self.dynamic_thresholding_ratio
 
         temp = ops.Sort(axis=1)(ops.abs(x0).reshape((x0.shape[0], -1)))
-        left_index = int((temp.shape[1]-1) * p)
+        left_index = int((temp.shape[1] - 1) * p)
         right_index = left_index + 1
         left_column = temp[:, left_index]
         right_column = temp[:, right_index]
-        s = left_column + (right_column - left_column)*p
+        s = left_column + (right_column - left_column) * p
         s = expand_dims(ops.maximum(s, self.thresholding_max_val * ops.ones_like(s)), dims)
         x0 = ops.clip_by_value(x0, -s, s) / s
-        
+
         return x0
 
     def noise_prediction_fn(self, x, t):
@@ -457,7 +475,7 @@ class DPM_Solver:
 
     def model_fn(self, x, t):
         """
-        Convert the model to the noise prediction model or the data prediction model. 
+        Convert the model to the noise prediction model or the data prediction model.
         """
         if self.algorithm_type == "dpmsolver++":
             return self.data_prediction_fn(x, t)
@@ -479,19 +497,23 @@ class DPM_Solver:
         Returns:
             A MindSpore tensor of the time steps, with the shape (N + 1,).
         """
-        if skip_type == 'logSNR':
+        if skip_type == "logSNR":
             lambda_T = self.noise_schedule.marginal_lambda(ms.Tensor(t_T, ms.float16))
             lambda_0 = self.noise_schedule.marginal_lambda(ms.Tensor(t_0, ms.float16))
             logSNR_steps = ops.linspace(lambda_T, lambda_0, N + 1)
             return self.noise_schedule.inverse_lambda(logSNR_steps)
-        elif skip_type == 'time_uniform':
+        elif skip_type == "time_uniform":
             return self.cast(ops.linspace(ms.Tensor(t_T, ms.float32), ms.Tensor(t_0, ms.float32), N + 1), ms.float16)
-        elif skip_type == 'time_quadratic':
+        elif skip_type == "time_quadratic":
             t_order = 2
-            t = ops.pow(ops.linspace(ms.Tensor(t_T ** (1. / t_order)), ms.Tensor(t_0 ** (1. / t_order)), N + 1), t_order)
+            t = ops.pow(
+                ops.linspace(ms.Tensor(t_T ** (1.0 / t_order)), ms.Tensor(t_0 ** (1.0 / t_order)), N + 1), t_order
+            )
             return t
         else:
-            raise ValueError("Unsupported skip_type {}, need to be 'logSNR' or 'time_uniform' or 'time_quadratic'".format(skip_type))
+            raise ValueError(
+                "Unsupported skip_type {}, need to be 'logSNR' or 'time_uniform' or 'time_quadratic'".format(skip_type)
+            )
 
     def get_orders_and_timesteps_for_singlestep_solver(self, steps, order, skip_type, t_T, t_0):
         """
@@ -525,34 +547,63 @@ class DPM_Solver:
         if order == 3:
             K = steps // 3 + 1
             if steps % 3 == 0:
-                orders = [3,] * (K - 2) + [2, 1]
+                orders = [
+                    3,
+                ] * (
+                    K - 2
+                ) + [2, 1]
             elif steps % 3 == 1:
-                orders = [3,] * (K - 1) + [1]
+                orders = [
+                    3,
+                ] * (
+                    K - 1
+                ) + [1]
             else:
-                orders = [3,] * (K - 1) + [2]
+                orders = [
+                    3,
+                ] * (
+                    K - 1
+                ) + [2]
         elif order == 2:
             if steps % 2 == 0:
                 K = steps // 2
-                orders = [2,] * K
+                orders = [
+                    2,
+                ] * K
             else:
                 K = steps // 2 + 1
-                orders = [2,] * (K - 1) + [1]
+                orders = [
+                    2,
+                ] * (
+                    K - 1
+                ) + [1]
         elif order == 1:
             K = 1
-            orders = [1,] * steps
+            orders = [
+                1,
+            ] * steps
         else:
             raise ValueError("'order' must be '1' or '2' or '3'.")
-        if skip_type == 'logSNR':
+        if skip_type == "logSNR":
             # To reproduce the results in DPM-Solver paper
             timesteps_outer = self.get_time_steps(skip_type, t_T, t_0, K)
         else:
             timesteps_outer = self.get_time_steps(skip_type, t_T, t_0, steps)[
-                ops.CumSum()(ms.tensor([0, ] + orders), 0)]
+                ops.CumSum()(
+                    ms.tensor(
+                        [
+                            0,
+                        ]
+                        + orders
+                    ),
+                    0,
+                )
+            ]
         return timesteps_outer, orders
 
     def denoise_to_zero_fn(self, x, s):
         """
-        Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order discretization. 
+        Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order discretization.
         """
         return self.data_prediction_fn(x, s)
 
@@ -582,12 +633,9 @@ class DPM_Solver:
             phi_1 = ops.expm1(-h)
             if model_s is None:
                 model_s = self.model_fn(x, s)
-            x_t = (
-                    expand_dims(sigma_t / sigma_s, dims) * x
-                    - expand_dims(alpha_t * phi_1, dims) * model_s
-            )
+            x_t = expand_dims(sigma_t / sigma_s, dims) * x - expand_dims(alpha_t * phi_1, dims) * model_s
             if return_intermediate:
-                return x_t, {'model_s': model_s}
+                return x_t, {"model_s": model_s}
             else:
                 return x_t
         else:
@@ -595,15 +643,16 @@ class DPM_Solver:
             if model_s is None:
                 model_s = self.model_fn(x, s)
             x_t = (
-                    expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
-                    - expand_dims(sigma_t * phi_1, dims) * model_s
+                expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x - expand_dims(sigma_t * phi_1, dims) * model_s
             )
             if return_intermediate:
-                return x_t, {'model_s': model_s}
+                return x_t, {"model_s": model_s}
             else:
                 return x_t
 
-    def singlestep_dpm_solver_second_update(self, x, s, t, r1=0.5, model_s=None, return_intermediate=False, solver_type='dpmsolver'):
+    def singlestep_dpm_solver_second_update(
+        self, x, s, t, r1=0.5, model_s=None, return_intermediate=False, solver_type="dpmsolver"
+    ):
         """
         Singlestep solver DPM-Solver-2 from time `s` to time `t`.
         ===============================================================
@@ -620,7 +669,7 @@ class DPM_Solver:
         Returns:
             x_t: A MindSpore tensor. The approximated solution at time `t`.
         """
-        if solver_type not in ['dpmsolver', 'taylor']:
+        if solver_type not in ["dpmsolver", "taylor"]:
             raise ValueError("'solver_type' must be either 'dpmsolver' or 'taylor', got {}".format(solver_type))
         if r1 is None:
             r1 = 0.5
@@ -630,7 +679,11 @@ class DPM_Solver:
         h = lambda_t - lambda_s
         lambda_s1 = lambda_s + r1 * h
         s1 = ns.inverse_lambda(lambda_s1)
-        log_alpha_s, log_alpha_s1, log_alpha_t = ns.marginal_log_mean_coeff(s), ns.marginal_log_mean_coeff(s1), ns.marginal_log_mean_coeff(t)
+        log_alpha_s, log_alpha_s1, log_alpha_t = (
+            ns.marginal_log_mean_coeff(s),
+            ns.marginal_log_mean_coeff(s1),
+            ns.marginal_log_mean_coeff(t),
+        )
         sigma_s, sigma_s1, sigma_t = ns.marginal_std(s), ns.marginal_std(s1), ns.marginal_std(t)
         alpha_s1, alpha_t = ops.exp(log_alpha_s1), ops.exp(log_alpha_t)
 
@@ -640,22 +693,19 @@ class DPM_Solver:
 
             if model_s is None:
                 model_s = self.model_fn(x, s)
-            x_s1 = (
-                (sigma_s1 / sigma_s) * x
-                - (alpha_s1 * phi_11) * model_s
-            )
+            x_s1 = (sigma_s1 / sigma_s) * x - (alpha_s1 * phi_11) * model_s
             model_s1 = self.model_fn(x_s1, s1)
-            if solver_type == 'dpmsolver':
+            if solver_type == "dpmsolver":
                 x_t = (
                     (sigma_t / sigma_s) * x
                     - (alpha_t * phi_1) * model_s
                     - (0.5 / r1) * (alpha_t * phi_1) * (model_s1 - model_s)
                 )
-            elif solver_type == 'taylor':
+            elif solver_type == "taylor":
                 x_t = (
                     (sigma_t / sigma_s) * x
                     - (alpha_t * phi_1) * model_s
-                    + (1. / r1) * (alpha_t * (phi_1 / h + 1.)) * (model_s1 - model_s)
+                    + (1.0 / r1) * (alpha_t * (phi_1 / h + 1.0)) * (model_s1 - model_s)
                 )
         else:
             phi_11 = ops.expm1(r1 * h)
@@ -664,28 +714,39 @@ class DPM_Solver:
             if model_s is None:
                 model_s = self.model_fn(x, s)
             x_s1 = (
-                    expand_dims(ops.exp(log_alpha_s1 - log_alpha_s), dims) * x
-                    - expand_dims(sigma_s1 * phi_11, dims) * model_s
+                expand_dims(ops.exp(log_alpha_s1 - log_alpha_s), dims) * x
+                - expand_dims(sigma_s1 * phi_11, dims) * model_s
             )
             model_s1 = self.model_fn(x_s1, s1)
-            if solver_type == 'dpm_solver':
+            if solver_type == "dpm_solver":
                 x_t = (
-                        expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
-                        - expand_dims(sigma_t * phi_1, dims) * model_s
-                        - (0.5 / r1) * expand_dims(sigma_t * phi_1, dims) * (model_s1 - model_s)
+                    expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
+                    - expand_dims(sigma_t * phi_1, dims) * model_s
+                    - (0.5 / r1) * expand_dims(sigma_t * phi_1, dims) * (model_s1 - model_s)
                 )
-            elif solver_type == 'taylor':
+            elif solver_type == "taylor":
                 x_t = (
-                        expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
-                        - expand_dims(sigma_t * phi_1, dims) * model_s
-                        - (1. / r1) * expand_dims(sigma_t * ((ops.exp(h) - 1.) / h - 1.), dims) * (model_s1 - model_s)
+                    expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
+                    - expand_dims(sigma_t * phi_1, dims) * model_s
+                    - (1.0 / r1) * expand_dims(sigma_t * ((ops.exp(h) - 1.0) / h - 1.0), dims) * (model_s1 - model_s)
                 )
         if return_intermediate:
-            return x_t, {'model_s': model_s, 'model_s1': model_s1}
+            return x_t, {"model_s": model_s, "model_s1": model_s1}
         else:
             return x_t
 
-    def singlestep_dpm_solver_third_update(self, x, s, t, r1=1./3., r2=2./3., model_s=None, model_s1=None, return_intermediate=False, solver_type='dpmsolver'):
+    def singlestep_dpm_solver_third_update(
+        self,
+        x,
+        s,
+        t,
+        r1=1.0 / 3.0,
+        r2=2.0 / 3.0,
+        model_s=None,
+        model_s1=None,
+        return_intermediate=False,
+        solver_type="dpmsolver",
+    ):
         """
         Singlestep solver DPM-Solver-3 from time `s` to time `t`.
         ===============================================================
@@ -705,12 +766,12 @@ class DPM_Solver:
         Returns:
             x_t: A MindSpore tensor. The approximated solution at time `t`.
         """
-        if solver_type not in ['dpmsolver', 'taylor']:
+        if solver_type not in ["dpmsolver", "taylor"]:
             raise ValueError("'solver_type' must be either 'dpmsolver' or 'taylor', got {}".format(solver_type))
         if r1 is None:
-            r1 = 1. / 3.
+            r1 = 1.0 / 3.0
         if r2 is None:
-            r2 = 2. / 3.
+            r2 = 2.0 / 3.0
         ns = self.noise_schedule
         dims = x.ndim
         lambda_s, lambda_t = ns.marginal_lambda(s), ns.marginal_lambda(t)
@@ -719,25 +780,32 @@ class DPM_Solver:
         lambda_s2 = lambda_s + r2 * h
         s1 = ns.inverse_lambda(lambda_s1)
         s2 = ns.inverse_lambda(lambda_s2)
-        log_alpha_s, log_alpha_s1, log_alpha_s2, log_alpha_t = ns.marginal_log_mean_coeff(s), ns.marginal_log_mean_coeff(s1), ns.marginal_log_mean_coeff(s2), ns.marginal_log_mean_coeff(t)
-        sigma_s, sigma_s1, sigma_s2, sigma_t = ns.marginal_std(s), ns.marginal_std(s1), ns.marginal_std(s2), ns.marginal_std(t)
+        log_alpha_s, log_alpha_s1, log_alpha_s2, log_alpha_t = (
+            ns.marginal_log_mean_coeff(s),
+            ns.marginal_log_mean_coeff(s1),
+            ns.marginal_log_mean_coeff(s2),
+            ns.marginal_log_mean_coeff(t),
+        )
+        sigma_s, sigma_s1, sigma_s2, sigma_t = (
+            ns.marginal_std(s),
+            ns.marginal_std(s1),
+            ns.marginal_std(s2),
+            ns.marginal_std(t),
+        )
         alpha_s1, alpha_s2, alpha_t = ops.exp(log_alpha_s1), ops.exp(log_alpha_s2), ops.exp(log_alpha_t)
 
         if self.algorithm_type == "dpmsolver++":
             phi_11 = ops.expm1(-r1 * h)
             phi_12 = ops.expm1(-r2 * h)
             phi_1 = ops.expm1(-h)
-            phi_22 = ops.expm1(-r2 * h) / (r2 * h) + 1.
-            phi_2 = phi_1 / h + 1.
+            phi_22 = ops.expm1(-r2 * h) / (r2 * h) + 1.0
+            phi_2 = phi_1 / h + 1.0
             phi_3 = phi_2 / h - 0.5
 
             if model_s is None:
                 model_s = self.model_fn(x, s)
             if model_s1 is None:
-                x_s1 = (
-                    expand_dims(sigma_s1 / sigma_s, dims) * x
-                    - expand_dims(alpha_s1 * phi_11, dims) * model_s
-                )
+                x_s1 = expand_dims(sigma_s1 / sigma_s, dims) * x - expand_dims(alpha_s1 * phi_11, dims) * model_s
                 model_s1 = self.model_fn(x_s1, s1)
             x_s2 = (
                 expand_dims(sigma_s2 / sigma_s, dims) * x
@@ -745,17 +813,17 @@ class DPM_Solver:
                 + r2 / r1 * expand_dims(alpha_s2 * phi_22, dims) * (model_s1 - model_s)
             )
             model_s2 = self.model_fn(x_s2, s2)
-            if solver_type == 'dpmsolver':
+            if solver_type == "dpmsolver":
                 x_t = (
                     expand_dims(sigma_t / sigma_s, dims) * x
                     - expand_dims(alpha_t * phi_1, dims) * model_s
-                    + (1. / r2) * expand_dims(alpha_t * phi_2, dims) * (model_s2 - model_s)
+                    + (1.0 / r2) * expand_dims(alpha_t * phi_2, dims) * (model_s2 - model_s)
                 )
-            elif solver_type == 'taylor':
-                D1_0 = (1. / r1) * (model_s1 - model_s)
-                D1_1 = (1. / r2) * (model_s2 - model_s)
+            elif solver_type == "taylor":
+                D1_0 = (1.0 / r1) * (model_s1 - model_s)
+                D1_1 = (1.0 / r2) * (model_s2 - model_s)
                 D1 = (r2 * D1_0 - r1 * D1_1) / (r2 - r1)
-                D2 = 2. * (D1_1 - D1_0) / (r2 - r1)
+                D2 = 2.0 * (D1_1 - D1_0) / (r2 - r1)
                 x_t = (
                     expand_dims(sigma_t / sigma_s, dims) * x
                     - expand_dims(alpha_t * phi_1, dims) * model_s
@@ -766,8 +834,8 @@ class DPM_Solver:
             phi_11 = ops.expm1(r1 * h)
             phi_12 = ops.expm1(r2 * h)
             phi_1 = ops.expm1(h)
-            phi_22 = ops.expm1(r2 * h) / (r2 * h) - 1.
-            phi_2 = phi_1 / h - 1.
+            phi_22 = ops.expm1(r2 * h) / (r2 * h) - 1.0
+            phi_2 = phi_1 / h - 1.0
             phi_3 = phi_2 / h - 0.5
 
             if model_s is None:
@@ -784,17 +852,17 @@ class DPM_Solver:
                 - r2 / r1 * expand_dims(sigma_s2 * phi_22, dims) * (model_s1 - model_s)
             )
             model_s2 = self.model_fn(x_s2, s2)
-            if solver_type == 'dpmsolver':
+            if solver_type == "dpmsolver":
                 x_t = (
                     expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
                     - expand_dims(sigma_t * phi_1, dims) * model_s
-                    - (1. / r2) * expand_dims(sigma_t * phi_2, dims) * (model_s2 - model_s)
+                    - (1.0 / r2) * expand_dims(sigma_t * phi_2, dims) * (model_s2 - model_s)
                 )
-            elif solver_type == 'taylor':
-                D1_0 = (1. / r1) * (model_s1 - model_s)
-                D1_1 = (1. / r2) * (model_s2 - model_s)
+            elif solver_type == "taylor":
+                D1_0 = (1.0 / r1) * (model_s1 - model_s)
+                D1_1 = (1.0 / r2) * (model_s2 - model_s)
                 D1 = (r2 * D1_0 - r1 * D1_1) / (r2 - r1)
-                D2 = 2. * (D1_1 - D1_0) / (r2 - r1)
+                D2 = 2.0 * (D1_1 - D1_0) / (r2 - r1)
                 x_t = (
                     expand_dims(ops.exp(log_alpha_t - log_alpha_s), dims) * x
                     - expand_dims(sigma_t * phi_1, dims) * model_s
@@ -803,7 +871,7 @@ class DPM_Solver:
                 )
 
         if return_intermediate:
-            return x_t, {'model_s': model_s, 'model_s1': model_s1, 'model_s2': model_s2}
+            return x_t, {"model_s": model_s, "model_s1": model_s1, "model_s2": model_s2}
         else:
             return x_t
 
@@ -821,13 +889,17 @@ class DPM_Solver:
         Returns:
             x_t: A MindSpore tensor. The approximated solution at time `t`.
         """
-        if solver_type not in ['dpmsolver', 'taylor']:
+        if solver_type not in ["dpmsolver", "taylor"]:
             raise ValueError("'solver_type' must be either 'dpmsolver' or 'taylor', got {}".format(solver_type))
         ns = self.noise_schedule
         dims = x.ndim
         model_prev_1, model_prev_0 = model_prev_list[-2], model_prev_list[-1]
         t_prev_1, t_prev_0 = t_prev_list[-2], t_prev_list[-1]
-        lambda_prev_1, lambda_prev_0, lambda_t = ns.marginal_lambda(t_prev_1), ns.marginal_lambda(t_prev_0), ns.marginal_lambda(t)
+        lambda_prev_1, lambda_prev_0, lambda_t = (
+            ns.marginal_lambda(t_prev_1),
+            ns.marginal_lambda(t_prev_0),
+            ns.marginal_lambda(t),
+        )
         log_alpha_prev_0, log_alpha_t = ns.marginal_log_mean_coeff(t_prev_0), ns.marginal_log_mean_coeff(t)
         sigma_prev_0, sigma_t = ns.marginal_std(t_prev_0), ns.marginal_std(t)
         alpha_t = ops.exp(log_alpha_t)
@@ -835,38 +907,38 @@ class DPM_Solver:
         h_0 = lambda_prev_0 - lambda_prev_1
         h = lambda_t - lambda_prev_0
         r0 = h_0 / h
-        D1_0 = expand_dims(1. / r0, dims) * (model_prev_0 - model_prev_1)
+        D1_0 = expand_dims(1.0 / r0, dims) * (model_prev_0 - model_prev_1)
         if self.algorithm_type == "dpmsolver++":
             phi_1 = ops.expm1(-h)
-            if solver_type == 'dpmsolver':
+            if solver_type == "dpmsolver":
                 x_t = (
                     expand_dims(sigma_t / sigma_prev_0, dims) * x
                     - expand_dims(alpha_t * phi_1, dims) * model_prev_0
                     - 0.5 * expand_dims(alpha_t * phi_1, dims) * D1_0
                 )
-            elif solver_type == 'taylor':
+            elif solver_type == "taylor":
                 x_t = (
                     expand_dims(sigma_t / sigma_prev_0, dims) * x
                     - expand_dims(alpha_t * phi_1, dims) * model_prev_0
-                    + expand_dims(alpha_t * (phi_1 / h + 1.), dims) * D1_0
+                    + expand_dims(alpha_t * (phi_1 / h + 1.0), dims) * D1_0
                 )
         else:
             phi_1 = ops.expm1(h)
-            if solver_type == 'dpmsolver':
+            if solver_type == "dpmsolver":
                 x_t = (
                     expand_dims(ops.exp(log_alpha_t - log_alpha_prev_0), dims) * x
                     - expand_dims(sigma_t * phi_1, dims) * model_prev_0
                     - 0.5 * expand_dims(sigma_t * phi_1, dims) * D1_0
                 )
-            elif solver_type == 'taylor':
+            elif solver_type == "taylor":
                 x_t = (
                     expand_dims(ops.exp(log_alpha_t - log_alpha_prev_0), dims) * x
                     - expand_dims(sigma_t * phi_1, dims) * model_prev_0
-                    - expand_dims(sigma_t * (phi_1 / h - 1.), dims) * D1_0
+                    - expand_dims(sigma_t * (phi_1 / h - 1.0), dims) * D1_0
                 )
         return x_t
 
-    def multistep_dpm_solver_third_update(self, x, model_prev_list, t_prev_list, t, solver_type='dpmsolver'):
+    def multistep_dpm_solver_third_update(self, x, model_prev_list, t_prev_list, t, solver_type="dpmsolver"):
         """
         Multistep solver DPM-Solver-3 from time `t_prev_list[-1]` to time `t`.
         ===============================================================
@@ -884,7 +956,12 @@ class DPM_Solver:
         dims = x.ndim
         model_prev_2, model_prev_1, model_prev_0 = model_prev_list
         t_prev_2, t_prev_1, t_prev_0 = t_prev_list
-        lambda_prev_2, lambda_prev_1, lambda_prev_0, lambda_t = ns.marginal_lambda(t_prev_2), ns.marginal_lambda(t_prev_1), ns.marginal_lambda(t_prev_0), ns.marginal_lambda(t)
+        lambda_prev_2, lambda_prev_1, lambda_prev_0, lambda_t = (
+            ns.marginal_lambda(t_prev_2),
+            ns.marginal_lambda(t_prev_1),
+            ns.marginal_lambda(t_prev_0),
+            ns.marginal_lambda(t),
+        )
         log_alpha_prev_0, log_alpha_t = ns.marginal_log_mean_coeff(t_prev_0), ns.marginal_log_mean_coeff(t)
         sigma_prev_0, sigma_t = ns.marginal_std(t_prev_0), ns.marginal_std(t)
         alpha_t = ops.exp(log_alpha_t)
@@ -893,13 +970,13 @@ class DPM_Solver:
         h_0 = lambda_prev_0 - lambda_prev_1
         h = lambda_t - lambda_prev_0
         r0, r1 = h_0 / h, h_1 / h
-        D1_0 = expand_dims(1. / r0, dims) * (model_prev_0 - model_prev_1)
-        D1_1 = expand_dims(1. / r1, dims) * (model_prev_1 - model_prev_2)
+        D1_0 = expand_dims(1.0 / r0, dims) * (model_prev_0 - model_prev_1)
+        D1_1 = expand_dims(1.0 / r1, dims) * (model_prev_1 - model_prev_2)
         D1 = D1_0 + expand_dims(r0 / (r0 + r1), dims) * (D1_0 - D1_1)
-        D2 = expand_dims(1. / (r0 + r1), dims) * (D1_0 - D1_1)
+        D2 = expand_dims(1.0 / (r0 + r1), dims) * (D1_0 - D1_1)
         if self.algorithm_type == "dpmsolver++":
             phi_1 = ops.expm1(-h)
-            phi_2 = phi_1 / h + 1.
+            phi_2 = phi_1 / h + 1.0
             phi_3 = phi_2 / h - 0.5
             x_t = (
                 expand_dims(sigma_t / sigma_prev_0, dims) * x
@@ -909,7 +986,7 @@ class DPM_Solver:
             )
         else:
             phi_1 = ops.expm1(h)
-            phi_2 = phi_1 / h - 1.
+            phi_2 = phi_1 / h - 1.0
             phi_3 = phi_2 / h - 0.5
             x_t = (
                 expand_dims(ops.exp(log_alpha_t - log_alpha_prev_0), dims) * x
@@ -919,7 +996,9 @@ class DPM_Solver:
             )
         return x_t
 
-    def singlestep_dpm_solver_update(self, x, s, t, order, return_intermediate=False, solver_type='dpmsolver', r1=None, r2=None):
+    def singlestep_dpm_solver_update(
+        self, x, s, t, order, return_intermediate=False, solver_type="dpmsolver", r1=None, r2=None
+    ):
         """
         Singlestep DPM-Solver with the order `order` from time `s` to time `t`.
         ===============================================================
@@ -939,13 +1018,17 @@ class DPM_Solver:
         if order == 1:
             return self.dpm_solver_first_update(x, s, t, return_intermediate=return_intermediate)
         elif order == 2:
-            return self.singlestep_dpm_solver_second_update(x, s, t, return_intermediate=return_intermediate, solver_type=solver_type, r1=r1)
+            return self.singlestep_dpm_solver_second_update(
+                x, s, t, return_intermediate=return_intermediate, solver_type=solver_type, r1=r1
+            )
         elif order == 3:
-            return self.singlestep_dpm_solver_third_update(x, s, t, return_intermediate=return_intermediate, solver_type=solver_type, r1=r1, r2=r2)
+            return self.singlestep_dpm_solver_third_update(
+                x, s, t, return_intermediate=return_intermediate, solver_type=solver_type, r1=r1, r2=r2
+            )
         else:
             raise ValueError("Solver order must be 1 or 2 or 3, got {}".format(order))
 
-    def multistep_dpm_solver_update(self, x, model_prev_list, t_prev_list, t, order, solver_type='dpmsolver'):
+    def multistep_dpm_solver_update(self, x, model_prev_list, t_prev_list, t, order, solver_type="dpmsolver"):
         """
         Multistep DPM-Solver with the order `order` from time `t_prev_list[-1]` to time `t`.
         ===============================================================
@@ -969,7 +1052,9 @@ class DPM_Solver:
         else:
             raise ValueError("Solver order must be 1 or 2 or 3, got {}".format(order))
 
-    def dpm_solver_adaptive(self, x, order, t_T, t_0, h_init=0.05, atol=0.0078, rtol=0.05, theta=0.9, t_err=1e-5, solver_type='dpmsolver'):
+    def dpm_solver_adaptive(
+        self, x, order, t_T, t_0, h_init=0.05, atol=0.0078, rtol=0.05, theta=0.9, t_err=1e-5, solver_type="dpmsolver"
+    ):
         """
         The adaptive step size solver based on singlestep DPM-Solver.
         ===============================================================
@@ -982,7 +1067,7 @@ class DPM_Solver:
             atol: A `float`. The absolute tolerance of the solver. For image data, the default setting is 0.0078, followed [1].
             rtol: A `float`. The relative tolerance of the solver. The default setting is 0.05.
             theta: A `float`. The safety hyperparameter for adapting the step size. The default setting is 0.9, followed [1].
-            t_err: A `float`. The tolerance for the time. We solve the diffusion ODE until the absolute error between the 
+            t_err: A `float`. The tolerance for the time. We solve the diffusion ODE until the absolute error between the
                 current time and `t_0` is less than `t_err`. The default setting is 1e-5.
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
@@ -1000,11 +1085,17 @@ class DPM_Solver:
         if order == 2:
             r1 = 0.5
             lower_update = lambda x, s, t: self.dpm_solver_first_update(x, s, t, return_intermediate=True)
-            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_second_update(x, s, t, r1=r1, solver_type=solver_type, **kwargs)
+            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_second_update(
+                x, s, t, r1=r1, solver_type=solver_type, **kwargs
+            )
         elif order == 3:
-            r1, r2 = 1. / 3., 2. / 3.
-            lower_update = lambda x, s, t: self.singlestep_dpm_solver_second_update(x, s, t, r1=r1, return_intermediate=True, solver_type=solver_type)
-            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_third_update(x, s, t, r1=r1, r2=r2, solver_type=solver_type, **kwargs)
+            r1, r2 = 1.0 / 3.0, 2.0 / 3.0
+            lower_update = lambda x, s, t: self.singlestep_dpm_solver_second_update(
+                x, s, t, r1=r1, return_intermediate=True, solver_type=solver_type
+            )
+            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_third_update(
+                x, s, t, r1=r1, r2=r2, solver_type=solver_type, **kwargs
+            )
         else:
             raise ValueError("For adaptive step size solver, order must be 2 or 3, got {}".format(order))
         while ops.abs((s - t_0)).mean() > t_err:
@@ -1014,14 +1105,14 @@ class DPM_Solver:
             delta = ops.maximum(ops.ones_like(x).to(x) * atol, rtol * ops.maximum(ops.abs(x_lower), ops.abs(x_prev)))
             norm_fn = lambda v: ops.Sqrt()(ops.Square()(v.reshape((v.shape[0], -1))).mean(axis=-1, keepdims=True))
             E = norm_fn((x_higher - x_lower) / delta).max()
-            if (E <= 1.).all():
+            if (E <= 1.0).all():
                 x = x_higher
                 s = t
                 x_prev = x_lower
                 lambda_s = ns.marginal_lambda(s)
-            h = ops.minimum(theta * h * ops.pow(E, -1. / order), lambda_0 - lambda_s)
+            h = ops.minimum(theta * h * ops.pow(E, -1.0 / order), lambda_0 - lambda_s)
             nfe += order
-        _logger.debug('adaptive solver nfe', nfe)
+        _logger.debug("adaptive solver nfe", nfe)
         return x
 
     def add_noise(self, x, t, noise=None):
@@ -1044,31 +1135,69 @@ class DPM_Solver:
         else:
             return xt
 
-    def inverse(self, x, steps=20, t_start=None, t_end=None, order=2, skip_type='time_uniform',
-        method='multistep', lower_order_final=True, denoise_to_zero=False, solver_type='dpmsolver',
-        atol=0.0078, rtol=0.05, return_intermediate=False,
+    def inverse(
+        self,
+        x,
+        steps=20,
+        t_start=None,
+        t_end=None,
+        order=2,
+        skip_type="time_uniform",
+        method="multistep",
+        lower_order_final=True,
+        denoise_to_zero=False,
+        solver_type="dpmsolver",
+        atol=0.0078,
+        rtol=0.05,
+        return_intermediate=False,
     ):
         """
         Inverse the sample `x` from time `t_start` to `t_end` by DPM-Solver.
         For discrete-time DPMs, we use `t_start=1/N`, where `N` is the total time steps during training.
         """
-        t_0 = 1. / self.noise_schedule.total_N if t_start is None else t_start
+        t_0 = 1.0 / self.noise_schedule.total_N if t_start is None else t_start
         t_T = self.noise_schedule.T if t_end is None else t_end
-        assert t_0 > 0 and t_T > 0, "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"
-        return self.sample(x, steps=steps, t_start=t_0, t_end=t_T, order=order, skip_type=skip_type,
-            method=method, lower_order_final=lower_order_final, denoise_to_zero=denoise_to_zero, solver_type=solver_type,
-            atol=atol, rtol=rtol, return_intermediate=return_intermediate)
+        assert (
+            t_0 > 0 and t_T > 0
+        ), "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"
+        return self.sample(
+            x,
+            steps=steps,
+            t_start=t_0,
+            t_end=t_T,
+            order=order,
+            skip_type=skip_type,
+            method=method,
+            lower_order_final=lower_order_final,
+            denoise_to_zero=denoise_to_zero,
+            solver_type=solver_type,
+            atol=atol,
+            rtol=rtol,
+            return_intermediate=return_intermediate,
+        )
 
-    def sample(self, x, steps=20, t_start=None, t_end=None, order=2, skip_type='time_uniform',
-        method='multistep', lower_order_final=True, denoise_to_zero=False, solver_type='dpmsolver',
-        atol=0.0078, rtol=0.05, return_intermediate=False,
+    def sample(
+        self,
+        x,
+        steps=20,
+        t_start=None,
+        t_end=None,
+        order=2,
+        skip_type="time_uniform",
+        method="multistep",
+        lower_order_final=True,
+        denoise_to_zero=False,
+        solver_type="dpmsolver",
+        atol=0.0078,
+        rtol=0.05,
+        return_intermediate=False,
     ):
         """
         Compute the sample at time `t_end` by DPM-Solver, given the initial `x` at time `t_start`.
         =====================================================
         We support the following algorithms for both noise prediction model and data prediction model:
             - 'singlestep':
-                Singlestep DPM-Solver (i.e. "DPM-Solver-fast" in the paper), which combines different orders of singlestep DPM-Solver. 
+                Singlestep DPM-Solver (i.e. "DPM-Solver-fast" in the paper), which combines different orders of singlestep DPM-Solver.
                 We combine all the singlestep solvers with order <= `order` to use up all the function evaluations (steps).
                 The total number of function evaluations (NFE) == `steps`.
                 Given a fixed NFE == `steps`, the sampling procedure is:
@@ -1164,21 +1293,37 @@ class DPM_Solver:
             x_end: A MindSpore tensor. The approximated solution at time `t_end`.
         """
         if self.algorithm_type == "dpmsolver" and steps > 30:
-            _logger.warning('The selected sampling timesteps are not appropriate for DPM-Solver sampler')
+            _logger.warning("The selected sampling timesteps are not appropriate for DPM-Solver sampler")
         if self.algorithm_type == "dpmsolver++" and steps > 30:
-            _logger.warning('The selected sampling timesteps are not appropriate for DPM-Solver++ sampler')
-        _logger.debug(f"Running DPM-Solver sampling with {steps} timesteps") if self.algorithm_type == "dpmsolver" else _logger.debug(f"Running DPM-Solver++ sampling with {steps} timesteps")
-        t_0 = 1. / self.noise_schedule.total_N if t_end is None else t_end
+            _logger.warning("The selected sampling timesteps are not appropriate for DPM-Solver++ sampler")
+        _logger.debug(
+            f"Running DPM-Solver sampling with {steps} timesteps"
+        ) if self.algorithm_type == "dpmsolver" else _logger.debug(
+            f"Running DPM-Solver++ sampling with {steps} timesteps"
+        )
+        t_0 = 1.0 / self.noise_schedule.total_N if t_end is None else t_end
         t_T = self.noise_schedule.T if t_start is None else t_start
-        assert t_0 > 0 and t_T > 0, "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"
+        assert (
+            t_0 > 0 and t_T > 0
+        ), "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"
         if return_intermediate:
-            assert method in ['multistep', 'singlestep', 'singlestep_fixed'], "Cannot use adaptive solver when saving intermediate values"
+            assert method in [
+                "multistep",
+                "singlestep",
+                "singlestep_fixed",
+            ], "Cannot use adaptive solver when saving intermediate values"
         if self.correcting_xt_fn is not None:
-            assert method in ['multistep', 'singlestep', 'singlestep_fixed'], "Cannot use adaptive solver when correcting_xt_fn is not None"
+            assert method in [
+                "multistep",
+                "singlestep",
+                "singlestep_fixed",
+            ], "Cannot use adaptive solver when correcting_xt_fn is not None"
         intermediates = []
-        if method == 'adaptive':
-            x = self.dpm_solver_adaptive(x, order=order, t_T=t_T, t_0=t_0, atol=atol, rtol=rtol, solver_type=solver_type)
-        elif method == 'multistep':
+        if method == "adaptive":
+            x = self.dpm_solver_adaptive(
+                x, order=order, t_T=t_T, t_0=t_0, atol=atol, rtol=rtol, solver_type=solver_type
+            )
+        elif method == "multistep":
             assert steps >= order
             timesteps = self.get_time_steps(skip_type=skip_type, t_T=t_T, t_0=t_0, N=steps)
             assert timesteps.shape[0] - 1 == steps
@@ -1209,7 +1354,9 @@ class DPM_Solver:
                     step_order = min(order, steps + 1 - step)
                 else:
                     step_order = order
-                x = self.multistep_dpm_solver_update(x, model_prev_list, t_prev_list, t, step_order, solver_type=solver_type)
+                x = self.multistep_dpm_solver_update(
+                    x, model_prev_list, t_prev_list, t, step_order, solver_type=solver_type
+                )
                 if self.correcting_xt_fn is not None:
                     x = self.correcting_xt_fn(x, t, step)
                 if return_intermediate:
@@ -1221,12 +1368,16 @@ class DPM_Solver:
                 # We do not need to evaluate the final model value.
                 if step < steps:
                     model_prev_list[-1] = self.model_fn(x, t)
-        elif method in ['singlestep', 'singlestep_fixed']:
-            if method == 'singlestep':
-                timesteps_outer, orders = self.get_orders_and_timesteps_for_singlestep_solver(steps=steps, order=order, skip_type=skip_type, t_T=t_T, t_0=t_0)
-            elif method == 'singlestep_fixed':
+        elif method in ["singlestep", "singlestep_fixed"]:
+            if method == "singlestep":
+                timesteps_outer, orders = self.get_orders_and_timesteps_for_singlestep_solver(
+                    steps=steps, order=order, skip_type=skip_type, t_T=t_T, t_0=t_0
+                )
+            elif method == "singlestep_fixed":
                 K = steps // order
-                orders = [order,] * K
+                orders = [
+                    order,
+                ] * K
                 timesteps_outer = self.get_time_steps(skip_type=skip_type, t_T=t_T, t_0=t_0, N=K)
             for step, order in enumerate(orders):
                 s, t = timesteps_outer[step], timesteps_outer[step + 1]
@@ -1259,6 +1410,7 @@ class DPM_Solver:
 # other utility functions
 #############################################################
 
+
 def interpolate_fn(x, xp, yp):
     """
     A piecewise linear function y = f(x), using xp and yp as keypoints.
@@ -1282,22 +1434,26 @@ def interpolate_fn(x, xp, yp):
     sorted_all_x, x_indices = ops.Sort(axis=2)(all_x)
     x_idx = ops.Argmin(axis=2)(cast(x_indices, ms.float16))
     cand_start_idx = x_idx - 1
-    
+
     start_idx = ms.numpy.where(
         equal(x_idx, 0),
-            ms.Tensor(1),
-            ms.numpy.where(
-            equal(x_idx, K), ms.Tensor(K - 2), cand_start_idx,
+        ms.Tensor(1),
+        ms.numpy.where(
+            equal(x_idx, K),
+            ms.Tensor(K - 2),
+            cand_start_idx,
         ),
     )
     end_idx = ms.numpy.where(equal(start_idx, cand_start_idx), start_idx + 2, start_idx + 1)
     start_x = gatherd(sorted_all_x, 2, expandd(start_idx, 2)).squeeze(2)
     end_x = gatherd(sorted_all_x, 2, expandd(end_idx, 2)).squeeze(2)
     start_idx2 = ms.numpy.where(
-            equal(x_idx, 0),
-            ms.Tensor(0),
-            ms.numpy.where(
-            equal(x_idx, K), ms.Tensor(K - 2), cand_start_idx,
+        equal(x_idx, 0),
+        ms.Tensor(0),
+        ms.numpy.where(
+            equal(x_idx, K),
+            ms.Tensor(K - 2),
+            cand_start_idx,
         ),
     )
     y_positions_expanded = ops.broadcast_to(expandd(yp, 0), (N, -1, -1))
@@ -1317,4 +1473,4 @@ def expand_dims(v, dims):
     Returns:
         a MindSpore tensor with shape [N, 1, 1, ..., 1] and the total dimension is `dims`.
     """
-    return v[(...,) + (None,)*(dims - 1)]
+    return v[(...,) + (None,) * (dims - 1)]

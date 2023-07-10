@@ -17,25 +17,20 @@ Utils function for the parallel training.
 This is an experimental interface that is subject to change and/or deletion.
 """
 
-from mindspore import ops
-import mindspore.common.dtype as mstype
-from mindspore.common.tensor import Tensor
-from mindspore.nn.learning_rate_schedule import LearningRateSchedule, PolynomialDecayLR, WarmUpLR, CosineDecayLR
 import numpy as np
+
+import mindspore.common.dtype as mstype
+from mindspore import ops
+from mindspore.common.tensor import Tensor
+from mindspore.nn.learning_rate_schedule import CosineDecayLR, LearningRateSchedule, PolynomialDecayLR, WarmUpLR
 
 
 class LearningRate(LearningRateSchedule):
     """
-        Learning_rate sheduler
+    Learning_rate sheduler
     """
 
-    def __init__(self,
-                 start_learning_rate,
-                 end_learning_rate,
-                 warmup_steps,
-                 decay_steps,
-                 power=1.0,
-                 use_cosine=True):
+    def __init__(self, start_learning_rate, end_learning_rate, warmup_steps, decay_steps, power=1.0, use_cosine=True):
         super(LearningRate, self).__init__()
         self.warmup_flag = False
         if warmup_steps > 0:
@@ -62,4 +57,3 @@ class LearningRate(LearningRateSchedule):
         else:
             lr = decay_lr
         return lr
-
