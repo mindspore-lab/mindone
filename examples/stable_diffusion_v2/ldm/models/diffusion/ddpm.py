@@ -26,17 +26,13 @@ _logger = logging.getLogger(__name__)
 
 
 def disabled_train(self, mode=True):
-    """Overwrite model.set_train with this function to make sure train/eval mode
-    does not change anymore."""
+    """
+    Overwrite model.set_train with this function to make sure train/eval mode does not change anymore.
+    """
     self.set_train(False)
     return self
 
 class DDPM(nn.Cell):
-    """
-    Classic DDPM with Gaussian diffusion, in image space
-
-    parameterization: option: eps - epsilon (predicting the noise of the diffusion process) , x0 - orginal (latent) image (directly predicting the noisy sample), velocity - velocity of z  (see section 2.4 https://imagen.research.google/video/paper.pdf). 
-    """
     def __init__(self,
                  unet_config,
                  timesteps=1000,
@@ -57,16 +53,26 @@ class DDPM(nn.Cell):
                  cosine_s=8e-3,
                  given_betas=None,
                  original_elbo_weight=0.,
-                 v_posterior=0.,  # weight for choosing posterior variance as sigma = (1-v) * beta_tilde + v * beta
+                 v_posterior=0.,
                  l_simple_weight=1.,
                  conditioning_key=None,
-                 parameterization="eps",  # all assuming fixed variance schedules
+                 parameterization="eps",
                  scheduler_config=None,
                  use_positional_encodings=False,
                  learn_logvar=False,
                  logvar_init=0.,
                  use_fp16=False,
                  ):
+        """
+        Classic DDPM with Gaussian diffusion
+        ===============================================================
+        Args:
+            v_posterior: weight for choosing posterior variance as sigma = (1-v) * beta_tilde + v * beta.
+            parameterization:
+                eps - epsilon (predicting the noise of the diffusion process)
+                x0 - orginal (latent) image (directly predicting the noisy sample)
+                velocity - velocity of z (see section 2.4 https://imagen.research.google/video/paper.pdf).
+        """
         super().__init__()
         assert parameterization in ["eps", "x0", "velocity"], 'currently only supporting "eps", "velocity" and "x0"'
         self.parameterization = parameterization
@@ -75,7 +81,7 @@ class DDPM(nn.Cell):
         self.clip_denoised = clip_denoised
         self.log_every_t = log_every_t
         self.first_stage_key = first_stage_key
-        self.image_size = image_size  # try conv?
+        self.image_size = image_size
         self.channels = channels
         self.use_positional_encodings = use_positional_encodings
         self.model = DiffusionWrapper(unet_config, conditioning_key)
@@ -214,8 +220,6 @@ class DDPM(nn.Cell):
 
 
 class LatentDiffusion(DDPM):
-    """main class"""
-
     def __init__(self,
                  first_stage_config,
                  cond_stage_config,
@@ -228,6 +232,9 @@ class LatentDiffusion(DDPM):
                  scale_factor=1.0,
                  scale_by_std=False,
                  *args, **kwargs):
+        """
+        main class
+        """
         self.num_timesteps_cond = default(num_timesteps_cond, 1)
         self.scale_by_std = scale_by_std
         if conditioning_key is None:
@@ -387,8 +394,6 @@ class DiffusionWrapper(nn.Cell):
 
 
 class LatentDiffusionDB(DDPM):
-    """main class"""
-
     def __init__(self,
                  first_stage_config,
                  cond_stage_config,
@@ -402,6 +407,9 @@ class LatentDiffusionDB(DDPM):
                  scale_by_std=False,
                  reg_weight = 1.0,
                  *args, **kwargs):
+        """
+        main class
+        """
         self.num_timesteps_cond = default(num_timesteps_cond, 1)
         self.scale_by_std = scale_by_std
         if conditioning_key is None:
