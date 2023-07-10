@@ -59,20 +59,21 @@ class CheckpointManager:
             to_del = self.ckpt_queue.pop(-1)
             # save if the perf is better than the minimum in the heap
             if to_del[1] != ckpt_name:
-                ms.save_checkpoint(network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False,
-                                   append_dict=append_dict)
+                ms.save_checkpoint(
+                    network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
+                )
                 # del minimum
                 self.remove_ckpt_file(os.path.join(self.ckpt_save_dir, to_del[1]))
         else:
-            ms.save_checkpoint(network, os.path.join(self.ckpt_save_dir, ckpt_name),
-                               append_dict=append_dict)
+            ms.save_checkpoint(network, os.path.join(self.ckpt_save_dir, ckpt_name), append_dict=append_dict)
 
     def save_latest_k(self, network, ckpt_name, append_dict):
         """Save latest K checkpoint."""
-        ms.save_checkpoint(network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False,
-                           append_dict=append_dict)
+        ms.save_checkpoint(
+            network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
+        )
 
-        print('Checkpoint saved in ', os.path.join(self.ckpt_save_dir, ckpt_name))
+        print("Checkpoint saved in ", os.path.join(self.ckpt_save_dir, ckpt_name))
         self.ckpt_queue.append(ckpt_name)
         if len(self.ckpt_queue) > self.k:
             to_del = self.ckpt_queue.pop(0)
@@ -82,8 +83,9 @@ class CheckpointManager:
     def save(self, network, perf=None, ckpt_name=None, append_dict=None):
         """Save checkpoint according to different save strategy."""
         if self.ckpt_save_policy is None:
-            ms.save_checkpoint(network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False,
-                               append_dict=append_dict)
+            ms.save_checkpoint(
+                network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
+            )
         elif self.ckpt_save_policy == "top_k":
             if perf is None:
                 raise ValueError(

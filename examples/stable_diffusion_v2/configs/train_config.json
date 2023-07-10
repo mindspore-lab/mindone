@@ -19,7 +19,7 @@
     "image_size": 512,
     "image_filter_size": 256,
     "random_crop": false,
-    "filter_small_size": true, 
+    "filter_small_size": true,
     "start_learning_rate": 1e-5,
     "end_learning_rate": 1e-7,
     "decay_steps": 0,

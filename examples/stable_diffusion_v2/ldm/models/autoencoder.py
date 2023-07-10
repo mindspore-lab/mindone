@@ -12,41 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+from ldm.modules.diffusionmodules.model import Decoder, Encoder
+from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
+
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import ops
 
-from ldm.modules.diffusionmodules.model import Encoder, Decoder
-from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 
 class AutoencoderKL(nn.Cell):
-    def __init__(self,
-                 ddconfig,
-                 embed_dim,
-                 ckpt_path=None,
-                 ignore_keys=[],
-                 image_key="image",
-                 colorize_nlabels=None,
-                 monitor=None,
-                 use_fp16=False
-                 ):
+    def __init__(
+        self,
+        ddconfig,
+        embed_dim,
+        ckpt_path=None,
+        ignore_keys=[],
+        image_key="image",
+        colorize_nlabels=None,
+        monitor=None,
+        use_fp16=False,
+    ):
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.image_key = image_key
         self.encoder = Encoder(dtype=self.dtype, **ddconfig)
         self.decoder = Decoder(dtype=self.dtype, **ddconfig)
         assert ddconfig["double_z"]
-        self.quant_conv = nn.Conv2d(2*ddconfig["z_channels"], 2*embed_dim, 1, pad_mode="valid", has_bias=True).to_float(self.dtype)
-        self.post_quant_conv = nn.Conv2d(embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True).to_float(self.dtype)
+        self.quant_conv = nn.Conv2d(
+            2 * ddconfig["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True
+        ).to_float(self.dtype)
+        self.post_quant_conv = nn.Conv2d(
+            embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True
+        ).to_float(self.dtype)
         self.embed_dim = embed_dim
         if colorize_nlabels is not None:
-            assert type(colorize_nlabels)==int
+            assert type(colorize_nlabels) == int
             self.register_buffer("colorize", ms.ops.standard_normal(3, colorize_nlabels, 1, 1))
         if monitor is not None:
             self.monitor = monitor
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
-            
+
         self.split = ops.Split(axis=1, output_num=2)
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()

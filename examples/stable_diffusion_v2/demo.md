@@ -57,9 +57,9 @@ plt.show()
 ```
 
 
-    
+
 ![output_4_0](https://github.com/SamitHuang/mindone/assets/8156835/65fc481a-cbc9-4000-b1b7-94875ef76e43)
-    
+
 
 
 ## 1.2 SD2.0 Finetune (Vanilla)
@@ -207,7 +207,7 @@ Step 2. Run `text_to_image.py` to generate images for the prompt of your interes
 
 
 ```python
-# Stable Diffusion 1.x Inference 
+# Stable Diffusion 1.x Inference
 !python text_to_image.py --prompt '雪中之狼' -v 1.x
 ```
 
@@ -238,4 +238,3 @@ Step 3. Run the training script as follows
 
 !sh scripts/run_train_v1.sh
 ```
-

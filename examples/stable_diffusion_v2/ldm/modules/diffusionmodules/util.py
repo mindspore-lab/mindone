@@ -13,6 +13,7 @@
 # limitations under the License.
 # ============================================================================
 import numpy as np
+
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
@@ -40,13 +41,13 @@ class conv_nd(nn.Cell):
         super().__init__()
         if dims == 1:
             self.conv = nn.Conv1d(*args, **kwargs)
-        elif dims == 2: 
+        elif dims == 2:
             self.conv = nn.Conv2d(*args, **kwargs)
-        elif dims == 3: 
-            self.conv =  nn.Conv3d(*args, **kwargs)
+        elif dims == 3:
+            self.conv = nn.Conv3d(*args, **kwargs)
         else:
             raise ValueError(f"unsupported dimensions: {dims}")
-    
+
     def construct(self, x, emb=None, context=None):
         x = self.conv(x)
         return x
@@ -60,7 +61,7 @@ def zero_module(module):
     bias_weight = initializer("zeros", module.conv.bias.shape)
     module.conv.weight.set_data(weight)
     module.conv.bias.set_data(bias_weight)
-    
+
     return module
 
 
@@ -68,6 +69,7 @@ class avg_pool_nd(nn.Cell):
     """
     Create a 1D, 2D, or 3D average pooling module.
     """
+
     def __init__(self, dims, *args, **kwargs):
         super().__init__()
         if dims == 1:
@@ -78,7 +80,7 @@ class avg_pool_nd(nn.Cell):
             self.avgpool = ops.AvgPool3D(*args, **kwargs)
         else:
             raise ValueError(f"unsupported dimensions: {dims}")
-        
+
     def construct(self, x, emb=None, context=None):
         x = self.avgpool(x)
         return x
@@ -100,13 +102,13 @@ class SiLU(nn.Cell):
 
     def construct(self, x):
         return x * self.sigmoid(x)
-    
+
 
 class GroupNorm32(nn.GroupNorm):
     def construct(self, x):
         # return ops.cast(super().construct(ops.cast(x, ms.float32)), x.dtype)
         return super().construct(x)
-    
+
 
 def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     """
@@ -120,7 +122,7 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     if not repeat_only:
         half = dim // 2
         freqs = ops.exp(
-            -ops.log(ms.Tensor(max_period, ms.float32)) *  ms.numpy.arange(start=0, stop=half, dtype=ms.float32) / half
+            -ops.log(ms.Tensor(max_period, ms.float32)) * ms.numpy.arange(start=0, stop=half, dtype=ms.float32) / half
         )
         args = timesteps[:, None] * freqs[None]
         embedding = ops.concat((ops.cos(args), ops.sin(args)), axis=-1)
@@ -131,12 +133,12 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     return embedding
 
 
-def make_ddim_timesteps(ddim_discr_method = 'uniform', num_ddim_timesteps=50, num_ddpm_timesteps=1000, verbose=False):
-    if ddim_discr_method == 'uniform':
+def make_ddim_timesteps(ddim_discr_method="uniform", num_ddim_timesteps=50, num_ddpm_timesteps=1000, verbose=False):
+    if ddim_discr_method == "uniform":
         c = num_ddpm_timesteps // num_ddim_timesteps
         ddim_timesteps = ms.Tensor(list(range(0, num_ddpm_timesteps, c)))
-    elif ddim_discr_method == 'quad':
-        ddim_timesteps = ((np.linspace(0, np.sqrt(num_ddpm_timesteps * .8), num_ddim_timesteps)) ** 2).astype(int)
+    elif ddim_discr_method == "quad":
+        ddim_timesteps = ((np.linspace(0, np.sqrt(num_ddpm_timesteps * 0.8), num_ddim_timesteps)) ** 2).astype(int)
     else:
         raise NotImplementedError(f'There is no ddim discretization method called "{ddim_discr_method}"')
 
@@ -144,7 +146,7 @@ def make_ddim_timesteps(ddim_discr_method = 'uniform', num_ddim_timesteps=50, nu
     # add one to get the final alpha values right (the ones from first scale to data during sampling)
     steps_out = ddim_timesteps + 1
     if verbose:
-        print(f'Selected timesteps for ddim sampler: {steps_out}')
+        print(f"Selected timesteps for ddim sampler: {steps_out}")
     return steps_out
 
 
@@ -156,29 +158,29 @@ def make_ddim_sampling_parameters(alphacums, ddim_timesteps, eta=0.0, verbose=Fa
     # according the the formula provided in https://arxiv.org/abs/2010.02502
     sigmas = eta * ops.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
     if verbose:
-        print(f'Selected alphas for ddim sampler: a_t: {alphas}; a_(t-1): {alphas_prev}')
-        print(f'For the chosen value of eta, which is {eta}, '
-              f'this results in the following sigma_t schedule for ddim sampler {sigmas}')
+        print(f"Selected alphas for ddim sampler: a_t: {alphas}; a_(t-1): {alphas_prev}")
+        print(
+            f"For the chosen value of eta, which is {eta}, "
+            f"this results in the following sigma_t schedule for ddim sampler {sigmas}"
+        )
     return sigmas, alphas, alphas_prev
 
 
 def noise_like(shape, repeat=False):
     if not repeat:
-        return  ms.ops.StandardNormal()(shape)
+        return ms.ops.StandardNormal()(shape)
     else:
         raise ValueError(f"The repeat method is not supported")
 
 
 def make_beta_schedule(schedule="linear", n_timestep=1000, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
-    linspase = ops.LinSpace().add_prim_attr('primitive_target', 'CPU')
-    
+    linspase = ops.LinSpace().add_prim_attr("primitive_target", "CPU")
+
     if schedule == "linear":
-        start = ms.Tensor((linear_start ** 0.5), dtype=ms.float32)
-        stop = ms.Tensor((linear_end ** 0.5), dtype=ms.float32)
+        start = ms.Tensor((linear_start**0.5), dtype=ms.float32)
+        stop = ms.Tensor((linear_end**0.5), dtype=ms.float32)
         num = n_timestep
-        betas = (
-                linspase(start, stop, num) ** 2
-        )
+        betas = linspase(start, stop, num) ** 2
     else:
         raise ValueError(f"schedule '{schedule}' unknown.")
 

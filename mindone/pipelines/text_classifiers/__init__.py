@@ -1,8 +1,7 @@
 from mindone.pipelines.text_classifiers.BertMPUSequenceClassificationPipeline import (
-    BertMPUSequenceClassificationPipeline
+    BertMPUSequenceClassificationPipeline,
 )
 
-
 __all__ = [
-    'BertMPUSequenceClassificationPipeline',
+    "BertMPUSequenceClassificationPipeline",
 ]
