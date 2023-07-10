@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from packaging import version
-import mindspore as ms
 import importlib
 from inspect import isfunction
+
+from packaging import version
+
+import mindspore as ms
 import mindspore.ops as ops
 
 
@@ -46,7 +48,7 @@ def count_params(model, verbose=False):
 
 def instantiate_from_config(config):
     if not "target" in config:
-        if config == '__is_first_stage__':
+        if config == "__is_first_stage__":
             return None
         elif config == "__is_unconditional__":
             return None
@@ -70,5 +72,4 @@ def extract_into_tensor(a, t, x_shape):
 
 def is_old_ms_version(last_old_version="1.10.1"):
     # some APIs are changed after ms 1.10.1 version, such as dropout
-    return version.parse(ms.__version__) <= version.parse(last_old_version) 
-
+    return version.parse(ms.__version__) <= version.parse(last_old_version)

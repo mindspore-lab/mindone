@@ -48,7 +48,7 @@ def set_logger(
     # the messages of this logger will not be propagated to its parent
     logger.propagate = False
 
-    #fmt = "%(asctime)s %(name)s %(levelname)s: %(message)s"
+    # fmt = "%(asctime)s %(name)s %(levelname)s: %(message)s"
     fmt = "%(asctime)s %(levelname)s: %(message)s"
     datefmt = "[%Y-%m-%d %H:%M:%S]"
 

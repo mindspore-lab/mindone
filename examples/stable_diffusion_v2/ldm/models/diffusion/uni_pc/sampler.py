@@ -14,42 +14,45 @@
 # ============================================================================
 import mindspore as ms
 from mindspore import ops
-from .uni_pc import NoiseScheduleVP, model_wrapper, UniPC
+
+from .uni_pc import NoiseScheduleVP, UniPC, model_wrapper
+
 
 class UniPCSampler(object):
     def __init__(self, model, **kwargs):
         super().__init__()
         self.model = model
-        self.register_buffer('alphas_cumprod', model.alphas_cumprod)
-        self.noise_schedule = NoiseScheduleVP('discrete', alphas_cumprod=self.alphas_cumprod)
+        self.register_buffer("alphas_cumprod", model.alphas_cumprod)
+        self.noise_schedule = NoiseScheduleVP("discrete", alphas_cumprod=self.alphas_cumprod)
 
     def register_buffer(self, name, attr):
         setattr(self, name, attr)
 
-    def sample(self,
-               S,
-               batch_size,
-               shape,
-               conditioning=None,
-               callback=None,
-               normals_sequence=None,
-               img_callback=None,
-               quantize_x0=False,
-               eta=0.,
-               mask=None,
-               x0=None,
-               temperature=1.,
-               noise_dropout=0.,
-               score_corrector=None,
-               corrector_kwargs=None,
-               verbose=True,
-               x_T=None,
-               log_every_t=100,
-               unconditional_guidance_scale=1.,
-               unconditional_conditioning=None,
-               # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
-               **kwargs
-               ):
+    def sample(
+        self,
+        S,
+        batch_size,
+        shape,
+        conditioning=None,
+        callback=None,
+        normals_sequence=None,
+        img_callback=None,
+        quantize_x0=False,
+        eta=0.0,
+        mask=None,
+        x0=None,
+        temperature=1.0,
+        noise_dropout=0.0,
+        score_corrector=None,
+        corrector_kwargs=None,
+        verbose=True,
+        x_T=None,
+        log_every_t=100,
+        unconditional_guidance_scale=1.0,
+        unconditional_conditioning=None,
+        # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
+        **kwargs,
+    ):
         if conditioning is not None:
             if isinstance(conditioning, dict):
                 cbs = conditioning[list(conditioning.keys())[0]].shape[0]
@@ -62,13 +65,13 @@ class UniPCSampler(object):
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
-        print(f'Data shape for UniPC sampling is {size}')
+        print(f"Data shape for UniPC sampling is {size}")
 
         if x_T is None:
             img = ops.standard_normal(size)
         else:
             img = x_T
-        
+
         model_fn = model_wrapper(
             lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),
             self.noise_schedule,
