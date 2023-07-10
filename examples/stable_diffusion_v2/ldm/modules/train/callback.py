@@ -140,7 +140,10 @@ class EvalSaveCallback(Callback):
                     #print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", lora_rank=self.lora_rank)
+                if hasattr(self, "lora_rank") is True:
+                    self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", lora_rank=self.lora_rank)
+                else:
+                    self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt")
                 '''
                 ms.save_checkpoint(
                     cb_params.train_network,
