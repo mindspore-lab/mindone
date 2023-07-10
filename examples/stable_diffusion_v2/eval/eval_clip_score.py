@@ -75,7 +75,8 @@ if __name__ == '__main__':
     else:
         images = [Image.open(args.image_path)]
         args.image_path = [args.image_path]
-
+    images = [image.resize((224, 224)) for image in images]
+    
     # load prompts
     assert args.prompt is not None
     texts = []
@@ -100,7 +101,6 @@ if __name__ == '__main__':
             import os
             os.environ['CURL_CA_BUNDLE'] = ''
 
-        images = [image.resize((224, 224)) for image in images]
         if num_images == 1:
             score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
         else:
