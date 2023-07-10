@@ -207,10 +207,10 @@ Here are the evaluation results for our implementation.
 
 <div align="center">
 
-| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   | CLIP Score of Original/Generated Images (Ours) | CLIP Score of Original/Generated Images (Diffuser) |                                                   
+| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   | CLIP Score (Ours) | CLIP (Diffuser) |                                                   
 |--------------|------|-------------|-----------|--------|------------|------------|------------|
-| stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108   |   106  | 28.8/30.8 | 28.8/30.8 |
-| stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257    |   254  | 32.7/33.2 | 33.3/33.6 |
+| stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108 &#8593;  |   106 &#8595; | 30.8 &#8595; | 31.6 &#8593; |
+| stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257 &#8593;   |   254 &#8595; | 33.6 &#8593; | 33.2 &#8595; |
     
 </div>
 
