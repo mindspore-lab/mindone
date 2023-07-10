@@ -12,27 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from abc import abstractmethod
 import logging
+from abc import abstractmethod
+
+from ldm.modules.attention import SpatialTransformer
+from ldm.modules.diffusionmodules.util import (
+    Identity,
+    avg_pool_nd,
+    conv_nd,
+    linear,
+    normalization,
+    timestep_embedding,
+    zero_module,
+)
+from ldm.util import is_old_ms_version
 
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
-from ldm.util import is_old_ms_version 
-from ldm.modules.attention import SpatialTransformer
-from ldm.modules.diffusionmodules.util import (
-    conv_nd,
-    avg_pool_nd,
-    Identity,
-    linear,
-    zero_module,
-    normalization,
-    timestep_embedding
-)
-
 _logger = logging.getLogger(__name__)
-        
+
 
 class Upsample(nn.Cell):
     """
@@ -51,8 +51,9 @@ class Upsample(nn.Cell):
         self.use_conv = use_conv
         self.dims = dims
         if use_conv:
-            self.conv = conv_nd(dims, self.channels, self.out_channels, 3,
-                               padding=1, has_bias=True, pad_mode='pad').to_float(dtype)
+            self.conv = conv_nd(
+                dims, self.channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
+            ).to_float(dtype)
 
     def construct(self, x, emb=None, context=None):
         if self.dims == 3:
@@ -82,8 +83,9 @@ class Downsample(nn.Cell):
         self.dims = dims
         stride = 2 if dims != 3 else (1, 2, 2)
         if use_conv:
-            self.op = conv_nd(dims, self.channels, self.out_channels, 3, stride=stride,
-                             padding=padding, has_bias=True, pad_mode='pad').to_float(dtype)
+            self.op = conv_nd(
+                dims, self.channels, self.out_channels, 3, stride=stride, padding=padding, has_bias=True, pad_mode="pad"
+            ).to_float(dtype)
         else:
             assert self.channels == self.out_channels
             self.op = avg_pool_nd(dims, kernel_size=stride, stride=stride)
@@ -110,18 +112,18 @@ class ResBlock(nn.Cell):
     """
 
     def __init__(
-            self,
-            channels,
-            emb_channels,
-            dropout=1.0,
-            out_channels=None,
-            use_conv=False,
-            use_scale_shift_norm=False,
-            dims=2,
-            use_checkpoint=False,
-            up=False,
-            down=False,
-            dtype=ms.float32
+        self,
+        channels,
+        emb_channels,
+        dropout=1.0,
+        out_channels=None,
+        use_conv=False,
+        use_scale_shift_norm=False,
+        dims=2,
+        use_checkpoint=False,
+        up=False,
+        down=False,
+        dtype=ms.float32,
     ):
         super().__init__()
         self.channels = channels
@@ -133,14 +135,15 @@ class ResBlock(nn.Cell):
         self.use_checkpoint = use_checkpoint
         self.use_scale_shift_norm = use_scale_shift_norm
         self.updown = up or down
-        self.dtype=dtype
+        self.dtype = dtype
         self.identity = Identity()
         self.split = ops.Split(1, 2)
 
         self.in_layers_norm = normalization(channels)
         self.in_layers_silu = nn.SiLU().to_float(self.dtype)
-        self.in_layers_conv = conv_nd(dims, channels, self.out_channels, 3, 
-                                   padding=1, has_bias=True, pad_mode='pad').to_float(self.dtype)
+        self.in_layers_conv = conv_nd(
+            dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
+        ).to_float(self.dtype)
 
         if up:
             self.h_upd = Upsample(channels, False, dims, dtype=self.dtype)
@@ -154,33 +157,34 @@ class ResBlock(nn.Cell):
         self.emb_layers = nn.SequentialCell(
             nn.SiLU().to_float(self.dtype),
             linear(
-                emb_channels,
-                2 * self.out_channels if use_scale_shift_norm else self.out_channels,
-                dtype=self.dtype
+                emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels, dtype=self.dtype
             ),
         )
 
         self.out_layers_norm = normalization(self.out_channels)
         self.out_layers_silu = nn.SiLU().to_float(self.dtype)
-        
-        if is_old_ms_version(): 
+
+        if is_old_ms_version():
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
         else:
-            self.out_layers_drop = nn.Dropout(p=1.0-self.dropout)
+            self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout)
 
         self.out_layers_conv = zero_module(
-                 conv_nd(dims, self.out_channels, self.out_channels, 3, 
-                        padding=1, has_bias=True, pad_mode='pad').to_float(self.dtype)
+            conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
+                self.dtype
             )
+        )
 
         if self.out_channels == channels:
             self.skip_connection = self.identity
         elif use_conv:
             self.skip_connection = conv_nd(
-                dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode='pad'
+                dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
             ).to_float(self.dtype)
         else:
-            self.skip_connection = conv_nd(dims, channels, self.out_channels, 1, has_bias=True, pad_mode='pad').to_float(self.dtype)
+            self.skip_connection = conv_nd(
+                dims, channels, self.out_channels, 1, has_bias=True, pad_mode="pad"
+            ).to_float(self.dtype)
 
     def construct(self, x, emb, context=None):
         if self.updown:
@@ -193,7 +197,7 @@ class ResBlock(nn.Cell):
             h = self.in_layers_norm(x)
             h = self.in_layers_silu(h)
             h = self.in_layers_conv(h, emb, context)
-            
+
         emb_out = self.emb_layers(emb)
         while len(emb_out.shape) < len(h.shape):
             emb_out = ops.expand_dims(emb_out, -1)
@@ -204,7 +208,7 @@ class ResBlock(nn.Cell):
             h = self.out_layers_silu(h)
             h = self.out_layers_drop(h)
             h = self.out_layers_conv(h, emb, context)
-            
+
         else:
             h = h + emb_out
             h = self.out_layers_norm(h)
@@ -241,6 +245,7 @@ class AttentionBlock(nn.Cell):
     Originally ported from here, but adapted to the N-d case.
     https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/models/unet.py#L66.
     """
+
     def __init__(
         self,
         channels,
@@ -303,21 +308,26 @@ class UNetModel(nn.Cell):
         use_scale_shift_norm=False,
         resblock_updown=False,
         use_new_attention_order=False,
-        use_spatial_transformer=False,    # custom transformer support
-        transformer_depth=1,              # custom transformer support
-        context_dim=None,                 # custom transformer support
-        n_embed=None,                     # custom support for prediction of discrete ids into codebook of first stage vq model
+        use_spatial_transformer=False,  # custom transformer support
+        transformer_depth=1,  # custom transformer support
+        context_dim=None,  # custom transformer support
+        n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
         legacy=True,
         use_linear_in_transformer=False,
     ):
         super().__init__()
 
         if use_spatial_transformer:
-            assert context_dim is not None, 'Fool!! You forgot to include the dimension of your cross-attention conditioning...'
-        
+            assert (
+                context_dim is not None
+            ), "Fool!! You forgot to include the dimension of your cross-attention conditioning..."
+
         if context_dim is not None:
-            assert use_spatial_transformer, 'Fool!! You forgot to use the spatial transformer for your cross-attention conditioning...'
+            assert (
+                use_spatial_transformer
+            ), "Fool!! You forgot to use the spatial transformer for your cross-attention conditioning..."
             from omegaconf.listconfig import ListConfig
+
             if type(context_dim) == ListConfig:
                 context_dim = list(context_dim)
 
@@ -325,10 +335,10 @@ class UNetModel(nn.Cell):
             num_heads_upsample = num_heads
 
         if num_heads == -1:
-            assert num_head_channels != -1, 'Either num_heads or num_head_channels has to be set'
+            assert num_head_channels != -1, "Either num_heads or num_head_channels has to be set"
 
         if num_head_channels == -1:
-            assert num_heads != -1, 'Either num_heads or num_head_channels has to be set'
+            assert num_heads != -1, "Either num_heads or num_head_channels has to be set"
 
         self.image_size = image_size
         self.in_channels = in_channels
@@ -357,11 +367,17 @@ class UNetModel(nn.Cell):
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
 
-
-        self.input_blocks = nn.CellList([
-                nn.CellList([conv_nd(dims, in_channels, model_channels, 3, padding=1, 
-                            has_bias=True, pad_mode='pad').to_float(self.dtype)])
-            ])   
+        self.input_blocks = nn.CellList(
+            [
+                nn.CellList(
+                    [
+                        conv_nd(
+                            dims, in_channels, model_channels, 3, padding=1, has_bias=True, pad_mode="pad"
+                        ).to_float(self.dtype)
+                    ]
+                )
+            ]
+        )
         self._feature_size = model_channels
         input_block_chans = [model_channels]
         ch = model_channels
@@ -369,18 +385,20 @@ class UNetModel(nn.Cell):
 
         for level, mult in enumerate(channel_mult):
             for _ in range(num_res_blocks):
-                layers = nn.CellList([
-                    ResBlock(
-                        ch,
-                        time_embed_dim,
-                        self.dropout,
-                        out_channels=mult * model_channels,
-                        dims=dims,
-                        use_checkpoint=use_checkpoint,
-                        use_scale_shift_norm=use_scale_shift_norm,
-                        dtype=self.dtype
-                    )
-                ])
+                layers = nn.CellList(
+                    [
+                        ResBlock(
+                            ch,
+                            time_embed_dim,
+                            self.dropout,
+                            out_channels=mult * model_channels,
+                            dims=dims,
+                            use_checkpoint=use_checkpoint,
+                            use_scale_shift_norm=use_scale_shift_norm,
+                            dtype=self.dtype,
+                        )
+                    ]
+                )
                 ch = mult * model_channels
                 if ds in attention_resolutions:
                     if num_head_channels == -1:
@@ -397,9 +415,17 @@ class UNetModel(nn.Cell):
                             num_heads=num_heads,
                             num_head_channels=dim_head,
                             use_new_attention_order=use_new_attention_order,
-                        ) if not use_spatial_transformer else SpatialTransformer(
-                            ch, num_heads, dim_head, depth=transformer_depth, context_dim=context_dim,
-                            use_checkpoint=use_checkpoint, dtype=self.dtype, dropout=self.dropout,
+                        )
+                        if not use_spatial_transformer
+                        else SpatialTransformer(
+                            ch,
+                            num_heads,
+                            dim_head,
+                            depth=transformer_depth,
+                            context_dim=context_dim,
+                            use_checkpoint=use_checkpoint,
+                            dtype=self.dtype,
+                            dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                         )
                     )
@@ -410,20 +436,22 @@ class UNetModel(nn.Cell):
                 out_ch = ch
                 self.input_blocks.append(
                     nn.CellList(
-                        [ResBlock(
-                            ch,
-                            time_embed_dim,
-                            self.dropout,
-                            out_channels=out_ch,
-                            dims=dims,
-                            use_checkpoint=use_checkpoint,
-                            use_scale_shift_norm=use_scale_shift_norm,
-                            down=True,
-                            dtype=self.dtype
-                        )])
-                        if resblock_updown
-                        else nn.CellList([Downsample(ch, conv_resample, 
-                                            dims=dims, out_channels=out_ch, dtype=self.dtype)])
+                        [
+                            ResBlock(
+                                ch,
+                                time_embed_dim,
+                                self.dropout,
+                                out_channels=out_ch,
+                                dims=dims,
+                                use_checkpoint=use_checkpoint,
+                                use_scale_shift_norm=use_scale_shift_norm,
+                                down=True,
+                                dtype=self.dtype,
+                            )
+                        ]
+                    )
+                    if resblock_updown
+                    else nn.CellList([Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)])
                 )
                 ch = out_ch
                 input_block_chans.append(ch)
@@ -437,57 +465,73 @@ class UNetModel(nn.Cell):
         if legacy:
             dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
 
-        _logger.debug('Attention: output_channels={}, num_heads={}, dim_head={}'.format(ch, num_heads, num_head_channels, dim_head))
+        _logger.debug(
+            "Attention: output_channels={}, num_heads={}, dim_head={}".format(
+                ch, num_heads, num_head_channels, dim_head
+            )
+        )
 
-        self.middle_block =  nn.CellList([
-                    ResBlock(
-                        ch,
-                        time_embed_dim,
-                        self.dropout,
-                        dims=dims,
-                        use_checkpoint=use_checkpoint,
-                        use_scale_shift_norm=use_scale_shift_norm,
-                        dtype=self.dtype
-                    ),
-                    AttentionBlock(
-                        ch,
-                        use_checkpoint=use_checkpoint,
-                        num_heads=num_heads,
-                        num_head_channels=dim_head,
-                        use_new_attention_order=use_new_attention_order,
-                    ) if not use_spatial_transformer else SpatialTransformer(
-                                    ch, num_heads, dim_head, depth=transformer_depth, context_dim=context_dim,
-                                    use_checkpoint=use_checkpoint, dtype=self.dtype, dropout=self.dropout,
-                                    use_linear=use_linear_in_transformer,
-                                ),
-                    ResBlock(
-                        ch,
-                        time_embed_dim,
-                        self.dropout,
-                        dims=dims,
-                        use_checkpoint=use_checkpoint,
-                        use_scale_shift_norm=use_scale_shift_norm,
-                        dtype=self.dtype
-                    ),
-                ])
+        self.middle_block = nn.CellList(
+            [
+                ResBlock(
+                    ch,
+                    time_embed_dim,
+                    self.dropout,
+                    dims=dims,
+                    use_checkpoint=use_checkpoint,
+                    use_scale_shift_norm=use_scale_shift_norm,
+                    dtype=self.dtype,
+                ),
+                AttentionBlock(
+                    ch,
+                    use_checkpoint=use_checkpoint,
+                    num_heads=num_heads,
+                    num_head_channels=dim_head,
+                    use_new_attention_order=use_new_attention_order,
+                )
+                if not use_spatial_transformer
+                else SpatialTransformer(
+                    ch,
+                    num_heads,
+                    dim_head,
+                    depth=transformer_depth,
+                    context_dim=context_dim,
+                    use_checkpoint=use_checkpoint,
+                    dtype=self.dtype,
+                    dropout=self.dropout,
+                    use_linear=use_linear_in_transformer,
+                ),
+                ResBlock(
+                    ch,
+                    time_embed_dim,
+                    self.dropout,
+                    dims=dims,
+                    use_checkpoint=use_checkpoint,
+                    use_scale_shift_norm=use_scale_shift_norm,
+                    dtype=self.dtype,
+                ),
+            ]
+        )
         self._feature_size += ch
 
         self.output_blocks = nn.CellList([])
         for level, mult in list(enumerate(channel_mult))[::-1]:
             for i in range(num_res_blocks + 1):
                 ich = input_block_chans.pop()
-                layers = nn.CellList([
-                    ResBlock(
-                        ch + ich,
-                        time_embed_dim,
-                        self.dropout,
-                        out_channels=model_channels * mult,
-                        dims=dims,
-                        use_checkpoint=use_checkpoint,
-                        use_scale_shift_norm=use_scale_shift_norm,
-                        dtype=self.dtype
-                    )
-                ])
+                layers = nn.CellList(
+                    [
+                        ResBlock(
+                            ch + ich,
+                            time_embed_dim,
+                            self.dropout,
+                            out_channels=model_channels * mult,
+                            dims=dims,
+                            use_checkpoint=use_checkpoint,
+                            use_scale_shift_norm=use_scale_shift_norm,
+                            dtype=self.dtype,
+                        )
+                    ]
+                )
                 ch = model_channels * mult
                 if ds in attention_resolutions:
                     if num_head_channels == -1:
@@ -496,7 +540,7 @@ class UNetModel(nn.Cell):
                         num_heads = ch // num_head_channels
                         dim_head = num_head_channels
                     if legacy:
-                        #num_heads = 1
+                        # num_heads = 1
                         dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
                     layers.append(
                         AttentionBlock(
@@ -505,9 +549,17 @@ class UNetModel(nn.Cell):
                             num_heads=num_heads_upsample,
                             num_head_channels=dim_head,
                             use_new_attention_order=use_new_attention_order,
-                        ) if not use_spatial_transformer else SpatialTransformer(
-                            ch, num_heads, dim_head, depth=transformer_depth, context_dim=context_dim,
-                            use_checkpoint=use_checkpoint, dtype=self.dtype, dropout=self.dropout,
+                        )
+                        if not use_spatial_transformer
+                        else SpatialTransformer(
+                            ch,
+                            num_heads,
+                            dim_head,
+                            depth=transformer_depth,
+                            context_dim=context_dim,
+                            use_checkpoint=use_checkpoint,
+                            dtype=self.dtype,
+                            dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                         )
                     )
@@ -523,7 +575,7 @@ class UNetModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             up=True,
-                            dtype=self.dtype
+                            dtype=self.dtype,
                         )
                         if resblock_updown
                         else Upsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
@@ -535,17 +587,19 @@ class UNetModel(nn.Cell):
         self.out = nn.SequentialCell(
             normalization(ch),
             nn.SiLU().to_float(self.dtype),
-            zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, 
-                                has_bias=True, pad_mode='pad').to_float(self.dtype)),
+            zero_module(
+                conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
+                    self.dtype
+                )
+            ),
         )
 
         if self.predict_codebook_ids:
             self.id_predictor = nn.SequentialCell(
-            normalization(ch),
-            conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode='pad').to_float(self.dtype),
-        )
+                normalization(ch),
+                conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode="pad").to_float(self.dtype),
+            )
         self.cat = ops.Concat(axis=1)
-
 
     def construct(self, x, timesteps=None, context=None, y=None):
         """
@@ -556,7 +610,7 @@ class UNetModel(nn.Cell):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-        
+
         assert (y is not None) == (
             self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"
@@ -573,10 +627,10 @@ class UNetModel(nn.Cell):
             for cell in celllist:
                 h = cell(h, emb, context)
             hs.append(h)
-            
+
         for module in self.middle_block:
             h = module(h, emb, context)
-        
+
         hs_index = -1
         for celllist in self.output_blocks:
             h = self.cat((h, hs[hs_index]))
@@ -588,4 +642,3 @@ class UNetModel(nn.Cell):
             return self.id_predictor(h)
         else:
             return self.out(h)
-        

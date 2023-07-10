@@ -1,40 +1,45 @@
-from mindone.preprocess import en_cleaning, zh_cleaning
 import json
 import os
+
 import numpy as np
+
 import mindspore as ms
 
+from mindone.preprocess import en_cleaning, zh_cleaning
 
-class BertMPUSequenceClassificationPipeline():
+
+class BertMPUSequenceClassificationPipeline:
     def __init__(
         self,
-        model_name='bert_base',
-        config_path='config.json',
-        tokenizer_path='tokenizer.json',
-        amp_level='O1',
+        model_name="bert_base",
+        config_path="config.json",
+        tokenizer_path="tokenizer.json",
+        amp_level="O1",
     ):
         super().__init__()
-        with open(config_path, 'r') as file:
+        with open(config_path, "r") as file:
             config = json.load(file)
-            self.max_sequence_length = config.get('max_sequence_length', 512)
+            self.max_sequence_length = config.get("max_sequence_length", 512)
 
-        if model_name == 'bert_base':
+        if model_name == "bert_base":
+            from mindnlp._legacy.amp import auto_mixed_precision
+            from mindnlp.models import BertForSequenceClassification
             from mindnlp.models.bert import BertConfig
             from mindnlp.transforms import BertTokenizer
-            from mindnlp.models import BertForSequenceClassification
-            from mindnlp._legacy.amp import auto_mixed_precision
-            pad_token_id = config.get('pad_token_id', 0)
+
+            pad_token_id = config.get("pad_token_id", 0)
             self.config = BertConfig(**config)
             self.tokenizer = BertTokenizer(tokenizer_path)
             self.backbone = BertForSequenceClassification(self.config)
             self.backbone = auto_mixed_precision(self.backbone, amp_level)
             self.clean = zh_cleaning
-        elif model_name == 'roberta_base':
+        elif model_name == "roberta_base":
+            from mindnlp._legacy.amp import auto_mixed_precision
+            from mindnlp.models import RobertaForSequenceClassification
             from mindnlp.models.roberta import RobertaConfig
             from mindnlp.transforms import RobertaTokenizer
-            from mindnlp.models import RobertaForSequenceClassification
-            from mindnlp._legacy.amp import auto_mixed_precision
-            pad_token_id = config.get('pad_token_id', 1)
+
+            pad_token_id = config.get("pad_token_id", 1)
             self.config = RobertaConfig(**config)
             self.tokenizer = RobertaTokenizer(tokenizer_path)
             self.backbone = RobertaForSequenceClassification(self.config)
@@ -53,12 +58,12 @@ class BertMPUSequenceClassificationPipeline():
         output_length = min(len(tokens), self.max_sequence_length)
         start = 0 if len(tokens) <= output_length else self.rng(0, len(tokens) - output_length + 1)
         end = start + output_length
-        tokens = tokens[start: end]
+        tokens = tokens[start:end]
 
         padding = [self.tokenizer.pad_token_id] * (self.max_sequence_length - len(tokens))
         tokens = ms.Tensor(tokens + padding)
         mask = ms.ops.ones(tokens.shape[0], ms.int32)
-        mask[-len(padding):] = 0
+        mask[-len(padding) :] = 0
 
         return tokens[None, ...], mask[None, ...]
 
@@ -70,9 +75,9 @@ class BertMPUSequenceClassificationPipeline():
     def predict(self, text: str):
         x, mask = self.preprocess(text)
         logits = self.backbone(x, attention_mask=mask, labels=None)
-        logits = logits[0] # remove tuple
-        logits = ms.ops.softmax(logits, axis=-1)[0] # remove batch
+        logits = logits[0]  # remove tuple
+        logits = ms.ops.softmax(logits, axis=-1)[0]  # remove batch
         return {
-            'human': logits[0].asnumpy(),
-            'machine': logits[1].asnumpy(),
+            "human": logits[0].asnumpy(),
+            "machine": logits[1].asnumpy(),
         }

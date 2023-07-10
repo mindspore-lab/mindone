@@ -1,6 +1,6 @@
 # Awesome Large Vision Models and Foundation Models
 
-This page keeps tracking awesome large vision models (LVM) and their dependent foundation models (FM). 
+This page keeps tracking awesome large vision models (LVM) and their dependent foundation models (FM).
 
 We also analyze and show their training or pretraining methods and datasets for better insight.
 
@@ -19,7 +19,7 @@ Under construction and update.
 
 
 ## Large Vision Models
- 
+
 ### Image Generation
 
 > [Stable Diffusion 2.1](): *High-Resolution Image Synthesis with Latent Diffusion Models. [[Stability AI]]() Dec 2022 [[open]](https://github.com/Stability-AI/StableDiffusion)*
@@ -68,7 +68,7 @@ Under construction and update.
   ```
 
 > [Imagen](): *Photorealistic Text-to-Image Diffusion Models with Deep Language Understanding. [Google]() May 2022*
->> Rely on: [T5 model]() 
+>> Rely on: [T5 model]()
 
   ```yaml
   Field: Image Generation (text to image)
@@ -114,7 +114,7 @@ Under construction and update.
 
 > [SAM](): *Segment Anything. [Meta]() April 2023*
 >> Rely on: [CLIP](), [MAE-ViT-H/16]()
-  
+
   ```yaml
   Field: Image Segmentation
   Params: ~1B
@@ -125,10 +125,10 @@ Under construction and update.
       Params: 632M
       Arch: ViT-H/16
       Pretrain Algo: MAE
-    - PromptEncoder: 
+    - PromptEncoder:
       Arch: CLIP TextEncoder
       Pretrain Algo: Contrastive Learning
-    - MaskDecoder: 
+    - MaskDecoder:
       Core Operator: Cross-attention Transformer
   ```
 
@@ -142,11 +142,11 @@ Under construction and update.
   Arch: ViT
   Params: 1B
   Pretrain Data: LVD-142M (including imagenet-22k, ADE20K, and filtered internet images)
-  Pretrain Algo: DINOv2 (~DINO + iBOT), CL, Teacher-student Discrimination, 
+  Pretrain Algo: DINOv2 (~DINO + iBOT), CL, Teacher-student Discrimination,
   ```
-  
-> [DINO](): *Emerging Properties in Self-Supervised Vision Transformers. [Meta]() May 2021* 
-  
+
+> [DINO](): *Emerging Properties in Self-Supervised Vision Transformers. [Meta]() May 2021*
+
   ```yaml
   Arch: ViT
   Params: 1B
@@ -155,7 +155,7 @@ Under construction and update.
   ```
 
 > [iBOT](): *iBOT: Image BERT Pre-Training with Online Tokenizer. [ByteDance]() Nov 2021*
-  
+
 > [MAE](): *Masked Autoencoders Are Scalable Vision Learners. [Meta]() Nov 2021*
 
   ```yaml
@@ -175,12 +175,12 @@ Under construction and update.
 
   ```yaml
   Field: Vision
-  Params: 
+  Params:
     InternImage-G: 3B
   Architecture: CNN
   Core Operator: Deformable Convolution v3
   ```
-  
+
 > [EVA-02]():
 
 > [WSP-2B]():
@@ -193,13 +193,13 @@ Under construction and update.
 
 | Method       |  Objective  | Arch.   |  Params | Data    | Text-sup.  | LP Acc | Notes |
 |:------------|:---------|:--------|:--------|:------|:------:|---------------|----------|
-| MAE        |    MIM     | ViT-H/14 | 632M   |  IN-1k | &#10005;  | 83.3 |  | 
-| SimMIM     |    MIM     |   ViT-B       | 86M   |  IN-1k | &#10005;  | 83.8|  | 
-| SimMIM     |    MIM     |   Swinv2-H@224    | 658M   |  IN-1k | &#10005;  | 85.7|  | 
-| SimMIM     |    MIM     |   Swinv2-G@640    | 3B  |  IN-22K-ext | &#10005;  | 90.2| private dataset | 
+| MAE        |    MIM     | ViT-H/14 | 632M   |  IN-1k | &#10005;  | 83.3 |  |
+| SimMIM     |    MIM     |   ViT-B       | 86M   |  IN-1k | &#10005;  | 83.8|  |
+| SimMIM     |    MIM     |   Swinv2-H@224    | 658M   |  IN-1k | &#10005;  | 85.7|  |
+| SimMIM     |    MIM     |   Swinv2-G@640    | 3B  |  IN-22K-ext | &#10005;  | 90.2| private dataset |
 | BeiT       |    MIM     |    ViT-L/16   |  307M   |  IN-1k | &#10005;  | 85.2 |  |
-| DINO       |    CL-Discrimination   | ViT-S/8    |   INet-1k   | IN-1k | &#10005;    |   85.5 | |  
-| iBOT       |    MIM     | ViT-L/16   |  307M    | IN-1k  |  &#10005;    | 81.0  |  | 
+| DINO       |    CL-Discrimination   | ViT-S/8    |   INet-1k   | IN-1k | &#10005;    |   85.5 | |
+| iBOT       |    MIM     | ViT-L/16   |  307M    | IN-1k  |  &#10005;    | 81.0  |  |
 | DINOv2     |    CL-Discrimination     | ViT-B/14   |  86M    |  LVD-142M  |  &#10005;    | 88.3 |   |
 | DINOv2     |    CL-Discrimination     | ViT-L/14   |  307M    |  LVD-142M  |  &#10005;    | 89.5 |   |
 | InternImage-XL | CL-M3I     |  CNN-DCNv3     |  335M    |  IN-22K  |  &#10005;    | 89.5 |   |
@@ -207,7 +207,7 @@ Under construction and update.
 | Sup.       |    Cls    | ViT    |   22B   |  JFT-4B |  &#10005;    | 89.51 |   |
 
  </div>
- 
+
 *Note: For smaller vision backbones with good performance, please refer to [MindCV](https://github.com/mindspore-lab/mindcv/blob/main/benchmark_results.md)*
 
 ### Language
@@ -244,8 +244,8 @@ Dataset: LAION-2B
 
 | Method       |  Objective  | ImgEnc | TxtEnc    |  Params | Data    | Text-sup.  | LP Acc | Notes |
 |:------------|:------------|:--------|:--------|:--------|:---------|:------:|---------------|----------|
-| CLIP        |    CL      | ViT-L/14 |  BERT-like   | 307M,    |  YFCC-15M | &#10003;  | 83.3 |  | 
-| OpenCLIP    |    CL      | ViT-H/14 |  BERT-like   | 632M,    |  LAION-2B | &#10003;  | 84.4 |  | 
+| CLIP        |    CL      | ViT-L/14 |  BERT-like   | 307M,    |  YFCC-15M | &#10003;  | 83.3 |  |
+| OpenCLIP    |    CL      | ViT-H/14 |  BERT-like   | 632M,    |  LAION-2B | &#10003;  | 84.4 |  |
 
  </div>
 
@@ -258,4 +258,3 @@ Sup.: Supervised Learning
 CL: Constrastive Learning, a family of SL methods
 
 MIM: Masked Image Modeling, a faimly of SL methods
-

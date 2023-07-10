@@ -13,67 +13,66 @@
 # limitations under the License.
 # ============================================================================
 
-import os
 import gc
-from random import randint, choice
+import os
 from collections import defaultdict
+from random import choice, randint
 
-import pandas as pd
 import albumentations
-import numpy as np
-from PIL import Image
 import imagesize
+import numpy as np
+import pandas as pd
+from ldm.data.t2i_collate import data_column_db, t2i_collate_db
+from PIL import Image
+
 import mindspore as ms
 from mindspore.dataset import GeneratorDataset
 
-from ldm.data.t2i_collate import t2i_collate_db, data_column_db
 
 def load_data(
-            train_data_path,
-            reg_data_path,
-            train_data_repeats,
-            class_word,
-            token,
-            batch_size,
-            tokenizer,
-            image_size=512,
-            image_filter_size=256,
-            device_num=1,
-            random_crop=False, 
-            rank_id=0,
-            sample_num=-1
-            ):
-    
-    
+    train_data_path,
+    reg_data_path,
+    train_data_repeats,
+    class_word,
+    token,
+    batch_size,
+    tokenizer,
+    image_size=512,
+    image_filter_size=256,
+    device_num=1,
+    random_crop=False,
+    rank_id=0,
+    sample_num=-1,
+):
     if not os.path.exists(train_data_path):
         raise ValueError("Training data path directory does not exist!")
     train_images = list_image_files(train_data_path)
     if not os.path.exists(train_data_path):
         raise ValueError("Regularization data path directory does not exist!")
     reg_images = list_image_files(reg_data_path)
-    
+
     print(f"Total training images: {len(train_images)}")
     print(f"Total regularization images: {len(reg_images)}")
     train_images = repeat_data(train_images, train_data_repeats)
     print(f"The training data is repeated {train_data_repeats} times, and the total number is {len(train_images)}")
-    
+
     dataloaders = {}
     dataset = ImageDataset(
-            batch_size,
-            train_images,
-            reg_images,
-            class_word,
-            token,
-            tokenizer,
-            image_size,
-            image_filter_size,
-            random_crop=random_crop, 
-            )
+        batch_size,
+        train_images,
+        reg_images,
+        class_word,
+        token,
+        tokenizer,
+        image_size,
+        image_filter_size,
+        random_crop=random_crop,
+    )
     datalen = dataset.__len__
     loader = build_dataloader_ft(dataset, datalen, t2i_collate_db, batch_size, device_num, rank_id=rank_id)
     dataloaders["ftT2I"] = loader
-    if sample_num==-1:
-        batchlen = datalen//(batch_size * device_num)
+    if sample_num == -1:
+        batchlen = datalen // (batch_size * device_num)
     else:
         batchlen = sample_num
     metaloader = MetaLoader(dataloaders, datalen=batchlen, task_num=len(dataloaders.keys()))
@@ -82,9 +81,11 @@ def load_data(
     return dataset
 
 
-def build_dataloader_ft(dataset, datalens,collate_fn, batch_size, device_num, rank_id=0):
+def build_dataloader_ft(dataset, datalens, collate_fn, batch_size, device_num, rank_id=0):
     sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num)
-    loader = DataLoader(dataset, batch_sampler=sampler, collate_fn=collate_fn, device_num=device_num, drop_last=True, rank_id=rank_id)
+    loader = DataLoader(
+        dataset, batch_sampler=sampler, collate_fn=collate_fn, device_num=device_num, drop_last=True, rank_id=rank_id
+    )
     return loader
 
 
@@ -94,25 +95,27 @@ def list_image_files(data_path):
         imges_path = os.path.join(data_path, file_name)
         all_images.append(imges_path)
     return all_images
-    
+
 
 def repeat_data(data_list, repeats):
     return data_list + data_list * repeats
 
 
 def list_image_files_captions_recursively(data_path):
-        anno_dir = data_path
-        anno_list = sorted([os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))])
-        db_list = [pd.read_csv(f) for f in anno_list]
-        all_images = []
-        all_captions = []
-        for db in db_list:
-            all_images.extend(list(db["dir"]))
-            all_captions.extend(list(db["text"]))
-        assert len(all_images) == len(all_captions)
-        all_images = [os.path.join(data_path, f) for f in all_images]
+    anno_dir = data_path
+    anno_list = sorted(
+        [os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))]
+    )
+    db_list = [pd.read_csv(f) for f in anno_list]
+    all_images = []
+    all_captions = []
+    for db in db_list:
+        all_images.extend(list(db["dir"]))
+        all_captions.extend(list(db["text"]))
+    assert len(all_images) == len(all_captions)
+    all_images = [os.path.join(data_path, f) for f in all_images]
 
-        return all_images, all_captions
+    return all_images, all_captions
 
 
 def filter_small_image(all_images, all_captions, image_filter_size):
@@ -138,10 +141,12 @@ def check_data(all_iamges):
         else:
             bad_path_num += 1
             print(f"bad images path: {file}")
-    print(f'There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} pairs of bad data')
+    print(
+        f"There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} pairs of bad data"
+    )
 
 
-class ImageDataset():
+class ImageDataset:
     def __init__(
         self,
         batch_size,
@@ -153,7 +158,7 @@ class ImageDataset():
         image_size,
         image_filter_size,
         shuffle=True,
-        random_crop=False, 
+        random_crop=False,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -167,13 +172,15 @@ class ImageDataset():
         self.class_word = class_word
         self.token = token
 
-        self.rescaler = albumentations.SmallestMaxSize(max_size = self.image_size)
+        self.rescaler = albumentations.SmallestMaxSize(max_size=self.image_size)
         if not self.random_crop:
-            self.cropper = albumentations.CenterCrop(height=self.image_size,width=self.image_size)
+            self.cropper = albumentations.CenterCrop(height=self.image_size, width=self.image_size)
             self.preprocessor = albumentations.Compose([self.rescaler, self.cropper])
         else:
-            self.cropper = albumentations.RandomCrop(height=self.image_size,width=self.image_size)
-            self.preprocessor = albumentations.Compose([self.rescaler, self.cropper, albumentations.HorizontalFlip(p=0.5)])
+            self.cropper = albumentations.RandomCrop(height=self.image_size, width=self.image_size)
+            self.preprocessor = albumentations.Compose(
+                [self.rescaler, self.cropper, albumentations.HorizontalFlip(p=0.5)]
+            )
             print("apply random crop and horizontal flip")
 
     @property
@@ -205,12 +212,12 @@ class ImageDataset():
         reg_caption = self.class_word
         train_caption_input = self.tokenize(train_caption)
         reg_caption_input = self.tokenize(reg_caption)
-        
+
         train_image_input = np.array(train_image_input, dtype=np.float32)
         train_caption_input = np.array(train_caption_input, dtype=np.int32)
         reg_image_input = np.array(reg_image_input, dtype=np.float32)
         reg_caption_input = np.array(reg_caption_input, dtype=np.int32)
-        
+
         return train_image_input, train_caption_input, reg_image_input, reg_caption_input
 
     def preprocess_image(self, image_path):
@@ -219,7 +226,7 @@ class ImageDataset():
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
         image = self.preprocessor(image=image)["image"]
-        image = (image/127.5 - 1.0).astype(np.float32)
+        image = (image / 127.5 - 1.0).astype(np.float32)
         return image
 
     def tokenize(self, text):
@@ -232,15 +239,15 @@ class ImageDataset():
         tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
         result = np.zeros([CONTEXT_LEN])
         if len(tokens) > CONTEXT_LEN:
-            tokens = tokens[:CONTEXT_LEN - 1] + [eot_token]
-        result[:len(tokens)] = tokens
+            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
+        result[: len(tokens)] = tokens
 
         return result
 
 
 class BatchSampler:
     """
-        Batch Sampler
+    Batch Sampler
     """
 
     def __init__(self, lens, batch_size, device_num):
@@ -252,17 +259,16 @@ class BatchSampler:
 
     def __iter__(self):
         ids = self._create_ids()
-        batches = [ids[i:i + self._batch_size] for i in range(0, len(ids), self._batch_size)]
+        batches = [ids[i : i + self._batch_size] for i in range(0, len(ids), self._batch_size)]
         gc.collect()
         return iter(batches)
 
     def __len__(self):
-        raise ValueError("NOT supported. "
-                         "This has some randomness across epochs")
+        raise ValueError("NOT supported. " "This has some randomness across epochs")
 
 
 class DataLoader:
-    """ DataLoader """
+    """DataLoader"""
 
     def __init__(self, dataset, batch_sampler, collate_fn, device_num=1, drop_last=True, rank_id=0):
         self.dataset = dataset
@@ -289,7 +295,7 @@ class DataLoader:
             indices = next(self.batch_indices)
         data = []
         per_batch = len(indices) // self.device_num
-        index = indices[self.rank_id * per_batch:(self.rank_id + 1) * per_batch]
+        index = indices[self.rank_id * per_batch : (self.rank_id + 1) * per_batch]
         for idx in index:
             data.append(self.dataset[idx])
 
@@ -297,8 +303,8 @@ class DataLoader:
         return data
 
 
-class MetaLoader():
-    """ wraps multiple data loaders """
+class MetaLoader:
+    """wraps multiple data loaders"""
 
     def __init__(self, loaders, datalen, task_num=1):
         assert isinstance(loaders, dict)
@@ -333,13 +339,13 @@ class MetaLoader():
         return self.all_ids
 
     def get_batch(self, batch, task):
-        """ get_batch """
+        """get_batch"""
         batch = defaultdict(lambda: None, batch)
-        train_img_feat = batch.get('train_img_feat', None)
-        train_txt_tokens = batch.get('train_txt_tokens', None)
-        reg_img_feat = batch.get('reg_img_feat', None)
-        reg_txt_tokens = batch.get('reg_txt_tokens', None)
-        
+        train_img_feat = batch.get("train_img_feat", None)
+        train_txt_tokens = batch.get("train_txt_tokens", None)
+        reg_img_feat = batch.get("reg_img_feat", None)
+        reg_txt_tokens = batch.get("reg_txt_tokens", None)
+
         output = (train_img_feat, train_txt_tokens, reg_img_feat, reg_txt_tokens)
 
         return output
@@ -361,7 +367,7 @@ class MetaLoader():
             iter_ = self.name2iter[local_task]
             batch = next(iter_)
 
-        task = name.split('_')[0]
+        task = name.split("_")[0]
         for key, val in batch.items():
             if isinstance(val, np.ndarray):
                 if val.dtype == np.int64:

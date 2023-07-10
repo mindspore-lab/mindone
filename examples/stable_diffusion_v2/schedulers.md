@@ -9,7 +9,7 @@ The schedule functions take in the output of a pre-trained model, a sample which
 
 Mindone implements 5 different schedulers in addition to the DDPM scheduler. The following table summarizes these schedulers:
 
-| Scheduler | Reference |                                                                 
+| Scheduler | Reference |
 |:------:|:------:|
 | DDPM | [Denoising Diffusion Probabilistic Models](https://arxiv.org/abs/2006.11239) |
 | DDIM | [Denoising Diffusion Implicit Models](https://arxiv.org/abs/2010.02502) |
@@ -25,7 +25,7 @@ Mindone implements 5 different schedulers in addition to the DDPM scheduler. The
 Normally, you can test the stable diffusion model using the following command using the default PLMS scheduler:
 
 ```shell
-# Text to image generation with SD2.0 
+# Text to image generation with SD2.0
 python text_to_image.py --prompt "A wolf in winter"
 ```
 

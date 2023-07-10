@@ -18,8 +18,8 @@ LoRA allows adapting pretrained models by adding pairs of rank-decomposition mat
 - LoRA finetuning is more efficient (approximately 2 times faster) than other finetuning approaches such as DreamBooth and Texture Inversion.
 - Support merging different LoRAs together
 
-LoRA was extended to finetune diffusion models by [cloneofsimo](https://github.com/cloneofsimo/lora). 
-For latent diffusion models, LoRA is usually applied to the CrossAttention layers in UNet, and can also be applied to the Attention layers in the text encoder. 
+LoRA was extended to finetune diffusion models by [cloneofsimo](https://github.com/cloneofsimo/lora).
+For latent diffusion models, LoRA is usually applied to the CrossAttention layers in UNet, and can also be applied to the Attention layers in the text encoder.
 
 
 
@@ -31,7 +31,7 @@ For latent diffusion models, LoRA is usually applied to the CrossAttention layer
 
 #### Dependency
 
-Please make sure the following frameworks are installed. 
+Please make sure the following frameworks are installed.
 
 - mindspore >= 1.9  [[install](https://www.mindspore.cn/install)] (2.0 is recommended for the best performance.)
 - python >= 3.7
@@ -42,7 +42,7 @@ Install the dependent packages by running:
 pip install -r requirements.txt
 ```
 
-#### Pretrained Models 
+#### Pretrained Models
 
 Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `stable_diffusion_v2/models` folder.
 
@@ -67,9 +67,9 @@ img2.jpg,a drawing of a green pokemon with red eyes
 img3.jpg,a red and white ball with an angry look on its face
 ```
 
-For convenience, we have prepared two public text-image datasets obeying the above format. 
+For convenience, we have prepared two public text-image datasets obeying the above format.
 
-- [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions. 
+- [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions.
 - [Chinese-art blip caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 100 chinese art-style images with BLIP-generated captions.
 
 To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
@@ -98,7 +98,7 @@ Below are some arguments that you may want to tune for a better performance on y
 - start_learning_rate and end_learning_rate: the initial and end learning rates for training.
 - epochs: the number of epochs for training.
 - use_ema: whether use EMA for model smoothing
-> Note that the default learning rate for LoRA is 1e-4, whichis larger that vanilla finetuning (~1e-5).  
+> Note that the default learning rate for LoRA is 1e-4, whichis larger that vanilla finetuning (~1e-5).
 
 For more argument illustration, please run `python train_text_to_image.py -h`.
 
@@ -131,7 +131,7 @@ To avoid typing too many arguments in CLI, you may modify and run the `scripts/r
 Here are the example results.
 
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/27ac4537-b407-4196-a17d-8a8351d150ec" width="160" height="160" />  
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/27ac4537-b407-4196-a17d-8a8351d150ec" width="160" height="160" />
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/791ce730-4fee-457d-8272-9f88febdd854" width="160" height="160" />
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/6839afa0-6fc3-4320-942d-7cd7c2dcb8ab" width="160" height="160" />
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/f8ea3071-f279-47d3-9fc0-08fe6d9009e8" width="160" height="160" />
@@ -141,7 +141,7 @@ Here are the example results.
 </p>
 
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="160" height="160" />  
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="160" height="160" />
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/995fab36-7015-4176-8102-a79080f5b0c7" width="160" height="160" />
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/4279fc0d-035b-4e77-a50a-9deac58bab84" width="160" height="160" />
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/280a4ea8-6988-4e4a-83a7-0944f000ac76" width="160" height="160" />
@@ -152,12 +152,12 @@ Here are the example results.
 
 ### Evaluation
 
-We will evaluate the finetuned model on the split test set in `pokemon_blip.zip` and `chinese_art_blip.zip`. 
+We will evaluate the finetuned model on the split test set in `pokemon_blip.zip` and `chinese_art_blip.zip`.
 
-Let us run text-to-image generation conditioned on the prompts in test set then evaluate the quality of the generated images by the following steps.   
+Let us run text-to-image generation conditioned on the prompts in test set then evaluate the quality of the generated images by the following steps.
 
-1. Update the following path settings in `scripts/run_text_to_image_v2_lora.sh`: 
-    - `data_path`: path to your prompt txt file 
+1. Update the following path settings in `scripts/run_text_to_image_v2_lora.sh`:
+    - `data_path`: path to your prompt txt file
     - `output_path`: path to store the generated images
     - `lora_ckpt_path`: path to the finetuned lora checkpoint that you want to evalute
 
@@ -201,17 +201,17 @@ python eval/eval_fid.py --real_dir {path/to/test_images} --gen_dir {path/to/gene
 
 ```
 
-For details, please refer to the guideline [Diffusion Evaluation](eval/README.md). 
+For details, please refer to the guideline [Diffusion Evaluation](eval/README.md).
 
 Here are the evaluation results for our implementation.
 
 <div align="center">
 
-| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   |                                                                 
+| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) |  FID (Diffuser)   |
 |--------------|------|-------------|-----------|--------|------------|
 | stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108   |   106  |
 | stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257    |   254  |
-    
+
 </div>
 
 > Note that these numbers can not reflect the generation quality comprehensively!! A visual evaluation is also necessary.
@@ -219,7 +219,3 @@ Here are the evaluation results for our implementation.
 
 ## Reference
 [1] [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685)
-
-
-
-

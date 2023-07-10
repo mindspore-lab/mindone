@@ -1,0 +1,9 @@
+[flake8]
+max-line-length = 120
+extend-exclude =
+    docs/*,
+    setup.py
+extend-ignore = E203
+per-file-ignores =
+    */__init__.py:F401,F403
+    examples/*,tests/*:E402

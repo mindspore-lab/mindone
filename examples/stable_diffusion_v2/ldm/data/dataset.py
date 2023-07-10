@@ -12,63 +12,63 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import gc
 import logging
 import os
-import gc
-from random import randint
 from collections import defaultdict
+from random import randint
 
-import pandas as pd
 import albumentations
-import numpy as np
-from PIL import Image
 import imagesize
+import numpy as np
+import pandas as pd
+from ldm.data.t2i_collate import data_column, t2i_collate
+from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
+from PIL import Image
+
 import mindspore as ms
 from mindspore.dataset import GeneratorDataset
 
-from ldm.data.t2i_collate import t2i_collate, data_column
-from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
-
 _logger = logging.getLogger(__name__)
-SD_VERSION = os.getenv('SD_VERSION', default='2.0') 
+SD_VERSION = os.getenv("SD_VERSION", default="2.0")
+
 
 def load_data(
-            data_path,
-            batch_size,
-            tokenizer,
-            image_size=512,
-            image_filter_size=256,
-            device_num=1,
-            random_crop=False, 
-            filter_small_size=True,
-            rank_id=0,
-            sample_num=-1
-            ):
-    
+    data_path,
+    batch_size,
+    tokenizer,
+    image_size=512,
+    image_filter_size=256,
+    device_num=1,
+    random_crop=False,
+    filter_small_size=True,
+    rank_id=0,
+    sample_num=-1,
+):
     if not os.path.exists(data_path):
         raise ValueError(f"Data directory {data_path} does not exist!")
     all_images, all_captions = list_image_files_captions_recursively(data_path)
     if filter_small_size:
-        #print(f"Filter small images, filter size: {image_filter_size}")
+        # print(f"Filter small images, filter size: {image_filter_size}")
         all_images, all_captions = filter_small_image(all_images, all_captions, image_filter_size)
     _logger.debug(f"The first image path is {all_images[0]}, and the caption is {all_captions[0]}")
     _logger.info(f"Total number of training samples: {len(all_images)}")
     dataloaders = {}
     dataset = ImageDataset(
-            batch_size,
-            all_images,
-            all_captions,
-            tokenizer,
-            image_size,
-            image_filter_size,
-            random_crop=random_crop, 
-            filter_small_size=filter_small_size
-            )
+        batch_size,
+        all_images,
+        all_captions,
+        tokenizer,
+        image_size,
+        image_filter_size,
+        random_crop=random_crop,
+        filter_small_size=filter_small_size,
+    )
     datalen = dataset.__len__
     loader = build_dataloader_ft(dataset, datalen, t2i_collate, batch_size, device_num, rank_id=rank_id)
     dataloaders["ftT2I"] = loader
-    if sample_num==-1:
-        batchlen = datalen//(batch_size * device_num)
+    if sample_num == -1:
+        batchlen = datalen // (batch_size * device_num)
     else:
         batchlen = sample_num
     metaloader = MetaLoader(dataloaders, datalen=batchlen, task_num=len(dataloaders.keys()))
@@ -77,25 +77,29 @@ def load_data(
     return dataset
 
 
-def build_dataloader_ft(dataset, datalens,collate_fn, batch_size, device_num, rank_id=0):
+def build_dataloader_ft(dataset, datalens, collate_fn, batch_size, device_num, rank_id=0):
     sampler = BatchSampler(datalens, batch_size=batch_size, device_num=device_num)
-    loader = DataLoader(dataset, batch_sampler=sampler, collate_fn=collate_fn, device_num=device_num, drop_last=True, rank_id=rank_id)
+    loader = DataLoader(
+        dataset, batch_sampler=sampler, collate_fn=collate_fn, device_num=device_num, drop_last=True, rank_id=rank_id
+    )
     return loader
 
 
 def list_image_files_captions_recursively(data_path):
-        anno_dir = data_path
-        anno_list = sorted([os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))])
-        db_list = [pd.read_csv(f) for f in anno_list]
-        all_images = []
-        all_captions = []
-        for db in db_list:
-            all_images.extend(list(db["dir"]))
-            all_captions.extend(list(db["text"]))
-        assert len(all_images) == len(all_captions)
-        all_images = [os.path.join(data_path, f) for f in all_images]
+    anno_dir = data_path
+    anno_list = sorted(
+        [os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))]
+    )
+    db_list = [pd.read_csv(f) for f in anno_list]
+    all_images = []
+    all_captions = []
+    for db in db_list:
+        all_images.extend(list(db["dir"]))
+        all_captions.extend(list(db["text"]))
+    assert len(all_images) == len(all_captions)
+    all_images = [os.path.join(data_path, f) for f in all_images]
 
-        return all_images, all_captions
+    return all_images, all_captions
 
 
 def filter_small_image(all_images, all_captions, image_filter_size):
@@ -104,7 +108,7 @@ def filter_small_image(all_images, all_captions, image_filter_size):
     for image, caption in zip(all_images, all_captions):
         w, h = imagesize.get(image)
         if min(w, h) < image_filter_size:
-            _logger.info(f'image {image} of size {w}x{h} is filtered.')
+            _logger.info(f"image {image} of size {w}x{h} is filtered.")
             continue
         else:
             filted_images.append(image)
@@ -122,10 +126,12 @@ def check_data(all_iamges):
         else:
             bad_path_num += 1
             print(f"bad images path: {file}")
-    print(f'There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} pairs of bad data')
+    print(
+        f"There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} pairs of bad data"
+    )
 
 
-class ImageDataset():
+class ImageDataset:
     def __init__(
         self,
         batch_size,
@@ -135,8 +141,8 @@ class ImageDataset():
         image_size,
         image_filter_size,
         shuffle=True,
-        random_crop=False, 
-        filter_small_size=False
+        random_crop=False,
+        filter_small_size=False,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -149,13 +155,15 @@ class ImageDataset():
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
 
-        self.rescaler = albumentations.SmallestMaxSize(max_size = self.image_size)
+        self.rescaler = albumentations.SmallestMaxSize(max_size=self.image_size)
         if not self.random_crop:
-            self.cropper = albumentations.CenterCrop(height=self.image_size,width=self.image_size)
+            self.cropper = albumentations.CenterCrop(height=self.image_size, width=self.image_size)
             self.preprocessor = albumentations.Compose([self.rescaler, self.cropper])
         else:
-            self.cropper = albumentations.RandomCrop(height=self.image_size,width=self.image_size)
-            self.preprocessor = albumentations.Compose([self.rescaler, self.cropper, albumentations.HorizontalFlip(p=0.5)])
+            self.cropper = albumentations.RandomCrop(height=self.image_size, width=self.image_size)
+            self.preprocessor = albumentations.Compose(
+                [self.rescaler, self.cropper, albumentations.HorizontalFlip(p=0.5)]
+            )
             print("apply random crop and horizontal flip")
 
     @property
@@ -191,28 +199,28 @@ class ImageDataset():
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
         image = self.preprocessor(image=image)["image"]
-        image = (image/127.5 - 1.0).astype(np.float32)
+        image = (image / 127.5 - 1.0).astype(np.float32)
         return image
 
     def tokenize(self, text):
-        SOT_TEXT = self.tokenizer.sot_text  #"[CLS]"
-        EOT_TEXT = self.tokenizer.eot_text  #"[SEP]"
-        CONTEXT_LEN = 77 #TODO: get from self.tokenizer.context_len
+        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
+        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
+        CONTEXT_LEN = 77  # TODO: get from self.tokenizer.context_len
 
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
         result = np.zeros([CONTEXT_LEN])
         if len(tokens) > CONTEXT_LEN:
-            tokens = tokens[:CONTEXT_LEN - 1] + [eot_token]
-        result[:len(tokens)] = tokens
+            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
+        result[: len(tokens)] = tokens
 
         return result
 
 
 class BatchSampler:
     """
-        Batch Sampler
+    Batch Sampler
     """
 
     def __init__(self, lens, batch_size, device_num):
@@ -224,17 +232,16 @@ class BatchSampler:
 
     def __iter__(self):
         ids = self._create_ids()
-        batches = [ids[i:i + self._batch_size] for i in range(0, len(ids), self._batch_size)]
+        batches = [ids[i : i + self._batch_size] for i in range(0, len(ids), self._batch_size)]
         gc.collect()
         return iter(batches)
 
     def __len__(self):
-        raise ValueError("NOT supported. "
-                         "This has some randomness across epochs")
+        raise ValueError("NOT supported. " "This has some randomness across epochs")
 
 
 class DataLoader:
-    """ DataLoader """
+    """DataLoader"""
 
     def __init__(self, dataset, batch_sampler, collate_fn, device_num=1, drop_last=True, rank_id=0):
         self.dataset = dataset
@@ -261,7 +268,7 @@ class DataLoader:
             indices = next(self.batch_indices)
         data = []
         per_batch = len(indices) // self.device_num
-        index = indices[self.rank_id * per_batch:(self.rank_id + 1) * per_batch]
+        index = indices[self.rank_id * per_batch : (self.rank_id + 1) * per_batch]
         for idx in index:
             data.append(self.dataset[idx])
 
@@ -269,8 +276,8 @@ class DataLoader:
         return data
 
 
-class MetaLoader():
-    """ wraps multiple data loaders """
+class MetaLoader:
+    """wraps multiple data loaders"""
 
     def __init__(self, loaders, datalen, task_num=1):
         assert isinstance(loaders, dict)
@@ -305,10 +312,10 @@ class MetaLoader():
         return self.all_ids
 
     def get_batch(self, batch, task):
-        """ get_batch """
+        """get_batch"""
         batch = defaultdict(lambda: None, batch)
-        img_feat = batch.get('img_feat', None)
-        txt_tokens = batch.get('txt_tokens', None)
+        img_feat = batch.get("img_feat", None)
+        txt_tokens = batch.get("txt_tokens", None)
         output = (img_feat, txt_tokens)
 
         return output
@@ -330,7 +337,7 @@ class MetaLoader():
             iter_ = self.name2iter[local_task]
             batch = next(iter_)
 
-        task = name.split('_')[0]
+        task = name.split("_")[0]
         for key, val in batch.items():
             if isinstance(val, np.ndarray):
                 if val.dtype == np.int64:
@@ -345,23 +352,21 @@ class MetaLoader():
 
 
 def build_dataset(args, rank_id, device_num):
-    #tokenizer = WordpieceTokenizer()
+    # tokenizer = WordpieceTokenizer()
     tokenizer = get_tokenizer(SD_VERSION)
 
     dataset = load_data(
-                data_path=args.data_path,
-                batch_size=args.train_batch_size,
-                tokenizer=tokenizer,
-                image_size=args.image_size,
-                image_filter_size=args.image_filter_size,
-                device_num=device_num,
-                rank_id = rank_id,
-                random_crop = args.random_crop,
-                filter_small_size = args.filter_small_size,
-                sample_num=-1
-                )
+        data_path=args.data_path,
+        batch_size=args.train_batch_size,
+        tokenizer=tokenizer,
+        image_size=args.image_size,
+        image_filter_size=args.image_filter_size,
+        device_num=device_num,
+        rank_id=rank_id,
+        random_crop=args.random_crop,
+        filter_small_size=args.filter_small_size,
+        sample_num=-1,
+    )
     _logger.info(f"Num batches for rank {rank_id}: {dataset.get_dataset_size()}")
 
     return dataset
-
-
