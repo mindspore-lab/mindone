@@ -70,7 +70,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                     lora_rank = int(lora_param_dict["lora_rank"].value())
                     logger.info("Lora rank is set to {lora_rank} according to the found value in lora checkpoint.")
             else:
-                raise ValueError(f"{ckpt} doesn't exist")
+                raise ValueError(f"{lora_only_ckpt} doesn't exist")
             # load the main pretrained model
             logger.info(f"Loading pretrained model from {ckpt}")
             _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
