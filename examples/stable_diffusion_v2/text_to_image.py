@@ -131,7 +131,7 @@ def main(args):
         with open(args.negative_data_path, "r") as f:
             negative_prompts = f.read().splitlines()
             # TODO: try to put different prompts in a batch
-            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_prompts]]
+            negative_data = [batch_size * [negative_prompt] for negative_prompt in negative_prompts]
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -202,7 +202,8 @@ def main(args):
         start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
 
     all_samples = list()
-    for i, (prompts, negative_prompts) in enumerate(zip(data, negative_data)):
+    for i, prompts in enumerate(data):
+        negative_prompts = negative_data[i if i < len(negative_data) else 0]
         logger.info(
             "[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(
                 i + 1, len(data), prompts[0], negative_prompts[0]
