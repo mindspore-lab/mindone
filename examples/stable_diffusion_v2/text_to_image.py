@@ -22,7 +22,7 @@ from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
-from ldm.util import instantiate_from_config, is_old_ms_version, str2bool
+from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
 
 logger = logging.getLogger("text_to_image")
@@ -118,7 +118,6 @@ def main(args):
         logger.info(f"Reading prompts from {args.data_path}")
         with open(args.data_path, "r") as f:
             prompts = f.read().splitlines()
-            num_prompts = len(prompts)
             # TODO: try to put different prompts in a batch
             data = [batch_size * [prompt] for prompt in prompts]
 
@@ -178,8 +177,8 @@ def main(args):
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
-            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
-            f"Distributed mode: False",
+            "MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
+            "Distributed mode: False",
             f"Number of input prompts: {len(data)}",
             f"Number of input negative prompts: {len(negative_data)}",
             f"Number of trials for each prompt: {args.n_iter}",
@@ -270,7 +269,8 @@ if __name__ == "__main__":
         type=str,
         nargs="?",
         default="",
-        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to render).",
+        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to "
+        "render).",
     )
     parser.add_argument(
         "-v",
@@ -366,7 +366,8 @@ if __name__ == "__main__":
         "--scale",
         type=float,
         default=None,
-        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). Simplified: `uc + scale * (uc - prompt)`",
+        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
+        "Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
         "--from-file",

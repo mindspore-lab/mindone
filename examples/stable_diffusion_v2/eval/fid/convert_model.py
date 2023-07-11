@@ -15,10 +15,11 @@ import os
 
 import torch
 from tqdm import tqdm
-from utils import _DEFAULT_DOWNLOAD_ROOT, Download
 
 import mindspore as ms
 from mindspore.train.serialization import save_checkpoint
+
+from examples.stable_diffusion_v2.eval.fid.utils import download_model
 
 PT_FID_WEIGHTS_URL = "https://github.com/mseitzer/pytorch-fid/releases/download/fid_weights/pt_inception-2015-12-05-6726825d.pth"  # noqa: E501
 

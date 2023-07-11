@@ -292,7 +292,6 @@ def get_image_paths(img_dir):
 def compute_torchmetric_fid(gen_imgs, gt_imgs):
     import torch
     import torchmetrics as tm
-    from torchvision.transforms import functional as F
 
     real_images = [np.array(Image.open(path).convert("RGB")) for path in gt_imgs]
     fake_images = [np.array(Image.open(path).convert("RGB")) for path in gen_imgs]

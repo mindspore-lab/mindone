@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-from inspect import isfunction
 
 import numpy as np
 from ldm.util import is_old_ms_version
@@ -34,7 +33,8 @@ def uniq(arr):
 def default(val, d):
     if exists(val):
         return val
-    # return d() if isfunction(d) else d # TODO: this may lead to error in mindspore 2.1. use isinstance, and if return, return
+    # return d() if isfunction(d) else d
+    # TODO: this may lead to error in mindspore 2.1. use isinstance, and if return, return
     if isinstance(d, (ms.Tensor, int, float)):
         return d
     return d()
@@ -48,7 +48,7 @@ class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
         self.proj = nn.Dense(dim_in, dim_out * 2).to_float(dtype)
-        self.split = split = ops.Split(-1, 2)
+        self.split = ops.Split(-1, 2)
         self.gelu = ops.GeLU()
 
     def construct(self, x):

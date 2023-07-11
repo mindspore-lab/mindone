@@ -13,7 +13,6 @@
 # limitations under the License.
 # ============================================================================
 from ldm.modules.diffusionmodules.model import Decoder, Encoder
-from ldm.modules.distributions.distributions import DiagonalGaussianDistribution
 
 import mindspore as ms
 import mindspore.nn as nn
