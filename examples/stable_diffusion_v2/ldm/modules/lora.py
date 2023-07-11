@@ -5,10 +5,9 @@ from ldm.util import is_old_ms_version
 
 import mindspore as ms
 import mindspore.common.initializer as init
-from mindspore import nn, ops
+from mindspore import nn
 from mindspore.nn.cell import Cell
 from mindspore.nn.layer.activation import get_activation
-from mindspore.ops import functional as F
 from mindspore.ops.primitive import Primitive
 
 __all__ = ["LoRADenseLayer", "LowRankDense", "inject_trainable_lora", "freeze_non_lora_params", "get_lora_params"]
@@ -99,7 +98,9 @@ def inject_trainable_lora(
 
     Note:
     1. Currently only support injection to dense layers in attention modules
-    2. In order to find the target layers, currently the attention moduel must have the attribute of to_q, to_k, to_v and to_out[0], each of which correpsonds to a dense layer. to_out correspnds to a SquentialCell consisting of a dense layer and a dropout layer.
+    2. In order to find the target layers, currently the attention moduel must have the attribute of to_q, to_k,
+        to_v and to_out[0], each of which correpsonds to a dense layer. to_out correspnds to a SquentialCell consisting
+        of a dense layer and a dropout layer.
     """
     target_modules = [getattr(ldm.modules.attention, m) for m in target_modules]
 
@@ -124,7 +125,7 @@ def inject_trainable_lora(
         print("Found target modules for lora inject: ", catched_attns)
 
     if len(catched_attns) == 0:
-        print(f"There is no target modules found in the network. Target modules {target_moduels}")
+        print(f"There is no target modules found in the network. Target modules {target_modules}")
         return net
 
     for sc_name, subcell in catched_attns.items():
@@ -156,7 +157,8 @@ def inject_trainable_lora(
             new_lora_dense_layers.append(tmp_lora_dense)
 
         # 4. replace target dense layers in attention module with the created lora layers and renaming the params
-        # TODO: instead of using fixed list, pick target dense layer by name string then replace it for better extension.
+        # TODO:
+        #  instead of using fixed list, pick target dense layer by name string then replace it for better extension.
         if verbose:
             print("Replacing target dense layers with the created lora layers.")
         subcell.to_q = new_lora_dense_layers[0]
@@ -183,22 +185,24 @@ def inject_trainable_lora(
             "\n".join([f"{p.name}\t{p}" for p in net.get_parameters() if "to_" in p.name]),
         )
         # print('=> New net after lora injection: ', net)
-        # print('\t=> Attn param names: ', '\n'.join([name+'\t'+str(param.requires_grad) for name, param in net.parameters_and_names() if '.to_' in name]))
+        # print('\t=> Attn param names: ', '\n'.join([name+'\t'+str(param.requires_grad) for name,
+        # param in net.parameters_and_names() if '.to_' in name]))
 
     new_net_stat = {}
     new_net_stat["num_params"] = len(list(net.get_parameters()))
     assert (
         new_net_stat["num_params"] - ori_net_stat["num_params"] == len(catched_attns) * len(target_dense_layers) * 2
     ), "Num of parameters should be increased by num_attention_layers * 4 * 2 after injection."
-    assert (
-        len(injected_trainable_params) == len(injected_modules) * 4 * 2
-    ), f"Expecting the number of injected lora trainable params to be {len(injected_modules)*4*2}, but got {len(injected_trainable_params)}"
+    assert len(injected_trainable_params) == len(injected_modules) * 4 * 2, (
+        f"Expecting the number of injected lora trainable params to be {len(injected_modules)*4*2}, "
+        f"but got {len(injected_trainable_params)}"
+    )
 
     _logger.info(
         "LoRA enabled. Number of injected params: {}".format(new_net_stat["num_params"] - ori_net_stat["num_params"])
     )
     if verbose:
-        print("Detailed injected params: \n", "\n".join([p.name + "\t" + f"{p}" for p in injected_traninable_params]))
+        print("Detailed injected params: \n", "\n".join([p.name + "\t" + f"{p}" for p in injected_trainable_params]))
 
     return injected_modules, injected_trainable_params
 
@@ -211,9 +215,10 @@ def save_lora_trainable_params_only(net, ckpt_fp):
 
 def load_lora_trainable_params_only(net, lora_ckpt_fp):
     """
-    Load trained lora params to the nework, which should have loaded pretrained params and injected with lora params.
+    Load trained lora params to the network, which should have loaded pretrained params and injected with lora params.
     """
-    # TODO: Cancel out the warning for not loading non-lora params. E.g. manually set target param values with lora params.
+    # TODO: Cancel out the warning for not loading non-lora params.
+    #  E.g. manually set target param values with lora params.
     param_dict = ms.load_checkpoint(lora_ckpt_fp)
     net_not_load, ckpt_not_load = ms.load_param_into_net(net, param_dict)
 

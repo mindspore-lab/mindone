@@ -23,10 +23,9 @@ import imagesize
 import numpy as np
 import pandas as pd
 from ldm.data.t2i_collate import data_column, t2i_collate
-from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, get_tokenizer
+from ldm.models.clip.simple_tokenizer import get_tokenizer
 from PIL import Image
 
-import mindspore as ms
 from mindspore.dataset import GeneratorDataset
 
 _logger = logging.getLogger(__name__)
@@ -127,7 +126,8 @@ def check_data(all_iamges):
             bad_path_num += 1
             print(f"bad images path: {file}")
     print(
-        f"There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} pairs of bad data"
+        f"There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} "
+        f"pairs of bad data"
     )
 
 

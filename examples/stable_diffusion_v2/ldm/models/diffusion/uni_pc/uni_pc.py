@@ -32,11 +32,14 @@ class NoiseScheduleVP:
         """
         Create a wrapper class for the forward SDE (VP type).
         ***
-        Update: We support discrete-time diffusion models by implementing a picewise linear interpolation for log_alpha_t.
-                We recommend to use schedule='discrete' for the discrete-time diffusion models, especially for high-resolution images.
+        Update: We support discrete-time diffusion models by implementing a picewise linear interpolation for
+                log_alpha_t.
+                We recommend to use schedule='discrete' for the discrete-time diffusion models, especially for
+                high-resolution images.
         ***
         The forward SDE ensures that the condition distribution q_{t|0}(x_t | x_0) = N ( alpha_t * x_0, sigma_t^2 * I ).
-        We further define lambda_t = log(alpha_t) - log(sigma_t), which is the half-logSNR (described in the DPM-Solver paper).
+        We further define lambda_t = log(alpha_t) - log(sigma_t), which is the half-logSNR (described in the DPM-Solver
+            paper).
         Therefore, we implement the functions for computing alpha_t, sigma_t and lambda_t. For t in [0, T], we have:
             log_alpha_t = self.marginal_log_mean_coeff(t)
             sigma_t = self.marginal_std(t)
@@ -44,22 +47,26 @@ class NoiseScheduleVP:
         Moreover, as lambda(t) is an invertible function, we also support its inverse function:
             t = self.inverse_lambda(lambda_t)
         ===============================================================
-        We support both discrete-time DPMs (trained on n = 0, 1, ..., N-1) and continuous-time DPMs (trained on t in [t_0, T]).
+        We support both discrete-time DPMs (trained on n = 0, 1, ..., N-1) and continuous-time DPMs (trained on t in
+            [t_0, T]).
         1. For discrete-time DPMs:
-            For discrete-time DPMs trained on n = 0, 1, ..., N-1, we convert the discrete steps to continuous time steps by:
-                t_i = (i + 1) / N
+            For discrete-time DPMs trained on n = 0, 1, ..., N-1, we convert the discrete steps to continuous time steps
+                by: t_i = (i + 1) / N
             e.g. for N = 1000, we have t_0 = 1e-3 and T = t_{N-1} = 1.
             We solve the corresponding diffusion ODE from time T = 1 to time t_0 = 1e-3.
             Args:
-                betas: A `mindspore.Tensor`. The beta array for the discrete-time DPM. (See the original DDPM paper for details)
-                alphas_cumprod: A `mindspore.Tensor`. The cumprod alphas for the discrete-time DPM. (See the original DDPM paper for details)
+                betas: A `mindspore.Tensor`. The beta array for the discrete-time DPM.
+                    (See the original DDPM paper for details)
+                alphas_cumprod: A `mindspore.Tensor`. The cumprod alphas for the discrete-time DPM.
+                    (See the original DDPM paper for details)
 
-            Note that we always have alphas_cumprod = cumprod(betas). Therefore, we only need to set one of `betas` and `alphas_cumprod`.
+            Note that we always have alphas_cumprod = cumprod(betas). Therefore, we only need to set one of `betas` and
+            `alphas_cumprod`.
             **Important**:  Please pay special attention for the args for `alphas_cumprod`:
-                The `alphas_cumprod` is the \hat{alpha_n} arrays in the notations of DDPM. Specifically, DDPMs assume that
-                    q_{t_n | 0}(x_{t_n} | x_0) = N ( \sqrt{\hat{alpha_n}} * x_0, (1 - \hat{alpha_n}) * I ).
-                Therefore, the notation \hat{alpha_n} is different from the notation alpha_t in DPM-Solver. In fact, we have
-                    alpha_{t_n} = \sqrt{\hat{alpha_n}},
+                The `alphas_cumprod` is the \hat{alpha_n} arrays in the notations of DDPM. Specifically, DDPMs assume
+                    that q_{t_n | 0}(x_{t_n} | x_0) = N ( \sqrt{\hat{alpha_n}} * x_0, (1 - \hat{alpha_n}) * I ).
+                Therefore, the notation \hat{alpha_n} is different from the notation alpha_t in DPM-Solver. In fact,
+                    we have alpha_{t_n} = \sqrt{\hat{alpha_n}},
                 and
                     log(alpha_{t_n}) = 0.5 * log(\hat{alpha_n}).
         2. For continuous-time DPMs:
@@ -151,7 +158,10 @@ class NoiseScheduleVP:
         elif self.schedule == "linear":
             return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
         elif self.schedule == "cosine":
-            log_alpha_fn = lambda s: self.log(self.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
+
+            def log_alpha_fn(s):
+                return self.log(self.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
+
             log_alpha_t = log_alpha_fn(t) - self.cosine_log_alpha_0
             return log_alpha_t
 
@@ -522,7 +532,8 @@ class UniPC:
 
     def denoise_to_zero_fn(self, x, s):
         """
-        Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order discretization.
+        Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order
+        discretization.
         """
         return self.data_prediction_fn(x, s)
 
@@ -643,7 +654,7 @@ class UniPC:
         dims = x.ndim
 
         expandd = ops.ExpandDims()
-        cast = ops.Cast()
+        # cast = ops.Cast()
 
         # first compute rks
         t_prev_0 = t_prev_list[-1]
@@ -853,10 +864,12 @@ def interpolate_fn(x, xp, yp):
     """
     A piecewise linear function y = f(x), using xp and yp as keypoints.
     We implement f(x) in a differentiable way (i.e. applicable for autograd).
-    The function f(x) is well-defined for all x-axis. (For x beyond the bounds of xp, we use the outmost points of xp to define the linear function.)
+    The function f(x) is well-defined for all x-axis. (For x beyond the bounds of xp, we use the outmost points of xp to
+    define the linear function.)
     ===============================================================
     Args:
-        x: MindSpore tensor with shape [N, C], where N is the batch size, C is the number of channels (we use C = 1 for DPM-Solver).
+        x: MindSpore tensor with shape [N, C], where N is the batch size, C is the number of channels (we use C = 1 for
+          DPM-Solver).
         xp: MindSpore tensor with shape [C, K], where K is the number of keypoints.
         yp: MindSpore tensor with shape [C, K].
     Returns:

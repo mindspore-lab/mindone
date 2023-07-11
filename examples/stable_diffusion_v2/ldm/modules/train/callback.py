@@ -15,13 +15,9 @@
 
 import os
 import time
-from typing import List, Tuple
-
-from packaging import version
 
 import mindspore as ms
-from mindspore import save_checkpoint
-from mindspore.train.callback._callback import Callback, _handle_loss
+from mindspore.train.callback._callback import Callback
 
 from .checkpoint import CheckpointManager
 
@@ -121,11 +117,11 @@ class EvalSaveCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
+        # data_sink_mode = cb_params.dataset_sink_mode
+        # if data_sink_mode:
+        #     loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
+        # else:
+        #     loss_scale_manager = cb_params.train_network.loss_scaling_manager
 
         if self.is_main_device:
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):

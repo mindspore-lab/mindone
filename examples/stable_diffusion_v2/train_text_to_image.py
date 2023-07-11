@@ -5,14 +5,11 @@ import argparse
 import importlib
 import logging
 import os
-import sys
 
-import albumentations
 from ldm.data.dataset import build_dataset
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
-from ldm.modules.train.cell_wrapper import ParallelTrainOneStepWithLossScaleCell
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.optim import build_optimizer
@@ -25,9 +22,8 @@ from omegaconf import OmegaConf
 import mindspore as ms
 from mindspore import Model, context, load_checkpoint, load_param_into_net
 from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.nn import TrainOneStepWithLossScaleCell
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-from mindspore.train.callback import CheckpointConfig, LossMonitor, ModelCheckpoint, TimeMonitor
+from mindspore.train.callback import LossMonitor, TimeMonitor
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 SD_VERSION = os.getenv("SD_VERSION", default="2.0")
@@ -72,7 +68,7 @@ def init_env(args):
 
 def build_model_from_config(config):
     config = OmegaConf.load(config).model
-    if not "target" in config:
+    if "target" not in config:
         if config == "__is_first_stage__":
             return None
         elif config == "__is_unconditional__":
@@ -210,7 +206,7 @@ def main(args):
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
-                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
+                "MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
                 f"Model: StableDiffusion v{SD_VERSION}",
