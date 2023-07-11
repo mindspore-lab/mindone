@@ -1,19 +1,19 @@
 """
 CLIPModel
 """
-from typing import Optional, Union
 import os
+from typing import Optional, Union
+
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn
-from mindspore.common.initializer import Normal, initializer
-from mindspore import Parameter, Tensor
 import mindspore.ops as ops
+from mindspore import Parameter, Tensor, nn
+from mindspore.common.initializer import Normal, initializer
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
-from .clip_modules import VisionTransformer, Transformer, LayerNorm
 from .clip_config import CLIPConfig
+from .clip_modules import LayerNorm, Transformer, VisionTransformer
 
 
 class CLIPModel(nn.Cell):
@@ -23,6 +23,7 @@ class CLIPModel(nn.Cell):
     Args:
         config (CLIPConfig): The config of clip model, which could be obtained by CLIPConfig class.
     """
+
     def __init__(self, config: CLIPConfig):
         super().__init__()
         self.dtype = self.get_dtype(config.dtype)
@@ -37,7 +38,7 @@ class CLIPModel(nn.Cell):
             heads=config.vision_config.num_attention_heads,
             output_dim=config.projection_dim,
             dtype=self.dtype,
-            hidden_act=config.vision_config.hidden_act
+            hidden_act=config.vision_config.hidden_act,
         )
 
         self.transformer = Transformer(
@@ -46,20 +47,27 @@ class CLIPModel(nn.Cell):
             heads=config.text_config.num_attention_heads,
             dtype=self.dtype,
             hidden_act=config.text_config.hidden_act,
-            attn_mask=self.build_attention_mask()
+            attn_mask=self.build_attention_mask(),
         )
 
-        self.token_embedding = \
-            nn.Embedding(config.text_config.vocab_size, config.text_config.hidden_size,
-                         embedding_table=Normal(mean=0.0, sigma=0.02))
-        self.positional_embedding = Parameter(initializer(
-            Normal(mean=0.0, sigma=0.01), [config.text_config.max_position_embeddings,
-                                           config.text_config.hidden_size]))
+        self.token_embedding = nn.Embedding(
+            config.text_config.vocab_size, config.text_config.hidden_size, embedding_table=Normal(mean=0.0, sigma=0.02)
+        )
+        self.positional_embedding = Parameter(
+            initializer(
+                Normal(mean=0.0, sigma=0.01),
+                [config.text_config.max_position_embeddings, config.text_config.hidden_size],
+            )
+        )
         self.ln_final = LayerNorm([config.text_config.hidden_size])
 
-        self.text_projection = Parameter(initializer(
-            Normal(mean=0.0, sigma=config.text_config.hidden_size ** -0.5),
-            [config.text_config.hidden_size, config.projection_dim], ms.float32))
+        self.text_projection = Parameter(
+            initializer(
+                Normal(mean=0.0, sigma=config.text_config.hidden_size**-0.5),
+                [config.text_config.hidden_size, config.projection_dim],
+                ms.float32,
+            )
+        )
         self.logit_scale = Parameter(Tensor(np.log(1 / 0.07)).astype(ms.float32))
         self.exp = ops.Exp()
 
@@ -73,10 +81,14 @@ class CLIPModel(nn.Cell):
             return ms.float32
         raise TypeError("unsupported data type.")
 
-    def construct(self, image: ms.Tensor, text: ms.Tensor,
-                  label: Optional[Union[ms.Tensor, np.ndarray]] = None,
-                  input_ids: Optional[ms.Tensor] = None,
-                  pixel_values: Optional[ms.Tensor] = None):
+    def construct(
+        self,
+        image: ms.Tensor,
+        text: ms.Tensor,
+        label: Optional[Union[ms.Tensor, np.ndarray]] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+    ):
         r"""Construct
 
         Args:
@@ -167,8 +179,7 @@ class CLIPModel(nn.Cell):
         text_ = text_.transpose(1, 0, 2)
         text_ = self.ln_final(text_).astype(self.dtype)
 
-        text_ = ops.matmul(
-            text_[ms.numpy.arange(text_.shape[0]), text.argmax(-1)], self.text_projection)
+        text_ = ops.matmul(text_[ms.numpy.arange(text_.shape[0]), text.argmax(-1)], self.text_projection)
         return text_
 
     def load_checkpoint(self, config):
@@ -181,8 +192,7 @@ class CLIPModel(nn.Cell):
         checkpoint_name_or_path = config.checkpoint_name_or_path
         if checkpoint_name_or_path:
             if not isinstance(checkpoint_name_or_path, str):
-                raise TypeError(f"checkpoint_name_or_path should be a str,"
-                                f" but got {type(checkpoint_name_or_path)}")
+                raise TypeError(f"checkpoint_name_or_path should be a str," f" but got {type(checkpoint_name_or_path)}")
 
             if os.path.exists(checkpoint_name_or_path):
                 param = load_checkpoint(checkpoint_name_or_path)
@@ -192,14 +202,14 @@ class CLIPModel(nn.Cell):
                     load_param_into_net(self, param)
                     print("weights in {} are loaded".format(ckpt_file))
                 except RuntimeError:
-                    print("the given config and weights in {} are"
-                          " mismatched, and weights load failed".format(ckpt_file))
+                    print(
+                        "the given config and weights in {} are"
+                        " mismatched, and weights load failed".format(ckpt_file)
+                    )
             else:
                 checkpoint_name = checkpoint_name_or_path
 
-                default_checkpoint_download_folder = os.path.join(
-                    'download',
-                    'clip')
+                default_checkpoint_download_folder = os.path.join("download", "clip")
 
                 if not os.path.exists(default_checkpoint_download_folder):
                     os.makedirs(default_checkpoint_download_folder, exist_ok=True)
@@ -212,9 +222,10 @@ class CLIPModel(nn.Cell):
                     load_param_into_net(self, param)
                     print("weights in {} are loaded".format(ckpt_file))
                 except RuntimeError:
-                    print("the given config and weights in {} are"
-                          " mismatched, and weights load failed", ckpt_file)
+                    print("the given config and weights in {} are" " mismatched, and weights load failed", ckpt_file)
         else:
-            print("model built, but weights is unloaded, since the config has no"
-                  " checkpoint_name_or_path attribute or"
-                  " checkpoint_name_or_path is None.")
+            print(
+                "model built, but weights is unloaded, since the config has no"
+                " checkpoint_name_or_path attribute or"
+                " checkpoint_name_or_path is None."
+            )

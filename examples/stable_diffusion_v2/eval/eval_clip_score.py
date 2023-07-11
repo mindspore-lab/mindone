@@ -1,63 +1,70 @@
-import os
-import json
 import argparse
+import json
+import os
+
+from clip_score import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 from PIL import Image
 
 import mindspore
 from mindspore import ops
 
-from clip_score import CLIPModel, CLIPImageProcessor, CLIPTokenizer, parse
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--config',
-        default='eval/clip_score/configs/clip_vit_b_16.yaml', type=str,
-        help='YAML config files for ms backend'
-             ' Default: eval/clip_score/configs/clip_vit_b_16.yaml')
-    parser.add_argument(
-        '--model_name',
-        default='openai/clip-vit-base-patch16', type=str,
-        help='the name of a (Open/)CLIP model as shown in HuggingFace for pt backend.'
-             ' Default: openai/clip-vit-base-patch16'
+        "--config",
+        default="eval/clip_score/configs/clip_vit_b_16.yaml",
+        type=str,
+        help="YAML config files for ms backend" " Default: eval/clip_score/configs/clip_vit_b_16.yaml",
     )
     parser.add_argument(
-        '--image_path_or_dir', default=None, type=str,
-        help='input data for predict, it support real data path or data directory.'
-             ' Default: None')
-    parser.add_argument(
-        '--prompt_or_path', default=None, type=str,
-        help='prompt corresponding to the image from image path.'
-             ' Default: None')
-    parser.add_argument(
-        '--backend', default='ms', type=str,
-        help='backend to do CLIP model inference for CLIP score compute. Option: ms, pt.'
-             ' Default: ms')
-    parser.add_argument(
-        '--load_checkpoint', default=None, type=str,
-        help='load model checkpoint.'
-             ' Default: None')
-    parser.add_argument(
-        '--tokenizer_path', default='bpe_simple_vocab_16e6.txt.gz', type=str,
-        help='load model checkpoint.'
-             ' Default: bpe_simple_vocab_16e6.txt.gz')
-    parser.add_argument(
-        '--save_result', default=True, type=str,
-        help='save results or not, if set to True then save to result_path.'
-        ' Default: True'
+        "--model_name",
+        default="openai/clip-vit-base-patch16",
+        type=str,
+        help="the name of a (Open/)CLIP model as shown in HuggingFace for pt backend."
+        " Default: openai/clip-vit-base-patch16",
     )
     parser.add_argument(
-        '--result_path', default='results.jsonl', type=str,
-        help='the path for saving results if save_result is set to True.'
-        ' Default: results.jsonl'
+        "--image_path_or_dir",
+        default=None,
+        type=str,
+        help="input data for predict, it support real data path or data directory." " Default: None",
     )
     parser.add_argument(
-        '--quiet', action='store_true',
-        help='set this flag to avoid printing scores'
+        "--prompt_or_path",
+        default=None,
+        type=str,
+        help="prompt corresponding to the image from image path." " Default: None",
     )
     parser.add_argument(
-        '--no_check_certificate', action='store_true',
-        help='set this flag to avoid checking for certificate for downloads (checks)'
+        "--backend",
+        default="ms",
+        type=str,
+        help="backend to do CLIP model inference for CLIP score compute. Option: ms, pt." " Default: ms",
+    )
+    parser.add_argument("--load_checkpoint", default=None, type=str, help="load model checkpoint." " Default: None")
+    parser.add_argument(
+        "--tokenizer_path",
+        default="bpe_simple_vocab_16e6.txt.gz",
+        type=str,
+        help="load model checkpoint." " Default: bpe_simple_vocab_16e6.txt.gz",
+    )
+    parser.add_argument(
+        "--save_result",
+        default=True,
+        type=str,
+        help="save results or not, if set to True then save to result_path." " Default: True",
+    )
+    parser.add_argument(
+        "--result_path",
+        default="results.jsonl",
+        type=str,
+        help="the path for saving results if save_result is set to True." " Default: results.jsonl",
+    )
+    parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
+    parser.add_argument(
+        "--no_check_certificate",
+        action="store_true",
+        help="set this flag to avoid checking for certificate for downloads (checks)",
     )
     args = parser.parse_args()
 
@@ -67,9 +74,13 @@ if __name__ == '__main__':
     if os.path.isdir(args.image_path_or_dir) and os.path.exists(args.image_path_or_dir):
         image_path_or_dir = [
             os.path.join(root, file)
-            for root, _, file_list in os.walk(os.path.join(args.image_path_or_dir)) for file in file_list
-            if file.endswith('.jpg') or file.endswith('.png') or file.endswith('.jpeg')
-            or file.endswith('.JPEG') or file.endswith('bmp')
+            for root, _, file_list in os.walk(os.path.join(args.image_path_or_dir))
+            for file in file_list
+            if file.endswith(".jpg")
+            or file.endswith(".png")
+            or file.endswith(".jpeg")
+            or file.endswith(".JPEG")
+            or file.endswith("bmp")
         ]
         image_path_or_dir.sort()
         images = [Image.open(p) for p in image_path_or_dir]
@@ -90,17 +101,19 @@ if __name__ == '__main__':
     assert len(images) % len(texts) == 0
     imgs_per_prompt = len(images) // len(texts)
     if imgs_per_prompt == 1:
-        print(f'{len(images)} image-text pairs are loaded')
+        print(f"{len(images)} image-text pairs are loaded")
     else:
-        print(f'{len(images)} images and {len(texts)} texts are loaded; Evaluate {imgs_per_prompt} images per prompt')
+        print(f"{len(images)} images and {len(texts)} texts are loaded; Evaluate {imgs_per_prompt} images per prompt")
 
-    print(f'Backend: {args.backend}')
-    if args.backend == 'pt':
+    print(f"Backend: {args.backend}")
+    if args.backend == "pt":
         from clip_score import compute_torchmetric_clip
+
         # equivalent to no-check-certificate flag in wget
         if args.no_check_certificate:
             import os
-            os.environ['CURL_CA_BUNDLE'] = ''
+
+            os.environ["CURL_CA_BUNDLE"] = ""
 
         if imgs_per_prompt == 1:
             score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
@@ -112,13 +125,15 @@ if __name__ == '__main__':
                 scores.append(score)
             score = sum(scores) / len(scores)
 
-    elif args.backend == 'ms':
+    elif args.backend == "ms":
         image_processor = CLIPImageProcessor()
-        text_processor = CLIPTokenizer(args.tokenizer_path, pad_token='!')
+        text_processor = CLIPTokenizer(args.tokenizer_path, pad_token="!")
 
         def process_text(prompt):
-            return mindspore.Tensor(text_processor(prompt, padding='max_length', max_length=77)
-                                    ['input_ids']).reshape(1, -1)
+            return mindspore.Tensor(text_processor(prompt, padding="max_length", max_length=77)["input_ids"]).reshape(
+                1, -1
+            )
+
         images = [image_processor(image) for image in images]
         texts = [process_text(text) for text in texts]
 
@@ -138,24 +153,24 @@ if __name__ == '__main__':
                 res = float(ops.matmul(image_feature, text_feature.T)[0][0] * 100)
                 results.append(res)
                 if not args.quiet:
-                    print(args.image_path_or_dir[image_index], args.prompt_or_path[i], '->', round(res, 4))
+                    print(args.image_path_or_dir[image_index], args.prompt_or_path[i], "->", round(res, 4))
             if not args.quiet:
-                print('-' * 20)
+                print("-" * 20)
         score = sum(results) / len(results)
 
         # save results
         if args.save_result:
-            with open(args.result_path, 'w') as f:
+            with open(args.result_path, "w") as f:
                 for i, text in enumerate(texts):
                     for j in range(imgs_per_prompt):
                         index = imgs_per_prompt * i + j
                         line = {
-                            'prompt': args.prompt_or_path[i],
-                            'image_path': os.path.abspath(args.image_path_or_dir[index]),
-                            'clip_score': results[index]
+                            "prompt": args.prompt_or_path[i],
+                            "image_path": os.path.abspath(args.image_path_or_dir[index]),
+                            "clip_score": results[index],
                         }
-                        f.write(json.dumps(line) + '\n')
+                        f.write(json.dumps(line) + "\n")
     else:
-        raise ValueError(f'Unknown backend: {args.backend}. Valid backend: [ms, pt]')
+        raise ValueError(f"Unknown backend: {args.backend}. Valid backend: [ms, pt]")
 
-    print('Mean score =', score)
+    print("Mean score =", score)

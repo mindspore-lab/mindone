@@ -29,7 +29,7 @@ For more usage, please run `python eval/eval_fid.py -h`.
 
 ### CLIP Score
 
-To compute the CLIP score between images and texts, please run 
+To compute the CLIP score between images and texts, please run
 
 - Mindspore backend
 ```
@@ -39,11 +39,11 @@ python eval/eval_clip_score.py --load_checkpoint <path-to-model> --image_path_or
 ```
 python eval/eval_clip_score.py --backend pt --model_name <HF-model-name> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
 ```
-By default, we use MindSpore backend for CLIP score computing (to run CLIP model inference and extract image & text features). You may swich to use `torchmetrics` by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable. 
+By default, we use MindSpore backend for CLIP score computing (to run CLIP model inference and extract image & text features). You may swich to use `torchmetrics` by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable.
 
 For more usage, please run `python eval/eval_clip_score.py -h`.
 
-You need to download the checkpoint file for a CLIP model of your choice. Download links for some models are provided below. 
+You need to download the checkpoint file for a CLIP model of your choice. Download links for some models are provided below.
 
 - [clip_vit_b_16](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_b_16.ckpt) (Default)
 - [clip_vit_b_32](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/clip_vit_b_32.ckpt)

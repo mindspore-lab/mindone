@@ -3,11 +3,12 @@ CLIP tokenizer
 """
 import gzip
 import html
-from functools import lru_cache
-from typing import Optional, List, Union
 from collections import defaultdict
-import numpy as np
+from functools import lru_cache
+from typing import List, Optional, Union
+
 import ftfy
+import numpy as np
 import regex as re
 
 from mindspore import Tensor
@@ -26,14 +27,15 @@ def get_pairs(input_wd):
 @lru_cache()
 def bytes_to_unicode():
     r"""Bytes_to_unicode"""
-    input_bt = list(range(ord("!"), ord("~")+1)) + \
-        list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
+    input_bt = (
+        list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
+    )
     output_cd = input_bt[:]
     num = 0
     for item in range(2**8):
         if item not in input_bt:
             input_bt.append(item)
-            output_cd.append(2**8+num)
+            output_cd.append(2**8 + num)
             num += 1
     output_cd = [chr(item) for item in output_cd]
     return dict(zip(input_bt, output_cd))
@@ -41,7 +43,7 @@ def bytes_to_unicode():
 
 def whitespace_clean(input_text):
     r"""Whitespace clean"""
-    input_text = re.sub(r'\s+', ' ', input_text)
+    input_text = re.sub(r"\s+", " ", input_text)
     input_text = input_text.strip()
     return input_text
 
@@ -55,6 +57,7 @@ def basic_clean(input_text):
 
 class TempTokenizer:
     r"""Simple Tokenizer"""
+
     def __init__(self, merges, vocab, flag_dict, pat):
         self.byte_encoder = bytes_to_unicode()
         self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
@@ -69,14 +72,14 @@ class TempTokenizer:
         r"""Bpe"""
         if input_tk in self.flag_dict:
             return self.flag_dict[input_tk]
-        word = tuple(input_tk[:-1]) + (input_tk[-1] + '</w>',)
+        word = tuple(input_tk[:-1]) + (input_tk[-1] + "</w>",)
         pairs = get_pairs(word)
 
         if not pairs:
-            return input_tk+'</w>'
+            return input_tk + "</w>"
 
         while True:
-            bigram = min(pairs, key=lambda pair: self.bpe_ranks.get(pair, float('inf')))
+            bigram = min(pairs, key=lambda pair: self.bpe_ranks.get(pair, float("inf")))
             if bigram not in self.bpe_ranks:
                 break
             first, second = bigram
@@ -91,8 +94,8 @@ class TempTokenizer:
                     new_word.extend(word[i:])
                     break
 
-                if word[i] == first and i < len(word)-1 and word[i+1] == second:
-                    new_word.append(first+second)
+                if word[i] == first and i < len(word) - 1 and word[i + 1] == second:
+                    new_word.append(first + second)
                     i += 2
                 else:
                     new_word.append(word[i])
@@ -102,15 +105,18 @@ class TempTokenizer:
             if len(word) == 1:
                 break
             pairs = get_pairs(word)
-        word = ' '.join(word)
+        word = " ".join(word)
         self.flag_dict[input_tk] = word
         return word
 
     def decode(self, input_ids):
         r"""Decode"""
-        output_text = ''.join([self.decoder[input_id] for input_id in input_ids])
-        output_text = bytearray([self.byte_decoder[c] for
-                                 c in output_text]).decode('utf-8', errors="replace").replace('</w>', ' ')
+        output_text = "".join([self.decoder[input_id] for input_id in input_ids])
+        output_text = (
+            bytearray([self.byte_decoder[c] for c in output_text])
+            .decode("utf-8", errors="replace")
+            .replace("</w>", " ")
+        )
         return output_text
 
     def encode(self, content):
@@ -118,8 +124,8 @@ class TempTokenizer:
         output_ids = []
         content = whitespace_clean(basic_clean(content)).lower()
         for token in re.findall(self.pat, content):
-            token = ''.join(self.byte_encoder[b] for b in token.encode('utf-8'))
-            output_ids.extend(self.encoder[bpe_token] for bpe_token in self.tokenize_alg(token).split(' '))
+            token = "".join(self.byte_encoder[b] for b in token.encode("utf-8"))
+            output_ids.extend(self.encoder[bpe_token] for bpe_token in self.tokenize_alg(token).split(" "))
         print("res is:", output_ids)
         return output_ids
 
@@ -136,15 +142,18 @@ class CLIPTokenizer:
         unk_token (str): Unk_token.
     """
     MODEL_INPUT_NAME = ["input_ids", "attention_mask"]
-    VOCAB_FILES = {'vocab_file': ['vocab.txt', 'bpe_simple_vocab_16e6.txt.gz']}
-    FILE_LIST = ['tokenizer_config.json']
-    '''clip tokenizer'''
-    def __init__(self,
-                 vocab_file: str,
-                 eos_token: str = "<|endoftext|>",
-                 bos_token: str = "<|startoftext|>",
-                 pad_token: str = "<|endoftext|>",
-                 unk_token: str = "<|endoftext|>"):
+    VOCAB_FILES = {"vocab_file": ["vocab.txt", "bpe_simple_vocab_16e6.txt.gz"]}
+    FILE_LIST = ["tokenizer_config.json"]
+    """clip tokenizer"""
+
+    def __init__(
+        self,
+        vocab_file: str,
+        eos_token: str = "<|endoftext|>",
+        bos_token: str = "<|startoftext|>",
+        pad_token: str = "<|endoftext|>",
+        unk_token: str = "<|endoftext|>",
+    ):
         # SpecialTokensMixin
         self._eos_token = eos_token
         self._bos_token = bos_token
@@ -155,14 +164,17 @@ class CLIPTokenizer:
         self.path = vocab_file
         merges = self._read_merge_files(vocab_file)
         vocab = list(bytes_to_unicode().values())
-        vocab = vocab + [v + '</w>' for v in vocab]
+        vocab = vocab + [v + "</w>" for v in vocab]
         for merge in merges:
-            vocab.append(''.join(merge))
+            vocab.append("".join(merge))
         vocab.extend([bos_token, eos_token])
 
         flag_dict = {bos_token: bos_token, eos_token: eos_token}
-        self.pat = re.compile(r"""<\|startoftext\|>|<\|endoftext\|>|'s|'t|'re|
-        've|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""", re.IGNORECASE)
+        self.pat = re.compile(
+            r"""<\|startoftext\|>|<\|endoftext\|>|'s|'t|'re|
+        've|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+""",
+            re.IGNORECASE,
+        )
         self.tool = TempTokenizer(merges, vocab, flag_dict, self.pat)
 
         self.model_inputs = self.MODEL_INPUT_NAME
@@ -205,15 +217,17 @@ class CLIPTokenizer:
         return self._pad_token_type_id
 
     # BaseTokenizer
-    def __call__(self,
-                 text: Optional[Union[str, List[str]]],
-                 text_pair: Optional[Union[str, List[str]]] = None,
-                 add_special_tokens: bool = True,
-                 max_length: Optional[int] = None,
-                 padding: str = False,
-                 truncation: bool = False,
-                 return_tensors: Optional[bool] = None,
-                 **kwargs):
+    def __call__(
+        self,
+        text: Optional[Union[str, List[str]]],
+        text_pair: Optional[Union[str, List[str]]] = None,
+        add_special_tokens: bool = True,
+        max_length: Optional[int] = None,
+        padding: str = False,
+        truncation: bool = False,
+        return_tensors: Optional[bool] = None,
+        **kwargs,
+    ):
         r"""
         Tokenize the input string and convert them into the ids.
 
@@ -238,13 +252,17 @@ class CLIPTokenizer:
         return_batch = True
         if isinstance(text, str):
             return_batch = False
-        output = self.batch_encode_plus(text, text_pair=text_pair, max_length=max_length,
-                                        add_special_tokens=add_special_tokens,
-                                        padding=padding,
-                                        truncation=truncation,
-                                        return_tensors=return_tensors,
-                                        return_batch=return_batch,
-                                        **kwargs)
+        output = self.batch_encode_plus(
+            text,
+            text_pair=text_pair,
+            max_length=max_length,
+            add_special_tokens=add_special_tokens,
+            padding=padding,
+            truncation=truncation,
+            return_tensors=return_tensors,
+            return_batch=return_batch,
+            **kwargs,
+        )
         return output
 
     def truncate_sequences(self, ids, id_pairs, nums_tokens_to_remove):
@@ -275,18 +293,20 @@ class CLIPTokenizer:
             output = output[0]
         return output
 
-    def batch_encode_plus(self,
-                          text: Optional[Union[str, List[str]]],
-                          text_pair: Optional[Union[str, List[str]]] = None,
-                          max_length: Optional[int] = None,
-                          padding: Optional[str] = None,
-                          add_special_tokens: bool = True,
-                          truncation: bool = False,
-                          return_token_type_ids: Optional[bool] = None,
-                          return_attention_mask: Optional[bool] = None,
-                          return_tensors: Optional[bool] = None,
-                          return_batch: bool = True,
-                          **kwargs):
+    def batch_encode_plus(
+        self,
+        text: Optional[Union[str, List[str]]],
+        text_pair: Optional[Union[str, List[str]]] = None,
+        max_length: Optional[int] = None,
+        padding: Optional[str] = None,
+        add_special_tokens: bool = True,
+        truncation: bool = False,
+        return_token_type_ids: Optional[bool] = None,
+        return_attention_mask: Optional[bool] = None,
+        return_tensors: Optional[bool] = None,
+        return_batch: bool = True,
+        **kwargs,
+    ):
         r"""
         The core function of the __call__ method. The method aims to tokenizer the input strings and then convert them
         into ids.
@@ -326,86 +346,105 @@ class CLIPTokenizer:
         # if input text is only one list, we should prepare it into a tensor with batch size 1.
         text = self._prepare_input_to_list(text)
         text_pair = self._prepare_input_to_list(text_pair)
-        return self._batch_encode_plus(text,
-                                       text_pair=text_pair,
-                                       max_length=max_length,
-                                       padding_strategy=padding_strategy,
-                                       truncation=truncation,
-                                       add_special_tokens=add_special_tokens,
-                                       return_tensors=return_tensors,
-                                       return_token_type_ids=return_token_type_ids,
-                                       return_attention_mask=return_attention_mask,
-                                       return_batch=return_batch,
-                                       **kwargs)
+        return self._batch_encode_plus(
+            text,
+            text_pair=text_pair,
+            max_length=max_length,
+            padding_strategy=padding_strategy,
+            truncation=truncation,
+            add_special_tokens=add_special_tokens,
+            return_tensors=return_tensors,
+            return_token_type_ids=return_token_type_ids,
+            return_attention_mask=return_attention_mask,
+            return_batch=return_batch,
+            **kwargs,
+        )
 
-    def _batch_encode_plus(self, text,
-                           text_pair=None,
-                           max_length=None,
-                           padding_strategy="do_not_pad",
-                           add_special_tokens=True,
-                           truncation=False,
-                           return_tensors=None,
-                           return_token_type_ids=None,
-                           return_attention_mask=None,
-                           return_batch=True,
-                           **kwargs):
+    def _batch_encode_plus(
+        self,
+        text,
+        text_pair=None,
+        max_length=None,
+        padding_strategy="do_not_pad",
+        add_special_tokens=True,
+        truncation=False,
+        return_tensors=None,
+        return_token_type_ids=None,
+        return_attention_mask=None,
+        return_batch=True,
+        **kwargs,
+    ):
         """Convert the text into the converted id. text should be batched. For example, [["hello world"]]"""
         if not isinstance(text, list) and not isinstance(text[0], list):
-            raise ValueError("For _batch_encode_plus, the input `text` should be batched, "
-                             "for example: [['hello world']].")
+            raise ValueError(
+                "For _batch_encode_plus, the input `text` should be batched, " "for example: [['hello world']]."
+            )
 
         text_ids = [self._get_token_ids(item) for item in text]
         text_pair_ids = [self._get_token_ids(item) for item in text_pair] if text_pair else None
-        processed_output = self._batch_postprocess_ids(ids=text_ids,
-                                                       pair_ids=text_pair_ids,
-                                                       max_length=max_length,
-                                                       truncation=truncation,
-                                                       padding_strategy=padding_strategy,
-                                                       add_special_tokens=add_special_tokens,
-                                                       return_tensors=return_tensors,
-                                                       return_token_type_ids=return_token_type_ids,
-                                                       return_attention_mask=return_attention_mask,
-                                                       return_batch=return_batch)
+        processed_output = self._batch_postprocess_ids(
+            ids=text_ids,
+            pair_ids=text_pair_ids,
+            max_length=max_length,
+            truncation=truncation,
+            padding_strategy=padding_strategy,
+            add_special_tokens=add_special_tokens,
+            return_tensors=return_tensors,
+            return_token_type_ids=return_token_type_ids,
+            return_attention_mask=return_attention_mask,
+            return_batch=return_batch,
+        )
         return processed_output
 
-    def _batch_postprocess_ids(self, ids,
-                               pair_ids=None,
-                               add_special_tokens=True,
-                               max_length=None,
-                               truncation=False,
-                               padding_strategy="do_not_pad",
-                               return_tensors=None,
-                               return_token_type_ids=None,
-                               return_attention_mask=None,
-                               return_batch=True):
+    def _batch_postprocess_ids(
+        self,
+        ids,
+        pair_ids=None,
+        add_special_tokens=True,
+        max_length=None,
+        truncation=False,
+        padding_strategy="do_not_pad",
+        return_tensors=None,
+        return_token_type_ids=None,
+        return_attention_mask=None,
+        return_batch=True,
+    ):
         """Convert the input_ids to the format of model inputs"""
-        if return_tensors and return_tensors != 'ms':
+        if return_tensors and return_tensors != "ms":
             raise ValueError("You should set return_tensors to be `ms`.")
         if not return_batch and len(ids) != 1:
-            raise ValueError(f"If `return_batch` is False, the length of input ids should be 1. But found {len(ids)}. "
-                             f"Input ids is: {ids}. To fix this, you can set the return_batch=True")
+            raise ValueError(
+                f"If `return_batch` is False, the length of input ids should be 1. But found {len(ids)}. "
+                f"Input ids is: {ids}. To fix this, you can set the return_batch=True"
+            )
         if pair_ids:
             paired_ids = zip(ids, pair_ids)
         else:
             paired_ids = zip(ids, [None] * len(ids))
         output = defaultdict(list)
         for per_ids, per_pair_ids in paired_ids:
-            per_output = self.postprocess_ids(ids=per_ids,
-                                              pair_ids=per_pair_ids,
-                                              padding_strategy="do_not_pad",
-                                              return_tensors=None,
-                                              add_special_tokens=add_special_tokens,
-                                              max_length=max_length,
-                                              truncation=truncation,
-                                              return_token_type_ids=return_token_type_ids,
-                                              return_attention_mask=return_attention_mask)
+            per_output = self.postprocess_ids(
+                ids=per_ids,
+                pair_ids=per_pair_ids,
+                padding_strategy="do_not_pad",
+                return_tensors=None,
+                add_special_tokens=add_special_tokens,
+                max_length=max_length,
+                truncation=truncation,
+                return_token_type_ids=return_token_type_ids,
+                return_attention_mask=return_attention_mask,
+            )
             if not return_batch:
                 output = per_output
             else:
                 for k, v in per_output.items():
                     output[k].append(v)
-        output_map = self._pad(output, max_length=max_length, padding_strategy=padding_strategy,
-                               return_attention_mask=return_attention_mask)
+        output_map = self._pad(
+            output,
+            max_length=max_length,
+            padding_strategy=padding_strategy,
+            return_attention_mask=return_attention_mask,
+        )
         if return_tensors:
             for k in output_map.keys():
                 v = np.array(output_map[k])
@@ -417,23 +456,25 @@ class CLIPTokenizer:
     def _pad(self, id_dict, max_length, padding_strategy="do_not_pad", return_attention_mask=None):
         """Do padding according to the max_length"""
         is_batch = False
-        if isinstance(id_dict['input_ids'], list) and isinstance(id_dict['input_ids'][0], list):
+        if isinstance(id_dict["input_ids"], list) and isinstance(id_dict["input_ids"][0], list):
             is_batch = True
-            length_each = [len(line) for line in id_dict['input_ids']]
+            length_each = [len(line) for line in id_dict["input_ids"]]
             for item in length_each:
                 if length_each[0] != item and (not max_length or padding_strategy != "max_length"):
-                    raise ValueError(f"You should set `max_length` to {max(length_each)} "
-                                     f"and padding_strategy to `max_length`, as the length in the batch "
-                                     f"is different, which should be padded.")
+                    raise ValueError(
+                        f"You should set `max_length` to {max(length_each)} "
+                        f"and padding_strategy to `max_length`, as the length in the batch "
+                        f"is different, which should be padded."
+                    )
 
         if return_attention_mask is not False:
             return_attention_mask = True
 
-        if return_attention_mask and 'attention_mask' in self.model_inputs:
+        if return_attention_mask and "attention_mask" in self.model_inputs:
             if is_batch:
-                id_dict['attention_mask'] = [[1] * len(line) for line in id_dict['input_ids']]
+                id_dict["attention_mask"] = [[1] * len(line) for line in id_dict["input_ids"]]
             else:
-                id_dict['attention_mask'] = [1] * len(id_dict['input_ids'])
+                id_dict["attention_mask"] = [1] * len(id_dict["input_ids"])
 
         if not max_length or padding_strategy != "max_length":
             return id_dict
@@ -443,18 +484,20 @@ class CLIPTokenizer:
                 source_ids = [source_ids]
             for i in range(len(source_ids)):
                 if max_length < len(source_ids[i]):
-                    raise ValueError(f"The length of input_ids {len(source_ids[i])} "
-                                     f"exceeds the max_length {max_length}, "
-                                     f"please increase the `max_length` of the tokenizer.")
+                    raise ValueError(
+                        f"The length of input_ids {len(source_ids[i])} "
+                        f"exceeds the max_length {max_length}, "
+                        f"please increase the `max_length` of the tokenizer."
+                    )
                 source_ids[i] += [pad_value] * (max_length - len(source_ids[i]))
             if not is_batch:
                 source_ids = source_ids[0]
 
-        _pad_batch(id_dict['input_ids'], pad_value=self.pad_token_id)
+        _pad_batch(id_dict["input_ids"], pad_value=self.pad_token_id)
         if "attention_mask" in id_dict:
-            _pad_batch(id_dict['attention_mask'], pad_value=0)
+            _pad_batch(id_dict["attention_mask"], pad_value=0)
         if "token_type_ids" in id_dict:
-            _pad_batch(id_dict['token_type_ids'], pad_value=self.pad_token_type_id)
+            _pad_batch(id_dict["token_type_ids"], pad_value=self.pad_token_type_id)
 
         return id_dict
 
@@ -471,16 +514,18 @@ class CLIPTokenizer:
         # cls and sep is 1
         return [0] * (len(token_ids_0) + 1 + 1)
 
-    def postprocess_ids(self,
-                        ids,
-                        pair_ids=None,
-                        add_special_tokens=True,
-                        max_length=None,
-                        truncation=False,
-                        padding_strategy="do_not_pad",
-                        return_tensors=None,
-                        return_token_type_ids=None,
-                        return_attention_mask=None):
+    def postprocess_ids(
+        self,
+        ids,
+        pair_ids=None,
+        add_special_tokens=True,
+        max_length=None,
+        truncation=False,
+        padding_strategy="do_not_pad",
+        return_tensors=None,
+        return_token_type_ids=None,
+        return_attention_mask=None,
+    ):
         """
         Insert the special ids into the input ids, generate the attention mask and do padding.
         """
@@ -509,14 +554,18 @@ class CLIPTokenizer:
             input_ids_output = [ids + pair_ids] if pair_ids else ids
             type_ids = process_token_id(ids, pair_ids)
 
-        output_map['input_ids'] = input_ids_output
-        if return_token_type_ids or 'token_type_ids' in self.model_inputs:
-            output_map['token_type_ids'] = type_ids
+        output_map["input_ids"] = input_ids_output
+        if return_token_type_ids or "token_type_ids" in self.model_inputs:
+            output_map["token_type_ids"] = type_ids
 
-        output_map = self._pad(output_map, max_length=max_length, padding_strategy=padding_strategy,
-                               return_attention_mask=return_attention_mask)
+        output_map = self._pad(
+            output_map,
+            max_length=max_length,
+            padding_strategy=padding_strategy,
+            return_attention_mask=return_attention_mask,
+        )
 
-        if return_tensors and return_tensors != 'ms':
+        if return_tensors and return_tensors != "ms":
             raise ValueError("You should set return_tensors to be `ms`.")
         if return_tensors:
             for k, v in output_map.items():
@@ -535,12 +584,12 @@ class CLIPTokenizer:
         return inputs
 
     @staticmethod
-    def _read_merge_files(text_path, start_pos=1, end_pos=49152-256-2+1):
+    def _read_merge_files(text_path, start_pos=1, end_pos=49152 - 256 - 2 + 1):
         r"""Read the merge files"""
         with gzip.open(text_path) as fp:
             data = fp.read()
-        merges = data.decode("utf-8").split('\n')
-        merges = merges[start_pos: end_pos]
+        merges = data.decode("utf-8").split("\n")
+        merges = merges[start_pos:end_pos]
         new_list = []
         for item in merges:
             new_list.append(tuple(item.split()))
@@ -551,8 +600,8 @@ class CLIPTokenizer:
         output_ids = []
         content = whitespace_clean(basic_clean(text)).lower()
         for token in re.findall(self.pat, content):
-            token = ''.join(self.tool.byte_encoder[b] for b in token.encode('utf-8'))
-            output_ids.extend(self.tool.tokenize_alg(token).split(' '))
+            token = "".join(self.tool.byte_encoder[b] for b in token.encode("utf-8"))
+            output_ids.extend(self.tool.tokenize_alg(token).split(" "))
         return output_ids
 
     def build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):

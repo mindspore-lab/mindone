@@ -1,16 +1,14 @@
 """
 CLIPProcessor
 """
-from typing import Optional, Union, List
+from typing import List, Optional, Union
+
 import numpy as np
 import PIL
 
 import mindspore as ms
 
-from .utils import (
-    BCHW2BHWC, BatchResize, BatchToTensor,
-    BatchNormalize, BatchCenterCrop, BatchPILize
-)
+from .utils import BCHW2BHWC, BatchCenterCrop, BatchNormalize, BatchPILize, BatchResize, BatchToTensor
 
 
 class CLIPImageProcessor:
@@ -20,8 +18,9 @@ class CLIPImageProcessor:
     Args:
         image_resolution (int): The target size.
     """
+
     def __init__(self, image_resolution: Optional[int] = 224):
-        self.config = {'image_resolution': image_resolution}
+        self.config = {"image_resolution": image_resolution}
         self.bchw2bhwc = BCHW2BHWC()
         self.batch_pilizer = BatchPILize()
         self.batch_resizer = BatchResize(image_resolution)
@@ -33,8 +32,7 @@ class CLIPImageProcessor:
         """forward process"""
         return self.preprocess(image_data, **kwargs)
 
-    def preprocess(self, images: Union[ms.Tensor, PIL.Image.Image,
-                                       np.ndarray, List[PIL.Image.Image]], **kwargs):
+    def preprocess(self, images: Union[ms.Tensor, PIL.Image.Image, np.ndarray, List[PIL.Image.Image]], **kwargs):
         r"""
         Preprocess Required By Base Processor.
 
@@ -59,8 +57,7 @@ class CLIPImageProcessor:
             return ms.Tensor(images)
         return ms.Tensor(np.expand_dims(images, axis=0))
 
-    def _bhwc_check(self, image_batch: Union[ms.Tensor, PIL.Image.Image,
-                                             np.ndarray, List[PIL.Image.Image]]):
+    def _bhwc_check(self, image_batch: Union[ms.Tensor, PIL.Image.Image, np.ndarray, List[PIL.Image.Image]]):
         r"""Bhwc_check"""
         if isinstance(image_batch, np.ndarray):
             if image_batch.shape[-1] == 3:

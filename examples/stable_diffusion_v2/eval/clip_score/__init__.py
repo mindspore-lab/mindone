@@ -1,4 +1,4 @@
-from .clip import CLIPModel, CLIPImageProcessor, CLIPTokenizer
-from .utils import parse, compute_torchmetric_clip
+from .clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer
+from .utils import compute_torchmetric_clip, parse
 
-__all__ = ['CLIPModel', 'CLIPImageProcessor', 'CLIPTokenizer']
+__all__ = ["CLIPModel", "CLIPImageProcessor", "CLIPTokenizer"]
