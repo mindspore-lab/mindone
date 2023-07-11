@@ -1,12 +1,10 @@
 """Utility"""
-from typing import Callable, Dict, Optional
-import numpy as np
-from PIL import Image
 import bz2
 import gzip
 import hashlib
 import logging
 import os
+import pathlib
 import ssl
 import tarfile
 import urllib
@@ -14,9 +12,12 @@ import urllib.error
 import urllib.request
 import zipfile
 from copy import deepcopy
-from typing import Optional
+from typing import Callable, Dict, Optional
+
+import numpy as np
+from PIL import Image
 from tqdm import tqdm
-import pathlib
+
 from mindspore import load_checkpoint, load_param_into_net
 
 _logger = logging.getLogger(__name__)
@@ -24,8 +25,8 @@ _logger = logging.getLogger(__name__)
 # Use Get/Set to R/W this variable.
 _DEFAULT_DOWNLOAD_ROOT = os.path.join(os.path.expanduser("~"), ".mindspore")
 
-IMAGE_EXTENSIONS = {'bmp', 'jpg', 'jpeg', 'pgm', 'png', 'ppm',
-                    'tif', 'tiff', 'webp', 'JPEG'}
+IMAGE_EXTENSIONS = {"bmp", "jpg", "jpeg", "pgm", "png", "ppm", "tif", "tiff", "webp", "JPEG"}
+
 
 def get_default_download_root():
     return deepcopy(_DEFAULT_DOWNLOAD_ROOT)
@@ -38,6 +39,7 @@ def set_default_download_root(path):
 
 def get_checkpoint_download_root():
     return os.path.join(get_default_download_root(), "models")
+
 
 FILE_TYPE_ALIASES = {
     ".tbz": (".tar", ".bz2"),
@@ -80,6 +82,7 @@ def detect_file_type(filename: str):  # pylint: disable=inconsistent-return-stat
             if suffix2 in ARCHIVE_TYPE_SUFFIX:
                 return suffix2 + suffix, suffix2, suffix
         return suffix, None, suffix
+
 
 class Download:
     """Base utility class for downloading."""
@@ -281,15 +284,14 @@ def load_model(
 
 def get_image_paths(img_dir):
     path = pathlib.Path(img_dir)
-    files = sorted([file for ext in IMAGE_EXTENSIONS
-                    for file in path.glob('*.{}'.format(ext))])
+    files = sorted([file for ext in IMAGE_EXTENSIONS for file in path.glob("*.{}".format(ext))])
 
     return files
+
 
 def compute_torchmetric_fid(gen_imgs, gt_imgs):
     import torch
     import torchmetrics as tm
-    from torchvision.transforms import functional as F
 
     real_images = [np.array(Image.open(path).convert("RGB")) for path in gt_imgs]
     fake_images = [np.array(Image.open(path).convert("RGB")) for path in gen_imgs]
@@ -300,9 +302,9 @@ def compute_torchmetric_fid(gen_imgs, gt_imgs):
         return image
 
     real_images = torch.cat([preprocess_image(image) for image in real_images])
-    #print(real_images.shape)
+    # print(real_images.shape)
     fake_images = torch.cat([preprocess_image(image) for image in fake_images])
-    #print(fake_images.shape)
+    # print(fake_images.shape)
 
     # torch
     fid = tm.image.fid.FrechetInceptionDistance(normalize=True)
@@ -311,5 +313,3 @@ def compute_torchmetric_fid(gen_imgs, gt_imgs):
     fid.update(fake_images, real=False)
 
     return float(fid.compute())
-
-

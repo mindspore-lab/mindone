@@ -13,16 +13,16 @@
 # limitations under the License.
 # ============================================================================
 import os
+
 import numpy as np
+
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import ops
-from mindspore import dtype as mstype
-from mindspore import Parameter, Tensor
+from mindspore import Parameter, Tensor, ops
 from mindspore.common.initializer import TruncatedNormal, initializer
 
+SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
-SD_VERSION = os.getenv('SD_VERSION', default='2.0')
 
 class MultiheadAttention(nn.Cell):
     def __init__(self, d_model, n_head, dtype=ms.float32):
@@ -41,7 +41,7 @@ class MultiheadAttention(nn.Cell):
         self.expand_dims = ops.ExpandDims()
         self.softmax = nn.Softmax(-1)
         self.transpose = ops.Transpose()
-        self.scaling = self.head_dim ** -0.5
+        self.scaling = self.head_dim**-0.5
 
     def construct(self, query, key, value, attn_mask):
         tgt_len, bsz, embed_dim = query.shape
@@ -56,9 +56,9 @@ class MultiheadAttention(nn.Cell):
         q = q.view(tgt_len, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         k = k.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         v = v.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
-        attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))    # bs x (HW + 1) x (HW + 1)
+        attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
         attn_output_weights += self.expand_dims(attn_mask, 0)
-        attn_output_weights = self.softmax(attn_output_weights)   # bs x (HW + 1) x (HW + 1)
+        attn_output_weights = self.softmax(attn_output_weights)  # bs x (HW + 1) x (HW + 1)
         attn_output = ops.matmul(attn_output_weights, v)  # bs x (HW + 1) x h
         attn_output = self.transpose(attn_output, (1, 0, 2))
         attn_output = attn_output.view(tgt_len, bsz, embed_dim)
@@ -66,10 +66,11 @@ class MultiheadAttention(nn.Cell):
         return attn_output
 
 
-# In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to: 
+# In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to:
 # https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/blob/main/config.json
 # https://huggingface.co/openai/clip-vit-large-patch14/blob/main/config.json
-if SD_VERSION.startswith('1.'):
+if SD_VERSION.startswith("1."):
+
     class QuickGELU(nn.Cell):
         def __init__(self):
             super(QuickGELU, self).__init__()
@@ -78,7 +79,9 @@ if SD_VERSION.startswith('1.'):
 
         def construct(self, x):
             return x * self.sigmoid(self.ratio * x)
+
 else:
+
     class QuickGELU(nn.GELU):
         def __init__(self):
             super(QuickGELU, self).__init__()
@@ -99,23 +102,19 @@ class ResidualAttentionBlock(nn.Cell):
         super(ResidualAttentionBlock, self).__init__()
         self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
 
-        if SD_VERSION.startswith('1.'):
+        if SD_VERSION.startswith("1."):
             self.ln_1 = nn.LayerNorm([d_model]).to_float(dtype)
         else:
-            self.ln_1 = nn.LayerNorm([d_model], epsilon=1e-5).to_float(dtype) # TODO: check correctness eps
+            self.ln_1 = nn.LayerNorm([d_model], epsilon=1e-5).to_float(dtype)  # TODO: check correctness eps
 
         self.c_fc = nn.Dense(d_model, d_model * 4).to_float(dtype)
         self.gelu = QuickGELU()
         self.c_proj = nn.Dense(d_model * 4, d_model).to_float(dtype)
-        self.mlp = nn.SequentialCell([
-            self.c_fc,
-            self.gelu,
-            self.c_proj
-        ])
-        if SD_VERSION.startswith('1.'):
+        self.mlp = nn.SequentialCell([self.c_fc, self.gelu, self.c_proj])
+        if SD_VERSION.startswith("1."):
             self.ln_2 = nn.LayerNorm([d_model]).to_float(dtype)
         else:
-            self.ln_2 = nn.LayerNorm([d_model], epsilon=1e-5).to_float(dtype) # TODO: check correctness eps
+            self.ln_2 = nn.LayerNorm([d_model], epsilon=1e-5).to_float(dtype)  # TODO: check correctness eps
 
     def construct(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -137,16 +136,9 @@ class Transformer(nn.Cell):
 
 
 class TextEncoder(nn.Cell):
-    def __init__(self,
-                 context_length,
-                 vocab_size,
-                 output_dim,
-                 width,
-                 layers,
-                 heads,
-                 dtype=ms.float32):
+    def __init__(self, context_length, vocab_size, output_dim, width, layers, heads, dtype=ms.float32):
         super(TextEncoder, self).__init__()
-        self.dtype=dtype
+        self.dtype = dtype
         self.width = width
         self.layers = layers
         self.vocab_size = vocab_size
@@ -155,9 +147,13 @@ class TextEncoder(nn.Cell):
         self.reshape = ops.Reshape()
         self.cast = ops.Cast()
 
-        self.positional_embedding = Parameter(initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype))
+        self.positional_embedding = Parameter(
+            initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
+        )
         self.ln_final = nn.LayerNorm([self.width]).to_float(self.dtype)
-        self.transformer_layer = Transformer(width, layers, heads, self.build_attntion_mask(context_length).astype(self.dtype), dtype=self.dtype)
+        self.transformer_layer = Transformer(
+            width, layers, heads, self.build_attntion_mask(context_length).astype(self.dtype), dtype=self.dtype
+        )
 
     @staticmethod
     def build_attntion_mask(context_length):

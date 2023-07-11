@@ -17,20 +17,18 @@ Utils function for the parallel training.
 This is an experimental interface that is subject to change and/or deletion.
 """
 
-from multiprocessing import Process
+
+import numpy as np
+
+import mindspore.common.dtype as mstype
 import mindspore.nn as nn
-from mindspore import ops
+from mindspore import context, ops
+from mindspore.common.tensor import Tensor
+from mindspore.communication.management import create_group, get_group_size, get_rank
+from mindspore.nn.learning_rate_schedule import CosineDecayLR, LearningRateSchedule, PolynomialDecayLR, WarmUpLR
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-import mindspore.common.dtype as mstype
-from mindspore import context
-from mindspore.common.tensor import Tensor
-from mindspore.train.callback import Callback
-from mindspore.train.summary import SummaryRecord
 from mindspore.parallel._auto_parallel_context import auto_parallel_context
-from mindspore.communication.management import get_rank, get_group_size, create_group
-from mindspore.nn.learning_rate_schedule import LearningRateSchedule, PolynomialDecayLR, WarmUpLR, CosineDecayLR
-import numpy as np
 
 _get_square_sum = C.MultitypeFuncGraph("_get_square_sum")
 
@@ -97,7 +95,7 @@ class _GlobalNorm(nn.Cell):
     def __init__(self, params, config):
         super(_GlobalNorm, self).__init__()
         self.hyper_map = C.HyperMap()
-        self.is_pipeline = (config.pipeline_stage > 1)
+        self.is_pipeline = config.pipeline_stage > 1
         if self.is_pipeline:
             group_size = config.mp
             group_list, group_name = _get_model_parallel_group(config.mp)
@@ -109,18 +107,23 @@ class _GlobalNorm(nn.Cell):
         else:
             group_size = get_group_size()
         if config.vocab_emb_dp:
-            self.allreduce_filter = tuple("projection.bias" not in x.name and "layernorm" not in x.name
-                                          and "embedding_table" not in x.name for x in params)
+            self.allreduce_filter = tuple(
+                "projection.bias" not in x.name and "layernorm" not in x.name and "embedding_table" not in x.name
+                for x in params
+            )
         else:
-            self.allreduce_filter = tuple("projection.bias" not in x.name and "layernorm" not in x.name
-                                          and "position_embedding.embedding_table" not in x.name for x in params)
+            self.allreduce_filter = tuple(
+                "projection.bias" not in x.name
+                and "layernorm" not in x.name
+                and "position_embedding.embedding_table" not in x.name
+                for x in params
+            )
         self.allreduce_group_size = ()
 
         self.init_params(params, config, group_size)
 
-
     def init_params(self, params, config, group_size):
-        """ init_params """
+        """init_params"""
 
         for x in params:
             if "uniter.encoder" in x.name:
@@ -161,7 +164,7 @@ class _GlobalNorm(nn.Cell):
 
 class _ClipByGlobalNorm(nn.Cell):
     """
-        Clip grads by global norm
+    Clip grads by global norm
     """
 
     def __init__(self, params, parallel_config, clip_norm=1.0):
@@ -183,16 +186,10 @@ class _ClipByGlobalNorm(nn.Cell):
 
 class LearningRate(LearningRateSchedule):
     """
-        Learning_rate sheduler
+    Learning_rate sheduler
     """
 
-    def __init__(self,
-                 start_learning_rate,
-                 end_learning_rate,
-                 warmup_steps,
-                 decay_steps,
-                 power=1.0,
-                 use_cosine=True):
+    def __init__(self, start_learning_rate, end_learning_rate, warmup_steps, decay_steps, power=1.0, use_cosine=True):
         super(LearningRate, self).__init__()
         self.warmup_flag = False
         if warmup_steps > 0:

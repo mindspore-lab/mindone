@@ -1,20 +1,20 @@
 import numpy as np
 from PIL import Image
-import mindspore as ms
-from mindspore import dataset as ds
-from mindspore import ops
-from mindspore.dataset import vision
-from mindspore import Tensor
-from mindspore.ops import adaptive_avg_pool2d
 from scipy import linalg
 from tqdm import tqdm
 
+import mindspore as ms
+from mindspore import Tensor
+from mindspore import dataset as ds
+from mindspore import ops
+from mindspore.dataset import vision
 
 from .inception_v3 import inception_v3_fid
 
 
 class ImagePathDataset:
     """Image files dataload."""
+
     def __init__(self, files, transforms=None):
         self.files = files
         self.transforms = transforms
@@ -24,15 +24,15 @@ class ImagePathDataset:
 
     def __getitem__(self, i):
         path = self.files[i]
-        img = Image.open(path).convert('RGB')
-        #if self.transforms is not None:
+        img = Image.open(path).convert("RGB")
+        # if self.transforms is not None:
         #    img = self.transforms(img)
-        #return (img,)
+        # return (img,)
         img = vision.ToTensor()(img)
 
         # TODO: use other numpy resize ops, used in torchmetrics
         img = ms.Tensor(img).expand_dims(0)
-        img = ops.ResizeBilinearV2()(img, (299, 299)) # it gives smaller error than vision.Resize or ops.interpolate
+        img = ops.ResizeBilinearV2()(img, (299, 299))  # it gives smaller error than vision.Resize or ops.interpolate
         img = img.squeeze()
 
         return img
@@ -57,18 +57,17 @@ def get_activations(files, model, batch_size=64, dims=2048):
        query tensor.
     """
     if batch_size > len(files):
-        print(('Warning: batch size is bigger than the data size. '
-               'Setting batch size to data size'))
+        print(("Warning: batch size is bigger than the data size. " "Setting batch size to data size"))
         batch_size = len(files)
-    #dataset = ImagePathDataset(files, transforms=vision.ToTensor())
+    # dataset = ImagePathDataset(files, transforms=vision.ToTensor())
     dataset = ImagePathDataset(files)
-    dataloader = ds.GeneratorDataset(dataset, ['image'], shuffle=False)
-    '''
+    dataloader = ds.GeneratorDataset(dataset, ["image"], shuffle=False)
+    """
     transforms = [vision.Resize(size=(299, 299), interpolation=vision.Inter.BILINEAR),
                   vision.ToTensor(),
                   ]
     dataloader = dataloader.map(operations=transforms, input_columns="image")
-    '''
+    """
 
     dataloader = dataloader.batch(batch_size, drop_remainder=False)
     pred_arr = np.empty((len(files), dims))
@@ -77,16 +76,15 @@ def get_activations(files, model, batch_size=64, dims=2048):
         for batch in dataloader:
             batch = Tensor(batch[0])
             pred = model(batch).asnumpy()
-            pred_arr[start_idx:start_idx + pred.shape[0]] = pred
+            pred_arr[start_idx : start_idx + pred.shape[0]] = pred
 
             start_idx = start_idx + pred.shape[0]
             p_bar.update(1)
     return pred_arr
 
 
-class FrechetInceptionDistance():
+class FrechetInceptionDistance:
     def __init__(self, ckpt_path=None, batch_size=64):
-
         # TODO: set context
         if ckpt_path is not None:
             self.model = inception_v3_fid(pretrained=False, ckpt_path=ckpt_path)
@@ -130,18 +128,15 @@ class FrechetInceptionDistance():
         sigma1 = np.atleast_2d(sigma1)
         sigma2 = np.atleast_2d(sigma2)
 
-        assert mu1.shape == mu2.shape, \
-            'Training and test mean vectors have different lengths'
-        assert sigma1.shape == sigma2.shape, \
-            'Training and test covariances have different dimensions'
+        assert mu1.shape == mu2.shape, "Training and test mean vectors have different lengths"
+        assert sigma1.shape == sigma2.shape, "Training and test covariances have different dimensions"
 
         diff = mu1 - mu2
 
         # Product might be almost singular
         covmean, _ = linalg.sqrtm(sigma1.dot(sigma2), disp=False)
         if not np.isfinite(covmean).all():
-            msg = ('fid calculation produces singular product; '
-                   'adding %s to diagonal of cov estimates') % eps
+            msg = ("fid calculation produces singular product; " "adding %s to diagonal of cov estimates") % eps
             print(msg)
             offset = np.eye(sigma1.shape[0]) * eps
             covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
@@ -150,13 +145,12 @@ class FrechetInceptionDistance():
         if np.iscomplexobj(covmean):
             if not np.allclose(np.diagonal(covmean).imag, 0, atol=1e-3):
                 m = np.max(np.abs(covmean.imag))
-                raise ValueError('Imaginary component {}'.format(m))
+                raise ValueError("Imaginary component {}".format(m))
             covmean = covmean.real
 
         tr_covmean = np.trace(covmean)
 
-        return (diff.dot(diff) + np.trace(sigma1)
-                + np.trace(sigma2) - 2 * tr_covmean)
+        return diff.dot(diff) + np.trace(sigma1) + np.trace(sigma2) - 2 * tr_covmean
 
     def compute(self, gen_images, gt_images):
         """
@@ -179,18 +173,20 @@ class FrechetInceptionDistance():
     def update(images, real=True):
         pass
 
-    def reset(self,):
+    def reset(
+        self,
+    ):
         pass
 
 
-if __name__ == '__main__':
-    gen_imgs = ['data/img_1.jpg',
-                'data/img_2.jpg']
-    gt_imgs = ['data/img_10.jpg',
-               'data/img_11.jpg',
-               ]
+if __name__ == "__main__":
+    gen_imgs = ["data/img_1.jpg", "data/img_2.jpg"]
+    gt_imgs = [
+        "data/img_10.jpg",
+        "data/img_11.jpg",
+    ]
 
-    #fid_scorer = FrechetInceptionDistance("./inception_v3_fid.ckpt")
+    # fid_scorer = FrechetInceptionDistance("./inception_v3_fid.ckpt")
     fid_scorer = FrechetInceptionDistance()
     score = fid_scorer.compute(gen_imgs, gt_imgs)
-    print('ms FID: ', score)
+    print("ms FID: ", score)

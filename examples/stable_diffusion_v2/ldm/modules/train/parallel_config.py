@@ -14,15 +14,12 @@
 # ============================================================================
 """Transformer Networks"""
 
-import math
-
-import numpy as np
-import mindspore.common.dtype as mstype
 from mindspore.context import ParallelMode
+
 
 class ParallelConfig:
     r"""
-        ParallelConfig for the setting the global data parallel, model parallel and fusion group.
+    ParallelConfig for the setting the global data parallel, model parallel and fusion group.
     """
     dp = 8
     mp = 1
@@ -38,14 +35,16 @@ class ParallelConfig:
     aux_loss_factor = 0.01
 
     @staticmethod
-    def set_global_parallel_config(dp=1,
-                                   mp=1,
-                                   recompute=True,
-                                   stages=1,
-                                   optimizer_shard=True,
-                                   fusion_group=4,
-                                   parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL,
-                                   vocab_emb_dp=True):
+    def set_global_parallel_config(
+        dp=1,
+        mp=1,
+        recompute=True,
+        stages=1,
+        optimizer_shard=True,
+        fusion_group=4,
+        parallel_mode=ParallelMode.SEMI_AUTO_PARALLEL,
+        vocab_emb_dp=True,
+    ):
         r"""
         The parallel configure setting
 

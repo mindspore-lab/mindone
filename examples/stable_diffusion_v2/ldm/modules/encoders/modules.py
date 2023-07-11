@@ -13,15 +13,18 @@
 # limitations under the License.
 # ============================================================================
 import os
+
+from ldm.models.clip.simple_tokenizer import get_tokenizer
+
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-from ldm.models.clip.simple_tokenizer import WordpieceTokenizer, BpeTokenizer, get_tokenizer
+
 from .text_encoder import TextEncoder
 
+SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
-SD_VERSION = os.getenv('SD_VERSION', default='2.0')
 
 class FrozenCLIPEmbedder(nn.Cell):
     def __init__(self, max_length=77, use_fp16=False):
@@ -29,15 +32,20 @@ class FrozenCLIPEmbedder(nn.Cell):
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.max_length = max_length
 
-        self.tokenizer = get_tokenizer(SD_VERSION) # TODO: reuse the instantiated tokenized used in load dataset
+        self.tokenizer = get_tokenizer(SD_VERSION)  # TODO: reuse the instantiated tokenized used in load dataset
 
-        if SD_VERSION.startswith('1.'):
-            self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=768, width=768, layers=12, heads=12, dtype=self.dtype)
+        if SD_VERSION.startswith("1."):
+            self.transformer = TextEncoder(
+                context_length=77, vocab_size=49408, output_dim=768, width=768, layers=12, heads=12, dtype=self.dtype
+            )
         else:
-            # TODO: in original implementation, layers=24. But it seems the weights in the last layer are not converted yet and leads to worse generalization result.
-            self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=23, heads=16, dtype=self.dtype)
-            #self.transformer = TextEncoder(context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=24, heads=16, dtype=self.dtype)
-
+            # TODO: in original implementation, layers=24. But it seems the weights in the last layer are not converted
+            #   yet and leads to worse generalization result.
+            self.transformer = TextEncoder(
+                context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=23, heads=16, dtype=self.dtype
+            )
+            # self.transformer = TextEncoder(
+            # context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=24, heads=16, dtype=self.dtype)
 
     def tokenize(self, texts):
         SOT_TEXT = self.tokenizer.sot_text
@@ -54,7 +62,7 @@ class FrozenCLIPEmbedder(nn.Cell):
 
         for i, tokens in enumerate(all_tokens):
             if len(tokens) > CONTEXT_LEN:
-                tokens = tokens[:CONTEXT_LEN - 1] + [eot_token]
+                tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
 
             result[i, : len(tokens)] = Tensor(tokens)
 

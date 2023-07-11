@@ -13,19 +13,11 @@
 # limitations under the License.
 # ============================================================================
 
-import mindspore as ms
 import os
 import time
 
-from packaging import version
-
-import os
-import time
-from typing import List, Tuple
-
 import mindspore as ms
-from mindspore import save_checkpoint
-from mindspore.train.callback._callback import Callback, _handle_loss
+from mindspore.train.callback._callback import Callback
 
 from .checkpoint import CheckpointManager
 
@@ -52,7 +44,7 @@ class EvalSaveCallback(Callback):
         ckpt_save_policy="lastest_k",
         ckpt_max_keep=10,
         ckpt_save_interval=1,
-        lora_rank=None
+        lora_rank=None,
     ):
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
@@ -76,12 +68,12 @@ class EvalSaveCallback(Callback):
 
         if use_lora:
             # save lora trainable params only
-            self.net_to_save = [{"name":p.name, "data": p} for p in network.trainable_params()]
+            self.net_to_save = [{"name": p.name, "data": p} for p in network.trainable_params()]
             self.lora_rank = lora_rank
         else:
             self.net_to_save = network
 
-    '''
+    """
     def on_train_begin(self, run_context):
         # TOOD: remove it after debug
         cb_params = run_context.original_args()
@@ -103,8 +95,7 @@ class EvalSaveCallback(Callback):
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if (self.ema is not None) and eval_done:
                     self.ema.swap_after_eval()
-    '''
-
+    """
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -124,30 +115,33 @@ class EvalSaveCallback(Callback):
         """
         cb_params = run_context.original_args()
         cur_epoch = cb_params.cur_epoch_num
-        epoch_num  = cb_params.epoch_num
+        epoch_num = cb_params.epoch_num
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
+        # data_sink_mode = cb_params.dataset_sink_mode
+        # if data_sink_mode:
+        #     loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
+        # else:
+        #     loss_scale_manager = cb_params.train_network.loss_scaling_manager
 
         if self.is_main_device:
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
                 if self.ema is not None:
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
-                    #print('DEBUG: Store ema weights to save checkpoint.')
+                    # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", lora_rank=self.lora_rank)
-                '''
+                append_dict = {"lora_rank": self.lora_rank} if self.lora_rank is not None else None
+                self.ckpt_manager.save(
+                    self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", append_dict=append_dict
+                )
+                """
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                     append_dict={"epoch_num": cur_epoch, "loss_scale": loss_scale_manager.get_loss_scale()},
                 )
-                '''
+                """
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:

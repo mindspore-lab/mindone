@@ -15,14 +15,14 @@
 setup packpage
 """
 import os
-import stat
 import shlex
 import shutil
+import stat
 import subprocess
-from setuptools import find_packages
-from setuptools import setup
-from setuptools.command.egg_info import egg_info
+
+from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py
+from setuptools.command.egg_info import egg_info
 
 exec(open("mindone/version.py").read())
 
@@ -37,10 +37,11 @@ def clean():
     def readonly_handler(func, path, execinfo):
         os.chmod(path, stat.S_IWRITE)
         func(path)
-    if os.path.exists(os.path.join(cur_dir, 'build')):
-        shutil.rmtree(os.path.join(cur_dir, 'build'), onerror=readonly_handler)
-    if os.path.exists(os.path.join(cur_dir, 'mindone.egg-info')):
-        shutil.rmtree(os.path.join(cur_dir, 'mindone.egg-info'), onerror=readonly_handler)
+
+    if os.path.exists(os.path.join(cur_dir, "build")):
+        shutil.rmtree(os.path.join(cur_dir, "build"), onerror=readonly_handler)
+    if os.path.exists(os.path.join(cur_dir, "mindone.egg-info")):
+        shutil.rmtree(os.path.join(cur_dir, "mindone.egg-info"), onerror=readonly_handler)
 
 
 clean()
@@ -71,11 +72,7 @@ def get_description():
     """
     cmd = "git log --format='[sha1]:%h, [branch]:%d' -1"
     process = subprocess.Popen(
-        shlex.split(cmd),
-        shell=False,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
+        shlex.split(cmd), shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout, _ = process.communicate()
     if not process.returncode:
@@ -86,17 +83,19 @@ def get_description():
 
 class EggInfo(egg_info):
     """Egg info."""
+
     def run(self):
         super().run()
-        egg_info_dir = os.path.join(cur_dir, 'mindone.egg-info')
+        egg_info_dir = os.path.join(cur_dir, "mindone.egg-info")
         update_permissions(egg_info_dir)
 
 
 class BuildPy(build_py):
     """BuildPy."""
+
     def run(self):
         super().run()
-        mindarmour_dir = os.path.join(pkg_dir, 'lib', 'mindone')
+        mindarmour_dir = os.path.join(pkg_dir, "lib", "mindone")
         update_permissions(mindarmour_dir)
 
 
@@ -106,26 +105,24 @@ setup(
     author="MindSpore Team",
     url="https://github.com/mindspore-lab/mindone/tree/master",
     project_urls={
-        'Sources': 'https://github.com/mindspore-lab/mindone',
-        'Issue Tracker': 'https://github.com/mindspore-lab/mindone/issues',
+        "Sources": "https://github.com/mindspore-lab/mindone",
+        "Issue Tracker": "https://github.com/mindspore-lab/mindone/issues",
     },
     description=get_description(),
-    license='Apache 2.0',
+    license="Apache 2.0",
     packages=find_packages(exclude=("example")),
     include_package_data=True,
     package_data={"": ["**/*.cu", "**/*.cpp", "**/*.cuh", "**/*.h", "**/*.pyx"]},
     cmdclass={
-        'egg_info': EggInfo,
-        'build_py': BuildPy,
+        "egg_info": EggInfo,
+        "build_py": BuildPy,
     },
     install_requires=[
-        'tqdm',
+        "tqdm",
         # 'requests',
         # 'datasets',
         # 'tokenizers'
     ],
-    classifiers=[
-        'License :: OSI Approved :: Apache Software License'
-    ]
+    classifiers=["License :: OSI Approved :: Apache Software License"],
 )
 print(find_packages())

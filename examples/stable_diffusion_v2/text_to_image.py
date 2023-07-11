@@ -1,29 +1,29 @@
-'''
+"""
 Text to image generation
-'''
+"""
+import argparse
 import logging
 import os
-import time
 import sys
-import argparse
-from PIL import Image
-from omegaconf import OmegaConf
+import time
 
 import numpy as np
+from omegaconf import OmegaConf
+from PIL import Image
+
 import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
-from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
-from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
+from ldm.models.diffusion.plms import PLMSSampler
+from ldm.models.diffusion.uni_pc import UniPCSampler
+from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
-from ldm.modules.logger import set_logger
-from ldm.util import str2bool, is_old_ms_version
-from utils import  model_utils
-from ldm.models.diffusion.uni_pc import UniPCSampler
+from ldm.util import instantiate_from_config, str2bool
+from utils import model_utils
 
 logger = logging.getLogger("text_to_image")
 
@@ -48,10 +48,13 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
             param_dict = ms.load_checkpoint(ckpt_fp)
             if param_dict:
                 param_not_load, ckpt_not_load = model_utils.load_param_into_net_with_filter(
-                    _model, param_dict, filter=filter)
+                    _model, param_dict, filter=filter
+                )
                 if verbose:
                     if len(param_not_load) > 0:
-                        logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith('adam')]))
+                        logger.info(
+                            "Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")])
+                        )
         else:
             logger.warning(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
@@ -69,7 +72,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
             else:
                 raise ValueError(f"{ckpt} doesn't exist")
             # load the main pretrained model
-            logger.info(f'Loading pretrained model from {ckpt}')
+            logger.info(f"Loading pretrained model from {ckpt}")
             _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
             # inject lora params
             injected_attns, injected_trainable_params = inject_trainable_lora(
@@ -78,7 +81,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                 use_fp16=(model.model.diffusion_model.dtype == ms.float16),
             )
             # load fine-tuned lora params
-            logger.info(f'Loading LoRA params from {lora_only_ckpt}')
+            logger.info(f"Loading LoRA params from {lora_only_ckpt}")
             _load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
     else:
         logger.info(f"Loading model from {ckpt}")
@@ -94,11 +97,11 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
 def main(args):
     # set logger
     set_logger(
-            name="",
-            output_dir=args.output_path,
-            rank=0,
-            log_level=eval(args.log_level),
-        )
+        name="",
+        output_dir=args.output_path,
+        rank=0,
+        log_level=eval(args.log_level),
+    )
 
     work_dir = os.path.dirname(os.path.abspath(__file__))
     logger.debug(f"WORK DIR:{work_dir}")
@@ -115,7 +118,6 @@ def main(args):
         logger.info(f"Reading prompts from {args.data_path}")
         with open(args.data_path, "r") as f:
             prompts = f.read().splitlines()
-            num_prompts = len(prompts)
             # TODO: try to put different prompts in a batch
             data = [batch_size * [prompt] for prompt in prompts]
 
@@ -138,12 +140,7 @@ def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     mode = ms.context.GRAPH_MODE
-    ms.context.set_context(
-        mode=mode,
-        device_target="Ascend",
-        device_id=device_id,
-        max_device_memory="30GB"
-    )
+    ms.context.set_context(mode=mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
 
     set_random_seed(args.seed)
 
@@ -162,26 +159,26 @@ def main(args):
     # create sampler
     if args.ddim:
         sampler = DDIMSampler(model)
-        sname = 'ddim'
+        sname = "ddim"
     elif args.dpm_solver:
         sampler = DPMSolverSampler(model, "dpmsolver")
-        sname = 'dpm_solver'
+        sname = "dpm_solver"
     elif args.dpm_solver_pp:
         sampler = DPMSolverSampler(model, "dpmsolver++")
-        sname = 'dpm_solver_pp'
+        sname = "dpm_solver_pp"
     elif args.uni_pc:
         sampler = UniPCSampler(model)
-        sname = 'uni_pc'
+        sname = "uni_pc"
     else:
         sampler = PLMSSampler(model)
-        sname = 'plms'
+        sname = "plms"
 
     # log
-    key_info = 'Key Settings:\n' + '=' * 50 + '\n'
+    key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
-            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
-            f"Distributed mode: False",
+            "MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
+            "Distributed mode: False",
             f"Number of input prompts: {len(data)}",
             f"Number of input negative prompts: {len(negative_data)}",
             f"Number of trials for each prompt: {args.n_iter}",
@@ -206,7 +203,11 @@ def main(args):
 
     all_samples = list()
     for i, (prompts, negative_prompts) in enumerate(zip(data, negative_data)):
-        logger.info("[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(i+1, len(data), prompts[0], negative_prompts[0]))
+        logger.info(
+            "[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(
+                i + 1, len(data), prompts[0], negative_prompts[0]
+            )
+        )
         for n in range(args.n_iter):
             start_time = time.time()
             uc = None
@@ -218,24 +219,24 @@ def main(args):
                 prompts = list(prompts)
             c = model.get_learned_conditioning(prompts)
             shape = [4, args.H // 8, args.W // 8]
-            samples_ddim, _ = sampler.sample(S=args.sampling_steps,
-                                            conditioning=c,
-                                            batch_size=args.n_samples,
-                                            shape=shape,
-                                            verbose=False,
-                                            unconditional_guidance_scale=args.scale,
-                                            unconditional_conditioning=uc,
-                                            eta=args.ddim_eta,
-                                            x_T=start_code
-                                            )
+            samples_ddim, _ = sampler.sample(
+                S=args.sampling_steps,
+                conditioning=c,
+                batch_size=args.n_samples,
+                shape=shape,
+                verbose=False,
+                unconditional_guidance_scale=args.scale,
+                unconditional_conditioning=uc,
+                eta=args.ddim_eta,
+                x_T=start_code,
+            )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
-            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0,
-                                                  clip_value_min=0.0, clip_value_max=1.0)
+            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
                 for x_sample in x_samples_ddim_numpy:
-                    x_sample = 255. * x_sample.transpose(1, 2, 0)
+                    x_sample = 255.0 * x_sample.transpose(1, 2, 0)
                     img = Image.fromarray(x_sample.astype(np.uint8))
                     img.save(os.path.join(sample_path, f"{base_count:05}.png"))
                     base_count += 1
@@ -244,142 +245,192 @@ def main(args):
                 all_samples.append(x_samples_ddim_numpy)
 
             end_time = time.time()
-            logger.info("{}/{} images generated, time cost for current trial: {:.3f}s".format(batch_size*(n+1), batch_size * args.n_iter, end_time-start_time))
+            logger.info(
+                "{}/{} images generated, time cost for current trial: {:.3f}s".format(
+                    batch_size * (n + 1), batch_size * args.n_iter, end_time - start_time
+                )
+            )
 
-    logger.info(f"Done! All generated images are saved in: {outpath}/samples"
-      f"\nEnjoy.")
+    logger.info(f"Done! All generated images are saved in: {outpath}/samples" f"\nEnjoy.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--data_path", type=str, nargs="?", default="",
-        help="path to a file containing prompt list (each line in the file corresponds to a prompt to render)."
+        "--data_path",
+        type=str,
+        nargs="?",
+        default="",
+        help="path to a file containing prompt list (each line in the file corresponds to a prompt to render).",
     )
     parser.add_argument(
-        "--negative_data_path", type=str, nargs="?", default="",
-        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to render)."
+        "--negative_data_path",
+        type=str,
+        nargs="?",
+        default="",
+        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to "
+        "render).",
     )
     parser.add_argument(
-        "-v", "--version", type=str, nargs="?", default="2.0",
-        help="Stable diffusion version, 1.x or 2.0. 1.x support Chinese prompts. 2.0 support English prompts."
+        "-v",
+        "--version",
+        type=str,
+        nargs="?",
+        default="2.0",
+        help="Stable diffusion version, 1.x or 2.0. 1.x support Chinese prompts. 2.0 support English prompts.",
     )
     parser.add_argument(
-        "--prompt", type=str, nargs="?", default="A cute wolf in winter forest",
-        help="the prompt to render"
+        "--prompt", type=str, nargs="?", default="A cute wolf in winter forest", help="the prompt to render"
     )
+    parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
+    parser.add_argument("--output_path", type=str, nargs="?", default="output", help="dir to write results to")
     parser.add_argument(
-        "--negative_prompt", type=str, nargs="?", default="",
-        help="the negative prompt not to render"
-    )
-    parser.add_argument(
-        "--output_path", type=str, nargs="?", default="output",
-        help="dir to write results to"
-    )
-    parser.add_argument(
-        "--skip_grid", action='store_true',
+        "--skip_grid",
+        action="store_true",
         help="do not save a grid, only individual samples. Helpful when evaluating lots of samples",
     )
     parser.add_argument(
-        "--skip_save", action='store_true',
+        "--skip_save",
+        action="store_true",
         help="do not save individual samples. For speed measurements.",
     )
     parser.add_argument(
-        "--sampling_steps", type=int, default=50,
+        "--sampling_steps",
+        type=int,
+        default=50,
         help="number of ddim sampling steps",
     )
     parser.add_argument(
-        "--ddim_eta", type=float, default=0.0,
+        "--ddim_eta",
+        type=float,
+        default=0.0,
         help="ddim eta (eta=0.0 corresponds to deterministic sampling",
     )
     parser.add_argument(
-        "--fixed_code", action='store_true',
+        "--fixed_code",
+        action="store_true",
         help="if enabled, uses the same starting code across samples ",
     )
     parser.add_argument(
-        "--n_iter", type=int, default=2,
+        "--n_iter",
+        type=int,
+        default=2,
         help="number of iterations or trials. sample this often, ",
     )
     parser.add_argument(
-        "--n_samples", type=int, default=8,
+        "--n_samples",
+        type=int,
+        default=8,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
     parser.add_argument(
-        "--H", type=int, default=512,
+        "--H",
+        type=int,
+        default=512,
         help="image height, in pixel space",
     )
     parser.add_argument(
-        "--W", type=int, default=512,
+        "--W",
+        type=int,
+        default=512,
         help="image width, in pixel space",
     )
     parser.add_argument(
-        "--ddim", action='store_true',
+        "--ddim",
+        action="store_true",
         help="use ddim sampling",
     )
     parser.add_argument(
-        "--dpm_solver", action='store_true',
+        "--dpm_solver",
+        action="store_true",
         help="use dpm_solver sampling",
     )
     parser.add_argument(
-        "--dpm_solver_pp", action='store_true',
+        "--dpm_solver_pp",
+        action="store_true",
         help="use dpm_solver++ sampling",
     )
     parser.add_argument(
-        "--uni_pc", action='store_true',
+        "--uni_pc",
+        action="store_true",
         help="use uni_pc sampling",
     )
     parser.add_argument(
-        "--n_rows", type=int, default=0,
+        "--n_rows",
+        type=int,
+        default=0,
         help="rows in the grid (default: n_samples)",
     )
     parser.add_argument(
-        "--scale", type=float, default=None,
-        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). Simplified: `uc + scale * (uc - prompt)`",
+        "--scale",
+        type=float,
+        default=None,
+        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
+        "Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
-        "--from-file", type=str,
+        "--from-file",
+        type=str,
         help="if specified, load prompts from this file",
     )
     parser.add_argument(
-        "--config", type=str, default=None,
+        "--config",
+        type=str,
+        default=None,
         help="path to config which constructs model. If None, select by version",
     )
     parser.add_argument(
-        '--use_lora', default=False, type=str2bool,
-        help='whether the checkpoint used for inference is finetuned from LoRA'
+        "--use_lora",
+        default=False,
+        type=str2bool,
+        help="whether the checkpoint used for inference is finetuned from LoRA",
     )
     parser.add_argument(
-        '--lora_rank', default=None, type=int,
-        help='LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.'
+        "--lora_rank",
+        default=None,
+        type=int,
+        help="LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.",
     )
     parser.add_argument(
-        "--ckpt_path", type=str, default=None,
+        "--ckpt_path",
+        type=str,
+        default=None,
         help="path to checkpoint of model",
     )
     parser.add_argument(
-        "--lora_ckpt_path", type=str, default=None,
+        "--lora_ckpt_path",
+        type=str,
+        default=None,
         help="path to lora only checkpoint. Set it if use_lora is not None",
     )
     parser.add_argument(
-        "--seed", type=int, default=42,
+        "--seed",
+        type=int,
+        default=42,
         help="the seed (for reproducible sampling)",
     )
     parser.add_argument(
-        "--log_level", type=str, default='logging.INFO',
+        "--log_level",
+        type=str,
+        default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     args = parser.parse_args()
 
     # overwrite env var by parsed arg
     if args.version:
-        os.environ['SD_VERSION'] = args.version
+        os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
-        args.ckpt_path = "models/wukong-huahua-ms.ckpt" if args.version.startswith('1.') else "models/sd_v2_base-57526ee4.ckpt"
+        args.ckpt_path = (
+            "models/wukong-huahua-ms.ckpt" if args.version.startswith("1.") else "models/sd_v2_base-57526ee4.ckpt"
+        )
     if args.config is None:
-        args.config = "configs/v1-inference-chinese.yaml" if args.version.startswith('1.') else "configs/v2-inference.yaml"
+        args.config = (
+            "configs/v1-inference-chinese.yaml" if args.version.startswith("1.") else "configs/v2-inference.yaml"
+        )
     if args.scale is None:
-        args.scale = 7.5 if args.version.startswith('1.') else 9.0
+        args.scale = 7.5 if args.version.startswith("1.") else 9.0
 
     # core task
     main(args)

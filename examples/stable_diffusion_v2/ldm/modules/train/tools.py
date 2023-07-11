@@ -12,19 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import logging
 import json
+import logging
 import os
-import sys
 import random
+import sys
+
 import numpy as np
+
 import mindspore as ms
 
 _logger = logging.getLogger(__name__)
 
 
 class NoOp:
-    """ useful for distributed training No-Ops """
+    """useful for distributed training No-Ops"""
 
     def __getattr__(self, name):
         return self.noop
@@ -39,8 +41,7 @@ def parse_with_config(args):
         abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../.."))
         args.train_config = os.path.join(abs_path, args.train_config)
         config_args = json.load(open(args.train_config))
-        override_keys = {arg[2:].split('=')[0] for arg in sys.argv[1:]
-                         if arg.startswith('--')}
+        override_keys = {arg[2:].split("=")[0] for arg in sys.argv[1:] if arg.startswith("--")}
         for k, v in config_args.items():
             if k not in override_keys:
                 setattr(args, k, v)
@@ -53,6 +54,7 @@ def set_random_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     ms.set_seed(seed)
+
 
 class Struct:
     def __init__(self, dict_):

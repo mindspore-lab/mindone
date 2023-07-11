@@ -28,8 +28,8 @@ pip install -r requirements.txt
 
 ### Pretrained Checkpoint
 
-- SD2.0 
-  Download [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder 
+- SD2.0
+  Download [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder
 
 - SD1.x (Chinese)
 Download [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
@@ -55,9 +55,9 @@ img2.jpg,a drawing of a green pokemon with red eyes
 img3.jpg,a red and white ball with an angry look on its face
 ```
 
-For convenience, we have prepared two public text-image datasets obeying the above format. 
+For convenience, we have prepared two public text-image datasets obeying the above format.
 
-- [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions. 
+- [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions.
 - [Chinese-art blip caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 100 chinese art-style images with BLIP-generated captions.
 
 To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
@@ -69,7 +69,7 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 ### 1. Text-to-Image Generation
 
 ```shell
-# Text to image generation with SD2.0 
+# Text to image generation with SD2.0
 python text_to_image.py --prompt "elven forest"
 ```
 For more argument usages, please run `python text_to_image.py -h`.
@@ -79,15 +79,15 @@ For more argument usages, please run `python text_to_image.py -h`.
 While `--prompt` indicates what to render in the generated images, the negative prompt (`--negative_prompt`) can be used to tell Stable Diffusion what you don't want to see in the generated images. It can be useful in reducing specific artifacts. Here is an example for removing 'moss' from the 'elven forest':
 
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/1c35853d-036f-459c-944c-9953d2da8087" width="320" /> 
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/1c35853d-036f-459c-944c-9953d2da8087" width="320" />
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/b1f037ca-4e03-40e4-8da2-d358801eadd5)" width="320" />  
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/b1f037ca-4e03-40e4-8da2-d358801eadd5)" width="320" />
 </div>
 <p align="center">
-  <em> Prompt: "elven forest"</em> 
+  <em> Prompt: "elven forest"</em>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <em> With negative prompt: "moss" </em> 
+  <em> With negative prompt: "moss" </em>
 </p>
 
 #### 1.2 Supported Diffusion Process Schedulers
@@ -102,15 +102,15 @@ For detailed usage of the schedulers/samplers, please refer to [Diffusion Proces
 
 ### 2. Vanilla Finetuning
 
-Vanilla finetuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are frozen.  
+Vanilla finetuning refers to the second-stage training in the LDM paper. Only the latent diffusion model (**UNet** + ddpm) will be trained and updated, while CLIP and AutoEncoder are frozen.
 
 ```shell
 sh scripts/run_train_v2.sh
 ```
 
-Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
+Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on.
 
-### 3. Efficient Finetuning with LoRA 🔥 
+### 3. Efficient Finetuning with LoRA 🔥
 
 LoRA finetuning has lower memory requirement and allows finetuning on images with higher-resolution such as 768x768.
 
@@ -119,7 +119,7 @@ Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_fine
 
 ### 4. Evaluation
 
-Please refer to [Evaluation for Diffusion Models](eval/README.md) 
+Please refer to [Evaluation for Diffusion Models](eval/README.md)
 
 - - -
 ## Stable Diffusion 1.x
@@ -127,7 +127,7 @@ Please refer to [Evaluation for Diffusion Models](eval/README.md)
 ### 1. Chinese Text-to-Image Generation
 
 ```shell
-# Text to image generation with SD1.x (Support Chinese) 
+# Text to image generation with SD1.x (Support Chinese)
 python text_to_image.py --prompt "雪中之狼"  -v 1.x
 ```
 > -v is used to set stable diffusion version.
@@ -140,13 +140,13 @@ For more argument usages, please run `python text_to_image.py -h`.
 sh scripts/run_train_v1.sh
 ```
 
-Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on. 
+Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on.
 
 
 ## What's New
 - 2023.07.05  Add negative prompts; Improve logger; Fix bugs for MS 2.0.
 - 2023.06.30  Add LoRA finetuning and FID evalution.
-- 2023.06.12  Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in configs/your_train.yaml  
+- 2023.06.12  Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in configs/your_train.yaml
 
 
 ## Contributing

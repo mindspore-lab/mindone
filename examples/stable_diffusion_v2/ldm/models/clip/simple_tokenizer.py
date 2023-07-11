@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import logging
 import gzip
 import html
+import logging
+import os
 from functools import lru_cache
 from pathlib import Path
 
 import ftfy
 import regex as re
-import os
 
-from .utils import is_control, is_whitespace, is_chinese_char, \
-    is_punctuation, strip_accents
+from .utils import is_chinese_char, is_control, is_punctuation, is_whitespace, strip_accents
 
 _logger = logging.getLogger(__name__)
 
@@ -34,13 +33,16 @@ CONTEXT_LEN = 77
 vocab_path_en = "bpe_simple_vocab_16e6.txt.gz"
 vocab_path_zh = "vocab_zh.txt"
 
+
 @lru_cache()
 def default_wordpiece():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "vocab_zh.txt")
 
+
 @lru_cache()
 def default_bpe():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), "bpe_simple_vocab_16e6.txt.gz")
+
 
 @lru_cache()
 def bytes_to_unicode():
@@ -53,17 +55,13 @@ def bytes_to_unicode():
     To avoid that, we want lookup tables between utf-8 bytes and unicode strings.
     And avoids mapping to whitespace/control characters the bpe code barfs on.
     """
-    bs = (
-            list(range(ord("!"), ord("~") + 1))
-            + list(range(ord("¡"), ord("¬") + 1))
-            + list(range(ord("®"), ord("ÿ") + 1))
-    )
+    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
     cs = bs[:]
     n = 0
-    for b in range(2 ** 8):
+    for b in range(2**8):
         if b not in bs:
             bs.append(b)
-            cs.append(2 ** 8 + n)
+            cs.append(2**8 + n)
             n += 1
     cs = [chr(n) for n in cs]
     return dict(zip(bs, cs))
@@ -95,7 +93,6 @@ def whitespace_clean(text):
 
 class BpeTokenizer(object):
     def __init__(self, bpe_path: str = default_bpe()):
-
         self.byte_encoder = bytes_to_unicode()
         self.byte_decoder = {v: k for k, v in self.byte_encoder.items()}
 
@@ -103,14 +100,14 @@ class BpeTokenizer(object):
         vocab = vocab + [v + "</w>" for v in vocab]
 
         merges = gzip.open(bpe_path).read().decode("utf-8").split("\n")
-        merges = merges[1: 49152 - 256 - 2 + 1]
+        merges = merges[1 : 49152 - 256 - 2 + 1]
         merges = [tuple(merge.split()) for merge in merges]
 
         for merge in merges:
             vocab.append("".join(merge))
         vocab.extend([SOT_TEXT, EOT_TEXT])
         self.sot_text = SOT_TEXT
-        self.eot_text = EOT_TEXT 
+        self.eot_text = EOT_TEXT
 
         self.encoder = dict(zip(vocab, range(len(vocab))))
         self.decoder = {v: k for k, v in self.encoder.items()}
@@ -169,18 +166,12 @@ class BpeTokenizer(object):
         text = whitespace_clean(basic_clean(text)).lower()
         for token in re.findall(self.pat, text):
             token = "".join(self.byte_encoder[b] for b in token.encode("utf-8"))
-            bpe_tokens.extend(
-                self.encoder[bpe_token] for bpe_token in self.bpe(token).split(" ")
-            )
+            bpe_tokens.extend(self.encoder[bpe_token] for bpe_token in self.bpe(token).split(" "))
         return bpe_tokens
 
     def decode(self, tokens):
         text = "".join([self.decoder[token] for token in tokens])
-        text = (
-            bytearray([self.byte_decoder[c] for c in text])
-                .decode("utf-8", errors="replace")
-                .replace("</w>", " ")
-        )
+        text = bytearray([self.byte_decoder[c] for c in text]).decode("utf-8", errors="replace").replace("</w>", " ")
         return text
 
 
@@ -188,7 +179,7 @@ class WordpieceTokenizer(object):
     def __init__(self, vocab_path: str = default_wordpiece()):
         with open(vocab_path) as vocab_file:
             vocab = [line.strip() for line in vocab_file]
-        
+
         SOT_TEXT = "[CLS]"
         EOT_TEXT = "[SEP]"
         self.encoder = dict(zip(vocab, range(len(vocab))))
@@ -198,7 +189,7 @@ class WordpieceTokenizer(object):
         self.unk_token = "[UNK]"
         self.never_split = [self.unk_token, SOT_TEXT, EOT_TEXT]
         self.sot_text = SOT_TEXT
-        self.eot_text = EOT_TEXT 
+        self.eot_text = EOT_TEXT
 
     @staticmethod
     def __whitespace_tokenize(text):
@@ -342,16 +333,18 @@ class WordpieceTokenizer(object):
 # default tokenizer for 'en'
 # _tokenizer = BpeTokenizer(Path(__file__).with_name(vocab_path_en).as_posix())
 
-def get_tokenizer(sd_version): #SD_VERSION
-    lang = 'zh' if sd_version.startswith('1.') else 'en' # TODO: use lang arg. currently 1.x supports zh, ad 2.x support en
-    if lang == 'zh':
-        tokenizer = WordpieceTokenizer() # for zh
-        _logger.debug(f'Using tokenizer `WordPieceTokenizer` for {lang}-language.')
-    else:
-        tokenizer = BpeTokenizer() 
-        _logger.debug(f'Using tokenizer `BpeTokenizer` for {lang}-language.')
-    return tokenizer
 
+def get_tokenizer(sd_version):  # SD_VERSION
+    lang = (
+        "zh" if sd_version.startswith("1.") else "en"
+    )  # TODO: use lang arg. currently 1.x supports zh, ad 2.x support en
+    if lang == "zh":
+        tokenizer = WordpieceTokenizer()  # for zh
+        _logger.debug(f"Using tokenizer `WordPieceTokenizer` for {lang}-language.")
+    else:
+        tokenizer = BpeTokenizer()
+        _logger.debug(f"Using tokenizer `BpeTokenizer` for {lang}-language.")
+    return tokenizer
 
 
 def set_tokenizer_lang(lang="en", context_length=77):
@@ -366,8 +359,7 @@ def set_tokenizer_lang(lang="en", context_length=77):
         EOT_TEXT = "[SEP]"
         _tokenizer = WordpieceTokenizer(vocab_zh)
     else:
-        raise RuntimeError("Tokenizer for language \"{}\" is not supported."
-                           .format(lang))
+        raise RuntimeError('Tokenizer for language "{}" is not supported.'.format(lang))
 
 
 @lru_cache()
@@ -378,4 +370,3 @@ def get_sot_token():
 @lru_cache()
 def get_eot_token():
     return _tokenizer.encoder[EOT_TEXT]
-
