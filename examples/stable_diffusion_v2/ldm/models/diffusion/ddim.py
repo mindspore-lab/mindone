@@ -326,7 +326,6 @@ class DDIMSampler(object):
             alphas = self.alphas_cumprod_prev[:num_steps]
         else:
             alphas_next = self.ddim_alphas[:num_steps]
-            # alphas = torch.tensor(self.ddim_alphas_prev[:num_steps])
             alphas = self.ddim_alphas_prev[:num_steps]
 
         x_next = x0
@@ -372,7 +371,6 @@ class DDIMSampler(object):
             sqrt_one_minus_alphas_cumprod = self.ddim_sqrt_one_minus_alphas
 
         if noise is None:
-            # noise = torch.randn_like(x0)
             noise = ms.numpy.randn(x0.shape)
         return (
             extract_into_tensor(sqrt_alphas_cumprod, t, x0.shape) * x0
