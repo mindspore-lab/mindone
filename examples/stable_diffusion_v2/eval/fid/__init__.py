@@ -1,3 +1,3 @@
 from .fid import FrechetInceptionDistance
 
-__all__ = ['FrechetInceptionDistance']
+__all__ = ["FrechetInceptionDistance"]

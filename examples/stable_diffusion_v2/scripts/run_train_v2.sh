@@ -14,8 +14,8 @@ data_path=./datasets/diffusion/pokemon_blip/train
 pretrained_model_path=models/
 pretrained_model_file=sd_v2_base-57526ee4.ckpt
 train_config_file=configs/train_config_v2.json
-image_size=512 
-train_batch_size=3 
+image_size=512
+train_batch_size=3
 # uncomment the following two lines to finetune on 768x768 resolution.
 #image_size=768 # v2-base 512, v2.1 768
 #train_batch_size=1  # 1 for 768x768, 30GB memory
