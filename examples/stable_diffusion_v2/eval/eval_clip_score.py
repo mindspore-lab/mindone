@@ -22,11 +22,11 @@ if __name__ == '__main__':
              ' Default: openai/clip-vit-base-patch16'
     )
     parser.add_argument(
-        '--image_path', default=None, type=str,
+        '--image_path_or_dir', default=None, type=str,
         help='input data for predict, it support real data path or data directory.'
              ' Default: None')
     parser.add_argument(
-        '--prompt', default=None, type=str,
+        '--prompt_or_path', default=None, type=str,
         help='prompt corresponding to the image from image path.'
              ' Default: None')
     parser.add_argument(
@@ -62,37 +62,37 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # load images
-    assert args.image_path is not None
+    assert args.image_path_or_dir is not None
     images = []
-    if os.path.isdir(args.image_path) and os.path.exists(args.image_path):
-        image_path = [
+    if os.path.isdir(args.image_path_or_dir) and os.path.exists(args.image_path_or_dir):
+        image_path_or_dir = [
             os.path.join(root, file)
-            for root, _, file_list in os.walk(os.path.join(args.image_path)) for file in file_list
+            for root, _, file_list in os.walk(os.path.join(args.image_path_or_dir)) for file in file_list
             if file.endswith('.jpg') or file.endswith('.png') or file.endswith('.jpeg')
             or file.endswith('.JPEG') or file.endswith('bmp')
         ]
-        image_path.sort()
-        images = [Image.open(p) for p in image_path]
-        args.image_path = image_path
+        image_path_or_dir.sort()
+        images = [Image.open(p) for p in image_path_or_dir]
+        args.image_path_or_dir = image_path_or_dir
     else:
-        images = [Image.open(args.image_path)]
-        args.image_path = [args.image_path]
+        images = [Image.open(args.image_path_or_dir)]
+        args.image_path_or_dir = [args.image_path_or_dir]
     images = [image.resize((224, 224)) for image in images]
     # load prompts
-    assert args.prompt is not None
+    assert args.prompt_or_path is not None
     texts = []
-    if os.path.exists(args.prompt):
-        with open(args.prompt) as f:
+    if os.path.exists(args.prompt_or_path):
+        with open(args.prompt_or_path) as f:
             texts = [p.strip() for p in f.readlines()]
-        args.prompt = texts
+        args.prompt_or_path = texts
     else:
-        texts = [args.prompt]
+        texts = [args.prompt_or_path]
     assert len(images) % len(texts) == 0
-    num_images = len(images) // len(texts)
-    if num_images == 1:
+    imgs_per_prompt = len(images) // len(texts)
+    if imgs_per_prompt == 1:
         print(f'{len(images)} image-text pairs are loaded')
     else:
-        print(f'{len(images)} images and {len(texts)} texts are loaded; Evaluate {num_images} images per prompt')
+        print(f'{len(images)} images and {len(texts)} texts are loaded; Evaluate {imgs_per_prompt} images per prompt')
 
     print(f'Backend: {args.backend}')
     if args.backend == 'pt':
@@ -102,12 +102,12 @@ if __name__ == '__main__':
             import os
             os.environ['CURL_CA_BUNDLE'] = ''
 
-        if num_images == 1:
+        if imgs_per_prompt == 1:
             score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
         else:
             scores = []
-            for i in range(num_images):
-                inputs = [images[i::num_images], texts]
+            for i in range(imgs_per_prompt):
+                inputs = [images[i::imgs_per_prompt], texts]
                 score = compute_torchmetric_clip(*inputs, model_name=args.model_name)
                 scores.append(score)
             score = sum(scores) / len(scores)
@@ -130,15 +130,15 @@ if __name__ == '__main__':
         for i, text in enumerate(texts):
             text_feature = model.get_text_features(text)
             text_feature = text_feature / text_feature.norm(1, keep_dims=True)
-            for j in range(num_images):
-                image_index = num_images * i + j
+            for j in range(imgs_per_prompt):
+                image_index = imgs_per_prompt * i + j
                 image = images[image_index]
                 image_feature = model.get_image_features(image)
                 image_feature = image_feature / image_feature.norm(1, keep_dims=True)
                 res = float(ops.matmul(image_feature, text_feature.T)[0][0] * 100)
                 results.append(res)
                 if not args.quiet:
-                    print(args.image_path[image_index], args.prompt[i], '->', round(res, 4))
+                    print(args.image_path_or_dir[image_index], args.prompt_or_path[i], '->', round(res, 4))
             if not args.quiet:
                 print('-' * 20)
         score = sum(results) / len(results)
@@ -147,11 +147,11 @@ if __name__ == '__main__':
         if args.save_result:
             with open(args.result_path, 'w') as f:
                 for i, text in enumerate(texts):
-                    for j in range(num_images):
-                        index = num_images * i + j
+                    for j in range(imgs_per_prompt):
+                        index = imgs_per_prompt * i + j
                         line = {
-                            'prompt': args.prompt[i],
-                            'image_path': os.path.abspath(args.image_path[index]),
+                            'prompt': args.prompt_or_path[i],
+                            'image_path': os.path.abspath(args.image_path_or_dir[index]),
                             'clip_score': results[index]
                         }
                         f.write(json.dumps(line) + '\n')

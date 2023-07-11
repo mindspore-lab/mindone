@@ -33,11 +33,11 @@ To compute the CLIP score between images and texts, please run
 
 - Mindspore backend
 ```
-python eval/eval_clip_score.py --load_checkpoint <path-to-model> --image_path <path-to-image> --prompt <string/path-to-txt>
+python eval/eval_clip_score.py --load_checkpoint <path-to-model> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
 ```
 - PyTorch backend
 ```
-python eval/eval_clip_score.py --backend pt --model_name <HF-model-name> --image_path <path-to-image> --prompt <string/path-to-txt>
+python eval/eval_clip_score.py --backend pt --model_name <HF-model-name> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
 ```
 By default, we use MindSpore backend for CLIP score computing (to run CLIP model inference and extract image & text features). You may swich to use `torchmetrics` by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable. 
 
