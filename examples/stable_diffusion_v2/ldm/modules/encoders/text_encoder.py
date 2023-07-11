@@ -18,9 +18,7 @@ import numpy as np
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import Parameter, Tensor
-from mindspore import dtype as mstype
-from mindspore import ops
+from mindspore import Parameter, Tensor, ops
 from mindspore.common.initializer import TruncatedNormal, initializer
 
 SD_VERSION = os.getenv("SD_VERSION", default="2.0")

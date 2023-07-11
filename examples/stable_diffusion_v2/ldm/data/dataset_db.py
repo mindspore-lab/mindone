@@ -25,7 +25,6 @@ import pandas as pd
 from ldm.data.t2i_collate import data_column_db, t2i_collate_db
 from PIL import Image
 
-import mindspore as ms
 from mindspore.dataset import GeneratorDataset
 
 
@@ -142,7 +141,8 @@ def check_data(all_iamges):
             bad_path_num += 1
             print(f"bad images path: {file}")
     print(
-        f"There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} pairs of bad data"
+        f"There are {len(all_iamges)} pairs of data, including {good_path_num} pairs of good data and {bad_path_num} "
+        f"pairs of bad data"
     )
 
 

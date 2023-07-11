@@ -1,9 +1,11 @@
 import numpy as np
-from ldm.modules.attention import BasicTransformerBlock, CrossAttention
-from ldm.modules.lora import LoRADenseLayer, LowRankDense, inject_trainable_lora
+from ldm.modules.attention import BasicTransformerBlock
+from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 
 import mindspore as ms
+
+from examples.stable_diffusion_v2.ldm.modules.lora import LoRADenseLayer
 
 set_random_seed(42)
 
@@ -48,7 +50,7 @@ def test_finetune_and_save():
 
     use_fp16 = True
     dtype = ms.float16 if use_fp16 else ms.float32
-    rank = 4
+    # rank = 4
 
     net = SimpleNet(dtype=dtype)
     # freeze network
@@ -69,14 +71,14 @@ def test_finetune_and_save():
     # inject lora layers
     injected_modules, injected_trainable_params = inject_trainable_lora(net, use_fp16=use_fp16)
 
-    # 1. check foward result consistency
-    ## since lora_up.weight are init with all zero. h_lora is alwasy zero before finetuning.
+    # 1. check forward result consistency
+    # since lora_up.weight are init with all zero. h_lora is alwasy zero before finetuning.
     net_output_after_lora_init = net(test_data)
     print("Outupt after lora injection: ", net_output_after_lora_init.sum())
     print("Oringinal net output: ", ori_net_output.sum())
     assert (
         net_output_after_lora_init.sum() == ori_net_output.sum()
-    ), f"net_output_after_lora_init should be the same as ori_net_output"
+    ), "net_output_after_lora_init should be the same as ori_net_output"
     first_attn = list(injected_modules.values())[0]
     ori_net_stat["dense.linear"] = first_attn.to_q.linear.weight.data.sum()
     ori_net_stat["dense.lora_down"] = first_attn.to_q.lora_down.weight.data.sum()
@@ -99,7 +101,8 @@ def test_finetune_and_save():
             ".lora_down" in p.name or ".lora_up" in p.name
         ), "Only injected lora params can be trainable. but got non-lora param {p.name} trainable"
 
-    # 3. check whether the number of injected modules and layers is correct. and whether the name of the injected params are correct.
+    # 3. check whether the number of injected modules and layers is correct. and whether the name of the injected params
+    # are correct.
     expected_im_for_simplenet = 2
     expected_ip_for_simplenet = expected_im_for_simplenet * 4 * 2  # 4 dense layers, each with lora_down, lora_up
     assert len(injected_modules) == expected_im_for_simplenet
@@ -143,7 +146,8 @@ def test_finetune_and_save():
     print("Ori net stat", ori_net_stat)
     print("New net stat", new_net_stat)
     # On Ascend, linear weight equality check can fail, may due to the difference on sum op. but CPU is ok.
-    # assert new_net_stat['dense.linear'].numpy()== ori_net_stat['dense.linear'].numpy(), 'Not equal: {}, {}'.format(new_net_stat['dense.linear'].numpy(), ori_net_stat['dense.linear'].numpy())
+    # assert new_net_stat['dense.linear'].numpy()== ori_net_stat['dense.linear'].numpy(),
+    # 'Not equal: {}, {}'.format(new_net_stat['dense.linear'].numpy(), ori_net_stat['dense.linear'].numpy())
     # assert new_net_stat['dense.lora_down'].value != ori_net_stat['dense.lora_down'].value
     # assert new_net_stat['dense.lora_up'].value != ori_net_stat['dense.lora_up'].value
 
@@ -214,7 +218,7 @@ def test_load_and_infer():
     ms.set_context(mode=0)
     use_fp16 = True
     dtype = ms.float16 if use_fp16 else ms.float32
-    rank = 4
+    # rank = 4
 
     net = SimpleNet(dtype=dtype)
     # print(net)
@@ -392,14 +396,17 @@ def test_finetune_and_save_debug():
                         rank=rank,
                         dtype=dtype)
                 print('create lora dense layer: ', 'linear.weight: ', tmp_lora_dense.linear.weight.data.sum())
-                print('\ttest its forward result at random init: ', tmp_lora_dense(ms.ops.ones([1, in_channels], dtype=dtype)*0.66).sum())
+                print('\ttest its forward result at random init: ',
+                      tmp_lora_dense(ms.ops.ones([1, in_channels], dtype=dtype)*0.66).sum())
 
                 # copy orignal weight and bias to lora linear (pointing)
                 tmp_lora_dense.linear.weight = tar_dense.weight
                 if has_bias:
                     tmp_lora_dense.linear.bias= tar_dense.bias
-                print('copy weights from target dense to lora_dense.linear.weight: ', tmp_lora_dense.linear.weight.data.sum())
-                print('\ttest its forward result after copying: ', tmp_lora_dense(ms.ops.ones([1, in_channels], dtype=dtype)*0.66).sum())
+                print('copy weights from target dense to lora_dense.linear.weight: ',
+                tmp_lora_dense.linear.weight.data.sum())
+                print('\ttest its forward result after copying: ',
+                tmp_lora_dense(ms.ops.ones([1, in_channels], dtype=dtype)*0.66).sum())
 
                 new_lora_dense_layers.append(tmp_lora_dense)
 
@@ -421,7 +428,8 @@ def test_finetune_and_save_debug():
                 #print(param)
                 if '.lora_down' in param.name or '.lora_up' in param.name or '.linear.' in param.name:
                    _update_param_name(param, name)
-            # TODO: instead of using fixed list, pick target dense layer by name string then replace it for better extension.
+            # TODO:
+            # instead of using fixed list, pick target dense layer by name string then replace it for better extension.
             #lora_attns[name] = subcell # recored
             print('=> New cross attention after lora injection: ', subcell)
 
@@ -429,7 +437,8 @@ def test_finetune_and_save_debug():
     print('Num sub cells: ', num_subcells)
 
     print('=> New net after lora injection: ', net)
-    print('\t=> Attn param names: ', '\n'.join([name+'\t'+str(param.requires_grad) for name, param in net.parameters_and_names() if '.to_' in name]))
+    print('\t=> Attn param names: ', '\n'.join([name+'\t'+str(param.requires_grad) for name,\
+    param in net.parameters_and_names() if '.to_' in name]))
 
     print('Trainable params: ', net.trainable_params())
     #exit(1)
@@ -444,13 +453,16 @@ def test_finetune_and_save_debug():
             new_net_stat[name + '.to_q.linear trainable'] = subcell.to_q.linear.weight.requires_grad
             new_net_stat[name + '.to_q.lora_up trainable'] = subcell.to_q.lora_up.weight.requires_grad
             new_net_stat[name + '.to_out.linear trainable'] = subcell.to_out[0].linear.weight.requires_grad
-            assert new_net_stat[name + '.to_q.linear.weight']==ori_net_stat[name + '.to_q.weight'], 'CrossAttention linear weights are changed after lora injection'
+            assert new_net_stat[name + '.to_q.linear.weight']==ori_net_stat[name + '.to_q.weight'], \
+                'CrossAttention linear weights are changed after lora injection'
             assert new_net_stat[name + '.to_q.linear trainable']==False
             assert new_net_stat[name + '.to_q.lora_up trainable']==True
 
     print('Ori net stat: ', ori_net_stat)
     print('New net stat: ', new_net_stat)
-    assert new_net_stat['num_params'] - ori_net_stat['num_params'] == len(catched_attns) * len(target_dense_layers) * 2, 'Num of parameters should be increased by num_attention_layers * 4 * 2 after injection.'
+    assert \
+        new_net_stat['num_params'] - ori_net_stat['num_params'] == len(catched_attns) * len(target_dense_layers) * 2,\
+        'Num of parameters should be increased by num_attention_layers * 4 * 2 after injection.'
 
 
     output_after_lora_init = net(test_data)
@@ -460,7 +472,8 @@ def test_finetune_and_save_debug():
     print(' \t Original net output: ', ori_output.sum())
 
     # finetune
-    print('\nTrainable params: ', len(net.trainable_params()), '\n', "\n".join([f"{p.name}\t{p}" for p in net.trainable_params()])) # should be 2x4x2 x num_transformers
+    print('\nTrainable params: ', len(net.trainable_params()),
+    '\n', "\n".join([f"{p.name}\t{p}" for p in net.trainable_params()])) # should be 2x4x2 x num_transformers
 
     from mindspore.nn import TrainOneStepCell, WithLossCell
     loss = ms.nn.MSELoss()
@@ -483,7 +496,8 @@ def test_finetune_and_save_debug():
     assert output_after_ft.sum()!=output_after_lora_init.sum()
 
     # save
-    ms.save_checkpoint([{"name":p.name, "data": p} for p in net.trainable_params()], 'test_lora_tp_after_ft.ckpt') # only save lora trainable params only
+    # only save lora trainable params only
+    ms.save_checkpoint([{"name":p.name, "data": p} for p in net.trainable_params()], 'test_lora_tp_after_ft.ckpt')
     ms.save_checkpoint(net, 'test_lora_net_after_ft.ckpt')
 """
 
@@ -495,4 +509,5 @@ if __name__ == "__main__":
     # compare_before_after_lora_finetune()
     test_load_and_infer()
 
-    # compare_before_after_lora_finetune('models/sd_v2_base-57526ee4.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')
+    # compare_before_after_lora_finetune(
+    # 'models/sd_v2_base-57526ee4.ckpt', 'output/lora_pokemon_exp1/txt2img/ckpt/rank_0/sd-18_277.ckpt')

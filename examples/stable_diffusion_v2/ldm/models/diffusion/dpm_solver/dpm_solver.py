@@ -30,11 +30,14 @@ class NoiseScheduleVP:
         """
         Create a wrapper class for the forward SDE (VP type).
         ***
-        Update: We support discrete-time diffusion models by implementing a picewise linear interpolation for log_alpha_t.
-                We recommend to use schedule='discrete' for the discrete-time diffusion models, especially for high-resolution images.
+        Update: We support discrete-time diffusion models by implementing a picewise linear interpolation for
+                log_alpha_t.
+                We recommend to use schedule='discrete' for the discrete-time diffusion models, especially for
+                high-resolution images.
         ***
         The forward SDE ensures that the condition distribution q_{t|0}(x_t | x_0) = N ( alpha_t * x_0, sigma_t^2 * I ).
-        We further define lambda_t = log(alpha_t) - log(sigma_t), which is the half-logSNR (described in the DPM-Solver paper).
+        We further define lambda_t = log(alpha_t) - log(sigma_t), which is the half-logSNR (described in the DPM-Solver
+        paper).
         Therefore, we implement the functions for computing alpha_t, sigma_t and lambda_t. For t in [0, T], we have:
             log_alpha_t = self.marginal_log_mean_coeff(t)
             sigma_t = self.marginal_std(t)
@@ -42,22 +45,26 @@ class NoiseScheduleVP:
         Moreover, as lambda(t) is an invertible function, we also support its inverse function:
             t = self.inverse_lambda(lambda_t)
         ===============================================================
-        We support both discrete-time DPMs (trained on n = 0, 1, ..., N-1) and continuous-time DPMs (trained on t in [t_0, T]).
+        We support both discrete-time DPMs (trained on n = 0, 1, ..., N-1) and continuous-time DPMs (trained on t in
+            [t_0, T]).
         1. For discrete-time DPMs:
-            For discrete-time DPMs trained on n = 0, 1, ..., N-1, we convert the discrete steps to continuous time steps by:
-                t_i = (i + 1) / N
+            For discrete-time DPMs trained on n = 0, 1, ..., N-1, we convert the discrete steps to continuous time steps
+                by: t_i = (i + 1) / N
             e.g. for N = 1000, we have t_0 = 1e-3 and T = t_{N-1} = 1.
             We solve the corresponding diffusion ODE from time T = 1 to time t_0 = 1e-3.
             Args:
-                betas: A `mindspore.Tensor`. The beta array for the discrete-time DPM. (See the original DDPM paper for details)
-                alphas_cumprod: A `mindspore.Tensor`. The cumprod alphas for the discrete-time DPM. (See the original DDPM paper for details)
+                betas: A `mindspore.Tensor`. The beta array for the discrete-time DPM.
+                    (See the original DDPM paper for details)
+                alphas_cumprod: A `mindspore.Tensor`. The cumprod alphas for the discrete-time DPM.
+                    (See the original DDPM paper for details)
 
-            Note that we always have alphas_cumprod = cumprod(1 - betas). Therefore, we only need to set one of `betas` and `alphas_cumprod`.
+            Note that we always have alphas_cumprod = cumprod(1 - betas). Therefore, we only need to set one of `betas`
+            and `alphas_cumprod`.
             **Important**:  Please pay special attention for the args for `alphas_cumprod`:
-                The `alphas_cumprod` is the \hat{alpha_n} arrays in the notations of DDPM. Specifically, DDPMs assume that
-                    q_{t_n | 0}(x_{t_n} | x_0) = N ( \sqrt{\hat{alpha_n}} * x_0, (1 - \hat{alpha_n}) * I ).
-                Therefore, the notation \hat{alpha_n} is different from the notation alpha_t in DPM-Solver. In fact, we have
-                    alpha_{t_n} = \sqrt{\hat{alpha_n}},
+                The `alphas_cumprod` is the \hat{alpha_n} arrays in the notations of DDPM. Specifically, DDPMs assume
+                    that q_{t_n | 0}(x_{t_n} | x_0) = N ( \sqrt{\hat{alpha_n}} * x_0, (1 - \hat{alpha_n}) * I ).
+                Therefore, the notation \hat{alpha_n} is different from the notation alpha_t in DPM-Solver. In fact,
+                    we have alpha_{t_n} = \sqrt{\hat{alpha_n}},
                 and
                     log(alpha_{t_n}) = 0.5 * log(\hat{alpha_n}).
         2. For continuous-time DPMs:
@@ -144,7 +151,10 @@ class NoiseScheduleVP:
         elif self.schedule == "linear":
             return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
         elif self.schedule == "cosine":
-            log_alpha_fn = lambda s: self.log(self.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
+
+            def log_alpha_fn(s):
+                return self.log(self.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
+
             log_alpha_t = log_alpha_fn(t) - self.cosine_log_alpha_0
             return log_alpha_t
 
@@ -421,8 +431,9 @@ class DPM_Solver:
                 Valid only when use `dpmsolver++` and `correcting_x0_fn="dynamic_thresholding"`.
             dynamic_thresholding_ratio: A `float`. The ratio for dynamic thresholding (see Imagen[1] for details).
                 Valid only when use `dpmsolver++` and `correcting_x0_fn="dynamic_thresholding"`.
-        [1] Chitwan Saharia, William Chan, Saurabh Saxena, Lala Li, Jay Whang, Emily Denton, Seyed Kamyar Seyed Ghasemipour,
-            Burcu Karagol Ayan, S Sara Mahdavi, Rapha Gontijo Lopes, et al. Photorealistic text-to-image diffusion models
+        [1] Chitwan Saharia, William Chan, Saurabh Saxena, Lala Li, Jay Whang, Emily Denton,
+            Seyed Kamyar Seyed Ghasemipour, Burcu Karagol Ayan, S Sara Mahdavi,
+            Rapha Gontijo Lopes, et al. Photorealistic text-to-image diffusion models
             with deep language understanding. arXiv preprint arXiv:2205.11487, 2022b.
         """
         self.model = model_fn
@@ -528,7 +539,8 @@ class DPM_Solver:
                 - If steps % 2 == 1, we use K steps of DPM-Solver-2 and 1 step of DPM-Solver-1.
             - If order == 3:
                 - Denote K = (steps // 3 + 1). We take K intermediate time steps for sampling.
-                - If steps % 3 == 0, we use (K - 2) steps of DPM-Solver-3, and 1 step of DPM-Solver-2 and 1 step of DPM-Solver-1.
+                - If steps % 3 == 0, we use (K - 2) steps of DPM-Solver-3, and 1 step of DPM-Solver-2 and 1 step of
+                    DPM-Solver-1.
                 - If steps % 3 == 1, we use (K - 1) steps of DPM-Solver-3 and 1 step of DPM-Solver-1.
                 - If steps % 3 == 2, we use (K - 1) steps of DPM-Solver-3 and 1 step of DPM-Solver-2.
         ===============================================================
@@ -603,7 +615,8 @@ class DPM_Solver:
 
     def denoise_to_zero_fn(self, x, s):
         """
-        Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order discretization.
+        Denoise at the final step, which is equivalent to solve the ODE from lambda_s to infty by first-order
+        discretization.
         """
         return self.data_prediction_fn(x, s)
 
@@ -663,7 +676,8 @@ class DPM_Solver:
             r1: A `float`. The hyperparameter of the second-order solver.
             model_s: A MindSpore tensor. The model function evaluated at time `s`.
                 If `model_s` is None, we evaluate the model by `x` and `s`; otherwise we directly use it.
-            return_intermediate: A `bool`. If true, also return the model value at time `s` and `s1` (the intermediate time).
+            return_intermediate: A `bool`. If true, also return the model value at time `s` and `s1`
+                (the intermediate time).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
@@ -758,9 +772,11 @@ class DPM_Solver:
             r2: A `float`. The hyperparameter of the third-order solver.
             model_s: A MindSpore tensor. The model function evaluated at time `s`.
                 If `model_s` is None, we evaluate the model by `x` and `s`; otherwise we directly use it.
-            model_s1: A MindSpore tensor. The model function evaluated at time `s1` (the intermediate time given by `r1`).
+            model_s1: A MindSpore tensor. The model function evaluated at time `s1`
+                (the intermediate time given by `r1`).
                 If `model_s1` is None, we evaluate the model at `s1`; otherwise we directly use it.
-            return_intermediate: A `bool`. If true, also return the model value at time `s`, `s1` and `s2` (the intermediate times).
+            return_intermediate: A `bool`. If true, also return the model value at time `s`, `s1` and `s2`
+                (the intermediate times).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
@@ -1007,7 +1023,8 @@ class DPM_Solver:
             s: A MindSpore tensor. The starting time, with the shape (1,).
             t: A MindSpore tensor. The ending time, with the shape (1,).
             order: A `int`. The order of DPM-Solver. We only support order == 1 or 2 or 3.
-            return_intermediate: A `bool`. If true, also return the model value at time `s`, `s1` and `s2` (the intermediate times).
+            return_intermediate: A `bool`. If true, also return the model value at time `s`, `s1` and `s2` (the
+                intermediate times).
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
             r1: A `float`. The hyperparameter of the second-order or third-order solver.
@@ -1064,16 +1081,19 @@ class DPM_Solver:
             t_T: A `float`. The starting time of the sampling (default is T).
             t_0: A `float`. The ending time of the sampling (default is epsilon).
             h_init: A `float`. The initial step size (for logSNR).
-            atol: A `float`. The absolute tolerance of the solver. For image data, the default setting is 0.0078, followed [1].
+            atol: A `float`. The absolute tolerance of the solver. For image data, the default setting is 0.0078,
+                followed [1].
             rtol: A `float`. The relative tolerance of the solver. The default setting is 0.05.
-            theta: A `float`. The safety hyperparameter for adapting the step size. The default setting is 0.9, followed [1].
-            t_err: A `float`. The tolerance for the time. We solve the diffusion ODE until the absolute error between the
-                current time and `t_0` is less than `t_err`. The default setting is 1e-5.
+            theta: A `float`. The safety hyperparameter for adapting the step size. The default setting is 0.9,
+                followed [1].
+            t_err: A `float`. The tolerance for the time. We solve the diffusion ODE until the absolute error between
+                the current time and `t_0` is less than `t_err`. The default setting is 1e-5.
             solver_type: either 'dpmsolver' or 'taylor'. The type for the high-order solvers.
                 The type slightly impacts the performance. We recommend to use 'dpmsolver' type.
         Returns:
             x_0: A MindSpore tensor. The approximated solution at time `t_0`.
-        [1] A. Jolicoeur-Martineau, K. Li, R. Piché-Taillefer, T. Kachman, and I. Mitliagkas, "Gotta go fast when generating data with score-based models," arXiv preprint arXiv:2105.14080, 2021.
+        [1] A. Jolicoeur-Martineau, K. Li, R. Piché-Taillefer, T. Kachman, and I. Mitliagkas, "Gotta go fast when
+        generating data with score-based models," arXiv preprint arXiv:2105.14080, 2021.
         """
         ns = self.noise_schedule
         s = t_T * ops.ones((1,)).to(x)
@@ -1084,18 +1104,24 @@ class DPM_Solver:
         nfe = 0
         if order == 2:
             r1 = 0.5
-            lower_update = lambda x, s, t: self.dpm_solver_first_update(x, s, t, return_intermediate=True)
-            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_second_update(
-                x, s, t, r1=r1, solver_type=solver_type, **kwargs
-            )
+
+            def lower_update(x, s, t):
+                return self.dpm_solver_first_update(x, s, t, return_intermediate=True)
+
+            def higher_update(x, s, t, **kwargs):
+                return self.singlestep_dpm_solver_second_update(x, s, t, r1=r1, solver_type=solver_type, **kwargs)
+
         elif order == 3:
             r1, r2 = 1.0 / 3.0, 2.0 / 3.0
-            lower_update = lambda x, s, t: self.singlestep_dpm_solver_second_update(
-                x, s, t, r1=r1, return_intermediate=True, solver_type=solver_type
-            )
-            higher_update = lambda x, s, t, **kwargs: self.singlestep_dpm_solver_third_update(
-                x, s, t, r1=r1, r2=r2, solver_type=solver_type, **kwargs
-            )
+
+            def lower_update(x, s, t):
+                return self.singlestep_dpm_solver_second_update(
+                    x, s, t, r1=r1, return_intermediate=True, solver_type=solver_type
+                )
+
+            def higher_update(x, s, t, **kwargs):
+                return self.singlestep_dpm_solver_third_update(x, s, t, r1=r1, r2=r2, solver_type=solver_type, **kwargs)
+
         else:
             raise ValueError("For adaptive step size solver, order must be 2 or 3, got {}".format(order))
         while ops.abs((s - t_0)).mean() > t_err:
@@ -1103,7 +1129,10 @@ class DPM_Solver:
             x_lower, lower_noise_kwargs = lower_update(x, s, t)
             x_higher = higher_update(x, s, t, **lower_noise_kwargs)
             delta = ops.maximum(ops.ones_like(x).to(x) * atol, rtol * ops.maximum(ops.abs(x_lower), ops.abs(x_prev)))
-            norm_fn = lambda v: ops.Sqrt()(ops.Square()(v.reshape((v.shape[0], -1))).mean(axis=-1, keepdims=True))
+
+            def norm_fn(v):
+                return ops.Sqrt()(ops.Square()(v.reshape((v.shape[0], -1))).mean(axis=-1, keepdims=True))
+
             E = norm_fn((x_higher - x_lower) / delta).max()
             if (E <= 1.0).all():
                 x = x_higher
@@ -1157,9 +1186,10 @@ class DPM_Solver:
         """
         t_0 = 1.0 / self.noise_schedule.total_N if t_start is None else t_start
         t_T = self.noise_schedule.T if t_end is None else t_end
-        assert (
-            t_0 > 0 and t_T > 0
-        ), "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"
+        assert t_0 > 0 and t_T > 0, (
+            "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], "
+            "where N is the length of betas array"
+        )
         return self.sample(
             x,
             steps=steps,
@@ -1197,8 +1227,10 @@ class DPM_Solver:
         =====================================================
         We support the following algorithms for both noise prediction model and data prediction model:
             - 'singlestep':
-                Singlestep DPM-Solver (i.e. "DPM-Solver-fast" in the paper), which combines different orders of singlestep DPM-Solver.
-                We combine all the singlestep solvers with order <= `order` to use up all the function evaluations (steps).
+                Singlestep DPM-Solver (i.e. "DPM-Solver-fast" in the paper), which combines different orders of
+                    singlestep DPM-Solver.
+                We combine all the singlestep solvers with order <= `order` to use up all the function evaluations
+                    (steps).
                 The total number of function evaluations (NFE) == `steps`.
                 Given a fixed NFE == `steps`, the sampling procedure is:
                     - If `order` == 1:
@@ -1209,11 +1241,14 @@ class DPM_Solver:
                         - If steps % 2 == 1, we use (K - 1) steps of singlestep DPM-Solver-2 and 1 step of DPM-Solver-1.
                     - If `order` == 3:
                         - Denote K = (steps // 3 + 1). We take K intermediate time steps for sampling.
-                        - If steps % 3 == 0, we use (K - 2) steps of singlestep DPM-Solver-3, and 1 step of singlestep DPM-Solver-2 and 1 step of DPM-Solver-1.
+                        - If steps % 3 == 0, we use (K - 2) steps of singlestep DPM-Solver-3, and 1 step of singlestep
+                            DPM-Solver-2 and 1 step of DPM-Solver-1.
                         - If steps % 3 == 1, we use (K - 1) steps of singlestep DPM-Solver-3 and 1 step of DPM-Solver-1.
-                        - If steps % 3 == 2, we use (K - 1) steps of singlestep DPM-Solver-3 and 1 step of singlestep DPM-Solver-2.
+                        - If steps % 3 == 2, we use (K - 1) steps of singlestep DPM-Solver-3 and 1 step of singlestep
+                            DPM-Solver-2.
             - 'multistep':
-                Multistep DPM-Solver with the order of `order`. The total number of function evaluations (NFE) == `steps`.
+                Multistep DPM-Solver with the order of `order`. The total number of function evaluations (NFE) ==
+                    `steps`.
                 We initialize the first `order` values by lower order multistep solvers.
                 Given a fixed NFE == `steps`, the sampling procedure is:
                     Denote K = steps.
@@ -1222,17 +1257,22 @@ class DPM_Solver:
                     - If `order` == 2:
                         - We firstly use 1 step of DPM-Solver-1, then use (K - 1) step of multistep DPM-Solver-2.
                     - If `order` == 3:
-                        - We firstly use 1 step of DPM-Solver-1, then 1 step of multistep DPM-Solver-2, then (K - 2) step of multistep DPM-Solver-3.
+                        - We firstly use 1 step of DPM-Solver-1, then 1 step of multistep DPM-Solver-2, then (K - 2)
+                            step of multistep DPM-Solver-3.
             - 'singlestep_fixed':
-                Fixed order singlestep DPM-Solver (i.e. DPM-Solver-1 or singlestep DPM-Solver-2 or singlestep DPM-Solver-3).
-                We use singlestep DPM-Solver-`order` for `order`=1 or 2 or 3, with total [`steps` // `order`] * `order` NFE.
+                Fixed order singlestep DPM-Solver (i.e. DPM-Solver-1 or singlestep DPM-Solver-2 or singlestep
+                    DPM-Solver-3).
+                We use singlestep DPM-Solver-`order` for `order`=1 or 2 or 3, with total [`steps` // `order`] * `order`
+                    NFE.
             - 'adaptive':
                 Adaptive step size DPM-Solver (i.e. "DPM-Solver-12" and "DPM-Solver-23" in the paper).
                 We ignore `steps` and use adaptive step size DPM-Solver with a higher order of `order`.
-                You can adjust the absolute tolerance `atol` and the relative tolerance `rtol` to balance the computatation costs
+                You can adjust the absolute tolerance `atol` and the relative tolerance `rtol` to balance the
+                    computatation costs
                 (NFE) and the sample quality.
                     - If `order` == 2, we use DPM-Solver-12 which combines DPM-Solver-1 and singlestep DPM-Solver-2.
-                    - If `order` == 3, we use DPM-Solver-23 which combines singlestep DPM-Solver-2 and singlestep DPM-Solver-3.
+                    - If `order` == 3, we use DPM-Solver-23 which combines singlestep DPM-Solver-2 and singlestep
+                        DPM-Solver-3.
         =====================================================
         Some advices for choosing the algorithm:
             - For **unconditional sampling** or **guided sampling with small guidance scale** by DPMs:
@@ -1270,7 +1310,8 @@ class DPM_Solver:
                 For continuous-time DPMs:
                     - We recommend `t_end` == 1e-3 when `steps` <= 15; and `t_end` == 1e-4 when `steps` > 15.
             order: A `int`. The order of DPM-Solver.
-            skip_type: A `str`. The type for the spacing of the time steps. 'time_uniform' or 'logSNR' or 'time_quadratic'.
+            skip_type: A `str`. The type for the spacing of the time steps. 'time_uniform' or 'logSNR' or
+                'time_quadratic'.
             method: A `str`. The method for sampling. 'singlestep' or 'multistep' or 'singlestep_fixed' or 'adaptive'.
             denoise_to_zero: A `bool`. Whether to denoise to time 0 at the final step.
                 Default is `False`. If `denoise_to_zero` is `True`, the total NFE is (`steps` + 1).
@@ -1284,11 +1325,13 @@ class DPM_Solver:
                 Only valid for `method=multistep` and `steps < 15`. We empirically find that
                 this trick is a key to stabilizing the sampling by DPM-Solver with very few steps
                 (especially for steps <= 10). So we recommend to set it to be `True`.
-            solver_type: A `str`. The taylor expansion type for the solver. `dpmsolver` or `taylor`. We recommend `dpmsolver`.
+            solver_type: A `str`. The taylor expansion type for the solver. `dpmsolver` or `taylor`. We recommend
+                `dpmsolver`.
             atol: A `float`. The absolute tolerance of the adaptive step size solver. Valid when `method` == 'adaptive'.
             rtol: A `float`. The relative tolerance of the adaptive step size solver. Valid when `method` == 'adaptive'.
             return_intermediate: A `bool`. Whether to save the xt at each step.
-                When set to `True`, method returns a tuple (x0, intermediates); when set to False, method returns only x0.
+                When set to `True`, method returns a tuple (x0, intermediates); when set to False, method returns only
+                    x0.
         Returns:
             x_end: A MindSpore tensor. The approximated solution at time `t_end`.
         """
@@ -1303,9 +1346,10 @@ class DPM_Solver:
         )
         t_0 = 1.0 / self.noise_schedule.total_N if t_end is None else t_end
         t_T = self.noise_schedule.T if t_start is None else t_start
-        assert (
-            t_0 > 0 and t_T > 0
-        ), "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is the length of betas array"
+        assert t_0 > 0 and t_T > 0, (
+            "Time range needs to be greater than 0. For discrete-time DPMs, it needs to be in [1 / N, 1], where N is"
+            "the length of betas array"
+        )
         if return_intermediate:
             assert method in [
                 "multistep",
@@ -1415,10 +1459,12 @@ def interpolate_fn(x, xp, yp):
     """
     A piecewise linear function y = f(x), using xp and yp as keypoints.
     We implement f(x) in a differentiable way (i.e. applicable for autograd).
-    The function f(x) is well-defined for all x-axis. (For x beyond the bounds of xp, we use the outmost points of xp to define the linear function.)
+    The function f(x) is well-defined for all x-axis. (For x beyond the bounds of xp, we use the outmost points of xp to
+        define the linear function.)
     ===============================================================
     Args:
-        x: MindSpore tensor with shape [N, C], where N is the batch size, C is the number of channels (we use C = 1 for DPM-Solver).
+        x: MindSpore tensor with shape [N, C], where N is the batch size, C is the number of channels (we use C = 1 for
+          DPM-Solver).
         xp: MindSpore tensor with shape [C, K], where K is the number of keypoints.
         yp: MindSpore tensor with shape [C, K].
     Returns:
