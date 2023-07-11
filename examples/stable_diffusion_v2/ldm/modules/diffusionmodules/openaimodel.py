@@ -13,7 +13,6 @@
 # limitations under the License.
 # ============================================================================
 import logging
-from abc import abstractmethod
 
 from ldm.modules.attention import SpatialTransformer
 from ldm.modules.diffusionmodules.util import (
@@ -466,7 +465,7 @@ class UNetModel(nn.Cell):
             dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
 
         _logger.debug(
-            "Attention: output_channels={}, num_heads={}, dim_head={}".format(
+            "Attention: output_channels={}, num_heads={}, num_head_channels:{}, dim_head={}".format(
                 ch, num_heads, num_head_channels, dim_head
             )
         )

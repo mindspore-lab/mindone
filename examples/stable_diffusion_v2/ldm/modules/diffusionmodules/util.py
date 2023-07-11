@@ -170,7 +170,7 @@ def noise_like(shape, repeat=False):
     if not repeat:
         return ms.ops.StandardNormal()(shape)
     else:
-        raise ValueError(f"The repeat method is not supported")
+        raise ValueError("The repeat method is not supported")
 
 
 def make_beta_schedule(schedule="linear", n_timestep=1000, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):

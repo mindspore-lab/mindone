@@ -14,11 +14,6 @@
 # ============================================================================
 """Transformer Networks"""
 
-import math
-
-import numpy as np
-
-import mindspore.common.dtype as mstype
 from mindspore.context import ParallelMode
 
 

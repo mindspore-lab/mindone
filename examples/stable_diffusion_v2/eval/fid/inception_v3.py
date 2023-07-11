@@ -2,15 +2,13 @@
 Based on MindCV Inception V3, it creates inception v3 FID variant.
 """
 
-from typing import Tuple, Union
 
 import numpy as np
-from packaging import version
 
 import mindspore as ms
-import mindspore.common.initializer as init
-from mindspore import Tensor, nn, ops
+from mindspore import nn, ops
 from mindspore.common.initializer import XavierUniform
+from mindspore.ops import operations as P
 
 from .utils import load_model
 
@@ -20,7 +18,10 @@ __all__ = [
 ]
 
 
-MS_FID_WEIGHTS_URL = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/fid/inception_v3_fid-9ec6dfe4.ckpt"  # TODO: upload and set url
+# TODO: upload and set url
+MS_FID_WEIGHTS_URL = (
+    "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/fid/inception_v3_fid-9ec6dfe4.ckpt"
+)
 
 
 class BasicConv2d(nn.Cell):
@@ -391,7 +392,8 @@ def inception_v3_fid(dims=2048, pretrained=True, ckpt_path=None):
     and has a slightly different structure than original Inception.
 
     Args:
-        pretrained: if True, downalod and load the checkpoint defined in `MS_FID_WEIGHTS_URL`. Otherwise, require ckpt_path to load a local checkpoint. Default is True.
+        pretrained: if True, downalod and load the checkpoint defined in `MS_FID_WEIGHTS_URL`. Otherwise, require
+            ckpt_path to load a local checkpoint. Default is True.
         ckpt_path: checkpoint path to inception v3 model weights. Default is None.
     """
 

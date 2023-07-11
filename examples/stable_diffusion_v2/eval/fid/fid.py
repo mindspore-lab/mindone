@@ -8,7 +8,6 @@ from mindspore import Tensor
 from mindspore import dataset as ds
 from mindspore import ops
 from mindspore.dataset import vision
-from mindspore.ops import adaptive_avg_pool2d
 
 from .inception_v3 import inception_v3_fid
 

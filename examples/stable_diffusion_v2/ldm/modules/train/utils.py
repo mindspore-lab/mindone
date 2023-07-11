@@ -17,7 +17,6 @@ Utils function for the parallel training.
 This is an experimental interface that is subject to change and/or deletion.
 """
 
-from multiprocessing import Process
 
 import numpy as np
 
@@ -30,8 +29,6 @@ from mindspore.nn.learning_rate_schedule import CosineDecayLR, LearningRateSched
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.parallel._auto_parallel_context import auto_parallel_context
-from mindspore.train.callback import Callback
-from mindspore.train.summary import SummaryRecord
 
 _get_square_sum = C.MultitypeFuncGraph("_get_square_sum")
 

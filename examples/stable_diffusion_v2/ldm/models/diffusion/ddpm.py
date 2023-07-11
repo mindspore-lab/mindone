@@ -13,7 +13,6 @@
 # limitations under the License.
 # ============================================================================
 import logging
-from contextlib import contextmanager
 from functools import partial
 
 import numpy as np
@@ -38,36 +37,37 @@ def disabled_train(self, mode=True):
 
 
 class DDPM(nn.Cell):
-    def __init__(self,
-                 unet_config,
-                 timesteps=1000,
-                 beta_schedule="linear",
-                 loss_type="l2",
-                 ckpt_path=None,
-                 ignore_keys=[],
-                 load_only_unet=False,
-                 monitor="val/loss",
-                 use_ema=True,
-                 first_stage_key="image",
-                 image_size=256,
-                 channels=3,
-                 log_every_t=100,
-                 clip_denoised=True,
-                 linear_start=1e-4,
-                 linear_end=2e-2,
-                 cosine_s=8e-3,
-                 given_betas=None,
-                 original_elbo_weight=0.,
-                 v_posterior=0.,
-                 l_simple_weight=1.,
-                 conditioning_key=None,
-                 parameterization="eps",
-                 scheduler_config=None,
-                 use_positional_encodings=False,
-                 learn_logvar=False,
-                 logvar_init=0.,
-                 use_fp16=False,
-                 ):
+    def __init__(
+        self,
+        unet_config,
+        timesteps=1000,
+        beta_schedule="linear",
+        loss_type="l2",
+        ckpt_path=None,
+        ignore_keys=[],
+        load_only_unet=False,
+        monitor="val/loss",
+        use_ema=True,
+        first_stage_key="image",
+        image_size=256,
+        channels=3,
+        log_every_t=100,
+        clip_denoised=True,
+        linear_start=1e-4,
+        linear_end=2e-2,
+        cosine_s=8e-3,
+        given_betas=None,
+        original_elbo_weight=0.0,
+        v_posterior=0.0,
+        l_simple_weight=1.0,
+        conditioning_key=None,
+        parameterization="eps",
+        scheduler_config=None,
+        use_positional_encodings=False,
+        learn_logvar=False,
+        logvar_init=0.0,
+        use_fp16=False,
+    ):
         """
         Classic DDPM with Gaussian diffusion
         ===============================================================
@@ -87,7 +87,7 @@ class DDPM(nn.Cell):
         self.clip_denoised = clip_denoised
         self.log_every_t = log_every_t
         self.first_stage_key = first_stage_key
-        self.image_size = image_size
+        self.image_size = image_size  # try conv?
         self.channels = channels
         self.use_positional_encodings = use_positional_encodings
         self.model = DiffusionWrapper(unet_config, conditioning_key)
@@ -243,18 +243,21 @@ class DDPM(nn.Cell):
 
 
 class LatentDiffusion(DDPM):
-    def __init__(self,
-                 first_stage_config,
-                 cond_stage_config,
-                 num_timesteps_cond=None,
-                 cond_stage_key="image",
-                 cond_stage_trainable=False,
-                 concat_mode=True,
-                 cond_stage_forward=None,
-                 conditioning_key=None,
-                 scale_factor=1.0,
-                 scale_by_std=False,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        first_stage_config,
+        cond_stage_config,
+        num_timesteps_cond=None,
+        cond_stage_key="image",
+        cond_stage_trainable=False,
+        concat_mode=True,
+        cond_stage_forward=None,
+        conditioning_key=None,
+        scale_factor=1.0,
+        scale_by_std=False,
+        *args,
+        **kwargs,
+    ):
         """
         main class
         """
@@ -272,7 +275,7 @@ class LatentDiffusion(DDPM):
         self.cond_stage_key = cond_stage_key
         try:
             self.num_downs = len(first_stage_config.params.ddconfig.ch_mult) - 1
-        except:
+        except Exception:
             self.num_downs = 0
         if not scale_by_std:
             self.scale_factor = scale_factor
@@ -428,19 +431,22 @@ class DiffusionWrapper(nn.Cell):
 
 
 class LatentDiffusionDB(DDPM):
-    def __init__(self,
-                 first_stage_config,
-                 cond_stage_config,
-                 num_timesteps_cond=None,
-                 cond_stage_key="image",
-                 cond_stage_trainable=False,
-                 concat_mode=True,
-                 cond_stage_forward=None,
-                 conditioning_key=None,
-                 scale_factor=1.0,
-                 scale_by_std=False,
-                 reg_weight = 1.0,
-                 *args, **kwargs):
+    def __init__(
+        self,
+        first_stage_config,
+        cond_stage_config,
+        num_timesteps_cond=None,
+        cond_stage_key="image",
+        cond_stage_trainable=False,
+        concat_mode=True,
+        cond_stage_forward=None,
+        conditioning_key=None,
+        scale_factor=1.0,
+        scale_by_std=False,
+        reg_weight=1.0,
+        *args,
+        **kwargs,
+    ):
         """
         main class
         """
@@ -459,7 +465,7 @@ class LatentDiffusionDB(DDPM):
         self.reg_weight = reg_weight
         try:
             self.num_downs = len(first_stage_config.params.ddconfig.ch_mult) - 1
-        except:
+        except Exception:
             self.num_downs = 0
         if not scale_by_std:
             self.scale_factor = scale_factor

@@ -27,7 +27,9 @@ def build_optimizer(model, opts, lr):
     :return: optimizer
     """
 
-    decay_filter = lambda x: "layernorm" not in x.name.lower() and "bias" not in x.name.lower()
+    def decay_filter(x):
+        return "layernorm" not in x.name.lower() and "bias" not in x.name.lower()
+
     param_optimizer = model.trainable_params()
     decay_params = list(filter(decay_filter, param_optimizer))
     other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
