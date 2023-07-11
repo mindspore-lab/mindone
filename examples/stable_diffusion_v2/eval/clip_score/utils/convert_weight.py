@@ -46,6 +46,7 @@ def convert_weight(torch_path="ViT-B-32.pt",
         })
     ms.save_checkpoint(new_dict, mindspore_path)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="clip weight convert script")
     parser.add_argument("--torch_path",

@@ -4,6 +4,7 @@ Parse config file
 import yaml
 from ..clip import CLIPVisionConfig, CLIPTextConfig, CLIPConfig
 
+
 def parse(path_to_config, path_to_ckpt):
     with open(path_to_config) as f:
         configf = yaml.safe_load(f)
@@ -16,4 +17,3 @@ def parse(path_to_config, path_to_ckpt):
                         configf['dtype']
                         )
     return config
-   

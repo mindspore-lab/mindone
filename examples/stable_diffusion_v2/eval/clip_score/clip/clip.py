@@ -7,7 +7,6 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import nn
-from mindspore.ops import functional as F
 from mindspore.common.initializer import Normal, initializer
 from mindspore import Parameter, Tensor
 import mindspore.ops as ops
@@ -25,7 +24,7 @@ class CLIPModel(nn.Cell):
         config (CLIPConfig): The config of clip model, which could be obtained by CLIPConfig class.
     """
     def __init__(self, config: CLIPConfig):
-        super().__init__( )
+        super().__init__()
         self.dtype = self.get_dtype(config.dtype)
         self.cross_entropy = nn.SoftmaxCrossEntropyWithLogits(reduction="mean", sparse=True)
 
@@ -123,7 +122,7 @@ class CLIPModel(nn.Cell):
 
         logits_per_image = ops.matmul(logit_scale * image_features, text_features.T)
         return logits_per_image, label
-        
+
     def build_attention_mask(self):
         """Build_attention_mask"""
         mask = np.ones((self.max_position_embeddings, self.max_position_embeddings))
@@ -194,10 +193,10 @@ class CLIPModel(nn.Cell):
                     print("weights in {} are loaded".format(ckpt_file))
                 except RuntimeError:
                     print("the given config and weights in {} are"
-                                 " mismatched, and weights load failed".format(ckpt_file))
+                          " mismatched, and weights load failed".format(ckpt_file))
             else:
                 checkpoint_name = checkpoint_name_or_path
-                
+
                 default_checkpoint_download_folder = os.path.join(
                     'download',
                     'clip')
@@ -214,8 +213,8 @@ class CLIPModel(nn.Cell):
                     print("weights in {} are loaded".format(ckpt_file))
                 except RuntimeError:
                     print("the given config and weights in {} are"
-                            " mismatched, and weights load failed", ckpt_file)
+                          " mismatched, and weights load failed", ckpt_file)
         else:
             print("model built, but weights is unloaded, since the config has no"
-                        " checkpoint_name_or_path attribute or"
-                        " checkpoint_name_or_path is None.")
+                  " checkpoint_name_or_path attribute or"
+                  " checkpoint_name_or_path is None.")

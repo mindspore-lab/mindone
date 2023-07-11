@@ -3,8 +3,6 @@ CLIP tokenizer
 """
 import gzip
 import html
-import os
-import shutil
 from functools import lru_cache
 from typing import Optional, List, Union
 from collections import defaultdict
@@ -24,11 +22,12 @@ def get_pairs(input_wd):
         prev_char = char
     return output
 
+
 @lru_cache()
 def bytes_to_unicode():
     r"""Bytes_to_unicode"""
-    input_bt = list(range(ord("!"), ord("~")+1))\
-         +list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
+    input_bt = list(range(ord("!"), ord("~")+1)) + \
+        list(range(ord("¡"), ord("¬")+1))+list(range(ord("®"), ord("ÿ")+1))
     output_cd = input_bt[:]
     num = 0
     for item in range(2**8):
@@ -39,11 +38,13 @@ def bytes_to_unicode():
     output_cd = [chr(item) for item in output_cd]
     return dict(zip(input_bt, output_cd))
 
+
 def whitespace_clean(input_text):
     r"""Whitespace clean"""
     input_text = re.sub(r'\s+', ' ', input_text)
     input_text = input_text.strip()
     return input_text
+
 
 def basic_clean(input_text):
     r"""Basic_clean"""
@@ -121,7 +122,7 @@ class TempTokenizer:
             output_ids.extend(self.encoder[bpe_token] for bpe_token in self.tokenize_alg(token).split(' '))
         print("res is:", output_ids)
         return output_ids
-    
+
 
 class CLIPTokenizer:
     r"""
@@ -202,7 +203,7 @@ class CLIPTokenizer:
     @property
     def pad_token_type_id(self):
         return self._pad_token_type_id
-    
+
     # BaseTokenizer
     def __call__(self,
                  text: Optional[Union[str, List[str]]],
@@ -245,7 +246,7 @@ class CLIPTokenizer:
                                         return_batch=return_batch,
                                         **kwargs)
         return output
-    
+
     def truncate_sequences(self, ids, id_pairs, nums_tokens_to_remove):
         if nums_tokens_to_remove <= 0:
             return ids, id_pairs
@@ -254,11 +255,11 @@ class CLIPTokenizer:
 
         ids = ids[:-nums_tokens_to_remove]
         return ids, id_pairs
-    
+
     def convert_tokens_to_ids(self, input_tokens):
         """Convert the tokens to ids using vocab mapping"""
         return self._convert_tokens_to_ids(input_tokens)
-    
+
     def _get_token_ids(self, text):
         """Get the token_ids"""
         if not isinstance(text, list):
@@ -273,7 +274,7 @@ class CLIPTokenizer:
         if len(text) == 1 and isinstance(text[0], str) and output and isinstance(output[0], list):
             output = output[0]
         return output
-    
+
     def batch_encode_plus(self,
                           text: Optional[Union[str, List[str]]],
                           text_pair: Optional[Union[str, List[str]]] = None,
@@ -336,7 +337,7 @@ class CLIPTokenizer:
                                        return_attention_mask=return_attention_mask,
                                        return_batch=return_batch,
                                        **kwargs)
-    
+
     def _batch_encode_plus(self, text,
                            text_pair=None,
                            max_length=None,
@@ -412,7 +413,7 @@ class CLIPTokenizer:
                     v = v.astype(np.int32)
                 output_map[k] = Tensor(v)
         return output_map
-    
+
     def _pad(self, id_dict, max_length, padding_strategy="do_not_pad", return_attention_mask=None):
         """Do padding according to the max_length"""
         is_batch = False
@@ -424,7 +425,6 @@ class CLIPTokenizer:
                     raise ValueError(f"You should set `max_length` to {max(length_each)} "
                                      f"and padding_strategy to `max_length`, as the length in the batch "
                                      f"is different, which should be padded.")
-
 
         if return_attention_mask is not False:
             return_attention_mask = True
@@ -457,7 +457,7 @@ class CLIPTokenizer:
             _pad_batch(id_dict['token_type_ids'], pad_value=self.pad_token_type_id)
 
         return id_dict
-    
+
     def num_special_tokens_to_add(self):
         """Return the special tokens to be added to the ids and ids_pair"""
         ids = []
@@ -470,7 +470,7 @@ class CLIPTokenizer:
             return [0] * (len(token_ids_0) + 1) + [1] * (len(token_ids_1) + 1)
         # cls and sep is 1
         return [0] * (len(token_ids_0) + 1 + 1)
-    
+
     def postprocess_ids(self,
                         ids,
                         pair_ids=None,
@@ -525,7 +525,7 @@ class CLIPTokenizer:
                     v = v.astype(np.int32)
                 output_map[k] = Tensor(v)
         return output_map
-    
+
     def _prepare_input_to_list(self, inputs):
         """put the input into the list"""
         if inputs is None:

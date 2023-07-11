@@ -7,7 +7,6 @@ from PIL import Image
 from mindspore.dataset import vision
 import mindspore as ms
 
-from mindspore.dataset.vision.utils import Inter
 
 __all__ = [
     'BatchResize', 'BCHW2BHWC', 'BatchPILize',

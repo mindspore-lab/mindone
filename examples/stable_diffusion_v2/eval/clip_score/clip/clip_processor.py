@@ -7,7 +7,7 @@ import PIL
 
 import mindspore as ms
 
-from.utils import (
+from .utils import (
     BCHW2BHWC, BatchResize, BatchToTensor,
     BatchNormalize, BatchCenterCrop, BatchPILize
 )

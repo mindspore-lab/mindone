@@ -65,7 +65,7 @@ class CLIPConfig:
         if vision_config is None:
             vision_config = CLIPVisionConfig()
             print("vision_config is None."
-                        " Initializing the CLIPTextConfig with default values.")
+                  " Initializing the CLIPTextConfig with default values.")
         elif isinstance(vision_config, CLIPVisionConfig):
             pass
         else:

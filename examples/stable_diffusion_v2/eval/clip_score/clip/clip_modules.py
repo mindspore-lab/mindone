@@ -31,6 +31,7 @@ class LayerNorm(nn.LayerNorm):
         y = P.Cast()(y, x.dtype)
         return y
 
+
 class MultiheadAttention(nn.Cell):
     r"""MultiheadAttention, With Layers As Input For Initialization
 

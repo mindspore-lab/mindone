@@ -12,7 +12,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--config',
-        default= 'eval/clip_score/configs/clip_vit_b_16.yaml', type=str,
+        default='eval/clip_score/configs/clip_vit_b_16.yaml', type=str,
         help='YAML config files for ms backend'
              ' Default: eval/clip_score/configs/clip_vit_b_16.yaml')
     parser.add_argument(
@@ -65,10 +65,12 @@ if __name__ == '__main__':
     assert args.image_path is not None
     images = []
     if os.path.isdir(args.image_path) and os.path.exists(args.image_path):
-        image_path = [os.path.join(root, file)
-                        for root, _, file_list in os.walk(os.path.join(args.image_path)) for file in file_list
-                        if file.endswith('.jpg') or file.endswith('.png') or file.endswith('.jpeg')
-                        or file.endswith('.JPEG') or file.endswith('bmp')]
+        image_path = [
+            os.path.join(root, file)
+            for root, _, file_list in os.walk(os.path.join(args.image_path)) for file in file_list
+            if file.endswith('.jpg') or file.endswith('.png') or file.endswith('.jpeg')
+            or file.endswith('.JPEG') or file.endswith('bmp')
+        ]
         image_path.sort()
         images = [Image.open(p) for p in image_path]
         args.image_path = image_path
@@ -76,7 +78,6 @@ if __name__ == '__main__':
         images = [Image.open(args.image_path)]
         args.image_path = [args.image_path]
     images = [image.resize((224, 224)) for image in images]
-    
     # load prompts
     assert args.prompt is not None
     texts = []
@@ -114,8 +115,10 @@ if __name__ == '__main__':
     elif args.backend == 'ms':
         image_processor = CLIPImageProcessor()
         text_processor = CLIPTokenizer(args.tokenizer_path, pad_token='!')
-        process_text = lambda p: mindspore.Tensor(text_processor(p, padding='max_length', max_length=77) \
-                                                ['input_ids']).reshape(1, -1)
+
+        def process_text(prompt):
+            return mindspore.Tensor(text_processor(prompt, padding='max_length', max_length=77)
+                                    ['input_ids']).reshape(1, -1)
         images = [image_processor(image) for image in images]
         texts = [process_text(text) for text in texts]
 
@@ -138,7 +141,6 @@ if __name__ == '__main__':
                     print(args.image_path[image_index], args.prompt[i], '->', round(res, 4))
             if not args.quiet:
                 print('-' * 20)
-            
         score = sum(results) / len(results)
 
         # save results
@@ -157,5 +159,3 @@ if __name__ == '__main__':
         raise ValueError(f'Unknown backend: {args.backend}. Valid backend: [ms, pt]')
 
     print('Mean score =', score)
-
-    
