@@ -140,7 +140,7 @@ def main(args):
         blank_negative_prompt = batch_size * [""]
         for _ in range(len(data) - len(negative_data)):
             negative_data.append(blank_negative_prompt)
-            
+
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
