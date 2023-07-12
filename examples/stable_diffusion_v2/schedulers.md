@@ -104,3 +104,107 @@ A pikachu fine dining with a view to the Eiffel Tower
 | :----: | :----: | :----: | :----: | :----: |
 | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/8eee6ecc-7fa0-4a06-a9fe-a26a2b9b8660" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/c7a90a16-0d20-4715-ba87-dfece253f1b7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f743beeb-8551-43f4-8161-04fc521912e5" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/0a9b2411-a38e-4009-816c-7682ad12c78e" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/db56e390-fefa-4a5a-a7c3-92d76901f9e7" width="155" height="155" /> |
 | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/d0430b42-db22-429b-ba42-fcb9a6cbe801" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3b6dd274-a8d5-4b0f-86cc-568cda16d179" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/8002fa97-aa80-47ac-9f3c-23969bc38cf2" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/53e9ae3b-40ab-449b-b1a8-2254ffa267a1" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f309319c-43bf-4db9-920f-e60720973bf1" width="155" height="155" /> |
+
+## Inference (based on LoRA)
+
+The difference schedulers can be used for stable diffusion model + LoRA inference (see [LoRA](./lora_finetune.md#introduction) for more information). Users can specify schedulers in the inference script, e.g., in [run_text_to_image_v2_lora](scripts/run_text_to_image_v2_lora.sh).
+
+### Visual Comparison
+
+Based on the LoRA models trained on pokemon and chinese_art datasets (see [LoRA](./lora_finetune.md#get-started) for more information), we test them using different schedulers. The base model is Stable Diffusion 2.0.
+
+- pokemon dataset:
+
+```bash
+a drawing of a blue and white cat with big eyes
+```
+
+| PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/99c2463a-5e8f-458a-962e-4d28c535d878" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/df3342c8-bfe1-424f-8c76-0aad0b7363d6" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/18b9b0b0-7dc3-437a-8f87-fc86fccfd4d7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/26cf1959-90fc-470e-8114-14d6dc1f82e5" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/32d44ebc-bc62-4336-a836-ae7cace21e86" width="155" height="155" /> |
+
+```bash
+a cartoon of a black and white pokemon
+```
+
+| PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/d20d5e08-a0b2-49b9-8591-26e7630af5ea" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/0cbcf1e3-85db-488c-a081-1af05f2e18ce" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/ea92e161-3258-4dc2-8711-dafc521cb58c" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/9a2ee45a-81cf-4996-8e92-5307f8af3966" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/2917429b-85c8-4305-93b8-05e199afb372" width="155" height="155" /> |
+
+- chinese_art dataset:
+
+```bash
+a painting of a group of people sitting on a hill with trees in the background and a stream of water
+```
+
+| PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/be0edf8d-62e3-4f1a-8090-433a4e7acb04" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/18c3dd5a-ff3e-4eb1-986c-1ad5e89adbdb" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/cd438ca1-f358-4a59-99e0-d728eaac0695" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/b64f1a60-6887-44d9-8a39-fb1b607af2f3" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/e1923489-e73f-4d34-8641-ce482cef2ce2" width="155" height="155" /> |
+
+```bash
+a drawing of a village with a boat and a house in the background with a red ribbon on the bottom of the picture
+```
+
+| PLMS | DDIM | DPM-Solver | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/37ddf56d-7e88-4093-919d-9a79f0b59961" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/fdab0742-2809-4dbb-ac35-2e3abda5b654" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3ca860e7-027d-4e03-b114-488e244d48a7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f3b5e5f5-279b-4c03-b54f-cf6e1ff10953" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/49a5c26f-03cb-4430-935f-b4e9940f725a" width="155" height="155" /> |
+
+### Qualitative Comparison with Diffusers
+
+We also show some text-to-image generation samples for the LoRA models trained by MindOne and Diffusers. The base model is Stable Diffusion 2.0.
+
+- pokemon dataset:
+
+```bash
+a drawing of a black and gray dragon
+```
+
+| Framework | PLMS | DDIM | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| MindOne | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/7fb311b7-a0f4-4aa2-b10d-8eb2deebbcdf" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3ebd8598-468e-4853-ab87-ec5457ae2590" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/514469e1-df82-45d6-9acc-c8d1e5ff312c" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/26062b45-7c36-4277-b10a-61e2ebd23af8" width="155" height="155" /> |
+| Diffusers | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/0a7fa4e5-0f62-4985-8bc7-873a7a5e61a4" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/91b2fd08-d283-49e8-96a2-db15f8e93e23" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/ecc3676b-ca14-480e-8719-02694a176e9d" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/37430894-9d5c-4aa1-82d3-4b84464c5bf8" width="155" height="155" /> |
+
+```bash
+a cartoon panda with a leaf in its mouth
+```
+
+| Framework | PLMS | DDIM | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| MindOne | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/d89031eb-9ad8-4d51-9126-d6638ee7cae7" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/4302c116-ba08-4d63-ae62-163da37e634c" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/41487edd-ef09-4525-b09a-42e8ff79ce5b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3408fe57-2700-495e-8677-26ddb618b2e6" width="155" height="155" /> |
+| Diffusers | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/cdcf7b06-7822-4dc2-b33a-ad26d7eed705" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/08ed029d-4ccc-40b7-a877-0a37684ee753" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/5fddf4b1-07ab-4fb6-bcfe-1406720b15a4" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/6bc6986b-88af-416d-9e20-dd3ac9a9dee0" width="155" height="155" /> |
+
+- chinese_art dataset:
+
+```bash
+a painting of a landscape with a mountain in the background and a river running through it with a few people on it
+```
+
+| Framework | PLMS | DDIM | DPM-Solver++ | UniPC |
+| :----: | :----: | :----: | :----: | :----: |
+| MindOne | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/e3f8893a-419d-4f59-9ede-63e6ff307c9b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/70a24b3e-5439-4ccd-bd63-afbd94ecfc27" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/b3a4d82a-c8c7-4f85-bd80-613e7d085a6b" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f889c713-da74-40a9-a17d-bc363d77ba7e" width="155" height="155" /> |
+| Diffusers | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/00a41bc8-c38d-463d-af8a-8e204e41c14a" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f95715eb-d92f-4464-ad84-f8af554c81f2" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/3adf40cc-43cd-4dcc-b05c-71541a2a8b2e" width="155" height="155" /> | <img src="https://github.com/zhaoyuzhi/mindone/assets/13333802/f9c73e9b-ea3e-4232-83b8-8b640d792896" width="155" height="155" /> |
+
+### Quantitative Comparison with Diffusers
+
+Here are the evaluation results for our implementation.
+
+<div align="center">
+
+| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algorithm | FID (MindOne) &#8595; |  FID (Diffusers) &#8595; |
+|--------------|------|-------------|-----------|--------|------------|
+| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | PLMS (scale: 9, steps: 50)   |   103  |   105  |
+| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | DDIM (scale: 9, steps: 50)   |   101  |   109  |
+| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | DPM Solver ++ (scale: 9, steps: 20)   |   98  |   107  |
+| stable_diffusion_2.0_base | pokemon_blip |  LoRA  | UniPC (scale: 9, steps: 20)   |   104  |   107  |
+| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | PLMS (scale: 9, steps: 50)   |   279  |   260  |
+| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | DDIM (scale: 9, steps: 50)   |   277  |   250  |
+| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | DPM Solver ++ (scale: 9, steps: 20)   |   265  |   254  |
+| stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | UniPC (scale: 9, steps: 20)   |   288  |   254  |
+
+</div>
+
+
+
+
+
+
