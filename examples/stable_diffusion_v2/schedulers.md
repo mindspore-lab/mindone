@@ -202,9 +202,3 @@ Here are the evaluation results for our implementation.
 | stable_diffusion_2.0_base | chinese_art_blip |  LoRA  | UniPC (scale: 9, steps: 20)   |   288  |   254  |
 
 </div>
-
-
-
-
-
-
