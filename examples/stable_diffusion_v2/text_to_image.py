@@ -134,9 +134,9 @@ def main(args):
             negative_data = [batch_size * [negative_prompt] for negative_prompt in negative_prompts]
 
     # post-process negative prompts
-    assert len(negative_data) <= len(data)
+    assert len(negative_data) <= len(data), "Negative prompts should be shorter than positive prompts"
     if len(negative_data) < len(data):
-        logger.info(f"Negative prompts are shorter than positive prompts, doing padding")
+        logger.info("Negative prompts are shorter than positive prompts, padding blank prompts")
         blank_negative_prompt = batch_size * [""]
         for _ in range(len(data) - len(negative_data)):
             negative_data.append(blank_negative_prompt)
