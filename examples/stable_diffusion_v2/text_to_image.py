@@ -131,8 +131,16 @@ def main(args):
         with open(args.negative_data_path, "r") as f:
             negative_prompts = f.read().splitlines()
             # TODO: try to put different prompts in a batch
-            negative_data = [batch_size * [negative_prompt for negative_prompt in negative_prompts]]
+            negative_data = [batch_size * [negative_prompt] for negative_prompt in negative_prompts]
 
+    # post-process negative prompts
+    assert len(negative_data) <= len(data)
+    if len(negative_data) < len(data):
+        logger.info(f"Negative prompts are shorter than positive prompts, doing padding")
+        blank_negative_prompt = batch_size * [""]
+        for _ in range(len(data) - len(negative_data)):
+            negative_data.append(blank_negative_prompt)
+            
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
