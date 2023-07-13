@@ -260,7 +260,7 @@ class DDIMSampler(object):
                     c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
             else:
                 c_in = ops.concat([unconditional_conditioning, c], axis=0)
-            model_uncond, model_t = ops.split((self.model.apply_model(x_in, t_in, c_crossattn=c_in)), 0, 2)
+            model_uncond, model_t = ops.Split(0, 2)(self.model.apply_model(x_in, t_in, c_crossattn=c_in))
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
         if self.model.parameterization == "v":
