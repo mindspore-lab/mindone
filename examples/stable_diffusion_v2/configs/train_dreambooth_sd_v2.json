@@ -1,0 +1,19 @@
+{
+    "model_config": "configs/train_dreambooth_sd_v2.yaml",
+    "pretrained_model_path": "models/",
+    "pretrained_model_file":"sd_v2_base-57526ee4.ckpt",
+    "train_batch_size": 1,
+    "gradient_accumulation_steps": 1,
+    "optim": "adamw",
+    "epochs": 8,
+    "betas": [
+        0.9,
+        0.98
+    ],
+    "warmup_steps": 200,
+    "seed": 3407,
+    "image_size": 512,
+    "random_crop": true,
+    "start_learning_rate": 5e-6,
+    "num_class_images": 200
+}

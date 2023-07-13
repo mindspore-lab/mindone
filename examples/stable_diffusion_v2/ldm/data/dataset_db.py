@@ -31,13 +31,13 @@ from mindspore.dataset import GeneratorDataset
 def load_data(
     train_data_path,
     reg_data_path,
-    train_data_repeats,
-    class_word,
-    token,
+    instance_prompt,
+    class_prompt,
     batch_size,
     tokenizer,
     image_size=512,
     image_filter_size=256,
+    train_data_repeats=1,
     device_num=1,
     random_crop=False,
     rank_id=0,
@@ -60,8 +60,8 @@ def load_data(
         batch_size,
         train_images,
         reg_images,
-        class_word,
-        token,
+        instance_prompt,
+        class_prompt,
         tokenizer,
         image_size,
         image_filter_size,
@@ -97,7 +97,7 @@ def list_image_files(data_path):
 
 
 def repeat_data(data_list, repeats):
-    return data_list + data_list * repeats
+    return data_list * repeats
 
 
 def list_image_files_captions_recursively(data_path):
@@ -152,8 +152,8 @@ class ImageDataset:
         batch_size,
         train_images,
         reg_images,
-        class_word,
-        token,
+        instance_prompt,
+        class_prompt,
         tokenizer,
         image_size,
         image_filter_size,
@@ -169,8 +169,8 @@ class ImageDataset:
         self.reg_images = reg_images
         self.shuffle = shuffle
         self.random_crop = random_crop
-        self.class_word = class_word
-        self.token = token
+        self.class_prompt = class_prompt
+        self.instance_prompt = instance_prompt
 
         self.rescaler = albumentations.SmallestMaxSize(max_size=self.image_size)
         if not self.random_crop:
@@ -208,8 +208,8 @@ class ImageDataset:
         reg_image_input = self.preprocess_image(reg_image_path)
 
         # caption preprocess
-        train_caption = self.token + self.class_word
-        reg_caption = self.class_word
+        train_caption = self.instance_prompt
+        reg_caption = self.class_prompt
         train_caption_input = self.tokenize(train_caption)
         reg_caption_input = self.tokenize(reg_caption)
 
@@ -230,9 +230,9 @@ class ImageDataset:
         return image
 
     def tokenize(self, text):
-        SOT_TEXT = "[CLS]"
-        EOT_TEXT = "[SEP]"
-        CONTEXT_LEN = 77
+        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
+        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
+        CONTEXT_LEN = 77  # TODO: get from self.tokenizer.context_len
 
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]

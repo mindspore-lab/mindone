@@ -13,12 +13,18 @@
 # limitations under the License.
 # ============================================================================
 import importlib
+import logging
+import os
 from inspect import isfunction
 
+from omegaconf import OmegaConf
 from packaging import version
 
 import mindspore as ms
 import mindspore.ops as ops
+from mindspore import load_checkpoint, load_param_into_net
+
+_logger = logging.getLogger(__name__)
 
 
 def exists(x):
@@ -47,6 +53,8 @@ def count_params(model, verbose=False):
 
 
 def instantiate_from_config(config):
+    if isinstance(config, str):
+        config = OmegaConf.load(config).model
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -73,3 +81,33 @@ def extract_into_tensor(a, t, x_shape):
 def is_old_ms_version(last_old_version="1.10.1"):
     # some APIs are changed after ms 1.10.1 version, such as dropout
     return version.parse(ms.__version__) <= version.parse(last_old_version)
+
+
+def load_pretrained_model(pretrained_ckpt, net):
+    _logger.info(f"Loading pretrained model from {pretrained_ckpt}")
+    if os.path.exists(pretrained_ckpt):
+        param_dict = load_checkpoint(pretrained_ckpt)
+        if is_old_ms_version():
+            param_not_load = load_param_into_net(net, param_dict)
+        else:
+            param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
+        _logger.info("Params not load: {}".format(param_not_load))
+    else:
+        _logger.warning("Checkpoint file not exists!!!")
+
+
+def resume_train_network(network, optimizer, resume_ckpt):
+    resume_param = load_checkpoint(resume_ckpt)
+    start_epoch = int(resume_param.get("epoch_num", ms.Tensor(0, ms.int32)).asnumpy().item())
+    loss_scale = float(resume_param.get("loss_scale", ms.Tensor(0, ms.float32)).asnumpy().item())
+    cur_iter = resume_param.get("current_iterator_step", ms.Tensor(0, ms.int32))
+    last_overflow_iter = resume_param.get("last_overflow_iterator_step", ms.Tensor(0, ms.int32))
+    load_param_into_net(network, resume_param)
+    load_param_into_net(optimizer, resume_param)
+    _logger.info(
+        f"Finish loading network and optimizer resume checkoint from {resume_ckpt}. "
+        f"If no parameter fail-load warning displayed, all checkpoint params have been successfully loaded. \n"
+        f"Resume train from epoch: {start_epoch + 1}"
+    )
+
+    return start_epoch, loss_scale, cur_iter, last_overflow_iter
