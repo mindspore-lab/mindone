@@ -98,10 +98,10 @@ For more usages of img2dataset, please read the official (API document)[https://
 
 **Notes**
 
-1. You may change `output_format` to fit your tradeoff between storage space and data loading speed.
-    files:  saves as a set of subfolder containing pictures (in jpg format by default)
-    webdataset: saves as tars containing pictures, which is compressed and is fast in dataloading
-    parquet: saves as parquet containing pictures as bytes
+1. You may change `output_format` to fit your tradeoff between storage space and data loading speed. The options are:
+    - files:  saves as a set of subfolder containing pictures (in jpg format by default).
+    - webdataset: saves as tars containing pictures, which is compressed and is fast in dataloading.
+    - parquet: saves as parquet containing pictures as bytes.
 2. For "failed to download" message, please checkout `{output_dir}/0000x_stats.json` for detailed reasons. Here are some solutions to increase the download success rate.
     - To address "certificate verify failed", please replace /your/path/to/python3.7/site-packages/img2dataset/downloader.py by tools/downloaders/downnloader.py to set no certificate context. 
     - Use [DNS resolver](https://github.com/rom1504/img2dataset/tree/main#setting-up-a-high-performance-dns-resolver)
