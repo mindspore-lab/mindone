@@ -192,7 +192,7 @@ def main(args):
             os.makedirs(ckpt_dir)
 
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.model,
+            network=latent_diffusion_with_loss, #.model,
             use_lora=args.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,

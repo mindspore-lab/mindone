@@ -5,8 +5,6 @@ export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
 export SD_VERSION="2.0" # TODO: parse by args. or fix to 2.0 later
 
-device_id=7
-
 output_path=output/finetune_pokemon
 task_name=txt2img
 #data_path=./datasets/diffusion/pokemon_blip/train

@@ -1,8 +1,10 @@
-output_format="files"
-output_folder=/data3/datasets/laion_art # make sure this folder is set on the disk with large enough space (> 1TB????) 
+#output_format="files"
+output_format="parquet"
+input_folder=/data3/datasets/laion_art_metadata_filtered 
+output_folder=/data3/datasets/laion_art_filtered # make sure this folder is set on the disk with large enough space (> 1TB????) 
 #encode_quality=95
 
-img2dataset --url_list /home/yx/datasets/diffusion/laion_art/laion-art.parquet --input_format "parquet" \
+img2dataset --url_list $input_folder --input_format "parquet" \
         --url_col "URL" --caption_col "TEXT" \
 		--output_format $output_format \
         --output_folder  $output_folder \
