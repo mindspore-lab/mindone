@@ -13,12 +13,18 @@
 # limitations under the License.
 # ============================================================================
 import importlib
+import logging
+import os
 from inspect import isfunction
 
+from omegaconf import OmegaConf
 from packaging import version
 
 import mindspore as ms
 import mindspore.ops as ops
+from mindspore import load_checkpoint, load_param_into_net
+
+_logger = logging.getLogger(__name__)
 
 
 def exists(x):
@@ -47,6 +53,8 @@ def count_params(model, verbose=False):
 
 
 def instantiate_from_config(config):
+    if isinstance(config, str):
+        config = OmegaConf.load(config).model
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -73,3 +81,16 @@ def extract_into_tensor(a, t, x_shape):
 def is_old_ms_version(last_old_version="1.10.1"):
     # some APIs are changed after ms 1.10.1 version, such as dropout
     return version.parse(ms.__version__) <= version.parse(last_old_version)
+
+
+def load_pretrained_model(pretrained_ckpt, net):
+    _logger.info(f"Loading pretrained model from {pretrained_ckpt}")
+    if os.path.exists(pretrained_ckpt):
+        param_dict = load_checkpoint(pretrained_ckpt)
+        if is_old_ms_version():
+            param_not_load = load_param_into_net(net, param_dict)
+        else:
+            param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
+        _logger.info("Params not load: {}".format(param_not_load))
+    else:
+        _logger.warning("Checkpoint file not exists!!!")
