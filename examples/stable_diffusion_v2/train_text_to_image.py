@@ -188,7 +188,7 @@ def main(args):
             os.makedirs(ckpt_dir)
 
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.model,
+            network=latent_diffusion_with_loss, #.model,
             use_lora=args.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
@@ -276,7 +276,7 @@ if __name__ == "__main__":
     parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
     parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
     parser.add_argument("--image_size", default=512, type=int, help="images size")
-    parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
+    parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size. Drop images with resolution < this size")
 
     parser.add_argument(
         "--log_level",

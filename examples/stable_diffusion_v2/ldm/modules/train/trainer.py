@@ -85,6 +85,8 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.map = ops.Map()
         self.partial = ops.Partial()
 
+        print('Grad reducer: ', self.grad_reducer)
+
     def construct(self, *inputs):
         # compute loss
         weights = self.weights

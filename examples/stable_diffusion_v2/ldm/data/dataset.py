@@ -50,6 +50,7 @@ def load_data(
     if filter_small_size:
         # print(f"Filter small images, filter size: {image_filter_size}")
         all_images, all_captions = filter_small_image(all_images, all_captions, image_filter_size)
+        
     _logger.debug(f"The first image path is {all_images[0]}, and the caption is {all_captions[0]}")
     _logger.info(f"Total number of training samples: {len(all_images)}")
     dataloaders = {}
@@ -112,6 +113,9 @@ def filter_small_image(all_images, all_captions, image_filter_size):
         else:
             filted_images.append(image)
             filted_captions.append(caption)
+    if len(filtered_images) != len(all_images):
+        _logger.info('Num source images: ', len(all_images))
+        _logger.info(f'Num images after resolution filtering (size>={image_filter_size}): ', len(filtered_images))
     return filted_images, filted_captions
 
 
