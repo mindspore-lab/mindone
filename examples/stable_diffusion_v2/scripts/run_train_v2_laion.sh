@@ -30,7 +30,9 @@ pretrained_model_path=models/
 pretrained_model_file=sd_v2_base-57526ee4.ckpt
 train_config_file=configs/train_config_v2.json
 
-image_filter_size=256 # TODO: confirm
+# For phase 1 in training sd 2.0-base, images with resolution < 256x256 are filtered out. For phase 2, 512x512
+# For sd2.1-base, images with resolution < 512x512 are filtered out
+image_filter_size=512 # TODO: confirm
 image_size=512
 
 train_batch_size=3

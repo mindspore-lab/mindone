@@ -94,7 +94,7 @@ It will take about 1 hour to finish downloading (depending on network speed). An
 ├── ... 
 ```
 
-For more usages of img2dataset, please read the official (API document)[https://github.com/rom1504/img2dataset/tree/main#api].
+For more usages of img2dataset, please read the official [API doc](https://github.com/rom1504/img2dataset/tree/main#api).
 
 **Notes**
 
@@ -122,6 +122,10 @@ python laion_to_csv.py
 
 
 ### 6. Distributed Training
+
+Generate the hccl rank table file referring to [this doc](https://github.com/mindspore-lab/mindocr/blob/main/docs/en/tutorials/distribute_train.md#12-configure-rank_table_file-for-training).
+
+Then modify the paths and device num in `scripts/run_train_v2_laion.sh` according to your local env. Run the follow script to launch distributed training: 
 
 ```
 sh scripts/run_train_v2_laion.sh
