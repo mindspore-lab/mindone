@@ -212,7 +212,7 @@ def main(args):
 
     all_samples = list()
     for i, prompts in enumerate(data):
-        negative_prompts = negative_data[i if i < len(negative_data) else 0]
+        negative_prompts = negative_data[i]
         logger.info(
             "[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(
                 i + 1, len(data), prompts[0], negative_prompts[0]
