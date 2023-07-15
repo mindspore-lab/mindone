@@ -133,6 +133,14 @@ def main(args):
             # TODO: try to put different prompts in a batch
             negative_data = [batch_size * [negative_prompt] for negative_prompt in negative_prompts]
 
+    # post-process negative prompts
+    assert len(negative_data) <= len(data), "Negative prompts should be shorter than positive prompts"
+    if len(negative_data) < len(data):
+        logger.info("Negative prompts are shorter than positive prompts, padding blank prompts")
+        blank_negative_prompt = batch_size * [""]
+        for _ in range(len(data) - len(negative_data)):
+            negative_data.append(blank_negative_prompt)
+
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
@@ -156,15 +164,16 @@ def main(args):
         lora_only_ckpt=args.lora_ckpt_path,
     )
 
+    prediction_type = getattr(config.model, "prediction_type", "noise")
     # create sampler
     if args.ddim:
         sampler = DDIMSampler(model)
         sname = "ddim"
     elif args.dpm_solver:
-        sampler = DPMSolverSampler(model, "dpmsolver")
+        sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
         sname = "dpm_solver"
     elif args.dpm_solver_pp:
-        sampler = DPMSolverSampler(model, "dpmsolver++")
+        sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
         sname = "dpm_solver_pp"
     elif args.uni_pc:
         sampler = UniPCSampler(model)

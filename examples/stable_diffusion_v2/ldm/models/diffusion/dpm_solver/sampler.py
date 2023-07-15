@@ -29,6 +29,7 @@ class DPMSolverSampler(object):
         self.algorithm_type = algorithm_type
         self.register_buffer("alphas_cumprod", model.alphas_cumprod)
         self.noise_schedule = NoiseScheduleVP("discrete", alphas_cumprod=self.alphas_cumprod)
+        self.prediction_type = kwargs.get("prediction_type", "noise")
 
     def register_buffer(self, name, attr):
         setattr(self, name, attr)
@@ -89,7 +90,7 @@ class DPMSolverSampler(object):
         model_fn = model_wrapper(
             lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),
             self.noise_schedule,
-            model_type="noise",
+            model_type=self.prediction_type,
             guidance_type="classifier-free",
             condition=conditioning,
             unconditional_condition=unconditional_conditioning,
@@ -149,7 +150,7 @@ class DPMSolverSampler(object):
         model_fn = model_wrapper(
             lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),
             self.noise_schedule,
-            model_type="noise",
+            model_type=self.prediction_type,
             guidance_type="classifier-free",
             condition=conditioning,
             unconditional_condition=unconditional_conditioning,
