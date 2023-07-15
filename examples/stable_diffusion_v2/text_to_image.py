@@ -156,15 +156,16 @@ def main(args):
         lora_only_ckpt=args.lora_ckpt_path,
     )
 
+    prediction_type = getattr(config.model, "prediction_type", "noise")
     # create sampler
     if args.ddim:
         sampler = DDIMSampler(model)
         sname = "ddim"
     elif args.dpm_solver:
-        sampler = DPMSolverSampler(model, "dpmsolver")
+        sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
         sname = "dpm_solver"
     elif args.dpm_solver_pp:
-        sampler = DPMSolverSampler(model, "dpmsolver++")
+        sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
         sname = "dpm_solver_pp"
     elif args.uni_pc:
         sampler = UniPCSampler(model)
