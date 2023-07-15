@@ -244,11 +244,11 @@ class Encoder(nn.Cell):
                 block_in = block_out
                 if curr_res in attn_resolutions:
                     attn.append(make_attn(block_in, attn_type=attn_type, dtype=self.dtype))
-            downsample = Downsample(block_in, resamp_with_conv, dtype=self.dtype)
             down = nn.Cell()
             down.block = block
             down.attn = attn
-            down.downsample = downsample
+            if i_level != self.num_resolutions - 1:
+                down.downsample = Downsample(block_in, resamp_with_conv, dtype=self.dtype)
             curr_res = curr_res // 2
             down.update_parameters_name(prefix=self.param_prefix + f"down.{i_level}.")
             self.down.append(down)
@@ -377,11 +377,11 @@ class Decoder(nn.Cell):
                 block_in = block_out
                 if curr_res in attn_resolutions:
                     attn.append(make_attn(block_in, attn_type=attn_type, dtype=self.dtype))
-            upsample = Upsample(block_in, resamp_with_conv, dtype=self.dtype)
             up = nn.Cell()
             up.block = block
             up.attn = attn
-            up.upsample = upsample
+            if i_level != 0:
+                up.upsample = Upsample(block_in, resamp_with_conv, dtype=self.dtype)
             curr_res = curr_res * 2
             up.update_parameters_name(prefix=self.param_prefix + f"up.{i_level}.")
             if len(self.up) != 0:
