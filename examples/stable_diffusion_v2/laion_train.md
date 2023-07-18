@@ -49,7 +49,7 @@ You may filter unnecessary data to get a smaller subset training, which is usefu
 python laion_filter_metadata.py
 ```
 
-The default filtering conditions in this script are: `LANGUAGE==en`, `WIDTH>=512`, and `HEIGHT>=512`. The resulting metadata should contain 947,191 samples after filtering.
+The default filtering conditions in this script are: `LANGUAGE==en`, `WIDTH>=512`, and `HEIGHT>=512`. The resulting metadata should contain **947,191** samples after filtering.
 
 **Notes:**
 
@@ -65,15 +65,20 @@ We will use `img2dataset` to download the image files from URL, resize images, a
 
 ```shell
 output_format="files"
+input_folder=/data3/datasets/laion_art_metadata_filtered 
+output_folder=/data3/datasets/laion_art_filtered # make sure this folder is set on the disk with large enough space
+timeout=10
+#encode_quality=95
 
-img2dataset --url_list /home/yx/datasets/diffusion/laion_art/laion-art.parquet --input_format "parquet" \
+img2dataset --url_list $input_folder --input_format "parquet" \
         --url_col "URL" --caption_col "TEXT" \
 		--output_format $output_format \
-        --output_folder laion-art \
+        --output_folder  $output_folder \
 		--processes_count 16 --thread_count 64 --image_size 512 \
         --resize_only_if_bigger=True \
 		--resize_mode="keep_ratio" \
 		--skip_reencode=True \
+        --timeout $timeout \
         --save_additional_columns '["similarity","hash","punsafe","pwatermark","aesthetic","LANGUAGE"]' \
 		#--enable_wandb True
 
@@ -125,7 +130,7 @@ python laion_to_csv.py
 
 Generate the hccl rank table file referring to [this doc](https://github.com/mindspore-lab/mindocr/blob/main/docs/en/tutorials/distribute_train.md#12-configure-rank_table_file-for-training).
 
-Then modify the paths and device num in `scripts/run_train_v2_laion.sh` according to your local env. Run the follow script to launch distributed training: 
+Then modify the paths and device num in `scripts/run_train_v2_laion.sh` according to your local env. Run: 
 
 ```
 sh scripts/run_train_v2_laion.sh
