@@ -115,7 +115,15 @@ For more usages of img2dataset, please read the official [API doc](https://githu
 3. For failed to resize message, you may set `--resize_mode` as "no" to disable resizing, or ajust the reszing parameters.
 
 
-### 4. Computing text embeddings and latent images with distributed clip-inference and vae-encoder inference. (Optional)
+### 4. Precompute text embeddings and latent images (Optional)
+
+It can reduce the storage size to about 1/4 and save training time, despite of being less flexible.
+
+TODO: 
+[] save text embedding from clip text encoder output, image embedding from AE encoder output, as mindrecord
+[] dataloader to load embedding data
+[] trainer supporting embeding data input
+
 
 ### 5. Convert to trainable data format 
 
@@ -143,13 +151,65 @@ It is recommended to run training on a large number of devices (e.g. 128 NPUs), 
 
 The overall pipeline for training on a larger LAION subsets is almost the same as Part A, except for downloading large number of metadata files, image files, and store them efficiently. 
 
+Here is the training data info:
+- Link of source metadata: https://huggingface.co/datasets/ChristophSchuhmann/improved_aesthetics_4.5plus 
+> Compared to LAION2b-en with 345GB metadata, this source has about 230GB metadata via fitlering samples with aesthetic score < 4.5.
+- Filter conditions will be applied:
+```text
+    lang=en
+    aesthetic score>=4.5
+    punsafe <= 0.98
+    resolution >= 512x512
+```
 
-1. Download parquest files
+
+### 1. Download LAION-2B Metadata
+
 
 ```shell
 mkdir laion_2b_en_ae4.5 && cd laion_2b_en_ae4.5
-for i in {1..64}; do wget https://huggingface.co/datasets/ChristophSchuhmann/improved_aesthetics_4.5plus/resolve/main/2B-en-4.5_55.parquet; done
+for i in {1..64}; do wget https://huggingface.co/datasets/ChristophSchuhmann/improved_aesthetics_4.5plus/resolve/main/2B-en-4.5_$i.parquet; done
 cd ..
 ```
+
+### 2. Filter the Metadata
+
+```
+python laion_filter_metadata.py
+```
+
+Before running, please modify the following setting in the script according to your environment: 
+``` text
+    data_path_or_dir='/data3/datasets/laion_2b_en_ae4.5'
+    num_repartitions = 50
+    output_dir = '/data3/datasets/laion_2b_en_ae4.5_metadata_filtered'
+```
+
+### 3. Download and Resize Images 
+
+We will use `img2dataset` to download the image files from URL, resize images, and encode them to local storage.
+
+```shell
+output_format="files"
+input_folder=/data3/datasets/laion_2b_en_ae4.5_metadata_filtered 
+output_folder=/data3/datasets/laion_2b_en_ae4.5_filtered # make sure this folder is set on the disk with large enough space
+timeout=10
+#encode_quality=95
+
+img2dataset --url_list $input_folder --input_format "parquet" \
+        --url_col "URL" --caption_col "TEXT" \
+		--output_format $output_format \
+        --output_folder  $output_folder \
+		--processes_count 16 --thread_count 64 --image_size 512 \
+        --resize_only_if_bigger=True \
+		--resize_mode="keep_ratio" \
+		--skip_reencode=True \
+        --timeout $timeout \
+        --save_additional_columns '["similarity","hash","punsafe","pwatermark","aesthetic","LANGUAGE"]' \
+		#--enable_wandb True
+```
+
+It will take about 1 hour to finish downloading (depending on network speed). And the downloaded files should be stored in the following format:
+
 
 TBC
