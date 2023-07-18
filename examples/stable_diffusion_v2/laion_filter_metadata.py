@@ -19,10 +19,12 @@ from pyspark.sql.functions import rand
 from pyspark.sql import functions
 
 
-# filter conditions
+# filter conditions for sd 2.1 base training
 filter_width=512
 filter_height=512
 lang = 'en'
+filter_aes = 4.5
+filter_punsafe = 0.98 # used in sd2.1 base training
 
 def filter_metadata(data_path_or_dir, width=None, height=None, num_repartitions=1, lang='en', output_dir=None):
     spark = SparkSession.builder.config("spark.driver.memory", "16G") .master("local[16]").appName('spark-stats').getOrCreate() 
@@ -33,9 +35,9 @@ def filter_metadata(data_path_or_dir, width=None, height=None, num_repartitions=
     print("Availabe fields to filter: ", df.schema.names)
 
     if "WIDTH" in df.schema.names:
-        df = df.filter((df.WIDTH >= filter_width) & (df.HEIGHT >= filter_height) & (df.LANGUAGE == lang))
+        df = df.filter((df.WIDTH >= filter_width) & (df.HEIGHT >= filter_height) & (df.LANGUAGE == lang) & (df.punsafe <= filter_punsafe) & (df.aesthetic>=filter_aes))
     else:
-        df = df.filter((df.width >= filter_width) & (df.height >= filter_height) & (df.language == lang))
+        df = df.filter((df.width >= filter_width) & (df.height >= filter_height) & (df.language == lang) & (df.punsafe <= filter_punsafe) & (df.aesthetic>=filter_aes))
     df = df.orderBy(rand()) # this line is important to have a shuffled dataset
     df.repartition(num_repartitions).write.parquet(output_dir)
     num_after_filtered = df.count()
