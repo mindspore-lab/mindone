@@ -94,20 +94,3 @@ def load_pretrained_model(pretrained_ckpt, net):
         _logger.info("Params not load: {}".format(param_not_load))
     else:
         _logger.warning("Checkpoint file not exists!!!")
-
-
-def resume_train_network(network, optimizer, resume_ckpt):
-    resume_param = load_checkpoint(resume_ckpt)
-    start_epoch = int(resume_param.get("epoch_num", ms.Tensor(0, ms.int32)).asnumpy().item())
-    loss_scale = float(resume_param.get("loss_scale", ms.Tensor(0, ms.float32)).asnumpy().item())
-    cur_iter = resume_param.get("current_iterator_step", ms.Tensor(0, ms.int32))
-    last_overflow_iter = resume_param.get("last_overflow_iterator_step", ms.Tensor(0, ms.int32))
-    load_param_into_net(network, resume_param)
-    load_param_into_net(optimizer, resume_param)
-    _logger.info(
-        f"Finish loading network and optimizer resume checkoint from {resume_ckpt}. "
-        f"If no parameter fail-load warning displayed, all checkpoint params have been successfully loaded. \n"
-        f"Resume train from epoch: {start_epoch + 1}"
-    )
-
-    return start_epoch, loss_scale, cur_iter, last_overflow_iter

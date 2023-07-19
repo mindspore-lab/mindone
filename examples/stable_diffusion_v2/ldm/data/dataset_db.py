@@ -16,6 +16,7 @@
 import gc
 import os
 from collections import defaultdict
+from functools import partial
 from random import choice, randint
 
 import albumentations
@@ -42,16 +43,17 @@ def load_data(
     random_crop=False,
     rank_id=0,
     sample_num=-1,
+    with_prior_preservation=True,
 ):
     if not os.path.exists(train_data_path):
         raise ValueError("Training data path directory does not exist!")
     train_images = list_image_files(train_data_path)
-    if not os.path.exists(train_data_path):
-        raise ValueError("Regularization data path directory does not exist!")
-    reg_images = list_image_files(reg_data_path)
-
     print(f"Total training images: {len(train_images)}")
-    print(f"Total regularization images: {len(reg_images)}")
+    if with_prior_preservation:
+        if not os.path.exists(reg_data_path):
+            raise ValueError("Regularization data path directory does not exist!")
+        reg_images = list_image_files(reg_data_path)
+        print(f"Total regularization images: {len(reg_images)}")
     train_images = repeat_data(train_images, train_data_repeats)
     print(f"The training data is repeated {train_data_repeats} times, and the total number is {len(train_images)}")
 
@@ -59,23 +61,28 @@ def load_data(
     dataset = ImageDataset(
         batch_size,
         train_images,
-        reg_images,
+        reg_images if with_prior_preservation else None,
         instance_prompt,
-        class_prompt,
+        class_prompt if with_prior_preservation else None,
         tokenizer,
         image_size,
         image_filter_size,
         random_crop=random_crop,
+        with_prior_preservation=with_prior_preservation,
     )
     datalen = dataset.__len__
-    loader = build_dataloader_ft(dataset, datalen, t2i_collate_db, batch_size, device_num, rank_id=rank_id)
+    collate_func = partial(t2i_collate_db, with_prior_preservation=with_prior_preservation)
+    loader = build_dataloader_ft(dataset, datalen, collate_func, batch_size, device_num, rank_id=rank_id)
     dataloaders["ftT2I"] = loader
     if sample_num == -1:
         batchlen = datalen // (batch_size * device_num)
     else:
         batchlen = sample_num
-    metaloader = MetaLoader(dataloaders, datalen=batchlen, task_num=len(dataloaders.keys()))
-    dataset = GeneratorDataset(metaloader, column_names=data_column_db, shuffle=True)
+    metaloader = MetaLoader(
+        dataloaders, datalen=batchlen, task_num=len(dataloaders.keys()), with_prior_preservation=with_prior_preservation
+    )
+    fetch_columns = data_column_db(with_prior_preservation=with_prior_preservation)
+    dataset = GeneratorDataset(metaloader, column_names=fetch_columns, shuffle=True)
 
     return dataset
 
@@ -159,6 +166,7 @@ class ImageDataset:
         image_filter_size,
         shuffle=True,
         random_crop=False,
+        with_prior_preservation=True,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -171,6 +179,7 @@ class ImageDataset:
         self.random_crop = random_crop
         self.class_prompt = class_prompt
         self.instance_prompt = instance_prompt
+        self.with_prior_preservation = with_prior_preservation
 
         self.rescaler = albumentations.SmallestMaxSize(max_size=self.image_size)
         if not self.random_crop:
@@ -204,21 +213,23 @@ class ImageDataset:
         # images preprocess
         train_img_path = self.train_images[idx]
         train_image_input = self.preprocess_image(train_img_path)
-        reg_image_path = choice(self.reg_images)
-        reg_image_input = self.preprocess_image(reg_image_path)
+        if self.with_prior_preservation:
+            reg_image_path = choice(self.reg_images)
+            reg_image_input = self.preprocess_image(reg_image_path)
 
         # caption preprocess
         train_caption = self.instance_prompt
-        reg_caption = self.class_prompt
         train_caption_input = self.tokenize(train_caption)
-        reg_caption_input = self.tokenize(reg_caption)
-
         train_image_input = np.array(train_image_input, dtype=np.float32)
         train_caption_input = np.array(train_caption_input, dtype=np.int32)
-        reg_image_input = np.array(reg_image_input, dtype=np.float32)
-        reg_caption_input = np.array(reg_caption_input, dtype=np.int32)
-
-        return train_image_input, train_caption_input, reg_image_input, reg_caption_input
+        if self.with_prior_preservation:
+            reg_caption = self.class_prompt
+            reg_caption_input = self.tokenize(reg_caption)
+            reg_image_input = np.array(reg_image_input, dtype=np.float32)
+            reg_caption_input = np.array(reg_caption_input, dtype=np.int32)
+            return train_image_input, train_caption_input, reg_image_input, reg_caption_input
+        else:
+            return train_image_input, train_caption_input
 
     def preprocess_image(self, image_path):
         image = Image.open(image_path)
@@ -306,7 +317,7 @@ class DataLoader:
 class MetaLoader:
     """wraps multiple data loaders"""
 
-    def __init__(self, loaders, datalen, task_num=1):
+    def __init__(self, loaders, datalen, task_num=1, with_prior_preservation=True):
         assert isinstance(loaders, dict)
         self.task_num = task_num
         self.name2loader = {}
@@ -314,6 +325,7 @@ class MetaLoader:
         self.sampling_pools = []
         self.loaders = loaders
         self.datalen = datalen
+        self.with_prior_preservation = with_prior_preservation
         for n, l in loaders.items():
             if isinstance(l, tuple):
                 l, r = l
@@ -343,10 +355,12 @@ class MetaLoader:
         batch = defaultdict(lambda: None, batch)
         train_img_feat = batch.get("train_img_feat", None)
         train_txt_tokens = batch.get("train_txt_tokens", None)
-        reg_img_feat = batch.get("reg_img_feat", None)
-        reg_txt_tokens = batch.get("reg_txt_tokens", None)
-
-        output = (train_img_feat, train_txt_tokens, reg_img_feat, reg_txt_tokens)
+        if self.with_prior_preservation:
+            reg_img_feat = batch.get("reg_img_feat", None)
+            reg_txt_tokens = batch.get("reg_txt_tokens", None)
+            output = (train_img_feat, train_txt_tokens, reg_img_feat, reg_txt_tokens)
+        else:
+            output = (train_img_feat, train_txt_tokens)
 
         return output
 

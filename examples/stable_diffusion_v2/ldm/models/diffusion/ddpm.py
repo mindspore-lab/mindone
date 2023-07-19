@@ -612,10 +612,16 @@ class LatentDiffusionDreamBooth(LatentDiffusion):
         loss = self.p_losses(x, c, t)
         return loss
 
-    def construct(self, train_x, train_c, reg_x, reg_c):
-        loss_train = self.shared_step(train_x, train_c)
-        loss_reg = self.shared_step(reg_x, reg_c)
-        loss = loss_train + self.prior_loss_weight * loss_reg
+    def construct(self, *args):
+        if self.prior_loss_weight != 0:
+            train_x, train_c, reg_x, reg_c = args
+            loss_train = self.shared_step(train_x, train_c)
+            loss_reg = self.shared_step(reg_x, reg_c)
+            loss = loss_train + self.prior_loss_weight * loss_reg
+        else:
+            train_x, train_c = args
+            loss_train = self.shared_step(train_x, train_c)
+            loss = loss_train
         return loss
 
 

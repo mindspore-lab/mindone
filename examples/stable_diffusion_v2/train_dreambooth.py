@@ -131,6 +131,9 @@ def parse_args():
 
     # loss
     parser.add_argument(
+        "--with_prior_preservation", type=str2bool, default=True, help="Specify whether to use prior preservation loss."
+    )
+    parser.add_argument(
         "--prior_loss_weight", type=float, default=1.0, help="Specify the weight of the prior preservation loss."
     )
     parser.add_argument(
@@ -168,7 +171,7 @@ def parse_args():
     parser.add_argument(
         "--train_text_encoder",
         type=str2bool,
-        default=False,
+        default=True,
         help="Specify whether to train the text encoder. If set, the text encoder will be trained.",
     )
     parser.add_argument(
@@ -188,9 +191,7 @@ def parse_args():
     parser.add_argument(
         "--start_learning_rate", default=5e-6, type=float, help="Specify the initial learning rate for Adam."
     )
-    parser.add_argument(
-        "--end_learning_rate", default=2e-6, type=float, help="Specify the end learning rate for the optimizer."
-    )
+    parser.add_argument("--end_learning_rate", type=float, help="Specify the end learning rate for the optimizer.")
     parser.add_argument(
         "--decay_steps", default=0, type=int, help="Specify the number of decay steps for the learning rate."
     )
@@ -222,12 +223,26 @@ def parse_args():
     parser.add_argument("--epochs", type=int, default=8)
     args = parser.parse_args()
 
-    if args.class_data_dir is None:
-        raise ValueError("You must specify a data directory for class images.")
-    if args.class_prompt is None:
-        raise ValueError("You must specify prompt for class images.")
-    if args.start_learning_rate < args.end_learning_rate:
-        raise ValueError("The start learning rate must be no less than the end learning rate.")
+    if args.instance_data_dir is None:
+        raise ValueError("You must specify a train data directory.")
+
+    if args.with_prior_preservation:
+        if args.class_data_dir is None:
+            raise ValueError("You must specify a data directory for class images.")
+        if args.class_prompt is None:
+            raise ValueError("You must specify prompt for class images.")
+    else:
+        # logger is not available yet
+        if args.class_data_dir is not None:
+            logger.warning("With with_prior_preservation=False, class_data_dir will not be used.")
+        if args.class_prompt is not None:
+            logger.warning("With with_prior_preservation=False, class_prompt will not be used.")
+
+    if args.end_learning_rate and args.start_learning_rate < args.end_learning_rate:
+        raise ValueError(
+            f"The start learning rate {args.start_learning_rate} must be no less"
+            " than the end learning rate {args.end_learning_rate}."
+        )
     if args.use_lora:
         if args.train_text_encoder:
             raise ValueError("When use_lora is True, cannot train text encoder")
@@ -311,10 +326,16 @@ def main(args):
     rank_id, device_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
     # Generate class images if prior preservation is enabled.
-    generate_class_images(args)  # inistiate a new model. After image generation, the new model is deleted.
+    if args.with_prior_preservation:
+        generate_class_images(args)  # inistiate a new model. After image generation, the new model is deleted.
+    else:
+        logger.info(
+            "With with_prior_preservation=False, it turns to vanilla finetuning, and dreambooth is not applied."
+        )
 
     model_config = OmegaConf.load(args.model_config).model
     model_config["params"]["cond_stage_trainable"] = args.train_text_encoder  # overwrites the model_config
+    model_config["params"]["prior_loss_weight"] = args.prior_loss_weight if args.with_prior_preservation else 0.0
     latent_diffusion_with_loss = instantiate_from_config(model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
     load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
@@ -353,6 +374,7 @@ def main(args):
         random_crop=args.random_crop,
         train_data_repeats=args.train_data_repeats,
         rank_id=rank_id,
+        with_prior_preservation=args.with_prior_preservation,
     )
 
     optimizer = build_optimizer(latent_diffusion_with_loss, args, args.start_learning_rate)

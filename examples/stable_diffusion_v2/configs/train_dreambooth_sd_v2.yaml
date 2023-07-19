@@ -17,6 +17,7 @@ model:
     scale_factor: 0.18215
     use_fp16: True
     parameterization: "eps" # default, original ldm
+    prior_loss_weight: 1.0
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
