@@ -72,6 +72,7 @@ class EvalSaveCallback(Callback):
             self.lora_rank = lora_rank
         else:
             self.net_to_save = network
+        self.use_lora = use_lora
 
     """
     def on_train_begin(self, run_context):
@@ -131,7 +132,7 @@ class EvalSaveCallback(Callback):
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
-                append_dict = {"lora_rank": self.lora_rank} if self.lora_rank is not None else None
+                append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(
                     self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", append_dict=append_dict
                 )
