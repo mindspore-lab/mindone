@@ -250,7 +250,7 @@ class Encoder(nn.Cell):
             if i_level != self.num_resolutions - 1:
                 down.downsample = Downsample(block_in, resamp_with_conv, dtype=self.dtype)
             else:
-                down.downsample = nn.Identity() # mindspore graph mode
+                down.downsample = nn.Identity()
             curr_res = curr_res // 2
             down.update_parameters_name(prefix=self.param_prefix + f"down.{i_level}.")
             self.down.append(down)
@@ -385,7 +385,7 @@ class Decoder(nn.Cell):
             if i_level != 0:
                 up.upsample = Upsample(block_in, resamp_with_conv, dtype=self.dtype)
             else:
-                up.upsample = nn.Identity() # mindspore graph mode
+                up.upsample = nn.Identity()
             curr_res = curr_res * 2
             up.update_parameters_name(prefix=self.param_prefix + f"up.{i_level}.")
             if len(self.up) != 0:
