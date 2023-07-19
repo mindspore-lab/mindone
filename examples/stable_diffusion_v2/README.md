@@ -110,10 +110,10 @@ sh scripts/run_train_v2.sh
 
 Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on.
 
-For training on large datasets, please use the distributed training script via 
+For training on large datasets, please use the distributed training script via
 ```
 bash scripts/run_train_v2_distributed.sh
-``` 
+```
 , after modifying the data paths and device nums in the script.
 
 ### 3. Efficient Finetuning with LoRA 🔥

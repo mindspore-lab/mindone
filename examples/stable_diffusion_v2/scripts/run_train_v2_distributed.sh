@@ -33,7 +33,7 @@ max_grad_norm=1.
 image_filter_size=512 # TODO: confirm
 image_size=512
 
-# ascend config 
+# ascend config
 export GLOG_v=3
 export HCCL_CONNECT_TIMEOUT=6000
 export ASCEND_GLOBAL_LOG_LEVEL=3
