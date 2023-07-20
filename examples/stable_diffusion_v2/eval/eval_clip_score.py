@@ -109,19 +109,13 @@ if __name__ == "__main__":
     if args.backend == "pt":
         from clip_score import compute_torchmetric_clip
 
-        # equivalent to no-check-certificate flag in wget
-        if args.no_check_certificate:
-            import os
-
-            os.environ["CURL_CA_BUNDLE"] = ""
-
         if imgs_per_prompt == 1:
-            score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
+            score = compute_torchmetric_clip(images, texts, args.model_name, args.no_check_certificate)
         else:
             scores = []
             for i in range(imgs_per_prompt):
                 inputs = [images[i::imgs_per_prompt], texts]
-                score = compute_torchmetric_clip(*inputs, model_name=args.model_name)
+                score = compute_torchmetric_clip(*inputs, args.model_name, args.no_check_certificate)
                 scores.append(score)
             score = sum(scores) / len(scores)
 
