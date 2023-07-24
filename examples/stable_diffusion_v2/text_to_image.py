@@ -56,8 +56,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                             "Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")])
                         )
         else:
-            logger.error(f"!!!Error!!!: {ckpt_fp} doesn't exist")
-            raise FileNotFoundError(f"{ckpt_fp} doesn't exist")
+            logger.warning(f"!!!Warning!!!: {ckpt_fp} doesn't exist")
 
     if use_lora:
         load_lora_only = True if lora_only_ckpt is not None else False
@@ -69,7 +68,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                 lora_param_dict = ms.load_checkpoint(lora_only_ckpt)
                 if "lora_rank" in lora_param_dict.keys():
                     lora_rank = int(lora_param_dict["lora_rank"].value())
-                    logger.info(f"Lora rank is set to {lora_rank} according to the found value in lora checkpoint.")
+                    logger.info("Lora rank is set to {lora_rank} according to the found value in lora checkpoint.")
             else:
                 raise ValueError(f"{lora_only_ckpt} doesn't exist")
             # load the main pretrained model
