@@ -166,6 +166,7 @@ def main(args):
     )
 
     prediction_type = getattr(config.model, "prediction_type", "noise")
+    logger.info(f"sampling prediction type: {prediction_type}")
     # create sampler
     if args.ddim:
         sampler = DDIMSampler(model)
