@@ -2,9 +2,11 @@
 CLIPModel
 """
 import os
+from functools import partial
 from typing import Optional, Union
 
 import numpy as np
+from ldm.util import is_old_ms_version
 
 import mindspore as ms
 import mindspore.ops as ops
@@ -40,6 +42,7 @@ class CLIPModel(nn.Cell):
             dtype=self.dtype,
             hidden_act=config.vision_config.hidden_act,
         )
+        self.visual = self.visual.to_float(self.dtype)
 
         self.transformer = Transformer(
             width=config.text_config.hidden_size,
@@ -49,14 +52,19 @@ class CLIPModel(nn.Cell):
             hidden_act=config.text_config.hidden_act,
             attn_mask=self.build_attention_mask(),
         )
+        self.transformer = self.transformer.to_float(self.dtype)
 
         self.token_embedding = nn.Embedding(
-            config.text_config.vocab_size, config.text_config.hidden_size, embedding_table=Normal(mean=0.0, sigma=0.02)
+            config.text_config.vocab_size,
+            config.text_config.hidden_size,
+            embedding_table=Normal(mean=0.0, sigma=0.02),
+            dtype=self.dtype,
         )
         self.positional_embedding = Parameter(
             initializer(
                 Normal(mean=0.0, sigma=0.01),
                 [config.text_config.max_position_embeddings, config.text_config.hidden_size],
+                self.dtype,
             )
         )
         self.ln_final = LayerNorm([config.text_config.hidden_size])
@@ -65,10 +73,10 @@ class CLIPModel(nn.Cell):
             initializer(
                 Normal(mean=0.0, sigma=config.text_config.hidden_size**-0.5),
                 [config.text_config.hidden_size, config.projection_dim],
-                ms.float32,
+                self.dtype,
             )
         )
-        self.logit_scale = Parameter(Tensor(np.log(1 / 0.07)).astype(ms.float32))
+        self.logit_scale = Parameter(Tensor(np.log(1 / 0.07)).astype(self.dtype))
         self.exp = ops.Exp()
 
         self.load_checkpoint(config)
@@ -122,9 +130,13 @@ class CLIPModel(nn.Cell):
 
         image_features = self.get_image_features(image)
         text_features = self.get_text_features(text)
+        if not is_old_ms_version("2.0.0-alpha"):
+            L2_norm_ops = partial(ops.norm, ord=2, dim=1, keepdim=True)
+        else:
+            L2_norm_ops = partial(ops.norm, p=2, axis=1, keep_dims=True)
 
-        image_features = image_features / image_features.norm(1, keep_dims=True)
-        text_features = text_features / text_features.norm(1, keep_dims=True)
+        image_features = image_features / L2_norm_ops(image_features)
+        text_features = text_features / L2_norm_ops(text_features)
         logit_scale = self.exp(self.logit_scale)
 
         if label is None:
@@ -171,13 +183,13 @@ class CLIPModel(nn.Cell):
         """
         if input_ids is not None:
             text = input_ids
-
-        text_ = self.token_embedding(text).astype(self.dtype)
-        text_ = ops.Add()(text_, self.positional_embedding).astype(self.dtype)
+        text_ = self.token_embedding(text)
+        text_ = text_.astype(self.dtype)
+        text_ = ops.Add()(text_, self.positional_embedding)
         text_ = text_.transpose(1, 0, 2)
         text_ = self.transformer(text_)
         text_ = text_.transpose(1, 0, 2)
-        text_ = self.ln_final(text_).astype(self.dtype)
+        text_ = self.ln_final(text_)
 
         text_ = ops.matmul(text_[ms.numpy.arange(text_.shape[0]), text.argmax(-1)], self.text_projection)
         return text_
