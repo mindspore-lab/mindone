@@ -112,18 +112,39 @@ def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
         logger.warning("Checkpoint file {pretrained_ckpt} dose not exist!!!")
 
 
+def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
+    new_param_dict = {}
+    logger.info(f"Loading pretrained model from {pretrained_ckpt}, {cnclip_ckpt}")
+    if os.path.exists(pretrained_ckpt) and os.path.exists(cnclip_ckpt):
+        param_dict = load_checkpoint(pretrained_ckpt)
+        cnclip_param_dict = load_checkpoint(pretrained_ckpt)
+        for key in param_dict:
+            if key.startswith("first") or key.startswith("model"):
+                new_param_dict[key] = param_dict[key]
+        for key in cnclip_param_dict:
+            new_param_dict[key] = cnclip_param_dict[key]
+        param_not_load = load_param_into_net(net, new_param_dict)
+        logger.info("Params not load: {}".format(param_not_load))
+    else:
+        logger.warning("Checkpoint file {pretrained_ckpt}, {cnclip_ckpt} dose not exist!!!")
+
+
 def main(args):
     # init
     rank_id, device_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    # build dataset
-    dataset = build_dataset(args, rank_id, device_num)
-
     # build model
     latent_diffusion_with_loss = build_model_from_config(args.model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
-    load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+    if "cnclip" in args.model_config:
+        load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, latent_diffusion_with_loss)
+    else:
+        load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+
+    # build dataset
+    tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
+    dataset = build_dataset(args, rank_id, device_num, tokenizer)
 
     # lora injection
     if args.use_lora:

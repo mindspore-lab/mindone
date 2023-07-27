@@ -23,7 +23,6 @@ import imagesize
 import numpy as np
 import pandas as pd
 from ldm.data.t2i_collate import data_column, t2i_collate
-from ldm.models.clip.simple_tokenizer import get_tokenizer
 from PIL import Image
 
 from mindspore.dataset import GeneratorDataset
@@ -205,7 +204,7 @@ class ImageDataset:
     def tokenize(self, text):
         SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
         EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
-        CONTEXT_LEN = 77  # TODO: get from self.tokenizer.context_len
+        CONTEXT_LEN = self.tokenizer.context_length
 
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
@@ -351,10 +350,7 @@ class MetaLoader:
         return self.datalen
 
 
-def build_dataset(args, rank_id, device_num):
-    # tokenizer = WordpieceTokenizer()
-    tokenizer = get_tokenizer(SD_VERSION)
-
+def build_dataset(args, rank_id, device_num, tokenizer):
     dataset = load_data(
         data_path=args.data_path,
         batch_size=args.train_batch_size,
