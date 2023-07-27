@@ -7,6 +7,7 @@ This folder contains Stable Diffusion (SD) models implemented with MindSpore. It
 - [x] Support SoTA diffusion process schedulers including DDIM, DPM Solver, UniPC, etc. (under continuous update)
 - [x] Vanilla Stable Diffusion finetuning
 - [x] [Efficient SD finetuning with LoRA](lora_finetune.md) 🔥
+- [x] [Finetuning with DreamBooth](dreambooth_finetune.md)
 - [x] Quantitative evaluation for diffusion models: FID
 - [x] Chinese text-to-image generation thanks to Wukonghuahua (based on SD 1.x)
 - [x] Negative prompt guidance.
@@ -122,8 +123,13 @@ LoRA finetuning has lower memory requirement and allows finetuning on images wit
 
 Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_finetune.md)
 
+### 4. Finetuning with DreamBooth
 
-### 4. Evaluation
+DreamBooth allows users to generate contextualized images of one subject using just 3-5 images of the subject, e.g., your dog.
+
+Please refer to the tutorial of [DreamBooth for Stable Diffusion Finetuning](dreambooth_finetune.md)
+
+### 5. Evaluation
 
 Please refer to [Evaluation for Diffusion Models](eval/README.md)
 
