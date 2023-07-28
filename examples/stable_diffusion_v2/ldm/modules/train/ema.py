@@ -32,6 +32,7 @@ class EMA(nn.Cell):
 
         self.hyper_map = C.HyperMap()
         self.map = ops.HyperMap()
+        self.assign = ops.Assign().add_prim_attr("primitive_target", "CPU")
 
     def ema_update(self):
         """Update EMA parameters."""
@@ -45,13 +46,13 @@ class EMA(nn.Cell):
     # @ms_function
     def swap_before_eval(self):
         # net -> swap
-        success = self.map(ops.assign, self.swap_cache, self.net_weight)
+        success = self.map(self.assign, self.swap_cache, self.net_weight)
         # ema -> net
-        success = F.depend(success, self.map(ops.assign, self.net_weight, self.ema_weight))
+        success = F.depend(success, self.map(self.assign, self.net_weight, self.ema_weight))
         return success
 
     # @ms_function
     def swap_after_eval(self):
         # swap -> net
-        success = self.map(ops.assign, self.net_weight, self.swap_cache)
+        success = self.map(self.assign, self.net_weight, self.swap_cache)
         return success
