@@ -114,7 +114,7 @@ class SafetyChecker1:
             processor = CLIPImageProcessor()
             images = processor(images)
         else:
-            images = self.processor(images=images, return_tensors='pt').pixel_values
+            images = self.processor(images=images, return_tensors="pt").pixel_values
 
         return self.__call__(images)
 
