@@ -72,7 +72,7 @@ class SafetyChecker2:
         if self.backend == "ms":
             images = self.processor(images)
         else:
-            images = self.processor(images=images).pixel_values
+            images = self.processor(images=images, return_tensors='pt').pixel_values
 
         return self.__call__(images)
 
