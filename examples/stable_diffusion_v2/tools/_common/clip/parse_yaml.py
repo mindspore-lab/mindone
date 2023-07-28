@@ -14,4 +14,4 @@ def parse(path_to_config, path_to_ckpt):
     config = CLIPConfig(
         tconfig, vconfig, configf["projection_dim"], configf["logit_scale_init_value"], path_to_ckpt, configf["dtype"]
     )
-    return config
+    return config, configf["dtype"]

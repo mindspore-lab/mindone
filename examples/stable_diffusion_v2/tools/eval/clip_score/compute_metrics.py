@@ -1,11 +1,11 @@
-def compute_torchmetric_clip(images, texts, model_name, no_check_certificate=False):
+def compute_torchmetric_clip(images, texts, model_name, check_certificate=False):
     from functools import partial
 
     import torch
     import torchvision.transforms as transforms
     from torchmetrics.functional.multimodal import clip_score
 
-    if no_check_certificate:
+    if not check_certificate:
         import os
 
         os.environ["CURL_CA_BUNDLE"] = ""

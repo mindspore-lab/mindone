@@ -3,9 +3,9 @@ import json
 import os
 from functools import partial
 
-from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 from ldm.util import is_old_ms_version
 from PIL import Image
+from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
 import mindspore
 from mindspore import ops
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         type=str,
         help="backend to do CLIP model inference for CLIP score compute. Option: ms, pt." " Default: ms",
     )
-    parser.add_argument("--load_checkpoint", default=None, type=str, help="load model checkpoint." " Default: None")
+    parser.add_argument("--ckpt_path", default=None, type=str, help="load model checkpoint." " Default: None")
     parser.add_argument(
         "--tokenizer_path",
         default="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
@@ -64,9 +64,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
     parser.add_argument(
-        "--no_check_certificate",
+        "--check_certificate",
         action="store_true",
-        help="set this flag to avoid checking for certificate for downloads (checks)",
+        help="set this flag to check for certificate for downloads (checks)",
     )
     args = parser.parse_args()
 
@@ -112,12 +112,12 @@ if __name__ == "__main__":
         from clip_score import compute_torchmetric_clip
 
         if imgs_per_prompt == 1:
-            score = compute_torchmetric_clip(images, texts, args.model_name, args.no_check_certificate)
+            score = compute_torchmetric_clip(images, texts, args.model_name, args.check_certificate)
         else:
             scores = []
             for i in range(imgs_per_prompt):
                 inputs = [images[i::imgs_per_prompt], texts]
-                score = compute_torchmetric_clip(*inputs, args.model_name, args.no_check_certificate)
+                score = compute_torchmetric_clip(*inputs, args.model_name, args.check_certificate)
                 scores.append(score)
             score = sum(scores) / len(scores)
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         texts = [process_text(text) for text in texts]
 
         # parse config file
-        config = parse(args.config, args.load_checkpoint)
+        config = parse(args.config, args.ckpt_path)
         model = CLIPModel(config)
         # get L2 norm operator
         if not is_old_ms_version("2.0.0-alpha"):

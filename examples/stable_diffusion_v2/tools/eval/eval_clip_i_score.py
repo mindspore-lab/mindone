@@ -2,8 +2,8 @@ import argparse
 import os
 from functools import partial
 
-from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 from PIL import Image
+from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
 import mindspore
 from mindspore import ops
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         type=str,
         help="backend to do CLIP model inference for CLIP score compute. Option: ms, pt." " Default: ms",
     )
-    parser.add_argument("--load_checkpoint", default=None, type=str, help="load model checkpoint." " Default: None")
+    parser.add_argument("--ckpt_path", default=None, type=str, help="load model checkpoint." " Default: None")
     parser.add_argument(
         "--tokenizer_path",
         default="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
@@ -73,9 +73,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
     parser.add_argument(
-        "--no_check_certificate",
+        "--check_certificate",
         action="store_true",
-        help="set this flag to avoid checking for certificate for downloads (checks)",
+        help="set this flag to check for certificate for downloads (checks)",
     )
     args = parser.parse_args()
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         else:
             L2_norm_ops = partial(ops.norm, p=2, axis=1, keep_dims=True)
         # parse config file
-        config = parse(args.config, args.load_checkpoint)
+        config = parse(args.config, args.ckpt_path)
         model = CLIPModel(config)
         real_image_features = []
         for i_real_image in range(len(real_images)):
