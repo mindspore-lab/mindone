@@ -147,6 +147,12 @@ def main(args):
     if not args.decay_steps:
         dataset_size = dataset.get_dataset_size()
         args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
+        if args.decay_steps <= 0:
+            logger.warning(
+                f"decay_steps is {args.decay_steps}, please check epochs, dataset_size and warmup_steps. "
+                f"Will force decay_steps to be set to 1."
+            )
+            args.decay_steps = 1
     lr = LearningRate(args.start_learning_rate, args.end_learning_rate, args.warmup_steps, args.decay_steps)
     optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
 
