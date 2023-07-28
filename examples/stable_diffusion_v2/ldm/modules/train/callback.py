@@ -72,7 +72,7 @@ class EvalSaveCallback(Callback):
             self.lora_rank = lora_rank
         else:
             self.net_to_save = network
-            self.lora_rank = None
+        self.use_lora = use_lora
 
     """
     def on_train_begin(self, run_context):
