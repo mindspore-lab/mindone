@@ -39,8 +39,7 @@ class SafetyChecker1:
             # parse config file
             from tools._common.clip import CLIPModel
 
-            config, dtype = parse(config, ckpt_path)
-            self.dtype = ms.float16 if dtype == "float16" else ms.float32
+            config = parse(config, ckpt_path)
             model = CLIPModel(config)
             processor = CLIPTokenizer(tokenizer_path, pad_token="!")
 

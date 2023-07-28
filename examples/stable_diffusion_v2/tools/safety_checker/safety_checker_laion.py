@@ -36,7 +36,7 @@ class SafetyChecker2:
             nsfw_model.load_state_dict(torch.load("tools/safety_checker/l14_nsfw.pth"))
 
         elif backend == "ms":
-            from safety_checker import NSFWModel
+            from nsfw_model import NSFWModel
 
             nsfw_model = NSFWModel()
             param = load_checkpoint("tools/safety_checker/l14_nsfw.ckpt")
@@ -50,8 +50,7 @@ class SafetyChecker2:
             # parse config file
             from tools._common.clip import CLIPModel
 
-            config, dtype = parse(config, ckpt_path)
-            self.dtype = ms.float16 if dtype == "float16" else ms.float32
+            config = parse(config, ckpt_path)
 
             model = CLIPModel(config)
             processor = CLIPImageProcessor()
