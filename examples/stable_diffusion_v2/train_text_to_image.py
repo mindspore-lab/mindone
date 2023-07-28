@@ -17,7 +17,7 @@ from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
-from ldm.util import is_old_ms_version, str2bool, count_params
+from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -75,8 +75,8 @@ def build_model_from_config(config):
         elif config == "__is_unconditional__":
             return None
         raise KeyError("Expected key `target` to instantiate.")
-    config_params =  config.get("params", dict())
-    #config_params['cond_stage_trainable'] = cond_stage_trainable # TODO: easy config
+    config_params = config.get("params", dict())
+    # config_params['cond_stage_trainable'] = cond_stage_trainable # TODO: easy config
     return get_obj_from_str(config["target"])(**config_params)
 
 
@@ -131,7 +131,7 @@ def main(args):
     # lora injection
     if args.use_lora:
         # freeze network
-        for param in latent_diffusion_with_loss.get_parameters(): 
+        for param in latent_diffusion_with_loss.get_parameters():
             param.requires_grad = False
 
         # inject lora params
@@ -141,7 +141,7 @@ def main(args):
             use_fp16=args.lora_fp16,
         )
 
-        # TODO: support lora inject to text encoder (remove .model) 
+        # TODO: support lora inject to text encoder (remove .model)
         assert len(latent_diffusion_with_loss.trainable_params()) == len(
             injected_trainable_params
         ), "Only lora params should be trainable. but got {} trainable params".format(
@@ -168,7 +168,7 @@ def main(args):
     # trainer (standalone and distributed)
     ema = (
         EMA(
-            latent_diffusion_with_loss, #.model, #TODO: remove .model if not only train UNet
+            latent_diffusion_with_loss,  # .model, #TODO: remove .model if not only train UNet
             ema_decay=0.9999,
         )
         if args.use_ema
@@ -199,7 +199,7 @@ def main(args):
             os.makedirs(ckpt_dir)
 
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss, # TODO: save unet/vae seperately
+            network=latent_diffusion_with_loss,  # TODO: save unet/vae seperately
             use_lora=args.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
@@ -215,9 +215,9 @@ def main(args):
     # log
     if rank_id == 0:
         num_params_unet, _ = count_params(latent_diffusion_with_loss.model.diffusion_model)
-        num_params_text_encoder, _  = count_params(latent_diffusion_with_loss.cond_stage_model) 
-        num_params_vae, _  = count_params(latent_diffusion_with_loss.first_stage_model) 
-        num_params, num_trainable_params  = count_params(latent_diffusion_with_loss) 
+        num_params_text_encoder, _ = count_params(latent_diffusion_with_loss.cond_stage_model)
+        num_params_vae, _ = count_params(latent_diffusion_with_loss.first_stage_model)
+        num_params, num_trainable_params = count_params(latent_diffusion_with_loss)
 
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
@@ -244,7 +244,7 @@ def main(args):
         logger.info(key_info)
 
         logger.info("Start training...")
-        # backup config files 
+        # backup config files
         shutil.copyfile(args.model_config, os.path.join(args.output_path, "model_config.yaml"))
         shutil.copyfile(args.train_config, os.path.join(args.output_path, "train_config.yaml"))
 
@@ -284,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
-    #parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
+    # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
