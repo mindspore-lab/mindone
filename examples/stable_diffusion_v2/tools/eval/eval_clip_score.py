@@ -3,7 +3,7 @@ import json
 import os
 from functools import partial
 
-from clip_score import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 from ldm.util import is_old_ms_version
 from PIL import Image
 
@@ -46,9 +46,9 @@ if __name__ == "__main__":
     parser.add_argument("--load_checkpoint", default=None, type=str, help="load model checkpoint." " Default: None")
     parser.add_argument(
         "--tokenizer_path",
-        default="bpe_simple_vocab_16e6.txt.gz",
+        default="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         type=str,
-        help="load model checkpoint." " Default: bpe_simple_vocab_16e6.txt.gz",
+        help="load model checkpoint." " Default: ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
     )
     parser.add_argument(
         "--save_result",
