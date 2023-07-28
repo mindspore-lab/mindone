@@ -35,9 +35,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
-        default="eval/clip_score/configs/clip_vit_b_16.yaml",
+        default="tools/_common/clip/configs/clip_vit_b_16.yaml",
         type=str,
-        help="YAML config files for ms backend" " Default: eval/clip_score/configs/clip_vit_b_16.yaml",
+        help="YAML config files for ms backend" " Default: tools/_common/clip/configs/clip_vit_b_16.yaml",
     )
     parser.add_argument(
         "--model_name",
