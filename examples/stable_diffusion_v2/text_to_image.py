@@ -18,6 +18,7 @@ sys.path.append(workspace)
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
+from ldm.models.diffusion.sampler.sampler import Sampler
 from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
@@ -178,6 +179,11 @@ def main(args):
     elif args.uni_pc:
         sampler = UniPCSampler(model)
         sname = "uni_pc"
+    elif args.sampler_name:
+        sampler = Sampler(
+            sd_model=model, sampler_name=args.sampler_name, steps=args.sampling_steps, cfg_scale=args.scale
+        )
+        sname = args.sampler_name
     else:
         sampler = PLMSSampler(model)
         sname = "plms"
@@ -365,6 +371,27 @@ if __name__ == "__main__":
         "--uni_pc",
         action="store_true",
         help="use uni_pc sampling",
+    )
+    parser.add_argument(
+        "--sampler_name",
+        help="sampler name",
+        choices=[
+            "Euler a",
+            "Euler",
+            "LMS",
+            "Heun",
+            "DPM2",
+            "DPM2 a",
+            "DPM++ 2S a",
+            "DPM++ 2M",
+            "DPM fast",
+            "DPM adaptive",
+            "LMS Karras",
+            "DPM2 Karras",
+            "DPM2 a Karras",
+            "DPM++ 2S a Karras",
+            "DPM++ 2M Karras",
+        ],
     )
     parser.add_argument(
         "--n_rows",
