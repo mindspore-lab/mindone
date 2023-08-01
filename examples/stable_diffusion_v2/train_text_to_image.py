@@ -11,6 +11,7 @@ from ldm.data.dataset import build_dataset
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
+from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.optim import build_optimizer
@@ -166,6 +167,22 @@ def main(args):
         loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
     )
 
+    # resume ckpt
+    if rank_id == 0:
+        ckpt_dir = os.path.join(args.output_path, "ckpt")
+        if not os.path.exists(ckpt_dir):
+            os.makedirs(ckpt_dir)
+    start_epoch = 0
+    if args.resume:
+        resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
+
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
+            latent_diffusion_with_loss, optimizer, resume_ckpt
+        )
+        loss_scaler.loss_scale_value = loss_scale
+        loss_scaler.cur_iter = cur_iter
+        loss_scaler.last_overflow_iter = last_overflow_iter
+
     # trainer (standalone and distributed)
     ema = (
         EMA(
@@ -195,10 +212,6 @@ def main(args):
     callback.append(ofm_cb)
 
     if rank_id == 0:
-        ckpt_dir = os.path.join(args.output_path, "ckpt", f"rank_{str(rank_id)}")
-        if not os.path.exists(ckpt_dir):
-            os.makedirs(ckpt_dir)
-
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss,  # TODO: save unet/vae seperately
             use_lora=args.use_lora,
@@ -250,7 +263,7 @@ def main(args):
         shutil.copyfile(args.train_config, os.path.join(args.output_path, "train_config.yaml"))
 
     # train
-    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False)
+    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
 
 
 if __name__ == "__main__":
@@ -259,6 +272,12 @@ if __name__ == "__main__":
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
+    parser.add_argument(
+        "--resume",
+        default=False,
+        type=str,
+        help="resume training, can set True or path to resume checkpoint.(default=False)",
+    )
     parser.add_argument("--train_config", default="configs/train_config.json", type=str, help="train config path")
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
     parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
