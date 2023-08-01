@@ -9,28 +9,27 @@ rank_table_file=/home/yx/tools/hccl_4p_0123_127.0.0.1.json
 CANDIDATE_DEVICE=(0 1 2 3)
 
 # Training path config
-data_path=/data3/datasets/laion_art_filtered
-output_path=output/sd2.1_base_laion
-ckpt_save_interval=1
+data_path=./datasets/diffusion/pokemon_blip/train
+#data_path=/home/yx/datasets/diffusion/pokemon
+output_path=output/finetune_pokemon_4p_unfreeze_txtenc
+ckpt_save_interval=5
 
 task_name=txt2img
 pretrained_model_path=models/
 pretrained_model_file=sd_v2_base-57526ee4.ckpt
 train_config_file=configs/train_config_v2.json
 
-# Hyper-param config
+# Hyper-param config # for laion
 train_batch_size=3
 start_learning_rate=1e-5
 end_learning_rate=0
-warmup_steps=10000
-epochs=2 # TODO: reduce for larger laion dataset
+warmup_steps=250
+epochs=20 # adjust for your dataset, reduce epochs if the training set is very large
 use_ema=True
 clip_grad=False # TODO: confirm
 max_grad_norm=1.
 
-## For phase 1 in training sd 2.0-base, images with resolution < 256x256 are filtered out. For phase 2, 512x512
-## For sd2.1-base, images with resolution < 512x512 are filtered out
-image_filter_size=512 # TODO: confirm
+image_filter_size= 200 # reduce this value if your image size is smaller than 200
 image_size=512
 
 # ascend config
@@ -50,6 +49,7 @@ echo "RANK_TABLE_FILE=${RANK_TABLE_FILE}"
 # parallel train
 rm -rf ${output_path:?}/${task_name:?}
 mkdir -p ${output_path:?}/${task_name:?}
+cp $0 $output_path/.
 #export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}
 
 export SERVER_ID=0

@@ -107,7 +107,7 @@ def filter_small_image(all_images, all_captions, image_filter_size):
     for image, caption in zip(all_images, all_captions):
         w, h = imagesize.get(image)
         if min(w, h) < image_filter_size:
-            _logger.info(f"image {image} of size {w}x{h} is filtered.")
+            _logger.info(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
             continue
         else:
             filted_images.append(image)
