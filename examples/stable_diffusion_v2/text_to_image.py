@@ -185,12 +185,13 @@ def main(args):
         sname = "plms"
 
     # create safety checker
-    if args.safety_version == "1":
-        safety_checker = SafetyChecker1(backend="ms", ckpt_path=args.clip_ckpt_path)
-    else:
-        safety_checker = SafetyChecker2(backend="ms", ckpt_path=args.clip_ckpt_path)
-        if args.safety_version != "2":
-            print("Unrecognized safety checker version. Using the one in stable diffusion 2.0")
+    if args.check_safety:
+        if args.safety_version == "1":
+            safety_checker = SafetyChecker1(backend="ms", ckpt_path=args.clip_ckpt_path)
+        else:
+            safety_checker = SafetyChecker2(backend="ms", ckpt_path=args.clip_ckpt_path)
+            if args.safety_version != "2":
+                print("Unrecognized safety checker version. Using the one in stable diffusion 2.0")
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -252,7 +253,8 @@ def main(args):
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-            x_samples_ddim, _ = safety_checker(x_samples_ddim)
+            if args.check_safety:
+                x_samples_ddim, _ = safety_checker(x_samples_ddim)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
@@ -418,6 +420,11 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="path to checkpoint of model",
+    )
+    parser.add_argument(
+        "--check_safety",
+        action="store_true",
+        help="set this flag to use a safety checker",
     )
     parser.add_argument(
         "--clip_ckpt_path",
