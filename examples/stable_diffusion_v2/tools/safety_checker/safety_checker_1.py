@@ -153,8 +153,8 @@ class SafetyChecker1(SafetyChecker):
 
         if self.backend == "pt":
             import torch
-        for idx, has_nsfw_concepts in enumerate(has_nsfw_concepts):
-            if has_nsfw_concepts:
+        for idx, has_nsfw_concept in enumerate(has_nsfw_concepts):
+            if has_nsfw_concept:
                 if self.backend == "pt":
                     original_images[idx] = torch.zeros_like(original_images[idx])
                 else:
