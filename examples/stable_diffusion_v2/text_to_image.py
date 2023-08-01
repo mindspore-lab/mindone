@@ -24,6 +24,7 @@ from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
+from tools.safety_checker import SafetyChecker1, SafetyChecker2
 
 logger = logging.getLogger("text_to_image")
 
@@ -183,6 +184,20 @@ def main(args):
         sampler = PLMSSampler(model)
         sname = "plms"
 
+    # create safety checker
+    if args.safety_version == '1':
+        safety_checker = SafetyChecker1(
+            backend='ms',
+            ckpt_path=args.clip_ckpt_path
+        )
+    else:
+        safety_checker = SafetyChecker2(
+            backend='ms',
+            ckpt_path=args.clip_ckpt_path
+        )
+        if args.safety_version != '2':
+            print('Unrecognized safety checker version. Using the one in stable diffusion 2.0')
+    
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
@@ -243,6 +258,7 @@ def main(args):
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+            x_samples_ddim, _ = safety_checker(x_samples_ddim)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
@@ -408,6 +424,18 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="path to checkpoint of model",
+    )
+    parser.add_argument(
+        "--clip_ckpt_path",
+        type=str,
+        default=None,
+        help="path to checkpoint of clip-vit-large-patch14 for safety checker",
+    )
+    parser.add_argument(
+        "--safety_version",
+        type=str,
+        default='1',
+        help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 1",
     )
     parser.add_argument(
         "--lora_ckpt_path",

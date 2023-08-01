@@ -1,7 +1,11 @@
 import argparse
 import json
-import os
 from functools import partial
+import os
+import sys
+
+# add current working dir to path to prevent ModuleNotFoundError
+sys.path.insert(0, os.getcwd())
 
 from ldm.util import is_old_ms_version
 from PIL import Image

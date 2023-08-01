@@ -1,5 +1,5 @@
 """safety checker init"""
-from .nsfw_model import NSFWModel
-from .nsfw_model_pt import NSFWModelPT
+from .safety_checker_1 import SafetyChecker1
+from .safety_checker_2 import SafetyChecker2
 
-__all__ = ["NSFWModel", "NSFWModelPT"]
+__all__ = ["SafetyChecker1", "SafetyChecker2"]
