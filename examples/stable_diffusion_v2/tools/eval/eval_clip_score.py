@@ -1,8 +1,8 @@
 import argparse
 import json
-from functools import partial
 import os
 import sys
+from functools import partial
 
 # add current working dir to path to prevent ModuleNotFoundError
 sys.path.insert(0, os.getcwd())

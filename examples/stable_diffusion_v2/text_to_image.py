@@ -23,8 +23,8 @@ from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
-from utils import model_utils
 from tools.safety_checker import SafetyChecker1, SafetyChecker2
+from utils import model_utils
 
 logger = logging.getLogger("text_to_image")
 
@@ -185,19 +185,13 @@ def main(args):
         sname = "plms"
 
     # create safety checker
-    if args.safety_version == '1':
-        safety_checker = SafetyChecker1(
-            backend='ms',
-            ckpt_path=args.clip_ckpt_path
-        )
+    if args.safety_version == "1":
+        safety_checker = SafetyChecker1(backend="ms", ckpt_path=args.clip_ckpt_path)
     else:
-        safety_checker = SafetyChecker2(
-            backend='ms',
-            ckpt_path=args.clip_ckpt_path
-        )
-        if args.safety_version != '2':
-            print('Unrecognized safety checker version. Using the one in stable diffusion 2.0')
-    
+        safety_checker = SafetyChecker2(backend="ms", ckpt_path=args.clip_ckpt_path)
+        if args.safety_version != "2":
+            print("Unrecognized safety checker version. Using the one in stable diffusion 2.0")
+
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
@@ -434,7 +428,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--safety_version",
         type=str,
-        default='1',
+        default="1",
         help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 1",
     )
     parser.add_argument(

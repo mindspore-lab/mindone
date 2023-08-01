@@ -1,14 +1,15 @@
 import argparse
-import yaml
 import os
 import sys
+
+import yaml
 
 # add current working dir to path to prevent ModuleNotFoundError
 sys.path.insert(0, os.getcwd())
 
-from tools.safety_checker.safety_checker import SafetyChecker
 from tools._common import L2_norm_ops, load_images
 from tools._common.clip import CLIPImageProcessor, CLIPTokenizer, parse
+from tools.safety_checker.safety_checker import SafetyChecker
 
 import mindspore as ms
 from mindspore import ops
@@ -47,7 +48,7 @@ class SafetyChecker1(SafetyChecker):
 
             config = parse(config, ckpt_path)
             self.image_size = config.vision_config.image_size
-            self.dtype = ms.float32 if config.dtype == 'float32' else ms.float16
+            self.dtype = ms.float32 if config.dtype == "float32" else ms.float16
             model = CLIPModel(config)
             processor = CLIPTokenizer(tokenizer_path, pad_token="!")
 
@@ -129,9 +130,9 @@ class SafetyChecker1(SafetyChecker):
     def __call__(self, images):
         original_images = images
 
-        if self.backend == 'ms' and (images.shape[-1] != self.image_size or images.shape[-2] != self.image_size):
-            from PIL import Image
+        if self.backend == "ms" and (images.shape[-1] != self.image_size or images.shape[-2] != self.image_size):
             import numpy as np
+            from PIL import Image
 
             images_ = []
             for i in range(images.shape[0]):
@@ -148,23 +149,23 @@ class SafetyChecker1(SafetyChecker):
 
         scores = self.eval_safety(special_sim, nsfw_sim)
 
-        has_nsfw_concepts = [len(res['bad_concepts']) > 0 for res in scores]
+        has_nsfw_concepts = [len(res["bad_concepts"]) > 0 for res in scores]
 
-        if self.backend == 'pt':
+        if self.backend == "pt":
             import torch
         for idx, has_nsfw_concepts in enumerate(has_nsfw_concepts):
             if has_nsfw_concepts:
-                if self.backend == 'pt':
+                if self.backend == "pt":
                     original_images[idx] = torch.zeros_like(original_images[idx])
                 else:
                     original_images[idx] = ops.zeros(original_images[idx].shape)
-                
+
         if any(has_nsfw_concepts):
             print(
                 "Potential NSFW content was detected in one or more images. A black image will be returned instead."
                 " Try again with a different prompt and/or seed."
             )
-                        
+
         return original_images, has_nsfw_concepts
 
 
