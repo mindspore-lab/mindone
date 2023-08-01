@@ -3,11 +3,11 @@ export HCCL_CONNECT_TIMEOUT=600
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-device_id=7
+device_id=1
 
 # modify to your local data path
 #data_path=./datasets/pokemon_blip/train
-data_path=/home/alicia/yx/datasets/diffusion/pokemon_blip/train
+data_path=/home/yx/datasets/diffusion/pokemon
 output_path=output/lora_pokemon
 
 task_name=txt2img
