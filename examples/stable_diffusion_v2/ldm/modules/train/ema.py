@@ -15,9 +15,10 @@ class EMA(nn.Cell):
     """
     Args:
         updates: number of ema updates, which can be restored from resumed training.
+        offloading: if True, offload the assign computation to CPU to avoid OOM issue.
     """
 
-    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True):
+    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True, offloading=True):
         super().__init__()
         # TODO: net.trainable_params() is more reasonable?
         if trainable_only:
@@ -32,7 +33,10 @@ class EMA(nn.Cell):
 
         self.hyper_map = C.HyperMap()
         self.map = ops.HyperMap()
-        self.assign = ops.Assign().add_prim_attr("primitive_target", "CPU")
+        if offloading:
+            self.assign = ops.Assign().add_prim_attr("primitive_target", "CPU")
+        else:
+            self.assign = ops.Assign()
 
     def ema_update(self):
         """Update EMA parameters."""
