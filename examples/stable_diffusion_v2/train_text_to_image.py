@@ -62,6 +62,7 @@ def init_env(args):
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
     )
+    ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
     return rank_id, device_id, device_num
 

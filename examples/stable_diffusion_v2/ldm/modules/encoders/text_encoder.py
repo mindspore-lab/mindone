@@ -91,7 +91,7 @@ class AttentionWithMask(nn.Cell):
     def __init__(self, d_model, n_head, attn_mask, dtype=ms.float32):
         super(AttentionWithMask, self).__init__()
         self.attn = MultiheadAttention(d_model, n_head, dtype=dtype)
-        self.attn_mask = attn_mask
+        self.attn_mask = Tensor(attn_mask, dtype)
 
     def construct(self, x):
         return self.attn(x, x, x, self.attn_mask)
@@ -152,13 +152,12 @@ class TextEncoder(nn.Cell):
         )
         self.ln_final = nn.LayerNorm([self.width]).to_float(self.dtype)
         self.transformer_layer = Transformer(
-            width, layers, heads, self.build_attntion_mask(context_length).astype(self.dtype), dtype=self.dtype
+            width, layers, heads, self.build_attntion_mask(context_length), dtype=self.dtype
         )
 
     @staticmethod
     def build_attntion_mask(context_length):
         mask = np.triu(np.full((context_length, context_length), -np.inf).astype(np.float32), 1)
-        mask = Tensor(mask)
         return mask
 
     def construct(self, text):
