@@ -120,7 +120,7 @@ class DDPM(nn.Cell):
         self.loss_type = loss_type
 
         self.learn_logvar = learn_logvar
-        self.logvar = msnp.full(shape=(self.num_timesteps,), fill_value=logvar_init)
+        self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init))
         if self.learn_logvar:
             self.logvar = Parameter(self.logvar, requires_grad=True)
         self.randn_like = ops.StandardNormal()
