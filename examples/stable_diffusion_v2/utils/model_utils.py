@@ -3,9 +3,29 @@ import copy
 import mindspore.nn as nn
 from mindspore import Parameter
 from mindspore import log as logger
+from mindspore import load_checkpoint, load_param_into_net
 
 # from mindspore._checkparam import Validator
 from mindspore.train.serialization import _load_dismatch_prefix_params, _update_param
+
+from ldm.util import count_params, is_old_ms_version, str2bool
+
+def split_param_dict(param_dict, prefixes=['model', 'first_stage_model', 'cond_stage_model']):
+    out = {p: {} for p in prefixes}
+    for key in param_dict:
+        for p in prefixes:
+            if key.startswith(p):
+                out[p][key] = param_dict[key]
+    return out
+
+
+def load_params(net, param_dict_list, strict_load=False):
+    for param_dict in param_dict_list:
+        if is_old_ms_version():
+            param_not_load = load_param_into_net(net, param_dict)
+        else:
+            param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
+        logger.info("Params not load: {}".format(param_not_load))
 
 
 def load_param_into_net_with_filter(net, parameter_dict, strict_load=False, filter=None):
