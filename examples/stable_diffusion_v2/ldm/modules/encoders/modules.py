@@ -14,11 +14,11 @@
 # ============================================================================
 import os
 
+import numpy as np
 from ldm.models.clip.simple_tokenizer import get_tokenizer
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
 from mindspore import Tensor
 
 from .text_encoder import TextEncoder
@@ -58,19 +58,18 @@ class FrozenCLIPEmbedder(nn.Cell):
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         all_tokens = [[sot_token] + self.tokenizer.encode(text) + [eot_token] for text in texts]
-        result = ops.Zeros()((len(all_tokens), CONTEXT_LEN), ms.int64)
+        result = np.zeros((len(all_tokens), CONTEXT_LEN), np.int64)
 
         for i, tokens in enumerate(all_tokens):
             if len(tokens) > CONTEXT_LEN:
                 tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
 
-            result[i, : len(tokens)] = Tensor(tokens)
+            result[i, : len(tokens)] = np.array(tokens, np.int64)
 
-        return result
+        return Tensor(result)
 
-    def encode(self, text):
-        batch_encoding = self.tokenize(text)
-        outputs = self.transformer(batch_encoding)
+    def encode(self, tokenized_text):
+        outputs = self.transformer(tokenized_text)
         return outputs
 
     def construct(self, c):
