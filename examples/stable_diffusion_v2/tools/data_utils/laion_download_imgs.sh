@@ -62,5 +62,3 @@ if [ "$output_format" = "webdataset" ]; then
     for i in {00000..00535}; do sha256sum $i.tar; done > sha256sum_checklist
 fi
 '
-
-
