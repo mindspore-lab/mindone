@@ -148,8 +148,7 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    mode = ms.context.GRAPH_MODE
-    ms.context.set_context(mode=mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
+    ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
 
     set_random_seed(args.seed)
 
@@ -188,7 +187,7 @@ def main(args):
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
-            "MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.ms_mode}",
             "Distributed mode: False",
             f"Number of input prompts: {len(data)}",
             f"Number of input negative prompts: {len(negative_data)}",
@@ -226,10 +225,12 @@ def main(args):
             if args.scale != 1.0:
                 if isinstance(negative_prompts, tuple):
                     negative_prompts = list(negative_prompts)
-                uc = model.get_learned_conditioning(negative_prompts)
+                tokenized_negative_prompts = model.tokenize(negative_prompts)
+                uc = model.get_learned_conditioning(tokenized_negative_prompts)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
-            c = model.get_learned_conditioning(prompts)
+            tokenized_prompts = model.tokenize(prompts)
+            c = model.get_learned_conditioning(tokenized_prompts)
             shape = [4, args.H // 8, args.W // 8]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
@@ -268,7 +269,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
     parser.add_argument(
         "--data_path",
         type=str,
