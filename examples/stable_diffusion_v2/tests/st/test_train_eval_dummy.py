@@ -52,7 +52,7 @@ def test_train_eval(use_ema, finetuning):
 
 
 @pytest.mark.parametrize("use_ema", [True])
-def test_train_eval_DreamBooth(use_ema, finetuning):
+def test_train_eval_DreamBooth(use_ema):
     data_path = "data/Canidae/val/wolves"
     train_config_file = "configs/train_dreambooth_sd_v2.json"
     instance_prompt = "wolves"
@@ -66,7 +66,7 @@ def test_train_eval_DreamBooth(use_ema, finetuning):
     cmd = (
         f"python train_dreambooth.py --mode=0 --instance_data_dir={data_path} --instance_prompt='{instance_prompt}' "
         f"--train_config={train_config_file} --class_data_dir={data_path} --class_prompt='{instance_prompt}' "
-        f"--pretrained_mode_path={pretrained_model_path} --pretrained_model_file={pretrained_model_file} "
+        f"--pretrained_model_path={pretrained_model_path} --pretrained_model_file={pretrained_model_file} "
         f"--epochs={epochs} --start_learning_rate=0.00002 --train_batch_size={train_batch_size} "
         f"--num_class_images=2 --output_path={output_path} --use_ema={use_ema}  --train_text_encoder=True "
         f"--train_data_repeats=2"
@@ -76,7 +76,7 @@ def test_train_eval_DreamBooth(use_ema, finetuning):
     assert ret == 0, "Training fails"
 
     # --------- Test running text_to_image.py using the trained model -----------
-    end_ckpt = os.path.join(output_path, "ckpt", f"sd-{epochs}.ckpt")
+    end_ckpt = os.path.join(output_path, "ckpt/rank_0", f"sd-{epochs}.ckpt")
     cmd = (
         f"python text_to_image.py --config=configs/train_dreambooth_sd_v2.yaml --n_iter=1 --n_samples=2 "
         f"--output_path={output_path} --ckpt_path={end_ckpt}"
