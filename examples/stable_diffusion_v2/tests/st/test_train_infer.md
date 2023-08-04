@@ -10,7 +10,7 @@ is located in the `path_to_examples/stable_diffusion_v2/models` folder, indicati
 
 ## Run
 
-Please run the following command to test
+Please run the following command to test `train_text_to_image.py`, `text_to_image.py` and `train_dreambooth.py`.
 ```shell
 pytest tests/st/test_train_infer_dummy.py
 ```
