@@ -326,6 +326,10 @@ class LatentDiffusion(DDPM):
             model = instantiate_from_config(config)
             self.cond_stage_model = model
 
+    def tokenize(self, c):
+        tokenized_res = self.cond_stage_model.tokenize(c)
+        return tokenized_res
+
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
             c = self.cond_stage_model.encode(c)
