@@ -44,7 +44,7 @@ def test_train_infer(use_ema, finetuning):
     cmd = (
         f"python text_to_image.py --config=configs/v2-inference.yaml --n_iter=1 --n_samples=2 "
         f"--output_path={output_path} --lora_ckpt_path={lora_ckpt_path} --use_lora={use_lora} "
-        f"--ckpt_path={ckpt_path}"
+        f"--ckpt_path={ckpt_path} --negative_prompt='cats' "
     )
     print(f"Running command: \n{cmd}")
     ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
@@ -79,7 +79,7 @@ def test_train_infer_DreamBooth(use_ema):
     end_ckpt = os.path.join(output_path, "ckpt/rank_0", f"sd-{epochs}.ckpt")
     cmd = (
         f"python text_to_image.py --config=configs/train_dreambooth_sd_v2.yaml --n_iter=1 --n_samples=2 "
-        f"--output_path={output_path} --ckpt_path={end_ckpt}"
+        f"--output_path={output_path} --ckpt_path={end_ckpt} --negative_prompt='cats' "
     )
     print(f"Running command: \n{cmd}")
     ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
