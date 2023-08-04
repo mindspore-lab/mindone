@@ -4,7 +4,6 @@ import json
 import os
 
 import pandas as pd
-from img2dataset import download
 from tqdm import tqdm
 
 # from pyspark.sql import SparkSession
@@ -48,7 +47,6 @@ def convert(data_dir, img_fmt="jpg", one_csv_per_part=True, check_data=False, fo
     if check_data:
         log = open("laion_to_csv_log.txt", "w")
         stat = {"min_h": 10e5, "min_w": 10e5, "max_punsafe": -1, "min_aes": 10e5}
-        num_small = 0
 
     # for part_id in range(1, num_parts+1):
     def _gather_img_text_in_folder(root_dir, folder, check_data=False):
@@ -58,7 +56,7 @@ def convert(data_dir, img_fmt="jpg", one_csv_per_part=True, check_data=False, fo
         texts = []
         if len(img_paths) > 0:
             for img_fp in tqdm(img_paths):
-                text_fp = img_fp[:-len_postfix] + ".txt"
+                # text_fp = img_fp[:-len_postfix] + ".txt"
                 json_fp = img_fp[:-len_postfix] + ".json"
 
                 rel_img_paths.append(os.path.join(folder, os.path.basename(img_fp)))
@@ -78,7 +76,6 @@ def convert(data_dir, img_fmt="jpg", one_csv_per_part=True, check_data=False, fo
                         if meta["original_width"] < filter_width or meta["original_height"] < filter_width:
                             # if meta['aesthetic'] < 8.0:
                             print("Abnormal sample: ", meta["url"], meta["original_height"], meta["original_width"])
-                            num_small += 1
                             log.write(f"{meta['original_height']}x{meta['original_width']}, {meta['url']} \n")
 
                 texts.append(text)
@@ -138,9 +135,7 @@ def convert(data_dir, img_fmt="jpg", one_csv_per_part=True, check_data=False, fo
 
     if check_data:
         log.close()
-        print("Num too small: ", num_small)
         print("Stat: ", stat)
-        print("Abnormal rate: ", num_small / num_imgs)
 
 
 if __name__ == "__main__":
@@ -158,7 +153,8 @@ if __name__ == "__main__":
         "--save_csv_per_img_folder",
         type=bool,
         default=False,
-        help="If False, save a csv file for each part, which will result in a large csv file (~400MB). If True, save a csv file for each image folder, which will result in hundreads of csv files for one part of dataset.",
+        help="If False, save a csv file for each part, which will result in a large csv file (~400MB). \
+            If True, save a csv file for each image folder, which will result in hundreads of csv files for one part of dataset.",
     )
     args = parser.parse_args()
 

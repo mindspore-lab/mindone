@@ -4,7 +4,6 @@ import json
 import os
 
 import pandas as pd
-from tqdm import tqdm
 
 # from pyspark.sql import SparkSession
 
@@ -33,7 +32,7 @@ def count(data_dir, save_fn_postfix="stats.csv", save_abs_path=False, summarize_
                 part_tar_fps.append("/".join(tar_fp.split("/")[-2:]))
 
             part_sample_nums.append(num_samples)
-        print(f"=> Count samples: ", sum(part_sample_nums))
+        print("=> Count samples: ", sum(part_sample_nums))
 
         df = pd.DataFrame({"file_path": part_tar_fps, "num_samples": part_sample_nums})
         save_fp = os.path.join(data_dir, f"part_{i+1}_" + save_fn_postfix)

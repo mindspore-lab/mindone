@@ -20,7 +20,6 @@ import glob
 import os
 import shutil
 
-import pyspark.sql.functions as F
 from pyspark.sql import SparkSession, functions
 from pyspark.sql.functions import rand
 
@@ -180,7 +179,7 @@ if __name__ == "__main__":
                     output_dir=output_path,
                     dataset_name=dataset_name,
                 )
-                res_num += cur_name
+                res_num += cur_num
 
             rename_parquet_files(output_dir)
 
