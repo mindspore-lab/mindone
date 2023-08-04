@@ -1,18 +1,3 @@
-# Copyright 2022 Huawei Technologies Co., Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ============================================================================
-
 import os
 import time
 
@@ -118,11 +103,11 @@ class EvalSaveCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        # data_sink_mode = cb_params.dataset_sink_mode
-        # if data_sink_mode:
-        #     loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        # else:
-        #     loss_scale_manager = cb_params.train_network.loss_scaling_manager
+        data_sink_mode = cb_params.dataset_sink_mode
+        if data_sink_mode:
+            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
+        else:
+            loss_scale_manager = cb_params.train_network.loss_scaling_manager
 
         if self.is_main_device:
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
@@ -136,13 +121,12 @@ class EvalSaveCallback(Callback):
                 self.ckpt_manager.save(
                     self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", append_dict=append_dict
                 )
-                """
+
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                     append_dict={"epoch_num": cur_epoch, "loss_scale": loss_scale_manager.get_loss_scale()},
                 )
-                """
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
