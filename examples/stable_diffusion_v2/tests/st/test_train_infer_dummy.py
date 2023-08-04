@@ -10,7 +10,7 @@ gen_dummpy_data()
 
 @pytest.mark.parametrize("use_ema", [True])
 @pytest.mark.parametrize("finetuning", ["Vanilla", "LoRA"])
-def test_train_eval(use_ema, finetuning):
+def test_train_infer(use_ema, finetuning):
     data_path = "data/Canidae/val/dogs"
     train_config_file = "configs/train_config_v2.json"
     output_path = "out"
@@ -52,7 +52,7 @@ def test_train_eval(use_ema, finetuning):
 
 
 @pytest.mark.parametrize("use_ema", [True])
-def test_train_eval_DreamBooth(use_ema):
+def test_train_infer_DreamBooth(use_ema):
     data_path = "data/Canidae/val/wolves"
     train_config_file = "configs/train_dreambooth_sd_v2.json"
     instance_prompt = "wolves"
@@ -87,5 +87,5 @@ def test_train_eval_DreamBooth(use_ema):
 
 
 if __name__ == "__main__":
-    test_train_eval(use_ema=True, finetuning="LoRA")
-    # test_train_eval_DreamBooth(use_ema=True)
+    test_train_infer(use_ema=True, finetuning="LoRA")
+    # test_train_infer_DreamBooth(use_ema=True)
