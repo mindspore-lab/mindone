@@ -1,6 +1,6 @@
 # LAION Data Preparation for SD 2.x Training
 
-This doc describes the pipeline for preparing LAION subset for SD tranining, including metadata download, filtering, source images downloading, and annotation generation.
+This doc describes the pipeline for preparing LAION subset for SD tranining, including metadata download, filtering, source image downloading, and annotation generation.
 
 ## Data Description
 The [LAION-5B](https://laion.ai/blog/laion-5b/) subsets that are picked for SD-2.1-base model training are as follows.
@@ -15,7 +15,7 @@ The [LAION-5B](https://laion.ai/blog/laion-5b/) subsets that are picked for SD-2
     resolution >= 512x512
 ```
 - Filtered metadata - LAION2b-en-sd2.1base: https://huggingface.co/datasets/jasonhuang23/laion2b_en_sd2.1base
-> You may download it and skip step 2 & 3.
+> You can download this filtered metadata and go to Step 3 for downloading source images after installing the dependency.
 
 ## Dependency Installation
 
