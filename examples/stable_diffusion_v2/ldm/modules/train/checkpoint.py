@@ -1,8 +1,11 @@
 """checkpoint manager """
+import logging
 import os
 import stat
 
 import mindspore as ms
+
+_logger = logging.getLogger(__name__)
 
 
 class CheckpointManager:
@@ -45,9 +48,9 @@ class CheckpointManager:
                 os.chmod(file_name, stat.S_IWRITE)
                 os.remove(file_name)
         except OSError:
-            print(f"OSError, failed to remove the older ckpt file {file_name}.")
+            _logger.warning(f"OSError, failed to remove the older ckpt file {file_name}.")
         except ValueError:
-            print(f"ValueError, failed to remove the older ckpt file {file_name}.")
+            _logger.warning(f"ValueError, failed to remove the older ckpt file {file_name}.")
 
     def save_top_k(self, network, perf, ckpt_name, verbose=True, append_dict=None):
         """Save and return Top K checkpoint address and accuracy."""
@@ -73,7 +76,7 @@ class CheckpointManager:
             network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
         )
 
-        print("Checkpoint saved in ", os.path.join(self.ckpt_save_dir, ckpt_name))
+        _logger.info(f"Checkpoint saved in {os.path.join(self.ckpt_save_dir, ckpt_name)}")
         self.ckpt_queue.append(ckpt_name)
         if len(self.ckpt_queue) > self.k:
             to_del = self.ckpt_queue.pop(0)
@@ -100,3 +103,20 @@ class CheckpointManager:
             raise ValueError(
                 f"The expected 'ckpt_save_policy' is None, top_k or latest_k, but got: {self.ckpt_save_policy}."
             )
+
+
+def resume_train_network(network, optimizer, resume_ckpt):
+    resume_param = ms.load_checkpoint(resume_ckpt)
+    start_epoch = int(resume_param.get("epoch_num", ms.Tensor(0, ms.int32)).asnumpy().item())
+    loss_scale = float(resume_param.get("loss_scale", ms.Tensor(0, ms.float32)).asnumpy().item())
+    cur_iter = resume_param.get("current_iterator_step", ms.Tensor(0, ms.int32))
+    last_overflow_iter = resume_param.get("last_overflow_iterator_step", ms.Tensor(0, ms.int32))
+    ms.load_param_into_net(network, resume_param)
+    ms.load_param_into_net(optimizer, resume_param)
+    _logger.info(
+        f"Finish loading network and optimizer resume checkoint from {resume_ckpt}. "
+        f"If no parameter fail-load warning displayed, all checkpoint params have been successfully loaded. \n"
+        f"Resume train from epoch: {start_epoch + 1}"
+    )
+
+    return start_epoch, loss_scale, cur_iter, last_overflow_iter

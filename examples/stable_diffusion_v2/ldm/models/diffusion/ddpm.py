@@ -120,7 +120,7 @@ class DDPM(nn.Cell):
         self.loss_type = loss_type
 
         self.learn_logvar = learn_logvar
-        self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init))
+        self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init).astype(np.float32))
         if self.learn_logvar:
             self.logvar = Parameter(self.logvar, requires_grad=True)
         self.randn_like = ops.StandardNormal()
@@ -325,6 +325,10 @@ class LatentDiffusion(DDPM):
             assert config != "__is_unconditional__"
             model = instantiate_from_config(config)
             self.cond_stage_model = model
+
+    def tokenize(self, c):
+        tokenized_res = self.cond_stage_model.tokenize(c)
+        return tokenized_res
 
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
