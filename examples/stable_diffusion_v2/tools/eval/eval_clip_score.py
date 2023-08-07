@@ -67,11 +67,7 @@ if __name__ == "__main__":
         help="the path for saving results if save_result is set to True." " Default: results.json",
     )
     parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
-    parser.add_argument(
-        "--check_certificate",
-        action="store_true",
-        help="set this flag to check for certificate for downloads (checks)",
-    )
+
     args = parser.parse_args()
 
     # load images
@@ -116,12 +112,12 @@ if __name__ == "__main__":
         from clip_score import compute_torchmetric_clip
 
         if imgs_per_prompt == 1:
-            score = compute_torchmetric_clip(images, texts, args.model_name, args.check_certificate)
+            score = compute_torchmetric_clip(images, texts, args.model_name)
         else:
             scores = []
             for i in range(imgs_per_prompt):
                 inputs = [images[i::imgs_per_prompt], texts]
-                score = compute_torchmetric_clip(*inputs, args.model_name, args.check_certificate)
+                score = compute_torchmetric_clip(*inputs, args.model_name)
                 scores.append(score)
             score = sum(scores) / len(scores)
 

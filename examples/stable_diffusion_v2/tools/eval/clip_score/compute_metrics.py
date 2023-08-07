@@ -1,14 +1,13 @@
-def compute_torchmetric_clip(images, texts, model_name, check_certificate=False):
+def compute_torchmetric_clip(images, texts, model_name):
     from functools import partial
 
     import torch
     import torchvision.transforms as transforms
     from torchmetrics.functional.multimodal import clip_score
 
-    if not check_certificate:
-        import os
+    import os
 
-        os.environ["CURL_CA_BUNDLE"] = ""
+    os.environ["CURL_CA_BUNDLE"] = ""
 
     clip_score_fn = partial(clip_score, model_name_or_path=model_name)
     transform = transforms.Compose([transforms.PILToTensor()])
