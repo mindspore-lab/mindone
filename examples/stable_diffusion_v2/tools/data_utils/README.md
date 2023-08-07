@@ -204,7 +204,7 @@ data_dir
 ...
 ```
 
-#### For training with webdataset format (tar files)
+### For training with webdataset format (tar files)
 > Data loading is ~20% faster than raw format and requires much less time in init on SSD.
 
 If you set `--dataset_type=webdataset` in SD training, please generate annotation files as follows.
