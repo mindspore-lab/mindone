@@ -284,8 +284,10 @@ def generate_class_images(args):
     start_code = None
     for prompt in sample_dataset:
         scale = 7.5 if SD_VERSION.startswith("1.") else 9.0
-        uc = model.get_learned_conditioning(args.sample_batch_size * [""])
-        c = model.get_learned_conditioning(args.sample_batch_size * [prompt])
+        uc_prompts = args.sample_batch_size * [""]
+        c_prompts = args.sample_batch_size * [prompt]
+        uc = model.get_learned_conditioning(model.tokenize(uc_prompts))
+        c = model.get_learned_conditioning(model.tokenize(c_prompts))
         shape = [4, args.image_size // 8, args.image_size // 8]
         samples_ddim, _ = sampler.sample(
             S=args.sampling_steps,
