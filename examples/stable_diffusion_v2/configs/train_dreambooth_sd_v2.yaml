@@ -1,6 +1,6 @@
 model:
   #base_learning_rate: 1.0e-05
-  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  target: ldm.models.diffusion.ddpm.LatentDiffusionDreamBooth
   params:
     linear_start: 0.00085
     linear_end: 0.0120
@@ -9,16 +9,15 @@ model:
     timesteps: 1000
     first_stage_key: "image"
     cond_stage_key: "caption"
-    cond_stage_trainable: False # TODO: allow config easily
+    cond_stage_trainable: False # wkhh missed this part
     image_size: 64
     channels: 4
     conditioning_key: crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
-    #use_ema: False # TODO: set in args
     use_fp16: True
     parameterization: "eps" # default, original ldm
-    #parameterization: "velocity"
+    prior_loss_weight: 1.0
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel

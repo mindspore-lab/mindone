@@ -1,8 +1,10 @@
 import argparse
 import json
 import os
+from functools import partial
 
 from clip_score import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+from ldm.util import is_old_ms_version
 from PIL import Image
 
 import mindspore
@@ -56,9 +58,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--result_path",
-        default="results.jsonl",
+        default="results.json",
         type=str,
-        help="the path for saving results if save_result is set to True." " Default: results.jsonl",
+        help="the path for saving results if save_result is set to True." " Default: results.json",
     )
     parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
     parser.add_argument(
@@ -95,9 +97,9 @@ if __name__ == "__main__":
     if os.path.exists(args.prompt_or_path):
         with open(args.prompt_or_path) as f:
             texts = [p.strip() for p in f.readlines()]
-        args.prompt_or_path = texts
     else:
         texts = [args.prompt_or_path]
+    args.prompt_or_path = texts
     assert len(images) % len(texts) == 0
     imgs_per_prompt = len(images) // len(texts)
     if imgs_per_prompt == 1:
@@ -109,19 +111,13 @@ if __name__ == "__main__":
     if args.backend == "pt":
         from clip_score import compute_torchmetric_clip
 
-        # equivalent to no-check-certificate flag in wget
-        if args.no_check_certificate:
-            import os
-
-            os.environ["CURL_CA_BUNDLE"] = ""
-
         if imgs_per_prompt == 1:
-            score = compute_torchmetric_clip(images, texts, model_name=args.model_name)
+            score = compute_torchmetric_clip(images, texts, args.model_name, args.no_check_certificate)
         else:
             scores = []
             for i in range(imgs_per_prompt):
                 inputs = [images[i::imgs_per_prompt], texts]
-                score = compute_torchmetric_clip(*inputs, model_name=args.model_name)
+                score = compute_torchmetric_clip(*inputs, args.model_name, args.no_check_certificate)
                 scores.append(score)
             score = sum(scores) / len(scores)
 
@@ -140,16 +136,20 @@ if __name__ == "__main__":
         # parse config file
         config = parse(args.config, args.load_checkpoint)
         model = CLIPModel(config)
-
+        # get L2 norm operator
+        if not is_old_ms_version("2.0.0-alpha"):
+            L2_norm_ops = partial(ops.norm, ord=2, dim=1, keepdim=True)
+        else:
+            L2_norm_ops = partial(ops.norm, p=2, axis=1, keep_dims=True)
         results = []
         for i, text in enumerate(texts):
             text_feature = model.get_text_features(text)
-            text_feature = text_feature / text_feature.norm(1, keep_dims=True)
+            text_feature = text_feature / L2_norm_ops(text_feature)
             for j in range(imgs_per_prompt):
                 image_index = imgs_per_prompt * i + j
                 image = images[image_index]
                 image_feature = model.get_image_features(image)
-                image_feature = image_feature / image_feature.norm(1, keep_dims=True)
+                image_feature = image_feature / L2_norm_ops(image_feature)
                 res = float(ops.matmul(image_feature, text_feature.T)[0][0] * 100)
                 results.append(res)
                 if not args.quiet:

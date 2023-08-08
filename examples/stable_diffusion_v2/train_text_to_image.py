@@ -5,18 +5,20 @@ import argparse
 import importlib
 import logging
 import os
+import shutil
 
 from ldm.data.dataset import build_dataset
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
+from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
-from ldm.util import is_old_ms_version, str2bool
+from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -62,6 +64,7 @@ def init_env(args):
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
     )
+    ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
     return rank_id, device_id, device_num
 
@@ -74,7 +77,9 @@ def build_model_from_config(config):
         elif config == "__is_unconditional__":
             return None
         raise KeyError("Expected key `target` to instantiate.")
-    return get_obj_from_str(config["target"])(**config.get("params", dict()))
+    config_params = config.get("params", dict())
+    # config_params['cond_stage_trainable'] = cond_stage_trainable # TODO: easy config
+    return get_obj_from_str(config["target"])(**config_params)
 
 
 def get_obj_from_str(string, reload=False):
@@ -128,7 +133,7 @@ def main(args):
     # lora injection
     if args.use_lora:
         # freeze network
-        for param in latent_diffusion_with_loss.model.get_parameters():
+        for param in latent_diffusion_with_loss.get_parameters():
             param.requires_grad = False
 
         # inject lora params
@@ -137,16 +142,24 @@ def main(args):
             rank=args.lora_rank,
             use_fp16=args.lora_fp16,
         )
-        assert len(latent_diffusion_with_loss.model.trainable_params()) == len(
+
+        # TODO: support lora inject to text encoder (remove .model)
+        assert len(latent_diffusion_with_loss.trainable_params()) == len(
             injected_trainable_params
         ), "Only lora params should be trainable. but got {} trainable params".format(
-            len(latent_diffusion_with_loss.model.trainable_params())
+            len(latent_diffusion_with_loss.trainable_params())
         )
         # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
 
     if not args.decay_steps:
         dataset_size = dataset.get_dataset_size()
         args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
+        if args.decay_steps <= 0:
+            logger.warning(
+                f"decay_steps is {args.decay_steps}, please check epochs, dataset_size and warmup_steps. "
+                f"Will force decay_steps to be set to 1."
+            )
+            args.decay_steps = 1
     lr = LearningRate(args.start_learning_rate, args.end_learning_rate, args.warmup_steps, args.decay_steps)
     optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
 
@@ -154,10 +167,26 @@ def main(args):
         loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
     )
 
+    # resume ckpt
+    if rank_id == 0:
+        ckpt_dir = os.path.join(args.output_path, "ckpt")
+        if not os.path.exists(ckpt_dir):
+            os.makedirs(ckpt_dir)
+    start_epoch = 0
+    if args.resume:
+        resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
+
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
+            latent_diffusion_with_loss, optimizer, resume_ckpt
+        )
+        loss_scaler.loss_scale_value = loss_scale
+        loss_scaler.cur_iter = cur_iter
+        loss_scaler.last_overflow_iter = last_overflow_iter
+
     # trainer (standalone and distributed)
     ema = (
         EMA(
-            latent_diffusion_with_loss.model,
+            latent_diffusion_with_loss,  # .model, #TODO: remove .model if not only train UNet
             ema_decay=0.9999,
         )
         if args.use_ema
@@ -183,12 +212,8 @@ def main(args):
     callback.append(ofm_cb)
 
     if rank_id == 0:
-        ckpt_dir = os.path.join(args.output_path, "ckpt", f"rank_{str(rank_id)}")
-        if not os.path.exists(ckpt_dir):
-            os.makedirs(ckpt_dir)
-
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.model,
+            network=latent_diffusion_with_loss,  # TODO: save unet/vae seperately
             use_lora=args.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
@@ -203,6 +228,11 @@ def main(args):
 
     # log
     if rank_id == 0:
+        num_params_unet, _ = count_params(latent_diffusion_with_loss.model.diffusion_model)
+        num_params_text_encoder, _ = count_params(latent_diffusion_with_loss.cond_stage_model)
+        num_params_vae, _ = count_params(latent_diffusion_with_loss.first_stage_model)
+        num_params, num_trainable_params = count_params(latent_diffusion_with_loss)
+
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
@@ -210,6 +240,8 @@ def main(args):
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
                 f"Model: StableDiffusion v{SD_VERSION}",
+                f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
                 f"Use LoRA: {args.use_lora}",
                 f"LoRA rank: {args.lora_rank}",
@@ -226,9 +258,12 @@ def main(args):
         logger.info(key_info)
 
         logger.info("Start training...")
+        # backup config files
+        shutil.copyfile(args.model_config, os.path.join(args.output_path, "model_config.yaml"))
+        shutil.copyfile(args.train_config, os.path.join(args.output_path, "train_config.yaml"))
 
     # train
-    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False)
+    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
 
 
 if __name__ == "__main__":
@@ -237,6 +272,12 @@ if __name__ == "__main__":
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
+    parser.add_argument(
+        "--resume",
+        default=False,
+        type=str,
+        help="resume training, can set True or path to resume checkpoint.(default=False)",
+    )
     parser.add_argument("--train_config", default="configs/train_config.json", type=str, help="train config path")
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
     parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
@@ -263,6 +304,7 @@ if __name__ == "__main__":
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
+    # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(

@@ -27,6 +27,7 @@ class DDIMSampler(object):
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
         self.schedule = schedule
+        self.split = ops.Split(0, 2)
 
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0.0, verbose=True):
         self.ddim_timesteps = make_ddim_timesteps(
@@ -260,7 +261,7 @@ class DDIMSampler(object):
                     c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
             else:
                 c_in = ops.concat([unconditional_conditioning, c], axis=0)
-            model_uncond, model_t = ops.split((self.model.apply_model(x_in, t_in, c_crossattn=c_in)), 0, 2)
+            model_uncond, model_t = self.split(self.model.apply_model(x_in, t_in, c_crossattn=c_in))
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
         if self.model.parameterization == "v":

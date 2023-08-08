@@ -120,7 +120,7 @@ class DDPM(nn.Cell):
         self.loss_type = loss_type
 
         self.learn_logvar = learn_logvar
-        self.logvar = msnp.full(shape=(self.num_timesteps,), fill_value=logvar_init)
+        self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init).astype(np.float32))
         if self.learn_logvar:
             self.logvar = Parameter(self.logvar, requires_grad=True)
         self.randn_like = ops.StandardNormal()
@@ -325,6 +325,10 @@ class LatentDiffusion(DDPM):
             assert config != "__is_unconditional__"
             model = instantiate_from_config(config)
             self.cond_stage_model = model
+
+    def tokenize(self, c):
+        tokenized_res = self.cond_stage_model.tokenize(c)
+        return tokenized_res
 
     def get_learned_conditioning(self, c):
         if self.cond_stage_forward is None:
@@ -595,6 +599,33 @@ class LatentDiffusionDB(DDPM):
         # loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
         # loss += (self.original_elbo_weight * loss_vlb)
 
+        return loss
+
+
+class LatentDiffusionDreamBooth(LatentDiffusion):
+    def __init__(self, prior_loss_weight=1.0, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.prior_loss_weight = prior_loss_weight
+
+    def shared_step(self, x, c):
+        x, c = self.get_input(x, c)
+        t = ops.UniformInt()(
+            (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
+        )
+        c = self.get_learned_conditioning_fortrain(c)
+        loss = self.p_losses(x, c, t)
+        return loss
+
+    def construct(self, *args):
+        if self.prior_loss_weight != 0:
+            train_x, train_c, reg_x, reg_c = args
+            loss_train = self.shared_step(train_x, train_c)
+            loss_reg = self.shared_step(reg_x, reg_c)
+            loss = loss_train + self.prior_loss_weight * loss_reg
+        else:
+            train_x, train_c = args
+            loss_train = self.shared_step(train_x, train_c)
+            loss = loss_train
         return loss
 
 
