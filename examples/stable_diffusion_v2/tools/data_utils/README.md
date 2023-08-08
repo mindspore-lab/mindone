@@ -147,10 +147,10 @@ for part_id in 1 2 3; do bash laion_download_imgs.sh $part_id; done
 - Detailed failure reasons can be checked in the log file in `{save_dir}/part_id/{id}_stats.json` for further fix (certifcate issue can be fixed with the patch introduced in the Installation section)
 
 
-It will take about 20 hours to download one part with one node and will result in
+It will take about 20 hours to download one part with one node, resulting in
 ``` texts
 532 subfolders, each supposed to contain 10,000 images
-URL download success rate: ~80% (by 20 July 2023)
+URL download success rate: ~80% (by 20 July 2023, may fail due to invalid URL or network connection)
 Actually downloaded images in each subfolder: ~8,000 images
 Total images actually donwloaded for part 1: 4.26M images (4261204)
 Total size for part 1 (output_format=files): 459GB
