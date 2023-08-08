@@ -46,7 +46,7 @@ class Upsample(nn.Cell):
     def construct(self, x):
         in_shape = x.shape[-2:]
         out_shape = tuple(2 * x for x in in_shape)
-        x = ops.ResizeNearestNeighbor(out_shape)(x)
+        x = ops.interpolate(x, size=out_shape, mode="nearest")
 
         if self.with_conv:
             x = self.conv(x)

@@ -7,6 +7,7 @@ This folder contains Stable Diffusion (SD) models implemented with MindSpore. It
 - [x] Support SoTA diffusion process schedulers including DDIM, DPM Solver, UniPC, etc. (under continuous update)
 - [x] Vanilla Stable Diffusion finetuning
 - [x] [Efficient SD finetuning with LoRA](lora_finetune.md) 🔥
+- [x] [Finetuning with DreamBooth](dreambooth_finetune.md)
 - [x] Quantitative evaluation for diffusion models: FID
 - [x] Chinese text-to-image generation thanks to Wukonghuahua (based on SD 1.x)
 - [x] Negative prompt guidance.
@@ -30,6 +31,9 @@ pip install -r requirements.txt
 
 - SD2.0
   Download [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder
+
+- SD1.5
+Download [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_v1_5_pruned_emaonly-d0ab7146.ckpt) put it under `models/` folder
 
 - SD1.x (Chinese)
 Download [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
@@ -122,32 +126,70 @@ LoRA finetuning has lower memory requirement and allows finetuning on images wit
 
 Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](lora_finetune.md)
 
+### 4. Finetuning with DreamBooth
 
-### 4. Evaluation
+DreamBooth allows users to generate contextualized images of one subject using just 3-5 images of the subject, e.g., your dog.
+
+Please refer to the tutorial of [DreamBooth for Stable Diffusion Finetuning](dreambooth_finetune.md)
+
+### 5. CN-CLIP
+
+[CN-CLIP](https://github.com/ofa-sys/chineseclip) is an open-source CLIP implementation that is trained on an extensive dataset on Chinese text, image pairs. The difference is mostly on tokenizers and the first embedding layer. We support replacing the original CLIP weights with CN-Clip weights using the arg `--custom_text_encoder`.
+
+To use CN-Clip in your training or inference,
+
+First download our provided weights [ViT-H/14](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_cnclip_h14-d780480a.ckpt) converted from torch.
+
+Then use the predefined *cnclip.yaml files in `train_config.json`:
+
+`# "model_config": "configs/v2-train-cnclip.yaml"`
+
+Finally modify a bit to your old train / infer commands:
+
+```
+# training:
+python train_text_to_image.py --custom_text_encoder PATH_TO_CNCLIP.ckpt --config configs/v2-inference-cnclip.yaml ...
+
+# inference: modify args passed to text_to_image.py
+python text_to_image.py --config configs/v2-inference-cnclip.yaml ...
+```
+
+### 6. Evaluation
 
 Please refer to [Evaluation for Diffusion Models](eval/README.md)
 
 - - -
-## Stable Diffusion 1.x
+## Stable Diffusion 1.5
+
+### 0. Pretrained Weights and Corresponding Yaml Configs
+
+To use original SDv1.5 weights, use v1 configs without `-chinese` in the name. To use wukongHuaHua weights, use v1 configs with `-chinese` in the name.
 
 ### 1. Chinese Text-to-Image Generation
 
 ```shell
-# Text to image generation with SD1.x (Support Chinese)
-python text_to_image.py --prompt "雪中之狼"  -v 1.x
+# Text to image generation with WukongHuaHua (Support better Chinese & English)
+python text_to_image.py --prompt "雪中之狼"  -v 1.x --ckpt_path PATH_TO_V15_WKHH_CKPT --config configs/v1-inference-chinese.yaml
 ```
 > -v is used to set stable diffusion version.
 
 For more argument usages, please run `python text_to_image.py -h`.
 
-### 2. Vanilla Finetuning
+### 2. English Text-to-Image Generation
+
+```shell
+# Text to image generation with SD1.x (Support Chinese & English)
+python text_to_image.py --prompt "wolfy"  -v 1.x --ckpt_path PATH_TO_V15_CKPT --config configs/v1-inference.yaml
+```
+
+### 3. Vanilla Finetuning
 
 ```shell
 sh scripts/run_train_v1.sh
 ```
 
-Modify `data_path` in `run_train_v2.sh` to the path to the dataset that you want to train on.
-
+Modify `data_path` in `run_train_v1.sh` to the path to the dataset that you want to train on.
+Headsup: change WordpieceTokenizer in yaml file to BpeTokenizer for English datasets.
 
 ## What's New
 - 2023.07.05  Add negative prompts; Improve logger; Fix bugs for MS 2.0.
