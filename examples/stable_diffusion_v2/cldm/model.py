@@ -48,15 +48,8 @@ def load_model(model, ckpt_path):
 
 
 def load_state_dict(model, ckpt_path):
-    # _, extension = os.path.splitext(ckpt_path)
-    # if extension.lower() == ".safetensors":
-    #     import safetensors.torch
-    #     state_dict = safetensors.torch.load_file(ckpt_path, device=location)
-    # else:
-    #     state_dict = get_state_dict(torch.load(ckpt_path, map_location=torch.device(location)))
     logger.info(f"Loading model from {ckpt_path}")
     state_dict = get_state_dict(ms.load_checkpoint(ckpt_path))
-    # state_dict = get_state_dict(state_dict)
     logger.info(f'Loaded state_dict from [{ckpt_path}]')
 
     model.set_train(False)

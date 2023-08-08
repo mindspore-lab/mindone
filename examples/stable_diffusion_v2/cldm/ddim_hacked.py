@@ -224,9 +224,10 @@ class DDIMSampler(object):
         dynamic_threshold=None,
     ):
         b = x.shape[0]
+        # print(f"cong's test message: x.shape is {x.shape}")
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
-            model_output = self.model.apply_model(x, t, c_crossattn=c)
+            model_output = self.model.apply_model(x, t, c)
         else:
             x_in = ops.concat((x, x), axis=0)
             t_in = ops.concat((t, t), axis=0)
@@ -234,12 +235,18 @@ class DDIMSampler(object):
                 assert isinstance(unconditional_conditioning, dict)
                 c_in = dict()
                 for k in c:
+                    c_in[k] =list()
                     if isinstance(c[k], list):
+                        # c_in[k] = [
+                        #     ops.concat([unconditional_conditioning[k][i], c[k][i]] for i in range(len(c[k])), axis=0)
+                        # ] 
+                        # print(f"cong's test message: len(unconditional_conditioning[k]) is {len(unconditional_conditioning[k])}")
                         c_in[k] = [
-                            ops.concat([unconditional_conditioning[k][i], c[k][i]]) for i in range(len(c[k]), axis=0)
-                        ]
+                            ops.concat([unconditional_conditioning[k][i], c[k][i]], axis=0) for i in range(len(c[k]))
+                        ] 
+                                          
                     else:
-                        c_in[k] = ops.concat([unconditional_conditioning[k], c[k]])
+                        c_in[k] = ops.concat([unconditional_conditioning[k], c[k]], axis=0)
             elif isinstance(c, list):
                 c_in = list()
                 assert isinstance(unconditional_conditioning, list)
@@ -247,7 +254,16 @@ class DDIMSampler(object):
                     c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
             else:
                 c_in = ops.concat([unconditional_conditioning, c], axis=0)
-            model_uncond, model_t = ops.split((self.model.apply_model(x_in, t_in, c_crossattn=c_in)), 0, 2)
+            # print(f"cong's test message: t_in is {t_in}")
+            # print(f"cong's test message: len(c_in['c_crossattn']) is {len(c_in['c_crossattn'])}") # c_in is a dict
+            # Todo: figure out how to pass c_in['c_crossattn'] and c_in['c_concat'] perfectly
+            # print(f"cong's test message: x_in.shape is {x_in.shape}")
+            # print(f"cong's test message: t_in.shape is {t_in.shape}")
+            # print(f"cong's test message: type of tmp is {type(tmp)}")
+            # print(f"cong's test message: tmp.shape is {tmp.shape}") # (2, 4, 32, 32)
+            model_t = self.model.apply_model(x, t, c)
+            model_uncond = self.model.apply_model(x, t, unconditional_conditioning)
+            # model_uncond, model_t = ops.split((self.model.apply_model(x_in, t_in, cond=c_in)),0 , 2)
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
         if self.model.parameterization == "v":
@@ -321,11 +337,11 @@ class DDIMSampler(object):
         for i in tqdm(range(num_steps), desc="Encoding Image"):
             t = ms.numpy.full((x0.shape[0],), i, dtype=ms.int64)
             if unconditional_guidance_scale == 1.0:
-                noise_pred = self.model.apply_model(x_next, t, c_crossattn=c)
+                noise_pred = self.model.apply_model(x_next, t, c)
             else:
                 assert unconditional_conditioning is not None
-                e_t_uncond = self.model.apply_model(x_next, t, c_crossattn=unconditional_conditioning)
-                noise_pred = self.model.apply_model(x_next, t, c_crossattn=c)
+                e_t_uncond = self.model.apply_model(x_next, t, unconditional_conditioning)
+                noise_pred = self.model.apply_model(x_next, t, c)
                 noise_pred = e_t_uncond + unconditional_guidance_scale * (noise_pred - e_t_uncond)
 
             xt_weighted = (alphas_next[i] / alphas[i]).sqrt() * x_next

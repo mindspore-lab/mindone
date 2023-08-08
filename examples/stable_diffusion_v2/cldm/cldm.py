@@ -38,7 +38,7 @@ class ControlledUnetModel(UNetModel):
     def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
         hs = []
 
-        self.set_train(False)
+        # self.set_train(False)
 
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
@@ -50,7 +50,7 @@ class ControlledUnetModel(UNetModel):
         for module in self.middle_block:
             h = module(h, emb, context)
         
-        # TODO: only upper part was in torch.no_grad(), not sure if set_train(True) needed here
+        # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
         hs_index = -1
         if control is not None:
             h += control[hs_index]
@@ -59,7 +59,7 @@ class ControlledUnetModel(UNetModel):
             if only_mid_control or control is None:
                 h = self.cat((h, hs[hs_index]))
             else:
-                h = self.cat([h, hs[hs_index] + control[hs_index-1]], axis=1)
+                h = self.cat([h, hs[hs_index] + control[hs_index-1]])
 
             for cell in celllist:
                 h = cell(h, emb, context)
@@ -161,7 +161,7 @@ class ControlNet(nn.Cell):
         self.input_hint_block = nn.CellList([
             conv_nd(dims, hint_channels, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
             nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 16, 16, 3, padding=1),
+            conv_nd(dims, 16, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
             nn.SiLU().to_float(self.dtype),
             conv_nd(dims, 16, 32, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
             nn.SiLU().to_float(self.dtype),
@@ -315,13 +315,17 @@ class ControlNet(nn.Cell):
         self._feature_size += ch
 
     def make_zero_conv(self, channels):
-        return nn.CellList([zero_module(conv_nd(self.dims, channels, channels, 1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype))])
+        return zero_module(conv_nd(self.dims, channels, channels, 1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype))
 
     def construct(self, x, hint, timesteps, context, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
 
-        guided_hint = self.input_hint_block(hint, emb, context)
+        guided_hint = hint
+        for cell in self.input_hint_block:
+            if isinstance(cell,conv_nd): guided_hint = cell(guided_hint, emb, context)
+            else: guided_hint = cell(guided_hint)
+
 
         outs = []
 
@@ -329,13 +333,11 @@ class ControlNet(nn.Cell):
 
         for celllist, zero_conv in zip(self.input_blocks, self.zero_convs):
             for cell in celllist:
-                if guided_hint is not None:
-                    h = cell(h, emb, context)
-                    h += guided_hint
-                    guided_hint = None
-                else:
-                    h = cell(h, emb, context)
-                outs.append(zero_conv(h, emb, context))
+                h = cell(h, emb, context)
+            if guided_hint is not None:
+                h += guided_hint
+                guided_hint = None
+            outs.append(zero_conv(h, emb, context))
 
         for module in self.middle_block:
             h = module(h, emb, context)  
@@ -355,7 +357,7 @@ class ControlLDM(LatentDiffusion):
         self.randn_like = ops.StandardNormal()
 
     def get_input(self, batch, k, bs=None, *args, **kwargs):
-        self.set_train(False)
+        # self.set_train(False)
         x, c = super().get_input(batch, self.first_stage_key, *args, **kwargs)
         control = batch[self.control_key]
         if bs is not None:
@@ -365,15 +367,14 @@ class ControlLDM(LatentDiffusion):
         return x, dict(c_crossattn=[c], c_concat=[control])
 
     def apply_model(self, x_noisy, t, cond, *args, **kwargs):
-        assert isinstance(cond, dict)
         diffusion_model = self.model.diffusion_model
-
-        cond_txt = ops.cat(cond['c_crossattn'], 1)
-
-        if cond['c_concat'] is None:
+        if isinstance(cond,dict): cond_txt = ops.concat(cond['c_crossattn'], 1)
+        elif isinstance(cond,list): cond_txt = ops.concat(cond, 1)
+        if isinstance(cond,list) or (isinstance(cond,dict) and cond['c_concat'] is None):
             eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control)
         else:
-            control = self.control_model(x=x_noisy, hint=ops.cat(cond['c_concat'], 1), timesteps=t, context=cond_txt)
+            hint=ops.concat(cond['c_concat'], 1)
+            control = self.control_model(x=x_noisy, hint=ops.concat(cond['c_concat'], 1), timesteps=t, context=cond_txt)
             control = [c * scale for c, scale in zip(control, self.control_scales)]
             eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control)
 
@@ -416,11 +417,11 @@ class ControlLDM(LatentDiffusion):
                 tensor = tensor.unsqueeze(0)
             if len(tensor.shape)  == 3:  # single image
                 if tensor.shape[0] == 1:  # if single-channel, convert to 3-channel
-                    tensor = ops.cat((tensor, tensor, tensor), 0)
+                    tensor = ops.concat((tensor, tensor, tensor), 0)
                 tensor = tensor.unsqueeze(0)
 
             if len(tensor.shape) == 4 and tensor.shape[1] == 1:  # single-channel images
-                tensor = ops.cat((tensor, tensor, tensor), 1)
+                tensor = ops.concat((tensor, tensor, tensor), 1)
 
 
             if not isinstance(tensor, ms.Tensor):
