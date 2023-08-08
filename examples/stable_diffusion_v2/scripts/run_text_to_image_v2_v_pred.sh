@@ -21,36 +21,39 @@ export DEVICE_ID=4
 
 export SD_VERSOIN="2.0"
 
-base_ckpt_path=models/sd_v2_base-57526ee4.ckpt
-data_path=dataset/pokemon_blip/test/prompts.txt
-output_path=output/noise_vanilla_finetune_pokemon_0720
+base_ckpt_path=models/sd_v2_768_v-e12e3a9b.ckpt
+#data_path=./dataset/chinese_art_blip/test/prompts.txt
+data_path=./dataset/pokemon_blip/test/prompts.txt
+#output_path=./output/vpred_vanilla_finetune_chinese_art_0720
+output_path=./output/vpred_vanilla_finetune_pokemon_0720
 
-# --prompt "A wolfie in winter" \
-python text_to_image.py \
-    --data_path $data_path \
-    --config configs/v2-inference.yaml \
-    --output_path $output_path \
-    --seed 42 \
-    --n_iter 1 \
-    --n_samples 1 \
-    --W 512 \
-    --H 512 \
-    --sampling_steps 15 \
-    --dpm_solver \
-    --scale 9 \
-    --ckpt_path $base_ckpt_path
-
-# uncomment this module for single image sampling
+# make sure [model.params.parameterization: "velocity"] in config yaml
 #python text_to_image.py \
-#    --prompt "a painting of rocks and trees on a mountain side with fog in the background and fog in the sky" \
+#    --data_path $data_path \
 #    --config configs/v2-inference.yaml \
-#    --output_path ./output/ \
+#    --output_path $output_path \
 #    --seed 42 \
-#    --n_iter 4 \
+#    --n_iter 1 \
 #    --n_samples 1 \
-#    --W 512 \
-#    --H 512 \
+#    --W 768 \
+#    --H 768 \
 #    --sampling_steps 15 \
 #    --dpm_solver \
 #    --scale 9 \
 #    --ckpt_path $base_ckpt_path
+
+# uncomment this module for single image sampling
+#output_path=./output/vpred_vanilla_finetune_chinese_art_0720
+python text_to_image.py \
+    --prompt "a wolf in winter" \
+    --config configs/v2-inference.yaml \
+    --output_path ./output/ \
+    --seed 42 \
+    --n_iter 4 \
+    --n_samples 1 \
+    --W 768 \
+    --H 768 \
+    --sampling_steps 15 \
+    --dpm_solver \
+    --scale 9 \
+    --ckpt_path $base_ckpt_path

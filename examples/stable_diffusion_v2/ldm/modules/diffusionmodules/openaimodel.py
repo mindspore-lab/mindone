@@ -56,9 +56,9 @@ class Upsample(nn.Cell):
 
     def construct(self, x, emb=None, context=None):
         if self.dims == 3:
-            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))(x)
+            x = ops.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
         else:
-            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
+            x = ops.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
         if self.use_conv:
             x = self.conv(x)
         return x
