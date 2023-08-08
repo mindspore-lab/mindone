@@ -186,12 +186,8 @@ def main(args):
 
     # create safety checker
     if args.check_safety:
-        safety_checker = SafetyChecker(
-            safety_version=args.safety_version,
-            backend="ms", 
-            ckpt_path=args.clip_ckpt_path
-        )
-        
+        safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", ckpt_path=args.clip_ckpt_path)
+
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(

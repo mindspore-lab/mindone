@@ -1,11 +1,10 @@
 def compute_torchmetric_clip(images, texts, model_name):
+    import os
     from functools import partial
 
     import torch
     import torchvision.transforms as transforms
     from torchmetrics.functional.multimodal import clip_score
-
-    import os
 
     os.environ["CURL_CA_BUNDLE"] = ""
 

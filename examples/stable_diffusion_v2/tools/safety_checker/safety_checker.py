@@ -1,10 +1,11 @@
 """
-Implementation of two versions of safety checker in stable 
+Implementation of two versions of safety checker in stable
 diffusion 1/2, respectively
 """
 import argparse
 import os
 import sys
+
 import yaml
 
 # equivalent to no-check-certificate flag in wget
@@ -28,7 +29,7 @@ class SafetyChecker:
         ckpt_path=None,
         tokenizer_path="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         model_name="openai/clip-vit-large-patch14",
-        settings_path="tools/safety_checker/safety_settings_2.yaml",
+        settings_path="tools/safety_checker/safety_settings_f2.yaml",
         threshold=0.2,
         **kwargs,
     ):
@@ -42,19 +43,13 @@ class SafetyChecker:
 
             def process_text(text):
                 return processor(text=text, return_tensors="pt", padding=True).input_ids
-            
+
             if safety_version == 2:
-                from nsfw_model import NSFWModel
-                from mindspore import load_checkpoint, load_param_into_net
+                import torch
+                from nsfw_model_pt import NSFWModelPT
 
-                nsfw_model = NSFWModel()
-                param = load_checkpoint("tools/safety_checker/l14_nsfw.ckpt")
-
-                param_not_load = load_param_into_net(nsfw_model, param)
-                if ms.__version__[0] == "2":
-                    assert len(param_not_load[0]) == 0 and len(param_not_load[1]) == 0
-                else:
-                    assert len(param_not_load) == 0
+                nsfw_model = NSFWModelPT()
+                nsfw_model.load_state_dict(torch.load("tools/safety_checker/l14_nsfw.pth"))
 
         elif backend == "ms":
             # parse config file
@@ -71,11 +66,18 @@ class SafetyChecker:
                 return ms.Tensor(tokenizer(text, padding="max_length", max_length=77)["input_ids"])
 
             if safety_version == 2:
-                import torch
-                from nsfw_model_pt import NSFWModelPT
+                from nsfw_model import NSFWModel
 
-                nsfw_model = NSFWModelPT()
-                nsfw_model.load_state_dict(torch.load("tools/safety_checker/l14_nsfw.pth"))
+                from mindspore import load_checkpoint, load_param_into_net
+
+                nsfw_model = NSFWModel()
+                param = load_checkpoint("tools/safety_checker/l14_nsfw.ckpt")
+
+                param_not_load = load_param_into_net(nsfw_model, param)
+                if ms.__version__[0] == "2":
+                    assert len(param_not_load[0]) == 0 and len(param_not_load[1]) == 0
+                else:
+                    assert len(param_not_load) == 0
         else:
             raise ValueError(f"Unknown backend: {backend}. Valid backend: [ms, pt]")
 
@@ -243,10 +245,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--settings_path",
-        default="tools/safety_checker/safety_settings_1.yaml",
+        default="tools/safety_checker/safety_settings_v2.yaml",
         type=str,
         help="YAML file for a list of NSFW concepts as safety settings"
-        " Default: tools/safety_checker/safety_settings_1.yaml",
+        " Default: tools/safety_checker/safety_settings_v2.yaml",
     )
     parser.add_argument(
         "--threshold",
@@ -262,4 +264,3 @@ if __name__ == "__main__":
     _, has_nsfw_concepts = checker.eval(args.image_path_or_dir)
 
     print(has_nsfw_concepts)
-    
