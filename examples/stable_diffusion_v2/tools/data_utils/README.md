@@ -1,21 +1,27 @@
-# LAION Data Preparation for SD 2.x Training
+# LAION Dataset Preparation
 
-This doc describes the pipeline for preparing LAION subset for SD tranining, including metadata download, filtering, source image downloading, and annotation generation.
+This doc describes the pipeline for preparing LAION subset for Stable Diffusion training, including metadata download, filtering, source image downloading, and annotation generation.
 
-## Data Description
-The [LAION-5B](https://laion.ai/blog/laion-5b/) subsets that are picked for SD-2.1-base model training are as follows.
+## Introduction
+[LAION](https://laion.ai/blog/laion-5b/) is a large-scale image-text dataset with over 5 billion samples. We will pick a subset of LAION-5B for SD-2.1-base training, where the subset filtering conditions are as follows.
 
-- Source metadata LAION2b-en: https://huggingface.co/datasets/ChristophSchuhmann/improved_aesthetics_4.5plus
-> Compared to the [original LAION2b-en](https://huggingface.co/datasets/laion/laion2B-en) with 345GB metadata, this source has about 230GB metadata by filtering with aesthetic score >= 4.5.
-- Filtering conditions that will be applied in Step 2:
 ```text
     lang=en
     aesthetic score>=4.5
     punsafe <= 0.98
     resolution >= 512x512
 ```
-- Filtered metadata - LAION2b-en-sd2.1base: https://huggingface.co/datasets/jasonhuang23/laion2b_en_sd2.1base
-> You can download this filtered metadata and go to Step 3 for downloading source images after installing the dependency.
+
+Since we only aim at English text-image generation, we can just use [LAION2b-en](https://huggingface.co/datasets/laion/laion2B-en) for data selection. Note the source dataset only contains metadata (stored as `.parquet` files), each sample includes text, image URL, safety score, aesthetic score, etc. No images are stored in the metadata and we will download them from the provided image URLs.
+
+For simplicity, you can directly download the metadata filtered for SD2.1-base training from [this link](https://huggingface.co/datasets/jasonhuang23/laion2b_en_sd2.1base) using the following script
+```shell
+mkdir laion_metadata && cd laion_metadata
+for i in {1..64}; do wget https://huggingface.co/datasets/jasonhuang23/laion2b_en_sd2.1base/resolve/main/part_{i}.parquet; done
+cd ..
+```
+
+If you want to filter the metadata by other conditions, please refer to Step 1 and 2 below. Otherwise, you can skip to Step 3 after installing the dependency and downloading the prepared metadata.
 
 ## Dependency Installation
 
@@ -56,7 +62,7 @@ echo Finish updating img2dataset $ori_downloader
 ```
 ## Step 1. Download LAION 2B-en Metadata
 
-Execute the following commands in terminal to download the whole laion 2b-en metadata.
+Execute the following commands in the terminal to download the whole laion 2b-en metadata.
 
 ```shell
 mkdir laion_2b_en_ae4.5 && cd laion_2b_en_ae4.5
@@ -104,18 +110,18 @@ AESTHETIC_SCORE>=4.5
 
 It results in **64 parquet files** with 340,954,340 samples in total, which takes **56GB**.
 
-For convenience, the filtered metadata is uploaded to [here](https://huggingface.co/datasets/jasonhuang23/laion2b_en_sd2.1base). You may download them directly used for source images downloading.
+For convenience, the filtered metadata is uploaded to [here](https://huggingface.co/datasets/jasonhuang23/laion2b_en_sd2.1base). You may download them directly used for source image downloading.
 
 
 ## Step 3. Download Source Images and Resize
 
-In this step, we will use `img2dataset` to download source image files, and resize, encode them into target format.
+In this step, we will use `img2dataset` to download source image files, and resize, and encode them into target format.
 
 **Notes**: The overall dataset will take up about **30TB**, which is beyond the capacity of most hard drives. So you should either
 
 1) download different parts to different hard drives locally at first, then upload them to the storage server (e.g. OBS) before the hard drive reaches its capacity limit,
 
-or 2) directly download to the storage server with local caching if its remote file system supports. The optimal choice depends on your network condition and features of the remote file system .
+or 2) directly download to the storage server with local caching if its remote file system supports it. The optimal choice depends on your network condition and features of the remote file system.
 
 ### Download to Local Drives
 
@@ -136,9 +142,9 @@ for part_id in 1 2 3; do bash laion_download_imgs.sh $part_id; done
 ```
 
 #### Hints on Improving Download Performance:
-- Set `processes_count` as the number of CPU cores your machine has, increase `thread_count` as long as the bandwitdh and CPU is below limit (100%).
+- Set `processes_count` as the number of CPU cores your machine has, and increase `thread_count` as long as the bandwidth and CPU are below limit (100%).
 - Some urls can become invalid. The success rate has dropped to around 80% from the day when LAION dataset was released. In CN, the success rate can further drop to around 50%.
-- Detailed failure reasons can be checked in the log file in `{save_dir}/part_id/{id}_stats.json` for further fix (certifcate issue can be fixed with the patch introduced in Installation section)
+- Detailed failure reasons can be checked in the log file in `{save_dir}/part_id/{id}_stats.json` for further fix (certifcate issue can be fixed with the patch introduced in the Installation section)
 
 
 It will take about 20 hours to download one part with one node and will result in
@@ -154,16 +160,16 @@ There are 64 parts in total, so they will result in ~272M images and take ~30TB 
 
 ### Download to Remote Cluster Directly
 
-If you have a cluster or have access to N machines over ssh, you can set up a PySpark cluster then download the images directly to the cluster.
+If you have a cluster or have access to N machines over ssh, you can set up a PySpark cluster and then download the images directly to the cluster.
 
 For detailed instructions, please refer to [distributed_img2dataset_tutorial](https://github.com/rom1504/img2dataset/blob/main/examples/distributed_img2dataset_tutorial.md) and [laion5B download images](https://github.com/rom1504/img2dataset/blob/main/dataset_examples/laion5B.md#download-the-images).
 
 
 
-#### Notes on data storage format
+#### Notes on data format
 You can alos change the parameters for image resizing, saving format, etc. Please look into the `laion_download_imgs.sh` script and refer to `img2dataset` [API doc](https://github.com/rom1504/img2dataset/tree/main#api).
 
-To change the saving format, please change the `output_format` arg in the `laion_download_imgs.sh` script. We use `webdataset` format by default (data shard saved as tar file) because it is more convenient to handle packed data rather billions of image file, and can save space fo HDD devices and support suqential access wiht [WebDataset](https://github.com/webdataset/webdataset).
+To change the saving format, please change the `output_format` arg in the `laion_download_imgs.sh` script. We use `webdataset` format by default (data shard saved as tar file) because it is more convenient to handle packed data rather than billions of image files, and can save space for HDD devices and support suqential access with [WebDataset](https://github.com/webdataset/webdataset).
 
 ```shell
 #output_format="files"
@@ -186,7 +192,7 @@ python laion_gen_csv_annot.py --data_dir {path/to/download_folder}
 
 This is to collect the image paths and their corresponding captions into csv files, used for creating sample indexes in traning data loading.
 
-After execution, the ready-to-train data should be in following structure.
+After execution, the ready-to-train data should be in the following structure.
 ```text
 data_dir
 ├── part_1.csv # annotation
@@ -214,9 +220,9 @@ python laion_gen_data_stats.py --data_dir {path/to/download_folder}
 ```
 > e.g.  `python laion_gen_data_stats.py --data_dir /data/laion_2b_en`
 
-This is to collect the tar file paths and the number of samples for each tar, used to be explicitly parsed to IterableDataset to indicate the dataset size.
+This is to collect the tar file paths and the number of samples for each tar, which is required for IterableDataset.
 
-After execution, the ready-to-train data should be in following structure.
+After execution, the ready-to-train data should be in the following structure.
 ```text
 data_dir
 ├── part_1_stats.csv # annotation, record: tar file path, number of samples
