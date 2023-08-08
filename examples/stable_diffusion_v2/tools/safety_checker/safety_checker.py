@@ -15,6 +15,7 @@ sys.path.insert(0, os.getcwd())
 
 from tools._common import L2_norm_ops, load_images
 from tools._common.clip import CLIPImageProcessor, CLIPTokenizer, parse
+from tools.safety_checker.utils import locate_model
 
 import mindspore as ms
 from mindspore import ops
@@ -29,7 +30,7 @@ class SafetyChecker:
         ckpt_path=None,
         tokenizer_path="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         model_name="openai/clip-vit-large-patch14",
-        settings_path="tools/safety_checker/safety_settings_f2.yaml",
+        settings_path="tools/safety_checker/safety_settings_v2.yaml",
         threshold=0.2,
         **kwargs,
     ):
@@ -49,7 +50,9 @@ class SafetyChecker:
                 from nsfw_model_pt import NSFWModelPT
 
                 nsfw_model = NSFWModelPT()
-                nsfw_model.load_state_dict(torch.load("tools/safety_checker/l14_nsfw.pth"))
+                model_path = locate_model(backend="pt")
+                assert model_path is not None
+                nsfw_model.load_state_dict(torch.load(model_path))
 
         elif backend == "ms":
             # parse config file
@@ -71,7 +74,9 @@ class SafetyChecker:
                 from mindspore import load_checkpoint, load_param_into_net
 
                 nsfw_model = NSFWModel()
-                param = load_checkpoint("tools/safety_checker/l14_nsfw.ckpt")
+                model_path = locate_model(backend="ms")
+                assert model_path is not None
+                param = load_checkpoint(model_path)
 
                 param_not_load = load_param_into_net(nsfw_model, param)
                 if ms.__version__[0] == "2":

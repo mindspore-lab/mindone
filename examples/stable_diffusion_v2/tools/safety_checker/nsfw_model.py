@@ -11,7 +11,7 @@ class Normalization(nn.Cell):
         self.variance = Parameter(Tensor(np.ones(shape), ms.float32))
 
     def construct(self, x):
-        return (x - self.mean) / self.variance.sqrt()
+        return (x - self.mean) / ms.ops.Sqrt()(self.variance)
 
 
 class NSFWModel(nn.Cell):
