@@ -1,4 +1,4 @@
-# LAION Dataset Preparation
+# LAION Subset Preparation
 
 This doc describes the pipeline for preparing LAION subset for Stable Diffusion training, including metadata download, filtering, source image downloading, and annotation generation.
 
