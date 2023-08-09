@@ -1,4 +1,5 @@
 import argparse
+import os
 
 import numpy as np
 import torch
@@ -10,6 +11,8 @@ PYTORCH = "pt"
 STABLE_DIFFUSION_V1 = "sdv1"
 STABLE_DIFFUSION_V2 = "sdv2"
 CONTROLNET_V2 = "controlnet"
+DIFFUSERS_V1 = "diffusersv1"
+DIFFUSERS_V2 = "diffusersv2"
 
 
 parser = argparse.ArgumentParser()
@@ -31,13 +34,13 @@ parser.add_argument(
     "--target",
     "-t",
     type=str,
-    help="where to save",
+    help="Filename to save. Specify folder if model is diffuser, , e.g., ./stable-diffusion-2-base",
 )
 parser.add_argument(
     "--model",
     "-m",
     type=str,
-    choices=[STABLE_DIFFUSION_V1, STABLE_DIFFUSION_V2, CONTROLNET_V2],
+    choices=[STABLE_DIFFUSION_V1, STABLE_DIFFUSION_V2, CONTROLNET_V2, DIFFUSERS_V2],
     help="version of stable diffusion",
     default=STABLE_DIFFUSION_V2,
 )
@@ -45,9 +48,9 @@ args = parser.parse_args()
 
 
 def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
-    with open("tools/ms_names_v2.txt") as file_ms:
+    with open("tools/model_conversion/ms_names_v2.txt") as file_ms:
         lines_ms = file_ms.readlines()
-    with open("tools/pt_names_v2.txt") as file_pt:
+    with open("tools/model_conversion/pt_names_v2.txt") as file_pt:
         lines_pt = file_pt.readlines()
 
     source_data = torch.load(args.source, map_location="cpu")["state_dict"]
@@ -61,9 +64,9 @@ def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
 
 
 def MINDSPORE_PYTORCH_STABLE_DIFFUSION_V2():
-    with open("tools/ms_names_v2.txt") as file_ms:
+    with open("tools/model_conversion/ms_names_v2.txt") as file_ms:
         lines_ms = file_ms.readlines()
-    with open("tools/pt_names_v2.txt") as file_pt:
+    with open("tools/model_conversion/pt_names_v2.txt") as file_pt:
         lines_pt = file_pt.readlines()
 
     source_data = ms.load_checkpoint(args.source)
@@ -76,13 +79,79 @@ def MINDSPORE_PYTORCH_STABLE_DIFFUSION_V2():
     torch.save(target_data, args.target)
 
 
-def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V1():
-    with open("tools/ms_names_v1.txt") as file_ms:
-        lines_ms = file_ms.readlines()
-    with open("tools/pt_names_v1.txt") as file_pt:
-        lines_pt = file_pt.readlines()
+def _load_v1_and_split_qkv(source_data, lines_ms, lines_pt):
+    target_data = {}
+    i = j = 0
+    while i < len(lines_ms):
+        line_ms = lines_ms[i]
+        _name_ms, _, _ = line_ms.strip().split("#")
+        if "attn.attn.in_proj" not in line_ms:
+            line_pt = lines_pt[j]
+            _name_pt, _, _ = line_pt.strip().split("#")
+            target_data[_name_pt] = torch.tensor(source_data[_name_ms].asnumpy())
+            i += 1
+            j += 1
+        else:
+            b = np.split(source_data[_name_ms].asnumpy(), 3)
+            i += 1
+            line_ms = lines_ms[i]
+            _name_ms, _, _ = line_ms.strip().split("#")
+            w = np.split(source_data[_name_ms].asnumpy(), 3)
+            i1 = {1: 1, 3: 0, 5: 2}
+            i2 = {0: 1, 2: 0, 4: 2}
+            for k in range(6):
+                line_pt = lines_pt[j]
+                _name_pt, _, _ = line_pt.strip().split("#")
+                j += 1
+                if "weight" in _name_pt:
+                    target_data[_name_pt] = torch.tensor(w[i1[k]])
+                else:
+                    target_data[_name_pt] = torch.tensor(b[i2[k]])
+            i += 1
+    return target_data
 
-    source_data = torch.load(args.source, map_location="cpu")["state_dict"]
+
+def MINDSPORE_PYTORCH_DIFFUSERS_V2():
+    with open("tools/model_conversion/ms_names_v2.txt") as file_ms:
+        lines_ms = list(file_ms.readlines())
+    with open("tools/model_conversion/diffusers_vae_v2.txt") as file_pt:
+        lines_pt_vae = list(file_pt.readlines())
+    with open("tools/model_conversion/diffusers_clip_v2.txt") as file_pt:
+        lines_pt_clip = list(file_pt.readlines())
+    with open("tools/model_conversion/diffusers_unet_v2.txt") as file_pt:
+        lines_pt_unet = list(file_pt.readlines())
+
+    source_data = ms.load_checkpoint(args.source)
+    target_vae, target_clip, target_unet = {}, {}, {}
+    i = j = 0
+    for line_ms in lines_ms:
+        if "model.diffusion_model" in line_ms:
+            line_pt = lines_pt_unet[i]
+            i += 1
+            _name_pt, _, _ = line_pt.strip().split("#")
+            _name_ms, _, _ = line_ms.strip().split("#")
+            _source_data = source_data[_name_ms].asnumpy()
+            target_unet[_name_pt] = torch.tensor(_source_data)
+        elif "first_stage_model" in line_ms:
+            line_pt = lines_pt_vae[j]
+            j += 1
+            _name_pt, shape, _ = line_pt.strip().split("#")
+            _name_ms, _, _ = line_ms.strip().split("#")
+            shape = shape.replace("torch.Size([", "").replace("])", "").split(", ")
+            shape = [int(s) for s in shape]
+            _source_data = source_data[_name_ms].asnumpy().reshape(shape)
+            target_vae[_name_pt] = torch.tensor(_source_data)
+    os.makedirs(os.path.join(args.target, "unet"), exist_ok=True)
+    os.makedirs(os.path.join(args.target, "vae"), exist_ok=True)
+    os.makedirs(os.path.join(args.target, "text_encoder"), exist_ok=True)
+    torch.save(target_unet, os.path.join(args.target, "unet", "diffusion_pytorch_model.bin"))
+    torch.save(target_vae, os.path.join(args.target, "vae", "diffusion_pytorch_model.bin"))
+    lines_ms = [line_ms for line_ms in lines_ms if "cond_stage_model" in line_ms]
+    target_clip = _load_v1_and_split_qkv(source_data, lines_ms, lines_pt_clip)
+    torch.save(target_clip, os.path.join(args.target, "text_encoder", "pytorch_model.bin"))
+
+
+def _load_v1_and_merge_qkv(source_data, lines_ms, lines_pt):
     target_data = []
     i = j = 0
     while i < len(lines_ms):
@@ -110,8 +179,22 @@ def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V1():
             _name_ms, _, _ = line_ms.strip().split("#")
             target_data.append({"name": _name_ms, "data": ms.Tensor(np.concatenate([w[1], w[0], w[2]]))})
             i += 1
+    return target_data
 
+
+def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V1():
+    with open("tools/model_conversion/ms_names_v1.txt") as file_ms:
+        lines_ms = file_ms.readlines()
+    with open("tools/model_conversion/pt_names_v1.txt") as file_pt:
+        lines_pt = file_pt.readlines()
+
+    source_data = torch.load(args.source, map_location="cpu")["state_dict"]
+    target_data = _load_v1_and_merge_qkv(source_data, lines_ms, lines_pt)
     ms.save_checkpoint(target_data, args.target)
+
+
+def MINDSPORE_PYTORCH_DIFFUSERS_V1():
+    raise NotImplementedError
 
 
 SUPPORTED_CONVERSIONS = {
@@ -119,6 +202,8 @@ SUPPORTED_CONVERSIONS = {
     (PYTORCH, MINDSPORE, STABLE_DIFFUSION_V2, PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2),
     (MINDSPORE, PYTORCH, STABLE_DIFFUSION_V1, None),
     (MINDSPORE, PYTORCH, STABLE_DIFFUSION_V2, MINDSPORE_PYTORCH_STABLE_DIFFUSION_V2),
+    (MINDSPORE, PYTORCH, DIFFUSERS_V2, MINDSPORE_PYTORCH_DIFFUSERS_V2),
+    (MINDSPORE, PYTORCH, DIFFUSERS_V1, MINDSPORE_PYTORCH_DIFFUSERS_V1),
 }
 
 
@@ -132,7 +217,7 @@ def main():
         TARGET = MINDSPORE
     else:
         raise NotImplementedError(f"{args.source} should end with .pt or .ckpt")
-
+    print("warning: you should always backup your old weights")
     for src, tgt, model, convert_func in SUPPORTED_CONVERSIONS:
         if any([src != SOURCE, tgt != TARGET, model != MODEL, convert_func is None]):
             continue
