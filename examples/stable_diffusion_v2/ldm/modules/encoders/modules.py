@@ -27,30 +27,37 @@ SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
 
 class FrozenCLIPEmbedder(nn.Cell):
-    def __init__(self, max_length=77, use_fp16=False):
+    def __init__(
+        self,
+        use_fp16=False,
+        tokenizer_name="WordpieceTokenizer",
+        context_length=77,
+        vocab_size=49408,
+        output_dim=768,
+        width=768,
+        layers=12,
+        heads=12,
+    ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
-        self.max_length = max_length
+        self.context_length = context_length
+        self.tokenizer = get_tokenizer(tokenizer_name)
+        setattr(self.tokenizer, "context_length", context_length)
 
-        self.tokenizer = get_tokenizer(SD_VERSION)  # TODO: reuse the instantiated tokenized used in load dataset
-
-        if SD_VERSION.startswith("1."):
-            self.transformer = TextEncoder(
-                context_length=77, vocab_size=49408, output_dim=768, width=768, layers=12, heads=12, dtype=self.dtype
-            )
-        else:
-            # TODO: in original implementation, layers=24. But it seems the weights in the last layer are not converted
-            #   yet and leads to worse generalization result.
-            self.transformer = TextEncoder(
-                context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=23, heads=16, dtype=self.dtype
-            )
-            # self.transformer = TextEncoder(
-            # context_length=77, vocab_size=49408, output_dim=1024, width=1024, layers=24, heads=16, dtype=self.dtype)
+        self.transformer = TextEncoder(
+            context_length=context_length,
+            vocab_size=vocab_size,
+            output_dim=output_dim,
+            width=width,
+            layers=layers,
+            heads=heads,
+            dtype=self.dtype,
+        )
 
     def tokenize(self, texts):
         SOT_TEXT = self.tokenizer.sot_text
         EOT_TEXT = self.tokenizer.eot_text
-        CONTEXT_LEN = 77
+        CONTEXT_LEN = self.context_length
 
         if isinstance(texts, str):
             texts = [texts]

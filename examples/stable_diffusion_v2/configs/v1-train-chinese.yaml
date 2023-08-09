@@ -61,3 +61,10 @@ model:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
         use_fp16: True
+        tokenizer_name: "WordpieceTokenizer" # only wukong uses this
+        context_length: 77
+        vocab_size: 49408
+        output_dim: 768
+        width: 768
+        layers: 12
+        heads: 12
