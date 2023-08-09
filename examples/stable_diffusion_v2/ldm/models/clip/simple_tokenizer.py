@@ -330,20 +330,14 @@ class WordpieceTokenizer(object):
         return text
 
 
-# default tokenizer for 'en'
-# _tokenizer = BpeTokenizer(Path(__file__).with_name(vocab_path_en).as_posix())
-
-
-def get_tokenizer(sd_version):  # SD_VERSION
-    lang = (
-        "zh" if sd_version.startswith("1.") else "en"
-    )  # TODO: use lang arg. currently 1.x supports zh, ad 2.x support en
-    if lang == "zh":
-        tokenizer = WordpieceTokenizer()  # for zh
-        _logger.debug(f"Using tokenizer `WordPieceTokenizer` for {lang}-language.")
-    else:
+def get_tokenizer(tokenizer_name):
+    if tokenizer_name == "WordpieceTokenizer":
+        tokenizer = WordpieceTokenizer()
+        _logger.debug("Using tokenizer `WordPieceTokenizer`")
+    elif tokenizer_name == "BpeTokenizer":
         tokenizer = BpeTokenizer()
-        _logger.debug(f"Using tokenizer `BpeTokenizer` for {lang}-language.")
+    else:
+        raise NotImplementedError(f"tokenizer {tokenizer_name} not implemented")
     return tokenizer
 
 
