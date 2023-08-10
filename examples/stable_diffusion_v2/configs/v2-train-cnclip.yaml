@@ -1,5 +1,5 @@
 model:
-  base_learning_rate: 1.0e-04
+  #base_learning_rate: 1.0e-05
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.00085
@@ -7,16 +7,18 @@ model:
     num_timesteps_cond: 1
     log_every_t: 200
     timesteps: 1000
-    first_stage_key: "jpg"
-    cond_stage_key: "txt"
+    first_stage_key: "image"
+    cond_stage_key: "caption"
+    cond_stage_trainable: False # wkhh missed this part
     image_size: 64
     channels: 4
-    cond_stage_trainable: false   # Note: different from the one we trained before
     conditioning_key: crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
-    use_ema: False
+    #use_ema: False # TODO: set in args
     use_fp16: True
+    parameterization: "eps" # default, original ldm
+    #parameterization: "velocity"
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
@@ -28,13 +30,17 @@ model:
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4, 4 ]
-        num_heads: 8
+        #num_heads: 8  #wukong
+        num_head_channels: 64  # SD_VERSION v2.0
         use_spatial_transformer: True
+        use_linear_in_transformer: True #SD_VERSION v2.0
         transformer_depth: 1
-        context_dim: 768
+        #context_dim: 768
+        context_dim: 1024 # SD_VERSION v2.0
         use_checkpoint: True
         legacy: False
         use_fp16: True
+        dropout: 0.1
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
@@ -56,16 +62,15 @@ model:
           - 4
           num_res_blocks: 2
           attn_resolutions: []
-          dropout: 0.0
 
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
         use_fp16: True
-        tokenizer_name: "WordpieceTokenizer" # only wukong uses this
-        context_length: 77
-        vocab_size: 49408
-        output_dim: 768
-        width: 768
-        layers: 12
-        heads: 12
+        tokenizer_name: "WordpieceTokenizer"
+        context_length: 512
+        vocab_size: 21128
+        output_dim: 1024
+        width: 1024
+        layers: 24
+        heads: 16
