@@ -127,15 +127,15 @@ class VisionTransformer(nn.Cell):
         ).to_float(dtype)
 
         scale = width**-0.5
-        self.class_embedding = Parameter(scale * Tensor(np.random.normal(0, 1, size=(width))).astype(ms.float32))
+        self.class_embedding = Parameter(scale * Tensor(np.random.normal(0, 1, size=(width))).astype(dtype))
         self.positional_embedding = Parameter(
             scale
-            * Tensor(np.random.normal(0, 1, size=((input_resolution // patch_size) ** 2 + 1, width))).astype(ms.float32)
+            * Tensor(np.random.normal(0, 1, size=((input_resolution // patch_size) ** 2 + 1, width))).astype(dtype)
         )
         self.ln_pre = LayerNorm([width], epsilon=1e-5)
         self.transformer = Transformer(width, layers, heads, dtype, hidden_act)
         self.ln_post = LayerNorm([width], epsilon=1e-5)
-        self.proj = Parameter(scale * Tensor(np.random.normal(0, 1, size=(width, output_dim))).astype(ms.float32))
+        self.proj = Parameter(scale * Tensor(np.random.normal(0, 1, size=(width, output_dim))).astype(dtype))
         self.cat = ops.Concat(1)
         self.tile = ops.Tile()
         self.slice = P.StridedSlice()

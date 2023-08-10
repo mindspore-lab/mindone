@@ -15,33 +15,33 @@ Note that all the above metrics are computed based on neural network models.
 
 ### FID
 
-To compute the FID between the real images and the generated images, please run
+To compute the FID between the real images and the generated images, in `examples/stable_diffusion` directory, please run
 
 ```
-python eval/eval_fid.py --real_dir {dir_to_real_images}  --gen_dir {dir_to_generated_images}
+python tools/eval/eval_fid.py --real_dir {dir_to_real_images}  --gen_dir {dir_to_generated_images}
 ```
 
 By default, we use MindSpore backend for FID computing (to run inception v3 model inference and extract image features). You may swich to `torchmetrics` backend  by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable.
 
-For more usage, please run `python eval/eval_fid.py -h`.
+For more usage, please run `python tools/eval/eval_fid.py -h`.
 
 > In the first time running, it will automatically download the checkpoint file for Inception V3 FID model. If you fail to downalod due to network problem, please manually download it from [this link](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/fid/inception_v3_fid-9ec6dfe4.ckpt) and put it under `~/mindspore/models/`
 
 ### CLIP Score
 
-To compute the CLIP score between images and texts, please run
+To compute the CLIP score between images and texts, in `examples/stable_diffusion` directory, please run
 
 - Mindspore backend
 ```
-python eval/eval_clip_score.py --load_checkpoint <path-to-model> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
+python tools/eval/eval_clip_score.py --ckpt_path <path-to-model> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
 ```
 - PyTorch backend
 ```
-python eval/eval_clip_score.py --backend pt --model_name <HF-model-name> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
+python tools/eval/eval_clip_score.py --backend pt --model_name <HF-model-name> --image_path_or_dir <path-to-image> --prompt_or_path <string/path-to-txt>
 ```
 By default, we use MindSpore backend for CLIP score computing (to run CLIP model inference and extract image & text features). You may swich to use `torchmetrics` by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable.
 
-For more usage, please run `python eval/eval_clip_score.py -h`.
+For more usage, please run `python tools/eval/eval_clip_score.py -h`.
 
 You need to download the checkpoint file for a CLIP model of your choice. Download links for some models are provided below.
 
@@ -50,8 +50,6 @@ You need to download the checkpoint file for a CLIP model of your choice. Downlo
 - [clip_vit_l_14](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt)
 
 For other compatible models, e.g., OpenCLIP, you can download `pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `eval/clip_score/utils/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `eval/clip_score/configs`.
-
-In addition, you should download the default tokenizer file bpe_simple_vocab_16e6.txt.gz [here](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/bpe_simple_vocab_16e6.txt.gz), and place it in the directory where you run the program or set `tokenizer_path` accordingly.
 
 `image_path` should lead to an image file or a directory containing images. If it is a directory, then the images are sorted by their filename in an ascending order. `prompt` can be either a piece of text or the path to an `.txt` file, where prompts are placed line by line. Images and prompts are matched such that each prompt corresponding to one or many images in order.
 
