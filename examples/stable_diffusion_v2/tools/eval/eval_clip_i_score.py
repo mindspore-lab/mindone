@@ -72,11 +72,7 @@ if __name__ == "__main__":
         help="load model checkpoint." " Default: ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
     )
     parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
-    parser.add_argument(
-        "--check_certificate",
-        action="store_true",
-        help="set this flag to check for certificate for downloads (checks)",
-    )
+
     args = parser.parse_args()
 
     # load real and generated images
