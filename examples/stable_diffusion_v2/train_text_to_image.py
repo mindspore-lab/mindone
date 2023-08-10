@@ -241,8 +241,11 @@ def main(args):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=10,
+            step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
             lora_rank=args.lora_rank,
+            log_interval=args.callback_size,
+            start_epoch=start_epoch,
         )
 
         callback.append(save_cb)
@@ -336,7 +339,13 @@ if __name__ == "__main__":
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
 
-    parser.add_argument("--ckpt_save_interval", default=4, type=int, help="save checkpoint every this epochs")
+    parser.add_argument("--ckpt_save_interval", default=4, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument(
+        "--step_mode",
+        default=False,
+        type=str2bool,
+        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+    )
     parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
     parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
     parser.add_argument("--image_size", default=512, type=int, help="images size")
