@@ -5,7 +5,7 @@ import sys
 
 sys.path.append(".")
 
-from eval.fid.utils import Download
+from tools.eval.fid.utils import Download
 
 
 def gen_dummpy_data():
