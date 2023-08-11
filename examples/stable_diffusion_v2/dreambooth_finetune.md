@@ -238,7 +238,7 @@ By default, we use the pretrained `clip_vit_base_patch16` model to extract the i
 The command to evaluate the CLIP-T score is shown below:
 
 ```shell
-python eval/eval_clip_score.py  \
+python tools/eval/eval_clip_score.py  \
     --load_checkpoint <path-to-clip-model>  \
     --image_path_or_dir <path-to-image>  \
     --prompt_or_path <string/path-to-txt>
@@ -249,7 +249,7 @@ python eval/eval_clip_score.py  \
 The command to evaluate the CLIP-I score is shown below:
 
 ```shell
-python eval/eval_clip_i_score.py  \
+python tools/eval/eval_clip_i_score.py  \
     --load_checkpoint <path-to-clip-model>  \
     --gen_image_path_or_dir <path-to-generated-image>  \
     --real_image_path_or_dir <path-to-real-image>
