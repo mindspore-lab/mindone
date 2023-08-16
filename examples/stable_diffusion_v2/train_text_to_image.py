@@ -17,12 +17,12 @@ from ldm.modules.train.learningrate import LearningRate
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import parse_with_config, set_random_seed
-from ldm.modules.train.trainer import TrainOneStepWrapper
+from ldm.modules.train.trainer import ModelTrain, TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import Model, context, load_checkpoint, load_param_into_net
+from mindspore import context, load_checkpoint, load_param_into_net
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
@@ -189,16 +189,15 @@ def main(args):
     )
 
     # resume ckpt
-    if rank_id == 0:
-        ckpt_dir = os.path.join(args.output_path, "ckpt")
-        if not os.path.exists(ckpt_dir):
-            os.makedirs(ckpt_dir)
-    start_epoch = 0
+    ckpt_dir = os.path.join(args.output_path, "ckpt")
+    if not os.path.exists(ckpt_dir):
+        os.makedirs(ckpt_dir)
+    start_epoch, start_step = 0, 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
-        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
-            latent_diffusion_with_loss, optimizer, resume_ckpt
+        start_epoch, loss_scale, cur_iter, last_overflow_iter, start_step = resume_train_network(
+            latent_diffusion_with_loss, optimizer, resume_ckpt, dataset.get_dataset_size()
         )
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
@@ -225,7 +224,7 @@ def main(args):
         ema=ema,
     )
 
-    model = Model(net_with_grads)
+    model = ModelTrain(net_with_grads, local_step=start_step)
 
     # callbacks
     callback = [TimeMonitor(args.callback_size), LossMonitor(args.callback_size)]

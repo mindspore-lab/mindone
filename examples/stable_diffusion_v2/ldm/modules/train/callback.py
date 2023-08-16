@@ -99,7 +99,7 @@ class EvalSaveCallback(Callback):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
         cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
-        step_num = cb_params.batch_num * cb_params.epoch_num
+        step_num = cb_params.batch_num * (cb_params.epoch_num + self.start_epoch)
         if cur_step % cb_params.batch_num == 0:
             cur_epoch = cb_params.cur_epoch_num
         else:
@@ -122,7 +122,6 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_step}.ckpt", append_dict=append_dict)
 
-                # TODO: resume training for step.
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
