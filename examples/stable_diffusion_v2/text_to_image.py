@@ -437,16 +437,16 @@ if __name__ == "__main__":
     if args.version:
         os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
-        if  args.version in ["1.5_cn", 'wukong']:
+        if args.version in ["1.5_cn", "wukong"]:
             args.ckpt_path = "models/wukong-huahua-ms.ckpt"
-        elif args.version.startswith("1."): # 1.x, 1.5
+        elif args.version.startswith("1."):  # 1.x, 1.5
             args.ckpt_path = "models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt"
         else:
             args.ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
     if args.config is None:
-        if  args.version in ["1.5_cn", 'wukong']:
+        if args.version in ["1.5_cn", "wukong"]:
             args.config = "configs/v1-inference-chinese.yaml"
-        elif args.version.startswith("1."): # 1.x, 1.5
+        elif args.version.startswith("1."):  # 1.x, 1.5
             args.config = "configs/v1-inference.yaml"
         else:
             args.config = "configs/v2-inference.yaml"

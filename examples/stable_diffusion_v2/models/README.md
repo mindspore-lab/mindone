@@ -1,4 +1,4 @@
-The donwloaded checkpoints should be as follows.
+The downloaded checkpoints should be as follows.
 
 ```text
 .

@@ -1,8 +1,9 @@
 import argparse
+import difflib
 import os
+
 import numpy as np
 import torch
-import difflib
 
 import mindspore as ms
 
@@ -56,7 +57,7 @@ def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
         lines_pt = file_pt.readlines()
 
     verify_name = False
-    
+
     source_data = torch.load(args.source, map_location="cpu")["state_dict"]
     target_data = []
     if verify_name:
@@ -69,7 +70,9 @@ def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
         if verify_name:
             poss = difflib.get_close_matches(_name_ms, pt_param_names, n=3, cutoff=0.6)
             if poss[0] != _name_pt:
-                print(f"ms param {_name_ms}, got closes match in pt: {poss[0]}, but assined with {_name_pt} from pt_names_v2.txt")
+                print(
+                    f"ms param {_name_ms}, got closes match in pt: {poss[0]}, but assined with {_name_pt} from pt_names_v2.txt"
+                )
         _source_data = source_data[_name_pt].cpu().detach().numpy()
         target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
     ms.save_checkpoint(target_data, args.target)

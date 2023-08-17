@@ -50,20 +50,20 @@ Install the dependent packages by running:
 pip install -r requirements.txt
 ```
 
-## Pretrained Weights 
+## Pretrained Weights
 
 <details close>
   <summary>Pre-trained SD weights that are compatible with MindSpore: </summary>
 
 - Stable Diffusion 2.x
     - SD 2.0-base (text-to-image): [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt), converted from [this HF model](https://huggingface.co/stabilityai/stable-diffusion-2-base)
-    - SD-2-inpainting (image inpainting): [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt), converted from [this HF model](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) 
+    - SD-2-inpainting (image inpainting): [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt), converted from [this HF model](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting)
 
 - Stable Diffusion 1.5
     - SD 1.5 (text-to-image) [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_v1_5_pruned_emaonly-d0ab7146.ckpt), converted from [this HF model](https://huggingface.co/runwayml/stable-diffusion-v1-5)
 
     - Wukonghuahua (Chinese text-to-image): [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)
-    - Wukonghuahua Inpainting: [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) 
+    - Wukonghuahua Inpainting: [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt)
 
 Please download the checkpoints you need for your task, and put them under `models/` folder.
 </details>
@@ -106,14 +106,14 @@ While `--prompt` indicates what to render in the generated images, the negative 
 Download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder. Then run,
 
 ```shell
-python inpaint.py 
+python inpaint.py
     --image {path to input image} \
     --mask  {path to mask image} \
     --prompt "your magic prompt to paint the masked region"
 ```
 > For more argument usage, please run `python inpaint.py --help`
 
-Example: 
+Example:
 
 Download the [example image](https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo.png) and [mask](https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo_mask.png) to the running path. Then execute
 
@@ -130,14 +130,14 @@ Now the masked region is smoothly replaced with the instructed content.
 <em> (From left to right: input image, mask, generated images) </em>
 </p>
 
-### Text-guided Image-to-Image 
+### Text-guided Image-to-Image
 
 Coming soon
 
 
-## Training 
+## Training
 
-To create a dataset for training, please refer to [data preparation](#dataset-preparation-for-finetuning).  
+To create a dataset for training, please refer to [data preparation](#dataset-preparation-for-finetuning).
 
 ### Efficient Finetuning with LoRA 🔥
 
@@ -166,23 +166,23 @@ To run vanilla finetuning on a single device, please execute:
 ```shell
 sh scripts/run_train_v2.sh
 ```
-after setting `data_path` to your dataset path. 
+after setting `data_path` to your dataset path.
 
 
-To run in the distributed mode, please execute: 
+To run in the distributed mode, please execute:
 ```
 bash scripts/run_train_v2_distributed.sh
 ```
 , after updating `data_path` and `num_devices`, `rank_table_file`, `CANDIDATE_DEVICES` according to your running devices.
 
-> To make the text encoder also trainable, please set `cond_stage_trainable: True` in `configs/v2-train.yaml` 
+> To make the text encoder also trainable, please set `cond_stage_trainable: True` in `configs/v2-train.yaml`
 
 
 ### Chinese Prompt Adaptation
 
-To make SD work better with Chinese prompts, one can replace the default text encoder with [CN-CLIP](https://github.com/ofa-sys/chineseclip) and run [vanilla finetuning](#vanilla-finetuing) on a Chinese text-image pair dataset. 
+To make SD work better with Chinese prompts, one can replace the default text encoder with [CN-CLIP](https://github.com/ofa-sys/chineseclip) and run [vanilla finetuning](#vanilla-finetuing) on a Chinese text-image pair dataset.
 
-CN-CLIP is an open-source CLIP implementation that is trained on an extensive dataset of Chinese text-image pairs. The main difference between CN-CLIP and OpenCLIP is the tokenizer and the first embedding layer. 
+CN-CLIP is an open-source CLIP implementation that is trained on an extensive dataset of Chinese text-image pairs. The main difference between CN-CLIP and OpenCLIP is the tokenizer and the first embedding layer.
 
 To replace the original CLIP used in SD with CN-CLIP, please:
 
@@ -209,7 +209,7 @@ python text_to_image.py --config configs/v2-inference-cnclip.yaml --ckpt_path {p
 
 ## Inference
 
-It is simple to switch from SD 2.0 to SD 1.5 by setting the `--version` (`-v`) argument. 
+It is simple to switch from SD 2.0 to SD 1.5 by setting the `--version` (`-v`) argument.
 
 ### SD1.5 Text-to-Image Generation
 
@@ -240,12 +240,12 @@ python inpaint.py --image {path to input image} --mask {path to mask image} --pr
 To train SD 1.5 on a custom text-image dataset, please run
 
 ```shell
-# SD 1.5 vanilla training 
+# SD 1.5 vanilla training
 sh scripts/run_train_v1.sh
 ```
 after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
-> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the trainin script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt`. 
+> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the trainin script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt`.
 
 
 # Dataset Preparation for Finetuning
