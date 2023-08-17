@@ -117,18 +117,39 @@ def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
         logger.warning("Checkpoint file {pretrained_ckpt} dose not exist!!!")
 
 
+def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
+    new_param_dict = {}
+    logger.info(f"Loading pretrained model from {pretrained_ckpt}, {cnclip_ckpt}")
+    if os.path.exists(pretrained_ckpt) and os.path.exists(cnclip_ckpt):
+        param_dict = load_checkpoint(pretrained_ckpt)
+        cnclip_param_dict = load_checkpoint(pretrained_ckpt)
+        for key in param_dict:
+            if key.startswith("first") or key.startswith("model"):
+                new_param_dict[key] = param_dict[key]
+        for key in cnclip_param_dict:
+            new_param_dict[key] = cnclip_param_dict[key]
+        param_not_load = load_param_into_net(net, new_param_dict)
+        logger.info("Params not load: {}".format(param_not_load))
+    else:
+        logger.warning("Checkpoint file {pretrained_ckpt}, {cnclip_ckpt} dose not exist!!!")
+
+
 def main(args):
     # init
     rank_id, device_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    # build dataset
-    dataset = build_dataset(args, rank_id, device_num)
-
     # build model
     latent_diffusion_with_loss = build_model_from_config(args.model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
-    load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+    if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
+        load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, args.custom_text_encoder, latent_diffusion_with_loss)
+    else:
+        load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+
+    # build dataset
+    tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
+    dataset = build_dataset(args, rank_id, device_num, tokenizer)
 
     # lora injection
     if args.use_lora:
@@ -220,8 +241,11 @@ def main(args):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=10,
+            step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
             lora_rank=args.lora_rank,
+            log_interval=args.callback_size,
+            start_epoch=start_epoch,
         )
 
         callback.append(save_cb)
@@ -280,6 +304,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--train_config", default="configs/train_config.json", type=str, help="train config path")
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
+    parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")
     parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
     parser.add_argument("--pretrained_model_file", default="", type=str, help="pretrained model file name")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
@@ -314,7 +339,13 @@ if __name__ == "__main__":
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
 
-    parser.add_argument("--ckpt_save_interval", default=4, type=int, help="save checkpoint every this epochs")
+    parser.add_argument("--ckpt_save_interval", default=4, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument(
+        "--step_mode",
+        default=False,
+        type=str2bool,
+        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+    )
     parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
     parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
     parser.add_argument("--image_size", default=512, type=int, help="images size")

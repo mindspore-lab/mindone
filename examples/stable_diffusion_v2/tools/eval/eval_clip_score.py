@@ -1,11 +1,15 @@
 import argparse
 import json
 import os
+import sys
 from functools import partial
 
-from clip_score import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+# add current working dir to path to prevent ModuleNotFoundError
+sys.path.insert(0, os.getcwd())
+
 from ldm.util import is_old_ms_version
 from PIL import Image
+from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
 import mindspore
 from mindspore import ops
@@ -14,9 +18,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
-        default="eval/clip_score/configs/clip_vit_b_16.yaml",
+        default="tools/_common/clip/configs/clip_vit_b_16.yaml",
         type=str,
-        help="YAML config files for ms backend" " Default: eval/clip_score/configs/clip_vit_b_16.yaml",
+        help="YAML config files for ms backend" " Default: tools/_common/clip/configs/clip_vit_b_16.yaml",
     )
     parser.add_argument(
         "--model_name",
@@ -43,12 +47,12 @@ if __name__ == "__main__":
         type=str,
         help="backend to do CLIP model inference for CLIP score compute. Option: ms, pt." " Default: ms",
     )
-    parser.add_argument("--load_checkpoint", default=None, type=str, help="load model checkpoint." " Default: None")
+    parser.add_argument("--ckpt_path", default=None, type=str, help="load model checkpoint." " Default: None")
     parser.add_argument(
         "--tokenizer_path",
-        default="bpe_simple_vocab_16e6.txt.gz",
+        default="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         type=str,
-        help="load model checkpoint." " Default: bpe_simple_vocab_16e6.txt.gz",
+        help="load model checkpoint." " Default: ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
     )
     parser.add_argument(
         "--save_result",
@@ -63,11 +67,7 @@ if __name__ == "__main__":
         help="the path for saving results if save_result is set to True." " Default: results.json",
     )
     parser.add_argument("--quiet", action="store_true", help="set this flag to avoid printing scores")
-    parser.add_argument(
-        "--no_check_certificate",
-        action="store_true",
-        help="set this flag to avoid checking for certificate for downloads (checks)",
-    )
+
     args = parser.parse_args()
 
     # load images
@@ -112,12 +112,12 @@ if __name__ == "__main__":
         from clip_score import compute_torchmetric_clip
 
         if imgs_per_prompt == 1:
-            score = compute_torchmetric_clip(images, texts, args.model_name, args.no_check_certificate)
+            score = compute_torchmetric_clip(images, texts, args.model_name)
         else:
             scores = []
             for i in range(imgs_per_prompt):
                 inputs = [images[i::imgs_per_prompt], texts]
-                score = compute_torchmetric_clip(*inputs, args.model_name, args.no_check_certificate)
+                score = compute_torchmetric_clip(*inputs, args.model_name)
                 scores.append(score)
             score = sum(scores) / len(scores)
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
         texts = [process_text(text) for text in texts]
 
         # parse config file
-        config = parse(args.config, args.load_checkpoint)
+        config = parse(args.config, args.ckpt_path)
         model = CLIPModel(config)
         # get L2 norm operator
         if not is_old_ms_version("2.0.0-alpha"):
