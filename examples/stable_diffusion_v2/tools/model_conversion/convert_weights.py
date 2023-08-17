@@ -1,10 +1,12 @@
 import argparse
 import os
-
 import numpy as np
 import torch
+import difflib
 
 import mindspore as ms
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
 
 MINDSPORE = "ms"
 PYTORCH = "pt"
@@ -48,25 +50,35 @@ args = parser.parse_args()
 
 
 def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
-    with open("tools/model_conversion/ms_names_v2.txt") as file_ms:
+    with open(os.path.join(__dir__, "ms_names_v2.txt")) as file_ms:
         lines_ms = file_ms.readlines()
-    with open("tools/model_conversion/pt_names_v2.txt") as file_pt:
+    with open(os.path.join(__dir__, "pt_names_v2.txt")) as file_pt:
         lines_pt = file_pt.readlines()
 
+    verify_name = False
+    
     source_data = torch.load(args.source, map_location="cpu")["state_dict"]
     target_data = []
+    if verify_name:
+        pt_param_names = [line_pt.strip().split("#")[0] for line_pt in lines_pt]
+        print("Num params in pt: ", len(pt_param_names))
+
     for line_ms, line_pt in zip(lines_ms, lines_pt):
         _name_pt, _, _ = line_pt.strip().split("#")
         _name_ms, _, _ = line_ms.strip().split("#")
+        if verify_name:
+            poss = difflib.get_close_matches(_name_ms, pt_param_names, n=3, cutoff=0.6)
+            if poss[0] != _name_pt:
+                print(f"ms param {_name_ms}, got closes match in pt: {poss[0]}, but assined with {_name_pt} from pt_names_v2.txt")
         _source_data = source_data[_name_pt].cpu().detach().numpy()
         target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
     ms.save_checkpoint(target_data, args.target)
 
 
 def MINDSPORE_PYTORCH_STABLE_DIFFUSION_V2():
-    with open("tools/model_conversion/ms_names_v2.txt") as file_ms:
+    with open(os.path.join(__dir__, "ms_names_v2.txt")) as file_ms:
         lines_ms = file_ms.readlines()
-    with open("tools/model_conversion/pt_names_v2.txt") as file_pt:
+    with open(os.path.join(__dir__, "pt_names_v2.txt")) as file_pt:
         lines_pt = file_pt.readlines()
 
     source_data = ms.load_checkpoint(args.source)

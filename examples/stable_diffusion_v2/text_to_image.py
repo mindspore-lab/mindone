@@ -193,7 +193,7 @@ def main(args):
             f"Number of input negative prompts: {len(negative_data)}",
             f"Number of trials for each prompt: {args.n_iter}",
             f"Number of samples in each trial: {args.n_samples}",
-            f"Model: StableDiffusion v{args.version}",
+            f"Model: StableDiffusion v-{args.version}",
             f"Precision: {model.model.diffusion_model.dtype}",
             f"Pretrained ckpt path: {args.ckpt_path}",
             f"Lora ckpt path: {args.lora_ckpt_path if args.use_lora else None}",
@@ -437,15 +437,22 @@ if __name__ == "__main__":
     if args.version:
         os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
-        args.ckpt_path = (
-            "models/wukong-huahua-ms.ckpt" if args.version.startswith("1.") else "models/sd_v2_base-57526ee4.ckpt"
-        )
+        if  args.version in ["1.5_cn", 'wukong']:
+            args.ckpt_path = "models/wukong-huahua-ms.ckpt"
+        elif args.version.startswith("1."): # 1.x, 1.5
+            args.ckpt_path = "models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt"
+        else:
+            args.ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
     if args.config is None:
-        args.config = (
-            "configs/v1-inference-chinese.yaml" if args.version.startswith("1.") else "configs/v2-inference.yaml"
-        )
+        if  args.version in ["1.5_cn", 'wukong']:
+            args.config = "configs/v1-inference-chinese.yaml"
+        elif args.version.startswith("1."): # 1.x, 1.5
+            args.config = "configs/v1-inference.yaml"
+        else:
+            args.config = "configs/v2-inference.yaml"
+
     if args.scale is None:
-        args.scale = 7.5 if args.version.startswith("1.") else 9.0
+        args.scale = 9.0 if args.version.startswith("2.") else 7.5
 
     # core task
     main(args)
