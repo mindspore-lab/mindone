@@ -6,7 +6,7 @@ from omegaconf import OmegaConf
 from ldm.util import instantiate_from_config
 from utils import model_utils
 
-logger = logging.getLogger("controlnet_canny")
+logger = logging.getLogger("controlnet_model")
 
 
 # TODO: decide to delete this func

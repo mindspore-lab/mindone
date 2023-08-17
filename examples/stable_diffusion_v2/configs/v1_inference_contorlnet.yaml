@@ -17,7 +17,7 @@ model:
     scale_factor: 0.18215
     use_ema: False
     only_mid_control: False
-    use_fp16: True
+    use_fp16: False
 
     control_stage_config:
       target: cldm.cldm.ControlNet
@@ -35,7 +35,7 @@ model:
         context_dim: 768
         use_checkpoint: True
         legacy: False
-        use_fp16: True
+        use_fp16: False
 
     unet_config:
       target: cldm.cldm.ControlledUnetModel
@@ -53,7 +53,7 @@ model:
         context_dim: 768
         use_checkpoint: True
         legacy: False
-        use_fp16: True
+        use_fp16: False
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
@@ -75,11 +75,18 @@ model:
           num_res_blocks: 2
           attn_resolutions: []
           dropout: 0.0
-        use_fp16: True
+        use_fp16: False
         # lossconfig:
         #   target: torch.nn.Identity
 
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
-        use_fp16: True
+        use_fp16: False
+        tokenizer_name: "BpeTokenizer"
+        context_length: 77
+        vocab_size: 49408
+        output_dim: 768
+        width: 768
+        layers: 12
+        heads: 12

@@ -1,4 +1,5 @@
 """SAMPLING ONLY."""
+import logging
 import numpy as np
 from ldm.modules.diffusionmodules.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like
 from ldm.util import extract_into_tensor
@@ -7,6 +8,7 @@ from tqdm import tqdm
 import mindspore as ms
 import mindspore.ops as ops
 
+logger = logging.getLogger("controlnet_ddim_sampler")
 
 class DDIMSampler(object):
     def __init__(self, model, schedule="linear", **kwargs):
@@ -86,23 +88,23 @@ class DDIMSampler(object):
                     ctmp = ctmp[0]
                 cbs = ctmp.shape[0]
                 if cbs != batch_size:
-                    print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                    logger.info(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
 
             elif isinstance(conditioning, list):
                 for ctmp in conditioning:
                     if ctmp.shape[0] != batch_size:
-                        print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                        logger.info(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
 
             else:
                 if conditioning.shape[0] != batch_size:
-                    print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
+                    logger.info(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
 
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
 
         # sampling
         C, H, W = shape
         size = (batch_size, C, H, W)
-        print(f"Data shape for DDIM sampling is {size}, eta {eta}")
+        logger.info(f"Data shape for DDIM sampling is {size}, eta {eta}")
         samples, intermediates = self.ddim_sampling(
             conditioning,
             size,
@@ -149,10 +151,9 @@ class DDIMSampler(object):
     ):
         b = shape[0]
         if x_T is None:
-            img = ms.ops.StandardNormal()(shape)
+            img = ms.numpy.randn(shape)
         else:
             img = x_T
-
         if timesteps is None:
             timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
         elif timesteps is not None and not ddim_use_original_steps:
@@ -162,7 +163,7 @@ class DDIMSampler(object):
         intermediates = {"x_inter": [img], "pred_x0": [img]}
         time_range = reversed(range(0, timesteps)) if ddim_use_original_steps else ms.numpy.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        logger.info(f"Running DDIM Sampling with {total_steps} timesteps")
 
         iterator = time_range
 
@@ -224,48 +225,13 @@ class DDIMSampler(object):
         dynamic_threshold=None,
     ):
         b = x.shape[0]
-        # print(f"cong's test message: x.shape is {x.shape}")
-
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
             model_output = self.model.apply_model(x, t, c)
         else:
-            x_in = ops.concat((x, x), axis=0)
-            t_in = ops.concat((t, t), axis=0)
-            if isinstance(c, dict):
-                assert isinstance(unconditional_conditioning, dict)
-                c_in = dict()
-                for k in c:
-                    c_in[k] =list()
-                    if isinstance(c[k], list):
-                        # c_in[k] = [
-                        #     ops.concat([unconditional_conditioning[k][i], c[k][i]] for i in range(len(c[k])), axis=0)
-                        # ] 
-                        # print(f"cong's test message: len(unconditional_conditioning[k]) is {len(unconditional_conditioning[k])}")
-                        c_in[k] = [
-                            ops.concat([unconditional_conditioning[k][i], c[k][i]], axis=0) for i in range(len(c[k]))
-                        ] 
-                                          
-                    else:
-                        c_in[k] = ops.concat([unconditional_conditioning[k], c[k]], axis=0)
-            elif isinstance(c, list):
-                c_in = list()
-                assert isinstance(unconditional_conditioning, list)
-                for i in range(len(c)):
-                    c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
-            else:
-                c_in = ops.concat([unconditional_conditioning, c], axis=0)
-            # print(f"cong's test message: t_in is {t_in}")
-            # print(f"cong's test message: len(c_in['c_crossattn']) is {len(c_in['c_crossattn'])}") # c_in is a dict
-            # Todo: figure out how to pass c_in['c_crossattn'] and c_in['c_concat'] perfectly
-            # print(f"cong's test message: x_in.shape is {x_in.shape}")
-            # print(f"cong's test message: t_in.shape is {t_in.shape}")
-            # print(f"cong's test message: type of tmp is {type(tmp)}")
-            # print(f"cong's test message: tmp.shape is {tmp.shape}") # (2, 4, 32, 32)
             model_t = self.model.apply_model(x, t, c)
             model_uncond = self.model.apply_model(x, t, unconditional_conditioning)
-            # model_uncond, model_t = ops.split((self.model.apply_model(x_in, t_in, cond=c_in)),0 , 2)
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
-
+       
         if self.model.parameterization == "v":
             e_t = self.model.predict_eps_from_z_and_v(x, t, model_output)
         else:
@@ -274,12 +240,9 @@ class DDIMSampler(object):
         if score_corrector is not None:
             assert self.model.parameterization == "eps", "not implemented"
             e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
-
         alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
         alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
-        sqrt_one_minus_alphas = (
-            self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
-        )
+        sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
         sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
         # select parameters corresponding to the currently considered timestep
         a_t = ms.numpy.full((b, 1, 1, 1), alphas[index])
@@ -395,7 +358,7 @@ class DDIMSampler(object):
 
         time_range = np.flip(timesteps)
         total_steps = timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        logger.info(f"Running DDIM Sampling with {total_steps} timesteps")
 
         iterator = tqdm(time_range, desc="Decoding image", total=total_steps)
         x_dec = x_latent

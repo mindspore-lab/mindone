@@ -13,6 +13,7 @@
 # limitations under the License.
 # ============================================================================
 import logging
+import numpy as np
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -51,19 +52,17 @@ class ControlledUnetModel(UNetModel):
             h = module(h, emb, context)
         
         # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
-        hs_index = -1
         if control is not None:
-            h += control[hs_index]
+            h += control.pop()
         
         for celllist in self.output_blocks:
             if only_mid_control or control is None:
-                h = self.cat((h, hs[hs_index]))
+                h = self.cat((h, hs.pop()))
             else:
-                h = self.cat([h, hs[hs_index] + control[hs_index-1]])
+                h = self.cat([h, hs.pop() + control.pop()])
 
             for cell in celllist:
                 h = cell(h, emb, context)
-            hs_index -= 1
 
         return self.out(h)
 
@@ -206,27 +205,34 @@ class ControlNet(nn.Cell):
                         dim_head = num_head_channels
                     if legacy:
                         dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
-                    layers.append(
-                        AttentionBlock(
-                            ch,
-                            use_checkpoint=use_checkpoint,
-                            num_heads=num_heads,
-                            num_head_channels=dim_head,
-                            use_new_attention_order=use_new_attention_order,
+                    
+                    if exists(disable_self_attentions):
+                        disabled_sa = disable_self_attentions[level]
+                    else:
+                        disabled_sa = False
+
+                    if not exists(num_attention_blocks) or _ < num_attention_blocks[level]:
+                        layers.append(
+                            AttentionBlock(
+                                ch,
+                                use_checkpoint=use_checkpoint,
+                                num_heads=num_heads,
+                                num_head_channels=dim_head,
+                                use_new_attention_order=use_new_attention_order,
+                            )
+                            if not use_spatial_transformer
+                            else SpatialTransformer(
+                                ch,
+                                num_heads,
+                                dim_head,
+                                depth=transformer_depth,
+                                context_dim=context_dim,
+                                use_checkpoint=use_checkpoint,
+                                dtype=self.dtype,
+                                dropout=self.dropout,
+                                use_linear=use_linear_in_transformer,
+                            )
                         )
-                        if not use_spatial_transformer
-                        else SpatialTransformer(
-                            ch,
-                            num_heads,
-                            dim_head,
-                            depth=transformer_depth,
-                            context_dim=context_dim,
-                            use_checkpoint=use_checkpoint,
-                            dtype=self.dtype,
-                            dropout=self.dropout,
-                            use_linear=use_linear_in_transformer,
-                        )
-                    )
                 self.input_blocks.append(layers)
                 self.zero_convs.append(self.make_zero_conv(ch))
                 self._feature_size += ch
@@ -245,10 +251,10 @@ class ControlNet(nn.Cell):
                                 use_scale_shift_norm=use_scale_shift_norm,
                                 down=True,
                                 dtype=self.dtype,
-                            )
+                            ) 
+                            if resblock_updown
+                            else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
                     ])
-                    if resblock_updown
-                    else nn.CellList([Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)])
                 )
                 ch = out_ch
                 input_block_chans.append(ch)
@@ -320,17 +326,13 @@ class ControlNet(nn.Cell):
     def construct(self, x, hint, timesteps, context, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
-
         guided_hint = hint
         for cell in self.input_hint_block:
-            if isinstance(cell,conv_nd): guided_hint = cell(guided_hint, emb, context)
-            else: guided_hint = cell(guided_hint)
-
+            guided_hint = cell(guided_hint)
 
         outs = []
 
         h = x
-
         for celllist, zero_conv in zip(self.input_blocks, self.zero_convs):
             for cell in celllist:
                 h = cell(h, emb, context)
@@ -338,12 +340,11 @@ class ControlNet(nn.Cell):
                 h += guided_hint
                 guided_hint = None
             outs.append(zero_conv(h, emb, context))
-
         for module in self.middle_block:
             h = module(h, emb, context)  
-
+        
         outs.append(self.middle_block_out(h, emb, context))
-
+        
         return outs
 
 class ControlLDM(LatentDiffusion):
@@ -354,10 +355,9 @@ class ControlLDM(LatentDiffusion):
         self.control_key = control_key
         self.only_mid_control = only_mid_control
         self.control_scales = [1.0] * 13
-        self.randn_like = ops.StandardNormal()
 
     def get_input(self, batch, k, bs=None, *args, **kwargs):
-        # self.set_train(False)
+        self.set_train(False)
         x, c = super().get_input(batch, self.first_stage_key, *args, **kwargs)
         control = batch[self.control_key]
         if bs is not None:
@@ -368,133 +368,17 @@ class ControlLDM(LatentDiffusion):
 
     def apply_model(self, x_noisy, t, cond, *args, **kwargs):
         diffusion_model = self.model.diffusion_model
-        if isinstance(cond,dict): cond_txt = ops.concat(cond['c_crossattn'], 1)
-        elif isinstance(cond,list): cond_txt = ops.concat(cond, 1)
+        cond_txt = ops.concat(cond['c_crossattn'], 1)
         if isinstance(cond,list) or (isinstance(cond,dict) and cond['c_concat'] is None):
             eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control)
         else:
-            hint=ops.concat(cond['c_concat'], 1)
             control = self.control_model(x=x_noisy, hint=ops.concat(cond['c_concat'], 1), timesteps=t, context=cond_txt)
             control = [c * scale for c, scale in zip(control, self.control_scales)]
             eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control)
-
         return eps
 
     def get_unconditional_conditioning(self, N):
         return self.get_learned_conditioning([""] * N)
-
-    def log_images(self, batch, N=4, n_row=2, sample=False, ddim_steps=50, ddim_eta=0.0, return_keys=None,
-                   quantize_denoised=True, inpaint=True, plot_denoise_rows=False, plot_progressive_rows=True,
-                   plot_diffusion_rows=False, unconditional_guidance_scale=9.0, unconditional_guidance_label=None,
-                   use_ema_scope=True,
-                   **kwargs):
-        use_ddim = ddim_steps is not None
-
-        log = dict()
-        z, c = self.get_input(batch, self.first_stage_key, bs=N)
-        c_cat, c = c["c_concat"][0][:N], c["c_crossattn"][0][:N]
-        N = min(z.shape[0], N)
-        n_row = min(z.shape[0], n_row)
-        log["reconstruction"] = self.decode_first_stage(z)
-        log["control"] = c_cat * 2.0 - 1.0
-        log["conditioning"] = log_txt_as_img((512, 512), batch[self.cond_stage_key], size=16)
-
-        from typing import Union, List
-        import math
-
-        def _make_grid(tensor: Union[ms.Tensor, List[ms.Tensor]],
-            nrow: int = 8,
-            padding: int = 2,
-            value_range: Optional[Tuple[int, int]] = None,
-            scale_each: bool = False,
-            pad_value: float = 0.0,
-        ) -> ms.Tensor:
-            # if list of tensors, convert to a 4D mini-batch Tensor
-            if isinstance(tensor, list):
-                tensor = ops.stack(tensor, dim=0)
-
-            if len(tensor.shape) == 2:  # single image H x W
-                tensor = tensor.unsqueeze(0)
-            if len(tensor.shape)  == 3:  # single image
-                if tensor.shape[0] == 1:  # if single-channel, convert to 3-channel
-                    tensor = ops.concat((tensor, tensor, tensor), 0)
-                tensor = tensor.unsqueeze(0)
-
-            if len(tensor.shape) == 4 and tensor.shape[1] == 1:  # single-channel images
-                tensor = ops.concat((tensor, tensor, tensor), 1)
-
-
-            if not isinstance(tensor, ms.Tensor):
-                raise TypeError("tensor should be of type ms.Tensor")
-            if tensor.shape[0]  == 1:
-                return tensor.squeeze(0)
-
-            # make the mini-batch of images into a grid
-            nmaps = tensor.size(0)
-            xmaps = min(nrow, nmaps)
-            ymaps = int(math.ceil(float(nmaps) / xmaps))
-            height, width = int(tensor.shape[2] + padding), int(tensor.shape[3] + padding)
-            num_channels = tensor.shape[1]
-            # TODO: still under development
-            grid = tensor.new_full((num_channels, height * ymaps + padding, width * xmaps + padding), pad_value)
-            k = 0
-            for y in range(ymaps):
-                for x in range(xmaps):
-                    if k >= nmaps:
-                        break
-                    # Tensor.copy_() is a valid method but seems to be missing from the stubs
-                    # https://pytorch.org/docs/stable/tensors.html#torch.Tensor.copy_
-                    grid.narrow(1, y * height + padding, height - padding).narrow(  # type: ignore[attr-defined]
-                        2, x * width + padding, width - padding
-                    ).copy_(tensor[k])
-                    k = k + 1
-            return grid
-
-        if plot_diffusion_rows:
-            # get diffusion row
-            diffusion_row = list()
-            z_start = z[:n_row]
-            for t in range(self.num_timesteps):
-                if t % self.log_every_t == 0 or t == self.num_timesteps - 1:
-                    t = repeat(ms.tensor([t]), '1 -> b', b=n_row)
-                    t = t.to(self.device).long()
-                    noise = self.randn_like(z_start)
-                    z_noisy = self.q_sample(x_start=z_start, t=t, noise=noise)
-                    diffusion_row.append(self.decode_first_stage(z_noisy))
-
-            diffusion_row = ops.stack(diffusion_row)  # n_log_step, n_row, C, H, W
-            diffusion_grid = ops.transpose(diffusion_row, (1, 0, 2, 3, 4))  # 'n b c h w -> b n c h w'
-            b, n, c, h, w = diffusion_grid.shape
-            diffusion_grid = ops.reshape(diffusion_grid, (b * n, c, h, w))
-            # TODO: still under development
-            # diffusion_grid = _make_grid(diffusion_grid, nrow=diffusion_row.shape[0])
-            log["diffusion_row"] = diffusion_grid
-
-        # if sample:
-        #     # get denoise row
-        #     samples, z_denoise_row = self.sample_log(cond={"c_concat": [c_cat], "c_crossattn": [c]},
-        #                                              batch_size=N, ddim=use_ddim,
-        #                                              ddim_steps=ddim_steps, eta=ddim_eta)
-        #     x_samples = self.decode_first_stage(samples)
-        #     log["samples"] = x_samples
-        #     if plot_denoise_rows:
-        #         denoise_grid = self._get_denoise_row_from_list(z_denoise_row)
-        #         log["denoise_row"] = denoise_grid
-
-        if unconditional_guidance_scale > 1.0:
-            uc_cross = self.get_unconditional_conditioning(N)
-            uc_cat = c_cat  
-            uc_full = {"c_concat": [uc_cat], "c_crossattn": [uc_cross]}
-            samples_cfg, _ = self.sample_log(cond={"c_concat": [c_cat], "c_crossattn": [c]},
-                                             batch_size=N, ddim=use_ddim,
-                                             ddim_steps=ddim_steps, eta=ddim_eta,
-                                             unconditional_guidance_scale=unconditional_guidance_scale,
-                                             unconditional_conditioning=uc_full,
-                                             )
-            x_samples_cfg = self.decode_first_stage(samples_cfg)
-            log[f"samples_cfg_scale_{unconditional_guidance_scale:.2f}"] = x_samples_cfg
-
-        return log
 
     def sample_log(self, cond, batch_size, ddim, ddim_steps, **kwargs):
         ddim_sampler = DDIMSampler(self)
@@ -507,19 +391,7 @@ class ControlLDM(LatentDiffusion):
         lr = self.learning_rate
         params = list(self.control_model.trainable_params())
         if not self.sd_locked:
-            params += list(self.model.diffusion_model.output_blocks.parameters())
-            params += list(self.model.diffusion_model.out.parameters())
+            params += list(self.model.diffusion_model.output_blocks.get_parameters())
+            params += list(self.model.diffusion_model.out.get_parameters())
         opt = nn.optim.adam.AdamWeightDecay(params, learning_rate=lr)
         return opt
-
-    # def low_vram_shift(self, is_diffusing):
-    #     if is_diffusing:
-    #         self.model = self.model.cuda()
-    #         self.control_model = self.control_model.cuda()
-    #         self.first_stage_model = self.first_stage_model.cpu()
-    #         self.cond_stage_model = self.cond_stage_model.cpu()
-    #     else:
-    #         self.model = self.model.cpu()
-    #         self.control_model = self.control_model.cpu()
-    #         self.first_stage_model = self.first_stage_model.cuda()
-    #         self.cond_stage_model = self.cond_stage_model.cuda()
