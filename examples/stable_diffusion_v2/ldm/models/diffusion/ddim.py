@@ -95,6 +95,7 @@ class DDIMSampler(object):
         # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
         dynamic_threshold=None,
         ucg_schedule=None,
+        T0=None,
         **kwargs,
     ):
         if conditioning is not None:
@@ -144,6 +145,7 @@ class DDIMSampler(object):
             style_cond_tau=style_cond_tau,
             dynamic_threshold=dynamic_threshold,
             ucg_schedule=ucg_schedule,
+            T0=T0,
         )
         return samples, intermediates
 
@@ -172,6 +174,7 @@ class DDIMSampler(object):
         style_cond_tau=1.0,
         dynamic_threshold=None,
         ucg_schedule=None,
+        T0=None,
     ):
         b = shape[0]
         if x_T is None:
@@ -193,6 +196,10 @@ class DDIMSampler(object):
         iterator = time_range
 
         for i, step in enumerate(iterator):
+            if T0 is not None:
+                if i < T0:
+                    continue
+
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
 
