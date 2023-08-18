@@ -17,9 +17,17 @@ import numpy as np
 from ldm.util import is_old_ms_version
 
 import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import initializer
+
+try:
+    from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
+
+    FLASH_IS_AVAILABLE = True
+    print("flash attention is available.")
+except ImportError:
+    FLASH_IS_AVAILABLE = False
+    print("flash attention is unavailable.")
 
 
 def exists(val):
@@ -38,10 +46,6 @@ def default(val, d):
     if isinstance(d, (ms.Tensor, int, float)):
         return d
     return d()
-
-
-# def max_neg_value(t):
-#     return -torch.finfo(t.dtype).max
 
 
 class GEGLU(nn.Cell):
@@ -102,16 +106,25 @@ class LinearAttention(nn.Cell):
 
 
 class CrossAttention(nn.Cell):
-    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=1.0, dtype=ms.float32):
+    def __init__(
+        self,
+        query_dim,
+        context_dim=None,
+        heads=8,
+        dim_head=64,
+        dropout=1.0,
+        dtype=ms.float32,
+        enable_flash_attention=False,
+    ):
         super().__init__()
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
 
-        self.scale = dim_head**-0.5
+        # self.scale = dim_head**-0.5
         self.heads = heads
 
         self.reshape = ops.Reshape()
-        self.softmax = ops.Softmax(axis=-1)
+        # self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
@@ -120,6 +133,15 @@ class CrossAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim).to_float(dtype),
             nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
         )
+
+        self.enable_flash_attention = (
+            enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
+        )
+        if enable_flash_attention and not self.enable_flash_attention:
+            print("WARNING: flash attention not available.")
+
+        self.attention = Attention(dim_head)
+        self.flash_attention = FlashAttention(self.heads, dim_head) if self.enable_flash_attention else None
 
     def construct(self, x, context=None, mask=None):
         q = self.to_q(x)
@@ -142,21 +164,10 @@ class CrossAttention(nn.Cell):
         k = rearange_in(k)
         v = rearange_in(v)
 
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
-
-        if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
-            if sim.dtype == ms.float16:
-                finfo_type = np.float16
-            else:
-                finfo_type = np.float32
-            max_neg_value = -np.finfo(finfo_type).max
-            mask = mask.repeat(self.heads, axis=0)
-            mask = ops.expand_dims(mask, axis=1)
-            sim.masked_fill(mask, max_neg_value)
-
-        attn = self.softmax(sim)
-        out = ops.matmul(attn, v)
+        if self.enable_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+            out = self.flash_attention(q, k, v)
+        else:
+            out = self.attention(q, k, v, mask)
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -173,17 +184,98 @@ class CrossAttention(nn.Cell):
         return self.to_out(out)
 
 
+class Attention(nn.Cell):
+    def __init__(self, dim_head):
+        super().__init__()
+        self.softmax = ops.Softmax(axis=-1)
+        self.transpose = ops.Transpose()
+        self.scale = dim_head**-0.5
+
+    def construct(self, q, k, v, mask):
+        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+
+        if exists(mask):
+            mask = self.reshape(mask, (mask.shape[0], -1))
+            if sim.dtype == ms.float16:
+                finfo_type = np.float16
+            else:
+                finfo_type = np.float32
+            max_neg_value = -np.finfo(finfo_type).max
+            mask = mask.repeat(self.heads, axis=0)
+            mask = ops.expand_dims(mask, axis=1)
+            sim.masked_fill(mask, max_neg_value)
+
+        attn = self.softmax(sim)
+        out = ops.matmul(attn, v)
+
+        return out
+
+
+# reference to https://arxiv.org/abs/2205.14135
+class FlashAttention(nn.Cell):
+    def __init__(self, head_num, head_dim):
+        super(FlashAttention, self).__init__()
+        self.head_num = head_num
+        self.scale = head_dim**-0.25
+        self.flash_attention = get_flash_attention(tiling_stgy_name="xunfei")
+        self.reshape = ops.Reshape()
+        self.scale_mul = ops.Mul()
+
+    def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
+        # ALiBi, reference to https://arxiv.org/abs/2108.12409
+        B, Nq, d = q.shape
+        Nkv = k.shape[1]
+        batch_size = B // self.head_num
+        dim_mask = Tensor([1 for _ in range(d)], dtype=ms.int8)
+        q = self.reshape(q, (-1, self.head_num, Nq, d))
+        k = self.reshape(k, (-1, self.head_num, Nkv, d))
+        v = self.reshape(v, (-1, self.head_num, Nkv, d))
+        q = self.scale_mul(q, self.scale)
+        k = self.scale_mul(k, self.scale)
+        if d % 16 != 0:
+            padding_size = 16 - d % 16
+            q = ops.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), value=0)
+            k = ops.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), value=0)
+            v = ops.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), value=0)
+            o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
+            o = ops.slice(o, [0, 0, 0, 0], [batch_size, self.head_num, Nq, d])
+        else:
+            o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
+        o = self.reshape(o, (-1, Nq, d))
+        return o
+
+
 class BasicTransformerBlock(nn.Cell):
     def __init__(
-        self, dim, n_heads, d_head, dropout=1.0, context_dim=None, gated_ff=True, checkpoint=True, dtype=ms.float32
+        self,
+        dim,
+        n_heads,
+        d_head,
+        dropout=1.0,
+        context_dim=None,
+        gated_ff=True,
+        checkpoint=True,
+        dtype=ms.float32,
+        enable_flash_attention=False,
     ):
         super().__init__()
         self.attn1 = CrossAttention(
-            query_dim=dim, heads=n_heads, dim_head=d_head, dropout=dropout, dtype=dtype
+            query_dim=dim,
+            heads=n_heads,
+            dim_head=d_head,
+            dropout=dropout,
+            dtype=dtype,
+            enable_flash_attention=enable_flash_attention,
         )  # is a self-attention
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
         self.attn2 = CrossAttention(
-            query_dim=dim, context_dim=context_dim, heads=n_heads, dim_head=d_head, dropout=dropout, dtype=dtype
+            query_dim=dim,
+            context_dim=context_dim,
+            heads=n_heads,
+            dim_head=d_head,
+            dropout=dropout,
+            dtype=dtype,
+            enable_flash_attention=enable_flash_attention,
         )  # is self-attn if context is none
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
@@ -217,6 +309,7 @@ class SpatialTransformer(nn.Cell):
         use_checkpoint=True,
         use_linear=False,
         dtype=ms.float32,
+        enable_flash_attention=False,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -241,6 +334,7 @@ class SpatialTransformer(nn.Cell):
                     context_dim=context_dim,
                     checkpoint=use_checkpoint,
                     dtype=self.dtype,
+                    enable_flash_attention=enable_flash_attention,
                 )
                 for d in range(depth)
             ]
