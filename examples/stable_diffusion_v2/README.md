@@ -103,7 +103,7 @@ While `--prompt` indicates what to render in the generated images, the negative 
 
 ### Text-guided Image Inpainting
 
-Text-guided image inpainting allows users to edit specific regions of an image by provideing a mask and a text prompt, which is an interesting erase-and-replace editing operation.  If the text prompt is set as empty (i.e. ""), it can used to auto-fill the masked parts by the image context.  
+Text-guided image inpainting allows users to edit specific regions of an image by provideing a mask and a text prompt, which is an interesting erase-and-replace editing operation.  If the text prompt is set as empty (i.e. ""), it can used to auto-fill the masked parts by the image context.
 
 To run it, please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder. Then execute:
 
