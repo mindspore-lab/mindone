@@ -24,7 +24,7 @@ from mindspore import ops
 class SafetyChecker:
     def __init__(
         self,
-        safety_version=1,
+        safety_version=2,
         backend="ms",
         config="tools/_common/clip/configs/clip_vit_l_14.yaml",
         ckpt_path=None,
@@ -213,8 +213,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--safety_version",
         type=int,
-        default=1,
-        help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 1",
+        default=2,
+        help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 2",
     )
     parser.add_argument(
         "--config",
