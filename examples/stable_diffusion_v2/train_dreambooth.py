@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 from ldm.data.dataset_db import load_data
-from ldm.models.clip.simple_tokenizer import get_tokenizer
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
@@ -362,7 +361,7 @@ def main(args):
         # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
 
     # Get tokenizer
-    tokenizer = get_tokenizer(SD_VERSION)
+    tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
 
     # build dataloader
     train_dataloader = load_data(
