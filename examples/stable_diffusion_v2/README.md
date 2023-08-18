@@ -15,7 +15,7 @@ This folder contains various [Stable Diffusion](https://arxiv.org/abs/2112.10752
 
 For a quick tour, please view [demo](demo.md).
 
-## Usage 
+## Usage
 
 - [Installation](#installation)
 - [Pretrained Weights](#pretrained-weights)
