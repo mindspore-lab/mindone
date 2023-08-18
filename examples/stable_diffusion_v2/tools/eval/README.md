@@ -45,13 +45,13 @@ For more usage, please run `python tools/eval/eval_clip_score.py -h`.
 
 You need to download the checkpoint file for a CLIP model of your choice. Download links for some models are provided below.
 
-- [clip_vit_b_16](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_b_16.ckpt) (Default)
+- [clip_vit_b_16](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_b_16.ckpt)
 - [clip_vit_b_32](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/clip_vit_b_32.ckpt)
-- [clip_vit_l_14](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt)
+- [clip_vit_l_14](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt) (Default)
 
-For other compatible models, e.g., OpenCLIP, you can download `pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `eval/clip_score/utils/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `eval/clip_score/configs`.
+For other compatible models, e.g., OpenCLIP, you can download `open_clip_pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `tools/_common/clip/utils/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `tools/_common/clip/configs`.
 
-`image_path` should lead to an image file or a directory containing images. If it is a directory, then the images are sorted by their filename in an ascending order. `prompt` can be either a piece of text or the path to an `.txt` file, where prompts are placed line by line. Images and prompts are matched such that each prompt corresponding to one or many images in order.
+`image_path_or_dir` should lead to an image file or a directory containing images. If it is a directory, then the images are sorted by their filename in an ascending order. `prompt_or_path` can be either a piece of text or the path to an `.txt` file, where prompts are placed line by line. Images and prompts are matched such that each prompt corresponding to one or many images in order.
 
 
 
