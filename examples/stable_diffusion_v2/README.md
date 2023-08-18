@@ -103,7 +103,9 @@ While `--prompt` indicates what to render in the generated images, the negative 
 
 ### Text-guided Image Inpainting
 
-Download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder. Then run,
+Text-guided image inpainting allows users to edit specific regions of an image by provideing a mask and a text prompt, which is an interesting erase-and-replace editing operation.  If the text prompt is set as empty (i.e. ""), it can used to auto-fill the masked parts by the image context.  
+
+To run it, please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder. Then execute:
 
 ```shell
 python inpaint.py
@@ -245,7 +247,7 @@ sh scripts/run_train_v1.sh
 ```
 after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
-> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the trainin script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt`.
+> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the training script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt`.
 
 
 # Dataset Preparation for Finetuning
