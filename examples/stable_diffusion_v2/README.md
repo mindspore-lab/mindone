@@ -25,7 +25,7 @@ For a quick tour, please view [demo](demo.md).
     - [Text-guided Image Inpainting](#text-guided-image-inpainting)
     - [Text-guided Image-to-Image](#text-guided-image-to-image)
   - [Training](#training)
-    - [LoRA](#efficient-finetuning-with-lora)
+    - [LoRA](#efficient-finetuning-with-lora-)
     - [Dreambooth](#dreambooth)
     - [Text Inversion](#text-inversion)
     - [Vanilla Finetuning](#vanilla-finetuning)
@@ -81,7 +81,7 @@ To transfer other Stable Diffusion models to MindSpore, please refer to [model c
 
 ### Text-to-Image Generation
 
-Download [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) to `models/` folder, and run,
+To generate images by providing a text prompt, please download [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) to `models/` folder, and run:
 
 ```shell
 # Text to image generation with SD-2.0-base
@@ -115,7 +115,7 @@ While `--prompt` indicates what to render in the generated images, the negative 
 
 ### Text-guided Image Inpainting
 
-Text-guided image inpainting allows users to edit specific regions of an image by providing a mask and a text prompt, which is an interesting erase-and-replace editing operation. When the prompt is set to empty, it can be applied to auto-fill the masked regions to fit the image context (which is similar to the AI fill and extend operations in Photoshop-beta).
+Text-guided image inpainting allows users to edit specific regions of an image by providing a mask and a text prompt, which is an interesting erase-and-replace editing operation. When the prompt is set to empty, it can be applied to auto-fill the masked regions to fit the image context (which is similar to the AI fill and extend operations in PhotoShop-beta).
 
 Please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder, and execute:
 
