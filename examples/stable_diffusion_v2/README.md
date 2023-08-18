@@ -103,7 +103,7 @@ While `--prompt` indicates what to render in the generated images, the negative 
 
 ### Text-guided Image Inpainting
 
-Text-guided image inpainting allows users to edit specific regions of an image by provideing a mask and a text prompt, which is an interesting erase-and-replace editing operation.  If the text prompt is set as empty (i.e. ""), it can used to auto-fill the masked parts by the image context.  
+Text-guided image inpainting allows users to edit specific regions of an image by providing a mask and a text prompt, which is an interesting erase-and-replace editing operation. When the prompt is set to empty (""), it can also be applied to auto-fill the masked regions to fit the image context (similar to the AI fill and extend operations in Photoshop-beta).
 
 To run it, please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder. Then execute:
 
@@ -125,11 +125,20 @@ python inpaint.py  --image overture-creations-5sI6fQgYIuo.png --mask overture-cr
 ```
 
 Now the masked region is smoothly replaced with the instructed content.
-<div align="left">
+<div align="center">
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/f0d6073e-fe24-4d3d-8f54-b7c4833bb206" width="960" />
 </div>
-<p align="left">
-<em> (From left to right: input image, mask, generated images) </em>
+<p align="center">
+<em> Text-guided image inpainting. From left to right: input image, mask, generated images. </em>
+</p>
+
+By setting empty prompt (`--prompt=""`), the masked part can be auto-filled to fix the context as follows.
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/21158de6-b9ec-4538-83cf-2a3bbea649e7" width="960"
+ />
+</div>
+<p align="center">
+<em> Image inpainting. (From left to right: input image, mask, generated images) </em>
 </p>
 
 ### Text-guided Image-to-Image
