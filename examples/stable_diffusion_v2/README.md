@@ -198,7 +198,9 @@ bash scripts/run_train_v2_distributed.sh
 ```
 , after updating `data_path` and `num_devices`, `rank_table_file`, `CANDIDATE_DEVICES` according to your running devices.
 
-> To make the text encoder also trainable, please set `cond_stage_trainable: True` in `configs/v2-train.yaml`
+**Flash Attention**: You can enable flash attention to reduce the memory footprint. Make sure you have installed MindSpore >= 2.1 and set `enable_flash_attention: True` in `configs/v2-train.yaml`.
+
+To make the text encoder also trainable, please set `cond_stage_trainable: True` in `configs/v2-train.yaml`
 
 ### v-prediction Finetuning
 
