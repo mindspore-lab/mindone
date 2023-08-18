@@ -41,7 +41,7 @@ python train_dreambooth.py \
     --pretrained_model_file=$pretrained_model_file \
     --image_size=$image_size \
     --train_batch_size=$train_batch_size \
-    --epochs=8 \
+    --epochs=4 \
     --start_learning_rate=2e-6 \
     --train_text_encoder=True \
 #    > $output_path/$task_name/log_train_v2 2>&1 &
