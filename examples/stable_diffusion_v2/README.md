@@ -29,6 +29,7 @@ For a quick tour, please view [demo](demo.md).
     - [Dreambooth](#dreambooth)
     - [Text Inversion](#text-inversion)
     - [Vanilla Finetuning](#vanilla-finetuning)
+    - [v-prediction Finetuning](#v-prediction-finetuning)
     - [Chinese Prompt Adaptation](#chinese-prompt-adaptation)
 - [Stable Diffusion 1.5](#stable-diffusion-15)
   - [Inference](#inference-1)
@@ -51,24 +52,27 @@ pip install -r requirements.txt
 ```
 
 ## Pretrained Weights
-
+<!---
 <details close>
   <summary>Pre-trained SD weights that are compatible with MindSpore: </summary>
+-->
 
-- Stable Diffusion 2.x
-    - SD 2.0-base (text-to-image): [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt), converted from [this HF model](https://huggingface.co/stabilityai/stable-diffusion-2-base)
-    - SD-2-inpainting (image inpainting): [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt), converted from [this HF model](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting)
+Currently, we provide pre-trained stable diffusion model weights that are compatible with MindSpore as follows.
 
-- Stable Diffusion 1.5
-    - SD 1.5 (text-to-image) [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_v1_5_pruned_emaonly-d0ab7146.ckpt), converted from [this HF model](https://huggingface.co/runwayml/stable-diffusion-v1-5)
+| **Version name** |**Task** |  **MindSpore Checkpoint**  | **Ref. Official Model** | **Resolution**|
+|-----------------|---------------|---------------|------------|--------|
+| 2.0            | text-to-image | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) |  [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base) | 512x512 |
+| 2.0-v768      | text-to-image | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | 768x768 |
+| 2.0-inpaint      | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt) | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512|
+| 1.5       | text-to-image | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5) | 512x512 |
+| wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
+| wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
 
-    - Wukonghuahua (Chinese text-to-image): [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)
-    - Wukonghuahua Inpainting: [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt)
-
-Please download the checkpoints you need for your task, and put them under `models/` folder.
+<!---
 </details>
+-->
 
-If you like to convert other Stable Diffusion models to MindSpore checkpoints, please refer to [model conversion](tools/model_conversion/README.md).
+To transfer other Stable Diffusion models to MindSpore, please refer to [model conversion](tools/model_conversion/README.md).
 
 - - -
 # Stable Diffusion 2.0
@@ -77,12 +81,20 @@ If you like to convert other Stable Diffusion models to MindSpore checkpoints, p
 
 ### Text-to-Image Generation
 
-Download [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) to `models/` folder. Then run,
+Download [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) to `models/` folder, and run,
 
 ```shell
-# Text to image generation with SD2.0
+# Text to image generation with SD-2.0-base
 python text_to_image.py --prompt "elven forest"
 ```
+> The default version of SD model used is 2.0. It is easy to switch to another SD version by setting the `-v` argument according to the version names defined in [pretrained weights](#pretrained-weights) and downloading the target checkpoint.
+
+For example, you may switch to sd 2.0 v768 to generate images in 768x768 resolution by
+```shell
+# Text to image generation with SD-2.0-v768
+python text_to_image.py --prompt "elven forest" -v 2.0_v768
+```
+
 For more argument usages, please run `python text_to_image.py -h`.
 
 #### Negative Prompt Guidance
@@ -105,7 +117,7 @@ While `--prompt` indicates what to render in the generated images, the negative 
 
 Text-guided image inpainting allows users to edit specific regions of an image by providing a mask and a text prompt, which is an interesting erase-and-replace editing operation. When the prompt is set to empty, it can be applied to auto-fill the masked regions to fit the image context (which is similar to the AI fill and extend operations in Photoshop-beta).
 
-To run it, please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder. Then execute:
+Please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder, and execute:
 
 ```shell
 python inpaint.py
@@ -188,6 +200,9 @@ bash scripts/run_train_v2_distributed.sh
 
 > To make the text encoder also trainable, please set `cond_stage_trainable: True` in `configs/v2-train.yaml`
 
+### v-prediction Finetuning
+
+The default objective used in SD training is to minimize the noise prediction error (noise-prediction). To alter the objective to v-prediction, which is used in SD 2.0-v training, please refer to [v-prediction.md](v-prediction.md)
 
 ### Chinese Prompt Adaptation
 
@@ -224,7 +239,7 @@ It is simple to switch from SD 2.0 to SD 1.5 by setting the `--version` (`-v`) a
 
 ### SD1.5 Text-to-Image Generation
 
-Download [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_v1_5_pruned_emaonly-d0ab7146.ckpt) to `models/` folder. Then run,
+Download [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) to `models/` folder. Then run,
 
 ```
 python text_to_image.py --prompt "A cute wolf in winter forest" -v 1.5
@@ -256,7 +271,7 @@ sh scripts/run_train_v1.sh
 ```
 after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
-> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the training script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/ms_v1_5_pruned_emaonly-d0ab7146.ckpt`.
+> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the training script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/sd_v1.5-d0ab7146.ckpt`.
 
 
 # Dataset Preparation for Finetuning
