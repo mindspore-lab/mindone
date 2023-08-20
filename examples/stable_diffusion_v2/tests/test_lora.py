@@ -5,7 +5,7 @@ from ldm.modules.train.tools import set_random_seed
 
 import mindspore as ms
 
-from examples.stable_diffusion_v2.ldm.modules.lora import LoRADenseLayer
+from ldm.modules.lora import LoRADenseLayer
 
 set_random_seed(42)
 

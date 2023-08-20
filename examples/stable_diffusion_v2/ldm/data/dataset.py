@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 from ldm.data.t2i_collate import data_column, t2i_collate
 from PIL import Image
-
+from mindspore.communication.management import get_local_rank, get_local_rank_size
 from mindspore.dataset import GeneratorDataset
 
 _logger = logging.getLogger(__name__)
@@ -37,20 +37,24 @@ def load_data(
     tokenizer,
     image_size=512,
     image_filter_size=256,
-    device_num=1,
     random_crop=False,
     filter_small_size=True,
+    device_num=1,
     rank_id=0,
+    replace=True,
     sample_num=-1,
+    enable_modelarts=False,
 ):
     if not os.path.exists(data_path):
         raise ValueError(f"Data directory {data_path} does not exist!")
-    all_images, all_captions = list_image_files_captions_recursively(data_path)
+
+    all_images, all_captions = list_image_files_captions_recursively(data_path, enable_modelarts)
     if filter_small_size:
-        # print(f"Filter small images, filter size: {image_filter_size}")
-        all_images, all_captions = filter_small_image(all_images, all_captions, image_filter_size)
+        all_images, all_captions = filter_small_image(all_images, all_captions, image_filter_size, replace)
+
     _logger.debug(f"The first image path is {all_images[0]}, and the caption is {all_captions[0]}")
     _logger.info(f"Total number of training samples: {len(all_images)}")
+
     dataloaders = {}
     dataset = ImageDataset(
         batch_size,
@@ -63,6 +67,9 @@ def load_data(
         filter_small_size=filter_small_size,
     )
     datalen = dataset.__len__
+    if enable_modelarts:
+        device_num = get_local_rank_size()
+        rank_id = get_local_rank() % 8
     loader = build_dataloader_ft(dataset, datalen, t2i_collate, batch_size, device_num, rank_id=rank_id)
     dataloaders["ftT2I"] = loader
     if sample_num == -1:
@@ -70,8 +77,10 @@ def load_data(
     else:
         batchlen = sample_num
     metaloader = MetaLoader(dataloaders, datalen=batchlen, task_num=len(dataloaders.keys()))
+
     dataset = GeneratorDataset(metaloader, column_names=data_column, shuffle=True)
 
+    print("dataset size per shard:", dataset.get_dataset_size(), flush=True)
     return dataset
 
 
@@ -83,11 +92,14 @@ def build_dataloader_ft(dataset, datalens, collate_fn, batch_size, device_num, r
     return loader
 
 
-def list_image_files_captions_recursively(data_path):
+def list_image_files_captions_recursively(data_path, enable_modelarts=False):
     anno_dir = data_path
-    anno_list = sorted(
-        [os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))]
-    )
+    if enable_modelarts:
+        anno_list = [os.path.join(data_path, "merged_imgp_text.csv")]
+    else:
+        anno_list = sorted(
+            [os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))]
+        )
     db_list = [pd.read_csv(f) for f in anno_list]
     all_images = []
     all_captions = []
@@ -96,21 +108,35 @@ def list_image_files_captions_recursively(data_path):
         all_captions.extend(list(db["text"]))
     assert len(all_images) == len(all_captions)
     all_images = [os.path.join(data_path, f) for f in all_images]
-
+    _logger.info(f"Before filter, Total number of training samples: {len(all_images)}")
     return all_images, all_captions
 
 
-def filter_small_image(all_images, all_captions, image_filter_size):
+def filter_small_image(all_images, all_captions, image_filter_size, replace):
     filted_images = []
     filted_captions = []
+    filter_count = 0
     for image, caption in zip(all_images, all_captions):
-        w, h = imagesize.get(image)
+        try:
+            w, h = imagesize.get(image)
+        except Exception as e:
+            filter_count += 1
+            _logger.info(f"image file open failed or not exist(replace with others), path: {image}")
+            continue
         if min(w, h) < image_filter_size:
             _logger.info(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+            filter_count += 1
             continue
         else:
             filted_images.append(image)
             filted_captions.append(caption)
+    _logger.info(f"filter image count {filter_count}")
+    if replace:
+        while filter_count > 0:
+            filted_images.append(filted_images[filter_count])
+            filted_captions.append(filted_captions[filter_count])
+            filter_count -= 1
+    _logger.info(f"complete image list, size:" + str(len(filted_images)))
     return filted_images, filted_captions
 
 
@@ -193,10 +219,14 @@ class ImageDataset:
         return np.array(image_input, dtype=np.float32), np.array(caption_input, dtype=np.int32)
 
     def preprocess_image(self, image_path):
-        image = Image.open(image_path)
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
-        image = np.array(image).astype(np.uint8)
+        try:
+            image = Image.open(image_path)
+            if not image.mode == "RGB":
+                image = image.convert("RGB")
+            image = np.array(image).astype(np.uint8)
+        except Exception as e:
+            print("image file open failed or not exist, path:", image_path, flush=True)
+            image = np.zeros((512, 512, 3)).astype(np.uint8)
         image = self.preprocessor(image=image)["image"]
         image = (image / 127.5 - 1.0).astype(np.float32)
         return image
@@ -350,7 +380,7 @@ class MetaLoader:
         return self.datalen
 
 
-def build_dataset(args, rank_id, device_num, tokenizer):
+def build_dataset(args, device_num, rank_id, tokenizer):
     dataset = load_data(
         data_path=args.data_path,
         batch_size=args.train_batch_size,
@@ -361,7 +391,9 @@ def build_dataset(args, rank_id, device_num, tokenizer):
         rank_id=rank_id,
         random_crop=args.random_crop,
         filter_small_size=args.filter_small_size,
+        replace=args.replace_small_images,
         sample_num=-1,
+        enable_modelarts=args.enable_modelarts
     )
     _logger.info(f"Num batches for rank {rank_id}: {dataset.get_dataset_size()}")
 
