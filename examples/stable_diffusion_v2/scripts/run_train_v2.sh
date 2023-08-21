@@ -11,7 +11,7 @@ output_path=output/finetune_pokemon
 task_name=txt2img
 data_path=./datasets/pokemon_blip/train
 #data_path=/home/yx/datasets/diffusion/pokemon
-epochs=10
+epochs=20
 warmup_steps=1000
 
 pretrained_model_path=models/
