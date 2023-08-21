@@ -9,7 +9,7 @@ device_id=0
 
 output_path=output/finetune_pokemon
 task_name=txt2img
-data_path=./datasets/diffusion/pokemon_blip/train
+data_path=./datasets/pokemon_blip/train
 #data_path=/home/yx/datasets/diffusion/pokemon
 epochs=20
 warmup_steps=1000
@@ -22,6 +22,8 @@ train_batch_size=3
 use_ema=False
 ckpt_save_interval=5
 image_filter_size=200 # reduce this value if your image size is smaller than 200
+
+weight_decay=1e-2 # test
 
 # uncomment the these two lines to finetune on 768x768 resolution.
 #image_size=768 # v2-base 512, v2.1 768
@@ -47,4 +49,5 @@ python train_text_to_image.py \
     --epochs $epochs \
     --warmup_steps $warmup_steps \
     --image_filter_size=$image_filter_size \
+    --weight_decay=$weight_decay \
 #    > $output_path/$task_name/log_train_v2 2>&1 &
