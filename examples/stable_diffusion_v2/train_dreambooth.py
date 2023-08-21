@@ -212,6 +212,7 @@ def parse_args():
     parser.add_argument(
         "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
     )
+    parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument(
         "--log_level",
         type=str,
