@@ -35,7 +35,7 @@ def build_optimizer(model, opts, lr):
     other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
     group_params = []
     if len(decay_params) > 0:
-        group_params.append({"params": decay_params, "weight_decay": opts.weight_decay}) #1e-6})
+        group_params.append({"params": decay_params, "weight_decay": opts.weight_decay})  # 1e-6})
     if len(other_params) > 0:
         group_params.append({"params": other_params, "weight_decay": 0.0})
     group_params.append({"order_params": param_optimizer})
