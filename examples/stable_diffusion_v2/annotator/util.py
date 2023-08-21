@@ -1,9 +1,9 @@
-import numpy as np
-import cv2
 import os
 
+import cv2
+import numpy as np
 
-annotator_ckpts_path = os.path.join(os.path.dirname(__file__), 'ckpts')
+annotator_ckpts_path = os.path.join(os.path.dirname(__file__), "ckpts")
 
 
 def HWC3(x):

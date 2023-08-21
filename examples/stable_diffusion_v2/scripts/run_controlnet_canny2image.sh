@@ -2,10 +2,10 @@ export GLOG_v=3
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-export DEVICE_ID=7
-export INPUT_FILE_NAME="toy"
-#dog bird cyber dog2 house toy 
-export TASK_NAME="canny2image"
+export DEVICE_ID=1
+export INPUT_FILE_NAME="dog2"
+#dog bird cyber dog2 house toy
+export TASK_NAME="0822-canny2image"
 
 export DATA_DIR="/home/mindspore/congw/data/"
 
@@ -16,4 +16,3 @@ nohup python image2image.py \
     --prompt "cute toy" \
     --task_name $TASK_NAME \
     2>&1 > "output/"$TASK_NAME"_logms_id"$DEVICE_ID"_"$INPUT_FILE_NAME".txt" &
-    

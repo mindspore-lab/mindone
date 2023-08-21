@@ -13,29 +13,22 @@
 # limitations under the License.
 # ============================================================================
 import logging
-import numpy as np
+
+from ldm.models.diffusion.ddim import DDIMSampler
+from ldm.models.diffusion.ddpm import LatentDiffusion
+from ldm.modules.attention import SpatialTransformer
+from ldm.modules.diffusionmodules.openaimodel import AttentionBlock, Downsample, ResBlock, UNetModel
+from ldm.modules.diffusionmodules.util import conv_nd, linear, timestep_embedding, zero_module
+from ldm.util import exists, instantiate_from_config
 
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
-from ldm.modules.diffusionmodules.util import (
-    conv_nd,
-    linear,
-    zero_module,
-    timestep_embedding,
-)
-
-from ldm.modules.attention import SpatialTransformer
-from ldm.modules.diffusionmodules.openaimodel import UNetModel, ResBlock, Downsample, AttentionBlock
-from ldm.models.diffusion.ddpm import LatentDiffusion
-from ldm.util import log_txt_as_img, exists, instantiate_from_config
-from ldm.models.diffusion.ddim import DDIMSampler
-
 _logger = logging.getLogger(__name__)
 
+
 class ControlledUnetModel(UNetModel):
-    
     def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
         hs = []
 
@@ -50,11 +43,11 @@ class ControlledUnetModel(UNetModel):
             hs.append(h)
         for module in self.middle_block:
             h = module(h, emb, context)
-        
+
         # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
         if control is not None:
             h += control.pop()
-        
+
         for celllist in self.output_blocks:
             if only_mid_control or control is None:
                 h = self.cat((h, hs.pop()))
@@ -66,36 +59,37 @@ class ControlledUnetModel(UNetModel):
 
         return self.out(h)
 
+
 class ControlNet(nn.Cell):
     def __init__(
-            self,
-            image_size,
-            in_channels,
-            model_channels,
-            hint_channels,
-            num_res_blocks,
-            attention_resolutions,
-            dropout=0,
-            channel_mult=(1, 2, 4, 8),
-            conv_resample=True,
-            dims=2,
-            use_checkpoint=False,
-            use_fp16=False,
-            num_heads=-1,
-            num_head_channels=-1,
-            num_heads_upsample=-1,
-            use_scale_shift_norm=False,
-            resblock_updown=False,
-            use_new_attention_order=False,
-            use_spatial_transformer=False,  # custom transformer support
-            transformer_depth=1,  # custom transformer support
-            context_dim=None,  # custom transformer support
-            n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
-            legacy=True,
-            disable_self_attentions=None,
-            num_attention_blocks=None,
-            disable_middle_self_attn=False,
-            use_linear_in_transformer=False,
+        self,
+        image_size,
+        in_channels,
+        model_channels,
+        hint_channels,
+        num_res_blocks,
+        attention_resolutions,
+        dropout=0,
+        channel_mult=(1, 2, 4, 8),
+        conv_resample=True,
+        dims=2,
+        use_checkpoint=False,
+        use_fp16=False,
+        num_heads=-1,
+        num_head_channels=-1,
+        num_heads_upsample=-1,
+        use_scale_shift_norm=False,
+        resblock_updown=False,
+        use_new_attention_order=False,
+        use_spatial_transformer=False,  # custom transformer support
+        transformer_depth=1,  # custom transformer support
+        context_dim=None,  # custom transformer support
+        n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
+        legacy=True,
+        disable_self_attentions=None,
+        num_attention_blocks=None,
+        disable_middle_self_attn=False,
+        use_linear_in_transformer=False,
     ):
         super().__init__()
 
@@ -147,33 +141,39 @@ class ControlNet(nn.Cell):
 
         self.input_blocks = nn.CellList(
             [
-                nn.CellList([
+                nn.CellList(
+                    [
                         conv_nd(
                             dims, in_channels, model_channels, 3, padding=1, has_bias=True, pad_mode="pad"
                         ).to_float(self.dtype)
-                ])
+                    ]
+                )
             ]
         )
 
         self.zero_convs = nn.CellList([self.make_zero_conv(model_channels)])
 
-        self.input_hint_block = nn.CellList([
-            conv_nd(dims, hint_channels, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 16, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 16, 32, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 32, 32, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 32, 96, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 96, 96, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            conv_nd(dims, 96, 256, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
-            zero_module(conv_nd(dims, 256, model_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype))
-        ])
+        self.input_hint_block = nn.CellList(
+            [
+                conv_nd(dims, hint_channels, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                conv_nd(dims, 16, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                conv_nd(dims, 16, 32, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                conv_nd(dims, 32, 32, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                conv_nd(dims, 32, 96, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                conv_nd(dims, 96, 96, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                conv_nd(dims, 96, 256, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                zero_module(
+                    conv_nd(dims, 256, model_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype)
+                ),
+            ]
+        )
 
         self._feature_size = model_channels
         input_block_chans = [model_channels]
@@ -205,11 +205,6 @@ class ControlNet(nn.Cell):
                         dim_head = num_head_channels
                     if legacy:
                         dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
-                    
-                    if exists(disable_self_attentions):
-                        disabled_sa = disable_self_attentions[level]
-                    else:
-                        disabled_sa = False
 
                     if not exists(num_attention_blocks) or _ < num_attention_blocks[level]:
                         layers.append(
@@ -240,7 +235,8 @@ class ControlNet(nn.Cell):
             if level != len(channel_mult) - 1:
                 out_ch = ch
                 self.input_blocks.append(
-                    nn.CellList([
+                    nn.CellList(
+                        [
                             ResBlock(
                                 ch,
                                 time_embed_dim,
@@ -251,10 +247,11 @@ class ControlNet(nn.Cell):
                                 use_scale_shift_norm=use_scale_shift_norm,
                                 down=True,
                                 dtype=self.dtype,
-                            ) 
+                            )
                             if resblock_updown
                             else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
-                    ])
+                        ]
+                    )
                 )
                 ch = out_ch
                 input_block_chans.append(ch)
@@ -321,7 +318,9 @@ class ControlNet(nn.Cell):
         self._feature_size += ch
 
     def make_zero_conv(self, channels):
-        return zero_module(conv_nd(self.dims, channels, channels, 1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype))
+        return zero_module(
+            conv_nd(self.dims, channels, channels, 1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype)
+        )
 
     def construct(self, x, hint, timesteps, context, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
@@ -341,14 +340,14 @@ class ControlNet(nn.Cell):
                 guided_hint = None
             outs.append(zero_conv(h, emb, context))
         for module in self.middle_block:
-            h = module(h, emb, context)  
-        
+            h = module(h, emb, context)
+
         outs.append(self.middle_block_out(h, emb, context))
-        
+
         return outs
 
-class ControlLDM(LatentDiffusion):
 
+class ControlLDM(LatentDiffusion):
     def __init__(self, control_stage_config, control_key, only_mid_control, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.control_model = instantiate_from_config(control_stage_config)
@@ -362,19 +361,23 @@ class ControlLDM(LatentDiffusion):
         control = batch[self.control_key]
         if bs is not None:
             control = control[:bs]
-        control = ops.transpose(control, (0, 3, 1, 2)) # 'b h w c -> b c h w'
+        control = ops.transpose(control, (0, 3, 1, 2))  # 'b h w c -> b c h w'
         control.to_float(self.dtype)
         return x, dict(c_crossattn=[c], c_concat=[control])
 
     def apply_model(self, x_noisy, t, cond, *args, **kwargs):
         diffusion_model = self.model.diffusion_model
-        cond_txt = ops.concat(cond['c_crossattn'], 1)
-        if isinstance(cond,list) or (isinstance(cond,dict) and cond['c_concat'] is None):
-            eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control)
+        cond_txt = ops.concat(cond["c_crossattn"], 1)
+        if isinstance(cond, list) or (isinstance(cond, dict) and cond["c_concat"] is None):
+            eps = diffusion_model(
+                x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control
+            )
         else:
-            control = self.control_model(x=x_noisy, hint=ops.concat(cond['c_concat'], 1), timesteps=t, context=cond_txt)
+            control = self.control_model(x=x_noisy, hint=ops.concat(cond["c_concat"], 1), timesteps=t, context=cond_txt)
             control = [c * scale for c, scale in zip(control, self.control_scales)]
-            eps = diffusion_model(x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control)
+            eps = diffusion_model(
+                x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control
+            )
         return eps
 
     def get_unconditional_conditioning(self, N):

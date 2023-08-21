@@ -1,5 +1,6 @@
 """SAMPLING ONLY."""
 import logging
+
 import numpy as np
 from ldm.modules.diffusionmodules.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like
 from ldm.util import extract_into_tensor
@@ -9,6 +10,7 @@ import mindspore as ms
 import mindspore.ops as ops
 
 logger = logging.getLogger("controlnet_ddim_sampler")
+
 
 class DDIMSampler(object):
     def __init__(self, model, schedule="linear", **kwargs):
@@ -231,7 +233,7 @@ class DDIMSampler(object):
             model_t = self.model.apply_model(x, t, c)
             model_uncond = self.model.apply_model(x, t, unconditional_conditioning)
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
-       
+
         if self.model.parameterization == "v":
             e_t = self.model.predict_eps_from_z_and_v(x, t, model_output)
         else:
@@ -242,7 +244,9 @@ class DDIMSampler(object):
             e_t = score_corrector.modify_score(self.model, e_t, x, t, c, **corrector_kwargs)
         alphas = self.model.alphas_cumprod if use_original_steps else self.ddim_alphas
         alphas_prev = self.model.alphas_cumprod_prev if use_original_steps else self.ddim_alphas_prev
-        sqrt_one_minus_alphas = self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
+        sqrt_one_minus_alphas = (
+            self.model.sqrt_one_minus_alphas_cumprod if use_original_steps else self.ddim_sqrt_one_minus_alphas
+        )
         sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
         # select parameters corresponding to the currently considered timestep
         a_t = ms.numpy.full((b, 1, 1, 1), alphas[index])
