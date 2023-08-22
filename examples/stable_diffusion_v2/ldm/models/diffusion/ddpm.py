@@ -352,8 +352,8 @@ class LatentDiffusion(DDPM):
     def get_first_stage_encoding(self, z):
         return self.scale_factor * z
 
-    def apply_model(self, x_noisy, t, c_concat=None, c_crossattn=None, return_ids=False):
-        x_recon = self.model(x_noisy, t, c_concat, c_crossattn)
+    def apply_model(self, x_noisy, t, c_concat=None, c_crossattn=None, return_ids=False, **kwargs):
+        x_recon = self.model(x_noisy, t, c_concat, c_crossattn, **kwargs)
         return x_recon
 
     def get_input(self, x, c):
@@ -412,22 +412,22 @@ class DiffusionWrapper(nn.Cell):
         self.conditioning_key = conditioning_key
         assert self.conditioning_key in [None, "concat", "crossattn", "hybrid", "adm"]
 
-    def construct(self, x, t, c_concat=None, c_crossattn=None):
+    def construct(self, x, t, c_concat=None, c_crossattn=None, **kwargs):
         if self.conditioning_key is None:
-            out = self.diffusion_model(x, t)
+            out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
             x_concat = ops.concat((x, c_concat), axis=1)
-            out = self.diffusion_model(x_concat, t)
+            out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":
             context = c_crossattn
-            out = self.diffusion_model(x, t, context=context)
+            out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
             x_concat = ops.concat((x, c_concat), axis=1)
             context = c_crossattn
-            out = self.diffusion_model(x_concat, t, context=context)
+            out = self.diffusion_model(x_concat, t, context=context, **kwargs)
         elif self.conditioning_key == "adm":
             cc = c_crossattn
-            out = self.diffusion_model(x, t, y=cc)
+            out = self.diffusion_model(x, t, y=cc, **kwargs)
         else:
             raise NotImplementedError()
 

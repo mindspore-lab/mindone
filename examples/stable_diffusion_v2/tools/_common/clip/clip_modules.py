@@ -34,6 +34,15 @@ class LayerNorm(nn.LayerNorm):
         return y
 
 
+class QuickGELU(nn.Cell):
+    """
+    A quick approximation of the GELU activation function.
+    """
+
+    def construct(self, x: Tensor) -> Tensor:
+        return x * ops.sigmoid(1.702 * x)
+
+
 class MultiheadAttention(nn.Cell):
     r"""MultiheadAttention, With Layers As Input For Initialization
 
@@ -193,7 +202,7 @@ class ResidualAttentionBlock(nn.Cell):
         hidden_act: str,
         attn_mask: Optional[ms.Tensor] = None,
     ):
-        super(ResidualAttentionBlock, self).__init__()
+        super().__init__()
 
         proj_std = (d_model**-0.5) * ((2 * layers) ** -0.5)
         fc_std = (2 * d_model) ** -0.5
@@ -201,21 +210,8 @@ class ResidualAttentionBlock(nn.Cell):
         self.attn = MultiheadAttention(d_model, n_head, layers, dtype)
         self.ln_1 = LayerNorm([d_model], epsilon=1e-5)
 
-        if hidden_act == "gelu":
-            QuickGELU = nn.GELU
-        else:
-
-            class QuickGELU(nn.GELU):
-                r"""QuickGELU of CLIP"""
-
-                def __init__(self, ratio: Optional[int] = 1.702):
-                    super(QuickGELU, self).__init__()
-                    self.ratio = ratio
-                    self.sigmoid = nn.Sigmoid()
-
-                def construct(self, input_x: ms.Tensor):
-                    """construct"""
-                    return input_x * self.sigmoid(self.ratio * input_x)
+        assert hidden_act in ["gelu", "quick_gelu"], "`hidden_act` should be `gelu` or `quick_gelu`."
+        gelu = nn.GELU if hidden_act == "gelu" else QuickGELU
 
         self.mlp = nn.SequentialCell(
             OrderedDict(
@@ -224,7 +220,7 @@ class ResidualAttentionBlock(nn.Cell):
                         "c_fc",
                         nn.Dense(d_model, d_model * 4, weight_init=Normal(mean=0.0, sigma=fc_std)).to_float(dtype),
                     ),
-                    ("gelu", QuickGELU()),
+                    ("gelu", gelu()),
                     (
                         "c_proj",
                         nn.Dense(d_model * 4, d_model, weight_init=Normal(mean=0.0, sigma=proj_std)).to_float(dtype),

@@ -233,9 +233,8 @@ def main(args):
     for i, prompts in enumerate(data):
         negative_prompts = negative_data[i]
         logger.info(
-            "[{}/{}] Generating images with conditions:\nPrompt(s): {}\nNegative prompt(s): {}".format(
-                i + 1, len(data), prompts[0], negative_prompts[0]
-            )
+            f"[{i + 1}/{len(data)}] Generating images with conditions:\nPrompt(s): {prompts[0]}\n"
+            f"Negative prompt(s): {negative_prompts[0]}"
         )
         for n in range(args.n_iter):
             start_time = time.time()
@@ -277,9 +276,8 @@ def main(args):
 
             end_time = time.time()
             logger.info(
-                "{}/{} images generated, time cost for current trial: {:.3f}s".format(
-                    batch_size * (n + 1), batch_size * args.n_iter, end_time - start_time
-                )
+                f"{batch_size * (n + 1)}/{batch_size * args.n_iter} images generated, "
+                f"time cost for current trial: {end_time - start_time:.3f}s"
             )
 
     logger.info(f"Done! All generated images are saved in: {outpath}/samples" f"\nEnjoy.")
