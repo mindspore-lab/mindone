@@ -34,6 +34,7 @@ class EvalSaveCallback(Callback):
         lora_rank=None,
         log_interval=10,
         start_epoch=0,
+        start_step=0,
     ):
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
@@ -49,6 +50,7 @@ class EvalSaveCallback(Callback):
         self.step_start_time = time.time()
         self.log_interval = log_interval
         self.start_epoch = start_epoch
+        self.start_step = start_step
 
         if self.is_main_device:
             self.ckpt_save_policy = ckpt_save_policy
@@ -57,7 +59,7 @@ class EvalSaveCallback(Callback):
                 ckpt_save_policy,
                 k=ckpt_max_keep,
             )
-            if self.start_epoch == 0:
+            if self.start_epoch == 0 and self.start_step == 0:
                 perf_columns = ["step", "loss", "train_time(s)"]
                 self.rec = PerfRecorder(self.ckpt_save_dir, metric_names=perf_columns)
             else:

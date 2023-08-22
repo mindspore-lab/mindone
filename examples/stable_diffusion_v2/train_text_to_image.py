@@ -245,6 +245,7 @@ def main(args):
             lora_rank=args.lora_rank,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
+            start_step=start_step,
         )
 
         callback.append(save_cb)
