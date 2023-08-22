@@ -230,7 +230,7 @@ For evaluation, we consider two metrics:
 - CLIP-T score: the cosine similarity between the text prompt and the image CLIP embedding.
 - CLIP-I score: the cosine similarity between the CLIP embeddings of the real and the generated images.
 
-By default, we use the pretrained `clip_vit_base_patch16` model to extract the image/text embeddings and `bpe_simple_vocab_16e6` as the text tokenizer. To download the two files, please refer to the guideline [Clip Score Evaluation](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/eval/README.md#clip-score).
+By default, we use the pretrained `clip_vit_base_patch16` model to extract the image/text embeddings and `bpe_simple_vocab_16e6` as the text tokenizer. To download the two files, please refer to the guideline [Clip Score Evaluation](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/tools/eval/README.md#clip-score).
 
 
 #### 2.4.1 CLIP-T score

@@ -201,7 +201,7 @@ python eval/eval_fid.py --real_dir {path/to/test_images} --gen_dir {path/to/gene
 python eval/eval_clip_score.py --image_path {path/to/test_images} --prompt {path/to/prompts_file} --load_checkpoint {path/to/checkpoint}
 ```
 
-For details, please refer to the guideline [Diffusion Evaluation](eval/README.md).
+For details, please refer to the guideline [Diffusion Evaluation](tools/eval/README.md).
 
 Here are the evaluation results for our implementation.
 
