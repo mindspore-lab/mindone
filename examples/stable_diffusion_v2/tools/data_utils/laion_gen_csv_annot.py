@@ -1,9 +1,9 @@
 import argparse
 import glob
 import json
-import os
-import shutil
 import json as js
+import os
+
 import pandas as pd
 from tqdm import tqdm
 
@@ -31,14 +31,19 @@ def check_download_result(data_dir="/data3/datasets/laion_art", img_fmt="jpg", d
     print(df.show())
 
 
-def gen_csv(data_dir,
-            img_fmt="jpg", one_csv_per_part=True, folder_prefix="",
-            merge_all=True, merge_fn='merged_imgp_text.csv',
-            start_sample_idx=0, end_sample_idx=-1,
-            del_part_csvs=True,
-            json_data_path=None
-            ):
-    '''
+def gen_csv(
+    data_dir,
+    img_fmt="jpg",
+    one_csv_per_part=True,
+    folder_prefix="",
+    merge_all=True,
+    merge_fn="merged_imgp_text.csv",
+    start_sample_idx=0,
+    end_sample_idx=-1,
+    del_part_csvs=True,
+    json_data_path=None,
+):
+    """
     Args:
         start_sample_idx: index of the first sample to include for training in the first tar of the first part
         end_sample_idx: index of the last sample to include for training in the last tar of the last part
@@ -53,11 +58,11 @@ def gen_csv(data_dir,
     │   │   ├── 000000002.jpg
     │   │   └── ...
     │   ├── ...
-    │     
+    │
     ├── part_2/
     ...
     ```
-    '''
+    """
     assert os.path.exists(data_dir), f"{data_dir} not exists"
     num_imgs = 0
     len_postfix = len(img_fmt) + 1
@@ -69,7 +74,7 @@ def gen_csv(data_dir,
     # sort folders by part_idx
     folders = sorted(folders, key=lambda folder_name: int(folder_name.split("_")[1]))
     part_ids = [int(folder_name.split("_")[1]) for folder_name in folders]
-    print('part ids: ', part_ids)
+    print("part ids: ", part_ids)
 
     # for part_id in range(1, num_parts+1):
     def _gather_img_text_in_folder(root_dir, folder, trim_start=0, trim_end=-1):
@@ -78,7 +83,7 @@ def gen_csv(data_dir,
         if trim_end == -1:
             img_paths = sorted(glob.glob(os.path.join(root_dir, folder, f"*.{img_fmt}")))[trim_start:]
         else:
-            img_paths = sorted(glob.glob(os.path.join(root_dir, folder, f"*.{img_fmt}")))[trim_start:trim_end + 1]
+            img_paths = sorted(glob.glob(os.path.join(root_dir, folder, f"*.{img_fmt}")))[trim_start : trim_end + 1]
         print("Image folder: ", folder, ", num imgs: ", len(img_paths))
         rel_img_paths = []
         texts = []
@@ -97,7 +102,7 @@ def gen_csv(data_dir,
                     with open(json_fp, "r") as f:
                         meta = json.load(f)
                         text = meta["caption"]
-                except Exception as e:
+                except Exception:
                     print("json file open failed or not exist, path: ", json_fp, flush=True)
                     text = "Fake text"
 
@@ -146,19 +151,24 @@ def gen_csv(data_dir,
             # import pdb
             # pdb.set_trace()
             untrimed_img_samples = len(
-                sorted(glob.glob(os.path.join(os.path.join(data_dir, folder), subfolder, f"*.{img_fmt}"))))
+                sorted(glob.glob(os.path.join(os.path.join(data_dir, folder), subfolder, f"*.{img_fmt}")))
+            )
             part_tar_samples = int(js.load(open(json_data_path))[folder.split("_")[1]][str(int(subfolder))])
             try:
-                print("untrimed_img_samples", untrimed_img_samples, "json part_tar_samples", part_tar_samples,
-                      flush=True)
-                assert untrimed_img_samples == part_tar_samples
-            except:
                 print(
-                    f"number of imges in {os.path.join(data_dir, folder, subfolder)} is {untrimed_img_samples}, which is not eq to json value {part_tar_samples}",
-                    flush=True)
+                    "untrimed_img_samples", untrimed_img_samples, "json part_tar_samples", part_tar_samples, flush=True
+                )
+                assert untrimed_img_samples == part_tar_samples
+            except Exception:
+                print(
+                    f"number of imges in {os.path.join(data_dir, folder, subfolder)} is {untrimed_img_samples}, "
+                    f"which is not eq to json value {part_tar_samples}",
+                    flush=True,
+                )
 
-            rel_img_paths, texts = _gather_img_text_in_folder(os.path.join(data_dir, folder), subfolder,
-                                                              trim_start=trim_start, trim_end=trim_end)
+            rel_img_paths, texts = _gather_img_text_in_folder(
+                os.path.join(data_dir, folder), subfolder, trim_start=trim_start, trim_end=trim_end
+            )
 
             if len(rel_img_paths) > 0:
                 if one_csv_per_part:
@@ -216,15 +226,26 @@ if __name__ == "__main__":
             If True, save a csv file for each image folder, which will result in hundreads of csv files for one part of dataset.",
     )
     parser.add_argument(
-        "--start_sample_idx", type=int, default=0,
-        help="index of the first sample to include for training in the first tar of the first part")
+        "--start_sample_idx",
+        type=int,
+        default=0,
+        help="index of the first sample to include for training in the first tar of the first part",
+    )
     parser.add_argument(
-        "--end_sample_idx", type=int, default=-1,
-        help="index of the last sample to include for training in the last tar of the last part")
+        "--end_sample_idx",
+        type=int,
+        default=-1,
+        help="index of the last sample to include for training in the last tar of the last part",
+    )
     args = parser.parse_args()
 
     # data_dir = '/data3/datasets/laion_art_filtered'
     # data_dir = args.data_dir
     # check_download_result(data_dir)
-    gen_csv("/cache", one_csv_per_part=not args.save_csv_per_img_folder, folder_prefix=args.folder_prefix,
-            start_sample_idx=args.start_sample_idx, end_sample_idx=args.end_sample_idx)
+    gen_csv(
+        "/cache",
+        one_csv_per_part=not args.save_csv_per_img_folder,
+        folder_prefix=args.folder_prefix,
+        start_sample_idx=args.start_sample_idx,
+        end_sample_idx=args.end_sample_idx,
+    )

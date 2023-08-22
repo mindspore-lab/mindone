@@ -4,10 +4,10 @@ import multiprocessing as mp
 import os
 import subprocess
 import sys
+import tarfile
 import time
 from typing import Any, Callable, Dict, List, Union
-import tarfile
-import pandas as pd
+
 sys.path.append("../../")
 from tools.data_utils.laion_gen_csv_annot import gen_csv
 
@@ -34,8 +34,8 @@ def get_rank_id():
 
 def extract_tar(file_path):
     try:
-        with tarfile.open(file_path, 'r') as archive:
-            if '/' not in archive.getnames()[1]:
+        with tarfile.open(file_path, "r") as archive:
+            if "/" not in archive.getnames()[1]:
                 subfolder_path = file_path[:-4]
                 os.makedirs(subfolder_path, exist_ok=True)
                 archive.extractall(subfolder_path)
@@ -51,6 +51,7 @@ def extract_tar(file_path):
 
 def obs_copy(f_t):
     import moxing as mox
+
     f, t = f_t
     mox.file.copy_parallel(f, t)
     _logger.info("finish copy: " + t)
@@ -64,8 +65,6 @@ def sync_data(from_path, to_path, start_sample_idx, end_sample_idx, json_data_pa
     2) if `from_path` is local path and `to_path` is remote url, upload data from local directory to remote obs .
     """
     import time
-
-    import moxing as mox
 
     global _global_sync_count
     sync_lock = "/tmp/copy_sync.lock" + str(_global_sync_count)
@@ -94,8 +93,15 @@ def sync_data(from_path, to_path, start_sample_idx, end_sample_idx, json_data_pa
         pool.join()
         _logger.info("===finish data unzip===")
 
-        gen_csv("/cache", one_csv_per_part=True, folder_prefix="part", start_sample_idx=start_sample_idx,
-                end_sample_idx=end_sample_idx, del_part_csvs=True, json_data_path=json_data_path)
+        gen_csv(
+            "/cache",
+            one_csv_per_part=True,
+            folder_prefix="part",
+            start_sample_idx=start_sample_idx,
+            end_sample_idx=end_sample_idx,
+            del_part_csvs=True,
+            json_data_path=json_data_path,
+        )
         _logger.info("===finish generate summary csv, path: /cache/merged_imgp_text.csv ===")
         _logger.info("===copy /cache/merged_imgp_text.csv back to obs===")
 

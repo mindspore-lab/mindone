@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 from ldm.data.t2i_collate import data_column, t2i_collate
 from PIL import Image
+
 from mindspore.communication.management import get_local_rank, get_local_rank_size
 from mindspore.dataset import GeneratorDataset
 
@@ -119,7 +120,7 @@ def filter_small_image(all_images, all_captions, image_filter_size, replace):
     for image, caption in zip(all_images, all_captions):
         try:
             w, h = imagesize.get(image)
-        except Exception as e:
+        except Exception:
             filter_count += 1
             _logger.info(f"image file open failed or not exist(replace with others), path: {image}")
             continue
@@ -136,7 +137,7 @@ def filter_small_image(all_images, all_captions, image_filter_size, replace):
             filted_images.append(filted_images[filter_count])
             filted_captions.append(filted_captions[filter_count])
             filter_count -= 1
-    _logger.info(f"complete image list, size:" + str(len(filted_images)))
+    _logger.info("complete image list, size:" + str(len(filted_images)))
     return filted_images, filted_captions
 
 
@@ -224,7 +225,7 @@ class ImageDataset:
             if not image.mode == "RGB":
                 image = image.convert("RGB")
             image = np.array(image).astype(np.uint8)
-        except Exception as e:
+        except Exception:
             print("image file open failed or not exist, path:", image_path, flush=True)
             image = np.zeros((512, 512, 3)).astype(np.uint8)
         image = self.preprocessor(image=image)["image"]
@@ -393,7 +394,7 @@ def build_dataset(args, device_num, rank_id, tokenizer):
         filter_small_size=args.filter_small_size,
         replace=args.replace_small_images,
         sample_num=-1,
-        enable_modelarts=args.enable_modelarts
+        enable_modelarts=args.enable_modelarts,
     )
     _logger.info(f"Num batches for rank {rank_id}: {dataset.get_dataset_size()}")
 

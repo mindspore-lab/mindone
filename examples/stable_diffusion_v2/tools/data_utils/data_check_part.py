@@ -10,37 +10,38 @@ It performs the following checks for each part:
 
 Usage: python data_check_part.py --output_path output_dir --part part_id
 """
-import logging
-import tarfile
-import os
-import multiprocessing as mp
-import moxing as mox
-import json
 import argparse
+import json
+import logging
+import multiprocessing as mp
+import os
+import tarfile
+
+import moxing as mox
 
 
 class RootFilter(logging.Filter):
     def filter(self, record):
-        # 过滤掉根logger的WARNING、ERROR信息，避免mox.file.copy_parallel重复打印
-        if record.levelno in (logging.WARNING, logging.ERROR) and record.name == 'root':
+        # Filter out the WARNING and ERROR information
+        # of the root logger to avoid repeated printing by mox.file.copy_parallel
+        if record.levelno in (logging.WARNING, logging.ERROR) and record.name == "root":
             return False
         return True
 
 
 root_filter = RootFilter()
 
-# 获取根logger
 root_logger = logging.getLogger()
 root_logger.addFilter(root_filter)
 
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 
 _logger = logging.getLogger("mindone")
-_logger.propagate = False  # 阻止日志消息传播到父级日志记录器
+_logger.propagate = False
 _logger.addHandler(handler)
 
 
@@ -62,7 +63,7 @@ def check_json(part_id, data):
 
     missing = 0
     tar_name_list = []
-    for i in range(data['cnt']):  # check missing tar
+    for i in range(data["cnt"]):  # check missing tar
         tar_name = str(i).zfill(5) + ".tar"
         if tar_name not in keys_list:
             missing += 1
@@ -70,7 +71,7 @@ def check_json(part_id, data):
             tar_name_list.append(tar_name)
 
     _logger.info(f"=========Part {part_id} check results=========")
-    _logger.info("Total tar = %d", data['cnt'])
+    _logger.info("Total tar = %d", data["cnt"])
     _logger.info("Total corrupted cnt: %d", corrupt)
     _logger.info("Total missing tar cnt: %d", missing)
     _logger.info("Total missing json/txt cnt: %d", json_txt_missing)
@@ -88,7 +89,7 @@ def check_tar(file_path):
 
     tar_number = {}
     try:
-        tar = tarfile.open(file_path, 'r')
+        tar = tarfile.open(file_path, "r")
         all_names = [fn for fn in tar.getnames()]
         json_map = {}
         txt_map = {}
@@ -118,8 +119,8 @@ def check_tar(file_path):
         img_cnt = len(image_files)
         _logger.info(f"{file_path} jpg_number: {img_cnt}")
         tar_number[file_path] = img_cnt
-    except Exception as e:
-        tar_number[file_path] = -1  # tar包损坏标志
+    except Exception:
+        tar_number[file_path] = -1  # tar package corrupted flag
         _logger.error("Error in extracting", file_path)
     return tar_number
 
@@ -140,14 +141,13 @@ def sync_data(from_path, to_path, output_path, part):
             mox.file.copy_parallel(f, t)
             _logger.info("finish copy" + t)
             valid_to_path.append(t)
-        except Exception as e:
+        except Exception:
             _logger.warning(f"path {f} not exist!")
     _logger.info("===finish data synchronization===")
 
-    num_samples_json['cnt'] = len(valid_to_path)  # 记录每个part包含多少个tar包
+    num_samples_json["cnt"] = len(valid_to_path)
 
-    ### unzip
-    pool = mp.Pool(min(mp.cpu_count(), len(to_path)))  # number of workers
+    pool = mp.Pool(min(mp.cpu_count(), len(to_path)))
     results = pool.map(check_tar, valid_to_path, chunksize=1)
     pool.close()
     pool.join()
@@ -157,7 +157,7 @@ def sync_data(from_path, to_path, output_path, part):
             num_samples_json.update(each_dict)
 
     json_str = json.dumps(num_samples_json)
-    with open(os.path.join(output_path, f'check_num_samples_part{part}.json'), 'w') as json_file:
+    with open(os.path.join(output_path, f"check_num_samples_part{part}.json"), "w") as json_file:
         json_file.write(json_str)
     _logger.info(f"===finish writing the following check_num_samples_part{part}.json===")
     _logger.info(num_samples_json)

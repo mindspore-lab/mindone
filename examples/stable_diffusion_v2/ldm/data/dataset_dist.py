@@ -1,14 +1,15 @@
 import json as js
-import pdb
-import numpy as np
-from .sync_data import sync_data
 import os
+
+import numpy as np
+
+from .sync_data import sync_data
 
 
 def get_split(num_samples, num_devices, device_id, num_parts, max_tars):
     samples_per_device = num_samples.sum() // num_devices
-    print('full data samples of all part: ', num_samples.sum(), "split number: ", num_devices, "worker id", device_id)
-    print('avg data sample of per worker: ', samples_per_device)
+    print("full data samples of all part: ", num_samples.sum(), "split number: ", num_devices, "worker id", device_id)
+    print("avg data sample of per worker: ", samples_per_device)
 
     start_part_idx = -1
     start_tar_idx = -1
@@ -28,14 +29,14 @@ def get_split(num_samples, num_devices, device_id, num_parts, max_tars):
                 start_part_idx = j
                 start_tar_idx = k
                 start_sample_idx = start_global_sample_idx - p1
-                print('find start')
+                print("find start")
 
             if start_part_idx != -1:
                 if p1 <= end_global_sample_idx < p2:
                     end_part_idx = j
                     end_tar_idx = k
                     end_sample_idx = end_global_sample_idx - p1
-                    print('find end')
+                    print("find end")
 
             p1 = p2
     return (start_part_idx, start_tar_idx, start_sample_idx), (end_part_idx, end_tar_idx, end_sample_idx)
@@ -79,12 +80,58 @@ def calculate_split(num_devices, rank_id, json_data_path):
 
     print("Split result:\nStart: ", start_part_idx, start_tar_idx, start_sample_idx)
     print("End: ", end_part_idx, end_tar_idx, end_sample_idx)
-    print('tars to sync: ', tars_to_sync)
-    return start_part_idx, start_tar_idx, start_sample_idx, end_part_idx, end_tar_idx, end_sample_idx, tars_to_sync, mapping
+    print("tars to sync: ", tars_to_sync)
+    return (
+        start_part_idx,
+        start_tar_idx,
+        start_sample_idx,
+        end_part_idx,
+        end_tar_idx,
+        end_sample_idx,
+        tars_to_sync,
+        mapping,
+    )
+
+
+def split_and_sync_data(args, device_num, rank_id):
+    (
+        start_part_idx,
+        start_tar_idx,
+        start_sample_idx,
+        end_part_idx,
+        end_tar_idx,
+        end_sample_idx,
+        tars_to_sync,
+        mapping,
+    ) = calculate_split(args.num_workers, int(rank_id / 8), args.json_data_path)
+    download_tar(tars_to_sync, mapping, start_sample_idx, end_sample_idx, args.json_data_path)
+    var_info = [
+        "device_num",
+        "rank_id",
+        "start_part_idx",
+        "start_tar_idx",
+        "start_sample_idx",
+        "end_part_idx",
+        "end_tar_idx",
+        "end_sample_idx",
+        "tars_to_sync",
+    ]
+    var_value = [
+        device_num,
+        rank_id,
+        start_part_idx,
+        start_tar_idx,
+        start_sample_idx,
+        end_part_idx,
+        end_tar_idx,
+        end_sample_idx,
+        tars_to_sync,
+    ]
+    print(dict(zip(var_info, var_value)), flush=True)
 
 
 def download_tar(tars_to_sync, mapping, start_sample_idx, end_sample_idx, json_data_path):
-    '''
+    """
     mapping = {0: 1,
                1: 2,
                2: 3,
@@ -98,7 +145,7 @@ def download_tar(tars_to_sync, mapping, start_sample_idx, end_sample_idx, json_d
                10: 50,
                11: 52,
                12: 54}
-    '''
+    """
     src_list = []
     dst_list = []
     for part, tars in tars_to_sync.items():

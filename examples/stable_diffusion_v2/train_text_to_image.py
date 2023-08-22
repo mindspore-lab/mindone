@@ -8,7 +8,7 @@ import os
 import shutil
 
 from ldm.data.dataset import build_dataset
-from ldm.data.dataset_dist import calculate_split, download_tar
+from ldm.data.dataset_dist import split_and_sync_data
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -53,24 +53,12 @@ def init_env(args):
             gradients_mean=True,
             device_num=device_num,
         )
-        # download dataset
-        print("device_num", device_num, "rank_id", rank_id, "device_num / 8", int(device_num / 8), "rank_id / 8",
-              int(rank_id / 8), flush=True)
-        if args.enable_modelarts:
-            start_part_idx, start_tar_idx, start_sample_idx, end_part_idx, end_tar_idx, end_sample_idx, tars_to_sync, mapping = calculate_split(
-                args.num_workers, int(rank_id / 8), args.json_data_path)
-            download_tar(tars_to_sync, mapping, start_sample_idx, end_sample_idx, args.json_data_path)
-            print("device_num:", device_num,
-                  "rank_id:", rank_id,
-                  "start_part_idx:", start_part_idx,
-                  "start_tar_idx:", start_tar_idx,
-                  "start_sample_idx:", start_sample_idx,
-                  "end_part_idx:", end_part_idx,
-                  "end_tar_idx:", end_tar_idx,
-                  "end_sample_idx:", end_sample_idx,
-                  "tars_to_sync:", tars_to_sync,
-                  flush=True)
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        print(dict(zip(var_info, var_value)), flush=True)
 
+        if args.enable_modelarts:
+            split_and_sync_data(args, device_num, rank_id)
     else:
         device_num = 1
         device_id = int(os.getenv("DEVICE_ID", 0))
@@ -320,21 +308,20 @@ if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-    parser.add_argument("--replace_small_images",
-                        default=True,
-                        type=str2bool,
-                        help="replace the small-size images with other training samples")
-    parser.add_argument("--enable_modelarts",
-                        default=False,
-                        type=str2bool,
-                        help="run codes in ModelArts platform")
+    parser.add_argument(
+        "--replace_small_images",
+        default=True,
+        type=str2bool,
+        help="replace the small-size images with other training samples",
+    )
+    parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
     parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
     parser.add_argument(
         "--json_data_path",
         default="mindone/examples/stable_diffusion_v2/ldm/data/num_samples_64_part.json",
         type=str,
         help="the path of num_samples.json containing a dictionary with 64 parts. "
-             "Each part is a large dictionary containing counts of samples of 533 tar packages."
+        "Each part is a large dictionary containing counts of samples of 533 tar packages.",
     )
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
