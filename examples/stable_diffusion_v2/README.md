@@ -70,7 +70,7 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 | wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
 | wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
 
-> Resolution refers to the image resolution used in training. It is also the optimal choice for image generation. 
+> Resolution refers to the image resolution used in training. It is also the optimal choice for image generation.
 <!---
 </details>
 -->
