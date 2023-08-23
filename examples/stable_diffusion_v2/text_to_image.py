@@ -29,12 +29,12 @@ from utils.download import download_checkpoint
 logger = logging.getLogger("text_to_image")
 
 _version_cfg = {
-    "2.1": ("sd_v2-1_base-7c8d09ce.ckpt", "v2-inference.yaml"),
-    "2.1-v": ("sd_v2-1_768_v-061732d1.ckpt", "v2-vpred-inference.yaml"),
-    "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml"),
-    "2.0-v": ("sd_v2_768_v-e12e3a9b.ckpt", "v2-vpred-inference.yaml"),
-    "1.5": ("sd_v1.5-d0ab7146.ckpt", "v1-inference.yaml"),
-    "wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml"),
+    "2.1": ("sd_v2-1_base-7c8d09ce.ckpt", "v2-inference.yaml", 512),
+    "2.1-v": ("sd_v2-1_768_v-061732d1.ckpt", "v2-vpred-inference.yaml", 768),
+    "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml", 512),
+    "2.0-v": ("sd_v2_768_v-e12e3a9b.ckpt", "v2-vpred-inference.yaml", 768),
+    "1.5": ("sd_v1.5-d0ab7146.ckpt", "v1-inference.yaml", 512),
+    "wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
@@ -199,8 +199,6 @@ def main(args):
             "dpm_solver",
             "dpm_solver_pp",
         ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
-    if "-v" in args.version and (args.H != 768 or args.W != 768):
-        logger.warning("The optimal H, W is 768 for sd2.0-v and sd2.1-v.")
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -453,7 +451,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # overwrite env var by parsed arg
+    # check args
     if args.version:
         os.environ["SD_VERSION"] = args.version
         if args.version not in _version_cfg:
@@ -461,6 +459,10 @@ if __name__ == "__main__":
     if args.ckpt_path is None:
         ckpt_name = _version_cfg[args.version][0]
         args.ckpt_path = "models/" + ckpt_name
+
+        desire_size = _version_cfg[args.version][2]
+        if args.H != desire_size or args.W != desire_size):
+            logger.warning(f"The optimal H, W is {desire_size} for SD {args.version}. But got {args.H}, {args.W}.")
 
         # download if not exists or not complete
         ckpt_incomplete = False
