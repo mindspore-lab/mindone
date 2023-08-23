@@ -12,56 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-"""
-Utils function for the parallel training.
-This is an experimental interface that is subject to change and/or deletion.
-"""
+"""Learning Rate Scheduler Factory"""
 import logging
-
-import numpy as np
-
-import mindspore.common.dtype as mstype
-from mindspore import ops
-from mindspore.common.tensor import Tensor
-from mindspore.nn.learning_rate_schedule import CosineDecayLR, LearningRateSchedule, PolynomialDecayLR, WarmUpLR
 
 from .dynamic_lr import cosine_decay_refined_lr, linear_refined_lr, multi_step_lr, polynomial_refined_lr
 
 _logger = logging.getLogger(__name__)
-
-
-class LearningRate(LearningRateSchedule):
-    """
-    Learning_rate sheduler
-    """
-
-    def __init__(self, start_learning_rate, end_learning_rate, warmup_steps, decay_steps, power=0.9, use_cosine=True):
-        super(LearningRate, self).__init__()
-        self.warmup_flag = False
-        if warmup_steps > 0:
-            self.warmup_flag = True
-            self.warmup_lr = WarmUpLR(start_learning_rate, warmup_steps)
-        self.decay_lr = PolynomialDecayLR(start_learning_rate, end_learning_rate, decay_steps, power)
-        self.cosine_decay_lr = CosineDecayLR(end_learning_rate, start_learning_rate, decay_steps)
-        self.warmup_steps = Tensor(np.array([warmup_steps]).astype(np.float32))
-        self.greater = ops.Greater()
-        self.one = Tensor(np.array([1.0]).astype(np.float32))
-        self.cast = ops.Cast()
-        self.use_cosine = use_cosine
-
-    def construct(self, global_step):
-        """Learning_rate sheduler construct"""
-        if not self.use_cosine:
-            decay_lr = self.decay_lr(global_step - self.warmup_steps)
-        else:
-            decay_lr = self.cosine_decay_lr(global_step - self.warmup_steps)
-        if self.warmup_flag:
-            is_warmup = self.cast(self.greater(self.warmup_steps, global_step), mstype.float32)
-            warmup_lr = self.warmup_lr(global_step)
-            lr = (self.one - is_warmup) * decay_lr + is_warmup * warmup_lr
-        else:
-            lr = decay_lr
-        return lr
 
 
 def create_scheduler(
