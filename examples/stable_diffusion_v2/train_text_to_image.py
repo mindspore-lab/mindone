@@ -13,7 +13,7 @@ from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
-from ldm.modules.train.learningrate import LearningRate
+from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import parse_with_config, set_random_seed
@@ -171,9 +171,8 @@ def main(args):
             len(latent_diffusion_with_loss.trainable_params())
         )
         # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
-
+    dataset_size = dataset.get_dataset_size()
     if not args.decay_steps:
-        dataset_size = dataset.get_dataset_size()
         args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
         if args.decay_steps <= 0:
             logger.warning(
@@ -181,7 +180,14 @@ def main(args):
                 f"Will force decay_steps to be set to 1."
             )
             args.decay_steps = 1
-    lr = LearningRate(args.start_learning_rate, args.end_learning_rate, args.warmup_steps, args.decay_steps)
+    lr = create_scheduler(
+        steps_per_epoch=dataset_size,
+        scheduler=args.scheduler,
+        lr=args.start_learning_rate,
+        min_lr=args.end_learning_rate,
+        warmup_steps=args.warmup_steps,
+        decay_steps=args.decay_steps,
+    )
     optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
 
     loss_scaler = DynamicLossScaleUpdateCell(
@@ -326,6 +332,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
+    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
     parser.add_argument("--epochs", default=10, type=int, help="epochs")
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
