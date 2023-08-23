@@ -461,8 +461,8 @@ if __name__ == "__main__":
         args.ckpt_path = "models/" + ckpt_name
 
         desire_size = _version_cfg[args.version][2]
-        if args.H != desire_size or args.W != desire_size):
-            logger.warning(f"The optimal H, W is {desire_size} for SD {args.version}. But got {args.H}, {args.W}.")
+        if args.H != desire_size or args.W != desire_size:
+            logger.warning(f"The optimal H, W for SD {args.version} is ({desire_size}, {desire_size}) . But got ({args.H}, {args.W}).")
 
         # download if not exists or not complete
         ckpt_incomplete = False
