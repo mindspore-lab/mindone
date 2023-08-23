@@ -212,6 +212,7 @@ def parse_args():
     parser.add_argument(
         "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
     )
+    parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument(
         "--log_level",
         type=str,
@@ -449,6 +450,7 @@ def main(args):
                 f"LoRA rank: {args.lora_rank}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
+                f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
                 f"Grad clipping: {args.clip_grad}",

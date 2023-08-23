@@ -45,7 +45,7 @@ class PerfRecorder(object):
             elif m is None:
                 line += "NA"
             else:
-                line += f"{m:.6}"
+                line += f"{m:.10}"
 
             if i < len(measures) - 1:
                 line += f"{sep}"

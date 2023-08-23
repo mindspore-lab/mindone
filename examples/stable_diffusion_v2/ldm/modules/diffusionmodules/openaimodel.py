@@ -313,6 +313,7 @@ class UNetModel(nn.Cell):
         n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
         legacy=True,
         use_linear_in_transformer=False,
+        enable_flash_attention=False,
     ):
         super().__init__()
 
@@ -426,6 +427,7 @@ class UNetModel(nn.Cell):
                             dtype=self.dtype,
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
+                            enable_flash_attention=enable_flash_attention,
                         )
                     )
                 self.input_blocks.append(layers)
@@ -499,6 +501,7 @@ class UNetModel(nn.Cell):
                     dtype=self.dtype,
                     dropout=self.dropout,
                     use_linear=use_linear_in_transformer,
+                    enable_flash_attention=enable_flash_attention,
                 ),
                 ResBlock(
                     ch,
@@ -560,6 +563,7 @@ class UNetModel(nn.Cell):
                             dtype=self.dtype,
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
+                            enable_flash_attention=enable_flash_attention,
                         )
                     )
                 if level and i == num_res_blocks:

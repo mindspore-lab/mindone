@@ -3,7 +3,7 @@ max-line-length = 160
 extend-exclude =
     docs/*,
     setup.py
-extend-ignore = E203
+extend-ignore = E203,E731
 per-file-ignores =
     */__init__.py:F401,F403
     examples/*,tests/*:E402

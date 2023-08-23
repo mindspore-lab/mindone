@@ -60,7 +60,8 @@ class EvalSaveCallback(Callback):
                 k=ckpt_max_keep,
             )
             if self.start_epoch == 0 and self.start_step == 0:
-                perf_columns = ["step", "loss", "train_time(s)"]
+                perf_columns = ["step", "loss", "lr", "train_time(s)"]
+
                 self.rec = PerfRecorder(self.ckpt_save_dir, metric_names=perf_columns)
             else:
                 self.rec = PerfRecorder(self.ckpt_save_dir, resume=True)
@@ -139,8 +140,10 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_after_eval()
 
             if cur_step % self.log_interval == 0 or cur_step == step_num:
+                cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
+
                 train_time = time.time() - self.step_start_time
-                step_pref_value = [cur_step, loss, train_time]
+                step_pref_value = [cur_step, loss, cur_lr, train_time]
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
@@ -202,3 +205,19 @@ class EvalSaveCallback(Callback):
                 log_str = f"Top K checkpoints:\n{self.main_indicator}\tcheckpoint\n"
                 for p, ckpt_name in self.ckpt_manager.get_ckpt_queue():
                     log_str += f"{p:.4f}\t{os.path.join(self.ckpt_save_dir, ckpt_name)}\n"
+
+    def _get_optimizer_from_cbp(self, cb_params):
+        if cb_params.optimizer is not None:
+            optimizer = cb_params.optimizer
+        elif cb_params.dataset_sink_mode:
+            optimizer = cb_params.train_network.network.optimizer
+        else:
+            optimizer = cb_params.train_network.optimizer
+        return optimizer
+
+    def _fetch_optimizer_lr(self, cb_params):
+        opt = self._get_optimizer_from_cbp(cb_params)
+        lr = opt.learning_rate
+        if opt.dynamic_lr:
+            lr = opt.learning_rate(opt.global_step - 1)[0]
+        return lr
