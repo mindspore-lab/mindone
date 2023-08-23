@@ -185,7 +185,6 @@ class DownLoad:
             os.remove(archive)
 
 
-def download_checkpoint(ckpt_url, save_dir='models/'): 
-    _url_prefix = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
+def download_checkpoint(ckpt_url, save_dir="models/"):
     file_path = DownLoad().download_url(ckpt_url, path=save_dir)
     return file_path

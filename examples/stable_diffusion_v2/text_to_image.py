@@ -29,13 +29,13 @@ from utils.download import download_checkpoint
 logger = logging.getLogger("text_to_image")
 
 _version_cfg = {
-        "2.1": ("sd_v2-1_base-7c8d09ce.ckpt", "v2-inference.yaml"),
-        "2.1-v": ("sd_v2-1_768_v-061732d1.ckpt", "v2-vpred-inference.yaml"),
-        "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml"),
-        "2.0-v": ("sd_v2_768_v-e12e3a9b.ckpt", "v2-vpred-inference.yaml"),
-        "1.5": ("sd_v1.5-d0ab7146.ckpt", "v1-inference.yaml"),
-        "wukong" : ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml"),
-        }
+    "2.1": ("sd_v2-1_base-7c8d09ce.ckpt", "v2-inference.yaml"),
+    "2.1-v": ("sd_v2-1_768_v-061732d1.ckpt", "v2-vpred-inference.yaml"),
+    "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml"),
+    "2.0-v": ("sd_v2_768_v-e12e3a9b.ckpt", "v2-vpred-inference.yaml"),
+    "1.5": ("sd_v1.5-d0ab7146.ckpt", "v1-inference.yaml"),
+    "wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml"),
+}
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
 
@@ -194,10 +194,13 @@ def main(args):
     else:
         sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
         sname = "dpm_solver_pp"
-    if prediction_type=='v':
-        assert sname in ['dpm_solver', 'dpm_solver_pp'], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
-    if '-v' in args.version and (args.H != 768 or args.W != 768):
-        logger.warning(f"The optimal H, W is 768 for sd2.0-v and sd2.1-v.")
+    if prediction_type == "v":
+        assert sname in [
+            "dpm_solver",
+            "dpm_solver_pp",
+        ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
+    if "-v" in args.version and (args.H != 768 or args.W != 768):
+        logger.warning("The optimal H, W is 768 for sd2.0-v and sd2.1-v.")
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -464,10 +467,12 @@ if __name__ == "__main__":
         if os.path.exists(args.ckpt_path):
             if os.path.getsize(args.ckpt_path) < _MIN_CKPT_SIZE:
                 ckpt_incomplete = True
-                print(f"WARNING: The checkpoint size is too small {args.ckpt_path}. Please check and remove it if it is incomplete!")
+                print(
+                    f"WARNING: The checkpoint size is too small {args.ckpt_path}. Please check and remove it if it is incomplete!"
+                )
         if not os.path.exists(args.ckpt_path):
-            print(f"Start downloading checkpoint {ckpt_name} ...") 
-            download_checkpoint(_URL_PREFIX + "/" + ckpt_name, "models/") 
+            print(f"Start downloading checkpoint {ckpt_name} ...")
+            download_checkpoint(_URL_PREFIX + "/" + ckpt_name, "models/")
     if args.config is None:
         args.config = "configs/" + _version_cfg[args.version][1]
 

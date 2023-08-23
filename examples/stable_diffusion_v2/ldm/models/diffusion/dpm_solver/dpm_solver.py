@@ -16,10 +16,10 @@ import logging
 import math
 
 from ldm.util import is_old_ms_version
+from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import ops
-from tqdm import tqdm
 
 _logger = logging.getLogger(__name__)
 
