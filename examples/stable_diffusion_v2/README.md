@@ -61,13 +61,16 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 
 | **Version name** |**Task** |  **MindSpore Checkpoint**  | **Ref. Official Model** | **Resolution**|
 |-----------------|---------------|---------------|------------|--------|
+| 2.1      | text-to-image | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt) |  [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base) | 512x512 |
+| 2.1-v      | text-to-image | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt) |  [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1) | 768x768 |
 | 2.0            | text-to-image | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) |  [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base) | 512x512 |
-| 2.0-v768      | text-to-image | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | 768x768 |
+| 2.0-v      | text-to-image | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | 768x768 |
 | 2.0-inpaint      | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt) | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512|
 | 1.5       | text-to-image | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5) | 512x512 |
 | wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
 | wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
 
+> Resolution refers to the image resolution used in training. Although it is also the default choice for generation. you can still change the target height or width to generate images of various shape (H and W must be divisable by 64) 
 <!---
 </details>
 -->
@@ -144,7 +147,7 @@ Now the masked region is smoothly replaced with the instructed content.
 <em> Text-guided image inpainting. From left to right: input image, mask, generated images. </em>
 </p>
 
-By setting empty prompt (`--prompt=""`), the masked part can be auto-filled to fix the context as follows.
+By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to fit the context and background.
 <div align="center">
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/21158de6-b9ec-4538-83cf-2a3bbea649e7" width="960"
  />
@@ -204,7 +207,7 @@ To make the text encoder also trainable, please set `cond_stage_trainable: True`
 
 ### v-prediction Finetuning
 
-The default objective used in SD training is to minimize the noise prediction error (noise-prediction). To alter the objective to v-prediction, which is used in SD 2.0-v training, please refer to [v-prediction.md](v-prediction.md)
+The default objective used in SD training is to minimize the noise prediction error (noise-prediction). To alter the objective to v-prediction, which is used in SD 2.0-v training, please refer to [v-prediction.md](v_prediction.md)
 
 ### Chinese Prompt Adaptation
 

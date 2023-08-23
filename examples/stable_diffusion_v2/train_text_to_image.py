@@ -318,7 +318,7 @@ if __name__ == "__main__":
     parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
 
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
-    parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
+    parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")

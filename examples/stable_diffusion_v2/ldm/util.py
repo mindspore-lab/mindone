@@ -121,3 +121,5 @@ def load_pretrained_model(pretrained_ckpt, net):
         _logger.info("Params not load: {}".format(param_not_load))
     else:
         _logger.warning("Checkpoint file not exists!!!")
+
+

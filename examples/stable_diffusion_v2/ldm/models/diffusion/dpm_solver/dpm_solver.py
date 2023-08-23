@@ -19,6 +19,7 @@ from ldm.util import is_old_ms_version
 
 import mindspore as ms
 from mindspore import ops
+from tqdm import tqdm
 
 _logger = logging.getLogger(__name__)
 
@@ -1391,7 +1392,7 @@ class DPM_Solver:
                 t_prev_list.append(t)
                 model_prev_list.append(self.model_fn(x, t))
             # Compute the remaining values by `order`-th order multistep DPM-Solver.
-            for step in range(order, steps + 1):
+            for step in tqdm(range(order, steps + 1)):
                 t = timesteps[step]
                 # We only use lower order for steps < 10
                 if lower_order_final and steps < 10:
@@ -1423,7 +1424,7 @@ class DPM_Solver:
                     order,
                 ] * K
                 timesteps_outer = self.get_time_steps(skip_type=skip_type, t_T=t_T, t_0=t_0, N=K)
-            for step, order in enumerate(orders):
+            for step, order in tqdm(enumerate(orders)):
                 s, t = timesteps_outer[step], timesteps_outer[step + 1]
                 timesteps_inner = self.get_time_steps(skip_type=skip_type, t_T=s.item(), t_0=t.item(), N=order)
                 lambda_inner = self.noise_schedule.marginal_lambda(timesteps_inner)
