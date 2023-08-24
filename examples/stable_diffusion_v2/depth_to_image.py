@@ -45,7 +45,7 @@ logger = logging.getLogger("depth_to_image")
 
 
 def get_depth_estimator(
-    model_type="midas_v3_dpt_large_384", estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large_ms.ckpt"
+    model_type="midas_v3_dpt_large_384", estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt"
 ):
     if model_type == "midas_v3_dpt_large_384":
         depth_model = midas_v3(pretrained=True, ckpt_path=estimator_ckpt_path)
@@ -493,7 +493,7 @@ if __name__ == "__main__":
     if args.version:
         os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
-        args.ckpt_path = "models/sd_v2_depth.ckpt"
+        args.ckpt_path = "models/sd_v2_depth-186e18a0.ckpt"
     if args.config is None:
         args.config = "configs/v2-depth-inference.yaml"
 
