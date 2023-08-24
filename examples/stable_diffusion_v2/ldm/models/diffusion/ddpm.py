@@ -422,6 +422,8 @@ class DiffusionWrapper(nn.Cell):
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context)
         elif self.conditioning_key == "hybrid":
+            #print("D--: latent code shape: ", x.shape)
+            #print("D--: c_conat shape: ", c_concat.shape)
             x_concat = ops.concat((x, c_concat), axis=1)
             context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context)
@@ -641,4 +643,15 @@ class LatentInpaintDiffusion(LatentDiffusion):
         super().__init__(*args, **kwargs)
         self.masked_image_key = masked_image_key
         assert self.masked_image_key in concat_keys
+        self.concat_keys = concat_keys
+
+class LatentDepthDiffusion(LatentDiffusion):
+    def __init__(
+        self,
+        concat_keys=("depth"),
+        finetune_keys=None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
         self.concat_keys = concat_keys

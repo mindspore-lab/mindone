@@ -604,6 +604,9 @@ class UNetModel(nn.Cell):
             )
         self.cat = ops.Concat(axis=1)
 
+        #print("D--: UNet input blocks: ", self.input_blocks)
+        #print("D--: UNet output blocks: ", self.output_blocks)
+
     def construct(self, x, timesteps=None, context=None, y=None):
         """
         Apply the model to an input batch.
@@ -613,7 +616,7 @@ class UNetModel(nn.Cell):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-
+        #print("D-- 0: ", x.shape, timesteps.shape, context.shape)
         assert (y is not None) == (
             self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"
@@ -636,6 +639,7 @@ class UNetModel(nn.Cell):
 
         hs_index = -1
         for celllist in self.output_blocks:
+            #print("D--: 1: ", h.shape, hs_index, hs[hs_index].shape)
             h = self.cat((h, hs[hs_index]))
             for cell in celllist:
                 h = cell(h, emb, context)

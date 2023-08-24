@@ -1,0 +1,73 @@
+model:
+  target: ldm.models.diffusion.ddpm.LatentDepthDiffusion
+  prediction_type: "noise" # Note: set to "v" if trained with v objective
+  params:
+    linear_start: 0.00085
+    linear_end: 0.0120
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    first_stage_key: "image" # not used
+    cond_stage_key: "caption" # not used
+    image_size: 64
+    channels: 4
+    cond_stage_trainable: false   # freeze text encoder
+    conditioning_key: hybrid   #  c_concat, c_crossattn
+    monitor: val/loss_simple_ema
+    scale_factor: 0.18215
+    finetune_keys: null
+    use_ema: false
+    use_fp16: True
+
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 64 # unused
+        in_channels: 5  # 4 latent input noise + 1 (latent) depth image
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions: [ 4, 2, 1 ]
+        num_res_blocks: 2
+        channel_mult: [ 1, 2, 4, 4 ]
+        num_head_channels: 64       # diff btw sd2 and 1.x
+        use_spatial_transformer: True
+        use_linear_in_transformer: True # diff btw sd2 and 1.x
+        transformer_depth: 1
+        context_dim: 1024  # diff btw sd2 and 1.x
+        use_checkpoint: True
+        legacy: False
+        use_fp16: True
+
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        embed_dim: 4
+        monitor: val/rec_loss
+        use_fp16: True
+        ddconfig:
+          double_z: true
+          z_channels: 4
+          resolution: 512 # TODO: why some are 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult:
+          - 1
+          - 2
+          - 4
+          - 4
+          num_res_blocks: 2
+          attn_resolutions: []
+          dropout: 0.0
+
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
+      params:
+        use_fp16: True
+        tokenizer_name: "BpeTokenizer" # diff btw chinese and english version
+        context_length: 77
+        vocab_size: 49408
+        output_dim: 1024 # diff btw sd 2.0 and sd 1.x
+        width: 1024 # diff
+        layers: 23 # diff
+        heads: 16 # diff

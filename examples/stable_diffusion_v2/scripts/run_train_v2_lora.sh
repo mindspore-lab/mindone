@@ -3,12 +3,11 @@ export HCCL_CONNECT_TIMEOUT=600
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-device_id=1
+device_id=6
 
 # modify to your local data path
-#data_path=./datasets/pokemon_blip/train
-data_path=/home/yx/datasets/diffusion/pokemon
-output_path=output/lora_pokemon
+data_path=./datasets/pokemon_blip/train
+output_path=output/lora_pokemon_rank4_wd1e-2
 
 task_name=txt2img
 pretrained_model_path=models/
@@ -17,7 +16,7 @@ train_config_file=configs/train_config_v2.json
 image_filter_size=200
 image_size=512
 train_batch_size=4
-lora_rank=128
+lora_rank=4
 start_learning_rate=1e-4
 end_learning_rate=0
 warmup_steps=0
