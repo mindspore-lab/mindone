@@ -153,7 +153,7 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
  />
 </div>
 <p align="center">
-<em> Image inpainting. (From left to right: input image, mask, generated images) </em>
+<em> Image inpainting. From left to right: input image, mask, generated images </em>
 </p>
 
 ### Text-guided Image-to-Image
@@ -325,6 +325,9 @@ Please refer to [Evaluation for Diffusion Models](eval/README.md)
 
 - - -
 ## What's New
+- 2023.08.24
+  - Add Stable Diffusion v2.1 and v2.1-v (768)
+  - Support checkpoint auto-download
 - 2023.08.17
   - Add Stable Diffusion v1.5
   - Add Dreambooth finetuning
