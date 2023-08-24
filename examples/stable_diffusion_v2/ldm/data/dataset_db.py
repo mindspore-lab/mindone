@@ -128,7 +128,10 @@ def filter_small_image(all_images, all_captions, image_filter_size):
     filted_images = []
     filted_captions = []
     for image, caption in zip(all_images, all_captions):
-        w, h = imagesize.get(image)
+        try:
+            w, h = imagesize.get(image)
+        except ValueError:
+            continue
         if min(w, h) < image_filter_size:
             continue
         else:
