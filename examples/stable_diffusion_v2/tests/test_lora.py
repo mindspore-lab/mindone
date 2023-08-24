@@ -1,11 +1,9 @@
 import numpy as np
 from ldm.modules.attention import BasicTransformerBlock
-from ldm.modules.lora import inject_trainable_lora
+from ldm.modules.lora import LoRADenseLayer, inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 
 import mindspore as ms
-
-from examples.stable_diffusion_v2.ldm.modules.lora import LoRADenseLayer
 
 set_random_seed(42)
 

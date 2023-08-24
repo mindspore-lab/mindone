@@ -7,23 +7,25 @@
     "gradient_accumulation_steps": 1,
     "optim": "adamw",
     "patch_size":32,
-    "epochs": 20,
+    "epochs": 1,
     "betas": [
         0.9,
         0.98
     ],
     "dropout": 0.1,
     "weight_decay": 0.01,
-    "warmup_steps": 1000,
+    "warmup_steps": 10000,
     "seed": 3407,
     "image_size": 512,
     "image_filter_size": 256,
     "random_crop": false,
     "filter_small_size": true,
+    "scheduler": "constant",
     "start_learning_rate": 1e-5,
-    "end_learning_rate": 1e-7,
+    "end_learning_rate": 1e-5,
     "decay_steps": 0,
     "use_ema": true,
+    "ema_start": 800000,
     "clip_grad": false,
     "max_grad_norm": 1.0
 }
