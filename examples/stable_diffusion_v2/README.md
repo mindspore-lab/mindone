@@ -90,12 +90,12 @@ To generate images by providing a text prompt, please download [sd_v2_base-57526
 # Text to image generation with SD-2.0-base
 python text_to_image.py --prompt "elven forest"
 ```
-> The default version of SD model used is 2.0. It is easy to switch to another SD version by setting the `-v` argument according to the version names defined in [pretrained weights](#pretrained-weights) and downloading the target checkpoint.
+> The default version of SD model used is 2.1. It is easy to change the model version by setting the `-v` argument according to the version names defined in [pretrained weights](#pretrained-weights).
 
-For example, you may switch to sd 2.0 v768 to generate images in 768x768 resolution by
+For example, to use SD 2.1-v for generating images of 768x768 resolution, please run
 ```shell
-# Text to image generation with SD-2.0-v768
-python text_to_image.py --prompt "elven forest" -v 2.0_v768
+# Text to image generation with SD 2.1-v
+python text_to_image.py --prompt "elven forest" -v 2.1-v --H 768 --W 768
 ```
 
 For more argument usages, please run `python text_to_image.py -h`.
