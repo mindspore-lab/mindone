@@ -188,7 +188,7 @@ Download the [two-cat image]("http://images.cocodataset.org/val2017/000000039769
 python depth_to_image.py --prompt "two tigers" --image 000000039769.jpg
 ```
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa6f6d84-7b9f-4050-87c8-23f74562212f" width="960"
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa6f6d84-7b9f-4050-87c8-23f74562212f" width="1024"
  />
 </div>
 <p align="center">
