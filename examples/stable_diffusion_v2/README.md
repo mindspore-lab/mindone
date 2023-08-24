@@ -182,7 +182,7 @@ python depth_to_image.py --prompt {text prompt} --depth_map {path to depth map}
 
 Example:
 
-Download the [two-cat image]("http://images.cocodataset.org/val2017/000000039769.jpg") and save it in the current folder. Then execute
+Download the [two-cat image](http://images.cocodataset.org/val2017/000000039769.jpg) and save it in the current folder. Then execute
 
 ```python
 python depth_to_image.py --prompt "two tigers" --image 000000039769.jpg
