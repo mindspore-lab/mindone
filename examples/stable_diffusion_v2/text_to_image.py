@@ -478,7 +478,7 @@ if __name__ == "__main__":
             print(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
     if args.config is None:
-        args.config = os.path.join("configs/",  _version_cfg[args.version][1])
+        args.config = os.path.join("configs",  _version_cfg[args.version][1])
 
     if args.scale is None:
         args.scale = 9.0 if args.version.startswith("2.") else 7.5
