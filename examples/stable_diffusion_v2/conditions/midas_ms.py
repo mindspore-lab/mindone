@@ -25,7 +25,7 @@ class SelfAttention(nn.Cell):
         self.proj = nn.Dense(dim, dim)
 
     def construct(self, x):
-        b, l, c = x.shape 
+        b, l, c = x.shape
         n, d = self.num_heads, self.head_dim
 
         # compute query, key, value
@@ -224,7 +224,10 @@ class MiDaS(nn.Cell):
 
         # blocks
         stride = num_layers // 4
-        self.blocks = [nn.SequentialCell([AttentionBlock(dim, num_heads) for _ in range(i * stride, (i + 1) * stride)]) for i in range(4)]
+        self.blocks = [
+            nn.SequentialCell([AttentionBlock(dim, num_heads) for _ in range(i * stride, (i + 1) * stride)])
+            for i in range(4)
+        ]
         self.blocks = nn.CellList(self.blocks)
 
         # stage1 (4x)

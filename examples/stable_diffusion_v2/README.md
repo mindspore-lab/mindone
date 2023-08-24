@@ -164,20 +164,20 @@ Coming soon
 
 ### Text-guided Depth-to-Image
 
-This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt. If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model) and generate new images conditioning on the image depth, the image, and the text prompt. 
+This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt. If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model) and generate new images conditioning on the image depth, the image, and the text prompt.
 
-It is easy to run with the `depth_to_image.py` script. 
+It is easy to run with the `depth_to_image.py` script.
 ```python
-# depth to image conditioning on an input image and text prompt 
-python depth_to_image.py --prompt {text prompt} \ 
-    --image {path to initial image} \ 
+# depth to image conditioning on an input image and text prompt
+python depth_to_image.py --prompt {text prompt} \
+    --image {path to initial image} \
     --strength 0.7
 ```
-> `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserve more content of input image. 1 - ignore the initial image and only condition on the depth and text prompt. 
+> `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserve more content of input image. 1 - ignore the initial image and only condition on the depth and text prompt.
 
 ```python
-# depth to image given a depth image and text prompt 
-python depth_to_image.py --prompt {text prompt} --depth_map {path to depth map} 
+# depth to image given a depth image and text prompt
+python depth_to_image.py --prompt {text prompt} --depth_map {path to depth map}
 ```
 
 Example:
@@ -187,7 +187,6 @@ Download the [two-cat image]("http://images.cocodataset.org/val2017/000000039769
 ```python
 python depth_to_image.py --prompt "two tigers" --image 000000039769.jpg
 ```
-![2023_24_Aug_16_55_36_two_tigers_strg0 8](https://github.com/SamitHuang/mindone/assets/8156835/fa6f6d84-7b9f-4050-87c8-23f74562212f)
 <div align="center">
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/fa6f6d84-7b9f-4050-87c8-23f74562212f" width="960"
  />
