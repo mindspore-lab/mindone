@@ -29,7 +29,7 @@ use_ema=True
 clip_grad=False # TODO: confirm
 max_grad_norm=1.
 
-image_filter_size= 200 # reduce this value if your image size is smaller than 200
+image_filter_size=200 # reduce this value if your image size is smaller than 200
 image_size=512
 
 # ascend config
