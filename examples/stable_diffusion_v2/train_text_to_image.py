@@ -194,6 +194,7 @@ def main(args):
         min_lr=args.end_learning_rate,
         warmup_steps=args.warmup_steps,
         decay_steps=args.decay_steps,
+        num_epochs=args.epochs,
     )
     optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
 
