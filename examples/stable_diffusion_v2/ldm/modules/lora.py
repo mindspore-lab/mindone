@@ -163,7 +163,6 @@ def inject_trainable_lora_to_textencoder(
         #  instead of using fixed list, pick target dense layer by name string then replace it for better extension.
         if verbose:
             print("Replacing target dense layers with the created lora layers.")
-        print("D---: num tar layers: ", len(new_lora_dense_layers))
         subcell.in_proj = new_lora_dense_layers[0]
         subcell.out_proj = new_lora_dense_layers[1]
 

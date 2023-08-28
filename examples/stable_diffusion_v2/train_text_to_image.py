@@ -10,7 +10,7 @@ import shutil
 from ldm.data.dataset import build_dataset
 from ldm.data.dataset_dist import split_and_sync_data
 from ldm.modules.logger import set_logger
-from ldm.modules.lora import inject_trainable_lora
+from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
@@ -170,20 +170,17 @@ def main(args):
             rank=args.lora_rank,
             use_fp16=args.lora_fp16,
         )
-        num_injected_parmas = len(unet_lora_params)
+        num_injected_params = len(unet_lora_params)
         if args.train_text_encoder:
             text_encoder_lora_layers, text_encoder_lora_params = inject_trainable_lora_to_textencoder(
                 latent_diffusion_with_loss,
                 rank=args.lora_rank,
                 use_fp16=args.lora_fp16,
             )
-            num_injected_parmas = len(text_encoder_lora_params)
+            num_injected_params += len(text_encoder_lora_params)
 
         # TODO: support lora inject to text encoder (remove .model)
-        assert len(latent_diffusion_with_loss.trainable_params()) == len(
-            num_injected_params
-        ), "Only lora params should be trainable. but got {} trainable params".format(
-            len(latent_diffusion_with_loss.trainable_params())
+        assert len(latent_diffusion_with_loss.trainable_params()) == num_injected_params, "Only lora params {} should be trainable. but got {} trainable params".format(num_injected_params, len(latent_diffusion_with_loss.trainable_params())
         )
         # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
     dataset_size = dataset.get_dataset_size()

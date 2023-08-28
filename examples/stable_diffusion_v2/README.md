@@ -320,7 +320,7 @@ For detailed usage of the schedulers/samplers, please refer to [Diffusion Proces
 
 # Evaluation
 
-Please refer to [Evaluation for Diffusion Models](eval/README.md)
+Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
 
 
 - - -
