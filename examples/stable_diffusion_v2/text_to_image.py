@@ -34,7 +34,7 @@ _version_cfg = {
     "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml", 512),
     "2.0-v": ("sd_v2_768_v-e12e3a9b.ckpt", "v2-vpred-inference.yaml", 768),
     "1.5": ("sd_v1.5-d0ab7146.ckpt", "v1-inference.yaml", 512),
-    "wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
+    "1.5-wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9

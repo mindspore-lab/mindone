@@ -1,9 +1,11 @@
 import numpy as np
 from ldm.modules.attention import BasicTransformerBlock
+from ldm.modules.encoders.text_encoder import Transformer
 from ldm.modules.lora import LoRADenseLayer, inject_trainable_lora
 from ldm.modules.train.tools import set_random_seed
 
 import mindspore as ms
+from mindspore import ops
 
 set_random_seed(42)
 
@@ -22,6 +24,20 @@ class SimpleSubNet(ms.nn.Cell):
         out = self.logit(feat)
         return out
 
+class SimpleTextEnc(ms.nn.Cell):
+    def __init__(self, din=128, dtype=ms.float32):
+        super().__init__()
+        self.enc = Transformer(width=din, layers=2, heads=2, attn_mask=self.build_attention_mask(77), dtype=dtype)
+    
+    @staticmethod
+    def build_attention_mask(context_length):
+        mask = np.triu(np.full((context_length, context_length), -np.inf).astype(np.float32), 1)
+        return mask
+
+    def construct(self, x):
+        # x shape: (77, bs, dim)
+        feat = self.enc(x)
+        return feat
 
 class SimpleNet(ms.nn.Cell):
     def __init__(self, din=128, dh=128, dtype=ms.float32):
@@ -29,18 +45,32 @@ class SimpleNet(ms.nn.Cell):
         self.proj = ms.nn.Dense(din, din).to_float(dtype)
         self.encoder = SimpleSubNet(din, dh, dtype)
 
-    def construct(self, x):
-        x = self.proj(x)
+        self.text_enc = SimpleTextEnc(din=din, dtype=dtype)
 
-        return self.encoder(x)
+    def construct(self, x1, x2):
+        x1 = self.proj(x1)
+        y1 = self.encoder(x1)
 
+        y2 = self.text_enc(x2)
+        return ops.mean(y1) + ops.mean(y2)
 
-def gen_np_data(bs=1, nd=2, fd=128):
+def gen_text_data(bs=1, cl=77, fd=128):
+    x = np.zeros([bs, cl, fd])
+    for i in range(bs):
+        for j in range(cl):
+            x[i][j] = np.arange(0, fd, dtype=float) / fd / (j + 1)
+
+    x = np.transpose(x, (1,0,2))
+    return x
+
+def gen_data(bs=1, nd=2, fd=128, dtype=ms.float32):
     x = np.zeros([bs, nd, fd])
     for i in range(bs):
         for j in range(nd):
             x[i][j] = np.arange(0, fd, dtype=float) / fd / (j + 1)
-    return x
+
+    x_txt = gen_text_data(bs=bs, fd=fd)
+    return ms.Tensor(x, dtype=dtype), ms.Tensor(x_txt, dtype=dtype)
 
 
 def test_finetune_and_save():
@@ -51,6 +81,7 @@ def test_finetune_and_save():
     # rank = 4
 
     net = SimpleNet(dtype=dtype)
+
     # freeze network
     net.set_train(False)
     for name, param in net.parameters_and_names():
@@ -61,17 +92,17 @@ def test_finetune_and_save():
     ori_net_stat = {}
     ori_net_stat["num_params"] = len(list(net.get_parameters()))
     # test_data = ms.Tensor(np.random.rand(1, 2, 128), dtype=dtype)
-    test_data = ms.Tensor(gen_np_data(1, 2, 128), dtype=dtype)
+    test_data = gen_data(1, 2, 128, dtype=dtype)
     # test_data = ms.Tensor(np.ones([1, 2, 128])*0.05, dtype=dtype)
 
-    ori_net_output = net(test_data)
+    ori_net_output = net(*test_data)
 
     # inject lora layers
     injected_modules, injected_trainable_params = inject_trainable_lora(net, use_fp16=use_fp16)
 
     # 1. check forward result consistency
     # since lora_up.weight are init with all zero. h_lora is alwasy zero before finetuning.
-    net_output_after_lora_init = net(test_data)
+    net_output_after_lora_init = net(*test_data)
     print("Outupt after lora injection: ", net_output_after_lora_init.sum())
     print("Oringinal net output: ", ori_net_output.sum())
     assert (
@@ -155,8 +186,8 @@ def test_finetune_and_save():
         param_sum = param_sum + p.data.sum()
     print("Net param sum after ft: ", param_sum)
 
-    output_after_ft = net(test_data)
-    print("Input data: ", test_data.sum())
+    output_after_ft = net(*test_data)
+    #print("Input data: ", test_data.sum())
     print("Net outupt after lora ft: ", output_after_ft.sum())
     print(f"\t (Before ft: {net_output_after_lora_init.sum()})")
     # assert output_after_ft.sum()!=net_output_after_lora_init.sum()
@@ -254,8 +285,8 @@ def test_load_and_infer():
     # 1. test forward result consistency
     test_data = ms.Tensor(gen_np_data(1, 2, 128), dtype=dtype)
     # test_data = ms.ops.ones([1, 2, 128], dtype=dtype)*0.66
-    net_output = net(test_data)
-    print("Input data: ", test_data.sum())
+    net_output = net(*test_data)
+    #print("Input data: ", test_data.sum())
     print("Net forward output: ", net_output.sum())
 
 

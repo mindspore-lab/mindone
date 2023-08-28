@@ -338,6 +338,7 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
     parser.add_argument("--pretrained_model_file", default="", type=str, help="pretrained model file name")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
+    parser.add_argument("--train_text_encoder", default=False, type=str2bool, help="whether to finetune text encoder")
     parser.add_argument(
         "--lora_rank",
         default=4,
