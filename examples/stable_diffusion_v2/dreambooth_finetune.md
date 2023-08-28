@@ -3,7 +3,7 @@
 
 ## 1. Introduction
 
-DreamBooth is a parameter-efficient method used to fine-tune existing text-to-image models, developed by researchers from Google Research and Boston University in 2022. It allows the model to generate contextualized images of the subject, e.g., a cute puppy of yours, in different scenes, poses, and views. DreamBooth can be used to fine-tune models such as Stable Diffusion2.
+DreamBooth is a method used to fine-tune existing Text-to-Image models, developed by researchers from Google Research and Boston University in 2022. It allows the model to generate contextualized images of the subject, e.g., a cute puppy of yours, in different scenes, poses, and views. DreamBooth can be used to fine-tune models such as Stable Diffusion2.
 
 The following picture gives a high-level overview of the DreamBooth Method.
 
@@ -15,7 +15,7 @@ The following picture gives a high-level overview of the DreamBooth Method.
 </p>
 
 
-DreamBooth only requires a pretrained Text-to-Image model and a few (3-5) subject's images along with its name as a Unique Identifier. Unique Identifier prevents the Text-to-Image model from **language drift** [<a href="#references">2</a>]. Language Drift is a phenonomon that the model tends to associate the class name (e.g., "dog") with the specific instance (e.g., your dog). Because during finetuning, the model only sees the prompt "dog" and your dog's pictures, so that it gradually forgets other dogs' look. Therefore, we need a Unique Identifier ("sks") to differentiate your a dog ("sks dog") and a general dog ("dog").
+DreamBooth only requires a pretrained Text-to-Image model and a few images (3-5) of a subject (more images are needed for a complex object) along with its name as a Unique Identifier. Unique Identifier prevents the Text-to-Image model from **language drift** [<a href="#references">2</a>]. Language Drift is a phenonomon that the model tends to associate the class name (e.g., "dog") with the specific instance (e.g., your dog). Because during finetuning, the model only sees the prompt "dog" and your dog's pictures, so that it gradually forgets other dogs' look. Therefore, we need a Unique Identifier ("sks") to differentiate your dog ("sks dog") and a general dog ("dog").
 
 To do this, authors came up with a class-specific prior preservation loss:
 
@@ -30,7 +30,7 @@ $x$ is the image of your subject ("sks dog"), and $x_{pr}$ is the image from the
 
 
 **Notes**:
-- Unlike LoRA, Dreambooth is a method that updates all the weights of the text-to-image model. If needed, the text encoder can also be updated. We find that finetuning text encoder and the text-to-image model yields better performance than finetuning the text-to-image model alone.
+- Unlike LoRA, Dreambooth is a method that updates all the weights of the Latent Diffusion model. If needed, the text encoder of the CLIP model can also be updated. We find that finetuning text encoder and the Text-to-Image model yields better performance than finetuning the Text-to-Image model alone.
 
 ## 2. Get Started
 
@@ -151,20 +151,20 @@ python train_dreambooth.py \
     --pretrained_model_file=$pretrained_model_file \
     --image_size=$image_size \
     --train_batch_size=$train_batch_size \
-    --epochs=8 \
+    --epochs=4 \
     --start_learning_rate=2e-6 \
     --train_text_encoder=True \
     # --train_text_encoder=False \
 ```
 
-Using the command above, we will start standalone training (`use_parallel=False`) with a constant learning rate (`2e-6`) for 8 epochs (1600 steps).
+Using the command above, we will start standalone training (`use_parallel=False`) with a constant learning rate (`2e-6`) for 4 epochs (800 steps).
 
 The `num_class_images` in the arguments is 200 by default. It is the number of class images for prior preservation loss. If there are not enough images already present in `class_data_dir`, additional images will be sampled with `class_prompt`. We also resample the instance images by `train_data_repeats` times so that the numbers of class images and instance images are the same.
 
-The finetuning process takes about 30 minutes.
+The finetuning process takes about 20 minutes.
 
 **Notes**:
-> 1. Set `train_text_encoder` to `True` allows to finetune the stable diffusion model along with the CLIP text encoder. We recommend to set it to True, since it yields better performance than `train_text_encoder=False`.
+> 1. Setting `train_text_encoder` to `True` allows to finetune the stable diffusion model along with the CLIP text encoder. We recommend to set it to True, since it yields better performance than `train_text_encoder=False`.
 > 2. If `train_text_encoder` is set to `False` which saves some memory, we recommend you to change the `epochs` to 20 to achieve better performance.
 
 #### 2.2.4 Training Command for Vanilla Finetuning
@@ -185,7 +185,7 @@ python train_dreambooth.py \
     --pretrained_model_file=$pretrained_model_file \
     --image_size=$image_size \
     --train_batch_size=$train_batch_size \
-    --epochs=8 \
+    --epochs=4 \
     --start_learning_rate=2e-6 \
     --train_text_encoder=True \
     --with_prior_preservation=False \
@@ -193,35 +193,62 @@ python train_dreambooth.py \
 
 ### 2.3 Inference
 
-The inference command generates images on a given prompt (e.g., "a sks dog on the hill") and save them to a given output directory. An example command is as follows:
+The inference command generates images on a given prompt and save them to a given output directory. An example command is as follows:
 
 ```bash
 python text_to_image.py \
-    --prompt "a sks dog on the hill" \
+    --prompt "a sks dog swimming in a pool" \
     --output_path vis/output/dir \
     --config configs/train_dreambooth_sd_v2.yaml \
     --ckpt_path path/to/checkpoint/file
 ```
 
-You can also change the `prompt` to generate variant images with the subject. `path/to/checkpoint/file` specifies the checkpoint path after finetuing.
+We can also change the `prompt` to other options to generate variant images with this subject. `path/to/checkpoint/file` specifies the checkpoint path after finetuing.
 
-Here are some examples of generated images with the DreamBooth model using this prompt:
+Here are some examples of generated images with the DreamBooth model using the three different prompts:
+- "a sks dog swimming in a pool"
+- "a sks dog on the hill"
+- "a sks dog in Van Gogh painting style"
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/dreambooth_grid_epoch_8.png" width=650 />
-</p>
-<p align="center">
-  <em> Figure 3. The generated images of "a sks dog on the hill" with the DreamBooth model. </em>
-</p>
-
-Some generated images with the vanilla finetuned model using the same prompt are shown below:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/vanilla_ft_grid_epoch_8.png" width=650 />
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/dreambooth_sks_dog.png" width=650 />
 </p>
 <p align="center">
-  <em> Figure 4. The generated images of "a sks dog on the hill" with the vanilla finetuned model. </em>
+  <em> Figure 3. The generated images of the DreamBooth model using three different text prompts. </em>
 </p>
+
+Some generated images with the vanilla finetuned model are shown below:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/vanilla_ft_sks_dog.png" width=650 />
+</p>
+<p align="center">
+  <em> Figure 4. The generated images of the vanilla-finetuned model using three different text prompts. </em>
+</p>
+
+Figure 3. and Figure 4. look similar. However, when we use other prompts with the "dog" class name, for example, "a dog in swimming pool", the DreamBooth model preveres the various looks of different dogs, while the vanilla-finetuned model forgets many dogs' looks except for the "sks dog", which is known as the "language drift" phenonomon.
+
+
+Here are the three prompts we used with class name "dog":
+- "a dog swimming in a pool"
+- "a dog on the hill"
+- "a dog in Van Gogh painting style"
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/dreambooth_dog.png" width=650 />
+</p>
+<p align="center">
+  <em> Figure 5. The generated images of the DreamBooth model using three text prompts above. </em>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/vanilla_ft_dog.png" width=650 />
+</p>
+<p align="center">
+  <em> Figure 6. The generated images of the vanilla-finetuned model using three text prompts above. </em>
+</p>
+
 
 ### 2.4 Evaluation
 
