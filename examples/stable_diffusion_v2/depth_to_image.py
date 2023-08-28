@@ -43,6 +43,12 @@ from ldm.util import instantiate_from_config
 
 logger = logging.getLogger("depth_to_image")
 
+_version_cfg = {
+    "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml", 512),
+    "wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
+}
+
+
 
 def get_depth_estimator(
     model_type="midas_v3_dpt_large_384", estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt"
@@ -132,7 +138,6 @@ def prepare_latent_z(
     sample_steps=50,
     seed=None,
 ):
-    # timestep=50, ):
     """
     prepare latent code z_T for diffusion
     If init_image is None, latent z will be pure noise.
@@ -163,7 +168,7 @@ def prepare_latent_z(
         # get latent image, vae  input format: shape (h, w, 3), value: [-1, 1]
         init_image = vae_image_process(init_image, h=h, w=w)
         # TODO: do it outside for main loop to avoid repeat running?
-        print("Running VAE encoder to extract latent image...")
+        logger.info("Running VAE encoder to extract latent image...")
         img_latent, _ = model.get_input(init_image, None)
         img_latent = ops.tile(img_latent, (num_samples, 1, 1, 1))
 
@@ -227,7 +232,7 @@ def prepare_conditions(depth, txt, num_samples=1, height=512, width=512, vae_sca
 
 
 def depth_to_image(
-    sampler, depth, prompt, seed, scale, sample_steps, num_samples=1, w=512, h=512, init_image=None, strength=0.8
+    sampler, depth, prompt, seed, scale, sample_steps, num_samples=1, w=512, h=512, init_image=None, strength=0.8, negative_prompt=None,
 ):
     model = sampler.model
 
@@ -256,7 +261,10 @@ def depth_to_image(
     cond = {"c_concat": c_cat, "c_crossattn": c}
 
     # unconditional guidance
-    uc_tokenized_prompts = model.tokenize(num_samples * [""])
+    if negative_prompt is None:
+        uc_tokenized_prompts = model.tokenize(num_samples * [""])
+    else:
+        uc_tokenized_prompts = model.tokenize(num_samples * [negative_prompt])
     uc_cross = model.get_learned_conditioning(uc_tokenized_prompts)
     uc_full = {"c_concat": c_cat, "c_crossattn": uc_cross}
 
@@ -396,6 +404,7 @@ def main(args):
             sampler=sampler,
             depth=depth_map,
             prompt=prompt,
+            negative_prompt=args.negative_prompt,
             seed=args.seed,
             scale=args.guidance_scale,
             sample_steps=args.sample_steps,
@@ -444,6 +453,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--save_path", type=str, default="output/depth", help="path to save image")
     parser.add_argument("--prompt", type=str, required=True, help="")
+    parser.add_argument("--negative_prompt", type=str, default=None, help="")
     parser.add_argument("--config", type=str, default=None, help="")
     parser.add_argument("--ckpt_path", type=str, default=None, help="")
     parser.add_argument("--aug", type=str, default="resize", help="augment type")
