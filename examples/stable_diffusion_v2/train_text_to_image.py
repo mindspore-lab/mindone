@@ -165,15 +165,23 @@ def main(args):
             param.requires_grad = False
 
         # inject lora params
-        injected_attns, injected_trainable_params = inject_trainable_lora(
+        unet_lora_layers, unet_lora_params = inject_trainable_lora(
             latent_diffusion_with_loss,
             rank=args.lora_rank,
             use_fp16=args.lora_fp16,
         )
+        num_injected_parmas = len(unet_lora_params)
+        if args.train_text_encoder:
+            text_encoder_lora_layers, text_encoder_lora_params = inject_trainable_lora_to_textencoder(
+                latent_diffusion_with_loss,
+                rank=args.lora_rank,
+                use_fp16=args.lora_fp16,
+            )
+            num_injected_parmas = len(text_encoder_lora_params)
 
         # TODO: support lora inject to text encoder (remove .model)
         assert len(latent_diffusion_with_loss.trainable_params()) == len(
-            injected_trainable_params
+            num_injected_params
         ), "Only lora params should be trainable. but got {} trainable params".format(
             len(latent_diffusion_with_loss.trainable_params())
         )
