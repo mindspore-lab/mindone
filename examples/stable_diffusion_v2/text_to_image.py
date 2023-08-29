@@ -428,7 +428,9 @@ if __name__ == "__main__":
         help="whether the checkpoint used for inference is finetuned from LoRA",
     )
     parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether lora finetune is applied to unet")
-    parser.add_argument("--lora_ft_text_encoder", default=False, type=str2bool, help="whether lora finetune is applied to text encoder")
+    parser.add_argument(
+        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether lora finetune is applied to text encoder"
+    )
     parser.add_argument(
         "--lora_rank",
         default=None,

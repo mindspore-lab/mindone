@@ -9,7 +9,8 @@ from mindspore import ops
 
 set_random_seed(42)
 
-test_mode = 'both' #'text_encoder' # ['text_encoder', 'unet', 'both']
+test_mode = "both"  # 'text_encoder' # ['text_encoder', 'unet', 'both']
+
 
 class SimpleSubNet(ms.nn.Cell):
     def __init__(self, din=128, dh=128, dtype=ms.float32):
@@ -24,6 +25,7 @@ class SimpleSubNet(ms.nn.Cell):
         feat = self.down_block_part1(x)
         out = self.logit(feat)
         return out
+
 
 class SimpleTextEnc(ms.nn.Cell):
     def __init__(self, din=128, dtype=ms.float32):
@@ -58,14 +60,16 @@ class SimpleNet(ms.nn.Cell):
         y2 = self.text_enc(x2)
         return ops.mean(y1) + ops.mean(y2)
 
+
 def gen_text_data(bs=1, cl=77, fd=128):
     x = np.zeros([bs, cl, fd])
     for i in range(bs):
         for j in range(cl):
             x[i][j] = np.arange(0, fd, dtype=float) / fd / (j + 1)
 
-    x = np.transpose(x, (1,0,2))
+    x = np.transpose(x, (1, 0, 2))
     return x
+
 
 def gen_data(bs=1, nd=2, fd=128, dtype=ms.float32):
     x = np.zeros([bs, nd, fd])
@@ -102,10 +106,10 @@ def test_finetune_and_save():
     ori_net_output = net(test_data)
 
     # inject lora layers
-    #if test_text_encoder:
-    if test_mode in ['text_encoder', 'both']:
+    # if test_text_encoder:
+    if test_mode in ["text_encoder", "both"]:
         injected_modules, injected_trainable_params = inject_trainable_lora_to_textencoder(net, use_fp16=use_fp16)
-    if test_mode in ['unet', 'both']:
+    if test_mode in ["unet", "both"]:
         injected_modules, injected_trainable_params = inject_trainable_lora(net, use_fp16=use_fp16)
     injected_trainable_tot = len(net.trainable_params())
 
@@ -118,11 +122,11 @@ def test_finetune_and_save():
         net_output_after_lora_init.sum() == ori_net_output.sum()
     ), "net_output_after_lora_init should be the same as ori_net_output"
     first_attn = list(injected_modules.values())[0]
-    #if test_text_encoder:
-    #ori_net_stat["dense.linear"] = first_attn.in_proj.linear.weight.data.sum()
-    #ori_net_stat["dense.lora_down"] = first_attn.in_proj.lora_down.weight.data.sum()
-    #ori_net_stat["dense.lora_up"] = first_attn.in_proj.lora_up.weight.data.sum()
-    #else:
+    # if test_text_encoder:
+    # ori_net_stat["dense.linear"] = first_attn.in_proj.linear.weight.data.sum()
+    # ori_net_stat["dense.lora_down"] = first_attn.in_proj.lora_down.weight.data.sum()
+    # ori_net_stat["dense.lora_up"] = first_attn.in_proj.lora_up.weight.data.sum()
+    # else:
     ori_net_stat["dense.linear"] = first_attn.to_q.linear.weight.data.sum()
     ori_net_stat["dense.lora_down"] = first_attn.to_q.lora_down.weight.data.sum()
     ori_net_stat["dense.lora_up"] = first_attn.to_q.lora_up.weight.data.sum()
@@ -146,16 +150,16 @@ def test_finetune_and_save():
 
     # 3. check whether the number of injected modules and layers is correct. and whether the name of the injected params
     # are correct.
-    #num_dense_layers_in_attention = 4 if not test_text_encoder else 2
+    # num_dense_layers_in_attention = 4 if not test_text_encoder else 2
     expected_ip_unet = 2 * 4 * 2
-    expected_ip_textenc = 2* 2* 2
-    #expected_ip_for_simplenet = expected_im_for_simplenet * num_dense_layers_in_attention * 2  # 4 dense layers, each with lora_down, lora_up
-    if test_mode == 'both':
+    expected_ip_textenc = 2 * 2 * 2
+    # expected_ip_for_simplenet = expected_im_for_simplenet * num_dense_layers_in_attention * 2  # 4 dense layers, each with lora_down, lora_up
+    if test_mode == "both":
         expected_ip = expected_ip_unet + expected_ip_textenc
-    elif test_mode == 'unet':
+    elif test_mode == "unet":
         expected_ip = expected_ip_unet
     else:
-        expected_ip = exptected_ip_textenc
+        expected_ip = expected_ip_textenc
     assert injected_trainable_tot == expected_ip, "injected_trainable_params) == expected_ip"
     for _name, _param in injected_trainable_params.items():
         assert getattr(net, _name.split(".")[0]), f"Incorrect name: {_name}"
@@ -179,9 +183,9 @@ def test_finetune_and_save():
         train_network = TrainOneStepCell(net_with_loss, optim)
         train_network.set_train()
 
-        #input_data = ms.Tensor(np.random.rand(1, 2, 128), dtype=dtype)
+        # input_data = ms.Tensor(np.random.rand(1, 2, 128), dtype=dtype)
         train_data = gen_data(1, 2, 128, dtype=dtype)
-        label = ms.Tensor(1., dtype=dtype) #ms.Tensor(np.ones([1, 1]), dtype=dtype)
+        label = ms.Tensor(1.0, dtype=dtype)  # ms.Tensor(np.ones([1, 1]), dtype=dtype)
         print("Finetuning...")
         for i in range(10):
             loss_val = train_network(train_data, label)
@@ -189,11 +193,11 @@ def test_finetune_and_save():
 
     _simple_finetune(net)
     net.set_train(False)
-    #if test_text_encoder:
+    # if test_text_encoder:
     #    new_net_stat["dense.linear"] = first_attn.in_proj.linear.weight.data.sum()
     #    new_net_stat["dense.lora_down"] = first_attn.in_proj.lora_down.weight.data.sum()
     #    new_net_stat["dense.lora_up"] = first_attn.in_proj.lora_up.weight.data.sum()
-    #else:
+    # else:
     new_net_stat["dense.linear"] = first_attn.to_q.linear.weight.data.sum()
     new_net_stat["dense.lora_down"] = first_attn.to_q.lora_down.weight.data.sum()
     new_net_stat["dense.lora_up"] = first_attn.to_q.lora_up.weight.data.sum()
@@ -214,7 +218,7 @@ def test_finetune_and_save():
     print("Net param sum after ft: ", param_sum)
 
     output_after_ft = net(test_data)
-    #print("Input data: ", test_data.sum())
+    # print("Input data: ", test_data.sum())
     print("Net outupt after lora ft: ", output_after_ft.sum())
     print(f"\t (Before ft: {net_output_after_lora_init.sum()})")
     # assert output_after_ft.sum()!=net_output_after_lora_init.sum()
@@ -289,12 +293,12 @@ def test_load_and_infer():
         param.requires_grad = False
 
     # load lora ckpt
-    if test_mode in ['text_encoder', 'both']:
+    if test_mode in ["text_encoder", "both"]:
         injected_modules, injected_trainable_params = inject_trainable_lora_to_textencoder(net, use_fp16=use_fp16)
-    if test_mode in ['unet', 'both']:
+    if test_mode in ["unet", "both"]:
         injected_modules, injected_trainable_params = inject_trainable_lora(net, use_fp16=use_fp16)
-    #print("injected_modules)", len(injected_modules), injected_modules)
-    #print("injected_trainable_params", len(injected_trainable_params), injected_trainable_params)
+    # print("injected_modules)", len(injected_modules), injected_modules)
+    # print("injected_trainable_params", len(injected_trainable_params), injected_trainable_params)
 
     load_lora_only = False
     if not load_lora_only:
@@ -313,11 +317,11 @@ def test_load_and_infer():
         print("Finish loading lora params: ", net_not_load, ckpt_not_load)
 
     # 1. test forward result consistency
-    #test_data = ms.Tensor(gen_np_data(1, 2, 128), dtype=dtype)
+    # test_data = ms.Tensor(gen_np_data(1, 2, 128), dtype=dtype)
     # test_data = ms.ops.ones([1, 2, 128], dtype=dtype)*0.66
     test_data = gen_data(1, 2, 128, dtype=dtype)
     net_output = net(test_data)
-    #print("Input data: ", test_data.sum())
+    # print("Input data: ", test_data.sum())
     print("Net forward output: ", net_output.sum())
 
 

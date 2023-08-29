@@ -10,7 +10,14 @@ from mindspore.nn.cell import Cell
 from mindspore.nn.layer.activation import get_activation
 from mindspore.ops.primitive import Primitive
 
-__all__ = ["LoRADenseLayer", "LowRankDense", "inject_trainable_lora", "inject_trainable_lora_to_textencoder", "freeze_non_lora_params", "get_lora_params"]
+__all__ = [
+    "LoRADenseLayer",
+    "LowRankDense",
+    "inject_trainable_lora",
+    "inject_trainable_lora_to_textencoder",
+    "freeze_non_lora_params",
+    "get_lora_params",
+]
 
 _logger = logging.getLogger(__name__)
 
@@ -102,7 +109,8 @@ def inject_trainable_lora_to_textencoder(
         to_v and to_out[0], each of which correpsonds to a dense layer. to_out correspnds to a SquentialCell consisting
         of a dense layer and a dropout layer.
     """
-    # TODO: due to qkv is not seperated, there are some difference from original impl. though num added params are the same 3 x q_dim x rank, but q, k, v lora is influencing each other.
+    # TODO: due to qkv is not seperated, there are some difference from original impl.
+    # though num added params are the same 3 x q_dim x rank, but q, k, v lora is influencing each other.
     target_modules = [getattr(ldm.modules.encoders.text_encoder, m) for m in target_modules]
 
     dtype = ms.float16 if use_fp16 else ms.float32
@@ -207,9 +215,14 @@ def inject_trainable_lora_to_textencoder(
     return injected_modules, injected_trainable_params
 
 
-
 def inject_trainable_lora(
-    net: nn.Cell, target_modules=["CrossAttention"], rank=4, dropout_p=0.0, scale=1.0, use_fp16=False, verbose=0,
+    net: nn.Cell,
+    target_modules=["CrossAttention"],
+    rank=4,
+    dropout_p=0.0,
+    scale=1.0,
+    use_fp16=False,
+    verbose=0,
 ):
     """
     Search target moduels and layers in the network to inject LoRA trainable parameters.

@@ -221,7 +221,7 @@ Here are the evaluation results for our implementation.
 
 - Apply LoRA to Text-encoder
 
-By default, LoRA fintuning is only applied to UNet. To finetune the text encoder with LoRA as well, please pass `--lora_ft_text_encoder=True` to the finetuning script (`train_text_to_image.py`) and inference script (`text_to_image.py`). 
+By default, LoRA fintuning is only applied to UNet. To finetune the text encoder with LoRA as well, please pass `--lora_ft_text_encoder=True` to the finetuning script (`train_text_to_image.py`) and inference script (`text_to_image.py`).
 
 
 ## Reference

@@ -182,7 +182,10 @@ def main(args):
             num_injected_params += len(text_encoder_lora_params)
 
         # TODO: support lora inject to text encoder (remove .model)
-        assert len(latent_diffusion_with_loss.trainable_params()) == num_injected_params, "Only lora params {} should be trainable. but got {} trainable params".format(num_injected_params, len(latent_diffusion_with_loss.trainable_params())
+        assert (
+            len(latent_diffusion_with_loss.trainable_params()) == num_injected_params
+        ), "Only lora params {} should be trainable. but got {} trainable params".format(
+            num_injected_params, len(latent_diffusion_with_loss.trainable_params())
         )
         # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
     dataset_size = dataset.get_dataset_size()
@@ -346,7 +349,9 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained_model_file", default="", type=str, help="pretrained model file name")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
     parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether to apply lora finetune to unet")
-    parser.add_argument("--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder")
+    parser.add_argument(
+        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder"
+    )
     parser.add_argument(
         "--lora_rank",
         default=4,
