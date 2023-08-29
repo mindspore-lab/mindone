@@ -28,6 +28,7 @@ from utils.download import download_checkpoint
 
 logger = logging.getLogger("text_to_image")
 
+# naming: {sd_base_version}-{variation}
 _version_cfg = {
     "2.1": ("sd_v2-1_base-7c8d09ce.ckpt", "v2-inference.yaml", 512),
     "2.1-v": ("sd_v2-1_768_v-061732d1.ckpt", "v2-vpred-inference.yaml", 768),

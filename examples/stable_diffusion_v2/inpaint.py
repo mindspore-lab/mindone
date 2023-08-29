@@ -303,8 +303,8 @@ if __name__ == "__main__":
         "--version",
         type=str,
         nargs="?",
-        default="2.0",  # "1.5_wk",
-        help="Stable diffusion version, wukong or 2.0",
+        default="2.0",
+        help="Stable diffusion version, 1.5-wukong or 2.0",
     )
 
     args = parser.parse_args()
@@ -313,12 +313,12 @@ if __name__ == "__main__":
     if args.version:
         os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
-        if args.version in ["wukong", "1.5_cn"]:
+        if args.version in ["1.5_cn", "1.5-wukong"]:
             args.ckpt_path = "models/wukong-huahua-inpaint-ms.ckpt"
         else:
             args.ckpt_path = "models/sd_v2_inpaint-f694d5cf.ckpt"
     if args.config is None:
-        if args.version in ["wukong", "1.5_cn"]:
+        if args.version in ["1.5_cn", "1.5-wukong"]:
             args.config = "configs/v1-inpaint-inference-chinese.yaml"
         else:
             args.config = "configs/v2-inpaint-inference.yaml"

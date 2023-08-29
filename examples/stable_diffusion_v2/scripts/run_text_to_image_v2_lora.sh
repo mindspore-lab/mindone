@@ -26,8 +26,8 @@ python text_to_image.py \
     --use_lora True \
     --lora_ft_text_encoder $lora_ft_text_encoder \
     --lora_ckpt_path $lora_ckpt_path \
-    --dpm_solver_pp \
-    --sampling_steps 20 \
+    --dpm_solver \
+    --sampling_steps 15 \
     --data_path $data_path \
     #--prompt "a drawing of a flying dragon" \
     #--ckpt_path models/ \

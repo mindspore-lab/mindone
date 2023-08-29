@@ -181,7 +181,6 @@ def main(args):
             )
             num_injected_params += len(text_encoder_lora_params)
 
-        # TODO: support lora inject to text encoder (remove .model)
         assert (
             len(latent_diffusion_with_loss.trainable_params()) == num_injected_params
         ), "Only lora params {} should be trainable. but got {} trainable params".format(

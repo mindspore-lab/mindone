@@ -51,7 +51,7 @@ python train_text_to_image.py \
     --train_batch_size=$train_batch_size \
     --epochs=$epochs \
     --use_lora=True \
-    --lora_ft_text_encoder=lora_ft_text_encoder \
+    --lora_ft_text_encoder=$lora_ft_text_encoder \
     --lora_rank=$lora_rank \
     --lora_fp16=$lora_fp16 \
     --start_learning_rate=$start_learning_rate \
