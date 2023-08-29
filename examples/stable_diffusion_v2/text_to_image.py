@@ -20,7 +20,7 @@ from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
-from ldm.modules.lora import inject_trainable_lora
+from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
@@ -88,11 +88,19 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
             logger.info(f"Loading pretrained model from {ckpt}")
             _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
             # inject lora params
-            injected_attns, injected_trainable_params = inject_trainable_lora(
-                model,
-                rank=lora_rank,
-                use_fp16=(model.model.diffusion_model.dtype == ms.float16),
-            )
+            if args.lora_ft_unet:
+                injected_attns, injected_trainable_params = inject_trainable_lora(
+                    model,
+                    rank=lora_rank,
+                    use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+                )
+            if args.lora_ft_text_encoder:
+                injected_attns, injected_trainable_params = inject_trainable_lora_to_textencoder(
+                    model,
+                    rank=lora_rank,
+                    use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+                )
+
             # load fine-tuned lora params
             logger.info(f"Loading LoRA params from {lora_only_ckpt}")
             _load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
@@ -419,6 +427,8 @@ if __name__ == "__main__":
         type=str2bool,
         help="whether the checkpoint used for inference is finetuned from LoRA",
     )
+    parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether lora finetune is applied to unet")
+    parser.add_argument("--lora_ft_text_encoder", default=False, type=str2bool, help="whether lora finetune is applied to text encoder")
     parser.add_argument(
         "--lora_rank",
         default=None,

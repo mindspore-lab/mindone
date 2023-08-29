@@ -18,6 +18,8 @@ image_filter_size=200
 image_size=512
 train_batch_size=4
 lora_rank=128
+lora_ft_text_encoder=False # set True if finetuned text encoder as well
+
 start_learning_rate=1e-4
 end_learning_rate=0
 warmup_steps=0
@@ -49,6 +51,7 @@ python train_text_to_image.py \
     --train_batch_size=$train_batch_size \
     --epochs=$epochs \
     --use_lora=True \
+    --lora_ft_text_encoder=lora_ft_text_encoder \
     --lora_rank=$lora_rank \
     --lora_fp16=$lora_fp16 \
     --start_learning_rate=$start_learning_rate \
