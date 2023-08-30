@@ -98,7 +98,7 @@ Below are some arguments that you may want to tune for a better performance on y
 - start_learning_rate and end_learning_rate: the initial and end learning rates for training.
 - epochs: the number of epochs for training.
 - use_ema: whether use EMA for model smoothing
-> Note that the default learning rate for LoRA is 1e-4, whichis larger that vanilla finetuning (~1e-5).
+> Note that the default learning rate for LoRA is 1e-4, which is larger that vanilla finetuning (~1e-5).
 
 For more argument illustration, please run `python train_text_to_image.py -h`.
 
