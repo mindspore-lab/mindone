@@ -8,8 +8,6 @@ Examples:
     $ python depth_to_image.py --prompt "two tiger" --depth_map 000000039769_depth.png
 
 TODO:
-    auto download midas weights to models/depth_estimator/.
-    auto download sd-2-depth ckpt to models/.
     parallel running on multiple initial images
 """
 
@@ -31,11 +29,12 @@ import mindspore as ms
 from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import ops
+from mindspore.amp import auto_mixed_precision
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 print("workspace:", workspace, flush=True)
 sys.path.append(workspace)
-from conditions.midas_ms import midas_v3
+from conditions.depth.midas import midas_v3_dpt_large
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
@@ -44,24 +43,31 @@ from ldm.util import instantiate_from_config
 logger = logging.getLogger("depth_to_image")
 
 _version_cfg = {
-    "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml", 512),
-    "wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
+    "2.0": ("sd_v2_depth-186e18a0.ckpt", "v2-depth-inference.yaml", 512),
 }
+_URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 
 
-
-def get_depth_estimator(
-    model_type="midas_v3_dpt_large_384", estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt"
+def build_depth_estimator(
+    model_type="midas_v3_dpt_large_384", 
+    estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt",
+    amp_level='O2',
 ):
+
+    dtype = ms.float32 if amp_level == 'O0' else ms.float16
     if model_type == "midas_v3_dpt_large_384":
-        depth_model = midas_v3(pretrained=True, ckpt_path=estimator_ckpt_path)
+
+        depth_model = midas_v3_dpt_large(pretrained=True, ckpt_path=estimator_ckpt_path, dtype=dtype)
     else:
+        # TODO: support midas v3 hybrid
         raise NotImplementedError
+    
+    auto_mixed_precision(depth_model, amp_level=amp_level)
 
     return depth_model
 
 
-def estimate_depth(images, depth_estimator):
+def estimate_depth(images, depth_estimator, amp_level="O2"):
     """
     Use MiDas as depth estimator.
     Args:
@@ -93,7 +99,10 @@ def estimate_depth(images, depth_estimator):
     images = (images - mean) / std
     # 1.4 format tensor batch [bs, 3, h, w]
     images = np.transpose(images, (0, 3, 1, 2))
-    images = Tensor(images, dtype=mstype.float32)
+    if amp_level != "O0":
+        images = Tensor(images, dtype=mstype.float32)
+    else:
+        images = Tensor(images, dtype=mstype.float16)
     assert (
         len(images.shape) == 4 and images.shape[1] == 3
     ), f"Expecting model input shape: [bs, 3, H, W], but got {images.shape}"
@@ -101,7 +110,7 @@ def estimate_depth(images, depth_estimator):
     # 2. infer
     logger.info("Running depth estimation on input image...")
     st = time.time()
-    depth_maps = depth_estimator(images).asnumpy()  # [bs, 1, h, w]
+    depth_maps = depth_estimator(images).asnumpy().astype(np.float32)  # [bs, 1, h, w]
     depth_maps = np.squeeze(depth_maps)  # [bs, h, w] or [h, w]
     print("Time cost: ", time.time() - st)
     logger.debug("depth est output: {}, {}, {}".format(depth_maps.shape, depth_maps.min(), depth_maps.max()))
@@ -254,7 +263,6 @@ def depth_to_image(
     c = model.get_learned_conditioning(tokenized_prompts)
     # TODO: make batch after computing prompt embedding
     # bchw = [num_samples, 4, h // 8, w // 8]
-
     c_cat = batch["depth"]  # (bs, 1, h//8, w//8)
 
     # hybrid conditions, work with DiffusionWrapper.construct
@@ -341,7 +349,7 @@ def main(args):
         if do_grid_resize:
             tar_w = int(math.ceil(tar_w / grid_size) * grid_size)
             tar_h = int(math.ceil(tar_h / grid_size) * grid_size)
-        print("Target image size (h, w) = ", tar_h, tar_w)
+        logger.info(f"Output image size is set to (h, w)=({tar_h}, {tar_w})")
 
         assert (tar_w % 8 == 0) and (
             tar_h % 8 == 0
@@ -356,9 +364,9 @@ def main(args):
         assert args.image is not None, "Either depth_map or image must be provided"
         image = Image.open(args.image).convert("RGB")
         tar_w, tar_h = _check_image_size(image, args.img_size)
-
-        depth_estimator = get_depth_estimator()  # TODO: init before for loop
-        depth_map = estimate_depth(image, depth_estimator)
+        amp_level = args.depth_est_amp_level
+        depth_estimator = build_depth_estimator(amp_level=amp_level)  # TODO: init before for loop
+        depth_map = estimate_depth(image, depth_estimator, amp_level=amp_level)
         dm_np = save_img(depth_map, "tmp_depth_map.png", norm=True, gray=True)
 
         init_image = Image.open(args.image)  # TODO: reuse opened image
@@ -451,6 +459,7 @@ if __name__ == "__main__":
         default=None,
         help="path to depth map. If None, depth_map will be extracted from input image",
     )
+    parser.add_argument("--depth_est_amp_level", type=str, default="O3", help="amp level for running depth estimator")
     parser.add_argument("--save_path", type=str, default="output/depth", help="path to save image")
     parser.add_argument("--prompt", type=str, required=True, help="")
     parser.add_argument("--negative_prompt", type=str, default=None, help="")
@@ -493,7 +502,7 @@ if __name__ == "__main__":
         "--version",
         type=str,
         nargs="?",
-        default="2.0",  # "1.5_wk",
+        default="2.0",
         help="Stable diffusion version, wukong or 2.0",
     )
 
@@ -503,10 +512,13 @@ if __name__ == "__main__":
     if args.version:
         os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
-        args.ckpt_path = "models/sd_v2_depth-186e18a0.ckpt"
+        ckpt_name = _version_cfg[args.version][0]
+        args.ckpt_path = "models/" + ckpt_name
+        if not os.path.exists(args.ckpt_path):
+            print(f"Start downloading checkpoint {ckpt_name} ...")
+            download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
     if args.config is None:
-        args.config = "configs/v2-depth-inference.yaml"
-
+        args.config = os.path.join("configs", _version_cfg[args.version][1])
     if args.guidance_scale is None:
         args.guidance_scale = 9.0 if args.version.startswith("2.") else 7.5
 

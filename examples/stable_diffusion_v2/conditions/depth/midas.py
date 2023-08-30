@@ -7,9 +7,11 @@ import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter
 from mindspore.common.initializer import Normal, initializer
+from utils.download import download_checkpoint
 
-__all__ = ["MiDaS", "midas_v3"]
+__all__ = ["MiDaS", "midas_v3_dpt_large"]
 
+_CKPT_URL = {"midas_v3_dpt_large": "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_midas_v3_dpt_large-c8fd1049.ckpt"}
 
 class SelfAttention(nn.Cell):
     def __init__(self, dim, num_heads):
@@ -99,7 +101,7 @@ class conv_nd(nn.Cell):
 
 
 class VisionTransformer(nn.Cell):
-    def __init__(self, image_size=384, patch_size=16, dim=1024, out_dim=1000, num_heads=16, num_layers=24):
+    def __init__(self, image_size=384, patch_size=16, dim=1024, out_dim=1000, num_heads=16, num_layers=24, dtype=ms.float32):
         assert image_size % patch_size == 0
         super(VisionTransformer, self).__init__()
         self.image_size = image_size
@@ -114,7 +116,7 @@ class VisionTransformer(nn.Cell):
         self.patch_embedding = conv_nd(
             3, 3, dim, kernel_size=patch_size, stride=patch_size, has_bias=True, pad_mode="pad"
         )
-        self.cls_embedding = Parameter(ms.Tensor(ops.zeros((1, 1, dim)), ms.float32))
+        self.cls_embedding = Parameter(ms.Tensor(ops.zeros((1, 1, dim)), dtype))
         self.pos_embedding = Parameter(initializer(Normal(sigma=0.02), (1, self.num_patches + 1, dim), ms.float32))
 
         # blocks
@@ -202,6 +204,7 @@ class MiDaS(nn.Cell):
         fusion_dim=256,
         num_heads=16,
         num_layers=24,
+        dtype=ms.float32,
     ):
         assert image_size % patch_size == 0
         assert num_layers % 4 == 0
@@ -219,7 +222,7 @@ class MiDaS(nn.Cell):
         self.patch_embedding = conv_nd(
             2, 3, dim, kernel_size=patch_size, stride=patch_size, has_bias=True, pad_mode="pad"
         )
-        self.cls_embedding = Parameter(ms.Tensor(ops.zeros((1, 1, dim)), ms.float32))
+        self.cls_embedding = Parameter(ms.Tensor(ops.zeros((1, 1, dim)), dtype))
         self.pos_embedding = Parameter(initializer(Normal(sigma=0.02), (1, self.num_patches + 1, dim), ms.float32))
 
         # blocks
@@ -372,7 +375,7 @@ class MiDaS(nn.Cell):
         return x
 
 
-def midas_v3(pretrained=False, **kwargs):
+def midas_v3_dpt_large(pretrained=False, **kwargs):
     cfg = dict(
         image_size=384,
         patch_size=16,
@@ -391,8 +394,10 @@ def midas_v3(pretrained=False, **kwargs):
     model = MiDaS(**cfg)
 
     if pretrained:
-        if ckpt_path is None:
-            ckpt_path = os.path.join(os.path.dirname(__file__), "./model_weights/midas_v3_dpt_large_ms.ckpt")
+        # download and load checkpoint
+        if not os.path.exists(ckpt_path):
+            download_checkpoint(_CKPT_URL["midas_v3_dpt_large"], "models/depth_estimator")
+            
         state = ms.load_checkpoint(ckpt_path)
         for pname, p in model.parameters_and_names():
             if p.name != pname and (p.name not in state and pname in state):
@@ -405,4 +410,4 @@ def midas_v3(pretrained=False, **kwargs):
 
 
 if __name__ == "__main__":
-    model = midas_v3(pretrained=False)
+    model = midas_v3_dpt_large(pretrained=False)
