@@ -67,8 +67,8 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 | 2.0-v      | text-to-image | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | 768x768 |
 | 2.0-inpaint      | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt) | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512|
 | 1.5       | text-to-image | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5) | 512x512 |
-| wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
-| wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
+| 1.5-wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
+| 1.5-wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
 
 > Resolution refers to the image resolution used in training and is also the optimal choice for image generation. Other resolutions (if only divisable by 64) are usable but may lead to a degrade in generality quality.
 <!---
@@ -255,7 +255,7 @@ python text_to_image.py --prompt "A cute wolf in winter forest" -v 1.5
 Download [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) to `models/` folder. Then run,
 
 ```
-python text_to_image.py --prompt "雪中之狼"  -v wukong
+python text_to_image.py --prompt "雪中之狼"  -v 1.5-wukong
 ```
 
 ### Chinese Text-guided Image Inpainting
@@ -263,7 +263,7 @@ python text_to_image.py --prompt "雪中之狼"  -v wukong
 Download [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) to `models/` folder. Then run,
 
 ```
-python inpaint.py --image {path to input image} --mask {path to mask image} --prompt "图片编辑内容描述"  -v wukong
+python inpaint.py --image {path to input image} --mask {path to mask image} --prompt "图片编辑内容描述"  -v 1.5-wukong
 ```
 
 ## Training
@@ -320,7 +320,7 @@ For detailed usage of the schedulers/samplers, please refer to [Diffusion Proces
 
 # Evaluation
 
-Please refer to [Evaluation for Diffusion Models](eval/README.md)
+Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
 
 
 - - -

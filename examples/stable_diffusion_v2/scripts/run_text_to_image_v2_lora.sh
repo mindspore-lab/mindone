@@ -8,6 +8,7 @@ data_path=./datasets/pokemon_blip/test/prompts.txt
 #data_path=/home/yx/datasets/diffusion/pokemon/test/test_prompts.txt
 lora_ckpt_path=output/pokemon/txt2img/ckpt/rank_0/sd-72.ckpt
 output_path=output/lora_pokemon
+lora_ft_text_encoder=False # set True if finetuned text encoder as well
 
 n_samples=2
 n_iter=1
@@ -23,6 +24,7 @@ python text_to_image.py \
     --W 512 \
     --H 512 \
     --use_lora True \
+    --lora_ft_text_encoder $lora_ft_text_encoder \
     --lora_ckpt_path $lora_ckpt_path \
     --dpm_solver \
     --sampling_steps 15 \
