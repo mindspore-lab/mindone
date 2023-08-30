@@ -16,7 +16,7 @@ There are multiple advantages of this architecture:
 - **Simple and lightweight**: 77M parameters for full and 5M parameters for light adapters.
 - **Composable**: Several adapters can be combined to achieve multi-condition control.
 - **Generalizable**: Can be directly used on custom models as long as they fine-tuned from the same model (e.g., use
-T2I-Adapters trained on SD 1.5 with SD 2.0 or Anything anime model).
+T2I-Adapters trained on SD 1.4 with SD 1.5 or Anything anime model).
 
 ## Pretrained Models
 
@@ -36,8 +36,9 @@ T2I-Adapters trained on SD 1.5 with SD 2.0 or Anything anime model).
 </div>
 
 > Note: As mentioned in the [Introduction](#Introduction), T2I-Adapters generalize well and thus can be used with custom
-> models (as long as they fine-tuned from the same model), e.g., use T2I-Adapters trained on SD 1.4 with SD 2.0 or
-> Anything anime model.
+> models (as long as they fine-tuned from the same model), e.g., use T2I-Adapters trained on SD 1.4 with SD 1.5 or
+> Anything anime model.<br>
+> :warning: T2I-Adapters trained on SD 1.x are not compatible with SD 2.x due to difference in the architecture.
 
 The weights above were converted from PyTorch version. If you want to convert another custom model, you can do so by
 using `mindone/tools/t2i_adapter_torch_to_ms/convert.py`. For example:
