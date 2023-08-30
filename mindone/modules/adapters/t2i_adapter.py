@@ -72,7 +72,7 @@ class ResidualBlock(nn.Cell):
             ]
         )
 
-    def construct(self, x):
+    def construct(self, x: Tensor) -> Tensor:
         return self.block(x) + x
 
 
@@ -140,7 +140,7 @@ class T2IAdapter(nn.Cell):
         return layers
 
     @staticmethod
-    def _light_block(in_channels, out_channels, rb_num):
+    def _light_block(in_channels, out_channels, rb_num) -> List[nn.Cell]:
         """
         Constructs stage block for the light adapter. Light block operates on 1/4 the number of channels.
         """
@@ -152,7 +152,7 @@ class T2IAdapter(nn.Cell):
         layers.append(nn.Conv2d(inter_channels, out_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True))
         return layers
 
-    def construct(self, x):
+    def construct(self, x: Tensor) -> List[nn.Cell]:
         x = self.unshuffle(x)
 
         features = []
@@ -189,10 +189,10 @@ class ResidualAttentionBlock(nn.Cell):
         )
         self.ln_2 = nn.LayerNorm((d_model,), epsilon=1e-5)
 
-    def attention(self, x: Tensor):
+    def attention(self, x: Tensor) -> Tensor:
         return self.attn(x, x, x, need_weights=False)[0]
 
-    def construct(self, x: Tensor):
+    def construct(self, x: Tensor) -> Tensor:
         x = x + self.attention(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
         return x

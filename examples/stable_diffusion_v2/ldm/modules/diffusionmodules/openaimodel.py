@@ -605,7 +605,7 @@ class UNetModel(nn.Cell):
         self.cat = ops.Concat(axis=1)
 
     def construct(
-        self, x, timesteps=None, context=None, y=None, features_adapter=None, append_to_context=None, **kwargs
+        self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs
     ):
         """
         Apply the model to an input batch.
@@ -637,13 +637,13 @@ class UNetModel(nn.Cell):
             for cell in celllist:
                 h = cell(h, emb, context)
 
-            if features_adapter is not None and i % 3 == 0:
+            if features_adapter and i % 3 == 0:
                 h = h + features_adapter[adapter_idx]
                 adapter_idx += 1
 
             hs.append(h)
 
-        if features_adapter is not None:
+        if features_adapter:
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
 
         for module in self.middle_block:

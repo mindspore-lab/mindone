@@ -7,6 +7,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
+from typing import List, Tuple, Union
 
 import cv2
 import numpy as np
@@ -15,6 +16,7 @@ from omegaconf import OmegaConf
 from PIL import Image
 
 import mindspore as ms
+from mindspore.nn import Cell
 
 from mindone.modules.adapters import get_adapter
 
@@ -32,6 +34,44 @@ def image2tensor(image: np.ndarray) -> ms.Tensor:
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if image.ndim == 3 else np.expand_dims(image, 2)
     image = np.expand_dims(image.transpose((2, 0, 1)) / 255.0, axis=0).astype(np.float32)
     return ms.Tensor(image)
+
+
+def read_images(cond_paths: List[str], size: int) -> Tuple[List[ms.Tensor], Tuple[int, int]]:
+    conds = []
+    image_shape = None
+    for path in cond_paths:
+        cond = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        cond = resize_image(cond, size)
+
+        if image_shape is None:
+            image_shape = cond.shape[:2]
+        # FIXME: padding?
+        assert image_shape == cond.shape[:2], "All condition images must be resized to the same size."
+
+        conds.append(image2tensor(cond))
+    return conds, image_shape
+
+
+def apply_adapters(
+    adapters: List[Cell], conds: List[ms.Tensor], weights: List[float]
+) -> Tuple[Union[List[ms.Tensor], None], Union[ms.Tensor, None]]:
+    feature_map = None
+    feature_seq = None
+
+    for adapter, cond, weight in zip(adapters, conds, weights):
+        features = adapter(cond)
+        if isinstance(features, list):
+            if feature_map is None:
+                feature_map = list(map(lambda x: x * weight, features))
+            else:
+                feature_map = list(map(lambda x, y: x + y * weight, feature_map, features))
+        else:
+            if feature_seq is None:
+                feature_seq = features * weight
+            else:
+                feature_seq = ms.ops.cat([feature_seq, features * weight], axis=1)
+
+    return feature_map, feature_seq
 
 
 def main(args):
@@ -64,16 +104,24 @@ def main(args):
         lora_only_ckpt=args.lora_ckpt_path,
     )
 
+    if len(args.cond_weight) == 1:  # if condition weights are not specified per adapter
+        args.cond_weight *= len(args.adapter_condition)
+    cond_weights = args.cond_weight
+
+    assert (
+        len(args.adapter_condition) == len(args.adapter_ckpt_path) == len(args.condition_image) == len(cond_weights)
+    ), (
+        f"Number of adapters and conditions should match, got {args.adapter_condition} adapters,"
+        f" {args.adapter_ckpt_path} checkpoints, {args.condition_image} condition images, and {cond_weights} weights."
+    )
+
     adapters = [
         get_adapter(a_cond, ckpt, use_fp16=not args.adapter_full_precision)
         for a_cond, ckpt in zip(args.adapter_condition, args.adapter_ckpt_path)
     ]
 
-    conds = args.condition_image
-    assert all([os.path.isfile(cond) for cond in conds]), "Path to condition image must be a file."
-
-    adapter = adapters[0]
-    cond = conds[0]
+    cond_paths = args.condition_image
+    assert all([os.path.isfile(cond) for cond in cond_paths]), "Paths to condition images must be files."
 
     # create sampler
     if args.ddim:
@@ -93,8 +141,9 @@ def main(args):
             "Distributed mode: False",
             f"Prompt: {prompt}",
             f"Negative prompt: {negative_prompt}",
-            f"Condition(s): {args.adapter_condition}",
-            f"Condition image(s): {conds}",
+            f"Conditions: {args.adapter_condition}",
+            f"Condition images: {cond_paths}",
+            f"Condition weights: {cond_weights}",
             f"Number of trials for each prompt: {args.n_iter}",
             f"Number of samples in each trial: {args.n_samples}",
             f"Model: StableDiffusion v-{args.version}",
@@ -115,13 +164,9 @@ def main(args):
         stdnormal = ms.ops.StandardNormal()
         start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
 
-    # TODO: extract into a method
-    cond = cv2.imread(cond, cv2.IMREAD_UNCHANGED)
-    cond = resize_image(cond, min(args.H, args.W))
-    args.H, args.W = cond.shape[:2]
-    cond = image2tensor(cond)
-
-    adapter_features = adapter(cond)
+    conds, img_shape = read_images(cond_paths, min(args.H, args.W))
+    args.H, args.W = img_shape
+    adapter_features, context = apply_adapters(adapters, conds, cond_weights)
 
     base_count = 0
     for n in range(args.n_iter):
@@ -143,7 +188,8 @@ def main(args):
             unconditional_guidance_scale=args.scale,
             unconditional_conditioning=uc,
             features_adapter=adapter_features,
-            cond_tau=args.cond_tau[0],
+            append_to_context=context,
+            cond_tau=args.cond_tau,
             style_cond_tau=args.style_cond_tau,
             eta=args.ddim_eta,
             x_T=start_code,
@@ -296,8 +342,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cond_tau",
         type=float,
-        default=[1.0],
-        nargs="+",
+        default=1.0,
         help="Timestamp parameter that determines until which step the adapter is applied. "
         "Similar as Prompt-to-Prompt tau.",
     )
@@ -312,8 +357,8 @@ if __name__ == "__main__":
         "--cond_weight",
         type=float,
         nargs="+",
-        default=1.0,
-        help="The adapter features are multiplied by the cond_weight. The larger the cond_weight, the more aligned "
+        default=[1.0],
+        help="The adapter features are multiplied by the `cond_weight`. The larger the `cond_weight`, the more aligned "
         "the generated image and condition will be, but the generated quality may be reduced.",
     )
 

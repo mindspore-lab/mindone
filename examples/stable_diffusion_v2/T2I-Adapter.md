@@ -1,5 +1,13 @@
 # T2I-Adapter
 
+- [Introduction](#introduction)
+- [Pretrained Models](#pretrained-models)
+- [Inference and Examples](#inference-and-examples)
+    - [Individual Adapters](#individual-adapters)
+    - [Combined Adapters](#combined-adapters)
+- [Training](#training)
+- [Acknowledgements](#acknowledgements)
+
 ## Introduction
 
 T2I-Adapters are simple and lightweight networks that provide additional visual guidance to Stable Diffusion models,
@@ -16,7 +24,7 @@ There are multiple advantages of this architecture:
 - **Simple and lightweight**: 77M parameters for full and 5M parameters for light adapters.
 - **Composable**: Several adapters can be combined to achieve multi-condition control.
 - **Generalizable**: Can be directly used on custom models as long as they fine-tuned from the same model (e.g., use
-T2I-Adapters trained on SD 1.4 with SD 1.5 or Anything anime model).
+  T2I-Adapters trained on SD 1.4 with SD 1.5 or Anything anime model).
 
 ## Pretrained Models
 
@@ -52,7 +60,9 @@ python mindone/tools/t2i_adapter_torch_to_ms/convert.py PATH_TO_YOUR_TORCH_MODEL
 The condition images used in the examples can be found
 [here](https://huggingface.co/TencentARC/T2I-Adapter/tree/main/examples).
 
-### Canny Adapter
+### Individual Adapters
+
+#### Canny Adapter
 
 <p align="center">
 <img width="256" alt="Canny input" src="https://github.com/mindspore-lab/mindone/assets/16683750/c6ae6ca5-356e-4028-9dd9-930e1be8adf2"/>
@@ -62,15 +72,15 @@ The condition images used in the examples can be found
 
 ```shell
 python examples/stable_diffusion_v2/adapter_image2image.py \
---version=1.5 \
---prompt="Cute toy, best quality, extremely detailed" \
---adapter_ckpt_path=models/t2iadapter_canny_sd15v2-c484cd69.ckpt \
+--version 1.5 \
+--prompt "Cute toy, best quality, extremely detailed" \
+--adapter_ckpt_path models/t2iadapter_canny_sd15v2-c484cd69.ckpt \
 --ddim \
---adapter_condition=canny \
---condition_image=samples/canny/toy_canny.png
+--adapter_condition canny \
+--condition_image samples/canny/toy_canny.png
 ```
 
-### Spatial Palette (Color) Adapter
+#### Spatial Palette (Color) Adapter
 
 <p align="center">
 <img width="320" alt="Color input" src="https://github.com/mindspore-lab/mindone/assets/16683750/01e41f01-188e-4331-adac-597d2e3fc9f7"/>
@@ -80,16 +90,16 @@ python examples/stable_diffusion_v2/adapter_image2image.py \
 
 ```shell
 python examples/stable_diffusion_v2/adapter_image2image.py \
---version=1.5 \
---prompt="A photo of scenery" \
---adapter_ckpt_path=models/t2iadapter_color_sd14v1-7cb31ebd.ckpt \
+--version 1.5 \
+--prompt "A photo of scenery" \
+--adapter_ckpt_path models/t2iadapter_color_sd14v1-7cb31ebd.ckpt \
 --ddim \
---adapter_condition=color \
---condition_image=samples/color/color_0002.png \
---scale=9
+--adapter_condition color \
+--condition_image samples/color/color_0002.png \
+--scale 9
 ```
 
-### Depth Adapter
+#### Depth Adapter
 
 <p align="center">
 <img height="366" alt="Depth input" src="https://github.com/mindspore-lab/mindone/assets/16683750/592ee66b-d3cc-428b-8efc-f3f89a02e5bd"/>
@@ -99,15 +109,15 @@ python examples/stable_diffusion_v2/adapter_image2image.py \
 
 ```shell
 python examples/stable_diffusion_v2/adapter_image2image.py \
---version=1.5 \
---prompt="desk, best quality, extremely detailed" \
---adapter_ckpt_path=models/t2iadapter_depth_sd15v2-dc86209b.ckpt \
+--version 1.5 \
+--prompt "desk, best quality, extremely detailed" \
+--adapter_ckpt_path models/t2iadapter_depth_sd15v2-dc86209b.ckpt \
 --ddim \
---adapter_condition=depth \
---condition_image=samples/depth/desk_depth.png
+--adapter_condition depth \
+--condition_image samples/depth/desk_depth.png
 ```
 
-### OpenPose Adapter
+#### OpenPose Adapter
 
 <p align="center">
 <img width="256" alt="OpenPose input" src="https://github.com/mindspore-lab/mindone/assets/16683750/04b8aa78-3914-46c0-bf8c-37acc064cd4d"/>
@@ -117,15 +127,15 @@ python examples/stable_diffusion_v2/adapter_image2image.py \
 
 ```shell
 python examples/stable_diffusion_v2/adapter_image2image.py \
---version=1.5 \
---prompt="Iron man, high-quality, high-res" \
---adapter_ckpt_path=models/t2iadapter_openpose_sd14v1-ebcdb5cb.ckpt \
+--version 1.5 \
+--prompt "Iron man, high-quality, high-res" \
+--adapter_ckpt_path models/t2iadapter_openpose_sd14v1-ebcdb5cb.ckpt \
 --ddim \
---adapter_condition=openpose \
---condition_image=samples/openpose/iron_man_pose.png
+--adapter_condition openpose \
+--condition_image samples/openpose/iron_man_pose.png
 ```
 
-### Segmentation Adapter
+#### Segmentation Adapter
 
 <p align="center">
 <img width="320" alt="Segmentation input" src="https://github.com/mindspore-lab/mindone/assets/16683750/f7486cf2-1c0d-4b4f-bb04-fcfc1aeeae87"/>
@@ -135,15 +145,15 @@ python examples/stable_diffusion_v2/adapter_image2image.py \
 
 ```shell
 python examples/stable_diffusion_v2/adapter_image2image.py \
---version=1.5 \
---prompt="A black Honda motorcycle parked in front of a garage, best quality, extremely detailed" \
---adapter_ckpt_path=models/t2iadapter_seg_sd14v1-1d2e8478.ckpt \
+--version 1.5 \
+--prompt "A black Honda motorcycle parked in front of a garage, best quality, extremely detailed" \
+--adapter_ckpt_path models/t2iadapter_seg_sd14v1-1d2e8478.ckpt \
 --ddim \
---adapter_condition=seg \
---condition_image=samples/seg/motor.png
+--adapter_condition seg \
+--condition_image samples/seg/motor.png
 ```
 
-### Sketch Adapter
+#### Sketch Adapter
 
 <p align="center">
 <img width="320" alt="Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/feef1c90-6ed9-4af4-a3ee-a949000fcc59"/>
@@ -153,13 +163,35 @@ python examples/stable_diffusion_v2/adapter_image2image.py \
 
 ```shell
 python examples/stable_diffusion_v2/adapter_image2image.py \
---version=1.5 \
---prompt="A car with flying wings" \
---adapter_ckpt_path=models/ms_models/t2iadapter_sketch_sd15v2-6c537e26.ckpt \
+--version 1.5 \
+--prompt "A car with flying wings" \
+--adapter_ckpt_path models/t2iadapter_sketch_sd15v2-6c537e26.ckpt \
 --ddim \
---adapter_condition=sketch \
---condition_image=samples/sketch/car.png \
---cond_tau=0.5
+--adapter_condition sketch \
+--condition_image samples/sketch/car.png \
+--cond_tau 0.5
+```
+
+### Combined Adapters
+
+Individual T2I-Adapters can also be combined without retraining to condition on multiple images.
+
+#### Color + Sketch
+
+<p align="center">
+<img height="256" alt="Sketch input" src="https://github.com/mindspore-lab/mindone/assets/16683750/a30661ce-26e3-42a3-b935-6caabe406d02"/>
+<br><em>Prompt: A car with flying wings</em>
+</p>
+
+```shell
+python examples/stable_diffusion_v2/adapter_image2image.py \
+--version 1.5 \
+--prompt "A car with flying wings" \
+--adapter_ckpt_path models/t2iadapter_sketch_sd15v2.ckpt models/t2iadapter_color_sd14v1.ckpt \
+--adapter_condition sketch color\
+--condition_image samples/sketch/car.png samples/color/color_0004.png \
+--cond_weight 1.0 1.2 \
+--ddim
 ```
 
 ## Training
