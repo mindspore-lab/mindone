@@ -39,6 +39,7 @@ from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config
+from utils.download import download_checkpoint
 
 logger = logging.getLogger("depth_to_image")
 
@@ -49,19 +50,17 @@ _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 
 
 def build_depth_estimator(
-    model_type="midas_v3_dpt_large_384", 
+    model_type="midas_v3_dpt_large_384",
     estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt",
-    amp_level='O2',
+    amp_level="O2",
 ):
-
-    dtype = ms.float32 if amp_level == 'O0' else ms.float16
+    dtype = ms.float32 if amp_level == "O0" else ms.float16
     if model_type == "midas_v3_dpt_large_384":
-
         depth_model = midas_v3_dpt_large(pretrained=True, ckpt_path=estimator_ckpt_path, dtype=dtype)
     else:
         # TODO: support midas v3 hybrid
         raise NotImplementedError
-    
+
     auto_mixed_precision(depth_model, amp_level=amp_level)
 
     return depth_model
@@ -241,7 +240,18 @@ def prepare_conditions(depth, txt, num_samples=1, height=512, width=512, vae_sca
 
 
 def depth_to_image(
-    sampler, depth, prompt, seed, scale, sample_steps, num_samples=1, w=512, h=512, init_image=None, strength=0.8, negative_prompt=None,
+    sampler,
+    depth,
+    prompt,
+    seed,
+    scale,
+    sample_steps,
+    num_samples=1,
+    w=512,
+    h=512,
+    init_image=None,
+    strength=0.8,
+    negative_prompt=None,
 ):
     model = sampler.model
 

@@ -2,16 +2,20 @@ import collections
 import math
 import os
 
+from utils.download import download_checkpoint
+
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter
 from mindspore.common.initializer import Normal, initializer
-from utils.download import download_checkpoint
 
 __all__ = ["MiDaS", "midas_v3_dpt_large"]
 
-_CKPT_URL = {"midas_v3_dpt_large": "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_midas_v3_dpt_large-c8fd1049.ckpt"}
+_CKPT_URL = {
+    "midas_v3_dpt_large": "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_midas_v3_dpt_large-c8fd1049.ckpt"
+}
+
 
 class SelfAttention(nn.Cell):
     def __init__(self, dim, num_heads):
@@ -101,7 +105,9 @@ class conv_nd(nn.Cell):
 
 
 class VisionTransformer(nn.Cell):
-    def __init__(self, image_size=384, patch_size=16, dim=1024, out_dim=1000, num_heads=16, num_layers=24, dtype=ms.float32):
+    def __init__(
+        self, image_size=384, patch_size=16, dim=1024, out_dim=1000, num_heads=16, num_layers=24, dtype=ms.float32
+    ):
         assert image_size % patch_size == 0
         super(VisionTransformer, self).__init__()
         self.image_size = image_size
@@ -397,7 +403,7 @@ def midas_v3_dpt_large(pretrained=False, **kwargs):
         # download and load checkpoint
         if not os.path.exists(ckpt_path):
             download_checkpoint(_CKPT_URL["midas_v3_dpt_large"], "models/depth_estimator")
-            
+
         state = ms.load_checkpoint(ckpt_path)
         for pname, p in model.parameters_and_names():
             if p.name != pname and (p.name not in state and pname in state):
