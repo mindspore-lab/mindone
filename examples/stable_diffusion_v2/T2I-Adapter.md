@@ -188,7 +188,7 @@ python examples/stable_diffusion_v2/adapter_image2image.py \
 --version 1.5 \
 --prompt "A car with flying wings" \
 --adapter_ckpt_path models/t2iadapter_sketch_sd15v2.ckpt models/t2iadapter_color_sd14v1.ckpt \
---adapter_condition sketch color\
+--adapter_condition sketch color \
 --condition_image samples/sketch/car.png samples/color/color_0004.png \
 --cond_weight 1.0 1.2 \
 --ddim
