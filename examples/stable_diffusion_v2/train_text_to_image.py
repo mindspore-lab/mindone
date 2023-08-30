@@ -10,7 +10,7 @@ import shutil
 from ldm.data.dataset import build_dataset
 from ldm.data.dataset_dist import split_and_sync_data
 from ldm.modules.logger import set_logger
-from ldm.modules.lora import inject_trainable_lora
+from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
@@ -29,7 +29,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-SD_VERSION = os.getenv("SD_VERSION", default="2.0")
+SD_VERSION = os.getenv("SD_VERSION", default="2.1")
 
 logger = logging.getLogger(__name__)
 
@@ -165,17 +165,26 @@ def main(args):
             param.requires_grad = False
 
         # inject lora params
-        injected_attns, injected_trainable_params = inject_trainable_lora(
-            latent_diffusion_with_loss,
-            rank=args.lora_rank,
-            use_fp16=args.lora_fp16,
-        )
+        num_injected_params = 0
+        if args.lora_ft_unet:
+            unet_lora_layers, unet_lora_params = inject_trainable_lora(
+                latent_diffusion_with_loss,
+                rank=args.lora_rank,
+                use_fp16=args.lora_fp16,
+            )
+            num_injected_params += len(unet_lora_params)
+        if args.lora_ft_text_encoder:
+            text_encoder_lora_layers, text_encoder_lora_params = inject_trainable_lora_to_textencoder(
+                latent_diffusion_with_loss,
+                rank=args.lora_rank,
+                use_fp16=args.lora_fp16,
+            )
+            num_injected_params += len(text_encoder_lora_params)
 
-        # TODO: support lora inject to text encoder (remove .model)
-        assert len(latent_diffusion_with_loss.trainable_params()) == len(
-            injected_trainable_params
-        ), "Only lora params should be trainable. but got {} trainable params".format(
-            len(latent_diffusion_with_loss.trainable_params())
+        assert (
+            len(latent_diffusion_with_loss.trainable_params()) == num_injected_params
+        ), "Only lora params {} should be trainable. but got {} trainable params".format(
+            num_injected_params, len(latent_diffusion_with_loss.trainable_params())
         )
         # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
     dataset_size = dataset.get_dataset_size()
@@ -338,6 +347,10 @@ if __name__ == "__main__":
     parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
     parser.add_argument("--pretrained_model_file", default="", type=str, help="pretrained model file name")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
+    parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether to apply lora finetune to unet")
+    parser.add_argument(
+        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder"
+    )
     parser.add_argument(
         "--lora_rank",
         default=4,
