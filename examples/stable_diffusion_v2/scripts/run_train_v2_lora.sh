@@ -3,7 +3,7 @@ export HCCL_CONNECT_TIMEOUT=600
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-device_id=6
+device_id=0
 
 # modify to your local data path
 data_path=./datasets/pokemon_blip/train

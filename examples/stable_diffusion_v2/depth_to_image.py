@@ -476,7 +476,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default=None, help="")
     parser.add_argument("--ckpt_path", type=str, default=None, help="")
     parser.add_argument("--aug", type=str, default="resize", help="augment type")
-    parser.add_argument("--mask_ratio", type=float, default=0.75, help="")
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
