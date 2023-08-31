@@ -62,6 +62,7 @@ do
     mkdir -p ${output_path:?}/${task_name:?}/rank_$i
     echo "start training for rank $RANK_ID, device $DEVICE_ID"
     nohup python -u train_text_to_image.py \
+        --version="2.0" \
         --data_path=$data_path \
         --image_filter_size=$image_filter_size \
         --train_config=$train_config_file \

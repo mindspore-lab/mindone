@@ -19,8 +19,6 @@ export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 export DEVICE_ID=4
 
-export SD_VERSOIN="2.0"
-
 base_ckpt_path=models/sd_v2_768_v-e12e3a9b.ckpt
 #data_path=./dataset/chinese_art_blip/test/prompts.txt
 data_path=./dataset/pokemon_blip/test/prompts.txt
@@ -45,6 +43,7 @@ output_path=./output/vpred_vanilla_finetune_pokemon_0720
 # uncomment this module for single image sampling
 #output_path=./output/vpred_vanilla_finetune_chinese_art_0720
 python text_to_image.py \
+    --version "2.0" \
     --prompt "a wolf in winter" \
     --config configs/v2-inference.yaml \
     --output_path ./output/ \

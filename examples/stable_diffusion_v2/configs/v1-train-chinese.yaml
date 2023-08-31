@@ -60,6 +60,7 @@ model:
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
+        version: "1.5-wukong"
         use_fp16: True
         tokenizer_name: "WordpieceTokenizer" # only wukong uses this
         context_length: 77

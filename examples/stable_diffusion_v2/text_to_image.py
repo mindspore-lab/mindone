@@ -320,7 +320,7 @@ if __name__ == "__main__":
         type=str,
         nargs="?",
         default="2.1",
-        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', 'wukong'",
+        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
     )
     parser.add_argument(
         "--prompt", type=str, nargs="?", default="A cute wolf in winter forest", help="the prompt to render"
@@ -466,7 +466,6 @@ if __name__ == "__main__":
 
     # check args
     if args.version:
-        os.environ["SD_VERSION"] = args.version
         if args.version not in _version_cfg:
             raise ValueError(f"Unknown version: {args.version}. Supported SD versions are: {list(_version_cfg.keys())}")
     if args.ckpt_path is None:
