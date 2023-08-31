@@ -1,9 +1,19 @@
+from collections import OrderedDict
+from typing import Callable
+
 import numpy as np
 
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import Parameter, Tensor, ops
 from mindspore.common.initializer import TruncatedNormal, initializer
+
+
+class SeqeuntialCellWithMaskInput(nn.SequentialCell):
+    def construct(self, input_data, mask):
+        for cell in self.cell_list:
+            input_data = cell(input_data, mask)
+        return input_data
 
 
 class MultiheadAttention(nn.Cell):
@@ -169,6 +179,86 @@ class TextEncoder(nn.Cell):
         x = x + self.positional_embedding
         x = x.transpose(1, 0, 2)
         x = self.transformer_layer(x)
+        x = x.transpose(1, 0, 2)
+        x = self.ln_final(x)
+        return x
+
+
+class OpenCLIPResidualAttentionBlock(nn.Cell):
+    def __init__(
+        self,
+        d_model: int,
+        n_head: int,
+        mlp_ratio: float = 4.0,
+        act_layer: Callable = nn.GELU,
+        norm_layer: Callable = nn.LayerNorm,
+        is_cross_attention: bool = False,
+        dtype=ms.float32,
+    ):
+        super().__init__()
+        self.dtype = dtype
+        self.ln_1 = norm_layer([d_model]).to_float(self.dtype)
+        self.attn = MultiheadAttention(d_model, n_head, dtype=dtype)
+        if is_cross_attention:
+            self.ln_1_kv = norm_layer([d_model])
+
+        self.ln_2 = norm_layer([d_model]).to_float(self.dtype)
+        mlp_width = int(d_model * mlp_ratio)
+        self.mlp = nn.SequentialCell(
+            OrderedDict(
+                [
+                    ("c_fc", nn.Dense(d_model, mlp_width).to_float(self.dtype)),
+                    ("gelu", act_layer()),
+                    ("c_proj", nn.Dense(mlp_width, d_model).to_float(self.dtype)),
+                ]
+            )
+        )
+
+    def construct(self, x, attn_mask):
+        x = x + self.attn(self.ln_1(x), None, None, attn_mask)
+        x = x + self.mlp(self.ln_2(x))
+        return x
+
+
+class OpenCLIPTransformer(nn.Cell):
+    def __init__(self, width, layers, heads, dtype=ms.float32):
+        super().__init__()
+        self.width = width
+        self.layers = layers
+        self.resblocks = SeqeuntialCellWithMaskInput(
+            *[OpenCLIPResidualAttentionBlock(width, heads, dtype=dtype) for _ in range(layers)]
+        )
+
+    def construct(self, x, attn_mask):
+        return self.resblocks(x, attn_mask)
+
+
+class OpenClipTextEncoder(nn.Cell):
+    def __init__(self, context_length, vocab_size, output_dim, width, layers, heads, dtype=ms.float32):
+        super().__init__()
+        self.dtype = dtype
+        self.width = width
+        self.layers = layers
+        self.vocab_size = vocab_size
+        self.token_embedding = nn.Embedding(vocab_size, width).to_float(self.dtype)
+
+        self.transformer = OpenCLIPTransformer(width, layers, heads, dtype=self.dtype)
+        self.positional_embedding = Parameter(
+            initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
+        )
+        self.ln_final = nn.LayerNorm([self.width]).to_float(self.dtype)
+        self.attn_mask = ms.Tensor(self.build_attntion_mask(context_length), dtype=self.dtype)
+
+    @staticmethod
+    def build_attntion_mask(context_length):
+        mask = np.triu(np.full((context_length, context_length), -np.inf).astype(np.float32), 1)
+        return mask
+
+    def construct(self, text):
+        x = self.token_embedding(text)
+        x = x + self.positional_embedding
+        x = x.transpose(1, 0, 2)
+        x = self.transformer(x, self.attn_mask)
         x = x.transpose(1, 0, 2)
         x = self.ln_final(x)
         return x
