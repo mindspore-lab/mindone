@@ -14,8 +14,6 @@
 # ============================================================================
 import math
 
-from ldm.util import is_old_ms_version
-
 import mindspore as ms
 from mindspore import ops, scipy
 
@@ -367,10 +365,7 @@ def model_wrapper(
                 t_in = ops.concat([t_continuous] * 2)
                 c_in = ops.concat([unconditional_condition, condition])
                 noise_output = noise_pred_fn(x_in, t_in, cond=c_in)
-                if is_old_ms_version():
-                    noise_uncond, noise = ops.split(noise_output, output_num=2)
-                else:
-                    noise_uncond, noise = ops.split(noise_output, split_size_or_sections=noise_output.shape[0] // 2)
+                noise_uncond, noise = ops.split(noise_output, split_size_or_sections=noise_output.shape[0] // 2)
 
                 return noise_uncond + guidance_scale * (noise - noise_uncond)
 

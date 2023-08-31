@@ -19,7 +19,7 @@ from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import parse_with_config, set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
-from ldm.util import count_params, is_old_ms_version, str2bool
+from ldm.util import count_params, load_pretrained_model, str2bool
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -94,19 +94,6 @@ def get_obj_from_str(string, reload=False):
         module_imp = importlib.import_module(module)
         importlib.reload(module_imp)
     return getattr(importlib.import_module(module, package=None), cls)
-
-
-def load_pretrained_model(pretrained_ckpt, net):
-    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
-    if os.path.exists(pretrained_ckpt):
-        param_dict = load_checkpoint(pretrained_ckpt)
-        if is_old_ms_version():
-            param_not_load = load_param_into_net(net, param_dict)
-        else:
-            param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
-        logger.info("Params not load: {}".format(param_not_load))
-    else:
-        logger.warning(f"Checkpoint file {pretrained_ckpt} dose not exist!!!")
 
 
 def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):

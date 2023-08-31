@@ -15,7 +15,6 @@
 import logging
 
 import numpy as np
-from ldm.util import is_old_ms_version
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -92,10 +91,7 @@ class ResnetBlock(nn.Cell):
         if temb_channels > 0:
             self.temb_proj = nn.Dense(temb_channels, out_channels, bias_init="normal").to_float(dtype)
         self.norm2 = Normalize(out_channels)
-        if is_old_ms_version():
-            self.dropout = nn.Dropout(1.0 - dropout)
-        else:
-            self.dropout = nn.Dropout(p=dropout)
+        self.dropout = nn.Dropout(p=dropout)
         self.conv2 = nn.Conv2d(
             out_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         ).to_float(dtype)

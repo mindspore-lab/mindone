@@ -22,8 +22,7 @@ from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.tools import set_random_seed
-from ldm.util import instantiate_from_config, str2bool
-from utils import model_utils
+from ldm.util import instantiate_from_config, load_model, str2bool
 from utils.download import download_checkpoint
 
 logger = logging.getLogger("text_to_image")
@@ -41,42 +40,185 @@ _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
 
 
-def numpy_to_pil(images):
-    """
-    Convert a numpy image or a batch of images to a PIL image.
-    """
-    if images.ndim == 3:
-        images = images[None, ...]
-    images = (images * 255).round().astype("uint8")
-    pil_images = [Image.fromarray(image) for image in images]
-
-    return pil_images
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        nargs="?",
+        default="",
+        help="path to a file containing prompt list (each line in the file corresponds to a prompt to render).",
+    )
+    parser.add_argument(
+        "--negative_data_path",
+        type=str,
+        nargs="?",
+        default="",
+        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to "
+        "render).",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        type=str,
+        nargs="?",
+        default="2.1",
+        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
+    )
+    parser.add_argument(
+        "--prompt", type=str, nargs="?", default="A cute wolf in winter forest", help="the prompt to render"
+    )
+    parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
+    parser.add_argument("--output_path", type=str, nargs="?", default="output", help="dir to write results to")
+    parser.add_argument(
+        "--skip_grid",
+        action="store_true",
+        help="do not save a grid, only individual samples. Helpful when evaluating lots of samples",
+    )
+    parser.add_argument(
+        "--skip_save",
+        action="store_true",
+        help="do not save individual samples. For speed measurements.",
+    )
+    parser.add_argument(
+        "--sampling_steps",
+        type=int,
+        default=20,
+        help="number of ddim sampling steps. The recommended value is  50 for PLMS, DDIM and 20 for UniPC,DPM-Solver, DPM-Solver++",
+    )
+    parser.add_argument(
+        "--ddim_eta",
+        type=float,
+        default=0.0,
+        help="ddim eta (eta=0.0 corresponds to deterministic sampling",
+    )
+    parser.add_argument(
+        "--fixed_code",
+        action="store_true",
+        help="if enabled, uses the same starting code across samples ",
+    )
+    parser.add_argument(
+        "--n_iter",
+        type=int,
+        default=2,
+        help="number of iterations or trials. sample this often, ",
+    )
+    parser.add_argument(
+        "--n_samples",
+        type=int,
+        default=4,
+        help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
+    )
+    parser.add_argument(
+        "--H",
+        type=int,
+        default=512,
+        help="image height, in pixel space",
+    )
+    parser.add_argument(
+        "--W",
+        type=int,
+        default=512,
+        help="image width, in pixel space",
+    )
+    parser.add_argument(
+        "--ddim",
+        action="store_true",
+        help="use ddim sampling",
+    )
+    parser.add_argument(
+        "--dpm_solver",
+        action="store_true",
+        help="use dpm_solver sampling",
+    )
+    parser.add_argument(
+        "--plms",
+        action="store_true",
+        help="use plms sampling",
+    )
+    parser.add_argument(
+        "--uni_pc",
+        action="store_true",
+        help="use uni_pc sampling",
+    )
+    parser.add_argument(
+        "--n_rows",
+        type=int,
+        default=0,
+        help="rows in the grid (default: n_samples)",
+    )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=None,
+        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
+        "Simplified: `uc + scale * (uc - prompt)`",
+    )
+    parser.add_argument(
+        "--from-file",
+        type=str,
+        help="if specified, load prompts from this file",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        default=None,
+        help="path to config which constructs model. If None, select by version",
+    )
+    parser.add_argument(
+        "--use_lora",
+        default=False,
+        type=str2bool,
+        help="whether the checkpoint used for inference is finetuned from LoRA",
+    )
+    parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether lora finetune is applied to unet")
+    parser.add_argument(
+        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether lora finetune is applied to text encoder"
+    )
+    parser.add_argument(
+        "--lora_rank",
+        default=None,
+        type=int,
+        help="LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.",
+    )
+    parser.add_argument(
+        "--ckpt_path",
+        type=str,
+        default=None,
+        help="path to checkpoint of model",
+    )
+    parser.add_argument(
+        "--lora_ckpt_path",
+        type=str,
+        default=None,
+        help="path to lora only checkpoint. Set it if use_lora is not None",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="the seed (for reproducible sampling)",
+    )
+    parser.add_argument(
+        "--log_level",
+        type=str,
+        default="logging.INFO",
+        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
+    )
+    args = parser.parse_args()
+    return args
 
 
 def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None):
     model = instantiate_from_config(config.model)
-
-    def _load_model(_model, ckpt_fp, verbose=True, filter=None):
-        if os.path.exists(ckpt_fp):
-            param_dict = ms.load_checkpoint(ckpt_fp)
-            if param_dict:
-                param_not_load, ckpt_not_load = model_utils.load_param_into_net_with_filter(
-                    _model, param_dict, filter=filter
-                )
-                if verbose:
-                    if len(param_not_load) > 0:
-                        logger.info(
-                            "Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")])
-                        )
-        else:
-            logger.error(f"!!!Error!!!: {ckpt_fp} doesn't exist")
-            raise FileNotFoundError(f"{ckpt_fp} doesn't exist")
-
     if use_lora:
         load_lora_only = True if lora_only_ckpt is not None else False
         if not load_lora_only:
             logger.info(f"Loading model from {ckpt}")
-            _load_model(model, ckpt)
+            load_model(model, ckpt)
         else:
             if os.path.exists(lora_only_ckpt):
                 lora_param_dict = ms.load_checkpoint(lora_only_ckpt)
@@ -87,7 +229,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                 raise ValueError(f"{lora_only_ckpt} doesn't exist")
             # load the main pretrained model
             logger.info(f"Loading pretrained model from {ckpt}")
-            _load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
+            load_model(model, ckpt, verbose=True, filter=ms.load_checkpoint(ckpt).keys())
             # inject lora params
             if args.lora_ft_unet:
                 injected_attns, injected_trainable_params = inject_trainable_lora(
@@ -104,10 +246,10 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
 
             # load fine-tuned lora params
             logger.info(f"Loading LoRA params from {lora_only_ckpt}")
-            _load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
+            load_model(model, lora_only_ckpt, verbose=True, filter=injected_trainable_params.keys())
     else:
         logger.info(f"Loading model from {ckpt}")
-        _load_model(model, ckpt)
+        load_model(model, ckpt)
 
     model.set_train(False)
     for param in model.trainable_params():
@@ -295,174 +437,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
-    )
-    parser.add_argument(
-        "--data_path",
-        type=str,
-        nargs="?",
-        default="",
-        help="path to a file containing prompt list (each line in the file corresponds to a prompt to render).",
-    )
-    parser.add_argument(
-        "--negative_data_path",
-        type=str,
-        nargs="?",
-        default="",
-        help="path to a file containing negative prompt list (each line in the file corresponds to a prompt not to "
-        "render).",
-    )
-    parser.add_argument(
-        "-v",
-        "--version",
-        type=str,
-        nargs="?",
-        default="2.1",
-        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
-    )
-    parser.add_argument(
-        "--prompt", type=str, nargs="?", default="A cute wolf in winter forest", help="the prompt to render"
-    )
-    parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
-    parser.add_argument("--output_path", type=str, nargs="?", default="output", help="dir to write results to")
-    parser.add_argument(
-        "--skip_grid",
-        action="store_true",
-        help="do not save a grid, only individual samples. Helpful when evaluating lots of samples",
-    )
-    parser.add_argument(
-        "--skip_save",
-        action="store_true",
-        help="do not save individual samples. For speed measurements.",
-    )
-    parser.add_argument(
-        "--sampling_steps",
-        type=int,
-        default=20,
-        help="number of ddim sampling steps. The recommended value is  50 for PLMS, DDIM and 20 for UniPC,DPM-Solver, DPM-Solver++",
-    )
-    parser.add_argument(
-        "--ddim_eta",
-        type=float,
-        default=0.0,
-        help="ddim eta (eta=0.0 corresponds to deterministic sampling",
-    )
-    parser.add_argument(
-        "--fixed_code",
-        action="store_true",
-        help="if enabled, uses the same starting code across samples ",
-    )
-    parser.add_argument(
-        "--n_iter",
-        type=int,
-        default=2,
-        help="number of iterations or trials. sample this often, ",
-    )
-    parser.add_argument(
-        "--n_samples",
-        type=int,
-        default=4,
-        help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
-    )
-    parser.add_argument(
-        "--H",
-        type=int,
-        default=512,
-        help="image height, in pixel space",
-    )
-    parser.add_argument(
-        "--W",
-        type=int,
-        default=512,
-        help="image width, in pixel space",
-    )
-    parser.add_argument(
-        "--ddim",
-        action="store_true",
-        help="use ddim sampling",
-    )
-    parser.add_argument(
-        "--dpm_solver",
-        action="store_true",
-        help="use dpm_solver sampling",
-    )
-    parser.add_argument(
-        "--plms",
-        action="store_true",
-        help="use plms sampling",
-    )
-    parser.add_argument(
-        "--uni_pc",
-        action="store_true",
-        help="use uni_pc sampling",
-    )
-    parser.add_argument(
-        "--n_rows",
-        type=int,
-        default=0,
-        help="rows in the grid (default: n_samples)",
-    )
-    parser.add_argument(
-        "--scale",
-        type=float,
-        default=None,
-        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
-        "Simplified: `uc + scale * (uc - prompt)`",
-    )
-    parser.add_argument(
-        "--from-file",
-        type=str,
-        help="if specified, load prompts from this file",
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        default=None,
-        help="path to config which constructs model. If None, select by version",
-    )
-    parser.add_argument(
-        "--use_lora",
-        default=False,
-        type=str2bool,
-        help="whether the checkpoint used for inference is finetuned from LoRA",
-    )
-    parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether lora finetune is applied to unet")
-    parser.add_argument(
-        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether lora finetune is applied to text encoder"
-    )
-    parser.add_argument(
-        "--lora_rank",
-        default=None,
-        type=int,
-        help="LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.",
-    )
-    parser.add_argument(
-        "--ckpt_path",
-        type=str,
-        default=None,
-        help="path to checkpoint of model",
-    )
-    parser.add_argument(
-        "--lora_ckpt_path",
-        type=str,
-        default=None,
-        help="path to lora only checkpoint. Set it if use_lora is not None",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="the seed (for reproducible sampling)",
-    )
-    parser.add_argument(
-        "--log_level",
-        type=str,
-        default="logging.INFO",
-        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
-    )
-    args = parser.parse_args()
+    args = parse_args()
 
     # check args
     if args.version:

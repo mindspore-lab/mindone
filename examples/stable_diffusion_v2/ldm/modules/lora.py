@@ -1,7 +1,6 @@
 import logging
 
 import ldm
-from ldm.util import is_old_ms_version
 
 import mindspore as ms
 import mindspore.common.initializer as init
@@ -53,10 +52,7 @@ class LoRADenseLayer(nn.Cell):
         self.lora_down = nn.Dense(in_features, rank, has_bias=False).to_float(dtype)
         self.lora_up = nn.Dense(rank, out_features, has_bias=False).to_float(dtype)
 
-        if is_old_ms_version():
-            self.dropout = nn.Dropout(keep_prob=1 - dropout_p)
-        else:
-            self.dropout = nn.Dropout(p=dropout_p)
+        self.dropout = nn.Dropout(p=dropout_p)
 
         self.activation = get_activation(activation) if isinstance(activation, str) else activation
         if activation is not None and not isinstance(self.activation, (Cell, Primitive)):
@@ -382,10 +378,7 @@ class LowRankDense(nn.Cell):
         self.scale = scale
         self.lora_down = nn.Dense(in_features, rank, has_bias=False).to_float(dtype)
         self.lora_up = nn.Dense(rank, out_features, has_bias=False).to_float(dtype)
-        if is_old_ms_version():
-            self.dropout = nn.Dropout(keep_prob=1 - dropout_p)
-        else:
-            self.dropout = nn.Dropout(p=dropout_p)
+        self.dropout = nn.Dropout(p=dropout_p)
 
         self.lora_down.weight.set_data(
             init.initializer(init.Normal(sigma=1.0 / rank), self.lora_down.weight.shape, self.lora_down.weight.dtype)
