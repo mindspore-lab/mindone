@@ -309,9 +309,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # overwrite env var by parsed arg
-    if args.version:
-        os.environ["SD_VERSION"] = args.version
     if args.ckpt_path is None:
         if args.version in ["1.5_cn", "1.5-wukong"]:
             args.ckpt_path = "models/wukong-huahua-inpaint-ms.ckpt"

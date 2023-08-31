@@ -44,8 +44,6 @@ def main(args):
     os.makedirs(outpath, exist_ok=True)
     logger.info(f"Output:{outpath}")
 
-    # set enviroment variable
-    os.environ["SD_VERSION"] = "1.5"
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(mode=ms.context.PYNATIVE_MODE, device_target="Ascend", device_id=device_id)

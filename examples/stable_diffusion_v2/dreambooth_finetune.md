@@ -91,9 +91,6 @@ export HCCL_CONNECT_TIMEOUT=600
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-# Choose stable diffusion version
-export SD_VERSION="2.0"
-
 # standalone training settings
 device_id=0
 export RANK_SIZE=1
@@ -139,6 +136,7 @@ train_batch_size=1
 In `scripts/run_train_dreambooth_sd_v2.sh`, the training command is like this:
 ```bash
 python train_dreambooth.py \
+    --version="2.0" \
     --mode=0 \
     --use_parallel=False \
     --instance_data_dir=$instance_data_dir \

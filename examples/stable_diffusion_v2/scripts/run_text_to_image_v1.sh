@@ -18,10 +18,10 @@
 export GLOG_v=3
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
-export SD_VERSOIN=1.x
 
 export DEVICE_ID=0; \
 python text_to_image.py \
+    --version "1.5-wukong" \
     --prompt "雪中之狼" \
     --config configs/v1-inference-chinese.yaml \
     --output_path ./output/ \

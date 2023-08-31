@@ -19,14 +19,13 @@ export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 export DEVICE_ID=4
 
-export SD_VERSOIN="2.0"
-
 base_ckpt_path=models/sd_v2_base-57526ee4.ckpt
 data_path=dataset/pokemon_blip/test/prompts.txt
 output_path=output/noise_vanilla_finetune_pokemon_0720
 
 # --prompt "A wolfie in winter" \
 python text_to_image.py \
+    --version "2.0" \
     --data_path $data_path \
     --config configs/v2-inference.yaml \
     --output_path $output_path \
