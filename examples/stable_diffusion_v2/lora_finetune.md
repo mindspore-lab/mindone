@@ -93,14 +93,16 @@ After training, the lora checkpoint will be saved in `{output_path}/ckpt/txt2img
 
 Below are some arguments that you may want to tune for a better performance on your dataset:
 
-- lora_rank: the rank of the low-rank matrices in lora params.
-- train_batch_size: the number of batch size for training.
-- start_learning_rate and end_learning_rate: the initial and end learning rates for training.
-- epochs: the number of epochs for training.
-- use_ema: whether use EMA for model smoothing
-> Note that the default learning rate for LoRA is 1e-4, which is larger that vanilla finetuning (~1e-5).
+
+- `lora_rank`: the rank of the low-rank matrices in lora params.
+- `train_batch_size`: the number of batch size for training.
+- `start_learning_rate` and `end_learning_rate`: the initial and end learning rates for training.
+- `epochs`: the number of epochs for training.
+- `use_ema`: whether use EMA for model smoothing
+> Note that the default learning rate for LoRA is 1e-4, whichis larger that vanilla finetuning (~1e-5).
 
 For more argument illustration, please run `python train_text_to_image.py -h`.
+
 
 #### Config for v-prediction (Experimental)
 
@@ -215,6 +217,12 @@ Here are the evaluation results for our implementation.
 </div>
 
 > Note that these numbers can not reflect the generation quality comprehensively!! A visual evaluation is also necessary.
+
+## Notes
+
+- Apply LoRA to Text-encoder
+
+By default, LoRA fintuning is only applied to UNet. To finetune the text encoder with LoRA as well, please pass `--lora_ft_text_encoder=True` to the finetuning script (`train_text_to_image.py`) and inference script (`text_to_image.py`).
 
 
 ## Reference

@@ -217,7 +217,7 @@ class FlashAttention(nn.Cell):
         super(FlashAttention, self).__init__()
         self.head_num = head_num
         self.scale = head_dim**-0.25
-        self.flash_attention = get_flash_attention(tiling_stgy_name="xunfei")
+        self.flash_attention = get_flash_attention(tiling_stgy_name="sparse")
         self.reshape = ops.Reshape()
         self.scale_mul = ops.Mul()
 
@@ -225,22 +225,13 @@ class FlashAttention(nn.Cell):
         # ALiBi, reference to https://arxiv.org/abs/2108.12409
         B, Nq, d = q.shape
         Nkv = k.shape[1]
-        batch_size = B // self.head_num
         dim_mask = Tensor([1 for _ in range(d)], dtype=ms.int8)
         q = self.reshape(q, (-1, self.head_num, Nq, d))
         k = self.reshape(k, (-1, self.head_num, Nkv, d))
         v = self.reshape(v, (-1, self.head_num, Nkv, d))
         q = self.scale_mul(q, self.scale)
         k = self.scale_mul(k, self.scale)
-        if d % 16 != 0:
-            padding_size = 16 - d % 16
-            q = ops.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), value=0)
-            k = ops.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), value=0)
-            v = ops.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), value=0)
-            o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
-            o = ops.slice(o, [0, 0, 0, 0], [batch_size, self.head_num, Nq, d])
-        else:
-            o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
+        o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
         o = self.reshape(o, (-1, Nq, d))
         return o
 
