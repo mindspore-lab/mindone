@@ -185,10 +185,11 @@ Example:
 Download the [two-cat image](http://images.cocodataset.org/val2017/000000039769.jpg) and save it in the current folder. Then execute
 
 ```python
-python depth_to_image.py --prompt "two tigers" --image 000000039769.jpg
+python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negative_prompt "bad, deformed, ugly, bad anatomy" \
 ```
+
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa6f6d84-7b9f-4050-87c8-23f74562212f" width="1024"
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa070832-d53f-4bd5-84af-ce8086f41866" width="1024"
  />
 </div>
 <p align="center">
