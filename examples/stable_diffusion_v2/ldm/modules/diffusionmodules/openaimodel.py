@@ -604,7 +604,6 @@ class UNetModel(nn.Cell):
             )
         self.cat = ops.Concat(axis=1)
 
-
     def construct(self, x, timesteps=None, context=None, y=None):
         """
         Apply the model to an input batch.
