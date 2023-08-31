@@ -26,7 +26,6 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +70,14 @@ def init_env(args):
 def parse_args():
     parser = argparse.ArgumentParser(description="A training script for dreambooth.")
 
+    parser.add_argument(
+        "-v",
+        "--version",
+        type=str,
+        nargs="?",
+        default="2.1",
+        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
+    )
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")
@@ -283,7 +290,7 @@ def generate_class_images(args):
     start_time = time.time()
     start_code = None
     for prompt in sample_dataset:
-        scale = 7.5 if SD_VERSION.startswith("1.") else 9.0
+        scale = 7.5 if args.version.startswith("1.") else 9.0
         uc_prompts = args.sample_batch_size * [""]
         c_prompts = args.sample_batch_size * [prompt]
         uc = model.get_learned_conditioning(model.tokenize(uc_prompts))
@@ -444,7 +451,7 @@ def main(args):
                 f"Instance Prompt: {args.instance_prompt}",
                 f"Class Data path: {args.class_data_dir}",
                 f"Class Prompt: {args.class_prompt}",
-                f"Model: StableDiffusion v{SD_VERSION}",
+                f"Model: StableDiffusion v{args.version}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
                 f"Use LoRA: {args.use_lora}",
                 f"LoRA rank: {args.lora_rank}",

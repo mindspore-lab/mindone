@@ -15,6 +15,7 @@ n_iter=1
 scale=9.0
 
 python text_to_image.py \
+    --version "2.0" \
     --config configs/v2-inference.yaml \
     --output_path $output_path \
     --seed 42 \

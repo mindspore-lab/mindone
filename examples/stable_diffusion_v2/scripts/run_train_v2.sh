@@ -3,8 +3,6 @@ export HCCL_CONNECT_TIMEOUT=600
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-export SD_VERSION="2.0" # TODO: parse by args. or fix to 2.0 later
-
 device_id=0
 
 output_path=output/finetune_pokemon
@@ -36,6 +34,7 @@ cp $0 $output_path/.
 export RANK_SIZE=1;export DEVICE_ID=$device_id;export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}; \
 #nohup python -u run_train.py \
 python train_text_to_image.py \
+    --version="2.0" \
     --data_path=$data_path \
     --train_config=$train_config_file \
     --output_path=$output_path/$task_name \

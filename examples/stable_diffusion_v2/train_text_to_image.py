@@ -29,7 +29,6 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-SD_VERSION = os.getenv("SD_VERSION", default="2.1")
 
 logger = logging.getLogger(__name__)
 
@@ -286,7 +285,7 @@ def main(args):
                 "MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Model: StableDiffusion v{SD_VERSION}",
+                f"Model: StableDiffusion v{args.version}",
                 f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
@@ -317,6 +316,14 @@ def main(args):
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-v",
+        "--version",
+        type=str,
+        nargs="?",
+        default="2.1",
+        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
+    )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--replace_small_images",

@@ -3,8 +3,6 @@ export HCCL_CONNECT_TIMEOUT=600
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
-export SD_VERSION="2.0" # TODO: parse by args. or fix to 2.0 later
-
 device_id=0
 export RANK_SIZE=1
 export DEVICE_ID=$device_id
@@ -29,6 +27,7 @@ mkdir -p ${output_path:?}/${task_name:?}
 export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}; \
 
 python train_dreambooth.py \
+    --version="2.0" \
     --mode=0 \
     --use_parallel=False \
     --instance_data_dir=$instance_data_dir \

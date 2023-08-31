@@ -29,7 +29,6 @@ from mindspore.communication.management import get_local_rank, get_local_rank_si
 from mindspore.dataset import GeneratorDataset
 
 _logger = logging.getLogger(__name__)
-SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
 
 def load_data(

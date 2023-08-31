@@ -40,6 +40,7 @@ export RANK_SIZE=1;export DEVICE_ID=$device_id;
 #export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?};
 #nohup python -u run_train.py \
 python train_text_to_image.py \
+    --version="2.0" \
     --data_path=$data_path \
     --image_filter_size=$image_filter_size \
     --train_config=$train_config_file \

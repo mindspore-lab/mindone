@@ -66,6 +66,7 @@ model:
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
+        version: "2.0"
         use_fp16: True
         tokenizer_name: "WordpieceTokenizer"
         context_length: 512
