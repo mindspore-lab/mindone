@@ -69,31 +69,23 @@ class AttentionWithMask(nn.Cell):
 
 
 class ResidualAttentionBlock(nn.Cell):
-    def __init__(self, d_model, n_head, attn_mask, dtype=ms.float32, version="2.1"):
+    def __init__(self, d_model, n_head, attn_mask, layernorm_epsilon, use_quick_gelu, dtype=ms.float32):
         super(ResidualAttentionBlock, self).__init__()
         self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
-
-        if version.startswith("1."):
-            self.ln_1 = nn.LayerNorm([d_model]).to_float(dtype)
-        else:
-            self.ln_1 = nn.LayerNorm([d_model], epsilon=1e-5).to_float(dtype)  # TODO: check correctness eps
-
+        self.ln_1 = nn.LayerNorm([d_model], epsilon=layernorm_epsilon).to_float(dtype)  # TODO: check correctness eps
         self.c_fc = nn.Dense(d_model, d_model * 4).to_float(dtype)
 
         # In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to:
         # https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/blob/main/config.json
         # https://huggingface.co/openai/clip-vit-large-patch14/blob/main/config.json
-        if version.startswith("1."):
+        if use_quick_gelu:
             self.gelu = QuickGELU()
         else:
             self.gelu = nn.GELU()
 
         self.c_proj = nn.Dense(d_model * 4, d_model).to_float(dtype)
         self.mlp = nn.SequentialCell([self.c_fc, self.gelu, self.c_proj])
-        if version.startswith("1."):
-            self.ln_2 = nn.LayerNorm([d_model]).to_float(dtype)
-        else:
-            self.ln_2 = nn.LayerNorm([d_model], epsilon=1e-5).to_float(dtype)  # TODO: check correctness eps
+        self.ln_2 = nn.LayerNorm([d_model], epsilon=layernorm_epsilon).to_float(dtype)  # TODO: check correctness eps
 
     def construct(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -102,12 +94,21 @@ class ResidualAttentionBlock(nn.Cell):
 
 
 class Transformer(nn.Cell):
-    def __init__(self, width, layers, heads, attn_mask, dtype=ms.float32, version="2.1"):
+    def __init__(
+        self,
+        width,
+        layers,
+        heads,
+        attn_mask,
+        layernorm_epsilon,
+        use_quick_gelu,
+        dtype=ms.float32,
+    ):
         super(Transformer, self).__init__()
         self.width = width
         self.layers = layers
         self.resblocks = nn.SequentialCell(
-            *[ResidualAttentionBlock(width, heads, attn_mask, dtype=dtype, version=version) for _ in range(layers)]
+            *[ResidualAttentionBlock(width, heads, attn_mask, layernorm_epsilon, use_quick_gelu, dtype=dtype) for _ in range(layers)]
         )
 
     def construct(self, x):
@@ -115,7 +116,18 @@ class Transformer(nn.Cell):
 
 
 class TextEncoder(nn.Cell):
-    def __init__(self, context_length, vocab_size, output_dim, width, layers, heads, dtype=ms.float32, version="2.1"):
+    def __init__(
+        self,
+        context_length,
+        vocab_size,
+        output_dim,
+        width,
+        layers,
+        heads,
+        layernorm_epsilon,
+        use_quick_gelu,
+        dtype=ms.float32,
+    ):
         super(TextEncoder, self).__init__()
         self.dtype = dtype
         self.width = width
@@ -135,8 +147,9 @@ class TextEncoder(nn.Cell):
             layers,
             heads,
             self.build_attntion_mask(context_length),
+            layernorm_epsilon=layernorm_epsilon,
+            use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
-            version=version,
         )
 
     @staticmethod

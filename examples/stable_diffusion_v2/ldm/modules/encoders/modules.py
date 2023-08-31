@@ -11,7 +11,6 @@ from .text_encoder import TextEncoder
 class FrozenCLIPEmbedder(nn.Cell):
     def __init__(
         self,
-        version="2.1",
         use_fp16=False,
         tokenizer_name="WordpieceTokenizer",
         context_length=77,
@@ -20,6 +19,8 @@ class FrozenCLIPEmbedder(nn.Cell):
         width=768,
         layers=12,
         heads=12,
+        layernorm_epsilon=1e-5,
+        use_quick_gelu=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
@@ -34,8 +35,9 @@ class FrozenCLIPEmbedder(nn.Cell):
             width=width,
             layers=layers,
             heads=heads,
+            layernorm_epsilon=layernorm_epsilon,
+            use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
-            version=version,
         )
 
     def tokenize(self, texts):
