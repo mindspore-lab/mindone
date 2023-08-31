@@ -71,5 +71,5 @@ model:
         width: 1024 # diff
         layers: 23 # diff
         heads: 16 # diff
-        layernorm_epsilon: 1e-5
+        epsilon: 1e-5
         use_quick_gelu: False

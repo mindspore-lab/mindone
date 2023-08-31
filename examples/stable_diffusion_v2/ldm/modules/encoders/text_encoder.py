@@ -69,10 +69,10 @@ class AttentionWithMask(nn.Cell):
 
 
 class ResidualAttentionBlock(nn.Cell):
-    def __init__(self, d_model, n_head, attn_mask, layernorm_epsilon, use_quick_gelu, dtype=ms.float32):
+    def __init__(self, d_model, n_head, attn_mask, epsilon, use_quick_gelu, dtype=ms.float32):
         super(ResidualAttentionBlock, self).__init__()
         self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
-        self.ln_1 = nn.LayerNorm([d_model], epsilon=layernorm_epsilon).to_float(dtype)  # TODO: check correctness eps
+        self.ln_1 = nn.LayerNorm([d_model], epsilon=epsilon).to_float(dtype)  # TODO: check correctness eps
         self.c_fc = nn.Dense(d_model, d_model * 4).to_float(dtype)
 
         # In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to:
@@ -85,7 +85,7 @@ class ResidualAttentionBlock(nn.Cell):
 
         self.c_proj = nn.Dense(d_model * 4, d_model).to_float(dtype)
         self.mlp = nn.SequentialCell([self.c_fc, self.gelu, self.c_proj])
-        self.ln_2 = nn.LayerNorm([d_model], epsilon=layernorm_epsilon).to_float(dtype)  # TODO: check correctness eps
+        self.ln_2 = nn.LayerNorm([d_model], epsilon=epsilon).to_float(dtype)  # TODO: check correctness eps
 
     def construct(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -100,7 +100,7 @@ class Transformer(nn.Cell):
         layers,
         heads,
         attn_mask,
-        layernorm_epsilon,
+        epsilon,
         use_quick_gelu,
         dtype=ms.float32,
     ):
@@ -108,7 +108,10 @@ class Transformer(nn.Cell):
         self.width = width
         self.layers = layers
         self.resblocks = nn.SequentialCell(
-            *[ResidualAttentionBlock(width, heads, attn_mask, layernorm_epsilon, use_quick_gelu, dtype=dtype) for _ in range(layers)]
+            *[
+                ResidualAttentionBlock(width, heads, attn_mask, epsilon, use_quick_gelu, dtype=dtype)
+                for _ in range(layers)
+            ]
         )
 
     def construct(self, x):
@@ -124,7 +127,7 @@ class TextEncoder(nn.Cell):
         width,
         layers,
         heads,
-        layernorm_epsilon,
+        epsilon,
         use_quick_gelu,
         dtype=ms.float32,
     ):
@@ -147,7 +150,7 @@ class TextEncoder(nn.Cell):
             layers,
             heads,
             self.build_attntion_mask(context_length),
-            layernorm_epsilon=layernorm_epsilon,
+            epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
         )

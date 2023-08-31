@@ -19,7 +19,7 @@ class FrozenCLIPEmbedder(nn.Cell):
         width=768,
         layers=12,
         heads=12,
-        layernorm_epsilon=1e-5,
+        epsilon=1e-5,
         use_quick_gelu=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
@@ -35,7 +35,7 @@ class FrozenCLIPEmbedder(nn.Cell):
             width=width,
             layers=layers,
             heads=heads,
-            layernorm_epsilon=layernorm_epsilon,
+            epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
         )
