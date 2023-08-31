@@ -69,6 +69,7 @@ def main(args):
     logger.info(f"model_save_path: {model_save_path}")
 
     data_prepare = get_mindir_path(model_save_path, args.inputs.data_prepare_model)
+    scheduler_preprocess = get_mindir_path(model_save_path, f"{args.inputs.scheduler_preprocess}-{scheduler_type}")
     predict_noise = get_mindir_path(model_save_path, args.inputs.predict_noise_model)
     noisy_sample = get_mindir_path(model_save_path, f"{args.inputs.noisy_sample_model}-{scheduler_type}")
     vae_decoder = get_mindir_path(model_save_path, args.inputs.vae_decoder_model)
@@ -95,11 +96,13 @@ def main(args):
     inputs["negative_prompt"] = negative_prompt
     inputs["negative_prompt_data"] = tokenize(tokenizer, negative_data)
     inputs["timesteps"] = timesteps
+    inputs["scale"] = np.array(args.scale, np.float16)
 
     # create model
     if args.task == "text2img":
         sd_infer = SDLiteText2Img(
             data_prepare,
+            scheduler_preprocess,
             predict_noise,
             noisy_sample,
             vae_decoder,
@@ -110,6 +113,7 @@ def main(args):
     elif args.task == "img2img":
         sd_infer = SDLiteImg2Img(
             data_prepare,
+            scheduler_preprocess,
             predict_noise,
             noisy_sample,
             vae_decoder,
@@ -123,6 +127,7 @@ def main(args):
     elif args.task == "inpaint":
         sd_infer = SDLiteInpaint(
             data_prepare,
+            scheduler_preprocess,
             predict_noise,
             noisy_sample,
             vae_decoder,
@@ -172,7 +177,7 @@ if __name__ == "__main__":
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Device target, should be in [Ascend, GPU, CPU]"
+        "--device_target", type=str, default="Ascend", help="Device target, should be in [Ascend]", choices=["Ascend"],
     )
     parser.add_argument(
         "--task",
@@ -180,7 +185,7 @@ if __name__ == "__main__":
         default="text2img",
         help="Task name, should be [text2img, img2img], "
         "if choose a task name, use the config/[task].yaml for inputs",
-        choices=["text2img", "img2img"],
+        choices=["text2img", "img2img", "inpaint"],
     )
     parser.add_argument(
         "--model", type=str, default=None, help="path to config which constructs model. If None, select by version"

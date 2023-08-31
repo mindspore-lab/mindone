@@ -253,6 +253,9 @@ class DDIMScheduler(nn.Cell):
             prev_sample = prev_sample + variance
         return prev_sample
 
+    def scale_model_input(self, latents, t):
+        return latents + t * 0  # If t is not used, lite will eliminate the second input
+
     def add_noise(self, original_samples, noise, alphas_ts):
         # Make sure alphas_cumprod and timestep have same device and dtype as original_samples
         sqrt_alpha_prod = alphas_ts.sqrt()

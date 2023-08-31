@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(workspace))
 from ldm.modules.logger import set_logger
 from ldm.util import instantiate_from_config
 from libs.helper import VaeImageProcessor, load_model_from_config, set_env
-from libs.sd_models import SD_Img2Img, SD_Inpaint, SD_Text2Img
+from libs.sd_models import SDImg2Img, SDInpaint, SDText2Img
 
 logger = logging.getLogger("text to image speed up")
 
@@ -60,43 +60,44 @@ def main(args):
     inputs["negative_prompt"] = negative_prompt
     inputs["negative_prompt_data"] = model.tokenize(negative_data)
     inputs["timesteps"] = timesteps
+    inputs["scale"] = ms.Tensor(args.scale, ms.float16)
 
     # create model
     text_encoder = model.cond_stage_model
     unet = model.model
     vae = model.first_stage_model
     img_processor = VaeImageProcessor()
+    if args.device_target != "Ascend":
+        unet.to_float(ms.float32)
+        vae.to_float(ms.float32)
     if args.task == "text2img":
-        sd_infer = SD_Text2Img(
+        sd_infer = SDText2Img(
             text_encoder,
             unet,
             vae,
             scheduler,
             scale_factor=model.scale_factor,
-            guidance_scale=args.scale,
             num_inference_steps=args.sampling_steps,
         )
     elif args.task == "img2img":
-        sd_infer = SD_Img2Img(
+        sd_infer = SDImg2Img(
             text_encoder,
             unet,
             vae,
             scheduler,
             scale_factor=model.scale_factor,
-            guidance_scale=args.scale,
             num_inference_steps=args.sampling_steps,
         )
         init_image = Image.open(args.inputs.image_path).convert("RGB")
         img = img_processor.preprocess(init_image, height=args.inputs.H, width=args.inputs.W)
         inputs["img"] = img.repeat(batch_size, axis=0)
     elif args.task == "inpaint":
-        sd_infer = SD_Inpaint(
+        sd_infer = SDInpaint(
             text_encoder,
             unet,
             vae,
             scheduler,
             scale_factor=model.scale_factor,
-            guidance_scale=args.scale,
             num_inference_steps=args.sampling_steps,
         )
         init_image = Image.open(args.inputs.image_path).convert("RGB")

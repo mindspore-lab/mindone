@@ -42,25 +42,22 @@ class PredictNoise(nn.Cell):
         guidance_rescale (float): A higher guidance scale value for noise rescale.
     """
 
-    def __init__(self, unet, guidance_scale=7.5, guidance_rescale=0.0):
+    def __init__(self, unet, guidance_rescale=0.0):
         super(PredictNoise, self).__init__()
         self.unet = unet
-        self.guidance_scale = guidance_scale
         self.guidance_rescale = guidance_rescale
 
-    def predict_noise(self, x, t_continuous, condition, unconditional_condition):
+    def predict_noise(self, x, t_continuous, condition, unconditional_condition, guidance_scale):
         """
         The noise predicition model function that is used for DPM-Solver.
         """
         t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
-        if self.guidance_scale == 1.0:
-            return self.unet(x, t_continuous, c_crossattn=condition)
         x_in = ops.concat([x] * 2, axis=0)
         t_in = ops.concat([t_continuous] * 2, axis=0)
         c_in = ops.concat([unconditional_condition, condition], axis=0)
         noise_pred = self.unet(x_in, t_in, c_crossattn=c_in)
         noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
-        noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
         if self.guidance_rescale > 0:
             noise_pred = self.rescale_noise_cfg(noise_pred, noise_pred_text)
         return noise_pred
@@ -78,8 +75,24 @@ class PredictNoise(nn.Cell):
         noise_pred = self.guidance_rescale * noise_pred_rescaled + (1 - self.guidance_rescale) * noise_pred
         return noise_pred
 
-    def construct(self, latents, ts, prompt_embeds, negative_prompt_embeds):
-        return self.predict_noise(latents, ts, prompt_embeds, negative_prompt_embeds)
+    def construct(self, latents, ts, prompt_embeds, negative_prompt_embeds, guidance_scale):
+        return self.predict_noise(latents, ts, prompt_embeds, negative_prompt_embeds, guidance_scale)
+
+
+class SchedulerPreProcess(nn.Cell):
+    """
+    Pre process of sampler.
+
+    Args:
+        scheduler (nn.Cell): A scheduler to be used in combination with `unet` to denoise the encoded image latents.
+    """
+
+    def __init__(self, scheduler):
+        super(SchedulerPreProcess, self).__init__()
+        self.scheduler = scheduler
+
+    def construct(self, latents, t):
+        return self.scheduler.scale_model_input(latents, t)
 
 
 class NoisySample(nn.Cell):
@@ -165,9 +178,8 @@ class InpaintDataPrepare(DataPrepare):
         masked_image_latents = self.vae_encode(masked_image)
         mask_reshape = ops.ResizeNearestNeighbor(masked_image_latents.shape[2:])(mask)
         c_concat = ops.concat((mask_reshape, masked_image_latents), axis=1)
-        c_crossattn = ops.concat((negative_prompt_embeds, prompt_embeds), axis=0)
         latents = noise
-        return c_concat, c_crossattn, latents
+        return prompt_embeds, negative_prompt_embeds, latents, c_concat
 
 
 class InpaintPredictNoise(PredictNoise):
@@ -175,20 +187,21 @@ class InpaintPredictNoise(PredictNoise):
     Inpainting Predict the noise residual.
     """
 
-    def __init__(self, unet, guidance_scale=7.5, guidance_rescale=0.0):
-        super(InpaintPredictNoise, self).__init__(unet, guidance_scale, guidance_rescale)
+    def __init__(self, unet, guidance_rescale=0.0):
+        super(InpaintPredictNoise, self).__init__(unet, guidance_rescale)
 
-    def construct(self, x, t_continuous, c_concat, c_crossattn):
+    def construct(self, x, t_continuous, condition, unconditional_condition, guidance_scale, c_concat):
         """
         The noise predicition model function that is used for DPM-Solver.
         """
-        t = ops.tile(t_continuous.reshape(1), (x.shape[0],))
-        x_in = ops.concat((x, x), axis=0)
-        t_in = ops.concat((t, t), axis=0)
-        c_in = ops.concat((c_concat, c_concat), axis=0)
-        noise_pred = self.unet(x_in, t_in, c_concat=c_in, c_crossattn=c_crossattn)
+        t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
+        x_in = ops.concat([x] * 2, axis=0)
+        t_in = ops.concat([t_continuous] * 2, axis=0)
+        c_crossattn = ops.concat([unconditional_condition, condition], axis=0)
+        c_concat = ops.concat([c_concat] * 2, axis=0)
+        noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)
         noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
-        noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
+        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
         if self.guidance_rescale > 0:
             noise_pred = self.rescale_noise_cfg(noise_pred, noise_pred_text)
         return noise_pred

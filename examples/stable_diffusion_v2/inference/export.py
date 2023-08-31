@@ -19,6 +19,7 @@ from libs.infer_engine.export_modules import (
     InpaintPredictNoise,
     NoisySample,
     PredictNoise,
+    SchedulerPreProcess,
     Text2ImgDataPrepare,
     VAEDecoder,
 )
@@ -49,7 +50,7 @@ def lite_convert(name, model_save_path, converter):
 def main(args):
     # set logger
     set_env(args)
-    ms.set_context(device_target=args.device_target)
+    ms.set_context(device_target="CPU")
     # create model
     config = OmegaConf.load(f"{args.model}")
     model = load_model_from_config(
@@ -73,6 +74,7 @@ def main(args):
     ts = ops.ones((), ms.int32)
     img = ops.ones((batch_size, 3, args.inputs.H, args.inputs.W), ms.float16)
     mask = ops.ones((batch_size, 1, args.inputs.H, args.inputs.W), ms.float16)
+    scale = ops.ones((), ms.float16)
 
     # create model
     text_encoder = model.cond_stage_model
@@ -91,6 +93,7 @@ def main(args):
         converter.save_type = mslite.ModelType.MINDIR
         converter.optimize = optimize_dict[args.device_target.lower()]
     if not args.only_converte_lite:
+        scheduler_preprocess, predict_noise, noisy_sample, vae_decoder = None, None, None, None
         if args.task == "text2img":
             data_prepare = Text2ImgDataPrepare(text_encoder, vae, scheduler, model.scale_factor)
             model_export(
@@ -98,27 +101,6 @@ def main(args):
                 inputs=(tokenized_prompts, tokenized_prompts, noise),
                 name=args.inputs.data_prepare_model,
                 model_save_path=model_save_path,
-            )
-
-            predict_noise = PredictNoise(unet, args.scale)
-            model_export(
-                net=predict_noise,
-                inputs=(noise, ts, prompt_embeds, prompt_embeds),
-                name=args.inputs.predict_noise_model,
-                model_save_path=model_save_path,
-            )
-
-            noisy_sample = NoisySample(scheduler)
-            model_export(
-                net=noisy_sample,
-                inputs=(noise, ts, noise, ts),
-                name=f"{args.inputs.noisy_sample_model}-{scheduler_type}",
-                model_save_path=model_save_path,
-            )
-
-            vae_decoder = VAEDecoder(vae, model.scale_factor)
-            model_export(
-                net=vae_decoder, inputs=(noise,), name=args.inputs.vae_decoder_model, model_save_path=model_save_path
             )
 
         elif args.task == "img2img":
@@ -130,26 +112,6 @@ def main(args):
                 model_save_path=model_save_path,
             )
 
-            predict_noise = PredictNoise(unet, args.scale)
-            model_export(
-                net=predict_noise,
-                inputs=(noise, ts, prompt_embeds, prompt_embeds),
-                name=args.inputs.predict_noise_model,
-                model_save_path=model_save_path,
-            )
-
-            noisy_sample = NoisySample(scheduler)
-            model_export(
-                net=noisy_sample,
-                inputs=(noise, ts, noise, ts),
-                name=f"{args.inputs.noisy_sample_model}-{scheduler_type}",
-                model_save_path=model_save_path,
-            )
-
-            vae_decoder = VAEDecoder(vae, model.scale_factor)
-            model_export(
-                net=vae_decoder, inputs=(noise,), name=args.inputs.vae_decoder_model, model_save_path=model_save_path
-            )
         elif args.task == "inpaint":
             data_prepare = InpaintDataPrepare(text_encoder, vae, scheduler, model.scale_factor)
             model_export(
@@ -159,15 +121,32 @@ def main(args):
                 model_save_path=model_save_path,
             )
             c_concat = ops.ones((batch_size, 5, args.inputs.H // 8, args.inputs.W // 8), ms.float16)
-            c_crossattn = ops.ones((batch_size * 2, 77, output_dim), ms.float16)
-            predict_noise = InpaintPredictNoise(unet, args.scale)
+            predict_noise = InpaintPredictNoise(unet)
             model_export(
                 net=predict_noise,
-                inputs=(noise, ts, c_concat, c_crossattn),
+                inputs=(noise, ts, prompt_embeds, prompt_embeds, scale, c_concat),
                 name=args.inputs.predict_noise_model,
                 model_save_path=model_save_path,
             )
-
+        else:
+            raise ValueError(f"Not support task: {args.task}")
+        if scheduler_preprocess is None:
+            scheduler_preprocess = SchedulerPreProcess(scheduler)
+            model_export(
+                net=scheduler_preprocess,
+                inputs=(noise, ts),
+                name=f"{args.inputs.scheduler_preprocess}-{scheduler_type}",
+                model_save_path=model_save_path,
+            )
+        if predict_noise is None:
+            predict_noise = PredictNoise(unet)
+            model_export(
+                net=predict_noise,
+                inputs=(noise, ts, prompt_embeds, prompt_embeds, scale),
+                name=args.inputs.predict_noise_model,
+                model_save_path=model_save_path,
+            )
+        if noisy_sample is None:
             noisy_sample = NoisySample(scheduler)
             model_export(
                 net=noisy_sample,
@@ -175,16 +154,14 @@ def main(args):
                 name=f"{args.inputs.noisy_sample_model}-{scheduler_type}",
                 model_save_path=model_save_path,
             )
-
+        if vae_decoder is None:
             vae_decoder = VAEDecoder(vae, model.scale_factor)
             model_export(
                 net=vae_decoder, inputs=(noise,), name=args.inputs.vae_decoder_model, model_save_path=model_save_path
             )
-        else:
-            raise ValueError(f"Not support task: {args.task}")
-
     if args.converte_lite:
         lite_convert(args.inputs.data_prepare_model, model_save_path, converter)
+        lite_convert(f"{args.inputs.scheduler_preprocess}-{scheduler_type}", model_save_path, converter)
         lite_convert(args.inputs.predict_noise_model, model_save_path, converter)
         lite_convert(f"{args.inputs.noisy_sample_model}-{scheduler_type}", model_save_path, converter)
         lite_convert(args.inputs.vae_decoder_model, model_save_path, converter)
@@ -196,7 +173,7 @@ if __name__ == "__main__":
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Device target, should be in [Ascend, GPU, CPU]"
+        "--device_target", type=str, default="Ascend", help="Device target, should be in [Ascend]", choices=["Ascend"],
     )
     parser.add_argument(
         "--task",
@@ -204,7 +181,7 @@ if __name__ == "__main__":
         default="text2img",
         help="Task name, should be [text2img, img2img], "
         "if choose a task name, use the config/[task].yaml for inputs",
-        choices=["text2img", "img2img"],
+        choices=["text2img", "img2img", "inpaint"],
     )
     parser.add_argument("--model", type=str, required=True, help="path to config which constructs model.")
     parser.add_argument("--only_converte_lite", default=False, type=str2bool, help="whether convert MindSpore mindir")
@@ -217,14 +194,6 @@ if __name__ == "__main__":
         default=1,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
-    parser.add_argument(
-        "--scale",
-        type=float,
-        default=None,
-        help="unconditional guidance scale: "
-        "eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
-        "Simplified: `uc + scale * (uc - prompt)`",
-    )
     parser.add_argument("-v", "--version", type=str, default="2.0", help="Stable diffusion version, 1.x or 2.0.")
     parser.add_argument("--seed", type=int, default=42, help="the seed (for reproducible sampling)")
     parser.add_argument("--log_level", type=str, default="INFO", help="log level, options: DEBUG, INFO, WARNING, ERROR")
@@ -232,9 +201,7 @@ if __name__ == "__main__":
     set_logger(name="", output_dir=args.output_path, rank=0, log_level=args.log_level)
 
     if args.version:
-        os.environ["SD_VERSION"] = args.version
-    if args.scale is None:
-        args.scale = 7.5 if args.version.startswith("1.") else 9.0
+        os.environ["SDVERSION"] = args.version
     if not os.path.exists(args.model):
         raise ValueError(
             f"model config file {args.model} is not exist!, please set it by --model=xxx.yaml. "
@@ -269,7 +236,6 @@ if __name__ == "__main__":
         f"inputs config: {inputs_config_path}",
         f"Number of samples in each trial: {args.n_samples}",
         f"Sampler: {args.sampler}",
-        f"Uncondition guidance scale: {args.scale}",
     ]
     for key in inputs.keys():
         key_settings_info.append(f"{key}: {inputs[key]}")

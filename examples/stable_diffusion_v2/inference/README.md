@@ -4,9 +4,9 @@
 
 <details close>
 
-<summary> Details of Install MindSpore Lite </summary>>
+<summary> Details of Installation Guide </summary>>
 
-Note: MindSpore Lite applyed python3.7. Please prepare the environment for Python 3.7 before installing Lite.
+Note: MindSpore Lite applyed python3.7. Please prepare the environment for Python 3.7 before installing.
 
 ### Install MindSpore
 
@@ -47,7 +47,7 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 | **Version name** |**Task** |  **MindSpore Checkpoint**  | **Ref. Official Model** | **config** | **Resolution** |
 |-----------------|---------------|---------------|------------|--------| ---- |
 | 2.0            | text2img | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) |  [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base) | [v2-inference](inference/config/model/v2-inference.yaml) | 512x512 |
-| 2.0-v768      | text2img | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | [v2-inference](inference/config/model/v2-inference.yaml) | 512x512 |
+| 2.0-v768      | text2img | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | [v2-inference](inference/config/model/v2-inference.yaml) | 768x768 |
 | 2.0-inpaint      | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt) | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | [v2-inpaint-inference](inference/config/model/v2-inpaint-inference.yaml) | 512x512 |
 | 1.5       | text2img | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5) | [v1-inference](inference/config/model/v1-inference.yaml) | 512x512 |
 | wukong    | text2img |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | [v1-inference-chinese](inference/config/model/v1-inference-chinese.yaml) | 512x512 |
@@ -56,6 +56,20 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 </details>
 
 To transfer other Stable Diffusion models to MindSpore, please refer to [model conversion](../tools/model_conversion/README.md).
+
+## Support
+
+### Different Divece Inference Mode Support
+
+for MindSpore2.1
+
+| Device | Online Inference (MindSpore) | Offline Inference (Lite) |
+| ------ | ---------------------------- | ------------------------ |
+| Ascend 910A | ✅ | ✅ |
+| Ascend 910B | - | ✅ |
+| Ascend 310P | - | ✅ |
+| GPU | ✅ | - |
+| CPU | ✅ | - |
 
 ## Online Inference
 
@@ -80,14 +94,12 @@ The prompt, negative_prompt, image_path, generate image height, generate image w
 
 You can get images at "output/samples".
 
-**Note: must set `--ms_mode=1` when run on Ascend 910B.**
-
 ## Offline Inference
 
 ### Export
 
 ```shell
-python export.py --device_target=Ascend --task=text2img --model=./config/model/v2-inference.yaml --sampler=./config/schedule/ddim.yaml --n_samples=1 --scale=9.0
+python export.py --task=text2img --model=./config/model/v2-inference.yaml --sampler=./config/schedule/ddim.yaml --n_samples=1
 ```
 
 Please run `python export.py -h` for details of command parameters.
@@ -100,7 +112,7 @@ You can manually delete MindSpore MindIR files to save space.
 Run `sd_lite_infer.py` to generate images for the prompt of your interest.
 
 ```shell
-python sd_lite_infer.py --device_target=Ascend --task=text2img --model=./config/model/v2-inference.yaml --sampler=./config/schedule/ddim.yaml --sampling_steps=50 --n_iter=5 --n_samples=1 --scale=9.0
+python sd_lite_infer.py --task=text2img --model=./config/model/v2-inference.yaml --sampler=./config/schedule/ddim.yaml --sampling_steps=50 --n_iter=5 --n_samples=1 --scale=9.0
 ```
 
 Note: n_samples must be same as the value in export.
@@ -115,3 +127,6 @@ You can get images at "output/samples".
 | ----  | ---  | ---------- | ---------- | ----------- | ------ | ------ | -------------- |
 | sd-2.0-base_fa | text2img | 1 | 512*512 | 50 | Ascend 910A | MindSpore | 5.49 s |
 | sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910A | Lite | 3.21 s |
+| sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910B | Lite | 2.7 s |
+
+The samlper schedule is DDIM.

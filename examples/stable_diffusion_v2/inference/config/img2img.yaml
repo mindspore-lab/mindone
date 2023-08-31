@@ -8,6 +8,7 @@ lora_rank: "none"  # LoRA rank. If None, lora checkpoint should contain the valu
 ckpt_path: ""  # Checkpoint path of model
 lora_ckpt_path: ""  # LoRA checkpoint, set it if use_lora is not None
 data_prepare_model: data_prepare_model  # For export and  lite inference. The path of MindSpore Lite MindIR for data_prepare_model, see libs/infer_engine/export_modules.py for details.
+scheduler_preprocess: scheduler_preprocess   # For export and  lite inference. The path of MindSpore Lite MindIR for scheduler_preprocess, see libs/infer_engine/export_modules.py for details.
 predict_noise_model: predict_noise_model  # For export and  lite inference. The path of MindSpore Lite MindIR for predict_noise_model, see libs/infer_engine/export_modules.py for details.
 noisy_sample_model: noisy_sample_model  # For export and  lite inference. The path of MindSpore Lite MindIR for noisy_sample_model in export, see libs/infer_engine/export_modules.py for details.
 vae_decoder_model: vae_decoder_model  # For export and  lite inference. The path of MindSpore Lite MindIR for vae_decoder_model in export, see libs/infer_engine/export_modules.py for details.
