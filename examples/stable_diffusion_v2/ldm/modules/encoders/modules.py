@@ -141,6 +141,7 @@ class ClipImageEmbedder(nn.Cell):
         vision_layers=32,
         vision_width=1024,
         vision_patch_size=14,
+        vision_head_width=64,
         ucg_rate=0.0,
     ):
         super().__init__()
@@ -151,6 +152,7 @@ class ClipImageEmbedder(nn.Cell):
             vision_layers=vision_layers,
             vision_width=vision_width,
             vision_patch_size=vision_patch_size,
+            vision_head_width=vision_head_width,
             dtype=self.dtype,
         )
         self.ucg_rate = ucg_rate
@@ -161,6 +163,10 @@ class ClipImageEmbedder(nn.Cell):
         if self.ucg_rate > 0.0 and not no_dropout:
             out = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(out.shape[0]))[:, None] * out
         return out
+
+
+class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
+    ...
 
 
 class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):

@@ -346,6 +346,7 @@ class ImageEncoder(nn.Cell):
         vision_layers: Union[Tuple[int, int, int, int], int],
         vision_width: int,
         vision_patch_size: int,
+        vision_head_width: int,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -353,7 +354,7 @@ class ImageEncoder(nn.Cell):
         self.dtype = dtype
 
         if isinstance(vision_layers, (tuple, list)):
-            vision_heads = vision_width * 32 // 64
+            vision_heads = vision_width * 32 // vision_head_width
             self.visual = ModifiedResNet(
                 layers=vision_layers,
                 output_dim=embed_dim,
@@ -363,7 +364,7 @@ class ImageEncoder(nn.Cell):
                 dtype=self.dtype,
             )
         else:
-            vision_heads = vision_width // 64
+            vision_heads = vision_width // vision_head_width
             self.visual = VisionTransformer(
                 input_resolution=image_resolution,
                 patch_size=vision_patch_size,

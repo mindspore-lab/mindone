@@ -30,6 +30,7 @@ from utils.download import download_checkpoint
 logger = logging.getLogger("text_to_image")
 
 _version_cfg = {
+    "2.1-unclip-h": ("sd21-unclip-h_ms.ckpt", "v2-vpred-inference-unclip-h.yaml", 768),
     "2.1-unclip-l": ("sd21-unclip-l_ms.ckpt", "v2-vpred-inference-unclip-l.yaml", 768),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
@@ -349,7 +350,7 @@ if __name__ == "__main__":
         type=str,
         nargs="?",
         default="2.1-unclip-l",
-        help="Stable diffusion version. Options: '2.1-unclip-l'",
+        help=f"Stable diffusion version. Options: {list(_version_cfg.keys())} ",
     )
     parser.add_argument("--prompt", type=str, nargs="?", default="", help="the prompt to render")
     parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
@@ -396,13 +397,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--H",
         type=int,
-        default=512,
+        default=768,
         help="image height, in pixel space",
     )
     parser.add_argument(
         "--W",
         type=int,
-        default=512,
+        default=768,
         help="image width, in pixel space",
     )
     parser.add_argument(

@@ -20,20 +20,20 @@ model:
     use_fp16: True
 
     embedder_config:
-      target: ldm.modules.encoders.modules.ClipImageEmbedder
+      target: ldm.modules.encoders.modules.FrozenOpenCLIPImageEmbedder
       params:
-        embed_dim: 768
+        embed_dim: 1024
         image_resolution: 224
-        vision_layers: 24
-        vision_width: 1024
+        vision_layers: 32
+        vision_width: 1280
         vision_patch_size: 14
-        vision_head_width: 64
+        vision_head_width: 80
         use_fp16: True
 
     noise_aug_config:
       target: ldm.modules.encoders.modules.CLIPEmbeddingNoiseAugmentation
       params:
-        timestep_dim: 768
+        timestep_dim: 1024
         noise_schedule_config:
           timesteps: 1000
           beta_schedule: linear
@@ -42,7 +42,7 @@ model:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
       params:
         num_classes: "sequential"
-        adm_in_channels: 1536
+        adm_in_channels: 2048
         image_size: 32 # unused
         in_channels: 4
         out_channels: 4
