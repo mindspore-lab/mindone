@@ -15,6 +15,6 @@ resume_step: 228000
 num_workers: 1
 mvs_visual: False
 chunk_size: 1
-resume_checkpoint: "non_ema_228000.pth"
+resume_checkpoint: "non_ema_228000-3bb2ee9a.ckpt"
 log_dir: 'outputs'
 num_steps: 1

@@ -18,13 +18,13 @@ This is an **unofficial** implementation of VideoComposer based on mindspore.
 - [x] exp04: single sketch to videos without style
 - [x] exp05: depth to video without style
 - [x] exp06: depth to video with style
+- Graph Mode
+- AMP
 
 ### TODOs
 
 - Training
 - Speed Up
-- Graph Mode
-- AMP
 
 ### Limits
 
@@ -43,23 +43,24 @@ Only runs in PyNative mode.
     pip install -r requirements.txt
     ```
 
-## Prepare Model Weights
+<!-- ## Prepare Model Weights
 
 ### Download
 
 The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${PROJECT_ROOT}` means the root path of project.
-Download from [official website](https://www.modelscope.cn/models/damo/VideoComposer/summary)
+Download from [official website](https://www.modelscope.cn/models/damo/VideoComposer/summary) or from [other repository](https://huggingface.co/camenduru/VideoComposer/tree/main)
 and place them as:
 
 ```
-|--model_weights
-|    |--non_ema_228000.pth
-|    |--midas_v3_dpt_large.pth
-|    |--open_clip_pytorch_model.bin (todo)
-|    |--sketch_simplification_gan.pth
-|    |--table5_pidinet.pth
-|    |--v2-1_512-ema-pruned.ckpt
+model_weights
+├── clip
+│   ├── bpe_simple_vocab_16e6.txt.gz
+│   └── open_clip_pytorch_model.bin
+├── non_ema_228000.pth
+├── sketch_simplification_gan.pth
+├── table5_pidinet.pth
 ```
+`bpe_simple_vocab_16e6.txt.gz` can be found under `mindone/examples/stable_diffusion_v2/ldm/models/clip/`.
 
 ### Convert
 
@@ -71,12 +72,26 @@ python vc/utils/pt2ms.py
 
 You'll get the converted weights file in the same path, with the same name, ending with `npy`.
 
+In addition, please change the current working directory to `examples/stable_diffusion_v2` and run:
+
+```bash
+python tools/_common/clip/convert_weights.py --torch_path ../videocomposer/model_weights/clip/open_clip_pytorch_model.bin --mindspore_path ../videocomposer/model_weights/clip/open_clip_vit_h_14.ckpt
+```
+This will convert the CLIP torch checkpoint file to mindspore checkpoint file. After conversion, please change the working directory back to `examples/videocomposer`. -->
+
 ## Demos
 
+For the first-time running, it takes longer time since this program needs to download some checkpoints from cloud, and save them to `model_weights/`
 ```shell
 bash run_net.sh
 ```
 
+You can change the floating data type and mode in `mindone/examples/videocomposer/vc/config/base.py`:
+
+```python
+cfg.use_fp16 = True  # set to False if you want to use float32
+cfg.mode = 0  # 0: Graph mode; 1: Pynative mode
+```
 ---
 
 **The following content is the readme of the original repository.**
@@ -91,7 +106,7 @@ Please see [Project Page](https://videocomposer.github.io/) for more examples.
 
 We are searching for talented, motivated, and imaginative researchers to join our team. If you are interested, please don't hesitate to send us your resume via email yingya.zyy@alibaba-inc.com
 
-![figure1](assets/fig01.jpg "figure1")
+![figure1](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/fig01.jpg "figure1")
 
 
 VideoComposer is a controllable video diffusion model, which allows users to flexibly control the spatial and temporal patterns simultaneously within a synthesized video in various forms, such as text description, sketch sequence, reference video, or even simply handcrafted motions and handrawings.
@@ -107,7 +122,7 @@ VideoComposer is a controllable video diffusion model, which allows users to fle
 
 ## Method
 
-![method](assets/fig02_framwork.jpg "method")
+![method](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/fig02_framwork.jpg "method")
 
 
 ## Running by Yourself
@@ -181,8 +196,8 @@ python run_net.py\
 ```
 The results are saved in the `outputs/exp02_motion_transfer-S09999` folder:
 
-![case1](assets/results/exp02_motion_transfer-S00009.gif "case2")
-![case2](assets/results/exp02_motion_transfer-S09999.gif "case2")
+![case1](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp02_motion_transfer-S00009.gif "case2")
+![case2](https://github.com/wtomin/mindone-assets/blob/main/videocomposer-assets/results/exp02_motion_transfer-S09999.gif "case2")
 
 
 In some cases, if you notice a significant change in color difference, you can use the style condition to adjust the color distribution with the following command. This can be helpful in certain cases.
@@ -207,7 +222,7 @@ python run_net.py\
     --style_image "demo_video/style/qibaishi_01.png"\
     --input_text_desc "Red-backed Shrike lanius collurio"
 ```
-![case2](assets/results/exp03_sketch2video_style-S09999.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp03_sketch2video_style-S09999.gif "case2")
 
 
 
@@ -218,8 +233,8 @@ python run_net.py\
     --sketch_path "demo_video/src_single_sketch.png"\
     --input_text_desc "A Red-backed Shrike lanius collurio is on the branch"
 ```
-![case2](assets/results/exp04_sketch2video_wo_style-S00144.gif "case2")
-![case2](assets/results/exp04_sketch2video_wo_style-S00144-1.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp04_sketch2video_wo_style-S00144.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp04_sketch2video_wo_style-S00144-1.gif "case2")
 
 
 
@@ -230,8 +245,8 @@ python run_net.py\
     --input_video demo_video/video_8800.mp4\
     --input_text_desc "A glittering and translucent fish swimming in a small glass bowl with multicolored piece of stone, like a glass fish"
 ```
-![case2](assets/results/exp05_text_depths_wo_style-S09999-0.gif "case2")
-![case2](assets/results/exp05_text_depths_wo_style-S09999-2.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp05_text_depths_wo_style-S09999-0.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp05_text_depths_wo_style-S09999-2.gif "case2")
 
 ```
 python run_net.py\
@@ -242,8 +257,8 @@ python run_net.py\
     --input_text_desc "A glittering and translucent fish swimming in a small glass bowl with multicolored piece of stone, like a glass fish"
 ```
 
-![case2](assets/results/exp06_text_depths_vs_style-S09999-0.gif "case2")
-![case2](assets/results/exp06_text_depths_vs_style-S09999-1.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp06_text_depths_vs_style-S09999-0.gif "case2")
+![case2](https://raw.githubusercontent.com/wtomin/mindone-assets/main/videocomposer-assets/results/exp06_text_depths_vs_style-S09999-1.gif  "case2")
 
 
 #### 3.2 Inference on a Video
