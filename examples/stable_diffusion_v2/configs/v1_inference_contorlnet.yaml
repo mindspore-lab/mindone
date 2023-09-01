@@ -82,7 +82,6 @@ model:
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
-        version: "1.5"
         use_fp16: False
         tokenizer_name: "BpeTokenizer"
         context_length: 77
@@ -91,3 +90,5 @@ model:
         width: 768
         layers: 12
         heads: 12
+        epsilon: 1e-7
+        use_quick_gelu: True
