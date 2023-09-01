@@ -28,8 +28,8 @@ def upfirdn2d_native(tensor, kernel, up=1, down=1, pad=(0, 0)):
     out = ops.pad(out, [0, 0, max(pad_x0, 0), max(pad_x1, 0), max(pad_y0, 0), max(pad_y1, 0)])
     out = out[
         :,
-        max(-pad_y0, 0): out.shape[1] - max(-pad_y1, 0),
-        max(-pad_x0, 0): out.shape[2] - max(-pad_x1, 0),
+        max(-pad_y0, 0) : out.shape[1] - max(-pad_y1, 0),
+        max(-pad_x0, 0) : out.shape[2] - max(-pad_x1, 0),
         :,
     ]
 
@@ -148,7 +148,9 @@ class Upsample2D(nn.Cell):
 
         conv = None
         if use_conv_transpose:
-            conv = nn.Conv2dTranspose(channels, self.out_channels, 4, stride=2, pad_mode="pad", padding=1, has_bias=True)
+            conv = nn.Conv2dTranspose(
+                channels, self.out_channels, 4, stride=2, pad_mode="pad", padding=1, has_bias=True
+            )
         elif use_conv:
             conv = nn.Conv2d(self.channels, self.out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
@@ -203,7 +205,9 @@ class Downsample2D(nn.Cell):
         self.name = name
 
         if use_conv:
-            conv = nn.Conv2d(self.channels, self.out_channels, 3, stride=stride, pad_mode="pad", padding=padding, has_bias=True)
+            conv = nn.Conv2d(
+                self.channels, self.out_channels, 3, stride=stride, pad_mode="pad", padding=padding, has_bias=True
+            )
         else:
             assert self.channels == self.out_channels
             conv = nn.AvgPool2d(kernel_size=stride, stride=stride)
@@ -334,13 +338,7 @@ class ResnetBlock2D(nn.Cell):
         self.dropout = nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
         self.conv2 = nn.Conv2d(
-            out_channels,
-            conv_2d_out_channels,
-            kernel_size=3,
-            stride=1,
-            pad_mode="pad",
-            padding=1,
-            has_bias=True
+            out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         )
 
         if non_linearity == "swish":

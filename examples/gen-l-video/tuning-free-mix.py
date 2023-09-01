@@ -12,9 +12,9 @@ sys.path.append(workspace)
 print("workspace:", workspace + "/../stable_diffusion_v2", flush=True)
 sys.path.append(workspace + "/../stable_diffusion_v2")
 
+from depth_to_image import get_depth_estimator, load_model_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.train.tools import set_random_seed
-from depth_to_image import load_model_from_config, get_depth_estimator
 
 
 def main(args):
