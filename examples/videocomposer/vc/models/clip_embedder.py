@@ -1,8 +1,11 @@
+import sys
 from typing import Optional
 
 import numpy as np
-from clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
+
+sys.path.append("../stable_diffusion_v2/")
 from PIL import Image
+from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
 
 import mindspore as ms
 from mindspore import nn, ops

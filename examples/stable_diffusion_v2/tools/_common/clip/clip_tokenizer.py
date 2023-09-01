@@ -456,7 +456,11 @@ class CLIPTokenizer:
     def _pad(self, id_dict, max_length, padding_strategy="do_not_pad", return_attention_mask=None):
         """Do padding according to the max_length"""
         is_batch = False
-        if isinstance(id_dict["input_ids"], list) and isinstance(id_dict["input_ids"][0], list):
+        if (
+            isinstance(id_dict["input_ids"], list)
+            and len(id_dict["input_ids"]) > 0
+            and isinstance(id_dict["input_ids"][0], list)
+        ):
             is_batch = True
             length_each = [len(line) for line in id_dict["input_ids"]]
             for item in length_each:
@@ -610,8 +614,8 @@ class CLIPTokenizer:
         """
         if token_ids_1:
             raise ValueError("The token_ids_1 is not supported yet.")
-        if not token_ids_0:
-            raise ValueError("The length of the token_ids should be larger than 0.")
+        # if not token_ids_0:
+        #     raise ValueError("The length of the token_ids should be larger than 0.")
         res = [self.bos_token_id]
         res.extend(token_ids_0)
         res.extend([self.eos_token_id])
@@ -625,8 +629,10 @@ class CLIPTokenizer:
 
     def _convert_tokens_to_ids(self, input_tokens):
         r"""Convert_tokens_to_ids"""
-        if not input_tokens:
+        if input_tokens is None:
             raise ValueError(f"Input token {input_tokens} is None.")
+        if len(input_tokens) == 0:
+            return []
         if isinstance(input_tokens, str):
             return self.tool.encoder[input_tokens]
         return [self.tool.encoder[bpe_token] for bpe_token in input_tokens]
