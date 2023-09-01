@@ -18,12 +18,20 @@ from mindspore.ops import operations as P
 
 
 def conv1x1(in_planes, out_planes, stride=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, weight_init='xavier_uniform')
+    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, weight_init="xavier_uniform")
 
 
 def conv3x3(in_planes, out_planes, stride=1, dilation=1, padding=1):
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, pad_mode='pad', padding=padding,
-                     dilation=dilation, weight_init='xavier_uniform')
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=3,
+        stride=stride,
+        pad_mode="pad",
+        padding=padding,
+        dilation=dilation,
+        weight_init="xavier_uniform",
+    )
 
 
 class Resnet(nn.Cell):
@@ -32,45 +40,72 @@ class Resnet(nn.Cell):
     def __init__(self, block, block_num, output_stride, use_batch_statistics=True):
         super(Resnet, self).__init__()
         self.inplanes = 64
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, pad_mode='pad', padding=3,
-                               weight_init='xavier_uniform')
+        self.conv1 = nn.Conv2d(
+            3, self.inplanes, kernel_size=7, stride=2, pad_mode="pad", padding=3, weight_init="xavier_uniform"
+        )
         self.bn1 = nn.BatchNorm2d(self.inplanes, use_batch_statistics=use_batch_statistics)
         self.relu = nn.ReLU()
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='same')
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode="same")
         self.layer1 = self._make_layer(block, 64, block_num[0], use_batch_statistics=use_batch_statistics)
         self.layer2 = self._make_layer(block, 128, block_num[1], stride=2, use_batch_statistics=use_batch_statistics)
 
         if output_stride == 16:
-            self.layer3 = self._make_layer(block, 256, block_num[2], stride=2,
-                                           use_batch_statistics=use_batch_statistics)
-            self.layer4 = self._make_layer(block, 512, block_num[3], stride=1, base_dilation=2, grids=[1, 2, 4],
-                                           use_batch_statistics=use_batch_statistics)
+            self.layer3 = self._make_layer(
+                block, 256, block_num[2], stride=2, use_batch_statistics=use_batch_statistics
+            )
+            self.layer4 = self._make_layer(
+                block,
+                512,
+                block_num[3],
+                stride=1,
+                base_dilation=2,
+                grids=[1, 2, 4],
+                use_batch_statistics=use_batch_statistics,
+            )
         elif output_stride == 8:
-            self.layer3 = self._make_layer(block, 256, block_num[2], stride=1, base_dilation=2,
-                                           use_batch_statistics=use_batch_statistics)
-            self.layer4 = self._make_layer(block, 512, block_num[3], stride=1, base_dilation=4, grids=[1, 2, 4],
-                                           use_batch_statistics=use_batch_statistics)
+            self.layer3 = self._make_layer(
+                block, 256, block_num[2], stride=1, base_dilation=2, use_batch_statistics=use_batch_statistics
+            )
+            self.layer4 = self._make_layer(
+                block,
+                512,
+                block_num[3],
+                stride=1,
+                base_dilation=4,
+                grids=[1, 2, 4],
+                use_batch_statistics=use_batch_statistics,
+            )
 
     def _make_layer(self, block, planes, blocks, stride=1, base_dilation=1, grids=None, use_batch_statistics=True):
         """Resnet._make_layer"""
         if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.SequentialCell([
-                conv1x1(self.inplanes, planes * block.expansion, stride),
-                nn.BatchNorm2d(planes * block.expansion, use_batch_statistics=use_batch_statistics)
-            ])
+            downsample = nn.SequentialCell(
+                [
+                    conv1x1(self.inplanes, planes * block.expansion, stride),
+                    nn.BatchNorm2d(planes * block.expansion, use_batch_statistics=use_batch_statistics),
+                ]
+            )
 
         if grids is None:
             grids = [1] * blocks
 
         layers = [
-            block(self.inplanes, planes, stride, downsample, dilation=base_dilation * grids[0],
-                  use_batch_statistics=use_batch_statistics)
+            block(
+                self.inplanes,
+                planes,
+                stride,
+                downsample,
+                dilation=base_dilation * grids[0],
+                use_batch_statistics=use_batch_statistics,
+            )
         ]
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(
-                block(self.inplanes, planes, dilation=base_dilation * grids[i],
-                      use_batch_statistics=use_batch_statistics))
+                block(
+                    self.inplanes, planes, dilation=base_dilation * grids[i], use_batch_statistics=use_batch_statistics
+                )
+            )
 
         return nn.SequentialCell(layers)
 
@@ -92,6 +127,7 @@ class Resnet(nn.Cell):
 
 class Bottleneck(nn.Cell):
     """Bottleneck"""
+
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1, use_batch_statistics=True):
@@ -138,10 +174,17 @@ class ASPPConv(nn.Cell):
     def __init__(self, in_channels, out_channels, atrous_rate=1, use_batch_statistics=True):
         super(ASPPConv, self).__init__()
         if atrous_rate == 1:
-            conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False, weight_init='xavier_uniform')
+            conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False, weight_init="xavier_uniform")
         else:
-            conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, pad_mode='pad', padding=atrous_rate,
-                             dilation=atrous_rate, weight_init='xavier_uniform')
+            conv = nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=3,
+                pad_mode="pad",
+                padding=atrous_rate,
+                dilation=atrous_rate,
+                weight_init="xavier_uniform",
+            )
         bn = nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics)
         relu = nn.ReLU()
         self.aspp_conv = nn.SequentialCell([conv, bn, relu])
@@ -156,11 +199,13 @@ class ASPPPooling(nn.Cell):
 
     def __init__(self, in_channels, out_channels, use_batch_statistics=True):
         super(ASPPPooling, self).__init__()
-        self.conv = nn.SequentialCell([
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, weight_init='xavier_uniform'),
-            nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics),
-            nn.ReLU()
-        ])
+        self.conv = nn.SequentialCell(
+            [
+                nn.Conv2d(in_channels, out_channels, kernel_size=1, weight_init="xavier_uniform"),
+                nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics),
+                nn.ReLU(),
+            ]
+        )
         self.shape = P.Shape()
 
     def construct(self, x):
@@ -174,8 +219,7 @@ class ASPPPooling(nn.Cell):
 class ASPP(nn.Cell):
     """ASPP"""
 
-    def __init__(self, atrous_rates, phase='train', in_channels=2048, num_classes=21,
-                 use_batch_statistics=True):
+    def __init__(self, atrous_rates, phase="train", in_channels=2048, num_classes=21, use_batch_statistics=True):
         super(ASPP, self).__init__()
         self.phase = phase
         self.num_classes = num_classes
@@ -185,8 +229,9 @@ class ASPP(nn.Cell):
         self.aspp3 = ASPPConv(in_channels, out_channels, atrous_rates[2], use_batch_statistics=use_batch_statistics)
         self.aspp4 = ASPPConv(in_channels, out_channels, atrous_rates[3], use_batch_statistics=use_batch_statistics)
         self.aspp_pooling = ASPPPooling(in_channels, out_channels, use_batch_statistics=use_batch_statistics)
-        self.conv1 = nn.Conv2d(out_channels * (len(atrous_rates) + 1), out_channels, kernel_size=1,
-                               weight_init='xavier_uniform')
+        self.conv1 = nn.Conv2d(
+            out_channels * (len(atrous_rates) + 1), out_channels, kernel_size=1, weight_init="xavier_uniform"
+        )
         self.bn1 = nn.BatchNorm2d(out_channels, use_batch_statistics=use_batch_statistics)
         self.relu = nn.ReLU()
         self.concat = P.Concat(axis=1)
@@ -208,7 +253,7 @@ class ASPP(nn.Cell):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        if self.phase == 'train':
+        if self.phase == "train":
             x = self.drop(x)
         return x
 
@@ -216,27 +261,29 @@ class ASPP(nn.Cell):
 class DeepLabV3Plus(nn.Cell):
     """DeepLabV3Plus"""
 
-    def __init__(self, phase='train', num_classes=21, output_stride=16, freeze_bn=False):
+    def __init__(self, phase="train", num_classes=21, output_stride=16, freeze_bn=False):
         super(DeepLabV3Plus, self).__init__()
         use_batch_statistics = not freeze_bn
-        self.resnet = Resnet(Bottleneck, [3, 4, 23, 3], output_stride=output_stride,
-                             use_batch_statistics=use_batch_statistics)
-        self.aspp = ASPP([1, 6, 12, 18], phase, 2048, num_classes,
-                         use_batch_statistics=use_batch_statistics)
+        self.resnet = Resnet(
+            Bottleneck, [3, 4, 23, 3], output_stride=output_stride, use_batch_statistics=use_batch_statistics
+        )
+        self.aspp = ASPP([1, 6, 12, 18], phase, 2048, num_classes, use_batch_statistics=use_batch_statistics)
         self.shape = P.Shape()
-        self.conv2 = nn.Conv2d(256, 48, kernel_size=1, weight_init='xavier_uniform')
+        self.conv2 = nn.Conv2d(256, 48, kernel_size=1, weight_init="xavier_uniform")
         self.bn2 = nn.BatchNorm2d(48, use_batch_statistics=use_batch_statistics)
         self.relu = nn.ReLU()
         self.concat = P.Concat(axis=1)
-        self.last_conv = nn.SequentialCell([
-            conv3x3(304, 256, stride=1, dilation=1, padding=1),
-            nn.BatchNorm2d(256, use_batch_statistics=use_batch_statistics),
-            nn.ReLU(),
-            conv3x3(256, 256, stride=1, dilation=1, padding=1),
-            nn.BatchNorm2d(256, use_batch_statistics=use_batch_statistics),
-            nn.ReLU(),
-            conv1x1(256, num_classes, stride=1)
-        ])
+        self.last_conv = nn.SequentialCell(
+            [
+                conv3x3(304, 256, stride=1, dilation=1, padding=1),
+                nn.BatchNorm2d(256, use_batch_statistics=use_batch_statistics),
+                nn.ReLU(),
+                conv3x3(256, 256, stride=1, dilation=1, padding=1),
+                nn.BatchNorm2d(256, use_batch_statistics=use_batch_statistics),
+                nn.ReLU(),
+                conv1x1(256, num_classes, stride=1),
+            ]
+        )
 
     def construct(self, x):
         """DeepLabV3Plus.construct"""

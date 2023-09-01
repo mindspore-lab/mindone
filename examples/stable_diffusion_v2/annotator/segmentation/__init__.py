@@ -1,10 +1,10 @@
-import numpy as np
 import cv2
+import numpy as np
 
-from mindspore.train.serialization import load_checkpoint, load_param_into_net
+import mindspore.common.dtype as mstype
 import mindspore.nn as nn
 from mindspore import Tensor
-import mindspore.common.dtype as mstype
+from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
 from .deeplab_v3plus import DeepLabV3Plus
 
@@ -12,7 +12,7 @@ from .deeplab_v3plus import DeepLabV3Plus
 class SegmentDetector:
     def __init__(self, ckpt_path, num_classes=21) -> None:
         self.num_classes = num_classes
-        self.network = DeepLabV3Plus('eval', num_classes=self.num_classes, output_stride=16, freeze_bn=True)
+        self.network = DeepLabV3Plus("eval", num_classes=self.num_classes, output_stride=16, freeze_bn=True)
         self.eval_net = BuildEvalNetwork(self.network)
         param_dict = load_checkpoint(ckpt_path)
         load_param_into_net(self.eval_net, param_dict)
@@ -20,18 +20,16 @@ class SegmentDetector:
 
         self.image_mean = [103.53, 116.28, 123.675]
         self.image_std = [57.375, 57.120, 58.395]
-    
-    def __call__(self, img) :
+
+    def __call__(self, img):
         batch_img_lst = []
         batch_img_lst.append(img)
-        batch_res = self.eval_batch_scales(self.eval_net, batch_img_lst, scales=[1.0],
-                                          base_crop_size=513, flip=False)
+        batch_res = self.eval_batch_scales(self.eval_net, batch_img_lst, scales=[1.0], base_crop_size=513, flip=False)
         result = batch_res[0]
-        result = self.show_result(img, result, get_palette('voc'), opacity=1)
+        result = self.show_result(img, result, get_palette("voc"), opacity=1)
         return bgr2rgb(result)
-    
-    def eval_batch_scales(self, eval_net, img_lst, scales,
-                      base_crop_size=513, flip=True):
+
+    def eval_batch_scales(self, eval_net, img_lst, scales, base_crop_size=513, flip=True):
         """eval_batch_scales"""
         sizes_ = [int((base_crop_size - 1) * sc) + 1 for sc in scales]
         probs_lst = self.eval_batch(eval_net, img_lst, crop_size=sizes_[0], flip=flip)
@@ -45,17 +43,17 @@ class SegmentDetector:
         for i in probs_lst:
             result_msk.append(i.argmax(axis=2))
         return result_msk
-    
+
     def eval_batch(self, eval_net, img_lst, crop_size=513, flip=True):
         """eval_batch"""
         result_lst = []
         batch_size = len(img_lst)
         batch_img = np.zeros((32, 3, crop_size, crop_size), dtype=np.float32)
         resize_hw = []
-        for l in range(batch_size):
-            img_ = img_lst[l]
+        for bs in range(batch_size):
+            img_ = img_lst[bs]
             img_, resize_h, resize_w = self.pre_process(img_, crop_size)
-            batch_img[l] = img_
+            batch_img[bs] = img_
             resize_hw.append([resize_h, resize_w])
 
         batch_img = np.ascontiguousarray(batch_img)
@@ -68,13 +66,13 @@ class SegmentDetector:
             net_out += net_out_flip.asnumpy()[:, :, :, ::-1]
 
         for bs in range(batch_size):
-            probs_ = net_out[bs][:, :resize_hw[bs][0], :resize_hw[bs][1]].transpose((1, 2, 0))
+            probs_ = net_out[bs][:, : resize_hw[bs][0], : resize_hw[bs][1]].transpose((1, 2, 0))
             ori_h, ori_w = img_lst[bs].shape[0], img_lst[bs].shape[1]
             probs_ = cv2.resize(probs_, (ori_w, ori_h))
             result_lst.append(probs_)
 
         return result_lst
-    
+
     def pre_process(self, img_, crop_size=513):
         """pre_process"""
         # resize
@@ -95,11 +93,8 @@ class SegmentDetector:
         # hwc to chw
         img_ = img_.transpose((2, 0, 1))
         return img_, resize_h, resize_w
-    
-    def show_result(self, img,
-                    result,
-                    palette=None,
-                    opacity=0.5):
+
+    def show_result(self, img, result, palette=None, opacity=0.5):
         """Draw `result` over `img`.
 
         Args:
@@ -125,7 +120,7 @@ class SegmentDetector:
         # img = mmcv.imread(img)
         img = img.copy()
         seg = result
-        
+
         palette = np.array(palette)
         assert palette.shape[0] == self.num_classes
         assert palette.shape[1] == 3
@@ -140,7 +135,7 @@ class SegmentDetector:
         img = img * (1 - opacity) + color_seg * opacity
         img = img.astype(np.uint8)
         # if out_file specified, do not show image in window
-        
+
         return img
 
 
@@ -166,21 +161,39 @@ def resize_long(img, long_size=513):
         new_h = int(1.0 * long_size * h / w)
     imo = cv2.resize(img, (new_w, new_h))
     return imo
-        
+
 
 def voc_palette():
     """Pascal VOC palette for external use."""
-    return [[0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128],
-            [128, 0, 128], [0, 128, 128], [128, 128, 128], [64, 0, 0],
-            [192, 0, 0], [64, 128, 0], [192, 128, 0], [64, 0, 128],
-            [192, 0, 128], [64, 128, 128], [192, 128, 128], [0, 64, 0],
-            [128, 64, 0], [0, 192, 0], [128, 192, 0], [0, 64, 128]]
+    return [
+        [0, 0, 0],
+        [128, 0, 0],
+        [0, 128, 0],
+        [128, 128, 0],
+        [0, 0, 128],
+        [128, 0, 128],
+        [0, 128, 128],
+        [128, 128, 128],
+        [64, 0, 0],
+        [192, 0, 0],
+        [64, 128, 0],
+        [192, 128, 0],
+        [64, 0, 128],
+        [192, 0, 128],
+        [64, 128, 128],
+        [192, 128, 128],
+        [0, 64, 0],
+        [128, 64, 0],
+        [0, 192, 0],
+        [128, 192, 0],
+        [0, 64, 128],
+    ]
 
 
 dataset_aliases = {
-    'cityscapes': ['cityscapes'],
-    'ade': ['ade', 'ade20k'],
-    'voc': ['voc', 'pascal_voc', 'voc12', 'voc12aug']
+    "cityscapes": ["cityscapes"],
+    "ade": ["ade", "ade20k"],
+    "voc": ["voc", "pascal_voc", "voc12", "voc12aug"],
 }
 
 
@@ -193,17 +206,16 @@ def get_palette(dataset):
 
     if isinstance(dataset, str):
         if dataset in alias2name:
-            labels = eval(alias2name[dataset] + '_palette()')
+            labels = eval(alias2name[dataset] + "_palette()")
         else:
-            raise ValueError(f'Unrecognized dataset: {dataset}')
+            raise ValueError(f"Unrecognized dataset: {dataset}")
     else:
-        raise TypeError(f'dataset must a str, but got {type(dataset)}')
+        raise TypeError(f"dataset must a str, but got {type(dataset)}")
     return labels
 
 
 def convert_color_factory(src, dst):
-
-    code = getattr(cv2, f'COLOR_{src.upper()}2{dst.upper()}')
+    code = getattr(cv2, f"COLOR_{src.upper()}2{dst.upper()}")
 
     def convert_color(img):
         out_img = cv2.cvtColor(img, code)
@@ -222,4 +234,4 @@ def convert_color_factory(src, dst):
     return convert_color
 
 
-bgr2rgb = convert_color_factory('bgr', 'rgb')
+bgr2rgb = convert_color_factory("bgr", "rgb")
