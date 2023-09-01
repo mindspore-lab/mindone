@@ -60,6 +60,40 @@ class AdaLayerNormZero(nn.Cell):
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
 
 
+class AdaGroupNorm(nn.Cell):
+    """
+    GroupNorm layer modified to incorporate timestep embeddings.
+    """
+
+    def __init__(
+        self, embedding_dim: int, out_dim: int, num_groups: int, act_fn: Optional[str] = None, eps: float = 1e-5
+    ):
+        super().__init__()
+        self.act = None
+        if act_fn == "swish":
+            self.act = lambda x: ops.silu(x)
+        elif act_fn == "mish":
+            self.act = nn.Mish()
+        elif act_fn == "silu":
+            self.act = nn.SiLU()
+        elif act_fn == "gelu":
+            self.act = nn.GELU()
+
+        self.linear = nn.Dense(embedding_dim, out_dim * 2)
+        self.norm = nn.GroupNorm(num_groups, out_dim, eps=eps)
+
+    def construct(self, x, emb):
+        if self.act:
+            emb = self.act(emb)
+        emb = self.linear(emb)
+        emb = emb[:, :, None, None]
+        scale, shift = emb.chunk(2, axis=1)
+
+        x = self.norm(x)
+        x = x * (1 + scale) + shift
+        return x
+
+
 class Attention(nn.Cell):
     r"""
     A cross attention layer.
@@ -108,7 +142,8 @@ class Attention(nn.Cell):
 
         if self.added_kv_proj_dim is None and self.only_cross_attention:
             raise ValueError(
-                "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None. Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."
+                "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None. "
+                "Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."
             )
 
         if norm_num_groups is not None:
@@ -458,11 +493,7 @@ class BasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            self.norm2 = (
-                AdaLayerNorm(dim, num_embeds_ada_norm)
-                if self.use_ada_layer_norm
-                else nn.LayerNorm((dim,))
-            )
+            self.norm2 = AdaLayerNorm(dim, num_embeds_ada_norm) if self.use_ada_layer_norm else nn.LayerNorm((dim,))
             self.attn2 = Attention(
                 query_dim=dim,
                 cross_attention_dim=cross_attention_dim if not double_self_attention else None,
@@ -668,9 +699,7 @@ class TransformerTemporalModel(nn.Cell):
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
         hidden_states = (
-            hidden_states[None, None, :]
-            .reshape(batch_size, height, width, channel, num_frames)
-            .permute(0, 3, 4, 1, 2)
+            hidden_states[None, None, :].reshape(batch_size, height, width, channel, num_frames).permute(0, 3, 4, 1, 2)
         )
         hidden_states = hidden_states.reshape(batch_frames, channel, height, width)
 
