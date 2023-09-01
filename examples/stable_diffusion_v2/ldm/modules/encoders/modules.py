@@ -74,7 +74,7 @@ class FrozenCLIPEmbedder(nn.Cell):
         return outputs
 
 
-class FrozenOpenCLIPEmbedder(nn.Cell):
+class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
     def __init__(
         self,
         use_fp16=False,
@@ -86,7 +86,7 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
         layers=12,
         heads=12,
     ):
-        super().__init__()
+        super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.context_length = context_length
         self.tokenizer = get_tokenizer(tokenizer_name)
@@ -99,29 +99,10 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
             width=width,
             layers=layers,
             heads=heads,
+            epsilon=1e-5,
+            use_quick_gelu=False,
             dtype=self.dtype,
         )
-
-    def tokenize(self, texts):
-        SOT_TEXT = self.tokenizer.sot_text
-        EOT_TEXT = self.tokenizer.eot_text
-        CONTEXT_LEN = self.context_length
-
-        if isinstance(texts, str):
-            texts = [texts]
-
-        sot_token = self.tokenizer.encoder[SOT_TEXT]
-        eot_token = self.tokenizer.encoder[EOT_TEXT]
-        all_tokens = [[sot_token] + self.tokenizer.encode(text) + [eot_token] for text in texts]
-        result = np.zeros((len(all_tokens), CONTEXT_LEN), np.int64)
-
-        for i, tokens in enumerate(all_tokens):
-            if len(tokens) > CONTEXT_LEN:
-                tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
-
-            result[i, : len(tokens)] = np.array(tokens, np.int64)
-
-        return Tensor(result)
 
     def encode(self, tokenized_text):
         outputs = self.model(tokenized_text)
@@ -153,6 +134,8 @@ class ClipImageEmbedder(nn.Cell):
             vision_width=vision_width,
             vision_patch_size=vision_patch_size,
             vision_head_width=vision_head_width,
+            epsilon=1e-5,
+            use_quick_gelu=True,
             dtype=self.dtype,
         )
         self.ucg_rate = ucg_rate
@@ -166,7 +149,31 @@ class ClipImageEmbedder(nn.Cell):
 
 
 class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
-    ...
+    def __init__(
+        self,
+        use_fp16=False,
+        embed_dim=1024,
+        image_resolution=224,
+        vision_layers=32,
+        vision_width=1024,
+        vision_patch_size=14,
+        vision_head_width=64,
+        ucg_rate=0.0,
+    ):
+        super(ClipImageEmbedder, self).__init__()
+        self.dtype = ms.float16 if use_fp16 else ms.float32
+        self.model = ImageEncoder(
+            embed_dim=embed_dim,
+            image_resolution=image_resolution,
+            vision_layers=vision_layers,
+            vision_width=vision_width,
+            vision_patch_size=vision_patch_size,
+            vision_head_width=vision_head_width,
+            epsilon=1e-5,
+            use_quick_gelu=False,
+            dtype=self.dtype,
+        )
+        self.ucg_rate = ucg_rate
 
 
 class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):

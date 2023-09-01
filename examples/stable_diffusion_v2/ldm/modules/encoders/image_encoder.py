@@ -7,6 +7,8 @@ import mindspore.ops as ops
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
 
+from ._common import LayerNorm, QuickGELU
+
 
 class Bottleneck(nn.Cell):
     expansion = 4
@@ -179,20 +181,6 @@ class ModifiedResNet(nn.Cell):
         return x
 
 
-class LayerNorm(nn.LayerNorm):
-    """Subclass torch's LayerNorm to handle fp16."""
-
-    def construct(self, x: Tensor):
-        orig_type = x.dtype
-        ret = super().construct(ops.cast(x, ms.float32))
-        return ops.cast(ret, orig_type)
-
-
-class QuickGELU(nn.Cell):
-    def construct(self, x: Tensor):
-        return x * ops.sigmoid(1.702 * x)
-
-
 class MultiheadAttention(nn.Cell):
     def __init__(self, d_model: int, n_head: int, dtype: mstype):
         super(MultiheadAttention, self).__init__()
@@ -244,22 +232,30 @@ class MultiheadAttention(nn.Cell):
 
 
 class ResidualAttentionBlock(nn.Cell):
-    def __init__(self, d_model: int, n_head: int, attn_mask: Tensor = None, dtype: mstype = ms.float32):
+    def __init__(
+        self,
+        d_model: int,
+        n_head: int,
+        attn_mask: Tensor = None,
+        epsilon: float = 1e-5,
+        use_quick_gelu: bool = False,
+        dtype: mstype = ms.float32,
+    ):
         super().__init__()
 
         self.dtype = dtype
         self.attn = MultiheadAttention(d_model, n_head, dtype)
-        self.ln_1 = LayerNorm((d_model,))
+        self.ln_1 = LayerNorm((d_model,), epsilon=epsilon)
         self.mlp = nn.SequentialCell(
             OrderedDict(
                 [
                     ("c_fc", nn.Dense(d_model, d_model * 4).to_float(self.dtype)),
-                    ("gelu", QuickGELU()),
+                    ("gelu", QuickGELU().to_float(self.dtype) if use_quick_gelu else nn.GELU().to_float(self.dtype)),
                     ("c_proj", nn.Dense(d_model * 4, d_model).to_float(self.dtype)),
                 ]
             )
         )
-        self.ln_2 = LayerNorm((d_model,))
+        self.ln_2 = LayerNorm((d_model,), epsilon=epsilon)
         self.attn_mask = attn_mask
 
     def attention(self, x: Tensor):
@@ -272,13 +268,27 @@ class ResidualAttentionBlock(nn.Cell):
 
 
 class Transformer(nn.Cell):
-    def __init__(self, width: int, layers: int, heads: int, attn_mask: Tensor = None, dtype: mstype = ms.float32):
+    def __init__(
+        self,
+        width: int,
+        layers: int,
+        heads: int,
+        attn_mask: Tensor = None,
+        epsilon: float = 1e-5,
+        use_quick_gelu: bool = False,
+        dtype: mstype = ms.float32,
+    ):
         super().__init__()
         self.dtype = dtype
         self.width = width
         self.layers = layers
         self.resblocks = nn.SequentialCell(
-            *[ResidualAttentionBlock(width, heads, attn_mask, dtype=self.dtype) for _ in range(layers)]
+            *[
+                ResidualAttentionBlock(
+                    width, heads, attn_mask, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=self.dtype
+                )
+                for _ in range(layers)
+            ]
         )
 
     def construct(self, x: Tensor):
@@ -294,6 +304,8 @@ class VisionTransformer(nn.Cell):
         layers: int,
         heads: int,
         output_dim: int,
+        epsilon: float = 1e-5,
+        use_quick_gelu: bool = False,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -309,11 +321,13 @@ class VisionTransformer(nn.Cell):
         self.positional_embedding = Parameter(
             scale * ms.numpy.randn((input_resolution // patch_size) ** 2 + 1, width, dtype=self.dtype)
         )
-        self.ln_pre = LayerNorm((width,))
+        self.ln_pre = LayerNorm((width,), epsilon=epsilon)
 
-        self.transformer = Transformer(width, layers, heads, dtype=self.dtype)
+        self.transformer = Transformer(
+            width, layers, heads, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=self.dtype
+        )
 
-        self.ln_post = LayerNorm((width,))
+        self.ln_post = LayerNorm((width,), epsilon=epsilon)
         self.proj = Parameter(scale * ms.numpy.randn(width, output_dim, dtype=self.dtype))
 
     def construct(self, x: Tensor):
@@ -347,6 +361,8 @@ class ImageEncoder(nn.Cell):
         vision_width: int,
         vision_patch_size: int,
         vision_head_width: int,
+        epsilon=1e-5,
+        use_quick_gelu=False,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -372,6 +388,8 @@ class ImageEncoder(nn.Cell):
                 layers=vision_layers,
                 heads=vision_heads,
                 output_dim=embed_dim,
+                epsilon=epsilon,
+                use_quick_gelu=use_quick_gelu,
                 dtype=self.dtype,
             )
 
