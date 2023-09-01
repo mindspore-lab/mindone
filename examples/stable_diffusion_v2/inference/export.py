@@ -173,7 +173,11 @@ if __name__ == "__main__":
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Device target, should be in [Ascend]", choices=["Ascend"],
+        "--device_target",
+        type=str,
+        default="Ascend",
+        help="Device target, should be in [Ascend]",
+        choices=["Ascend"],
     )
     parser.add_argument(
         "--task",

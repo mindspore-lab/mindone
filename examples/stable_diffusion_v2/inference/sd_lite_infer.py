@@ -124,6 +124,9 @@ def main(args):
         init_image = Image.open(args.inputs.image_path).convert("RGB")
         img = img_processor.preprocess(init_image, height=args.inputs.H, width=args.inputs.W)
         inputs["img"] = img.repeat(batch_size, axis=0).asnumpy()
+        init_timestep = min(int(args.sampling_steps * args.inputs.strength), args.sampling_steps)
+        t_start = max(args.sampling_steps - init_timestep, 0)
+        inputs["timesteps"] = inputs["timesteps"][t_start * scheduler.order :]
     elif args.task == "inpaint":
         sd_infer = SDLiteInpaint(
             data_prepare,
@@ -177,7 +180,11 @@ if __name__ == "__main__":
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument(
-        "--device_target", type=str, default="Ascend", help="Device target, should be in [Ascend]", choices=["Ascend"],
+        "--device_target",
+        type=str,
+        default="Ascend",
+        help="Device target, should be in [Ascend]",
+        choices=["Ascend"],
     )
     parser.add_argument(
         "--task",

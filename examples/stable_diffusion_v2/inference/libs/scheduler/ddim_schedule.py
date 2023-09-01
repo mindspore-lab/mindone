@@ -142,6 +142,7 @@ class DDIMScheduler(nn.Cell):
         self.use_clipped_model_output = use_clipped_model_output
         self.variance_noise = variance_noise if variance_noise != "None" else None
         self.with_mask = with_mask
+        self.order = 1
 
     def set_timesteps(self, num_inference_steps):
         """
