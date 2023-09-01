@@ -30,11 +30,11 @@ pip install -r requirements.txt
 #### Trained Models
 1. Canny edge maps:
 
-   Please download the trained model [SD1.5-canny-ms checkpoint]
+   Please download the trained model [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5-3b5e0f2f.ckpt)
 
 2. Segmentation edge maps:
 
-   Please download the trained model [SD1.5-segmentation-ms checkpoint]
+   Please download the trained model [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5-6d4a264f.ckpt)
 
 3. Others:
 
