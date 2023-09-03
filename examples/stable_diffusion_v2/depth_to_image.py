@@ -29,12 +29,11 @@ import mindspore as ms
 from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import ops
-from mindspore.amp import auto_mixed_precision
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 print("workspace:", workspace, flush=True)
 sys.path.append(workspace)
-from conditions.depth.midas import midas_v3_dpt_large
+from conditions.depth import DepthEstimator
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
@@ -47,74 +46,6 @@ _version_cfg = {
     "2.0": ("sd_v2_depth-186e18a0.ckpt", "v2-depth-inference.yaml", 512),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
-
-
-def build_depth_estimator(
-    model_type="midas_v3_dpt_large_384",
-    estimator_ckpt_path="models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt",
-    amp_level="O2",
-):
-    dtype = ms.float32 if amp_level == "O0" else ms.float16
-    if model_type == "midas_v3_dpt_large_384":
-        depth_model = midas_v3_dpt_large(pretrained=True, ckpt_path=estimator_ckpt_path, dtype=dtype)
-    else:
-        # TODO: support midas v3 hybrid
-        raise NotImplementedError
-
-    auto_mixed_precision(depth_model, amp_level=amp_level)
-
-    return depth_model
-
-
-def estimate_depth(images, depth_estimator, amp_level="O2"):
-    """
-    Use MiDas as depth estimator.
-    Args:
-        images: rgb image as PIL object, shape [h, w, 3], value: 0-255
-            or, list of PIL images  [n, h, w, 3]
-
-    return:
-        depth map as numpy array, shpae [384, 384]
-            or [n, 384, 384]
-    """
-    if not isinstance(images, list):
-        images = [images]
-
-    # 1. preproess
-    # hyper-params ref: https://huggingface.co/stabilityai/stable-diffusion-2-depth/blob/main/feature_extractor/preprocessor_config.json
-    h = w = 384  # input image size for depth estimator
-    rescale = True
-    mean = [0.5, 0.5, 0.5]
-    std = [0.5, 0.5, 0.5]
-    # 1.1 resize to 384
-    images = [img.resize((w, h), resample=Image.BICUBIC) for img in images]  # resample=2 => BICUBIC
-    images = [np.array(img, dtype=np.float32) for img in images]
-    images = np.array(images, dtype=np.float32)  # [bs, h, w, 3]
-
-    # 1.2 rescale to [0, 1]
-    if rescale:
-        images = images / 255.0
-    # 1.3 normalize to [-1, 1]
-    images = (images - mean) / std
-    # 1.4 format tensor batch [bs, 3, h, w]
-    images = np.transpose(images, (0, 3, 1, 2))
-    if amp_level != "O0":
-        images = Tensor(images, dtype=mstype.float32)
-    else:
-        images = Tensor(images, dtype=mstype.float16)
-    assert (
-        len(images.shape) == 4 and images.shape[1] == 3
-    ), f"Expecting model input shape: [bs, 3, H, W], but got {images.shape}"
-
-    # 2. infer
-    logger.info("Running depth estimation on input image...")
-    st = time.time()
-    depth_maps = depth_estimator(images).asnumpy().astype(np.float32)  # [bs, 1, h, w]
-    depth_maps = np.squeeze(depth_maps)  # [bs, h, w] or [h, w]
-    print("Time cost: ", time.time() - st)
-    logger.debug("depth est output: {}, {}, {}".format(depth_maps.shape, depth_maps.min(), depth_maps.max()))
-
-    return depth_maps
 
 
 def save_img(img_np, fn="tmp.png", norm=False, gray=False):
@@ -375,8 +306,14 @@ def main(args):
         image = Image.open(args.image).convert("RGB")
         tar_w, tar_h = _check_image_size(image, args.img_size)
         amp_level = args.depth_est_amp_level
-        depth_estimator = build_depth_estimator(amp_level=amp_level)  # TODO: init before for loop
-        depth_map = estimate_depth(image, depth_estimator, amp_level=amp_level)
+
+        depth_est = DepthEstimator(amp_level=amp_level)  # TODO: init before for loop
+        logger.info("Extracting depth map from initial image...")
+        st = time.time()
+        depth_map = depth_est(image)
+        logger.info("Time cost: {}".format(time.time() - st))
+        logger.debug("depth est output: {}, {}, {}".format(depth_map.shape, depth_map.min(), depth_map.max()))
+
         dm_np = save_img(depth_map, "tmp_depth_map.png", norm=True, gray=True)
 
         init_image = Image.open(args.image)  # TODO: reuse opened image
