@@ -62,20 +62,21 @@ pip install -r requirements.txt
   <summary>Pre-trained SD weights that are compatible with MindSpore: </summary>
 -->
 
-Currently, we provide pre-trained stable diffusion model weights that are compatible with MindSpore as follows.
+Currently, we provide pre-trained Stable Diffusion model weights that are compatible with MindSpore as follows.
 
-| **Version name** |**Task** |  **MindSpore Checkpoint**  | **Ref. Official Model** | **Resolution**|
-|-----------------|---------------|---------------|------------|--------|
-| 2.1      | text-to-image | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt) |  [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base) | 512x512 |
-| 2.1-v      | text-to-image | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt) |  [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1) | 768x768 |
-| 2.0            | text-to-image | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) |  [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base) | 512x512 |
-| 2.0-v      | text-to-image | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | 768x768 |
-| 2.0-inpaint      | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt) | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512|
-| 1.5       | text-to-image | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5) | 512x512 |
-| 1.5-wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
-| 1.5-wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
+| **Version name**   | **Task**         | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
+|--------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+| 2.1                | text-to-image    | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt)          | [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)         | 512x512        |
+| 2.1-v              | text-to-image    | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt)        | [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1)                   | 768x768        |
+| 2.0                | text-to-image    | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
+| 2.0-v              | text-to-image    | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt)            | [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2)                       | 768x768        |
+| 2.0-inpaint        | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
+| 1.5                | text-to-image    | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt)                    | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)                    | 512x512        |
+| 1.5-wukong         | text-to-image    | [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)                 |                                                                                                   | 512x512        |
+| 1.5-wukong-inpaint | image            | [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |                                                                                                   | 512x512        |
 
-> Resolution refers to the image resolution used in training and is also the optimal choice for image generation. Other resolutions (if only divisable by 64) are usable but may lead to a degrade in generality quality.
+> Resolution refers to the image resolution used in training and is also the optimal choice for image generation.
+> Other resolutions are supported (only if divisible by 64) but may lead to a degraded generation quality.
 <!---
 </details>
 -->
@@ -171,7 +172,7 @@ Coming soon
 This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt. If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model) and generate new images conditioning on the image depth, the image, and the text prompt.
 
 It is easy to run with the `depth_to_image.py` script.
-```python
+```shell
 # depth to image conditioning on an input image and text prompt
 python depth_to_image.py --prompt {text prompt} \
     --image {path to initial image} \
@@ -179,7 +180,7 @@ python depth_to_image.py --prompt {text prompt} \
 ```
 > `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserve more content of input image. 1 - ignore the initial image and only condition on the depth and text prompt.
 
-```python
+```shell
 # depth to image given a depth image and text prompt
 python depth_to_image.py --prompt {text prompt} --depth_map {path to depth map}
 ```
@@ -188,7 +189,7 @@ Example:
 
 Download the [two-cat image](http://images.cocodataset.org/val2017/000000039769.jpg) and save it in the current folder. Then execute
 
-```python
+```shell
 python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negative_prompt "bad, deformed, ugly, bad anatomy" \
 ```
 
@@ -401,4 +402,4 @@ Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
     configs/your_train.yaml
 
 ## Contributing
-We appreciate all kinds of contributions including making **issues** or **pull requests** to make our work better.
+We appreciate all kinds of contributions, including making **issues** or **pull requests** to make our work better.
