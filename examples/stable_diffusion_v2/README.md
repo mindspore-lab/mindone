@@ -34,7 +34,12 @@ For a quick tour, please view [demo](demo.md).
     - [Chinese Prompt Adaptation](#chinese-prompt-adaptation)
 - [Stable Diffusion 1.5](#stable-diffusion-15)
   - [Inference](#inference-1)
+    - [Text-to-Image Generation](#sd15-text-to-image-generation)
+    - [Chinese Text-to-Image Generation](#chinese-text-to-image-generation)
+    - [Chinese Text-guided Image Inpainting](#chinese-text-guided-image-inpainting)
   - [Training](#training-1)
+- [Stable Diffusion with ControlNet](#stable-diffusion-with-controlnet)
+- [Stable Diffusion with T2I-Adapter](#stable-diffusion-with-t2i-adapter)
 - [Data Preparation for Training](#dataset-preparation-for-finetuning)
 - [Supported Schedulers](#supported-schedulers)
 - [Evaluation](#evaluation)
@@ -58,20 +63,21 @@ pip install -r requirements.txt
   <summary>Pre-trained SD weights that are compatible with MindSpore: </summary>
 -->
 
-Currently, we provide pre-trained stable diffusion model weights that are compatible with MindSpore as follows.
+Currently, we provide pre-trained Stable Diffusion model weights that are compatible with MindSpore as follows.
 
-| **Version name** |**Task** |  **MindSpore Checkpoint**  | **Ref. Official Model** | **Resolution**|
-|-----------------|---------------|---------------|------------|--------|
-| 2.1      | text-to-image | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt) |  [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base) | 512x512 |
-| 2.1-v      | text-to-image | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt) |  [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1) | 768x768 |
-| 2.0            | text-to-image | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) |  [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base) | 512x512 |
-| 2.0-v      | text-to-image | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt) |  [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2) | 768x768 |
-| 2.0-inpaint      | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt) | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512|
-| 1.5       | text-to-image | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5) | 512x512 |
-| 1.5-wukong    | text-to-image |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | 512x512 |
-| 1.5-wukong-inpaint    | image |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | 512x512 |
+| **Version name**   | **Task**         | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
+|--------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+| 2.1                | text-to-image    | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt)          | [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)         | 512x512        |
+| 2.1-v              | text-to-image    | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt)        | [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1)                   | 768x768        |
+| 2.0                | text-to-image    | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
+| 2.0-v              | text-to-image    | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt)            | [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2)                       | 768x768        |
+| 2.0-inpaint        | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
+| 1.5                | text-to-image    | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt)                    | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)                    | 512x512        |
+| 1.5-wukong         | text-to-image    | [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt)                 |                                                                                                   | 512x512        |
+| 1.5-wukong-inpaint | image            | [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |                                                                                                   | 512x512        |
 
-> Resolution refers to the image resolution used in training and is also the optimal choice for image generation. Other resolutions (if only divisable by 64) are usable but may lead to a degrade in generality quality.
+> Resolution refers to the image resolution used in training and is also the optimal choice for image generation.
+> Other resolutions are supported (only if divisible by 64) but may lead to a degraded generation quality.
 <!---
 </details>
 -->
@@ -158,11 +164,8 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
 </p>
 
 ### Text-guided Image-to-Image
-There are multiple methods for Image-to-Image translation with Stable Diffusion. Here, we present some of these methods
-(the list is constantly updated):
 
-- [T2I-Adapter](T2I-Adapter.md) is simple and lightweight network that provide extra visual guidance for Stable
-Diffusion.
+Coming soon
 
 
 ### Text-guided Depth-to-Image
@@ -170,7 +173,7 @@ Diffusion.
 This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt. If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model) and generate new images conditioning on the image depth, the image, and the text prompt.
 
 It is easy to run with the `depth_to_image.py` script.
-```python
+```shell
 # depth to image conditioning on an input image and text prompt
 python depth_to_image.py --prompt {text prompt} \
     --image {path to initial image} \
@@ -178,7 +181,7 @@ python depth_to_image.py --prompt {text prompt} \
 ```
 > `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserve more content of input image. 1 - ignore the initial image and only condition on the depth and text prompt.
 
-```python
+```shell
 # depth to image given a depth image and text prompt
 python depth_to_image.py --prompt {text prompt} --depth_map {path to depth map}
 ```
@@ -187,7 +190,7 @@ Example:
 
 Download the [two-cat image](http://images.cocodataset.org/val2017/000000039769.jpg) and save it in the current folder. Then execute
 
-```python
+```shell
 python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negative_prompt "bad, deformed, ugly, bad anatomy" \
 ```
 
@@ -319,6 +322,38 @@ after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
 > Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the training script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/sd_v1.5-d0ab7146.ckpt`.
 
+# Stable Diffusion with ControlNet
+
+# Stable Diffusion with T2I Adapter
+
+[T2I-Adapter](T2I-Adapter.md) is a simple and lightweight network that provides extra visual guidance for Stable
+Diffusion models without re-training them. The adapter act as plug-ins to SD models, making it easy to integrate and
+use.
+
+## Inference
+
+Currently, T2I-Adapter supports inference with SD 1.x only. Support for SD 2.x will be added in the future.
+The supported scenarios include: Canny, Color, Depth, KeyPose, OpenPose, Segmentation, Sketch, and Style.
+
+The inference command is as follows:
+
+```shell
+python examples/stable_diffusion_v2/adapter_image2image.py \
+--version 1.5 \
+--prompt {YOUR_PROMPT} \
+--adapter_ckpt_path {CHECKPONT_PATH} \
+--ddim \
+--adapter_condition {CONDITION} \
+--condition_image {INPUT_IMAGE}
+```
+
+For more information on inference with T2I-Adapters, please refer to
+[T2I-Adapter: Inference and Examples](T2I-Adapter.md#inference-and-examples).
+
+## Training
+
+Coming soon.
+
 
 # Dataset Preparation for Finetuning
 
@@ -369,7 +404,7 @@ Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
 ## What's New
 
 - 2023.08.30
-  - Add support of T2I-Adapter for text-guided Image-to-Image translation.
+  - Add T2I-Adapter support for text-guided Image-to-Image translation.
 - 2023.08.24
   - Add Stable Diffusion v2.1 and v2.1-v (768)
   - Support checkpoint auto-download
@@ -389,4 +424,4 @@ Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
     configs/your_train.yaml
 
 ## Contributing
-We appreciate all kinds of contributions including making **issues** or **pull requests** to make our work better.
+We appreciate all kinds of contributions, including making **issues** or **pull requests** to make our work better.
