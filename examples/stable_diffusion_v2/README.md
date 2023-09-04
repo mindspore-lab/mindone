@@ -24,6 +24,7 @@ For a quick tour, please view [demo](demo.md).
     - [Text-to-Image Generation](#text-to-image-generation)
     - [Text-guided Image Inpainting](#text-guided-image-inpainting)
     - [Text-guided Image-to-Image](#text-guided-image-to-image)
+    - [Text-guided Depth-to-Image](#text-guided-depth-to-image)
   - [Training](#training)
     - [LoRA](#efficient-finetuning-with-lora-)
     - [Dreambooth](#dreambooth)
@@ -162,6 +163,43 @@ There are multiple methods for Image-to-Image translation with Stable Diffusion.
 
 - [T2I-Adapter](T2I-Adapter.md) is simple and lightweight network that provide extra visual guidance for Stable
 Diffusion.
+
+
+### Text-guided Depth-to-Image
+
+This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt. If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model) and generate new images conditioning on the image depth, the image, and the text prompt.
+
+It is easy to run with the `depth_to_image.py` script.
+```python
+# depth to image conditioning on an input image and text prompt
+python depth_to_image.py --prompt {text prompt} \
+    --image {path to initial image} \
+    --strength 0.7
+```
+> `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserve more content of input image. 1 - ignore the initial image and only condition on the depth and text prompt.
+
+```python
+# depth to image given a depth image and text prompt
+python depth_to_image.py --prompt {text prompt} --depth_map {path to depth map}
+```
+
+Example:
+
+Download the [two-cat image](http://images.cocodataset.org/val2017/000000039769.jpg) and save it in the current folder. Then execute
+
+```python
+python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negative_prompt "bad, deformed, ugly, bad anatomy" \
+```
+
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa070832-d53f-4bd5-84af-ce8086f41866" width="1024"
+ />
+</div>
+<p align="center">
+<em> Text-guided depth-to-image. From left to right: input image, estimated depth map, generated images </em>
+</p>
+
+Now, the two cats are replaced with two tigers while the background and image structure are mostly preserved in the generated images.
 
 
 ## Training

@@ -7,6 +7,7 @@ The complete list of the downloaded checkpoints are as follows.
 |-- sd_v2-1_base-7c8d09ce.ckpt
 |-- sd_v2_768_v-e12e3a9b.ckpt
 |-- sd_v2_base-57526ee4.ckpt
+|-- sd_v2_depth-186e18a0.ckpt
 |-- sd_v2_inpaint-f694d5cf.ckpt
 |-- wukong-huahua-inpaint-ms.ckpt
 `-- wukong-huahua-ms.ckpt

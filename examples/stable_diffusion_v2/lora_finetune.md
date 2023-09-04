@@ -93,6 +93,7 @@ After training, the lora checkpoint will be saved in `{output_path}/ckpt/txt2img
 
 Below are some arguments that you may want to tune for a better performance on your dataset:
 
+
 - `lora_rank`: the rank of the low-rank matrices in lora params.
 - `train_batch_size`: the number of batch size for training.
 - `start_learning_rate` and `end_learning_rate`: the initial and end learning rates for training.

@@ -1,7 +1,7 @@
 export GLOG_v=3
 export ASCEND_GLOBAL_LOG_LEVEL=3
 export ASCEND_SLOG_PRINT_TO_STDOUT=0
-export DEVICE_ID=7
+export DEVICE_ID=0
 
 # modify to your local data path
 data_path=./datasets/pokemon_blip/test/prompts.txt
@@ -28,7 +28,7 @@ python text_to_image.py \
     --lora_ft_text_encoder $lora_ft_text_encoder \
     --lora_ckpt_path $lora_ckpt_path \
     --dpm_solver \
-    --sampling_steps 15 \
+    --sampling_steps 20 \
     --data_path $data_path \
     #--prompt "a drawing of a flying dragon" \
     #--ckpt_path models/ \

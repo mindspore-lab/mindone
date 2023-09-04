@@ -92,6 +92,7 @@ class PLMSSampler:
         log_every_t=100,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
+        T0=None,
         # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
         **kwargs,
     ):
@@ -128,6 +129,7 @@ class PLMSSampler:
             log_every_t=log_every_t,
             unconditional_guidance_scale=unconditional_guidance_scale,
             unconditional_conditioning=unconditional_conditioning,
+            T0=T0,
         )
         return samples, intermediates
 
@@ -150,6 +152,7 @@ class PLMSSampler:
         corrector_kwargs=None,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
+        T0=None,
     ):
         b = shape[0]
         if x_T is None:
@@ -173,6 +176,10 @@ class PLMSSampler:
         old_eps = []
 
         for i, step in tqdm(enumerate(iterator)):
+            if T0 is not None:
+                if i < T0:
+                    continue
+
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
             ts_next = ms.numpy.full((b,), time_range[min(i + 1, len(time_range) - 1)], dtype=ms.int64)
