@@ -604,7 +604,9 @@ class UNetModel(nn.Cell):
             )
         self.cat = ops.Concat(axis=1)
 
-    def construct(self, x, timesteps=None, context=None, y=None):
+    def construct(
+        self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs
+    ):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -626,10 +628,23 @@ class UNetModel(nn.Cell):
             emb = emb + self.label_emb(y)
 
         h = x
-        for celllist in self.input_blocks:
+
+        if append_to_context is not None:
+            context = ops.cat([context, append_to_context], axis=1)
+
+        adapter_idx = 0
+        for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 h = cell(h, emb, context)
+
+            if features_adapter and i % 3 == 0:
+                h = h + features_adapter[adapter_idx]
+                adapter_idx += 1
+
             hs.append(h)
+
+        if features_adapter:
+            assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
 
         for module in self.middle_block:
             h = module(h, emb, context)
