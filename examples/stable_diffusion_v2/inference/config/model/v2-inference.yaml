@@ -1,5 +1,7 @@
 model:
   name: v2-inference
+  version: "2.0"
+  pretrained_ckpt: models/sd_v2_base-57526ee4.ckpt
   base_learning_rate: 1.0e-04
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   prediction_type: "noise" # Note: set to "v" if trained with v objective

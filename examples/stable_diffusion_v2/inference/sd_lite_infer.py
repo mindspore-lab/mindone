@@ -19,7 +19,7 @@ from ldm.util import instantiate_from_config
 from libs.helper import VaeImageProcessor
 from libs.infer_engine.sd_lite_models import SDLiteImg2Img, SDLiteInpaint, SDLiteText2Img
 
-logger = logging.getLogger("text to image speed up")
+logger = logging.getLogger("Stable Diffusion Lite Deploy")
 
 
 def tokenize(tokenizer, texts):
@@ -57,7 +57,10 @@ def main(args):
     ms.set_context(device_target="CPU")
     args.sample_path = os.path.join(args.output_path, "samples")
     args.base_count = len(os.listdir(args.sample_path))
+
     model_config = OmegaConf.load(args.model)
+    version = model_config.model.version
+    os.environ["SD_VERSION"] = version
     sampler_config = OmegaConf.load(args.sampler)
     scheduler = instantiate_from_config(sampler_config)
     timesteps = scheduler.set_timesteps(args.sampling_steps)
@@ -153,9 +156,9 @@ def main(args):
 
     for n in range(args.n_iter):
         start_time = time.time()
-        inputs["noise"] = np.random.standard_normal(size=(1, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(
-            np.float16
-        )
+        inputs["noise"] = np.random.standard_normal(
+            size=(batch_size, 4, args.inputs.H // 8, args.inputs.W // 8)
+        ).astype(np.float16)
 
         x_samples = sd_infer(inputs)
         x_samples = img_processor.postprocess(x_samples)
@@ -194,9 +197,7 @@ if __name__ == "__main__":
         "if choose a task name, use the config/[task].yaml for inputs",
         choices=["text2img", "img2img", "inpaint"],
     )
-    parser.add_argument(
-        "--model", type=str, default=None, help="path to config which constructs model. If None, select by version"
-    )
+    parser.add_argument("--model", type=str, default=None, help="path to config which constructs model.")
     parser.add_argument("--output_path", type=str, default="output", help="dir to write results to")
     parser.add_argument("--sampler", type=str, default="config/schedule/ddim.yaml", help="infer sampler yaml path")
     parser.add_argument("--sampling_steps", type=int, default=50, help="number of ddim sampling steps")
@@ -210,21 +211,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scale",
         type=float,
-        default=None,
+        default=9.0,
         help="unconditional guidance scale: "
         "eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
         "Simplified: `uc + scale * (uc - prompt)`",
     )
-    parser.add_argument("-v", "--version", type=str, default="2.0", help="Stable diffusion version, 1.x or 2.0.")
     parser.add_argument("--seed", type=int, default=42, help="the seed (for reproducible sampling)")
     parser.add_argument("--log_level", type=str, default="INFO", help="log level, options: DEBUG, INFO, WARNING, ERROR")
     args = parser.parse_args()
     set_logger(name="", output_dir=args.output_path, rank=0, log_level=args.log_level)
 
-    if args.version:
-        os.environ["SD_VERSION"] = args.version
-    if args.scale is None:
-        args.scale = 7.5 if args.version.startswith("1.") else 9.0
     if not os.path.exists(args.model):
         raise ValueError(
             f"model config file {args.model} is not exist!, please set it by --model=xxx.yaml. "

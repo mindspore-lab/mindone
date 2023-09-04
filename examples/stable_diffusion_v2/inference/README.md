@@ -59,7 +59,7 @@ To transfer other Stable Diffusion models to MindSpore, please refer to [model c
 
 ## Support
 
-### Different Divece Inference Mode Support
+### Device Inference Mode Support
 
 for MindSpore2.1
 
@@ -80,7 +80,7 @@ python sd_infer.py --device_target=Ascend --task=text2img --model=./config/model
 ```
 
 - device_target: Device target, should be in [Ascend, GPU, CPU], default is Ascend.
-- task: Task name, should be [text2img, img2img, inpaint, controlnet, depth2img], if choose a task name, use the config/[task].yaml for inputs, default is text2img.
+- task: Task name, should be [text2img, img2img, inpaint], if choose a task name, use the config/[task].yaml for inputs, default is text2img.
 - model: Path to config which constructs model. Must be set, you can select a yaml from ./inference/config/model.
 - sampler: Infer sampler yaml path, default is ./config/schedule/ddim.yaml.
 - sampling_steps: Number of sampling steps, default is 50.
@@ -88,9 +88,16 @@ python sd_infer.py --device_target=Ascend --task=text2img --model=./config/model
 - n_samples: How many samples to produce for each given prompt in an iteration. A.k.a. batch size, default is 1.
 - scale: Unconditional guidance scale. General set 7.5 for v1.x, 9.0 for v2.x
 
+The checkpoint_path is set in model config path. If use lora pretrained checkpoint, please add those commands:
+
+```shell
+--use_lora=True --lora_rank=[LORA_RANK] --lora_ckpt_path=[LORA_CKPT_PATH]
+```
+
 Please run `python sd_infer.py -h` for details of command parameters.
 
-The prompt, negative_prompt, image_path, generate image height, generate image width, ckpt_path, lora_ckpt_path could be set in config/[task].yaml.
+The `prompt`, `negative_prompt`, `image_path`, generate image height, generate image width, could be set in **config/[task].yaml.**
+If use Chinese model wukong, please modify `prompt`, `negative_prompt` to Chinese.
 
 You can get images at "output/samples".
 
@@ -102,7 +109,17 @@ You can get images at "output/samples".
 python export.py --task=text2img --model=./config/model/v2-inference.yaml --sampler=./config/schedule/ddim.yaml --n_samples=1
 ```
 
+If use lora pretrained checkpoint, please add those commands:
+
+```shell
+--use_lora=True --lora_rank=[LORA_RANK] --lora_ckpt_path=[LORA_CKPT_PATH]
+```
+
 Please run `python export.py -h` for details of command parameters.
+
+If only export MindSpore MindIR, please add `--converte_lite=False`.
+If it already exists MindSpore MindIR, only need export MindSpore Lite MindIR, please add `--only_converte_lite=True`.
+The MindSpore MindIR is common to different devices, but MindSpore Lite MindIR need to be re exported on different devices.
 
 The MindIR file wil be generate in output/[MODEL_NAME]-[TASK]/, the MindSpore MindIR file end with .mindir without key word lite, the MindSpore Lite file end with _lite.mindir.
 You can manually delete MindSpore MindIR files to save space.

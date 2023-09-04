@@ -1,5 +1,7 @@
 model:
   name: v1-inference-chinese
+  version: "1.5"
+  pretrained_ckpt: models/wukong-huahua-ms.ckpt
   base_learning_rate: 1.0e-04
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:

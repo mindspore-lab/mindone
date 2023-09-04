@@ -24,7 +24,7 @@ from libs.infer_engine.export_modules import (
     VAEDecoder,
 )
 
-logger = logging.getLogger("text to image speed up")
+logger = logging.getLogger("Stable Diffusion Export")
 
 
 def model_export(net, inputs, name, model_save_path):
@@ -51,36 +51,13 @@ def main(args):
     # set logger
     set_env(args)
     ms.set_context(device_target="CPU")
-    # create model
-    config = OmegaConf.load(f"{args.model}")
-    model = load_model_from_config(
-        config,
-        ckpt=args.inputs.ckpt_path,
-        use_lora=args.inputs.use_lora,
-        lora_rank=args.inputs.lora_rank,
-        lora_only_ckpt=args.inputs.lora_ckpt_path,
-    )
-    args.model_save_path = f"{config.model.name}-{args.task}"
+
     sampler_config = OmegaConf.load(args.sampler)
     scheduler = instantiate_from_config(sampler_config)
     scheduler_type = sampler_config.type
 
-    # data
-    batch_size = args.n_samples
-    tokenized_prompts = ops.ones((batch_size, 77), ms.int32)
-    output_dim = 768 if args.version.startswith("1.") else 1024
-    prompt_embeds = ops.ones((batch_size, 77, output_dim), ms.float16)
-    noise = ops.ones((batch_size, 4, args.inputs.H // 8, args.inputs.W // 8), ms.float16)
-    ts = ops.ones((), ms.int32)
-    img = ops.ones((batch_size, 3, args.inputs.H, args.inputs.W), ms.float16)
-    mask = ops.ones((batch_size, 1, args.inputs.H, args.inputs.W), ms.float16)
-    scale = ops.ones((), ms.float16)
-
-    # create model
-    text_encoder = model.cond_stage_model
-    unet = model.model
-    vae = model.first_stage_model
-
+    config = OmegaConf.load(f"{args.model}")
+    args.model_save_path = f"{config.model.name}-{args.task}"
     model_save_path = os.path.join(args.output_path, args.model_save_path)
     os.makedirs(model_save_path, exist_ok=True)
     logger.info(f"model_save_path: {model_save_path}")
@@ -93,6 +70,32 @@ def main(args):
         converter.save_type = mslite.ModelType.MINDIR
         converter.optimize = optimize_dict[args.device_target.lower()]
     if not args.only_converte_lite:
+        # create model
+        version = config.model.version
+        os.environ["SD_VERSION"] = version
+        model = load_model_from_config(
+            config,
+            ckpt=config.model.pretrained_ckpt,
+            use_lora=args.use_lora,
+            lora_rank=args.lora_rank,
+            lora_only_ckpt=args.lora_ckpt_path,
+        )
+
+        # data
+        batch_size = args.n_samples
+        tokenized_prompts = ops.ones((batch_size, 77), ms.int32)
+        output_dim = 768 if version.startswith("1.") else 1024
+        prompt_embeds = ops.ones((batch_size, 77, output_dim), ms.float16)
+        noise = ops.ones((batch_size, 4, args.inputs.H // 8, args.inputs.W // 8), ms.float16)
+        ts = ops.ones((), ms.int32)
+        img = ops.ones((batch_size, 3, args.inputs.H, args.inputs.W), ms.float16)
+        mask = ops.ones((batch_size, 1, args.inputs.H, args.inputs.W), ms.float16)
+        scale = ops.ones((), ms.float16)
+
+        # create model
+        text_encoder = model.cond_stage_model
+        unet = model.model
+        vae = model.first_stage_model
         scheduler_preprocess, predict_noise, noisy_sample, vae_decoder = None, None, None, None
         if args.task == "text2img":
             data_prepare = Text2ImgDataPrepare(text_encoder, vae, scheduler, model.scale_factor)
@@ -198,14 +201,26 @@ if __name__ == "__main__":
         default=1,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
-    parser.add_argument("-v", "--version", type=str, default="2.0", help="Stable diffusion version, 1.x or 2.0.")
+    parser.add_argument(
+        "--use_lora",
+        default=False,
+        type=str2bool,
+        help="whether the checkpoint used for inference is finetuned from LoRA",
+    )
+    parser.add_argument(
+        "--lora_rank",
+        default=None,
+        type=int,
+        help="LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.",
+    )
+    parser.add_argument(
+        "--lora_ckpt_path", type=str, default=None, help="path to lora only checkpoint. Set it if use_lora is not None"
+    )
     parser.add_argument("--seed", type=int, default=42, help="the seed (for reproducible sampling)")
     parser.add_argument("--log_level", type=str, default="INFO", help="log level, options: DEBUG, INFO, WARNING, ERROR")
     args = parser.parse_args()
     set_logger(name="", output_dir=args.output_path, rank=0, log_level=args.log_level)
 
-    if args.version:
-        os.environ["SDVERSION"] = args.version
     if not os.path.exists(args.model):
         raise ValueError(
             f"model config file {args.model} is not exist!, please set it by --model=xxx.yaml. "
@@ -225,13 +240,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
     inputs = OmegaConf.load(inputs_config_path)
-    if not inputs.ckpt_path:
-        inputs.ckpt_path = default_ckpt
-        logger.info(f"ckpt_path in {inputs_config_path} not set, set default ckpt {default_ckpt}")
-    if not os.path.exists(inputs.ckpt_path):
-        raise ValueError(f"{inputs.ckpt_path} is not exist!, please set it in {inputs_config_path}")
-    if inputs.use_lora and not os.path.exists(inputs.lora_ckpt_path):
-        raise ValueError(f"{inputs.lora_ckpt_path} is not exist when use lora, please set it in {inputs_config_path}")
 
     key_settings_info = ["Key Settings:\n" + "=" * 50]
     key_settings_info += [

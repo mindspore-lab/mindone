@@ -1,5 +1,7 @@
 model:
   name: v1-inference
+  version: "1.5"
+  pretrained_ckpt: models/sd_v1.5-d0ab7146.ckpt
   base_learning_rate: 1.0e-04
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   params:

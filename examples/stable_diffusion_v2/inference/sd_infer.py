@@ -14,11 +14,11 @@ from mindspore import ops
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
 from ldm.modules.logger import set_logger
-from ldm.util import instantiate_from_config
+from ldm.util import instantiate_from_config, str2bool
 from libs.helper import VaeImageProcessor, load_model_from_config, set_env
 from libs.sd_models import SDImg2Img, SDInpaint, SDText2Img
 
-logger = logging.getLogger("text to image speed up")
+logger = logging.getLogger("Stable Diffusion Inference")
 
 
 def main(args):
@@ -27,12 +27,14 @@ def main(args):
     ms.set_context(device_target=args.device_target)
     # create model
     config = OmegaConf.load(f"{args.model}")
+    version = config.model.version
+    os.environ["SD_VERSION"] = version
     model = load_model_from_config(
         config,
-        ckpt=args.inputs.ckpt_path,
-        use_lora=args.inputs.use_lora,
-        lora_rank=args.inputs.lora_rank,
-        lora_only_ckpt=args.inputs.lora_ckpt_path,
+        ckpt=config.model.pretrained_ckpt,
+        use_lora=args.use_lora,
+        lora_rank=args.lora_rank,
+        lora_only_ckpt=args.lora_ckpt_path,
     )
     sampler_config = OmegaConf.load(args.sampler)
     scheduler = instantiate_from_config(sampler_config)
@@ -174,21 +176,31 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scale",
         type=float,
-        default=None,
+        default=9.0,
         help="unconditional guidance scale: "
         "eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
         "Simplified: `uc + scale * (uc - prompt)`",
     )
-    parser.add_argument("-v", "--version", type=str, default="2.0", help="Stable diffusion version, 1.x or 2.0.")
+    parser.add_argument(
+        "--use_lora",
+        default=False,
+        type=str2bool,
+        help="whether the checkpoint used for inference is finetuned from LoRA",
+    )
+    parser.add_argument(
+        "--lora_rank",
+        default=None,
+        type=int,
+        help="LoRA rank. If None, lora checkpoint should contain the value for lora rank in its append_dict.",
+    )
+    parser.add_argument(
+        "--lora_ckpt_path", type=str, default=None, help="path to lora only checkpoint. Set it if use_lora is not None"
+    )
     parser.add_argument("--seed", type=int, default=42, help="the seed (for reproducible sampling)")
     parser.add_argument("--log_level", type=str, default="INFO", help="log level, options: DEBUG, INFO, WARNING, ERROR")
     args = parser.parse_args()
     set_logger(name="", output_dir=args.output_path, rank=0, log_level=args.log_level)
 
-    if args.version:
-        os.environ["SD_VERSION"] = args.version
-    if args.scale is None:
-        args.scale = 7.5 if args.version.startswith("1.") else 9.0
     if not os.path.exists(args.model):
         raise ValueError(
             f"model config file {args.model} is not exist!, please set it by --model=xxx.yaml. "
@@ -208,13 +220,6 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
     inputs = OmegaConf.load(inputs_config_path)
-    if not inputs.ckpt_path:
-        inputs.ckpt_path = default_ckpt
-        logger.info(f"ckpt_path in {inputs_config_path} not set, set default ckpt {default_ckpt}")
-    if not os.path.exists(inputs.ckpt_path):
-        raise ValueError(f"{inputs.ckpt_path} is not exist!, please set it in {inputs_config_path}")
-    if inputs.use_lora and not os.path.exists(inputs.lora_ckpt_path):
-        raise ValueError(f"{inputs.lora_ckpt_path} is not exist when use lora, please set it in {inputs_config_path}")
 
     key_settings_info = ["Key Settings:\n" + "=" * 50]
     key_settings_info += [
