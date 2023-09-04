@@ -34,6 +34,10 @@ For a quick tour, please view [demo](demo.md).
     - [Chinese Prompt Adaptation](#chinese-prompt-adaptation)
 - [Stable Diffusion 1.5](#stable-diffusion-15)
   - [Inference](#inference-1)
+    - [Text-to-Image Generation](#sd15-text-to-image-generation)
+    - [Chinese Text-to-Image Generation](#chinese-text-to-image-generation)
+    - [Chinese Text-guided Image Inpainting](#chinese-text-guided-image-inpainting)
+    - [Controlled Image-to-Image Generation with T2I-Adapter](#controlled-image-to-image-generation-with-t2i-adapter-1)
   - [Training](#training-1)
 - [Data Preparation for Training](#dataset-preparation-for-finetuning)
 - [Supported Schedulers](#supported-schedulers)
@@ -158,11 +162,8 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
 </p>
 
 ### Text-guided Image-to-Image
-There are multiple methods for Image-to-Image translation with Stable Diffusion. Here, we present some of these methods
-(the list is constantly updated):
 
-- [T2I-Adapter](T2I-Adapter.md) is simple and lightweight network that provide extra visual guidance for Stable
-Diffusion.
+Coming soon
 
 
 ### Text-guided Depth-to-Image
@@ -200,6 +201,11 @@ python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negati
 </p>
 
 Now, the two cats are replaced with two tigers while the background and image structure are mostly preserved in the generated images.
+
+
+### Controlled Image-to-Image Generation with T2I-Adapter
+
+Coming soon.
 
 
 ## Training
@@ -307,6 +313,12 @@ Download [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/
 python inpaint.py --image {path to input image} --mask {path to mask image} --prompt "图片编辑内容描述"  -v 1.5-wukong
 ```
 
+### Controlled Image-to-Image Generation with T2I-Adapter
+
+[T2I-Adapter](T2I-Adapter.md) is simple and lightweight network that provides extra visual guidance for Stable
+Diffusion. For more information on inference with T2I-Adapters, please refer to
+[T2I-Adapter: Inference and Examples](T2I-Adapter.md#inference-and-examples).
+
 ## Training
 
 To train SD 1.5 on a custom text-image dataset, please run
@@ -369,7 +381,7 @@ Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
 ## What's New
 
 - 2023.08.30
-  - Add support of T2I-Adapter for text-guided Image-to-Image translation.
+  - Add T2I-Adapter support for text-guided Image-to-Image translation.
 - 2023.08.24
   - Add Stable Diffusion v2.1 and v2.1-v (768)
   - Support checkpoint auto-download
