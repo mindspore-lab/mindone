@@ -52,7 +52,7 @@ The weights above were converted from PyTorch version. If you want to convert an
 using `mindone/tools/t2i_adapter_torch_to_ms/convert.py`. For example:
 
 ```shell
-python mindone/tools/t2i_adapter_torch_to_ms/convert.py PATH_TO_YOUR_TORCH_MODEL
+python examples/stable_diffusion_v2/tools/model_conversion/t2i_adapter/convert.py PATH_TO_YOUR_TORCH_MODEL
 ```
 
 ## Inference and Examples

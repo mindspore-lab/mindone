@@ -7,7 +7,7 @@ from mindspore import Parameter, load_param_into_net, save_checkpoint
 
 sys.path.append("examples/stable_diffusion_v2")
 
-from mindone.modules.adapters import get_adapter
+from examples.stable_diffusion_v2.adapters import get_adapter
 
 
 def convert(pt_weights_file: Path):

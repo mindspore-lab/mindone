@@ -18,10 +18,9 @@ from PIL import Image
 import mindspore as ms
 from mindspore.nn import Cell
 
-from mindone.modules.adapters import get_adapter
-
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+from adapters import get_adapter
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.logger import set_logger
