@@ -37,8 +37,9 @@ For a quick tour, please view [demo](demo.md).
     - [Text-to-Image Generation](#sd15-text-to-image-generation)
     - [Chinese Text-to-Image Generation](#chinese-text-to-image-generation)
     - [Chinese Text-guided Image Inpainting](#chinese-text-guided-image-inpainting)
-    - [Controlled Image-to-Image Generation with T2I-Adapter](#controlled-image-to-image-generation-with-t2i-adapter-1)
   - [Training](#training-1)
+- [Stable Diffusion with ControlNet](#stable-diffusion-with-controlnet)
+- [Stable Diffusion with T2I-Adapter](#stable-diffusion-with-t2i-adapter)
 - [Data Preparation for Training](#dataset-preparation-for-finetuning)
 - [Supported Schedulers](#supported-schedulers)
 - [Evaluation](#evaluation)
@@ -204,11 +205,6 @@ python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negati
 Now, the two cats are replaced with two tigers while the background and image structure are mostly preserved in the generated images.
 
 
-### Controlled Image-to-Image Generation with T2I-Adapter
-
-Coming soon.
-
-
 ## Training
 
 To create a dataset for training, please refer to [data preparation](#dataset-preparation-for-finetuning).
@@ -314,12 +310,6 @@ Download [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/
 python inpaint.py --image {path to input image} --mask {path to mask image} --prompt "图片编辑内容描述"  -v 1.5-wukong
 ```
 
-### Controlled Image-to-Image Generation with T2I-Adapter
-
-[T2I-Adapter](T2I-Adapter.md) is simple and lightweight network that provides extra visual guidance for Stable
-Diffusion. For more information on inference with T2I-Adapters, please refer to
-[T2I-Adapter: Inference and Examples](T2I-Adapter.md#inference-and-examples).
-
 ## Training
 
 To train SD 1.5 on a custom text-image dataset, please run
@@ -331,6 +321,38 @@ sh scripts/run_train_v1.sh
 after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
 > Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the training script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/sd_v1.5-d0ab7146.ckpt`.
+
+# Stable Diffusion with ControlNet
+
+# Stable Diffusion with T2I Adapter
+
+[T2I-Adapter](T2I-Adapter.md) is a simple and lightweight network that provides extra visual guidance for Stable
+Diffusion models without re-training them. The adapter act as plug-ins to SD models, making it easy to integrate and
+use.
+
+## Inference
+
+Currently, T2I-Adapter supports inference with SD 1.x only. Support for SD 2.x will be added in the future.
+The supported scenarios include: Canny, Color, Depth, KeyPose, OpenPose, Segmentation, Sketch, and Style.
+
+The inference command is as follows:
+
+```shell
+python examples/stable_diffusion_v2/adapter_image2image.py \
+--version 1.5 \
+--prompt {YOUR_PROMPT} \
+--adapter_ckpt_path {CHECKPONT_PATH} \
+--ddim \
+--adapter_condition {CONDITION} \
+--condition_image {INPUT_IMAGE}
+```
+
+For more information on inference with T2I-Adapters, please refer to
+[T2I-Adapter: Inference and Examples](T2I-Adapter.md#inference-and-examples).
+
+## Training
+
+Coming soon.
 
 
 # Dataset Preparation for Finetuning
