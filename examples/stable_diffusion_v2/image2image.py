@@ -9,11 +9,10 @@ import sys
 
 import cv2
 import numpy as np
-from annotator.canny import CannyDetector
-from annotator.segmentation import SegmentDetector
-from annotator.util import HWC3, resize_image
 from cldm.ddim_hacked import DDIMSampler
 from cldm.model import create_model, load_model
+from conditions.controlnet import CannyDetector, SegmentDetector
+from conditions.controlnet.utils.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
 from PIL import Image
 
@@ -123,10 +122,10 @@ def main(args):
         detected_map = apply_canny(img, low_threshold, high_threshold)
         detected_map = HWC3(detected_map)
     elif args.mode == MODE["segmentation"]:
-        if os.path.exists(args.segmentation_ckpt_path):
-            apply_segment = SegmentDetector(ckpt_path=args.segmentation_ckpt_path)
+        if os.path.exists(args.condition_ckpt_path):
+            apply_segment = SegmentDetector(ckpt_path=args.condition_ckpt_path)
         else:
-            logger.warning(f"!!!Warning!!!: {args.segmentation_ckpt_path} doesn't exist")
+            logger.warning(f"!!!Warning!!!: {args.condition_ckpt_path} doesn't exist")
         detected_map = apply_segment(img)
         detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
     else:
@@ -238,8 +237,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--high_threshold", type=int, default=200, choices=range(1, 256), help="high threshold for canny"
     )
-    # args for segmentation
-    parser.add_argument("--segmentation_ckpt_path", type=str, default="", help="checkpoint path for segmentation model")
+    # args for model-based condition ckpt path
+    parser.add_argument("--condition_ckpt_path", type=str, default="", help="checkpoint path for segmentation model")
 
     args = parser.parse_args()
 

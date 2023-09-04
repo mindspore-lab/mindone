@@ -19,7 +19,7 @@ ControlNet controls pretrained large diffusion models to support additional inpu
 ### Preparation
 
 #### Dependency
-- mindspore >= 1.9  [[install](https://www.mindspore.cn/install)] (2.0 is recommended for the best performance.)
+- mindspore >= 2.0  [[install](https://www.mindspore.cn/install)]
 - python >= 3.7
 
 Install the dependent packages by running:
@@ -70,7 +70,7 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
    Run the command below to generate images
 
    ```shell
-   sh run_controlnet_canny2image.sh
+   sh scripts/run_controlnet_canny2image.sh
    ```
 
 2. Segmentation edge maps (DeeplabV3Plus):
@@ -78,7 +78,7 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
    Run the command below to generate images
 
    ```shell
-   sh run_controlnet_seg2image.sh
+   sh scripts/run_controlnet_seg2image.sh
    ```
 
 #### Important arguments in the shell scripts
@@ -88,7 +88,7 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
 - `n_samples`: How many samples you want to generate.
 - `low_threshold`: A parameter required by Canny edge maps control.
 - `high_threshold`: A parameter required by Segmentation edge maps control.
-- `segmentation_ckpt_path`: The path to load segmentation detector pretrained model. It is required by Segmentation edge maps.
+- `condition_ckpt_path`: The path to load detectors requiring pretrained model. Currently, it is required by Segmentation edge maps.
 
 ### Results
 Generated images will be saved in `stable_diffusion_v2/output` by default.

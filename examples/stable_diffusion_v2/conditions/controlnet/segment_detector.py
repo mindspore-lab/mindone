@@ -6,7 +6,9 @@ import mindspore.nn as nn
 from mindspore import Tensor
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
-from .deeplab_v3plus import DeepLabV3Plus
+from .utils.deeplab_v3plus import DeepLabV3Plus
+
+__all__ = ["SegmentDetector"]
 
 
 class SegmentDetector:
@@ -104,13 +106,6 @@ class SegmentDetector:
             palette (list[list[int]]] | np.ndarray | None): The palette of
                 segmentation map. If None is given, random palette will be
                 generated. Default: None
-            win_name (str): The window name.
-            wait_time (int): Value of waitKey param.
-                Default: 0.
-            show (bool): Whether to show the image.
-                Default: False.
-            out_file (str or None): The filename to write the image.
-                Default: None.
             opacity(float): Opacity of painted segmentation map.
                 Default 0.5.
                 Must be in (0, 1] range.

@@ -17,32 +17,41 @@ For a quick tour, please view [demo](demo.md).
 
 ## Usage
 
-- [Installation](#installation)
-- [Pretrained Weights](#pretrained-weights)
+- [Stable Diffusion](#stable-diffusion)
+  - [Features](#features)
+  - [Usage](#usage)
+  - [Installation](#installation)
+  - [Pretrained Weights](#pretrained-weights)
 - [Stable Diffusion 2.0](#stable-diffusion-20)
   - [Inference](#inference)
     - [Text-to-Image Generation](#text-to-image-generation)
+      - [Negative Prompt Guidance](#negative-prompt-guidance)
     - [Text-guided Image Inpainting](#text-guided-image-inpainting)
     - [Text-guided Image-to-Image](#text-guided-image-to-image)
     - [Text-guided Depth-to-Image](#text-guided-depth-to-image)
   - [Training](#training)
-    - [LoRA](#efficient-finetuning-with-lora-)
-    - [Dreambooth](#dreambooth)
+    - [Efficient Finetuning with LoRA 🔥](#efficient-finetuning-with-lora-)
+    - [DreamBooth](#dreambooth)
     - [Text Inversion](#text-inversion)
     - [Vanilla Finetuning](#vanilla-finetuning)
     - [v-prediction Finetuning](#v-prediction-finetuning)
     - [Chinese Prompt Adaptation](#chinese-prompt-adaptation)
 - [Stable Diffusion 1.5](#stable-diffusion-15)
   - [Inference](#inference-1)
-    - [Text-to-Image Generation](#sd15-text-to-image-generation)
+    - [SD1.5 Text-to-Image Generation](#sd15-text-to-image-generation)
     - [Chinese Text-to-Image Generation](#chinese-text-to-image-generation)
     - [Chinese Text-guided Image Inpainting](#chinese-text-guided-image-inpainting)
   - [Training](#training-1)
 - [Stable Diffusion with ControlNet](#stable-diffusion-with-controlnet)
-- [Stable Diffusion with T2I-Adapter](#stable-diffusion-with-t2i-adapter)
-- [Data Preparation for Training](#dataset-preparation-for-finetuning)
+  - [Inference](#inference-2)
+- [Stable Diffusion with T2I Adapter](#stable-diffusion-with-t2i-adapter)
+  - [Inference](#inference-3)
+  - [Training](#training-2)
+- [Dataset Preparation for Finetuning](#dataset-preparation-for-finetuning)
 - [Supported Schedulers](#supported-schedulers)
 - [Evaluation](#evaluation)
+  - [What's New](#whats-new)
+  - [Contributing](#contributing)
 
 
 ## Installation
@@ -324,6 +333,10 @@ after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
 # Stable Diffusion with ControlNet
 
+## Inference
+
+For details, please refer to the tutorial [ControlNet image generation](controlnet.md).
+
 # Stable Diffusion with T2I Adapter
 
 [T2I-Adapter](T2I-Adapter.md) is a simple and lightweight network that provides extra visual guidance for Stable
@@ -353,7 +366,6 @@ For more information on inference with T2I-Adapters, please refer to
 ## Training
 
 Coming soon.
-
 
 # Dataset Preparation for Finetuning
 

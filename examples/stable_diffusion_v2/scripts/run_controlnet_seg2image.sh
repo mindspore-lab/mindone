@@ -21,6 +21,6 @@ nohup python image2image.py \
     --a_prompt "best quality, extremely detailed" \
     --mode "segmentation" \
     --image_resolution 512 \
-    --segmentation_ckpt_path $MODEL_DIR"deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt" \
+    --condition_ckpt_path $MODEL_DIR"deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt" \
     --task_name $TASK_NAME \
     2>&1 > ${output_path}"/"$TASK_NAME"_logms_id"$DEVICE_ID"_"$INPUT_FILE_NAME".txt" &
