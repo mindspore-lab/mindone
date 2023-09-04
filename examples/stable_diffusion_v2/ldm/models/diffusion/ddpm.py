@@ -642,3 +642,15 @@ class LatentInpaintDiffusion(LatentDiffusion):
         self.masked_image_key = masked_image_key
         assert self.masked_image_key in concat_keys
         self.concat_keys = concat_keys
+
+
+class LatentDepthDiffusion(LatentDiffusion):
+    def __init__(
+        self,
+        concat_keys=("depth"),
+        finetune_keys=None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.concat_keys = concat_keys
