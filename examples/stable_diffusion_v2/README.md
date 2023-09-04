@@ -157,8 +157,11 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
 </p>
 
 ### Text-guided Image-to-Image
+There are multiple methods for Image-to-Image translation with Stable Diffusion. Here, we present some of these methods
+(the list is constantly updated):
 
-Coming soon
+- [T2I-Adapter](T2I-Adapter.md) is simple and lightweight network that provide extra visual guidance for Stable
+Diffusion.
 
 
 ## Training
@@ -324,13 +327,17 @@ Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
 
 
 - - -
+
 ## What's New
+
+- 2023.08.30
+  - Add support of T2I-Adapter for text-guided Image-to-Image translation.
 - 2023.08.24
   - Add Stable Diffusion v2.1 and v2.1-v (768)
   - Support checkpoint auto-download
 - 2023.08.17
   - Add Stable Diffusion v1.5
-  - Add Dreambooth finetuning
+  - Add DreamBooth fine-tuning
   - Add text-guided image inpainting
   - Add CLIP score metrics (CLIP-I, CLIP-T) for evaluating visual and textual fidelity
 - 2023.07.05
@@ -338,10 +345,10 @@ Please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
   - Improve logger
   - Fix bugs for MS 2.0.
 - 2023.06.30
-  - Add LoRA finetuning and FID evalution.
+  - Add LoRA fine-tuning and FID evaluation.
 - 2023.06.12
-  - Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in configs/your_train.yaml
-
+  - Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in
+    configs/your_train.yaml
 
 ## Contributing
 We appreciate all kinds of contributions including making **issues** or **pull requests** to make our work better.

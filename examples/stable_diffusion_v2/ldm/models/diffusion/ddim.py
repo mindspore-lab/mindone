@@ -88,6 +88,10 @@ class DDIMSampler(object):
         log_every_t=100,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
+        features_adapter=None,
+        append_to_context=None,
+        cond_tau=0.4,
+        style_cond_tau=1.0,
         # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
         dynamic_threshold=None,
         ucg_schedule=None,
@@ -134,6 +138,10 @@ class DDIMSampler(object):
             log_every_t=log_every_t,
             unconditional_guidance_scale=unconditional_guidance_scale,
             unconditional_conditioning=unconditional_conditioning,
+            features_adapter=features_adapter,
+            append_to_context=append_to_context,
+            cond_tau=cond_tau,
+            style_cond_tau=style_cond_tau,
             dynamic_threshold=dynamic_threshold,
             ucg_schedule=ucg_schedule,
         )
@@ -158,6 +166,10 @@ class DDIMSampler(object):
         corrector_kwargs=None,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
+        features_adapter=None,
+        append_to_context=None,
+        cond_tau=0.4,
+        style_cond_tau=1.0,
         dynamic_threshold=None,
         ucg_schedule=None,
     ):
@@ -207,6 +219,8 @@ class DDIMSampler(object):
                 unconditional_guidance_scale=unconditional_guidance_scale,
                 unconditional_conditioning=unconditional_conditioning,
                 dynamic_threshold=dynamic_threshold,
+                features_adapter=None if index < int((1 - cond_tau) * total_steps) else features_adapter,
+                append_to_context=None if index < int((1 - style_cond_tau) * total_steps) else append_to_context,
             )
             img, pred_x0 = outs
             if callback:
@@ -236,11 +250,14 @@ class DDIMSampler(object):
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
         dynamic_threshold=None,
+        features_adapter=None,
+        append_to_context=None,
     ):
         b = x.shape[0]
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
-            model_output = self.model.apply_model(x, t, c_crossattn=c)
+            c_in = c if append_to_context is None else ops.cat([c, append_to_context], axis=1)
+            model_output = self.model.apply_model(x, t, c_crossattn=c_in, features_adapter=features_adapter)
         else:
             x_in = ops.concat((x, x), axis=0)
             t_in = ops.concat((t, t), axis=0)
@@ -260,8 +277,18 @@ class DDIMSampler(object):
                 for i in range(len(c)):
                     c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
             else:
-                c_in = ops.concat([unconditional_conditioning, c], axis=0)
-            model_uncond, model_t = self.split(self.model.apply_model(x_in, t_in, c_crossattn=c_in))
+                if append_to_context is not None:
+                    pad_len = append_to_context.size(1)
+                    new_unconditional_conditioning = ops.cat(
+                        [unconditional_conditioning, unconditional_conditioning[:, -pad_len:, :]], axis=1
+                    )
+                    new_c = ops.cat([c, append_to_context], axis=1)
+                    c_in = ops.cat([new_unconditional_conditioning, new_c])
+                else:
+                    c_in = ops.concat([unconditional_conditioning, c], axis=0)
+            model_uncond, model_t = self.split(
+                self.model.apply_model(x_in, t_in, c_crossattn=c_in, features_adapter=features_adapter)
+            )
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
         if self.model.parameterization == "v":
