@@ -62,6 +62,15 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
 2. Segmentation edge maps (DeeplabV3Plus):
    The Segmentation Detector is implemented with [DeeplabV3Plus](https://arxiv.org/abs/1802.02611) [<a href="#references">2</a>]. Please download the pretrained model from [DeeplabV3Plus checkpoint](https://download.mindspore.cn/models/r1.9/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt)
 
+   There is an example of segmentation edge map with an image of bird.
+
+   <div align="center">
+   <img src="https://github.com/Gaohan123/mindone/assets/20148503/dd4769f3-caaf-4dad-80df-5905ab6260d9" width="160" height="240" />
+   </div>
+   <p align="center">
+     <em> segmentation edge map with an image of bird </em>
+   </p>
+
    Attention: As the DeeplabV3Plus is trained on VOC dataset, currently it only supports prompts related to the objects: 'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train','tvmonitor'. More is coming soon.
 
 ### Image Generation
