@@ -53,6 +53,13 @@ class SDInfer(ABC):
         return y
 
     @ms.jit
+    def prompt_embed(self, prompt_data, negative_prompt_data):
+        pos_prompt_embeds = self.text_encoder(prompt_data)
+        negative_prompt_embeds = self.text_encoder(negative_prompt_data)
+        prompt_embeds = ops.concat([negative_prompt_embeds, pos_prompt_embeds], axis=0)
+        return prompt_embeds
+
+    @ms.jit
     def latents_add_noise(self, image_latents, noise, ts):
         latents = self.scheduler.add_noise(image_latents, noise, self.alphas_cumprod[ts])
         return latents
@@ -62,14 +69,13 @@ class SDInfer(ABC):
         return self.scheduler.scale_model_input(latents, t)
 
     @ms.jit
-    def predict_noise(self, x, t_continuous, condition, unconditional_condition, guidance_scale, c_concat=None):
+    def predict_noise(self, x, t_continuous, c_crossattn, guidance_scale, c_concat=None):
         """
         The noise predicition model function that is used for DPM-Solver.
         """
         t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
         x_in = ops.concat([x] * 2, axis=0)
         t_in = ops.concat([t_continuous] * 2, axis=0)
-        c_crossattn = ops.concat([unconditional_condition, condition], axis=0)
         if c_concat is not None:
             c_concat = ops.concat([c_concat] * 2, axis=0)
         noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)
@@ -97,15 +103,13 @@ class SDInfer(ABC):
         pass
 
     def __call__(self, inputs):
-        latents, prompt_embeds, negative_prompt_embeds, c_concat = self.data_prepare(inputs)
+        latents, c_crossattn, c_concat = self.data_prepare(inputs)
         timesteps = inputs["timesteps"]
         iterator = tqdm(timesteps, desc="Stable Diffusion Sampling", total=len(timesteps))
         for i, t in enumerate(iterator):
             ts = ms.Tensor(t, ms.int32)
             latents = self.scale_model_input(latents, ts)
-            noise_pred = self.predict_noise(
-                latents, ts, prompt_embeds, negative_prompt_embeds, inputs["scale"], c_concat
-            )
+            noise_pred = self.predict_noise(latents, ts, c_crossattn, inputs["scale"], c_concat)
             latents = self.scheduler(noise_pred, ts, latents, self.num_inference_steps)
         image = self.vae_decode(latents)
         return image
@@ -133,10 +137,9 @@ class SDText2Img(SDInfer):
         )
 
     def data_prepare(self, inputs):
-        prompt_embeds = self.text_encoder(inputs["prompt_data"])
-        negative_prompt_embeds = self.text_encoder(inputs["negative_prompt_data"])
         latents = inputs["noise"]
-        return latents, prompt_embeds, negative_prompt_embeds, None
+        c_crossattn = self.prompt_embed(inputs["prompt_data"], inputs["negative_prompt_data"])
+        return latents, c_crossattn, None
 
 
 class SDImg2Img(SDInfer):
@@ -161,13 +164,12 @@ class SDImg2Img(SDInfer):
         )
 
     def data_prepare(self, inputs):
-        prompt_embeds = self.text_encoder(inputs["prompt_data"])
-        negative_prompt_embeds = self.text_encoder(inputs["negative_prompt_data"])
         timesteps = inputs["timesteps"]
         t0 = ms.Tensor(timesteps[0], ms.int32)
         image_latents = self.vae_encode(inputs["img"])
         latents = self.latents_add_noise(image_latents, inputs["noise"], t0)
-        return latents, prompt_embeds, negative_prompt_embeds, None
+        c_crossattn = self.prompt_embed(inputs["prompt_data"], inputs["negative_prompt_data"])
+        return latents, c_crossattn, None
 
 
 class SDInpaint(SDInfer):
@@ -192,10 +194,9 @@ class SDInpaint(SDInfer):
         )
 
     def data_prepare(self, inputs):
-        prompt_embeds = self.text_encoder(inputs["prompt_data"])
-        negative_prompt_embeds = self.text_encoder(inputs["negative_prompt_data"])
         masked_image = self.vae_encode(inputs["masked_image"])
         mask = ops.ResizeNearestNeighbor(masked_image.shape[2:])(inputs["mask"])
         c_concat = ops.concat((mask, masked_image), axis=1)
         latents = inputs["noise"]
-        return latents, prompt_embeds, negative_prompt_embeds, c_concat
+        c_crossattn = self.prompt_embed(inputs["prompt_data"], inputs["negative_prompt_data"])
+        return latents, c_crossattn, c_concat

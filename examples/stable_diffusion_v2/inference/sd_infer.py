@@ -37,6 +37,8 @@ def main(args):
         lora_only_ckpt=args.lora_ckpt_path,
     )
     sampler_config = OmegaConf.load(args.sampler)
+    if config.model.prediction_type == "v":
+        sampler_config.params.prediction_type = "v_prediction"
     scheduler = instantiate_from_config(sampler_config)
     timesteps = scheduler.set_timesteps(args.sampling_steps)
 

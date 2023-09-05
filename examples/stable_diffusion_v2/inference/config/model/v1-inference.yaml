@@ -4,6 +4,7 @@ model:
   pretrained_ckpt: models/sd_v1.5-d0ab7146.ckpt
   base_learning_rate: 1.0e-04
   target: ldm.models.diffusion.ddpm.LatentDiffusion
+  prediction_type: "noise"
   params:
     linear_start: 0.00085
     linear_end: 0.0120

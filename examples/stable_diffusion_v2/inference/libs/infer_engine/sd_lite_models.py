@@ -43,13 +43,13 @@ class SDLite(ModelBase):
 
     def __call__(self, inputs):
         predict_outputs = self.data_prepare_predict(inputs)
-        if len(predict_outputs) == 3:
-            prompt_embeds, negative_prompt_embeds, latents = predict_outputs
-        elif len(predict_outputs) == 4:
-            prompt_embeds, negative_prompt_embeds, latents, c_concat = predict_outputs
+        if len(predict_outputs) == 2:
+            c_crossattn, latents = predict_outputs
+        elif len(predict_outputs) == 3:
+            c_crossattn, latents, c_concat = predict_outputs
         else:
             raise ValueError("data_prepare_predict error")
-        scale = self.predict_noise_input[4]
+        scale = self.predict_noise_input[3]
         scale.set_data_from_numpy(np.array(inputs["scale"]))
         iterator = tqdm(inputs["timesteps"], desc="Stable Diffusion Sampling", total=len(inputs["timesteps"]))
         for i, t in enumerate(iterator):
@@ -57,12 +57,10 @@ class SDLite(ModelBase):
             ts = self.predict_noise_input[1]
             ts.set_data_from_numpy(np.array(t).astype(np.int32))
             latents = self.scheduler_preprocess.predict([latents, ts])[0]
-            if len(predict_outputs) == 3:
-                noise_pred = self.predict_noise.predict([latents, ts, prompt_embeds, negative_prompt_embeds, scale])[0]
+            if len(predict_outputs) == 2:
+                noise_pred = self.predict_noise.predict([latents, ts, c_crossattn, scale])[0]
             else:
-                noise_pred = self.predict_noise.predict(
-                    [latents, ts, prompt_embeds, negative_prompt_embeds, scale, c_concat]
-                )[0]
+                noise_pred = self.predict_noise.predict([latents, ts, c_crossattn, scale, c_concat])[0]
             latents = self.noisy_sample.predict([noise_pred, ts, latents, self.num_inference_steps])[0]
         image = self.vae_decoder.predict([latents])[0]
         image = image.get_data_to_numpy()

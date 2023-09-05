@@ -52,11 +52,13 @@ def main(args):
     set_env(args)
     ms.set_context(device_target="CPU")
 
+    config = OmegaConf.load(f"{args.model}")
     sampler_config = OmegaConf.load(args.sampler)
     scheduler = instantiate_from_config(sampler_config)
+    if config.model.prediction_type == "v":
+        sampler_config.params.prediction_type = "v_prediction"
     scheduler_type = sampler_config.type
 
-    config = OmegaConf.load(f"{args.model}")
     args.model_save_path = f"{config.model.name}-{args.task}"
     model_save_path = os.path.join(args.output_path, args.model_save_path)
     os.makedirs(model_save_path, exist_ok=True)
@@ -85,7 +87,7 @@ def main(args):
         batch_size = args.n_samples
         tokenized_prompts = ops.ones((batch_size, 77), ms.int32)
         output_dim = 768 if version.startswith("1.") else 1024
-        prompt_embeds = ops.ones((batch_size, 77, output_dim), ms.float16)
+        c_crossattn = ops.ones((batch_size * 2, 77, output_dim), ms.float16)
         noise = ops.ones((batch_size, 4, args.inputs.H // 8, args.inputs.W // 8), ms.float16)
         ts = ops.ones((), ms.int32)
         img = ops.ones((batch_size, 3, args.inputs.H, args.inputs.W), ms.float16)
@@ -127,7 +129,7 @@ def main(args):
             predict_noise = InpaintPredictNoise(unet)
             model_export(
                 net=predict_noise,
-                inputs=(noise, ts, prompt_embeds, prompt_embeds, scale, c_concat),
+                inputs=(noise, ts, c_crossattn, scale, c_concat),
                 name=args.inputs.predict_noise_model,
                 model_save_path=model_save_path,
             )
@@ -145,7 +147,7 @@ def main(args):
             predict_noise = PredictNoise(unet)
             model_export(
                 net=predict_noise,
-                inputs=(noise, ts, prompt_embeds, prompt_embeds, scale),
+                inputs=(noise, ts, c_crossattn, scale),
                 name=args.inputs.predict_noise_model,
                 model_save_path=model_save_path,
             )

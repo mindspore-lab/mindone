@@ -62,6 +62,8 @@ def main(args):
     version = model_config.model.version
     os.environ["SD_VERSION"] = version
     sampler_config = OmegaConf.load(args.sampler)
+    if model_config.model.prediction_type == "v":
+        sampler_config.params.prediction_type = "v_prediction"
     scheduler = instantiate_from_config(sampler_config)
     timesteps = scheduler.set_timesteps(args.sampling_steps)
     scheduler_type = sampler_config.type

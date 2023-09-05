@@ -30,6 +30,12 @@ class DataPrepare(nn.Cell):
         latents = self.scheduler.add_noise(image_latents, noise, self.alphas_cumprod[ts])
         return latents
 
+    def prompt_embed(self, prompt_data, negative_prompt_data):
+        pos_prompt_embeds = self.text_encoder(prompt_data)
+        negative_prompt_embeds = self.text_encoder(negative_prompt_data)
+        prompt_embeds = ops.concat([negative_prompt_embeds, pos_prompt_embeds], axis=0)
+        return prompt_embeds
+
 
 class PredictNoise(nn.Cell):
     """
@@ -47,15 +53,14 @@ class PredictNoise(nn.Cell):
         self.unet = unet
         self.guidance_rescale = guidance_rescale
 
-    def predict_noise(self, x, t_continuous, condition, unconditional_condition, guidance_scale):
+    def predict_noise(self, x, t_continuous, c_crossattn, guidance_scale):
         """
         The noise predicition model function that is used for DPM-Solver.
         """
         t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
         x_in = ops.concat([x] * 2, axis=0)
         t_in = ops.concat([t_continuous] * 2, axis=0)
-        c_in = ops.concat([unconditional_condition, condition], axis=0)
-        noise_pred = self.unet(x_in, t_in, c_crossattn=c_in)
+        noise_pred = self.unet(x_in, t_in, c_crossattn=c_crossattn)
         noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
         if self.guidance_rescale > 0:
@@ -75,8 +80,8 @@ class PredictNoise(nn.Cell):
         noise_pred = self.guidance_rescale * noise_pred_rescaled + (1 - self.guidance_rescale) * noise_pred
         return noise_pred
 
-    def construct(self, latents, ts, prompt_embeds, negative_prompt_embeds, guidance_scale):
-        return self.predict_noise(latents, ts, prompt_embeds, negative_prompt_embeds, guidance_scale)
+    def construct(self, latents, ts, c_crossattn, guidance_scale):
+        return self.predict_noise(latents, ts, c_crossattn, guidance_scale)
 
 
 class SchedulerPreProcess(nn.Cell):
@@ -143,9 +148,8 @@ class Text2ImgDataPrepare(DataPrepare):
         super(Text2ImgDataPrepare, self).__init__(text_encoder, vae, scheduler, scale_factor=scale_factor)
 
     def construct(self, prompt_data, negative_prompt_data, noise):
-        prompt_embeds = self.text_encoder(prompt_data)
-        negative_prompt_embeds = self.text_encoder(negative_prompt_data)
-        return prompt_embeds, negative_prompt_embeds, noise
+        c_crossattn = self.prompt_embed(prompt_data, negative_prompt_data)
+        return c_crossattn, noise
 
 
 class Img2ImgDataPrepare(DataPrepare):
@@ -157,11 +161,10 @@ class Img2ImgDataPrepare(DataPrepare):
         super(Img2ImgDataPrepare, self).__init__(text_encoder, vae, scheduler, scale_factor=scale_factor)
 
     def construct(self, prompt_data, negative_prompt_data, img, noise, t0):
-        prompt_embeds = self.text_encoder(prompt_data)
-        negative_prompt_embeds = self.text_encoder(negative_prompt_data)
         image_latents = self.vae_encode(img)
         latents = self.latents_add_noise(image_latents, noise, t0)
-        return prompt_embeds, negative_prompt_embeds, latents
+        c_crossattn = self.prompt_embed(prompt_data, negative_prompt_data)
+        return c_crossattn, latents
 
 
 class InpaintDataPrepare(DataPrepare):
@@ -173,13 +176,12 @@ class InpaintDataPrepare(DataPrepare):
         super(InpaintDataPrepare, self).__init__(text_encoder, vae, scheduler, scale_factor=scale_factor)
 
     def construct(self, prompt_data, negative_prompt_data, masked_image, mask, noise):
-        prompt_embeds = self.text_encoder(prompt_data)
-        negative_prompt_embeds = self.text_encoder(negative_prompt_data)
         masked_image_latents = self.vae_encode(masked_image)
         mask_reshape = ops.ResizeNearestNeighbor(masked_image_latents.shape[2:])(mask)
         c_concat = ops.concat((mask_reshape, masked_image_latents), axis=1)
         latents = noise
-        return prompt_embeds, negative_prompt_embeds, latents, c_concat
+        c_crossattn = self.prompt_embed(prompt_data, negative_prompt_data)
+        return c_crossattn, latents, c_concat
 
 
 class InpaintPredictNoise(PredictNoise):
@@ -190,14 +192,13 @@ class InpaintPredictNoise(PredictNoise):
     def __init__(self, unet, guidance_rescale=0.0):
         super(InpaintPredictNoise, self).__init__(unet, guidance_rescale)
 
-    def construct(self, x, t_continuous, condition, unconditional_condition, guidance_scale, c_concat):
+    def construct(self, x, t_continuous, c_crossattn, guidance_scale, c_concat):
         """
         The noise predicition model function that is used for DPM-Solver.
         """
         t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
         x_in = ops.concat([x] * 2, axis=0)
         t_in = ops.concat([t_continuous] * 2, axis=0)
-        c_crossattn = ops.concat([unconditional_condition, condition], axis=0)
         c_concat = ops.concat([c_concat] * 2, axis=0)
         noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)
         noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)

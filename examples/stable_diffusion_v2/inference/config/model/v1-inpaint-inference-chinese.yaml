@@ -3,6 +3,7 @@ model:
   version: "1.5"
   pretrained_ckpt: models/wukong-huahua-inpaint-ms.ckpt
   target: ldm.models.diffusion.ddpm.LatentInpaintDiffusion
+  prediction_type: "noise"
   params:
     linear_start: 0.00085
     linear_end: 0.0120
