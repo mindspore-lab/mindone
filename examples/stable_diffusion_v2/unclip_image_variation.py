@@ -28,8 +28,8 @@ from utils.download import download_checkpoint
 logger = logging.getLogger("text_to_image")
 
 _version_cfg = {
-    "2.1-unclip-h": ("sd21-unclip-h-6a73ec.ckpt", "v2-vpred-inference-unclip-h.yaml", 768),
-    "2.1-unclip-l": ("sd21-unclip-l-baa7c8.ckpt", "v2-vpred-inference-unclip-l.yaml", 768),
+    "2.1-unclip-h": ("sd21-unclip-h-6a73eca5.ckpt", "v2-vpred-inference-unclip-h.yaml", 768),
+    "2.1-unclip-l": ("sd21-unclip-l-baa7c8b5.ckpt", "v2-vpred-inference-unclip-l.yaml", 768),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
