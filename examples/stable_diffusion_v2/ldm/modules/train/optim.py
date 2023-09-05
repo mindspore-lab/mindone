@@ -13,10 +13,13 @@
 # limitations under the License.
 # ============================================================================
 """
- build optimizer for ms
+Build optimizer for ms
 """
-from mindspore import nn
-from mindspore.nn.optim.adam import Adam, AdamWeightDecay
+from argparse import Namespace
+from typing import List, Union
+
+from mindspore.nn import Cell
+from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
 
 def build_optimizer(model, opts, lr):
@@ -46,7 +49,7 @@ def build_optimizer(model, opts, lr):
     elif opts.optim == "adamw":
         OptimCls = AdamWeightDecay
     elif opts.optim in ["sgd", "momentum"]:
-        OptimCls = nn.Momentum
+        OptimCls = Momentum
     else:
         raise ValueError("invalid optimizer")
 
@@ -56,3 +59,30 @@ def build_optimizer(model, opts, lr):
         optimizer = OptimCls(group_params, learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1])
 
     return optimizer
+
+
+def build_optimizer_unfold(
+    model: Cell,
+    name: str,
+    lr: Union[float, List[float]],
+    betas: List[float] = None,
+    weight_decay: float = 1e-6,
+) -> Optimizer:
+    """
+    Build and return an instance of the Optimizer class based on the specified parameters.
+
+    Args:
+        model: Model to which apply the optimizer.
+        name: Name of the optimizer.
+        lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
+        betas: Beta coefficients for computing running averages of gradient and its square.
+            If not provided, [0.9, 0.999] is used as default.
+        weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
+
+    Returns:
+        Initialized optimizer.
+    """
+    if betas is None:
+        betas = [0.9, 0.999]
+    opts = Namespace(optim=name, betas=betas, weight_decay=weight_decay)
+    return build_optimizer(model, opts, lr)

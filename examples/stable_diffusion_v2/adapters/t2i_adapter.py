@@ -11,7 +11,7 @@ def get_adapter(condition: str, checkpoint: Optional[str] = None, use_fp16: bool
     Get condition-specific T2I-Adapter.
 
     Args:
-        condition: Condition for adapter. Possible values are: "style", "color", "sketch", "canny", "other"
+        condition: Condition for adapter. Possible values are: "style", "color", "sketch", "canny", "other".
         checkpoint: Path to weights checkpoint.
         use_fp16: Use half-precision adapter.
 

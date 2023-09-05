@@ -225,7 +225,7 @@ if __name__ == "__main__":
         "--version",
         type=str,
         default="2.0",
-        choices=["1.5", "2.0"],
+        choices=["1.5", "2.0", "2.1"],
         help="Stable diffusion version, 1.5 or 2.0.",
     )
     parser.add_argument("--output_path", type=str, nargs="?", default="output", help="dir to write results to")
@@ -367,13 +367,16 @@ if __name__ == "__main__":
     os.environ["SD_VERSION"] = args.version
     if args.version == "1.5":
         args.config = "configs/v1-inference.yaml"
-        args.ckpt_path = "models/sd_v1.5-d0ab7146.ckpt"
+        ckpt_path = "models/sd_v1.5-d0ab7146.ckpt"
     elif args.version == "2.0-v768":
         args.config = "models/v2-vpred-inference.yaml"
-        args.ckpt_path = "models/sd_v2_768_v-e12e3a9b.ckpt"
+        ckpt_path = "models/sd_v2_768_v-e12e3a9b.ckpt"
     else:
         args.config = "configs/v2-inference.yaml"
-        args.ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
+        ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
+
+    if args.ckpt_path is None:
+        args.ckpt_path = ckpt_path
 
     if args.scale is None:
         args.scale = 9.0 if args.version.startswith("2.") else 7.5

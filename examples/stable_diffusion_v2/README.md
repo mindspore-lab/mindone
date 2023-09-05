@@ -392,7 +392,8 @@ For more information on inference with T2I-Adapters, please refer to
 
 ## Training
 
-Coming soon.
+For more information on training T2I-Adapters, please refer to
+[T2I-Adapter: Training](T2I-Adapter.md#training).
 
 # Dataset Preparation for Finetuning
 
