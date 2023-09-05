@@ -13,9 +13,7 @@ from omegaconf import OmegaConf
 from PIL import Image, ImageOps
 
 import mindspore as ms
-import mindspore.dataset.vision as vision
 import mindspore.ops as ops
-from mindspore.dataset.transforms import Compose
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
@@ -30,8 +28,8 @@ from utils.download import download_checkpoint
 logger = logging.getLogger("text_to_image")
 
 _version_cfg = {
-    "2.1-unclip-h": ("sd21-unclip-h_ms.ckpt", "v2-vpred-inference-unclip-h.yaml", 768),
-    "2.1-unclip-l": ("sd21-unclip-l_ms.ckpt", "v2-vpred-inference-unclip-l.yaml", 768),
+    "2.1-unclip-h": ("sd21-unclip-h-6a73ec.ckpt", "v2-vpred-inference-unclip-h.yaml", 768),
+    "2.1-unclip-l": ("sd21-unclip-l-baa7c8.ckpt", "v2-vpred-inference-unclip-l.yaml", 768),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
@@ -121,27 +119,6 @@ def load_image(image: Union[str, Image.Image]) -> Image.Image:
     return image
 
 
-def preprocess_image(image: Image.Image, use_fp16: bool = False) -> np.ndarray:
-    mean = np.array([0.48145466, 0.4578275, 0.40821073]) * 255
-    std = np.array([0.26862954, 0.26130258, 0.27577711]) * 255
-    transforms = Compose(
-        [
-            vision.Resize((224, 224), vision.Inter.BICUBIC),
-            vision.Normalize(mean.tolist(), std.tolist()),
-            vision.HWC2CHW(),
-        ]
-    )
-
-    image = np.array(image)
-    image = transforms(image)
-    image = image[None, ...]
-    if use_fp16:
-        image = image.astype(np.float16)
-    image = ms.Tensor(image)
-
-    return image
-
-
 def main(args):
     # set logger
     set_logger(
@@ -213,10 +190,10 @@ def main(args):
 
     # read image
     image = load_image(args.image_path)
-    image = preprocess_image(image, use_fp16=config.model.params.use_fp16)
+    image_tensor = model.embedder.preprocess(image)
 
     # get image conditioning
-    adm_cond = model.embedder(image)
+    adm_cond = model.embedder(image_tensor)
     adm_cond = ops.tile(adm_cond, (batch_size, 1))
 
     # add noise
@@ -261,8 +238,7 @@ def main(args):
     # infer
     start_code = None
     if args.fixed_code:
-        stdnormal = ms.ops.StandardNormal()
-        start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
+        start_code = ops.StandardNormal()((args.n_samples, 4, args.H // 8, args.W // 8))
 
     all_samples = list()
     for i, prompts in enumerate(data):
@@ -391,7 +367,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--n_samples",
         type=int,
-        default=4,
+        default=2,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
     parser.add_argument(

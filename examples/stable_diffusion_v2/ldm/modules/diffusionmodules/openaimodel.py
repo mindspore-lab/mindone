@@ -377,9 +377,6 @@ class UNetModel(nn.Cell):
         if self.num_classes is not None:
             if isinstance(self.num_classes, int):
                 self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
-            elif self.num_classes == "continuous":
-                print("setting up linear c_adm embedding layer")
-                self.label_emb = nn.Dense(1, time_embed_dim).to_float(self.dtype)
             elif self.num_classes == "sequential":
                 assert adm_in_channels is not None
                 self.label_emb = nn.SequentialCell(

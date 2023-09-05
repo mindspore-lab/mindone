@@ -34,6 +34,7 @@ model:
       target: ldm.modules.encoders.modules.CLIPEmbeddingNoiseAugmentation
       params:
         timestep_dim: 768
+        use_fp16: True
         noise_schedule_config:
           timesteps: 1000
           beta_schedule: linear
@@ -90,5 +91,5 @@ model:
         vocab_size: 49408
         output_dim: 1024
         width: 1024
-        layers: 24
+        layers: 23
         heads: 16

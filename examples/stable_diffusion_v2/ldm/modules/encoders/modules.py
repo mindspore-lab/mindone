@@ -2,11 +2,14 @@ import numpy as np
 from ldm.models.clip.simple_tokenizer import get_tokenizer
 from ldm.modules.diffusionmodules.openaimodel import Timestep
 from ldm.modules.diffusionmodules.upscaling import ImageConcatWithNoiseAugmentation
+from PIL import Image
 
 import mindspore as ms
+import mindspore.dataset.vision as vision
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
+from mindspore.dataset.transforms import Compose
 
 from .image_encoder import ImageEncoder
 from .text_encoder import OpenClipTextEncoder, TextEncoder
@@ -126,6 +129,7 @@ class ClipImageEmbedder(nn.Cell):
         ucg_rate=0.0,
     ):
         super().__init__()
+        self.use_fp16 = use_fp16
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.model = ImageEncoder(
             embed_dim=embed_dim,
@@ -139,6 +143,33 @@ class ClipImageEmbedder(nn.Cell):
             dtype=self.dtype,
         )
         self.ucg_rate = ucg_rate
+
+        self.transform = self._build_transform()
+
+    def _build_transform(self):
+        mean = np.array([0.48145466, 0.4578275, 0.40821073]) * 255
+        std = np.array([0.26862954, 0.26130258, 0.27577711]) * 255
+        transforms = Compose(
+            [
+                vision.Resize((224, 224), vision.Inter.BICUBIC),
+                vision.Normalize(mean.tolist(), std.tolist()),
+                vision.HWC2CHW(),
+            ]
+        )
+        return transforms
+
+    def preprocess(self, image: Image.Image) -> Tensor:
+        w, h = image.size
+        w, h = map(lambda x: x - x % 64, (w, h))
+        image = image.resize((w, h), resample=Image.LANCZOS)
+
+        image = np.array(image)
+        image = self.transform(image)
+        image = image[None, ...]
+        if self.use_fp16:
+            image = image.astype(np.float16)
+        x = ms.Tensor(image)
+        return x
 
     def construct(self, x: Tensor, no_dropout: bool = False):
         out = self.model.encode_image(x)
@@ -161,6 +192,7 @@ class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
         ucg_rate=0.0,
     ):
         super(ClipImageEmbedder, self).__init__()
+        self.use_fp16 = use_fp16
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.model = ImageEncoder(
             embed_dim=embed_dim,
@@ -177,8 +209,10 @@ class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
 
 
 class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
-    def __init__(self, *args, clip_stats_path=None, timestep_dim=1024, **kwargs):
+    def __init__(self, *args, clip_stats_path=None, timestep_dim=1024, use_fp16=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.dtype = ms.float16 if use_fp16 else ms.float32
+
         if clip_stats_path is None:
             clip_mean, clip_std = ops.zeros(timestep_dim), ops.ones(timestep_dim)
         else:
@@ -187,7 +221,7 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
 
         self.data_mean = clip_mean[None, :]
         self.data_std = clip_std[None, :]
-        self.time_embed = Timestep(timestep_dim)
+        self.time_embed = Timestep(timestep_dim).to_float(self.dtype)
 
     def scale(self, x):
         # re-normalize to centered mean and unit variance
@@ -206,4 +240,6 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
         z = self.q_sample(x, noise_level)
         z = self.unscale(z)
         noise_level = self.time_embed(noise_level)
+        z = ops.cast(z, self.dtype)
+        noise_level = ops.cast(noise_level, self.dtype)
         return z, noise_level

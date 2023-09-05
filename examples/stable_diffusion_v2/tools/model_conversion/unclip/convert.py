@@ -22,6 +22,7 @@ def valid_name(name: str):
         "embedder.model.positional_embedding",
         "embedder.model.text_projection",
         "cond_stage_model.model.text_projection",
+        "cond_stage_model.model.transformer.resblocks.23",
     ]
 
     if any([x in name for x in skip_names]):
@@ -48,15 +49,15 @@ def change_name(name: str) -> str:
     name = _change_with_pattern(name, r"(model.diffusion_model.out.0).bias", r"\1.beta")
     name = _change_with_pattern(name, r"(norm_out).weight", r"\1.gamma")
     name = _change_with_pattern(name, r"(norm_out).bias", r"\1.beta")
-    name = _change_with_pattern(name, r"in_proj_weight", r"in_proj.weight")
-    name = _change_with_pattern(name, r"in_proj_bias", r"in_proj.bias")
     name = _change_with_pattern(name, r"(ln_[0-9]*).weight", r"\1.gamma")
     name = _change_with_pattern(name, r"(ln_[0-9]*).bias", r"\1.beta")
     name = _change_with_pattern(name, r"(ln_[a-z]*).weight", r"\1.gamma")
-    name = _change_with_pattern(name, r"(ln_[a-z]*).bias", r"\1.beta")
-    name = _change_with_pattern(name, r"(token_embedding).weight", r"\1.embedding_table")
 
     # mindone/stablediffusion unet compnent naming diff
+    name = _change_with_pattern(name, r"in_proj_weight", r"in_proj.weight")
+    name = _change_with_pattern(name, r"in_proj_bias", r"in_proj.bias")
+    name = _change_with_pattern(name, r"(ln_[a-z]*).bias", r"\1.beta")
+    name = _change_with_pattern(name, r"(token_embedding).weight", r"\1.embedding_table")
     name = _change_with_pattern(name, r"(model.diffusion_model.input_blocks.0.0).weight", r"\1.conv.weight")
     name = _change_with_pattern(name, r"(model.diffusion_model.input_blocks.0.0).bias", r"\1.conv.bias")
     name = _change_with_pattern(
