@@ -9,7 +9,3 @@ imagesize
 toolz
 pillow==9.1.1
 tqdm
-imageio==2.31.1
-webdataset==0.2.48
-addict==2.4.0
-yapf==0.40.1

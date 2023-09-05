@@ -12,7 +12,7 @@ import numpy as np
 from cldm.ddim_hacked import DDIMSampler
 from cldm.model import create_model, load_model
 from conditions.controlnet import CannyDetector, SegmentDetector
-from conditions.controlnet.utils.utils import HWC3, resize_image
+from conditions.controlnet.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
 from PIL import Image
 
@@ -125,7 +125,9 @@ def main(args):
         if os.path.exists(args.condition_ckpt_path):
             apply_segment = SegmentDetector(ckpt_path=args.condition_ckpt_path)
         else:
-            logger.warning(f"!!!Warning!!!: {args.condition_ckpt_path} doesn't exist")
+            logger.warning(
+                f"!!!Warning!!!: Condition Detector checkpoint path {args.condition_ckpt_path} doesn't exist"
+            )
         detected_map = apply_segment(img)
         detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
     else:
@@ -229,7 +231,7 @@ if __name__ == "__main__":
         "--mode",
         type=str,
         default="canny",
-        choices=[MODE["canny"], MODE["segmentation"]],
+        choices=list(MODE.keys()),
         help="control net task mode, only support canny now",
     )
     # args for canny
