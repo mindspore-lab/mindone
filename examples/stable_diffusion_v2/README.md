@@ -189,9 +189,9 @@ And download the [example image](https://huggingface.co/datasets/hf-internal-tes
 python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.png --prompt "a cute cat sitting in the garden"
 ```
 
-And the output images are saved in `output/samples` directory.
+The output images are saved in `output/samples` directory.
 
-User can add extra noise to make image more variant to the input image,
+User can also add extra noise to make image more variant to the input image.
 
 ```shell
 python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.png --prompt "a cute cat sitting in the garden" --noise_level 200
