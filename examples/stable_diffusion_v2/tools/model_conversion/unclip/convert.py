@@ -52,11 +52,11 @@ def change_name(name: str) -> str:
     name = _change_with_pattern(name, r"(ln_[0-9]*).weight", r"\1.gamma")
     name = _change_with_pattern(name, r"(ln_[0-9]*).bias", r"\1.beta")
     name = _change_with_pattern(name, r"(ln_[a-z]*).weight", r"\1.gamma")
+    name = _change_with_pattern(name, r"(ln_[a-z]*).bias", r"\1.beta")
 
     # mindone/stablediffusion unet compnent naming diff
     name = _change_with_pattern(name, r"in_proj_weight", r"in_proj.weight")
     name = _change_with_pattern(name, r"in_proj_bias", r"in_proj.bias")
-    name = _change_with_pattern(name, r"(ln_[a-z]*).bias", r"\1.beta")
     name = _change_with_pattern(name, r"(token_embedding).weight", r"\1.embedding_table")
     name = _change_with_pattern(name, r"(model.diffusion_model.input_blocks.0.0).weight", r"\1.conv.weight")
     name = _change_with_pattern(name, r"(model.diffusion_model.input_blocks.0.0).bias", r"\1.conv.bias")
@@ -123,7 +123,9 @@ def _change_with_pattern(name: str, old: str, new: str) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Converting Unclip checkpoint from Pytorch to Mindspore")
-    parser.add_argument("path")
+    parser.add_argument(
+        "path", help="Path of the stablediffusion checkpoint, support `sd21-unclip-l.ckpt` and `sd21-unclip-h.ckpt`"
+    )
     parser.add_argument("-o", "--out", help="Output path of the converted checkpoint.")
     args = parser.parse_args()
 
