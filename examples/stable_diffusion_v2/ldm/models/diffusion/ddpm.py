@@ -352,7 +352,7 @@ class LatentDiffusion(DDPM):
     def get_first_stage_encoding(self, z):
         return self.scale_factor * z
 
-    def apply_model(self, x_noisy, t, cond, return_ids=False):
+    def apply_model(self, x_noisy, t, cond, return_ids=False, **kwargs):
         if isinstance(cond, dict):
             # hybrid case, cond is expected to be a dict
             pass
@@ -360,7 +360,7 @@ class LatentDiffusion(DDPM):
             key = "c_concat" if self.model.conditioning_key == "concat" else "c_crossattn"
             cond = {key: cond}
 
-        x_recon = self.model(x_noisy, t, **cond)
+        x_recon = self.model(x_noisy, t, **cond, **kwargs)
 
         if isinstance(x_recon, tuple) and not return_ids:
             return x_recon[0]
