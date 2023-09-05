@@ -4,6 +4,7 @@ from typing import Optional
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
+import numpy as np
 
 
 def get_timestep_embedding(
@@ -47,6 +48,99 @@ def get_timestep_embedding(
     return emb
 
 
+def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=0):
+    """
+    grid_size: int of the grid height and width return: pos_embed: [grid_size*grid_size, embed_dim] or
+    [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
+    """
+    grid_h = np.arange(grid_size, dtype=np.float32)
+    grid_w = np.arange(grid_size, dtype=np.float32)
+    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.stack(grid, axis=0)
+
+    grid = grid.reshape([2, 1, grid_size, grid_size])
+    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
+    if cls_token and extra_tokens > 0:
+        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
+    return pos_embed
+
+
+def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
+    if embed_dim % 2 != 0:
+        raise ValueError("embed_dim must be divisible by 2")
+
+    # use half of dimensions to encode grid_h
+    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
+    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
+
+    emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
+    return emb
+
+
+def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
+    """
+    embed_dim: output dimension for each position pos: a list of positions to be encoded: size (M,) out: (M, D)
+    """
+    if embed_dim % 2 != 0:
+        raise ValueError("embed_dim must be divisible by 2")
+
+    omega = np.arange(embed_dim // 2, dtype=np.float64)
+    omega /= embed_dim / 2.0
+    omega = 1.0 / 10000**omega  # (D/2,)
+
+    pos = pos.reshape(-1)  # (M,)
+    out = np.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
+
+    emb_sin = np.sin(out)  # (M, D/2)
+    emb_cos = np.cos(out)  # (M, D/2)
+
+    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
+    return emb
+
+
+class PatchEmbed(nn.Cell):
+    """2D Image to Patch Embedding"""
+
+    def __init__(
+        self,
+        height=224,
+        width=224,
+        patch_size=16,
+        in_channels=3,
+        embed_dim=768,
+        layer_norm=False,
+        flatten=True,
+        bias=True,
+    ):
+        super().__init__()
+
+        num_patches = (height // patch_size) * (width // patch_size)
+        self.flatten = flatten
+        self.layer_norm = layer_norm
+
+        self.proj = nn.Conv2d(
+            in_channels, embed_dim, patch_size, stride=patch_size, pad_mode="valid", has_bias=bias
+        )
+        if layer_norm:
+            self.norm = nn.LayerNorm((embed_dim,), eps=1e-6)
+
+            for p in self.norm.trainable_params():
+                p.requires_grad = False
+        else:
+            self.norm = None
+
+        pos_embed = get_2d_sincos_pos_embed(embed_dim, int(num_patches**0.5))
+        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+
+    def construct(self, latent):
+        latent = self.proj(latent)
+        if self.flatten:
+            latent = latent.flatten(start_dim=2).swapaxes(1, 2)  # BCHW -> BNC
+        if self.layer_norm:
+            latent = self.norm(latent)
+        return latent + self.pos_embed
+
+
 class Timesteps(nn.Cell):
     def __init__(self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float):
         super().__init__()
@@ -88,7 +182,7 @@ class TimestepEmbedding(nn.Cell):
         elif act_fn == "mish":
             self.act = nn.Mish()
         elif act_fn == "gelu":
-            self.act = nn.GELU()
+            self.act = nn.GELU(approximate=False)
         else:
             raise ValueError(f"{act_fn} does not exist. Make sure to define one of 'silu', 'mish', or 'gelu'")
 
@@ -105,7 +199,7 @@ class TimestepEmbedding(nn.Cell):
         elif post_act_fn == "mish":
             self.post_act = nn.Mish()
         elif post_act_fn == "gelu":
-            self.post_act = nn.GELU()
+            self.post_act = nn.GELU(approximate=False)
         else:
             raise ValueError(f"{post_act_fn} does not exist. Make sure to define one of 'silu', 'mish', or 'gelu'")
 
@@ -122,6 +216,71 @@ class TimestepEmbedding(nn.Cell):
         if self.post_act is not None:
             sample = self.post_act(sample)
         return sample
+
+
+class ImagePositionalEmbeddings(nn.Cell):
+    """
+    Converts latent image classes into vector embeddings. Sums the vector embeddings with positional embeddings for the
+    height and width of the latent space.
+
+    For more details, see figure 10 of the dall-e paper: https://arxiv.org/abs/2102.12092
+
+    For VQ-diffusion:
+
+    Output vector embeddings are used as input for the transformer.
+
+    Note that the vector embeddings for the transformer are different than the vector embeddings from the VQVAE.
+
+    Args:
+        num_embed (`int`):
+            Number of embeddings for the latent pixels embeddings.
+        height (`int`):
+            Height of the latent image i.e. the number of height embeddings.
+        width (`int`):
+            Width of the latent image i.e. the number of width embeddings.
+        embed_dim (`int`):
+            Dimension of the produced vector embeddings. Used for the latent pixel, height, and width embeddings.
+    """
+
+    def __init__(
+        self,
+        num_embed: int,
+        height: int,
+        width: int,
+        embed_dim: int,
+    ):
+        super().__init__()
+
+        self.height = height
+        self.width = width
+        self.num_embed = num_embed
+        self.embed_dim = embed_dim
+
+        self.emb = nn.Embedding(self.num_embed, embed_dim)
+        self.height_emb = nn.Embedding(self.height, embed_dim)
+        self.width_emb = nn.Embedding(self.width, embed_dim)
+
+    def construct(self, index):
+        emb = self.emb(index)
+
+        height_emb = self.height_emb(ops.arange(self.height).view(1, self.height))
+
+        # 1 x H x D -> 1 x H x 1 x D
+        height_emb = height_emb.unsqueeze(2)
+
+        width_emb = self.width_emb(ops.arange(self.width).view(1, self.width))
+
+        # 1 x W x D -> 1 x 1 x W x D
+        width_emb = width_emb.unsqueeze(1)
+
+        pos_emb = height_emb + width_emb
+
+        # 1 x H x W x D -> 1 x L xD
+        pos_emb = pos_emb.view(1, self.height * self.width, -1)
+
+        emb = emb + pos_emb[:, : emb.shape[1], :]
+
+        return emb
 
 
 class LabelEmbedding(nn.Cell):

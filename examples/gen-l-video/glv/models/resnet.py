@@ -348,7 +348,7 @@ class ResnetBlock2D(nn.Cell):
         elif non_linearity == "silu":
             self.nonlinearity = nn.SiLU()
         elif non_linearity == "gelu":
-            self.nonlinearity = nn.GELU()
+            self.nonlinearity = nn.GELU(approximate=False)
 
         self.upsample = self.downsample = None
         if self.up:
