@@ -115,7 +115,7 @@ class PLMSSampler:
             _logger.debug(f"Data shape for PLMS sampling is {size}")
         else:
             if x_T is None:
-                raise ValueError("`x_T` must be provided withn shape is None")
+                raise ValueError("`x_T` must be provided when shape is None")
             size = None
 
         samples, intermediates = self.plms_sampling(

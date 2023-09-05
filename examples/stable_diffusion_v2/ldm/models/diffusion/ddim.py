@@ -129,7 +129,7 @@ class DDIMSampler(object):
             _logger.debug(f"Data shape for DDIM sampling is {size}, eta {eta}")
         else:
             if x_T is None:
-                raise ValueError("`x_T` must be provided withn shape is None")
+                raise ValueError("`x_T` must be provided when shape is None")
             size = None
 
         samples, intermediates = self.ddim_sampling(
