@@ -13,7 +13,7 @@ from mindspore.common.initializer import Normal, initializer
 __all__ = ["MiDaS", "midas_v3_dpt_large"]
 
 _CKPT_URL = {
-    "midas_v3_dpt_large": "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_midas_v3_dpt_large-c8fd1049.ckpt"
+    "midas_v3_dpt_large": "https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt"
 }
 
 
