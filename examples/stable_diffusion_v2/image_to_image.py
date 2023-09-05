@@ -17,9 +17,7 @@ import mindspore.ops as ops
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
 from ldm.models.diffusion.ddim import DDIMSampler
-from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
-from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.tools import set_random_seed
@@ -30,11 +28,10 @@ from utils.download import download_checkpoint
 logger = logging.getLogger("text_to_image")
 
 # naming: {sd_base_version}-{variation}
+# TODO: support v-pred
 _version_cfg = {
     "2.1": ("sd_v2-1_base-7c8d09ce.ckpt", "v2-inference.yaml", 512),
-    "2.1-v": ("sd_v2-1_768_v-061732d1.ckpt", "v2-vpred-inference.yaml", 768),
     "2.0": ("sd_v2_base-57526ee4.ckpt", "v2-inference.yaml", 512),
-    "2.0-v": ("sd_v2_768_v-e12e3a9b.ckpt", "v2-vpred-inference.yaml", 768),
     "1.5": ("sd_v1.5-d0ab7146.ckpt", "v1-inference.yaml", 512),
     "1.5-wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
 }
@@ -117,11 +114,18 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
     return model
 
 
-def load_img(path):
+def load_img(path, min_size=512):
     # read image and do normalization
     img = Image.open(path).convert("RGB")
     w, h = img.size
     logger.info(f"Loaded input image of size ({w}, {h}) from {path}")
+    if min(w, h) < min_size:
+        if w < h:
+            h = int(min_size / w * h)
+            w = min_size
+        else:
+            w = int(min_size / h * w)
+            h = min_size
     w, h = map(lambda x: x - x % 64, (w, h))
     img = img.resize((w, h), resample=Image.LANCZOS)
     img = np.array(img, dtype=np.float32)
@@ -178,7 +182,7 @@ def main(args):
         for _ in range(len(data) - len(negative_data)):
             negative_data.append(blank_negative_prompt)
 
-    img = load_img(args.image_path)
+    img = load_img(args.image_path, min_size=args.min_size)
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -208,23 +212,12 @@ def main(args):
     if args.ddim:
         sampler = DDIMSampler(model)
         sname = "ddim"
-    elif args.dpm_solver:
-        sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
-        sname = "dpm_solver"
-    elif args.plms:
+    else:
         sampler = PLMSSampler(model)
         sname = "plms"
-    elif args.uni_pc:
-        sampler = UniPCSampler(model)
-        sname = "uni_pc"
-    else:
-        sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
-        sname = "dpm_solver_pp"
+
     if prediction_type == "v":
-        assert sname in [
-            "dpm_solver",
-            "dpm_solver_pp",
-        ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
+        raise NotImplementedError("")
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -244,7 +237,6 @@ def main(args):
             f"Sampling steps: {args.sampling_steps}",
             f"Strength: {args.strength}",
             f"Uncondition guidance scale: {args.scale}",
-            f"Target image size (H, W): ({args.H}, {args.W})",
         ]
     )
     key_info += "\n" + "=" * 50
@@ -252,15 +244,15 @@ def main(args):
 
     # infer
     # calculate the steps needs for p foward
-    start_sampling_steps = args.sampling_steps - int(args.sampling_steps * args.strength)
-    if start_sampling_steps < args.sampling_steps:
+    start_sample_step = args.sampling_steps - int(args.sampling_steps * args.strength)
+    if start_sample_step < args.sampling_steps:
         sampler.make_schedule(
-            args.sampling_steps, verbose=False
+            args.sampling_steps, ddim_eta=args.ddim_eta, verbose=False
         )  # TODO: there should be an interface output the timesteps
-        ts = sampler.ddim_timesteps[::-1][start_sampling_steps][None, ...]  # steps for q forward
+        timestep = sampler.ddim_timesteps[::-1][start_sample_step][None, ...]  # steps for q forward
     else:
-        ts = ms.Tensor([0], dtype=ms.int64)
-    ts = ops.tile(ts, (args.n_samples,))
+        timestep = ms.Tensor([0], dtype=ms.int64)
+    timestep = ops.tile(timestep, (args.n_samples,))
 
     # prepare start_code by extracting img latent and add noise
     img_latent, _ = model.get_input(img, None)
@@ -286,22 +278,21 @@ def main(args):
             tokenized_prompts = model.tokenize(prompts)
             c = model.get_learned_conditioning(tokenized_prompts)
 
-            start_code = model.q_sample(img_latent, ts, ms.numpy.randn(img_latent.shape))
-            shape = [4, args.H // 8, args.W // 8]
+            start_code = model.q_sample(img_latent, timestep, ms.numpy.randn(img_latent.shape))
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
                 conditioning=c,
                 batch_size=args.n_samples,
-                shape=shape,
+                shape=None,
                 verbose=False,
                 unconditional_guidance_scale=args.scale,
                 unconditional_conditioning=uc,
                 eta=args.ddim_eta,
                 x_T=start_code,
-                T0=start_sampling_steps,
+                T0=start_sample_step,
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
-            x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+            x_samples_ddim = ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
@@ -349,7 +340,7 @@ if __name__ == "__main__":
         type=str,
         nargs="?",
         default="2.1",
-        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
+        help=f"Stable diffusion version. Options: {_version_cfg.keys()}",
     )
     parser.add_argument(
         "--prompt", type=str, nargs="?", default="A cute wolf in winter forest", help="the prompt to render"
@@ -370,14 +361,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sampling_steps",
         type=int,
-        default=20,
-        help="number of ddim sampling steps. The recommended value is 50 for PLMS, DDIM and 20 for UniPC, DPM-Solver, DPM-Solver++",
+        default=50,
+        help="number of ddim sampling steps. The recommended value is 50 for PLMS, DDIM",
     )
     parser.add_argument(
         "--strength",
         type=float,
         default=0.8,
         help="indicates extent to tranform the image. A value of `1` essentially ignore the image.",
+    )
+    parser.add_argument(
+        "--min_size",
+        type=int,
+        default=512,
+        help="The minimum size of the input image.",
     )
     parser.add_argument(
         "--ddim_eta",
@@ -398,42 +395,9 @@ if __name__ == "__main__":
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
     parser.add_argument(
-        "--H",
-        type=int,
-        default=512,
-        help="image height, in pixel space",
-    )
-    parser.add_argument(
-        "--W",
-        type=int,
-        default=512,
-        help="image width, in pixel space",
-    )
-    parser.add_argument(
         "--ddim",
         action="store_true",
         help="use ddim sampling",
-    )
-    parser.add_argument(
-        "--dpm_solver",
-        action="store_true",
-        help="use dpm_solver sampling",
-    )
-    parser.add_argument(
-        "--plms",
-        action="store_true",
-        help="use plms sampling",
-    )
-    parser.add_argument(
-        "--uni_pc",
-        action="store_true",
-        help="use uni_pc sampling",
-    )
-    parser.add_argument(
-        "--n_rows",
-        type=int,
-        default=0,
-        help="rows in the grid (default: n_samples)",
     )
     parser.add_argument(
         "--scale",
@@ -503,22 +467,16 @@ if __name__ == "__main__":
         ckpt_name = _version_cfg[args.version][0]
         args.ckpt_path = "models/" + ckpt_name
 
-        desire_size = _version_cfg[args.version][2]
-        if args.H != desire_size or args.W != desire_size:
-            logger.warning(
-                f"The optimal H, W for SD {args.version} is ({desire_size}, {desire_size}) . But got ({args.H}, {args.W})."
-            )
-
         # download if not exists or not complete
         ckpt_incomplete = False
         if os.path.exists(args.ckpt_path):
             if os.path.getsize(args.ckpt_path) < _MIN_CKPT_SIZE:
                 ckpt_incomplete = True
-                print(
-                    f"WARNING: The checkpoint size is too small {args.ckpt_path}. Please check and remove it if it is incomplete!"
+                logger.warning(
+                    f"The checkpoint size is too small {args.ckpt_path}. Please check and remove it if it is incomplete!"
                 )
         if not os.path.exists(args.ckpt_path):
-            print(f"Start downloading checkpoint {ckpt_name} ...")
+            logger.info(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])

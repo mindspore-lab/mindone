@@ -74,7 +74,7 @@ class PLMSSampler:
         self,
         S,
         batch_size,
-        shape,
+        shape=None,
         conditioning=None,
         callback=None,
         normals_sequence=None,
@@ -109,9 +109,15 @@ class PLMSSampler:
                     _logger.warning(f"Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
         # sampling
-        C, H, W = shape
-        size = (batch_size, C, H, W)
-        _logger.debug(f"Data shape for PLMS sampling is {size}")
+        if shape is not None:
+            C, H, W = shape
+            size = (batch_size, C, H, W)
+            _logger.debug(f"Data shape for PLMS sampling is {size}")
+        else:
+            if x_T is None:
+                raise ValueError("`x_T` must be provided withn shape is None")
+            size = None
+
         samples, intermediates = self.plms_sampling(
             conditioning,
             size,
@@ -136,7 +142,7 @@ class PLMSSampler:
     def plms_sampling(
         self,
         cond,
-        shape,
+        shape=None,
         x_T=None,
         ddim_use_original_steps=False,
         callback=None,
@@ -154,11 +160,12 @@ class PLMSSampler:
         unconditional_conditioning=None,
         T0=None,
     ):
-        b = shape[0]
         if x_T is None:
             img = ops.standard_normal(shape)
+            b = shape[0]
         else:
             img = x_T
+            b = x_T.shape[0]
 
         if timesteps is None:
             timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
@@ -171,11 +178,10 @@ class PLMSSampler:
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
         _logger.debug(f"Running PLMS Sampling with {total_steps} timesteps")
 
-        # iterator = tqdm(time_range, desc='PLMS Sampler', total=total_steps)
         iterator = time_range
         old_eps = []
 
-        for i, step in tqdm(enumerate(iterator)):
+        for i, step in tqdm(enumerate(iterator), desc="Decoding image", total=total_steps):
             if T0 is not None:
                 if i < T0:
                     continue

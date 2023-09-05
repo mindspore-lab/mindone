@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
+import logging
+
 import numpy as np
 from ldm.modules.diffusionmodules.util import make_ddim_sampling_parameters, make_ddim_timesteps, noise_like
 from ldm.util import extract_into_tensor
@@ -19,6 +21,8 @@ from tqdm import tqdm
 
 import mindspore as ms
 import mindspore.ops as ops
+
+_logger = logging.getLogger(__name__)
 
 
 class DDIMSampler(object):
@@ -70,7 +74,7 @@ class DDIMSampler(object):
         self,
         S,
         batch_size,
-        shape,
+        shape=None,
         conditioning=None,
         callback=None,
         normals_sequence=None,
@@ -105,23 +109,29 @@ class DDIMSampler(object):
                     ctmp = ctmp[0]
                 cbs = ctmp.shape[0]
                 if cbs != batch_size:
-                    print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                    _logger.warning(f"Got {cbs} conditionings but batch-size is {batch_size}")
 
             elif isinstance(conditioning, list):
                 for ctmp in conditioning:
                     if ctmp.shape[0] != batch_size:
-                        print(f"Warning: Got {cbs} conditionings but batch-size is {batch_size}")
+                        _logger.warning(f"Got {cbs} conditionings but batch-size is {batch_size}")
 
             else:
                 if conditioning.shape[0] != batch_size:
-                    print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
+                    _logger.warning(f"Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
 
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
 
         # sampling
-        C, H, W = shape
-        size = (batch_size, C, H, W)
-        print(f"Data shape for DDIM sampling is {size}, eta {eta}")
+        if shape is not None:
+            C, H, W = shape
+            size = (batch_size, C, H, W)
+            _logger.debug(f"Data shape for DDIM sampling is {size}, eta {eta}")
+        else:
+            if x_T is None:
+                raise ValueError("`x_T` must be provided withn shape is None")
+            size = None
+
         samples, intermediates = self.ddim_sampling(
             conditioning,
             size,
@@ -152,7 +162,7 @@ class DDIMSampler(object):
     def ddim_sampling(
         self,
         cond,
-        shape,
+        shape=None,
         x_T=None,
         ddim_use_original_steps=False,
         callback=None,
@@ -176,11 +186,12 @@ class DDIMSampler(object):
         ucg_schedule=None,
         T0=None,
     ):
-        b = shape[0]
         if x_T is None:
             img = ms.ops.StandardNormal()(shape)
+            b = shape[0]
         else:
             img = x_T
+            b = x_T.shape[0]
 
         if timesteps is None:
             timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
@@ -191,9 +202,9 @@ class DDIMSampler(object):
         intermediates = {"x_inter": [img], "pred_x0": [img]}
         time_range = reversed(range(0, timesteps)) if ddim_use_original_steps else ms.numpy.flip(timesteps)
         total_steps = timesteps if ddim_use_original_steps else timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        _logger.debug(f"Running DDIM Sampling with {total_steps} timesteps")
 
-        iterator = time_range
+        iterator = tqdm(time_range, desc="Decoding image", total=total_steps)
 
         for i, step in enumerate(iterator):
             if T0 is not None:
@@ -427,7 +438,7 @@ class DDIMSampler(object):
 
         time_range = np.flip(timesteps)
         total_steps = timesteps.shape[0]
-        print(f"Running DDIM Sampling with {total_steps} timesteps")
+        _logger.debug(f"Running DDIM Sampling with {total_steps} timesteps")
 
         iterator = tqdm(time_range, desc="Decoding image", total=total_steps)
         x_dec = x_latent
