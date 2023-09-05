@@ -167,9 +167,9 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
 
 ### Text-guided Image-to-Image
 
-This pipeline uses a finetuned version of Stable Diffusion 2.1, which can be used to create image variations (image-to-image). Here we provide two models `2.1-unclip-l` and `2.1-unclip-h`, which uses the pretrained Clip Image embedder and Open Clip Image embedder separately. User can use the `-v` argument to decide which model to use. The amount of image variation can be controled by the noise injected to the image embedding, which can be input by the `--noise_level` argument. (0 means no noise, 1000 full noise).
+This pipeline uses a finetuned version of Stable Diffusion 2.1, which can be used to create image variations (image-to-image). The pipeline comes with two pre-trained models, `2.1-unclip-l` and `2.1-unclip-h`, which use the pretrained CLIP Image embedder and OpenCLIP Image embedder separately. You can use the `-v` argument to decide which model to use. The amount of image variation can be controlled by the noise injected to the image embedding, which can be input by the `--noise_level` argument. A value of 0 means no noise, while a value of 1000 means full noise.
 
-Users can use the following command to run the image-to-image pipeline
+You can use the following command to run the image-to-image pipeline
 
 ```shell
 python unclip_image_variation.py \
@@ -191,7 +191,7 @@ python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.
 
 The output images are saved in `output/samples` directory.
 
-User can also add extra noise to make image more variant to the input image.
+you can also add extra noise to the image embedding to increase the amount of variation in the generated images.
 
 ```shell
 python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.png --prompt "a cute cat sitting in the garden" --noise_level 200

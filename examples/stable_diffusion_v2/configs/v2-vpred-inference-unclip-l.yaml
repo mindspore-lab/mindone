@@ -20,7 +20,7 @@ model:
     use_fp16: True
 
     embedder_config:
-      target: ldm.modules.encoders.modules.ClipImageEmbedder
+      target: ldm.modules.encoders.modules.CLIPImageEmbedder
       params:
         embed_dim: 768
         image_resolution: 224

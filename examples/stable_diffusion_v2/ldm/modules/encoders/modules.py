@@ -116,7 +116,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
         return outputs
 
 
-class ClipImageEmbedder(nn.Cell):
+class CLIPImageEmbedder(nn.Cell):
     def __init__(
         self,
         use_fp16=False,
@@ -179,7 +179,7 @@ class ClipImageEmbedder(nn.Cell):
         return out
 
 
-class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
+class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
     def __init__(
         self,
         use_fp16=False,
@@ -191,7 +191,7 @@ class FrozenOpenCLIPImageEmbedder(ClipImageEmbedder):
         vision_head_width=64,
         ucg_rate=0.0,
     ):
-        super(ClipImageEmbedder, self).__init__()
+        super(CLIPImageEmbedder, self).__init__()
         self.use_fp16 = use_fp16
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.model = ImageEncoder(
