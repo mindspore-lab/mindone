@@ -55,6 +55,8 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 
 </details>
 
+Please download the pretrained checkpoint and put it under `models/` folder.
+
 To transfer other Stable Diffusion models to MindSpore, please refer to [model conversion](../tools/model_conversion/README.md).
 
 ## Support
