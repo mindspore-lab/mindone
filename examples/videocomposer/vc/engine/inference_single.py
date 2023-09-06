@@ -65,7 +65,7 @@ def inference_single(cfg_update, **kwargs):
 
 
 def init(gpu, cfg, video_name=None):
-    ms.set_context(mode=cfg.mode) # pynative_synchronize=True)
+    ms.set_context(mode=cfg.mode)  # pynative_synchronize=True)
     # LOCAL_RANK - The local rank.
     cfg.gpu = gpu
     # RANK - The global rank.
@@ -188,7 +188,7 @@ def read_image_if_provided(flag, path, transform=None, return_tensor=True, dtype
 
 def prepare_condition_models(cfg):
     # [Conditions] Generators for various conditions
-    if "depthmap" in cfg.video_compositions and 'depth' in cfg.guidances:
+    if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
         midas = midas.set_train(False).to_float(cfg.dtype)
         for _, param in midas.parameters_and_names():
@@ -324,7 +324,7 @@ def worker(gpu, cfg):
     dataloader = prepare_dataloader(cfg, transforms_list)
     clip_encoder, clip_encoder_visual = prepare_clip_encoders(cfg)
     zero_y = ms.ops.stop_gradient(clip_encoder.encode([""]))  # [1, 77, 1024]
-    #zero_y = None
+    # zero_y = None
     black_image_feature = clip_encoder_visual.encode(clip_encoder_visual.black_image).unsqueeze(1)  # [1, 1, 1024]
     black_image_feature = ms.ops.zeros_like(black_image_feature)  # for old
 
@@ -364,7 +364,7 @@ def worker(gpu, cfg):
             mv_data_video = ms.ops.transpose(mv_data, (0, 2, 1, 3, 4))
         # mask images
         masked_video = []
-        if "mask" in cfg.video_compositions and "masked" in cfg.guidances: # TODO: fix the name
+        if "mask" in cfg.video_compositions and "masked" in cfg.guidances:  # TODO: fix the name
             masked_video = make_masked_images((misc_data - 0.5) / 0.5, mask)
             masked_video = ms.ops.transpose(masked_video, (0, 2, 1, 3, 4))
         # Single Image
@@ -418,7 +418,7 @@ def worker(gpu, cfg):
         y = clip_encoder.encode(caps)  # [1, 77, 1024]
         y0 = y.copy()
         y_visual = []
-        if "image" in cfg.video_compositions and "image" in cfg.guidances: # TODO: check
+        if "image" in cfg.video_compositions and "image" in cfg.guidances:  # TODO: check
             # with torch.no_grad():
             if cfg.read_style:
                 y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0)
