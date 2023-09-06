@@ -9,10 +9,11 @@ import sys
 
 import cv2
 import numpy as np
-from annotator.canny import CannyDetector
-from annotator.util import HWC3, resize_image
 from cldm.ddim_hacked import DDIMSampler
 from cldm.model import create_model, load_model
+from conditions.canny.canny_detector import CannyDetector
+from conditions.segmentation.segment_detector import SegmentDetector
+from conditions.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
 from PIL import Image
 
@@ -21,6 +22,7 @@ import mindspore.ops as ops
 
 MODE = {
     "canny": "canny",
+    "segmentation": "segmentation",
 }
 
 workspace = os.path.dirname(os.path.abspath(__file__))
@@ -120,15 +122,25 @@ def main(args):
         apply_canny = CannyDetector()
         detected_map = apply_canny(img, low_threshold, high_threshold)
         detected_map = HWC3(detected_map)
-        Image.fromarray(detected_map).save(
-            os.path.join(outpath, f"{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}_detected_map.png")
-        )
-
-        control = ms.Tensor(detected_map.copy()).float() / 255.0
-        control = control.permute(2, 0, 1)
-        control = ops.stack([control for _ in range(num_samples)], axis=0)
+    elif args.mode == MODE["segmentation"]:
+        if os.path.exists(args.condition_ckpt_path):
+            apply_segment = SegmentDetector(ckpt_path=args.condition_ckpt_path)
+        else:
+            logger.warning(
+                f"!!!Warning!!!: Condition Detector checkpoint path {args.condition_ckpt_path} doesn't exist"
+            )
+        detected_map = apply_segment(img)
+        detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
     else:
         raise NotImplementedError(f"mode {args.mode} not supported")
+
+    Image.fromarray(detected_map).save(
+        os.path.join(outpath, f"{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}_detected_map.png")
+    )
+
+    control = ms.Tensor(detected_map.copy()).float() / 255.0
+    control = control.permute(2, 0, 1)
+    control = ops.stack([control for _ in range(num_samples)], axis=0)
 
     c_crossattn = model.get_learned_conditioning(model.tokenize([prompt + ", " + a_prompt] * num_samples))
     cond = {"c_concat": [control], "c_crossattn": [c_crossattn]}
@@ -153,11 +165,16 @@ def main(args):
         unconditional_conditioning=un_cond,
     )
 
-    def decode_and_save_result(samples, detected_map, outpath, filename):
+    def decode_and_save_result(args, samples, detected_map, outpath, filename):
         x_samples = model.decode_first_stage(samples)
         x_samples = (ops.transpose(x_samples, (0, 2, 3, 1)) * 127.5 + 127.5).asnumpy().clip(0, 255).astype(np.uint8)
         results = [x_samples[i] for i in range(num_samples)]
-        results = [255 - detected_map] + results
+        if args.mode == MODE["canny"]:
+            results = [255 - detected_map] + results
+        elif args.mode == MODE["segmentation"]:
+            results = [detected_map] + results
+        else:
+            raise NotImplementedError(f"mode {args.mode} not supported")
 
         for i, result in enumerate(results):
             img = Image.fromarray(result)
@@ -166,7 +183,7 @@ def main(args):
             logger.info(f"Save result with filename {tmp_filename} done.")
             # print(result)
 
-    decode_and_save_result(samples, detected_map, outpath, "results")
+    decode_and_save_result(args, samples, detected_map, outpath, "results")
 
     logger.info(f"Save result to {outpath} done.")
 
@@ -215,7 +232,7 @@ if __name__ == "__main__":
         "--mode",
         type=str,
         default="canny",
-        choices=[MODE["canny"]],
+        choices=list(MODE.keys()),
         help="control net task mode, only support canny now",
     )
     # args for canny
@@ -223,6 +240,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--high_threshold", type=int, default=200, choices=range(1, 256), help="high threshold for canny"
     )
+    # args for model-based condition ckpt path
+    parser.add_argument(
+        "--condition_ckpt_path", type=str, default="", help="checkpoint path for contition control model"
+    )
+
     args = parser.parse_args()
 
     main(args)
