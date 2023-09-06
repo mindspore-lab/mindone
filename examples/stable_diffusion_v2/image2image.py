@@ -240,7 +240,7 @@ if __name__ == "__main__":
         "--high_threshold", type=int, default=200, choices=range(1, 256), help="high threshold for canny"
     )
     # args for model-based condition ckpt path
-    parser.add_argument("--condition_ckpt_path", type=str, default="", help="checkpoint path for segmentation model")
+    parser.add_argument("--condition_ckpt_path", type=str, default="", help="checkpoint path for contition control model")
 
     args = parser.parse_args()
 
