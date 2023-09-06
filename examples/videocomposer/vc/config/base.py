@@ -5,9 +5,9 @@ from easydict import EasyDict
 cfg = EasyDict(__name__="Config: VideoComposer")
 
 cfg.video_compositions = ["text", "mask", "depthmap", "sketch", "motion", "image", "local_image", "single_sketch"]
-cfg.midas_checkpoint = "midas_v3_dpt_large.pth"
-cfg.pidinet_checkpoint = "table5_pidinet.pth"
-cfg.sketch_simplification_checkpoint = "sketch_simplification_gan.pth"
+cfg.midas_checkpoint = "midas_v3_dpt_large-c8fd1049.ckpt"
+cfg.pidinet_checkpoint = "table5_pidinet-37904a63.ckpt"
+cfg.sketch_simplification_checkpoint = "sketch_simplification_gan-b928fdfa.ckpt"
 
 # dataset
 cfg.root_dir = "webvid10m/"
@@ -65,7 +65,19 @@ cfg.p_zero = 0.9
 cfg.guide_scale = 6.0
 
 # stable diffusion
-cfg.sd_checkpoint = "v2-1_512-ema-pruned.ckpt"
+cfg.sd_checkpoint = "sd_v2-1_base-7c8d09ce.ckpt"
+cfg.ddconfig = {
+    "double_z": True,
+    "z_channels": 4,
+    "resolution": 256,
+    "in_channels": 3,
+    "out_ch": 3,
+    "ch": 128,
+    "ch_mult": [1, 2, 4, 4],
+    "num_res_blocks": 2,
+    "attn_resolutions": [],
+    "dropout": 0.0,
+}
 
 # clip vision encoder
 cfg.vit_image_size = 336
@@ -76,8 +88,8 @@ cfg.vit_heads = 16
 cfg.vit_layers = 24
 cfg.vit_mean = [0.48145466, 0.4578275, 0.40821073]
 cfg.vit_std = [0.26862954, 0.26130258, 0.27577711]
-cfg.clip_checkpoint = "clip/open_clip_vit_h_14.ckpt"
-cfg.clip_tokenizer = "clip/bpe_simple_vocab_16e6.txt.gz"
+cfg.clip_checkpoint = "open_clip_vit_h_14-9bb07a10.ckpt"
+cfg.clip_tokenizer = "bpe_simple_vocab_16e6.txt.gz"
 cfg.mvs_visual = False
 
 # unet
@@ -132,3 +144,4 @@ cfg.save_ckp_interval = 1000
 cfg.log_interval = 100
 composition_strings = "_".join(cfg.video_compositions)
 cfg.log_dir = "outputs/"
+cfg.mode = 0  # 0: Graph mode; 1: Pynative mode
