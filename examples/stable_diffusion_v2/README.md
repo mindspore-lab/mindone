@@ -198,15 +198,8 @@ python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.
 ```
 
 <div align="center">
-<img src="https://github.com/zhtmike/mindone/assets/8342575/251ea23e-92a5-4f52-a511-3bb11b36c92a" width="320" />
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://github.com/zhtmike/mindone/assets/8342575/5c09e33e-1b4d-46c5-b4cf-659cdef26b77" width="320" />
+<img src="https://github.com/zhtmike/mindone/assets/8342575/393832cf-803a-4745-9fb1-7ef1107f9c37" width="960" />
 </div>
-<p align="center">
-<em> Image variation with prompt </em>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<em> Image variation with prompt and noise </em>
-</p>
 
 ### Text-guided Depth-to-Image
 

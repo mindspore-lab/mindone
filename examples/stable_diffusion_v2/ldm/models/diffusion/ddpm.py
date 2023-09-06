@@ -353,6 +353,13 @@ class LatentDiffusion(DDPM):
         return self.scale_factor * z
 
     def apply_model(self, x_noisy, t, cond, return_ids=False, **kwargs):
+        """
+        args:
+            cond: it can be a dictionary or a Tensor. When `cond` is a dictionary,
+                it passes through `DiffusionWrapper` as keyword arguments. When it
+                is a Tensor, it is the input argument of "c_concat" or `c_crossattn`
+                depends on the predefined `conditioning_key`.
+        """
         if isinstance(cond, dict):
             # hybrid case, cond is expected to be a dict
             pass
