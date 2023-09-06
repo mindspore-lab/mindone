@@ -11,8 +11,9 @@ import cv2
 import numpy as np
 from cldm.ddim_hacked import DDIMSampler
 from cldm.model import create_model, load_model
-from conditions.controlnet import CannyDetector, SegmentDetector
-from conditions.controlnet.utils import HWC3, resize_image
+from conditions.canny.canny_detector import CannyDetector
+from conditions.segmentation.segment_detector import SegmentDetector
+from conditions.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
 from PIL import Image
 

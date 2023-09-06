@@ -6,7 +6,7 @@ import mindspore.nn as nn
 from mindspore import Tensor
 from mindspore.train.serialization import load_checkpoint, load_param_into_net
 
-from .utils.deeplab_v3plus import DeepLabV3Plus
+from .deeplab_v3plus import DeepLabV3Plus
 
 __all__ = ["SegmentDetector"]
 

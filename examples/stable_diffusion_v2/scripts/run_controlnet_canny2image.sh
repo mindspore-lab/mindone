@@ -12,7 +12,7 @@ export MODEL_DIR="./models/"
 output_path=output
 mkdir -p ${output_path}
 
-nohup python image2image.py \
+nohup python controlnet_image2image.py \
     --model_config "./configs/v1_inference_contorlnet.yaml" \
     --model_ckpt $MODEL_DIR"control_sd15_canny_ms.ckpt" \
     --input_image "path/to/test_imgs/"$INPUT_FILE_NAME".png" \
