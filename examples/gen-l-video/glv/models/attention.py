@@ -1,6 +1,6 @@
+import warnings
 from dataclasses import dataclass
 from typing import Optional
-import warnings
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -20,11 +20,13 @@ class TransformerTemporalModelOutput(BaseOutput):
 
     sample: ms.Tensor
 
+
 @dataclass
 class Transformer2DModelOutput(BaseOutput):
     """
     Args:
-        sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` or `(batch size, num_vector_embeds - 1, num_latent_pixels)` if [`Transformer2DModel`] is discrete):
+        sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` or
+            `(batch size, num_vector_embeds - 1, num_latent_pixels)` if [`Transformer2DModel`] is discrete):
             Hidden states conditioned on `encoder_hidden_states` input. If discrete, returns probability distributions
             for the unnoised latent pixels.
     """
@@ -816,7 +818,8 @@ class Transformer2DModel(nn.Cell):
         self.attention_head_dim = attention_head_dim
         inner_dim = num_attention_heads * attention_head_dim
 
-        # 1. Transformer2DModel can process both standard continuous images of shape `(batch_size, num_channels, width, height)` as well as quantized image embeddings of shape `(batch_size, num_image_vectors)`
+        # 1. Transformer2DModel can process both standard continuous images of shape `(batch_size, num_channels, width, height)`
+        # as well as quantized image embeddings of shape `(batch_size, num_image_vectors)`
         # Define whether input is continuous or discrete depending on configuration
         self.is_input_continuous = (in_channels is not None) and (patch_size is None)
         self.is_input_vectorized = num_vector_embeds is not None
@@ -857,7 +860,9 @@ class Transformer2DModel(nn.Cell):
             if use_linear_projection:
                 self.proj_in = nn.Dense(in_channels, inner_dim)
             else:
-                self.proj_in = nn.Conv2d(in_channels, inner_dim, 1, stride=1, pad_mode="valid", padding=0, has_bias=True)
+                self.proj_in = nn.Conv2d(
+                    in_channels, inner_dim, 1, stride=1, pad_mode="valid", padding=0, has_bias=True
+                )
         elif self.is_input_vectorized:
             assert sample_size is not None, "Transformer2DModel over discrete input must provide sample_size"
             assert num_vector_embeds is not None, "Transformer2DModel over discrete input must provide num_embed"
@@ -913,7 +918,9 @@ class Transformer2DModel(nn.Cell):
             if use_linear_projection:
                 self.proj_out = nn.Dense(inner_dim, in_channels)
             else:
-                self.proj_out = nn.Conv2d(inner_dim, in_channels, 1, stride=1, pad_mode="valid", padding=0, has_bias=True)
+                self.proj_out = nn.Conv2d(
+                    inner_dim, in_channels, 1, stride=1, pad_mode="valid", padding=0, has_bias=True
+                )
         elif self.is_input_vectorized:
             self.norm_out = nn.LayerNorm((inner_dim,))
             self.out = nn.Dense(inner_dim, self.num_vector_embeds - 1)

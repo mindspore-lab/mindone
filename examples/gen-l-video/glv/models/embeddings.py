@@ -1,10 +1,11 @@
 import math
 from typing import Optional
 
+import numpy as np
+
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
-import numpy as np
 
 
 def get_timestep_embedding(
@@ -118,9 +119,7 @@ class PatchEmbed(nn.Cell):
         self.flatten = flatten
         self.layer_norm = layer_norm
 
-        self.proj = nn.Conv2d(
-            in_channels, embed_dim, patch_size, stride=patch_size, pad_mode="valid", has_bias=bias
-        )
+        self.proj = nn.Conv2d(in_channels, embed_dim, patch_size, stride=patch_size, pad_mode="valid", has_bias=bias)
         if layer_norm:
             self.norm = nn.LayerNorm((embed_dim,), eps=1e-6)
 

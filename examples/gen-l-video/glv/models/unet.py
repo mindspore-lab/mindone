@@ -3,20 +3,11 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
 
 from .attention import TransformerTemporalModel
 from .embeddings import TimestepEmbedding, Timesteps
 from .outputs import BaseOutput
-from .unet_blocks import (
-    CrossAttnDownBlock3D,
-    CrossAttnUpBlock3D,
-    DownBlock3D,
-    UNetMidBlock3DCrossAttn,
-    UpBlock3D,
-    get_down_block,
-    get_up_block,
-)
+from .unet_blocks import UNetMidBlock3DCrossAttn, get_down_block, get_up_block
 
 
 @dataclass
@@ -86,17 +77,20 @@ class UNet3DConditionModel(nn.Cell):
         # Check inputs
         if len(down_block_types) != len(up_block_types):
             raise ValueError(
-                f"Must provide the same number of `down_block_types` as `up_block_types`. `down_block_types`: {down_block_types}. `up_block_types`: {up_block_types}."
+                f"Must provide the same number of `down_block_types` as `up_block_types`. "
+                f"`down_block_types`: {down_block_types}. `up_block_types`: {up_block_types}."
             )
 
         if len(block_out_channels) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `block_out_channels` as `down_block_types`. `block_out_channels`: {block_out_channels}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `block_out_channels` as `down_block_types`. "
+                f"`block_out_channels`: {block_out_channels}. `down_block_types`: {down_block_types}."
             )
 
         if not isinstance(attention_head_dim, int) and len(attention_head_dim) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `attention_head_dim` as `down_block_types`. `attention_head_dim`: {attention_head_dim}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `attention_head_dim` as `down_block_types`. "
+                f"`attention_head_dim`: {attention_head_dim}. `down_block_types`: {down_block_types}."
             )
 
         # input
@@ -226,7 +220,12 @@ class UNet3DConditionModel(nn.Cell):
 
         conv_out_padding = (conv_out_kernel - 1) // 2
         self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, conv_out_kernel, pad_mode="pad", padding=conv_out_padding, has_bias=True
+            block_out_channels[0],
+            out_channels,
+            conv_out_kernel,
+            pad_mode="pad",
+            padding=conv_out_padding,
+            has_bias=True,
         )
 
     def construct(
