@@ -4,9 +4,11 @@ r"""Modified from ``https://github.com/zhuoinoulu/pidinet''.
         T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])]).
 """
 import math
+import os
 from functools import partial
 
 import numpy as np
+from utils.download import download_checkpoint
 
 from mindspore import Parameter, nn, ops
 from mindspore.common.initializer import Constant, HeUniform, Uniform, initializer
@@ -17,6 +19,10 @@ __all__ = [
     "PiDiNet",
     "pidinet_bsd",
 ]
+
+_CKPT_URL = {
+    "pidinet_bsd": "https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/table5_pidinet-37904a63.ckpt"
+}
 
 
 CONFIGS = {
@@ -428,6 +434,13 @@ def pidinet_bsd(pretrained=False, vanilla_cnn=True, ckpt_path=None):
         return {k[len(prefix) :] if k.startswith(prefix) else k: v for k, v in sd.items()}
 
     if pretrained:
+        if not os.path.exists(ckpt_path):
+            download_checkpoint(_CKPT_URL["pidinet_bsd"], "model_weights/")
+        if not os.path.exists(ckpt_path):
+            raise ValueError(
+                f"Maybe download failed. Please download it manually from {_CKPT_URL['pidinet_bsd']} and place it under `model_weights/`"
+            )
+
         if vanilla_cnn:
             load_pt_weights_in_model(model, ckpt_path, (partial(convert_pidinet, config="carv4"), remove_prefix))
         else:

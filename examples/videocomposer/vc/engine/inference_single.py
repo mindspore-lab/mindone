@@ -8,7 +8,7 @@ from mindspore import dataset as ds
 from mindspore.dataset import transforms, vision
 
 from ..annotator.canny import CannyDetector
-from ..annotator.depth import midas_v3
+from ..annotator.depth import midas_v3_dpt_large
 from ..annotator.sketch import pidinet_bsd, sketch_simplification_gan
 from ..config import cfg
 from ..data import CenterCrop, RandomResize, VideoDataset, make_masked_images
@@ -64,7 +64,8 @@ def inference_single(cfg_update, **kwargs):
     return cfg
 
 
-def worker(gpu, cfg):
+def init(gpu, cfg, video_name=None):
+    ms.set_context(mode=cfg.mode, pynative_synchronize=True)
     # LOCAL_RANK - The local rank.
     cfg.gpu = gpu
     # RANK - The global rank.
@@ -86,7 +87,10 @@ def worker(gpu, cfg):
     # logging
     # todo: need `all_gather` to get consistent `log_dir` between each proc if running in distributed mode.
     log_dir = cfg.log_dir
-    exp_name = os.path.basename(cfg.cfg_file).split(".")[0] + "-S%05d" % (cfg.seed)
+    if video_name is None:
+        exp_name = os.path.basename(cfg.cfg_file).split(".")[0] + "-S%05d" % (cfg.seed)
+    else:
+        exp_name = os.path.basename(cfg.cfg_file).split(".")[0] + f"-{video_name}" + "-S%05d" % (cfg.seed)
     log_dir = os.path.join(log_dir, exp_name)
     os.makedirs(log_dir, exist_ok=True)
     cfg.log_dir = log_dir
@@ -99,6 +103,10 @@ def worker(gpu, cfg):
     cfg.max_frames = cfg.frame_lens[cfg.rank % (l1 * l2) // l2]
     cfg.batch_size = cfg.batch_sizes[str(cfg.max_frames)]
 
+    cfg.dtype = ms.float16 if cfg.use_fp16 else ms.float32
+
+
+def prepare_transforms(cfg):
     # [Transform] Transforms for different inputs
     infer_transforms = transforms.Compose(
         [
@@ -127,7 +135,11 @@ def worker(gpu, cfg):
             vision.Normalize(mean=cfg.vit_mean, std=cfg.vit_std, is_hwc=False),
         ]
     )
+    return infer_transforms, misc_transforms, mv_transforms, vit_transforms
 
+
+def prepare_dataloader(cfg, transforms_list):
+    infer_transforms, misc_transforms, mv_transforms, vit_transforms = transforms_list
     dataset = VideoDataset(
         cfg=cfg,
         max_words=cfg.max_words,
@@ -146,72 +158,110 @@ def worker(gpu, cfg):
         column_names=["ref_frame", "cap_txt", "video_data", "misc_data", "feature_framerate", "mask", "mv_data"],
     )
     dataloader = dataloader.batch(1)
+    return dataloader
 
+
+def prepare_clip_encoders(cfg):
     clip_encoder = FrozenOpenCLIPEmbedder(
         layer="penultimate",
         pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint),
         tokenizer_path=get_abspath_of_weights(cfg.clip_tokenizer),
+        use_fp16=cfg.use_fp16,
     )
-    zero_y = ms.ops.stop_gradient(clip_encoder("")).to(ms.float32)  # [1, 77, 1024]
     clip_encoder_visual = FrozenOpenCLIPVisualEmbedder(
-        layer="penultimate", pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint)
+        layer="penultimate", pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint), use_fp16=cfg.use_fp16
     )
-    black_image_feature = (
-        clip_encoder_visual(clip_encoder_visual.black_image).unsqueeze(1).to(ms.float32)
-    )  # [1, 1, 1024]
-    black_image_feature = ms.ops.zeros_like(black_image_feature)  # for old
+    return clip_encoder, clip_encoder_visual
 
-    frame_in = None
-    if cfg.read_image:
-        image_key = cfg.image_path
-        frame = Image.open(open(image_key, mode="rb")).convert("RGB")
-        frame_in = misc_transforms(frame)
-        frame_in = ms.Tensor(frame_in)
-    frame_sketch = None
-    if cfg.read_sketch:
-        sketch_key = cfg.sketch_path
-        frame_sketch = Image.open(open(sketch_key, mode="rb")).convert("RGB")
-        frame_sketch = misc_transforms(frame_sketch)
-        frame_sketch = ms.Tensor(frame_sketch)
-    frame_style = None
-    if cfg.read_style:
-        frame_style = Image.open(open(cfg.style_image, mode="rb")).convert("RGB")
 
+def read_image_if_provided(flag, path, transform=None, return_tensor=True, dtype=ms.float32):
+    "read image `path` if `flag` is True, else return None"
+    if not flag:
+        return None
+    img = Image.open(open(path, mode="rb")).convert("RGB")
+    if transform is not None:
+        img = transform(img)
+    if return_tensor:
+        img = ms.Tensor(img, dtype=dtype)
+    return img
+
+
+def prepare_condition_models(cfg):
     # [Conditions] Generators for various conditions
     if "depthmap" in cfg.video_compositions:
-        midas = midas_v3(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
-        midas = midas.set_train(False).to_float(ms.float32)
+        midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
+        midas = midas.set_train(False).to_float(cfg.dtype)
+        for _, param in midas.parameters_and_names():
+            param.requires_grad = False
+
+        def depth_extractor(misc_imgs):
+            depth = midas((misc_imgs - 0.5) / 0.5)
+            depth = (depth / cfg.depth_std).clamp(0, cfg.depth_clamp)
+            return depth
+
+    else:
+        depth_extractor = None
+
     if "canny" in cfg.video_compositions:
         canny_detector = CannyDetector()
+
+        def canny_extractor(misc_imgs):
+            misc_imgs = ms.ops.transpose(misc_imgs.copy(), (0, 2, 3, 1))  # 'k' means 'chunk'.
+            canny_condition = ms.ops.stack([canny_detector(misc_img) for misc_img in misc_imgs])
+            canny_condition = ms.ops.transpose(canny_condition, (0, 3, 1, 2))
+            return canny_condition
+
+    else:
+        canny_extractor = None
+
     if "sketch" in cfg.video_compositions:
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
         )
-        pidinet = pidinet.set_train(False).to_float(ms.float32)
+        pidinet = pidinet.set_train(False).to_float(cfg.dtype)
+        for _, param in pidinet.parameters_and_names():
+            param.requires_grad = False
         cleaner = sketch_simplification_gan(
             pretrained=True, ckpt_path=get_abspath_of_weights(cfg.sketch_simplification_checkpoint)
         )
-        cleaner = cleaner.set_train(False).to_float(ms.float32)
+        cleaner = cleaner.set_train(False).to_float(cfg.dtype)
+        for _, param in cleaner.parameters_and_names():
+            param.requires_grad = False
         pidi_mean = ms.Tensor(cfg.sketch_mean).view(1, -1, 1, 1)
         pidi_std = ms.Tensor(cfg.sketch_std).view(1, -1, 1, 1)
-    # Placeholder for color inference
-    palette = None
 
+        def sketch_extractor(misc_imgs):
+            sketch = pidinet((misc_imgs - pidi_mean) / pidi_std)
+            sketch = 1.0 - cleaner(1.0 - sketch)
+            return sketch
+
+    else:
+        sketch_extractor = None
+    return depth_extractor, canny_extractor, sketch_extractor
+
+
+def extract_conditions(batch_size, condition_extractor, data_list):
+    cond_data = []
+    for imgs in data_list:
+        cond = condition_extractor(imgs)
+        cond_data.append(cond)
+    cond_data = ms.ops.cat(cond_data, axis=0)
+    # (b f) c h w -> b f c h w -> b c f h w
+    cond_data = ms.ops.reshape(cond_data, (batch_size, cond_data.shape[0] // batch_size, *cond_data.shape[1:]))
+    cond_data = ms.ops.transpose(cond_data, (0, 2, 1, 3, 4))
+    return cond_data
+
+
+def prepare_autoencoder_unet(cfg, zero_y, black_image_feature, version="2.1"):
     # [Model] autoencoder & unet
-    ddconfig = {
-        "double_z": True,
-        "z_channels": 4,
-        "resolution": 256,
-        "in_channels": 3,
-        "out_ch": 3,
-        "ch": 128,
-        "ch_mult": [1, 2, 4, 4],
-        "num_res_blocks": 2,
-        "attn_resolutions": [],
-        "dropout": 0.0,
-    }
-    autoencoder = AutoencoderKL(ddconfig, 4, ckpt_path=get_abspath_of_weights(cfg.sd_checkpoint))
-    autoencoder = autoencoder.set_train(False).to_float(ms.float32)
+    autoencoder = AutoencoderKL(
+        cfg.ddconfig,
+        4,
+        ckpt_path=get_abspath_of_weights(cfg.sd_checkpoint),
+        use_fp16=cfg.use_fp16,
+        version=version,
+    )
+    autoencoder = autoencoder.set_train(False)
     for param in autoencoder.get_parameters():
         param.requires_grad = False
 
@@ -241,8 +291,11 @@ def worker(gpu, cfg):
             p_all_keep=cfg.p_all_zero,
             zero_y=zero_y,
             black_image_feature=black_image_feature,
+            use_fp16=cfg.use_fp16,
         )
-        model = model.set_train(False).to_float(ms.float32)
+        model = model.set_train(False)
+        for _, param in model.parameters_and_names():
+            param.requires_grad = False
     else:
         raise NotImplementedError(f"The model {cfg.network_name} not implement")
 
@@ -261,7 +314,28 @@ def worker(gpu, cfg):
     _logger.info(
         f"Created a model with {int(sum(p.numel() for p in model.get_parameters()) / (1024 ** 2))}M parameters"
     )
+    return autoencoder, model
 
+
+def worker(gpu, cfg):
+    init(gpu, cfg)
+    transforms_list = prepare_transforms(cfg)
+    misc_transforms = transforms_list[1]
+    dataloader = prepare_dataloader(cfg, transforms_list)
+    clip_encoder, clip_encoder_visual = prepare_clip_encoders(cfg)
+    zero_y = ms.ops.stop_gradient(clip_encoder.encode(""))  # [1, 77, 1024]
+    black_image_feature = clip_encoder_visual.encode(clip_encoder_visual.black_image).unsqueeze(1)  # [1, 1, 1024]
+    black_image_feature = ms.ops.zeros_like(black_image_feature)  # for old
+
+    frame_in = read_image_if_provided(cfg.read_image, cfg.image_path, misc_transforms, return_tensor=True)
+    frame_sketch = read_image_if_provided(cfg.read_sketch, cfg.sketch_path, misc_transforms, return_tensor=True)
+    frame_style = read_image_if_provided(cfg.read_style, cfg.style_image, None, return_tensor=False)
+
+    depth_extractor, canny_extractor, sketch_extractor = prepare_condition_models(cfg)
+    # Placeholder for color inference
+    palette = None
+
+    autoencoder, model = prepare_autoencoder_unet(cfg, zero_y, black_image_feature)
     # diffusion
     betas = beta_schedule("linear_sd", cfg.num_timesteps, init_beta=0.00085, last_beta=0.0120)
     diffusion = GaussianDiffusion(
@@ -312,7 +386,6 @@ def worker(gpu, cfg):
         video_data_list = ms.ops.chunk(video_data, video_data.shape[0] // cfg.chunk_size, axis=0)
         misc_data_list = ms.ops.chunk(misc_data, misc_data.shape[0] // cfg.chunk_size, axis=0)
 
-        # with torch.no_grad() start
         decode_data = []
         for vd_data in video_data_list:
             encoder_posterior = autoencoder.encode(vd_data)
@@ -325,70 +398,34 @@ def worker(gpu, cfg):
 
         depth_data = []
         if "depthmap" in cfg.video_compositions:
-            for misc_imgs in misc_data_list:
-                depth = midas((misc_imgs - 0.5) / 0.5)
-                depth = (depth / cfg.depth_std).clamp(0, cfg.depth_clamp)
-                depth_data.append(depth)
-            depth_data = ms.ops.cat(depth_data, axis=0)
-            # (b f) c h w -> b f c h w -> b c f h w
-            depth_data = ms.ops.reshape(depth_data, (bs_vd, depth_data.shape[0] // bs_vd, *depth_data.shape[1:]))
-            depth_data = ms.ops.transpose(depth_data, (0, 2, 1, 3, 4))
-
+            depth_data = extract_conditions(bs_vd, depth_extractor, misc_data_list)
         canny_data = []
         if "canny" in cfg.video_compositions:
-            for misc_imgs in misc_data_list:
-                # print(misc_imgs.shape)
-                misc_imgs = ms.ops.transpose(misc_imgs.copy(), (0, 2, 3, 1))  # 'k' means 'chunk'.
-                canny_condition = ms.ops.stack([canny_detector(misc_img) for misc_img in misc_imgs])
-                canny_condition = ms.ops.transpose(canny_condition, (0, 3, 1, 2))
-                canny_data.append(canny_condition)
-            canny_data = ms.ops.cat(canny_data, axis=0)
-            # (b f) c h w -> b f c h w -> b c f h w
-            canny_data = ms.ops.reshape(canny_data, (bs_vd, canny_data.shape[0] // bs_vd, *canny_data.shape[1:]))
-            canny_data = ms.ops.transpose(canny_data, (0, 2, 1, 3, 4))
-
+            canny_data = extract_conditions(bs_vd, canny_extractor, misc_data_list)
         sketch_data = []
         if "sketch" in cfg.video_compositions:
             sketch_list = misc_data_list
             if cfg.read_sketch:
                 sketch_repeat = frame_sketch.tile((frames_num, 1, 1, 1))
                 sketch_list = [sketch_repeat]
-            for misc_imgs in sketch_list:
-                sketch = pidinet((misc_imgs - pidi_mean) / pidi_std)
-                sketch = 1.0 - cleaner(1.0 - sketch)
-                sketch_data.append(sketch)
-            sketch_data = ms.ops.cat(sketch_data, axis=0)
-            # (b f) c h w -> b f c h w -> b c f h w
-            sketch_data = ms.ops.reshape(sketch_data, (bs_vd, sketch_data.shape[0] // bs_vd, *sketch_data.shape[1:]))
-            sketch_data = ms.ops.transpose(sketch_data, (0, 2, 1, 3, 4))
-
+            sketch_data = extract_conditions(bs_vd, sketch_extractor, sketch_list)
         single_sketch_data = []
         if "single_sketch" in cfg.video_compositions:
             single_sketch_data = sketch_data.copy()[:, :, :1].tile((1, 1, frames_num, 1, 1))
-        # with torch.no_grad() end
 
         # preprocess for input text descripts
-        y = clip_encoder(caps).to(ms.float32)  # [1, 77, 1024]
+        y = clip_encoder.encode(caps)  # [1, 77, 1024]
         y0 = y.copy()
         y_visual = []
         if "image" in cfg.video_compositions:
             # with torch.no_grad():
             if cfg.read_style:
-                y_visual = clip_encoder_visual(frame_style).unsqueeze(0).to(ms.float32)
+                y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0)
                 y_visual0 = y_visual.copy()
             else:
-                # ref_imgs = ref_imgs.squeeze(1)  # (1, 3, 224, 224) todo: torch.squeeze does nothing?
-                y_visual = clip_encoder_visual(ref_imgs).unsqueeze(1).to(ms.float32)  # [1, 1, 1024]
+                y_visual = clip_encoder_visual.encode(ref_imgs).unsqueeze(1)  # [1, 1, 1024]
                 y_visual0 = y_visual.copy()
 
-        # with torch.no_grad() start
-        # Log memory
-        # pynvml.nvmlInit()
-        # handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-        # meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
-        # logging.info(f"GPU Memory used {meminfo.used / (1024 ** 3):.2f} GB")
-        # Sample images (DDIM)
-        # with amp.autocast(enabled=cfg.use_fp16) start
         if cfg.share_noise:
             b, c, f, h, w = video_data.shape
             noise = ms.ops.randn((viz_num, c, h, w))
@@ -455,8 +492,6 @@ def worker(gpu, cfg):
             cfg=cfg,
         )
         # --------------------------------------
-        # with amp.autocast(enabled=cfg.use_fp16) end
-        # with torch.no_grad() end
 
     _logger.info("Congratulations! The inference is completed!")
 

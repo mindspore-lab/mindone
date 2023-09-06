@@ -4,8 +4,11 @@ from typing import Optional
 import numpy as np
 
 sys.path.append("../stable_diffusion_v2/")
+import os
+
 from PIL import Image
 from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
+from utils.download import download_checkpoint
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -15,8 +18,12 @@ __all__ = [
     "FrozenOpenCLIPVisualEmbedder",
 ]
 
+_CKPT_URL = {
+    "open_clip_vit_h_14": "https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/open_clip_vit_h_14-9bb07a10.ckpt"
+}
 
-def load_clip_model(arch, pretrained_ckpt_path):
+
+def load_clip_model(arch, pretrained_ckpt_path, dtype):
     """
     Load CLIP model.
 
@@ -29,8 +36,18 @@ def load_clip_model(arch, pretrained_ckpt_path):
     if arch.lower() not in support_list:
         raise ValueError(f"arch {arch} is not supported")
     config_path = support_list[arch.lower()]
+    # download the clip model if
+    if arch.lower() != "open_clip_vit_h_14":
+        raise ValueError(f"currently not support {arch.lower()}")
+    if not os.path.exists(pretrained_ckpt_path):
+        download_checkpoint(_CKPT_URL[arch.lower()], "model_weights/")
+    if not os.path.exists(pretrained_ckpt_path):
+        raise ValueError(
+            f"Maybe download failed. Please download it manually from {_CKPT_URL[arch.lower()]} and place it under `model_weights/`"
+        )
 
     config = parse(config_path, pretrained_ckpt_path)
+    config.dtype = dtype
     model = CLIPModel(config)
     return model
 
@@ -48,9 +65,11 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
         tokenizer_path="./vit-h-14-laion-2b/bpe_simple_vocab_16e6.txt.gz",
         freeze=True,
         layer="penultimate",
+        use_fp16=False,
     ):
         super().__init__()
-        model = load_clip_model(arch, pretrained_ckpt_path)
+        self.dtype = ms.float16 if use_fp16 else ms.float32
+        model = load_clip_model(arch, pretrained_ckpt_path, str(self.dtype).lower())
         del model.visual
         self.model = model
         self.layer = layer
@@ -85,15 +104,16 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
     def process_text(self, text_prompt):
         return ms.Tensor(self.tokenizer(text_prompt, padding="max_length", max_length=77)["input_ids"])
 
-    def construct(self, text):
-        if isinstance(text, str):
-            text = [text]
-        token_ids = self.process_text(text)
+    def construct(self, token_ids: ms.Tensor):
         text_features = self.get_text_features(token_ids)
         return text_features
 
     def encode(self, text):
-        return self.construct(text)
+        if isinstance(text, str):
+            text = [text]
+        token_ids = self.process_text(text)
+        text_features = self.construct(token_ids)
+        return text_features
 
     def get_text_features(self, text: ms.Tensor, input_ids: Optional[ms.Tensor] = None):
         r"""Get_text_features
@@ -127,9 +147,11 @@ class FrozenOpenCLIPVisualEmbedder(nn.Cell):
         freeze=True,
         layer="penultimate",
         resolution=224,
+        use_fp16=False,
     ):
         super().__init__()
-        model = load_clip_model(arch, pretrained_ckpt_path)
+        self.dtype = ms.float16 if use_fp16 else ms.float32
+        model = load_clip_model(arch, pretrained_ckpt_path, str(self.dtype).lower())
         del model.transformer
 
         self.model = model
@@ -152,13 +174,13 @@ class FrozenOpenCLIPVisualEmbedder(nn.Cell):
             for name, param in self.model.parameters_and_names():
                 param.requires_grad = False
 
-    def construct(self, image):
+    def encode(self, image):
         if not isinstance(image, list):
             image_ = self.image_processor(image)
-            image_features = self.model.get_image_features(image_)
+            image_features = self.construct(image_)
         else:
             image_ = [self.image_processor(img) for img in image]
-            image_features = [self.model.get_image_features(img) for img in image_]
+            image_features = [self.construct(img) for img in image_]
         # the returned features are non-normalilzed
 
         # normalization
@@ -170,3 +192,6 @@ class FrozenOpenCLIPVisualEmbedder(nn.Cell):
         # image_features = L2_norm_ops(image_features) if not isinstance(image_features, list) else [
         #     L2_norm_ops(img_feat) for img_feat in image_features]
         return image_features
+
+    def construct(self, image):
+        return self.model.get_image_features(image)
