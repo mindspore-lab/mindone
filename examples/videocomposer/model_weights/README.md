@@ -1,4 +1,4 @@
-This folder should contain the following checkpoint files. 
+This folder should contain the following checkpoint files.
 
 ```text
 |-- bpe_simple_vocab_16e6.txt.gz
