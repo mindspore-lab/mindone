@@ -257,7 +257,7 @@ class DDIMSampler(object):
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
             c_in = c if append_to_context is None else ops.cat([c, append_to_context], axis=1)
-            model_output = self.model.apply_model(x, t, c_crossattn=c_in, features_adapter=features_adapter)
+            model_output = self.model.apply_model(x, t, c_in, features_adapter=features_adapter)
         else:
             x_in = ops.concat((x, x), axis=0)
             t_in = ops.concat((t, t), axis=0)
@@ -287,7 +287,7 @@ class DDIMSampler(object):
                 else:
                     c_in = ops.concat([unconditional_conditioning, c], axis=0)
             model_uncond, model_t = self.split(
-                self.model.apply_model(x_in, t_in, c_crossattn=c_in, features_adapter=features_adapter)
+                self.model.apply_model(x_in, t_in, c_in, features_adapter=features_adapter)
             )
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
@@ -362,11 +362,11 @@ class DDIMSampler(object):
         for i in tqdm(range(num_steps), desc="Encoding Image"):
             t = ms.numpy.full((x0.shape[0],), i, dtype=ms.int64)
             if unconditional_guidance_scale == 1.0:
-                noise_pred = self.model.apply_model(x_next, t, c_crossattn=c)
+                noise_pred = self.model.apply_model(x_next, t, c)
             else:
                 assert unconditional_conditioning is not None
-                e_t_uncond = self.model.apply_model(x_next, t, c_crossattn=unconditional_conditioning)
-                noise_pred = self.model.apply_model(x_next, t, c_crossattn=c)
+                e_t_uncond = self.model.apply_model(x_next, t, unconditional_conditioning)
+                noise_pred = self.model.apply_model(x_next, t, c)
                 noise_pred = e_t_uncond + unconditional_guidance_scale * (noise_pred - e_t_uncond)
 
             xt_weighted = (alphas_next[i] / alphas[i]).sqrt() * x_next

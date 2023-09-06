@@ -88,7 +88,7 @@ class DPMSolverSampler(object):
             img = x_T
 
         model_fn = model_wrapper(
-            lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),
+            lambda x, t, c: self.model.apply_model(x, t, c),
             self.noise_schedule,
             model_type=self.prediction_type,
             guidance_type="classifier-free",
@@ -148,7 +148,7 @@ class DPMSolverSampler(object):
                     )
 
         model_fn = model_wrapper(
-            lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),
+            lambda x, t, c: self.model.apply_model(x, t, c),
             self.noise_schedule,
             model_type=self.prediction_type,
             guidance_type="classifier-free",

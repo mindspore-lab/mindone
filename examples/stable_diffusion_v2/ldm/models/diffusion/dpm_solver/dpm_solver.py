@@ -359,7 +359,13 @@ def model_wrapper(
             else:
                 x_in = ops.concat([x] * 2)
                 t_in = ops.concat([t_continuous] * 2)
-                c_in = ops.concat([unconditional_condition, condition])
+                if isinstance(condition, dict):
+                    assert isinstance(unconditional_condition, dict)
+                    c_in = dict()
+                    for k in condition:
+                        c_in[k] = ops.concat([unconditional_condition[k], condition[k]])
+                else:
+                    c_in = ops.concat([unconditional_condition, condition])
                 noise_output = noise_pred_fn(x_in, t_in, cond=c_in)
                 if is_old_ms_version():
                     noise_uncond, noise = ops.split(noise_output, output_num=2)
