@@ -39,6 +39,7 @@ For a quick tour, please view [demo](demo.md).
     - [Chinese Text-guided Image Inpainting](#chinese-text-guided-image-inpainting)
   - [Training](#training-1)
 - [Stable Diffusion with ControlNet](#stable-diffusion-with-controlnet)
+  - [Inference](#inference-2)
 - [Stable Diffusion with T2I-Adapter](#stable-diffusion-with-t2i-adapter)
 - [Data Preparation for Training](#dataset-preparation-for-finetuning)
 - [Supported Schedulers](#supported-schedulers)
@@ -357,7 +358,13 @@ after setting `data_path` in `run_train_v1.sh` to your dataset path.
 
 # Stable Diffusion with ControlNet
 
-# Stable Diffusion with T2I Adapter
+ControlNet controls pretrained large diffusion models to support additional input conditions. The ControlNet learns task-specific conditions in an end-to-end way, and the learning is robust even when the training dataset is small. Large diffusion models like Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, keypoints, etc.
+
+## Inference
+
+For details, please refer to the tutorial [ControlNet image generation](controlnet.md).
+
+# Stable Diffusion with T2I-Adapter
 
 [T2I-Adapter](T2I-Adapter.md) is a simple and lightweight network that provides extra visual guidance for Stable
 Diffusion models without re-training them. The adapter act as plug-ins to SD models, making it easy to integrate and
@@ -386,7 +393,6 @@ For more information on inference with T2I-Adapters, please refer to
 ## Training
 
 Coming soon.
-
 
 # Dataset Preparation for Finetuning
 
