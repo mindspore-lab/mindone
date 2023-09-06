@@ -460,11 +460,11 @@ if __name__ == "__main__":
         if os.path.exists(args.ckpt_path):
             if os.path.getsize(args.ckpt_path) < _MIN_CKPT_SIZE:
                 ckpt_incomplete = True
-                print(
-                    f"WARNING: The checkpoint size is too small {args.ckpt_path}. Please check and remove it if it is incomplete!"
+                logger.warning(
+                    f"The checkpoint size is too small {args.ckpt_path}. Please check and remove it if it is incomplete!"
                 )
         if not os.path.exists(args.ckpt_path):
-            print(f"Start downloading checkpoint {ckpt_name} ...")
+            logger.info(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])
