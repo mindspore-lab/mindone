@@ -1002,7 +1002,7 @@ class Transformer2DModel(nn.Cell):
             logits = logits.permute(0, 2, 1)
 
             # log(p(x_0))
-            output = ops.log_softmax(ms.ops.Cast()(logits, ms.double), axis=1).float()
+            output = ops.log_softmax(logits.to(ms.double), axis=1).float()
         elif self.is_input_patches:
             # TODO: cleanup!
             conditioning = self.transformer_blocks[0].norm1.emb(

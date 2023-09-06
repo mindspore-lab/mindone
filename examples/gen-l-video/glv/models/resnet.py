@@ -4,7 +4,7 @@ from typing import Optional
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore.common.initializer import TruncatedNormal, initializer
+from mindspore.common.initializer import initializer
 
 from .attention import AdaGroupNorm
 

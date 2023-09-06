@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
@@ -6,6 +7,7 @@ import mindspore.ops as ops
 
 from .attention import TransformerTemporalModel
 from .embeddings import TimestepEmbedding, Timesteps
+from .outputs import BaseOutput
 from .unet_blocks import (
     CrossAttnDownBlock3D,
     CrossAttnUpBlock3D,
@@ -15,6 +17,17 @@ from .unet_blocks import (
     get_down_block,
     get_up_block,
 )
+
+
+@dataclass
+class UNet3DConditionOutput(BaseOutput):
+    """
+    Args:
+        sample (`torch.FloatTensor` of shape `(batch_size, num_frames, num_channels, height, width)`):
+            Hidden states conditioned on `encoder_hidden_states` input. Output of last layer of model.
+    """
+
+    sample: ms.Tensor
 
 
 class UNet3DConditionModel(nn.Cell):
@@ -93,7 +106,7 @@ class UNet3DConditionModel(nn.Cell):
         self.conv_in = nn.Conv2d(
             in_channels,
             block_out_channels[0],
-            kernel_size=conv_in_kernel,
+            conv_in_kernel,
             pad_mode="pad",
             padding=conv_in_padding,
             has_bias=True,
@@ -213,7 +226,7 @@ class UNet3DConditionModel(nn.Cell):
 
         conv_out_padding = (conv_out_kernel - 1) // 2
         self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, kernel_size=conv_out_kernel, padding=conv_out_padding
+            block_out_channels[0], out_channels, conv_out_kernel, pad_mode="pad", padding=conv_out_padding, has_bias=True
         )
 
     def construct(
@@ -231,9 +244,9 @@ class UNet3DConditionModel(nn.Cell):
     ) -> Union[UNet3DConditionOutput, Tuple]:
         r"""
         Args:
-            sample (`torch.FloatTensor`): (batch, num_frames, channel, height, width) noisy inputs tensor
-            timestep (`torch.FloatTensor` or `float` or `int`): (batch) timesteps
-            encoder_hidden_states (`torch.FloatTensor`): (batch, sequence_length, feature_dim) encoder hidden states
+            sample (`ms.Tensor`): (batch, num_frames, channel, height, width) noisy inputs tensor
+            timestep (`ms.Tensor` or `float` or `int`): (batch) timesteps
+            encoder_hidden_states (`ms.Tensor`): (batch, sequence_length, feature_dim) encoder hidden states
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`models.unet_2d_condition.UNet3DConditionOutput`] instead of a plain tuple.
             cross_attention_kwargs (`dict`, *optional*):
@@ -257,7 +270,7 @@ class UNet3DConditionModel(nn.Cell):
         upsample_size = None
 
         if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
-            logger.info("Forward upsample size to force interpolation output size.")
+            print("Forward upsample size to force interpolation output size.", flush=True)
             forward_upsample_size = True
 
         # prepare attention_mask
@@ -267,21 +280,13 @@ class UNet3DConditionModel(nn.Cell):
 
         # 1. time
         timesteps = timestep
-        if not torch.is_tensor(timesteps):
-            # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
-            # This would be a good case for the `match` statement (Python 3.10+)
-            is_mps = sample.device.type == "mps"
-            if isinstance(timestep, float):
-                dtype = torch.float32 if is_mps else torch.float64
-            else:
-                dtype = torch.int32 if is_mps else torch.int64
-            timesteps = torch.tensor([timesteps], dtype=dtype, device=sample.device)
-        elif len(timesteps.shape) == 0:
-            timesteps = timesteps[None].to(sample.device)
+
+        if len(timesteps.shape) == 0:
+            timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         num_frames = sample.shape[2]
-        timesteps = timesteps.expand(sample.shape[0])
+        timesteps = timesteps.broadcast_to((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
