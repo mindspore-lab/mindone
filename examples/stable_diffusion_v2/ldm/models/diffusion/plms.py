@@ -242,7 +242,7 @@ class PLMSSampler:
 
         def get_model_output(x, t):
             if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
-                e_t = self.model.apply_model(x, t, c_crossattn=c)
+                e_t = self.model.apply_model(x, t, c)
             else:
                 x_in = ops.concat((x, x), axis=0)
                 t_in = ops.concat((t, t), axis=0)
@@ -257,10 +257,10 @@ class PLMSSampler:
                             ]
                         else:
                             c_in[k] = ops.concat([unconditional_conditioning[k], c[k]], axis=0)
-                    ldm_output = self.model.apply_model(x_in, t_in, **c_in)
+                    ldm_output = self.model.apply_model(x_in, t_in, c_in)  # hybrid condition
                 else:
                     c_in = ops.concat((unconditional_conditioning, c), axis=0)
-                    ldm_output = self.model.apply_model(x_in, t_in, c_crossattn=c_in)
+                    ldm_output = self.model.apply_model(x_in, t_in, c_in)
 
                 if is_old_ms_version():
                     e_t_uncond, e_t = ops.split(ldm_output, axis=0, output_num=2)

@@ -352,9 +352,27 @@ class LatentDiffusion(DDPM):
     def get_first_stage_encoding(self, z):
         return self.scale_factor * z
 
-    def apply_model(self, x_noisy, t, c_concat=None, c_crossattn=None, return_ids=False, **kwargs):
-        x_recon = self.model(x_noisy, t, c_concat, c_crossattn, **kwargs)
-        return x_recon
+    def apply_model(self, x_noisy, t, cond, return_ids=False, **kwargs):
+        """
+        args:
+            cond: it can be a dictionary or a Tensor. When `cond` is a dictionary,
+                it passes through `DiffusionWrapper` as keyword arguments. When it
+                is a Tensor, it is the input argument of "c_concat" or `c_crossattn`
+                depends on the predefined `conditioning_key`.
+        """
+        if isinstance(cond, dict):
+            # hybrid case, cond is expected to be a dict
+            pass
+        else:
+            key = "c_concat" if self.model.conditioning_key == "concat" else "c_crossattn"
+            cond = {key: cond}
+
+        x_recon = self.model(x_noisy, t, **cond, **kwargs)
+
+        if isinstance(x_recon, tuple) and not return_ids:
+            return x_recon[0]
+        else:
+            return x_recon
 
     def get_input(self, x, c):
         if len(x.shape) == 3:
@@ -377,8 +395,7 @@ class LatentDiffusion(DDPM):
         model_output = self.apply_model(
             x_noisy,
             t,
-            c_concat=cond if self.model.conditioning_key == "concat" else None,
-            c_crossattn=cond if self.model.conditioning_key == "crossattn" else None,
+            cond=cond,
         )
 
         if self.parameterization == "x0":
@@ -410,9 +427,9 @@ class DiffusionWrapper(nn.Cell):
         super().__init__()
         self.diffusion_model = instantiate_from_config(diff_model_config)
         self.conditioning_key = conditioning_key
-        assert self.conditioning_key in [None, "concat", "crossattn", "hybrid", "adm"]
+        assert self.conditioning_key in [None, "concat", "crossattn", "hybrid", "adm", "crossattn-adm"]
 
-    def construct(self, x, t, c_concat=None, c_crossattn=None, **kwargs):
+    def construct(self, x, t, c_concat=None, c_crossattn=None, c_adm=None, **kwargs):
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
@@ -425,6 +442,9 @@ class DiffusionWrapper(nn.Cell):
             x_concat = ops.concat((x, c_concat), axis=1)
             context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)
+        elif self.conditioning_key == "crossattn-adm":
+            context = c_crossattn
+            out = self.diffusion_model(x, t, context=context, y=c_adm, **kwargs)
         elif self.conditioning_key == "adm":
             cc = c_crossattn
             out = self.diffusion_model(x, t, y=cc, **kwargs)
@@ -654,3 +674,40 @@ class LatentDepthDiffusion(LatentDiffusion):
     ):
         super().__init__(*args, **kwargs)
         self.concat_keys = concat_keys
+
+
+class ImageEmbeddingConditionedLatentDiffusion(LatentDiffusion):
+    def __init__(
+        self, embedder_config, embedding_dropout=0.5, freeze_embedder=True, noise_aug_config=None, *args, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.embedding_dropout = embedding_dropout
+        self._init_embedder(embedder_config, freeze_embedder)
+        self._init_noise_aug(noise_aug_config)
+
+    def _init_embedder(self, config, freeze=True):
+        self.embedder = instantiate_from_config(config)
+        if freeze:
+            self.embedder.set_train(False)
+            for param in self.embedder.get_parameters():
+                param.requires_grad = False
+
+    def _init_noise_aug(self, config):
+        if config is not None:
+            self.noise_augmentor = instantiate_from_config(config)
+            self.noise_augmentor.set_train(False)
+        else:
+            self.noise_augmentor = None
+
+    def get_input(self, x, c):
+        z, c = LatentDiffusion.get_input(self, x, c)
+        c_adm = self.embedder(x)
+        if self.noise_augmentor is not None:
+            c_adm, noise_level_emb = self.noise_augmentor(c_adm)
+            # assume this gives embeddings of noise levels
+            c_adm = ops.concat((c_adm, noise_level_emb), 1)
+        if self.training:
+            c_adm = ops.bernoulli((1.0 - self.embedding_dropout) * ops.ones(c_adm.shape[0])[:, None]) * c_adm
+
+        # TODO: training support 3 inputs
+        return z, c, c_adm

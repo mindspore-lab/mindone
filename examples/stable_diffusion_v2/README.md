@@ -69,6 +69,8 @@ Currently, we provide pre-trained Stable Diffusion model weights that are compat
 |--------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.1                | text-to-image    | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt)          | [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)         | 512x512        |
 | 2.1-v              | text-to-image    | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt)        | [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1)                   | 768x768        |
+| 2.1-unclip-l              | image-to-image    | [sd21-unclip-l-baa7c8b5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)        | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)                   | 768x768        |
+| 2.1-unclip-h              | image-to-image    | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)        | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)                   | 768x768        |
 | 2.0                | text-to-image    | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
 | 2.0-v              | text-to-image    | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt)            | [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2)                       | 768x768        |
 | 2.0-inpaint        | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
@@ -130,7 +132,7 @@ Text-guided image inpainting allows users to edit specific regions of an image b
 Please download [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)  to `models/` folder, and execute:
 
 ```shell
-python inpaint.py
+python inpaint.py \
     --image {path to input image} \
     --mask  {path to mask image} \
     --prompt "your magic prompt to paint the masked region"
@@ -165,8 +167,39 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
 
 ### Text-guided Image-to-Image
 
-Coming soon
+This pipeline uses a finetuned version of Stable Diffusion 2.1, which can be used to create image variations (image-to-image). The pipeline comes with two pre-trained models, `2.1-unclip-l` and `2.1-unclip-h`, which use the pretrained CLIP Image embedder and OpenCLIP Image embedder separately. You can use the `-v` argument to decide which model to use. The amount of image variation can be controlled by the noise injected to the image embedding, which can be input by the `--noise_level` argument. A value of 0 means no noise, while a value of 1000 means full noise.
 
+You can use the following command to run the image-to-image pipeline
+
+```shell
+python unclip_image_variation.py \
+    -v {model version} \
+    --image_path {path to input image} \
+    --prompt "your magic prompt to run image variation."
+```
+> For more argument usage, please run `python unclip_image_variation.py --help`
+
+Example:
+
+Using `2.1-unclip-l` model as an example,  Please download [sd21-unclip-l-baa7c8b5.ckpt)](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)  to `models/` folder.
+
+And download the [example image](https://huggingface.co/datasets/hf-internal-testing/diffusers-images/resolve/main/stable_unclip/tarsila_do_amaral.png) to the running path. Then execute
+
+```shell
+python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.png --prompt "a cute cat sitting in the garden"
+```
+
+The output images are saved in `output/samples` directory.
+
+you can also add extra noise to the image embedding to increase the amount of variation in the generated images.
+
+```shell
+python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.png --prompt "a cute cat sitting in the garden" --noise_level 200
+```
+
+<div align="center">
+<img src="https://github.com/zhtmike/mindone/assets/8342575/393832cf-803a-4745-9fb1-7ef1107f9c37" width="960" />
+</div>
 
 ### Text-guided Depth-to-Image
 
