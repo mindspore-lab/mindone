@@ -31,7 +31,7 @@ This is an **unofficial** implementation of VideoComposer based on mindspore.
 
 - Model configs are determined by `vc/config/base.py` and `configs/xxx.yaml` and CLI arg parser.
 - Checkpoints needs to be placed in `model_weights`.
-
+- For ARM platform, `pip install motion-vector-extractor` will not work. Please obtain the wheel installation file from samithuang or wtomin.
 
 ## Setup Environment
 
