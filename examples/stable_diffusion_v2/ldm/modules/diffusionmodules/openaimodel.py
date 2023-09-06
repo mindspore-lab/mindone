@@ -256,6 +256,15 @@ class AttentionBlock(nn.Cell):
         super().__init__()
 
 
+class Timestep(nn.Cell):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def construct(self, t):
+        return timestep_embedding(t, self.dim)
+
+
 class UNetModel(nn.Cell):
     """
     The full UNet model with attention and timestep embedding.
@@ -314,6 +323,7 @@ class UNetModel(nn.Cell):
         legacy=True,
         use_linear_in_transformer=False,
         enable_flash_attention=False,
+        adm_in_channels=None,
     ):
         super().__init__()
 
@@ -365,7 +375,19 @@ class UNetModel(nn.Cell):
         )
 
         if self.num_classes is not None:
-            self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
+            if isinstance(self.num_classes, int):
+                self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
+            elif self.num_classes == "sequential":
+                assert adm_in_channels is not None
+                self.label_emb = nn.SequentialCell(
+                    nn.SequentialCell(
+                        linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
+                        nn.SiLU().to_float(self.dtype),
+                        linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
+                    )
+                )
+            else:
+                raise ValueError("`num_classes` must be an integer or string of 'continuous' or `sequential`")
 
         self.input_blocks = nn.CellList(
             [
@@ -623,7 +645,7 @@ class UNetModel(nn.Cell):
         emb = self.time_embed(t_emb)
 
         if self.num_classes is not None:
-            assert y.shape == (x.shape[0],)
+            assert y.shape[0] == x.shape[0]
             emb = emb + self.label_emb(y)
 
         h = x

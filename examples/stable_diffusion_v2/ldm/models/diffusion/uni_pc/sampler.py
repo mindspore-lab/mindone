@@ -72,7 +72,7 @@ class UniPCSampler(object):
             img = x_T
 
         model_fn = model_wrapper(
-            lambda x, t, c: self.model.apply_model(x, t, c_crossattn=c),
+            lambda x, t, c: self.model.apply_model(x, t, c),
             self.noise_schedule,
             model_type="noise",
             guidance_type="classifier-free",
