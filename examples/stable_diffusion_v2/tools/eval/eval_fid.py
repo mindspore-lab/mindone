@@ -4,7 +4,7 @@ import os
 from fid import FrechetInceptionDistance
 from fid.utils import get_image_paths
 
-from mindspore import context
+from mindspore import set_context
 
 
 def eval_fid(args):
@@ -18,7 +18,7 @@ def eval_fid(args):
     print(f"Backend: {args.backend}")
     if args.backend == "ms":
         device_id = int(os.getenv("DEVICE_ID", 0))
-        context.set_context(
+        set_context(
             mode=0,
             device_id=device_id,
         )

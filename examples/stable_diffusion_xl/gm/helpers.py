@@ -10,7 +10,7 @@ from omegaconf import ListConfig
 from PIL import Image
 
 import mindspore as ms
-from mindspore import Tensor, context, nn, ops
+from mindspore import Tensor, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
 SD_XL_BASE_RATIOS = {
@@ -57,17 +57,17 @@ def set_default(args):
     seed_everything(args.seed)
 
     # Set Mindspore Context
-    context.set_context(mode=args.ms_mode, device_target=args.device_target)
+    ms.set_context(mode=args.ms_mode, device_target=args.device_target)
     if args.device_target == "Ascend":
         device_id = int(os.getenv("DEVICE_ID", 0))
-        context.set_context(device_id=device_id)
+        ms.set_context(device_id=device_id)
     elif args.device_target == "GPU" and args.ms_enable_graph_kernel:
-        context.set_context(enable_graph_kernel=True)
+        ms.set_context(enable_graph_kernel=True)
     # Set Parallel
     if args.is_parallel:
         init()
-        args.rank, args.rank_size, parallel_mode = get_rank(), get_group_size(), context.ParallelMode.DATA_PARALLEL
-        context.set_auto_parallel_context(device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True)
+        args.rank, args.rank_size, parallel_mode = get_rank(), get_group_size(), ms.ParallelMode.DATA_PARALLEL
+        ms.set_auto_parallel_context(device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True)
     else:
         args.rank, args.rank_size = 0, 1
 
@@ -117,8 +117,8 @@ def create_model(config, checkpoints=None, freeze=False, load_filter=False, amp_
 
 def get_grad_reducer(is_parallel, parameters):
     if is_parallel:
-        mean = ms.context.get_auto_parallel_context("gradients_mean")
-        degree = ms.context.get_auto_parallel_context("device_num")
+        mean = ms.get_auto_parallel_context("gradients_mean")
+        degree = ms.get_auto_parallel_context("device_num")
         grad_reducer = nn.DistributedGradReducer(parameters, mean, degree)
     else:
         grad_reducer = ops.functional.identity

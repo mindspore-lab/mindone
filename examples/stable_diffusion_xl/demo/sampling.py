@@ -76,7 +76,7 @@ def run_txt2img(
 
 
 if __name__ == "__main__":
-    ms.context.set_context(mode=ms.PYNATIVE_MODE, device_target=DEVICE_TARGET)
+    ms.set_context(mode=ms.PYNATIVE_MODE, device_target=DEVICE_TARGET)
 
     st.title("Stable Diffusion")
     version = st.selectbox("Model Version", list(VERSION2SPECS.keys()), 0)

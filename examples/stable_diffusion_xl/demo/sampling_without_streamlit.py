@@ -168,5 +168,5 @@ def sample(args):
 if __name__ == "__main__":
     parser = get_parser_sample()
     args, _ = parser.parse_known_args()
-    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
+    ms.set_context(mode=args.ms_mode, device_target=args.device_target)
     sample(args)

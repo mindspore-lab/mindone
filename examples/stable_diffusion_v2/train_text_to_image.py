@@ -23,7 +23,7 @@ from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import Model, context, load_checkpoint, load_param_into_net
+from mindspore import Model, load_checkpoint, load_param_into_net
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
@@ -36,7 +36,6 @@ logger = logging.getLogger(__name__)
 def init_env(args):
     set_random_seed(args.seed)
 
-    ms.set_context(mode=context.GRAPH_MODE)  # needed for MS2.0
     if args.use_parallel:
         init()
         device_id = int(os.getenv("DEVICE_ID"))
@@ -45,10 +44,10 @@ def init_env(args):
         rank_id = get_rank()
         args.rank = rank_id
         logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(device_id, rank_id, device_num))
-        context.reset_auto_parallel_context()
-        context.set_auto_parallel_context(
-            parallel_mode=context.ParallelMode.DATA_PARALLEL,
-            # parallel_mode=context.ParallelMode.AUTO_PARALLEL,
+        ms.reset_auto_parallel_context()
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            # parallel_mode=ms.ParallelMode.AUTO_PARALLEL,
             gradients_mean=True,
             device_num=device_num,
         )
@@ -64,13 +63,13 @@ def init_env(args):
         rank_id = 0
         args.rank = rank_id
 
-    context.set_context(
-        mode=context.GRAPH_MODE,
+    ms.set_context(
+        mode=ms.GRAPH_MODE,  # needed for MS2.0
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
+        ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910B
     )
-    ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
     return rank_id, device_id, device_num
 

@@ -46,8 +46,8 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(mode=ms.context.PYNATIVE_MODE, device_target="Ascend", device_id=device_id)
-    # ms.set_context(mode=ms.context.GRAPH_MODE, device_target='Ascend', device_id=6)
+    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend", device_id=device_id)
+    # ms.set_context(mode=ms.GRAPH_MODE, device_target='Ascend', device_id=6)
 
     # create model
     if os.path.exists(args.model_config):

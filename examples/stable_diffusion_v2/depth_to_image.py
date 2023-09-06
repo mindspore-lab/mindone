@@ -261,9 +261,9 @@ def main(args):
 
     # init
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(
+    ms.set_context(
         mode=args.ms_mode,
-        # mode=ms.context.GRAPH_MODE,
+        # mode=ms.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",
@@ -272,7 +272,7 @@ def main(args):
     if args.save_graph:
         save_graphs_path = "graph"
         shutil.rmtree(save_graphs_path)
-        ms.context.set_context(save_graphs=True, save_graphs_path=save_graphs_path)
+        ms.set_context(save_graphs=True, save_graphs_path=save_graphs_path)
 
     set_random_seed(args.seed)
 

@@ -90,7 +90,7 @@ def set_env(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_id=device_id)
+    ms.set_context(mode=args.ms_mode, device_id=device_id)
 
     set_random_seed(args.seed)
 

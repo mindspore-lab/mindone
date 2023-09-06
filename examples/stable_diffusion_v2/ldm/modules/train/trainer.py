@@ -1,6 +1,5 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 import mindspore as ms
-import mindspore.context as context
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import RowTensor
 from mindspore.ops import composite as C
@@ -80,7 +79,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                 z.requires_grad = False
 
         self.verbose = verbose
-        self.is_cpu_device = context.get_context("device_target") == "CPU"  # to support CPU in CI
+        self.is_cpu_device = ms.get_context("device_target") == "CPU"  # to support CPU in CI
 
         self.map = ops.Map()
         self.partial = ops.Partial()

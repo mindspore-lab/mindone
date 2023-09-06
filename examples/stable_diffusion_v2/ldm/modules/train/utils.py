@@ -22,7 +22,7 @@ import numpy as np
 
 import mindspore.common.dtype as mstype
 import mindspore.nn as nn
-from mindspore import context, ops
+from mindspore import get_auto_parallel_context, ops
 from mindspore.common.tensor import Tensor
 from mindspore.communication.management import create_group, get_group_size, get_rank
 from mindspore.nn.learning_rate_schedule import CosineDecayLR, LearningRateSchedule, PolynomialDecayLR, WarmUpLR
@@ -170,7 +170,7 @@ class _ClipByGlobalNorm(nn.Cell):
     def __init__(self, params, parallel_config, clip_norm=1.0):
         super(_ClipByGlobalNorm, self).__init__()
         # According to the parallel mode, enabling the parallel global norm or not
-        self.parallel_mode = context.get_auto_parallel_context("parallel_mode")
+        self.parallel_mode = get_auto_parallel_context("parallel_mode")
         self.global_norm = _GlobalNorm(params, parallel_config)
         self.clip_norm = Tensor([clip_norm], mstype.float32)
         self.hyper_map = C.HyperMap()

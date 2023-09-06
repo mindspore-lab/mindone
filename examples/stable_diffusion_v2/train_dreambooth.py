@@ -20,7 +20,7 @@ from omegaconf import OmegaConf
 from PIL import Image
 
 import mindspore as ms
-from mindspore import Model, context
+from mindspore import Model
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
@@ -32,9 +32,9 @@ logger = logging.getLogger(__name__)
 
 def init_env(args):
     set_random_seed(args.seed)
-    mode_dict = {0: context.GRAPH_MODE, 1: context.PYNATIVE_MODE}
+    mode_dict = {0: ms.GRAPH_MODE, 1: ms.PYNATIVE_MODE}
     mode = mode_dict[vars(args).get("mode", 0)]
-    ms.set_context(mode=mode)  # needed for MS2.0
+
     if args.use_parallel:
         init()
         device_id = int(os.getenv("DEVICE_ID"))
@@ -43,10 +43,10 @@ def init_env(args):
         rank_id = get_rank()
         args.rank = rank_id
         logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(device_id, rank_id, device_num))
-        context.reset_auto_parallel_context()
-        context.set_auto_parallel_context(
-            parallel_mode=context.ParallelMode.DATA_PARALLEL,
-            # parallel_mode=context.ParallelMode.AUTO_PARALLEL,
+        ms.reset_auto_parallel_context()
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            # parallel_mode=ms.ParallelMode.AUTO_PARALLEL,
             gradients_mean=True,
             device_num=device_num,
         )
@@ -56,7 +56,7 @@ def init_env(args):
         rank_id = 0
         args.rank = rank_id
 
-    context.set_context(
+    ms.set_context(
         mode=mode,
         device_target="Ascend",
         device_id=device_id,
