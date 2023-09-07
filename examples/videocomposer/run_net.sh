@@ -67,11 +67,11 @@ python run_net.py\
 
 
 # Exp07, Depth to video without style
-python run_net.py\
-    --cfg configs/exp07_text_image_wo_style.yaml\
-    --seed 9999\
-    --input_video demo_video/blackswan.mp4\
-    --input_text_desc "Van Gogh played tennis under the stars"
+# python run_net.py\
+#     --cfg configs/exp07_text_image_wo_style.yaml\
+#     --seed 9999\
+#     --input_video demo_video/blackswan.mp4\
+#     --input_text_desc "Van Gogh played tennis under the stars"
 
 
 # If you want to , use CUDA_VISIBLE_DEVICES=0
