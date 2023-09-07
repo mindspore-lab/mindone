@@ -369,8 +369,8 @@ def worker(gpu, cfg):
             masked_video = ms.ops.transpose(masked_video, (0, 2, 1, 3, 4))
         # Single Image
         image_local = []
+        frames_num = misc_data.shape[1]
         if "local_image" in cfg.video_compositions and "local_image" in cfg.guidances:
-            frames_num = misc_data.shape[1]
             bs_vd_local = misc_data.shape[0]
             if cfg.read_image:
                 image_local = frame_in.unsqueeze(0).tile((bs_vd_local, frames_num, 1, 1, 1))
@@ -404,7 +404,7 @@ def worker(gpu, cfg):
         if "canny" in cfg.video_compositions and "canny" in cfg.guidances:
             canny_data = extract_conditions(bs_vd, canny_extractor, misc_data_list)
         sketch_data = []
-        if "sketch" in cfg.video_compositions and "sketch" in cfg.guidances:
+        if "sketch" in cfg.video_compositions and ("single_sketch" in cfg.guidances or "sketch" in cfg.guidances):
             sketch_list = misc_data_list
             if cfg.read_sketch:
                 sketch_repeat = frame_sketch.tile((frames_num, 1, 1, 1))
