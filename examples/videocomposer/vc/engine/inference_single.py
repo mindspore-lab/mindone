@@ -65,7 +65,7 @@ def inference_single(cfg_update, **kwargs):
 
 
 def init(gpu, cfg, video_name=None):
-    ms.set_context(mode=cfg.mode, pynative_synchronize=True)
+    ms.set_context(mode=cfg.mode)  # pynative_synchronize=True)
     # LOCAL_RANK - The local rank.
     cfg.gpu = gpu
     # RANK - The global rank.
@@ -188,7 +188,7 @@ def read_image_if_provided(flag, path, transform=None, return_tensor=True, dtype
 
 def prepare_condition_models(cfg):
     # [Conditions] Generators for various conditions
-    if "depthmap" in cfg.video_compositions:
+    if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
         midas = midas.set_train(False).to_float(cfg.dtype)
         for _, param in midas.parameters_and_names():
@@ -202,7 +202,7 @@ def prepare_condition_models(cfg):
     else:
         depth_extractor = None
 
-    if "canny" in cfg.video_compositions:
+    if "canny" in cfg.video_compositions and "canny" in cfg.guidances:
         canny_detector = CannyDetector()
 
         def canny_extractor(misc_imgs):
@@ -214,7 +214,7 @@ def prepare_condition_models(cfg):
     else:
         canny_extractor = None
 
-    if "sketch" in cfg.video_compositions:
+    if "sketch" in cfg.video_compositions and ("single_sketch" in cfg.guidances or "sketch" in cfg.guidances):
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
         )
@@ -252,7 +252,7 @@ def extract_conditions(batch_size, condition_extractor, data_list):
     return cond_data
 
 
-def prepare_autoencoder_unet(cfg, zero_y, black_image_feature, version="2.1"):
+def prepare_autoencoder_unet(cfg, zero_y=None, black_image_feature=None, version="2.1"):
     # [Model] autoencoder & unet
     autoencoder = AutoencoderKL(
         cfg.ddconfig,
@@ -323,7 +323,8 @@ def worker(gpu, cfg):
     misc_transforms = transforms_list[1]
     dataloader = prepare_dataloader(cfg, transforms_list)
     clip_encoder, clip_encoder_visual = prepare_clip_encoders(cfg)
-    zero_y = ms.ops.stop_gradient(clip_encoder.encode(""))  # [1, 77, 1024]
+    zero_y = ms.ops.stop_gradient(clip_encoder.encode([""]))  # [1, 77, 1024]
+    # zero_y = None
     black_image_feature = clip_encoder_visual.encode(clip_encoder_visual.black_image).unsqueeze(1)  # [1, 1, 1024]
     black_image_feature = ms.ops.zeros_like(black_image_feature)  # for old
 
@@ -359,16 +360,16 @@ def worker(gpu, cfg):
         misc_backups = misc_data.copy()
         misc_backups = ms.ops.transpose(misc_backups, (0, 2, 1, 3, 4))
         mv_data_video = []
-        if "motion" in cfg.video_compositions:
+        if "motion" in cfg.video_compositions and "motion" in cfg.guidances:
             mv_data_video = ms.ops.transpose(mv_data, (0, 2, 1, 3, 4))
         # mask images
         masked_video = []
-        if "mask" in cfg.video_compositions:
+        if "mask" in cfg.video_compositions and "masked" in cfg.guidances:  # TODO: fix the name
             masked_video = make_masked_images((misc_data - 0.5) / 0.5, mask)
             masked_video = ms.ops.transpose(masked_video, (0, 2, 1, 3, 4))
         # Single Image
         image_local = []
-        if "local_image" in cfg.video_compositions:
+        if "local_image" in cfg.video_compositions and "local_image" in cfg.guidances:
             frames_num = misc_data.shape[1]
             bs_vd_local = misc_data.shape[0]
             if cfg.read_image:
@@ -397,27 +398,27 @@ def worker(gpu, cfg):
         video_data = ms.ops.transpose(video_data, (0, 2, 1, 3, 4))
 
         depth_data = []
-        if "depthmap" in cfg.video_compositions:
+        if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
             depth_data = extract_conditions(bs_vd, depth_extractor, misc_data_list)
         canny_data = []
-        if "canny" in cfg.video_compositions:
+        if "canny" in cfg.video_compositions and "canny" in cfg.guidances:
             canny_data = extract_conditions(bs_vd, canny_extractor, misc_data_list)
         sketch_data = []
-        if "sketch" in cfg.video_compositions:
+        if "sketch" in cfg.video_compositions and "sketch" in cfg.guidances:
             sketch_list = misc_data_list
             if cfg.read_sketch:
                 sketch_repeat = frame_sketch.tile((frames_num, 1, 1, 1))
                 sketch_list = [sketch_repeat]
             sketch_data = extract_conditions(bs_vd, sketch_extractor, sketch_list)
         single_sketch_data = []
-        if "single_sketch" in cfg.video_compositions:
+        if "single_sketch" in cfg.video_compositions and "single_sketch" in cfg.guidances:
             single_sketch_data = sketch_data.copy()[:, :, :1].tile((1, 1, frames_num, 1, 1))
 
         # preprocess for input text descripts
         y = clip_encoder.encode(caps)  # [1, 77, 1024]
         y0 = y.copy()
         y_visual = []
-        if "image" in cfg.video_compositions:
+        if "image" in cfg.video_compositions and "image" in cfg.guidances:  # TODO: check
             # with torch.no_grad():
             if cfg.read_style:
                 y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0)
