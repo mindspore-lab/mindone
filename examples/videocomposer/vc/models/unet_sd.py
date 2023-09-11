@@ -1,15 +1,12 @@
 import logging
+import math
 import os
-
-# import time
-from functools import partial
 
 from utils.download import download_checkpoint
 
 import mindspore as ms
 import mindspore.common.initializer as init
 from mindspore import nn, ops
-from mindspore.numpy import ones
 
 from ..utils.pt2ms import load_pt_weights_in_model
 from .attention import (
@@ -27,9 +24,16 @@ from .attention import (
     is_old_ms_version,
     zero_module,
 )
+from .droppath import DropPath, DropPathWithControl
 from .rotary_embedding import RotaryEmbedding
 from .stc_encoder import Transformer_v2
-from .droppath import DropPath, DropPathWithControl
+
+# import time
+# from functools import partial
+
+
+# from mindspore.numpy import ones
+
 
 logger = logging.getLogger(__name__)
 
@@ -433,10 +437,12 @@ class Downsample(nn.Cell):
         assert x.shape[1] == self.channels
         return self.op(x)
 
+
 def get_kernel_size_and_stride(input_size, output_size):
-    stride = floor(input_size / (output_size - 1))
+    stride = math.floor(input_size / (output_size - 1))
     kernel_size = input_size - (output_size - 1) * stride
     return kernel_size, stride
+
 
 class UNetSD_temporal(nn.Cell):
     def __init__(
@@ -472,8 +478,8 @@ class UNetSD_temporal(nn.Cell):
         use_adaptive_pool=True,
         use_droppath_masking=True,
     ):
-        self.use_adaptive_pool=use_adaptive_pool
-        self.use_droppath_masking=use_droppath_masking
+        self.use_adaptive_pool = use_adaptive_pool
+        self.use_droppath_masking = use_droppath_masking
 
         embed_dim = dim * 4
         num_heads = num_heads if num_heads else dim // 32
@@ -507,8 +513,8 @@ class UNetSD_temporal(nn.Cell):
         self.video_compositions = video_compositions
         self.p_all_zero = p_all_zero
         self.p_all_keep = p_all_keep
-        #self.bernoulli0 = ops.Dropout(keep_prob=p_all_zero) # used to generate zero_mask for droppath on conditions
-        #self.bernoulli1= ops.Dropout(keep_prob=p_all_keep)
+        # self.bernoulli0 = ops.Dropout(keep_prob=p_all_zero) # used to generate zero_mask for droppath on conditions
+        # self.bernoulli1= ops.Dropout(keep_prob=p_all_keep)
 
         use_linear_in_temporal = False
         transformer_depth = 1
@@ -559,10 +565,10 @@ class UNetSD_temporal(nn.Cell):
                 depth=adapter_transformer_layers,
                 dtype=self.dtype,
             )
-        
+
         # motion: 256x256
         if "motion" in self.video_compositions:
-            #ks, st = get_kernel_size_and_stride(256, 128)
+            # ks, st = get_kernel_size_and_stride(256, 128)
             self.motion_embedding = nn.SequentialCell(
                 nn.Conv2d(2, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
                 nn.SiLU().to_float(self.dtype),
@@ -587,8 +593,8 @@ class UNetSD_temporal(nn.Cell):
                 dtype=self.dtype,
             )
 
-        # canny embedding: 384x384 
-        #ks, st = get_kernel_size_and_stride(cfg.misc_size, 128)
+        # canny embedding: 384x384
+        # ks, st = get_kernel_size_and_stride(cfg.misc_size, 128)
         if "canny" in self.video_compositions:
             self.canny_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
@@ -620,7 +626,9 @@ class UNetSD_temporal(nn.Cell):
                 nn.SequentialCell(
                     nn.Conv2d(4, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
                     nn.SiLU().to_float(self.dtype),
-                    nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=3, stride=3),
+                    nn.AdaptiveAvgPool2d((128, 128))
+                    if self.use_adaptive_pool
+                    else nn.AvgPool2d(kernel_size=3, stride=3),
                     nn.Conv2d(
                         concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                     ).to_float(self.dtype),
@@ -644,7 +652,7 @@ class UNetSD_temporal(nn.Cell):
                 dtype=self.dtype,
             )
 
-        # sketch embedding - 384x384  TODO: double check size  
+        # sketch embedding - 384x384  TODO: double check size
         if "sketch" in self.video_compositions:
             self.sketch_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
@@ -669,7 +677,7 @@ class UNetSD_temporal(nn.Cell):
                 depth=adapter_transformer_layers,
                 dtype=self.dtype,
             )
-        
+
         # single sketch: 384x384
         if "single_sketch" in self.video_compositions:
             self.single_sketch_embedding = nn.SequentialCell(
@@ -723,8 +731,14 @@ class UNetSD_temporal(nn.Cell):
             )
 
         # Condition Dropout
-        self.misc_dropout = DropPathWithControl(drop_prob=misc_dropout, scale_by_keep=False) if use_droppath_masking else DropPath(misc_dropout) 
-        self.type_dist = ms.Tensor([p_all_zero, p_all_keep, 1 - (p_all_zero + p_all_keep)]) # used to control keep/drop all conditions for a sample
+        self.misc_dropout = (
+            DropPathWithControl(drop_prob=misc_dropout, scale_by_keep=False)
+            if use_droppath_masking
+            else DropPath(misc_dropout)
+        )
+        self.type_dist = ms.Tensor(
+            [p_all_zero, p_all_keep, 1 - (p_all_zero + p_all_keep)]
+        )  # used to control keep/drop all conditions for a sample
 
         if temporal_attention and not USE_TEMPORAL_TRANSFORMER:
             self.rotary_emb = RotaryEmbedding(min(32, head_dim))
@@ -1002,7 +1016,6 @@ class UNetSD_temporal(nn.Cell):
         # zero out the last layer params
         self.out[-1].weight.set_data(init.initializer("zeros", self.out[-1].weight.shape, self.out[-1].weight.dtype))
 
-
     def load_state_dict(self, path, text_to_video_pretrain=False):
         def prune_weights(sd):
             return {key: p for key, p in sd.items() if "input_blocks.0.0" not in key}
@@ -1031,7 +1044,7 @@ class UNetSD_temporal(nn.Cell):
         depth=None,
         image=None,  # Style Image encoded by clip-vit, shape: [bs, 1, 1024]
         motion=None,
-        local_image=None, # Single Image, i.e. start driving image, shape: 
+        local_image=None,  # Single Image, i.e. start driving image, shape:
         single_sketch=None,
         masked=None,
         canny=None,
@@ -1063,26 +1076,16 @@ class UNetSD_temporal(nn.Cell):
             time_rel_pos_bias = None
 
         # all-zero and all-keep masks
-        # TODO: re-implement the following sample-wise all condition keep/drop and droppath for graph mode.
-        # During the second stage pre-training, we adhere to [26], using a probability of 0.1 to keep all conditions, a probability of 0.1 to discard all conditions, and an independent probability of 0.5 to keep or discard a specific condition. 
-        '''
-        all_ones = ops.ones([batch, 1])
-        # TODO: it seems the sampled zero and keep mask are either all 0 or all 1 
-        zero_mask = self.bernoulli0(all_ones)[0] * self.p_all_zero  
-        keep_mask = self.bernoulli1(all_ones)[0] * self.p_all_keep 
-        print("D--: zero and keep mask: ", zero_mask, keep_mask)
-        #misc_droppath = partial(self.misc_dropout, zero_mask=zero_mask, keep_mask=keep_mask)
-        '''
-        #if self.use_droppath_masking:
-        #zero_mask= ms.numpy.rand((batch, 1)) < self.p_all_zero
-        #keep_mask= ms.numpy.rand((batch, 1)) < self.p_all_keep # TODO: check, are they alway the same in graph??
+        # Paper: During the second stage pre-training, we adhere to [26],
+        #   using a probability of 0.1 to keep all conditions, a probability of 0.1 to discard all conditions,
+        # and an independent probability of 0.5 to keep or discard a specific condition.
         sample_type = ops.multinomial(self.type_dist, batch)
         zero_mask = sample_type == 0
         keep_mask = sample_type == 1
-        #print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
+        # print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
         misc_droppath = self.misc_dropout
 
-        concat = x.new_zeros((batch, self.concat_dim, f, h, w)) # TODO: 
+        concat = x.new_zeros((batch, self.concat_dim, f, h, w))  # TODO:
 
         def rearrange_conditions(x, stage, batch, h):
             if stage == 0:

@@ -30,7 +30,7 @@ MindSpore implementation & optimization of VideoComposer.
 
 ### Notes
 
-- Model configs are determined by `vc/config/base.py` and `configs/xxx.yaml` and CLI arg parser, implemented with vc/config/parser.py 
+- Model configs are determined by `vc/config/base.py` and `configs/xxx.yaml` and CLI arg parser, implemented with vc/config/parser.py
 - Checkpoints needs to be placed in `model_weights`.
 - For ARM platform, `pip install motion-vector-extractor` will not work. Please obtain the wheel installation file from samithuang or wtomin.
 
@@ -56,7 +56,7 @@ The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${P
 
 Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
-## Inference 
+## Inference
 
 For the first-time running, it takes longer time since this program needs to download some checkpoints from cloud, and save them to `model_weights/`
 
@@ -80,9 +80,9 @@ bash run_train.sh
 
 For distributed training, please use `run_train_distribute.sh` instead after generating the hccl config file.
 
-Training configuration can be changed in `configs/train_config.py`, such `max_frames`. 
+Training configuration can be changed in `configs/train_config.py`, such `max_frames`.
 
-Currently, it's tested on 910A+MS2.0 with max_frames=8. 
+Currently, it's tested on 910A+MS2.0 with max_frames=8.
 
 
 

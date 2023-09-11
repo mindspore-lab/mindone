@@ -4,7 +4,7 @@ from PIL import Image
 
 import mindspore as ms
 from mindspore import ops
-from mindspore.dataset import vision, transforms 
+from mindspore.dataset import transforms, vision
 from mindspore.dataset.vision import Inter as InterpolationMode
 
 __all__ = [
@@ -101,18 +101,16 @@ def create_transforms(cfg, is_training=True):
             vision.CenterCrop(cfg.resolution),
         ]
     )
-    # 
+    #
     vit_transforms = transforms.Compose(
         [
             CenterCrop(cfg.vit_image_size),
-            vision.ToTensor(), # to chw
+            vision.ToTensor(),  # to chw
             vision.Normalize(mean=cfg.vit_mean, std=cfg.vit_std, is_hwc=False),
         ]
     )
-    
+
     # depth/motion net transforms
     # depth_input_process = ...
 
     return infer_transforms, misc_transforms, mv_transforms, vit_transforms
-
-

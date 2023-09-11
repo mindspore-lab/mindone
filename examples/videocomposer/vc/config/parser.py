@@ -16,6 +16,7 @@ def str2bool(b):
         return False
     return True
 
+
 class Config(object):
     def __init__(self, load=True, cfg_dict=None, cfg_level=None):
         self._level = "cfg" + ("." + cfg_level if cfg_level is not None else "")
@@ -92,7 +93,9 @@ class Config(object):
         )
         # new args for mindspore
         parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-        parser.add_argument("--output_dir", default="outputs/train", type=str, help="output directory to save training results")
+        parser.add_argument(
+            "--output_dir", default="outputs/train", type=str, help="output directory to save training results"
+        )
         parser.add_argument(
             "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
         )

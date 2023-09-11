@@ -1,10 +1,10 @@
 import logging
 import os
 import random
-import pandas as pd
 
 import cv2
 import numpy as np
+import pandas as pd
 from PIL import Image
 
 from ..annotator.mask import make_irregular_mask, make_rectangle_mask, make_uncrop
@@ -21,7 +21,7 @@ class VideoDataset(object):
     def __init__(
         self,
         cfg=None,
-        root_dir=None,  
+        root_dir=None,
         max_words=30,
         feature_framerate=1,
         max_frames=16,
@@ -34,10 +34,10 @@ class VideoDataset(object):
         misc_size=384,
         mvs_visual=False,
     ):
-        '''
-        Args: 
+        """
+        Args:
             root_dir: dir containing csv file which records video path and caption.
-        '''
+        """
 
         self.cfg = cfg
 
@@ -52,15 +52,14 @@ class VideoDataset(object):
         self.vit_image_size = vit_image_size
         self.misc_size = misc_size
         self.mvs_visual = mvs_visual
-        
+
         if root_dir is not None:
             video_paths, captions = get_video_paths_captions(root_dir)
             num_samples = len(video_paths)
             self.video_cap_pairs = [[video_paths[i], captions[i]] for i in range(num_samples)]
-        else: 
+        else:
             self.video_cap_pairs = [[self.cfg.input_video, self.cfg.input_text_desc]]
 
-    
     def __len__(self):
         return len(self.video_cap_pairs)
 
@@ -91,7 +90,7 @@ class VideoDataset(object):
         mask = cv2.resize(mask, (self.misc_size, self.misc_size), interpolation=cv2.INTER_NEAREST)
         mask = np.expand_dims(np.expand_dims(mask, axis=0), axis=0)
         mask = np.repeat(mask, repeats=self.max_frames, axis=0)
-        
+
         return ref_frame, cap_txt, video_data, misc_data, feature_framerate, mask, mv_data
 
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
@@ -137,8 +136,8 @@ class VideoDataset(object):
 
 def get_video_paths_captions(data_dir):
     anno_list = sorted(
-            [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(data_dir)))]
-        )
+        [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(data_dir)))]
+    )
     db_list = [pd.read_csv(f) for f in anno_list]
     video_paths = []
     all_captions = []
@@ -150,5 +149,3 @@ def get_video_paths_captions(data_dir):
     _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
 
     return video_paths, all_captions
-
-

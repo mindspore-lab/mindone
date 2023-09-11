@@ -152,7 +152,7 @@ def prepare_dataloader(cfg, transforms_list):
         vit_transforms=vit_transforms,
         vit_image_size=cfg.vit_image_size,
         misc_size=cfg.misc_size,
-	mvs_visual=cfg.mvs_visual,
+        mvs_visual=cfg.mvs_visual,
     )
     dataloader = ds.GeneratorDataset(
         source=dataset,
@@ -230,6 +230,7 @@ def prepare_condition_models(cfg):
             param.requires_grad = False
         pidi_mean = ms.Tensor(cfg.sketch_mean).view(1, -1, 1, 1)
         pidi_std = ms.Tensor(cfg.sketch_std).view(1, -1, 1, 1)
+
         def sketch_extractor(misc_imgs):
             sketch = pidinet((misc_imgs - pidi_mean) / pidi_std)
             sketch = 1.0 - cleaner(1.0 - sketch)
@@ -376,7 +377,7 @@ def worker(gpu, cfg):
                 image_local = frame_in.unsqueeze(0).tile((bs_vd_local, frames_num, 1, 1, 1))
             else:
                 image_local = misc_data[:, :1].copy().tile((1, frames_num, 1, 1, 1))
-            image_local = ms.ops.transpose(image_local, (0, 2, 1, 3, 4)) # (1, 3, 16, 384, 384)
+            image_local = ms.ops.transpose(image_local, (0, 2, 1, 3, 4))  # (1, 3, 16, 384, 384)
 
         # encode the video_data
         bs_vd = video_data.shape[0]
@@ -384,7 +385,7 @@ def worker(gpu, cfg):
         # [bs, F, 3, 256, 256] -> (bs*f 3 256 256)
         video_data = ms.ops.reshape(video_data, (video_data.shape[0] * video_data.shape[1], *video_data.shape[2:]))
         video_data_list = ms.ops.chunk(video_data, video_data.shape[0] // cfg.chunk_size, axis=0)
-        #print("D--: frames shape after chunk: ", video_data_list.shape)
+        # print("D--: frames shape after chunk: ", video_data_list.shape)
 
         # [bs, F, 3, 384, 384] -> (bs*f 3 384 384)
         misc_data = ms.ops.reshape(misc_data, (misc_data.shape[0] * misc_data.shape[1], *misc_data.shape[2:]))
@@ -392,7 +393,7 @@ def worker(gpu, cfg):
         misc_data_list = ms.ops.chunk(misc_data, misc_data.shape[0] // cfg.chunk_size, axis=0)
 
         decode_data = []
-        # TODO: 
+        # TODO:
         for vd_data in video_data_list:
             encoder_posterior = autoencoder.encode(vd_data)
             tmp = get_first_stage_encoding(encoder_posterior)
@@ -426,10 +427,12 @@ def worker(gpu, cfg):
         if "image" in cfg.video_compositions and "image" in cfg.guidances:  # TODO: check
             # with torch.no_grad():
             if cfg.read_style:
-                y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0) # from style is Image raw
+                y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0)  # from style is Image raw
                 y_visual0 = y_visual.copy()
             else:
-                y_visual = clip_encoder_visual(ref_imgs).unsqueeze(1)  # [1, 1, 1024], since ref_imgs has been processed via vit_transform to nchw normalized tensor  
+                y_visual = clip_encoder_visual(ref_imgs).unsqueeze(
+                    1
+                )  # [1, 1, 1024], since ref_imgs has been processed via vit_transform to nchw normalized tensor
                 y_visual0 = y_visual.copy()
 
         if cfg.share_noise:

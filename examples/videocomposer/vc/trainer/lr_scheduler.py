@@ -56,7 +56,7 @@ def build_lr_scheduler(
     # check params
     if milestones is None:
         milestones = []
-    
+
     if decay_steps is None:
         decay_steps = num_epochs * steps_per_epoch - warmup_steps
 

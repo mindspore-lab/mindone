@@ -15,8 +15,8 @@
 """
  build optimizer for ms
 """
-from mindspore.nn.optim.adam import Adam, AdamWeightDecay
 from mindspore import nn
+from mindspore.nn.optim.adam import Adam, AdamWeightDecay
 
 
 def build_optimizer(model, opts, lr):
@@ -45,12 +45,12 @@ def build_optimizer(model, opts, lr):
         OptimCls = Adam
     elif opts.optim == "adamw":
         OptimCls = AdamWeightDecay
-    elif opts.optim in ['sgd', 'momentum']:
+    elif opts.optim in ["sgd", "momentum"]:
         OptimCls = nn.Momentum
     else:
         raise ValueError("invalid optimizer")
 
-    if opts.optim in ['sgd', 'momentum']:
+    if opts.optim in ["sgd", "momentum"]:
         optimizer = OptimCls(group_params, learning_rate=lr, momentum=0.9)
     else:
         optimizer = OptimCls(group_params, learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1])
