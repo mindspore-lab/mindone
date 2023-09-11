@@ -75,12 +75,16 @@ cfg.mode = 0  # 0: Graph mode; 1: Pynative mode
 
 For standalone training, please run
 ```shell
-bash run_train.sh
+python train.py
 ```
+
+The used arguments are stored in `configs/train_config.py`, including:
+    - `max_frames`: max number of frames, default is 8
+    - `root_dir`: dataset root dir which should contains a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
+
 
 For distributed training, please use `run_train_distribute.sh` instead after generating the hccl config file.
 
-Training configuration can be changed in `configs/train_config.py`, such `max_frames`.
 
 Currently, it's tested on 910A+MS2.0 with max_frames=8.
 

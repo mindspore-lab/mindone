@@ -2,11 +2,10 @@ r"""MindSpore re-implementation adapted from the Lua code in ``https://github.co
 """
 import os
 
-
 from mindspore import nn
 
-from ...utils.pt2ms import load_pt_weights_in_model
 from ...utils.download import download_checkpoint
+from ...utils.pt2ms import load_pt_weights_in_model
 
 __all__ = [
     "SketchSimplification",

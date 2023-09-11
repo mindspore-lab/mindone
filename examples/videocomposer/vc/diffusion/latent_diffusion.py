@@ -1,4 +1,5 @@
 import logging
+import sys
 from functools import partial
 
 import numpy as np
@@ -10,7 +11,6 @@ from mindspore import nn
 from mindspore import numpy as msnp
 from mindspore import ops
 
-import sys
 sys.path.append("../stable_diffusion_v2/")
 from ldm.modules.diffusionmodules.util import make_beta_schedule
 from ldm.util import default, exists, extract_into_tensor
