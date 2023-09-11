@@ -1,67 +1,38 @@
-from configs.train_config import cfg
-import numpy as np
 from vc.models import UNetSD_temporal
-from vc.utils import get_abspath_of_weights
-
+from vc.utils.pt2ms import auto_map
 import mindspore as ms
+from mindspore import ops
+import numpy as np
+from copy import deepcopy
+import difflib
+import time
+
+import sys
+sys.path.append("../stable_diffusion_v2/")
+from ldm.util import count_params
+from ldm.modules.train.tools import set_random_seed
+
+import logging
+logger = logging.getLogger(__name__)
+from ldm.modules.logger import set_logger
+
+set_logger(name="", output_dir="./tests")
 
 
 def test_unet():
-    compare_amp = False
-    load_pretrained = False
+    from configs.train_config import cfg
 
-    ms.set_seed(100)
+    set_random_seed(42)
     ms.set_context(mode=0)
+    # [model] unet
 
-    black_image_feature = ms.Tensor(np.zeros([1, 1024]))
-    zero_y = ms.Tensor(np.zeros([1, 77, 1024]))
-    xt = ms.Tensor(np.random.normal(size=(1, 4, 16, 32, 32)))
-    t = ms.Tensor(np.ones((1,))* 10, dtype=ms.int64) 
-    y = ms.Tensor(np.random.normal(size=(1, 77, 1024)), dtype=ms.float16)
-    #single_sketch = ms.Tensor(np.random.normal((1, 1, 16, 384, 384)), dtype=ms.float32)
-    #motion = ms.Tensor(np.random.normal(size=(1, 2, 16, 256, 256)), dtype=ms.float32)
-    motion = None
+    cfg.video_compositions = ["text"] #, "depthmap"]
+    cfg.temporal_attention = True # Set to False can reduce half waiting time
+    use_fp16 = True
+    load = True 
+    use_droppath_masking=True
 
-    unet_fp16 = UNetSD_temporal(
-        cfg=cfg,
-        in_dim=cfg.unet_in_dim,
-        concat_dim=cfg.unet_concat_dim,
-        dim=cfg.unet_dim,
-        context_dim=cfg.unet_context_dim,
-        out_dim=cfg.unet_out_dim,
-        dim_mult=cfg.unet_dim_mult,
-        num_heads=cfg.unet_num_heads,
-        head_dim=cfg.unet_head_dim,
-        num_res_blocks=cfg.unet_res_blocks,
-        attn_scales=cfg.unet_attn_scales,
-        dropout=cfg.unet_dropout,
-        temporal_attention=cfg.temporal_attention,
-        temporal_attn_times=cfg.temporal_attn_times,
-        use_checkpoint=cfg.use_checkpoint,
-        use_fps_condition=cfg.use_fps_condition,
-        use_sim_mask=cfg.use_sim_mask,
-        video_compositions=cfg.video_compositions,
-        misc_dropout=cfg.misc_dropout,
-        p_all_zero=cfg.p_all_zero,
-        p_all_keep=cfg.p_all_zero,
-        zero_y=zero_y,
-        black_image_feature=black_image_feature,
-        use_fp16=True,
-        use_adaptive_pool=False,
-    )
-
-    unet_fp16.set_train(False)
-    for name, param in unet_fp16.parameters_and_names():
-        param.requires_grad = False
-
-    if load_pretrained:
-        unet_fp16.load_state_dict('model_weights/non_ema_228000-3bb2ee9a.ckpt', text_to_video_pretrain=False)
-
-    out_fp16 = unet_fp16(xt, t, y=y, motion=motion).asnumpy()
-    print(out_fp16)
-
-    if compare_amp:
-        unet_fp32 = UNetSD_temporal(
+    model = UNetSD_temporal(
             cfg=cfg,
             in_dim=cfg.unet_in_dim,
             concat_dim=cfg.unet_concat_dim,
@@ -83,28 +54,56 @@ def test_unet():
             misc_dropout=cfg.misc_dropout,
             p_all_zero=cfg.p_all_zero,
             p_all_keep=cfg.p_all_zero,
-            zero_y=zero_y,
-            black_image_feature=black_image_feature,
-            use_fp16=False,
+            use_fp16=use_fp16,
             use_adaptive_pool=False,
+            use_droppath_masking=use_droppath_masking,
         )
 
-        unet_fp32.set_train(False)
-        for name, param in unet_fp32.parameters_and_names():
-            param.requires_grad = False
-        
-        if load_pretrained:
-            unet_fp32.load_state_dict('model_weights/non_ema_228000-3bb2ee9a.ckpt', text_to_video_pretrain=False)
+    model = model.set_train(False) #.to_float(ms.float32)
+    for name, param in model.parameters_and_names():
+        param.requires_grad = False
+    #model.load_state_dict(ckpt_path, text_to_video_pretrain=False)
+
+    if load:
+        ckpt_path = "./model_weights/non_ema_228000-3bb2ee9a.ckpt"
+        param_dict = ms.load_checkpoint(ckpt_path)
+        param_dict = auto_map(model, param_dict)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict, strict_load=True)
+        print("Net params not load: ", param_not_load)
+        #print("Ckpt params not used: ", ckpt_not_load)
+
+    num_params = count_params(model)[0]
+    print("UNet params: {:,}".format(num_params))
+    
+    # prepare inputs
+    dtype = ms.float16 if use_fp16 else ms.float32
+    batch, c, f, h, w = 1, 4, 2, 128//8, 128//8
+    latent_frames = np.ones([batch, c, f, h, w])  / 2.0
+    x_t = latent_frames = ms.Tensor(latent_frames, dtype=dtype)
+
+    txt_emb_dim = cfg.unet_context_dim
+    seq_len = 77
+    txt_emb = np.ones([batch, seq_len, txt_emb_dim]) / 2.0
+    y = txt_emb = ms.Tensor(txt_emb, dtype=dtype)
+
+    #motion = ms.Tensor(np.random.normal(size=(1, 2, 16, 256, 256)), dtype=ms.float32)
+    
+    step = 50
+    #t = ops.full((batch,), step, dtype=ms.int64) # [t, t, ...]
+    t = ms.Tensor([step] * batch, dtype=ms.int64) 
+    
+    time_cost = []
+    trials = 3
+    for i in range(trials): 
+        s = time.time()
+        noise = model(x_t, t, y)
+        dur = time.time()-s
+        print("infer res: ", noise.max(), noise.min())
+        print("time cost: ", dur)
+        time_cost.append(dur)
+    
+    print("Time cost: ", time_cost)
 
 
-        out_fp32 = unet_fp32(xt, t, y=y, motion=motion).asnumpy()
-        if not np.allclose(out_fp16, out_fp32, atol=1e-2):
-            print(f"max abs diff: {np.abs(out_fp16 - out_fp32).max()}")
-            print("Outputs are not equal!")
-        else:
-            print(f"max abs diff: {np.abs(out_fp16 - out_fp32).max()}")
-            print("Outputs are equal!")
-
-
-if __name__=="__main__":
-    test_unet()
+if __name__=='__main__':
+    test_unet() 
