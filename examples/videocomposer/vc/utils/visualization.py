@@ -90,7 +90,8 @@ def save_video_multiple_conditions(
             return x
 
         vid_gif = rearrange_tensor(video_tensor)
-        cons_list = [rearrange_tensor(con) for _, con in model_kwargs_channel3.items()]
+        dtype = vid_gif.dtype
+        cons_list = [rearrange_tensor(con).to(dtype) for _, con in model_kwargs_channel3.items()]
         source_imgs = rearrange_tensor(source_imgs)
 
         if save_origin_video:

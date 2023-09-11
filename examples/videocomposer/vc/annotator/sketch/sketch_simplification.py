@@ -1,5 +1,8 @@
 r"""MindSpore re-implementation adapted from the Lua code in ``https://github.com/bobbens/sketch_simplification''.
 """
+import os
+
+from utils.download import download_checkpoint
 
 from mindspore import nn
 
@@ -9,6 +12,11 @@ __all__ = [
     "SketchSimplification",
     "sketch_simplification_gan",
 ]
+
+
+_CKPT_URL = {
+    "sketch_simplification_gan": "https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/sketch_simplification_gan-b928fdfa.ckpt"
+}
 
 
 class SketchSimplification(nn.Cell):
@@ -82,6 +90,13 @@ class SketchSimplification(nn.Cell):
 
 def sketch_simplification_gan(pretrained=False, ckpt_path=None):
     model = SketchSimplification(mean=0.9664114577640158, std=0.0858381272736797)
+    if not os.path.exists(ckpt_path):
+        download_checkpoint(_CKPT_URL["sketch_simplification_gan"], "model_weights/")
+    if not os.path.exists(ckpt_path):
+        raise ValueError(
+            f"Maybe download failed. Please download it manually from {_CKPT_URL['sketch_simplification_gan']} and place it under `model_weights/`"
+        )
+
     if pretrained:
         load_pt_weights_in_model(model, ckpt_path)
     return model
