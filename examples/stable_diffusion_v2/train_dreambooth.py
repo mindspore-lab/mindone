@@ -8,7 +8,7 @@ import numpy as np
 from ldm.data.dataset_db import load_data
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
-from ldm.modules.lora import inject_trainable_lora
+from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.optim import build_optimizer
@@ -81,6 +81,10 @@ def parse_args():
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")
+    parser.add_argument("--lora_ft_unet", default=False, type=str2bool, help="whether to apply lora finetune to unet")
+    parser.add_argument(
+        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder"
+    )
     parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Specify whether to use fp16 for LoRA params.")
     parser.add_argument(
         "--lora_rank",
@@ -250,9 +254,11 @@ def parse_args():
             f"The start learning rate {args.start_learning_rate} must be no less"
             " than the end learning rate {args.end_learning_rate}."
         )
-    if args.use_lora:
-        if args.train_text_encoder:
-            raise ValueError("When use_lora is True, cannot train text encoder")
+    if args.lora_ft_text_encoder or args.lora_ft_unet:
+        assert args.use_lora, "Lora has to be True when `lora_ft_text_encoder` or `lora_ft_unet` is True"
+    if args.use_lora and args.lora_ft_text_encoder:
+        if not args.train_text_encoder:
+            raise ValueError("When `lora_ft_text_encoder` is True, `train_text_encoder` has to be True")
 
     args = parse_with_config(args)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -344,6 +350,8 @@ def main(args):
 
     model_config = OmegaConf.load(args.model_config).model
     model_config["params"]["cond_stage_trainable"] = args.train_text_encoder  # overwrites the model_config
+    if args.use_lora and not args.lora_ft_text_encoder:
+        model_config["params"]["cond_stage_trainable"] = False
     model_config["params"]["prior_loss_weight"] = args.prior_loss_weight if args.with_prior_preservation else 0.0
     latent_diffusion_with_loss = instantiate_from_config(model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
@@ -356,17 +364,33 @@ def main(args):
             param.requires_grad = False
 
         # inject lora params
-        injected_attns, injected_trainable_params = inject_trainable_lora(
-            latent_diffusion_with_loss,
-            rank=args.lora_rank,
-            use_fp16=args.lora_fp16,
+        num_injected_params = 0
+        injected_params_names = []
+        if args.lora_ft_unet:
+            unet_lora_layers, unet_lora_params = inject_trainable_lora(
+                latent_diffusion_with_loss,
+                rank=args.lora_rank,
+                use_fp16=args.lora_fp16,
+            )
+            num_injected_params += len(unet_lora_params)
+            injected_params_names.extend(unet_lora_params)
+        if args.lora_ft_text_encoder:
+            text_encoder_lora_layers, text_encoder_lora_params = inject_trainable_lora_to_textencoder(
+                latent_diffusion_with_loss,
+                rank=args.lora_rank,
+                use_fp16=args.lora_fp16,
+            )
+            num_injected_params += len(text_encoder_lora_params)
+            injected_params_names.extend(text_encoder_lora_params)
+        for p in latent_diffusion_with_loss.trainable_params():
+            if p.name not in injected_params_names:
+                print(f"found {p.name} not lora param but trainable")
+
+        assert (
+            len(latent_diffusion_with_loss.trainable_params()) == num_injected_params
+        ), "Only lora params {} should be trainable. but got {} trainable params".format(
+            num_injected_params, len(latent_diffusion_with_loss.trainable_params())
         )
-        assert len(latent_diffusion_with_loss.model.trainable_params()) == len(
-            injected_trainable_params
-        ), "Only lora params should be trainable. but got {} trainable params".format(
-            len(latent_diffusion_with_loss.model.trainable_params())
-        )
-        # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
 
     # Get tokenizer
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer

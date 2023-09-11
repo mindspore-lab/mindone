@@ -189,6 +189,38 @@ python train_dreambooth.py \
     --with_prior_preservation=False \
 ```
 
+#### 2.2.5 Training Command for DreamBooth with LoRA
+
+LoRA is a parameter-efficient finetuning method. Here, we combine DreamBooth with LoRA by injecting the LoRA parameters into the text encoder and the UNet of Text-to-Image model, and training with the prior preservation loss.
+
+
+In `scripts/run_train_dreambooth_w_lora_sd_v2.sh`, the training command is shown below:
+```bash
+python train_dreambooth.py \
+    --mode=0 \
+    --use_parallel=False \
+    --instance_data_dir=$instance_data_dir \
+    --instance_prompt="$instance_prompt"  \
+    --class_data_dir=$class_data_dir \
+    --class_prompt="$class_prompt" \
+    --train_config=$train_config_file \
+    --output_path=$output_path/$task_name \
+    --pretrained_model_path=$pretrained_model_path \
+    --pretrained_model_file=$pretrained_model_file \
+    --image_size=$image_size \
+    --train_batch_size=$train_batch_size \
+    --epochs=4 \
+    --start_learning_rate=5e-5 \
+    --weight_decay=1e-4  \
+    --train_text_encoder=True \
+    --use_lora=True \
+    --lora_rank=64  \
+    --lora_ft_unet=True \
+    --lora_ft_text_encoder=True  \
+```
+Note that we train the LoRA parameters with a constant learning rate `5e-5`, a weight decay `1e-4 ` for 4 epochs (800 steps). The rank of the LoRA parameter is 64.
+
+
 ### 2.3 Inference
 
 The inference command generates images on a given prompt and save them to a given output directory. An example command is as follows:
@@ -247,6 +279,29 @@ Here are the three prompts we used with class name "dog":
   <em> Figure 6. The generated images of the vanilla-finetuned model using three text prompts above. </em>
 </p>
 
+---
+
+If using LoRA with DreamBooth, the inference command should be:
+```bash
+python text_to_image.py     \
+     --prompt "a sks dog in Van Gogh painting style"   \
+     --output_path vis/output/dir  \
+     --config configs/train_dreambooth_sd_v2.yaml   \
+     --ckpt_path models/sd_v2_base-57526ee4.ckpt   \
+     --lora_ckpt_path  path/to/checkpoint/file  \
+     --use_lora True  \
+     --lora_ft_unet True  \
+     --lora_ft_text_encoder True
+```
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/images/sks_dog_lora_plus_dreambooth.png" width=650 />
+</p>
+<p align="center">
+  <em> Figure 7. The generated images of the model finetuned with DreamBooth and LoRA. </em>
+</p>
+
+The results in Figure 7. are very close to the results in Figure 3.
 
 ### 2.4 Evaluation
 
