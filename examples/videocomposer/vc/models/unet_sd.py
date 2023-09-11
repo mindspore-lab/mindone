@@ -1084,7 +1084,7 @@ class UNetSD_temporal(nn.Cell):
             sample_type = ops.multinomial(self.type_dist, batch)
             zero_mask = sample_type == 0
             keep_mask = sample_type == 1
-            print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
+            #print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
         else:
             zero_mask = None
             keep_mask = None

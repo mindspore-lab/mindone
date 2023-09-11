@@ -76,7 +76,7 @@ class CLIPModel(nn.Cell):
                 self.dtype,
             )
         )
-        self.logit_scale = Parameter(Tensor(np.log(1 / 0.07)).astype(self.dtype))
+        self.logit_scale = Parameter(Tensor(np.log(1 / 0.07), self.dtype))
         self.exp = ops.Exp()
 
         self.load_checkpoint(config)
@@ -151,7 +151,7 @@ class CLIPModel(nn.Cell):
         """Build_attention_mask"""
         mask = np.ones((self.max_position_embeddings, self.max_position_embeddings))
         mask = np.triu(mask * float("-inf"), k=1)
-        return Tensor(mask).astype(self.dtype)
+        return Tensor(mask, self.dtype)
 
     def get_image_features(self, image: ms.Tensor, pixel_values: Optional[ms.Tensor] = None):
         r"""Get_image_features

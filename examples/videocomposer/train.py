@@ -3,6 +3,7 @@ VC training/finetuning
 """
 import logging
 import os
+import numpy as np
 
 # import importlib
 # import datetime
@@ -93,7 +94,7 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
 
-    print("Conditions used for training: ", cfg.conditions_for_train)
+    print("===> Conditions used for training: ", cfg.conditions_for_train)
 
 def main(cfg):
     check_config(cfg)
@@ -141,7 +142,7 @@ def main(cfg):
 
     # 2.3 unet3d with STC encoders
     # TODO: optimize the args, consider isoldate stc encoder from unet
-    black_image_feature = ms.ops.zeros([1, 1, cfg.vit_dim])  # img feature vector of vit-h is fxed to len of 1024
+    black_image_feature = ms.Tensor(np.zeros([1, 1, cfg.vit_dim]), ms.float32)  # img feature vector of vit-h is fxed to len of 1024
     unet = UNetSD_temporal(
         cfg=cfg,
         in_dim=cfg.unet_in_dim,

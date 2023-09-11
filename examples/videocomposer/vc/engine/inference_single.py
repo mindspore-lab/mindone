@@ -65,7 +65,8 @@ def inference_single(cfg_update, **kwargs):
 
 
 def init(gpu, cfg, video_name=None):
-    ms.set_context(mode=cfg.mode)  # pynative_synchronize=True)
+    ms.set_context(mode=cfg.mode)
+    ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
     # LOCAL_RANK - The local rank.
     cfg.gpu = gpu
     # RANK - The global rank.
