@@ -93,6 +93,7 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
 
+    print("Conditions used for training: ", cfg.conditions_for_train)
 
 def main(cfg):
     check_config(cfg)
@@ -103,7 +104,7 @@ def main(cfg):
     # 2. build model components for ldm
     # create vae, clip, unet, and load pretrained weights
 
-    # 2.1 clip - text encoder and image encoder
+    # 2.1 clip - text encoder, and image encoder (optional)
     clip_text_encoder = FrozenOpenCLIPEmbedder(
         layer="penultimate",
         pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint),
@@ -113,12 +114,15 @@ def main(cfg):
     logger.info("clip text encoder init.")
     tokenizer = clip_text_encoder.tokenizer
     clip_text_encoder.set_train(False)
-
-    clip_image_encoder = FrozenOpenCLIPVisualEmbedder(
-        layer="penultimate", pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint), use_fp16=cfg.use_fp16
-    )
-    clip_image_encoder.set_train(False)
-    logger.info("clip image encoder init.")
+    
+    if 'image' in cfg.conditions_for_train: 
+        clip_image_encoder = FrozenOpenCLIPVisualEmbedder(
+            layer="penultimate", pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint), use_fp16=cfg.use_fp16
+        )
+        clip_image_encoder.set_train(False)
+        logger.info("clip image encoder init.")
+    else:
+        clip_image_encoder = None
 
     # print("D--: ", tokenizer("a dog", padding="max_length", max_length=77)["input_ids"])
 
@@ -212,9 +216,10 @@ def main(cfg):
     param_nums = {
         "vae": count_params(vae)[0],
         "clip_text_encoder": count_params(clip_text_encoder)[0],
-        "clip_image_encoder": count_params(clip_image_encoder)[0],
         "unet with stc encoders": count_params(unet)[0],
     }
+    if clip_image_encoder is not None: 
+        param_nums["clip_image_encoder"] = count_params(clip_image_encoder)[0]
     for cond in extra_conds:
         for _net in extra_conds[cond]:
             print()
@@ -229,7 +234,7 @@ def main(cfg):
         unet,
         vae,
         clip_text_encoder,
-        clip_image_encoder,
+        clip_image_encoder=clip_image_encoder,
         extra_conds=extra_conds,
         use_fp16=cfg.use_fp16,
         timesteps=cfg.num_timesteps,

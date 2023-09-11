@@ -23,10 +23,7 @@ class Config(object):
         if load:
             self.args = self._parse_args()
             _logger.info("Loading config from {}.".format(self.args.cfg_file))
-            self.need_initialization = True
-            cfg_base = self._initialize_cfg()
             cfg_dict = self._load_yaml(self.args)
-            cfg_dict = self._merge_cfg_from_base(cfg_base, cfg_dict)
             cfg_dict = self._update_from_args(cfg_dict)
             self.cfg_dict = cfg_dict
         self._update_dict(cfg_dict)
@@ -37,7 +34,7 @@ class Config(object):
             "--cfg",
             dest="cfg_file",
             help="Path to the configuration file",
-            default="configs/exp01_vidcomposer_full.yaml",
+            default="configs/train.yaml",
         )
         parser.add_argument(
             "--init_method",
@@ -113,17 +110,6 @@ class Config(object):
             cfg_dict[var] = getattr(args, var)
         return cfg_dict
 
-    def _initialize_cfg(self):
-        if self.need_initialization:
-            self.need_initialization = False
-            if os.path.exists("./configs/base.yaml"):
-                with open("./configs/base.yaml", "r") as f:
-                    cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
-            else:
-                with open(os.path.realpath(__file__).split("/")[-3] + "/configs/base.yaml", "r") as f:
-                    cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
-        return cfg
-
     def _load_yaml(self, args, file_name=""):
         assert args.cfg_file is not None
         if not file_name == "":  # reading from base file
@@ -158,7 +144,6 @@ class Config(object):
                     args.cfg_file.replace(args.cfg_file.split("/")[-1], ""),
                 )
             cfg_base = self._load_yaml(args, cfg_base_file)
-            cfg = self._merge_cfg_from_base(cfg_base, cfg)
         else:
             if "_BASE_RUN" in cfg.keys():
                 if cfg["_BASE_RUN"][1] == ".":
@@ -172,7 +157,6 @@ class Config(object):
                         args.cfg_file.replace(args.cfg_file.split("/")[-1], ""),
                     )
                 cfg_base = self._load_yaml(args, cfg_base_file)
-                cfg = self._merge_cfg_from_base(cfg_base, cfg, preserve_base=True)
             if "_BASE_MODEL" in cfg.keys():
                 if cfg["_BASE_MODEL"][1] == ".":
                     prev_count = cfg["_BASE_MODEL"].count("..")
@@ -186,22 +170,9 @@ class Config(object):
                         args.cfg_file.replace(args.cfg_file.split("/")[-1], ""),
                     )
                 cfg_base = self._load_yaml(args, cfg_base_file)
-                cfg = self._merge_cfg_from_base(cfg_base, cfg)
         cfg = self._merge_cfg_from_command(args, cfg)
         return cfg
-
-    def _merge_cfg_from_base(self, cfg_base, cfg_new, preserve_base=False):
-        for k, v in cfg_new.items():
-            if k in cfg_base.keys():
-                if isinstance(v, dict):
-                    self._merge_cfg_from_base(cfg_base[k], v)
-                else:
-                    cfg_base[k] = v
-            else:
-                if "BASE" not in k or preserve_base:
-                    cfg_base[k] = v
-        return cfg_base
-
+    
     def _merge_cfg_from_command(self, args, cfg):
         assert len(args.opts) % 2 == 0, "Override list {} has odd length: {}.".format(args.opts, len(args.opts))
         keys = args.opts[0::2]

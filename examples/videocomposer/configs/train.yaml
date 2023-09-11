@@ -1,10 +1,8 @@
 TASK_TYPE: SINGLE_TASK
-read_image: True # You NEED Open It
-read_style: True
 ENABLE: true
 DATASET: webvid10m
 video_compositions: ['text', 'mask', 'depthmap', 'sketch', 'motion', 'image', 'local_image', 'single_sketch']
-guidances: ['y', 'local_image', 'image', 'motion'] # You NEED Open It
+conditions_for_train: ["text", "motion", "local_image"]  # PyTorch + Ascend setting
 vit_image_size: 224
 network_name: UNetSD_temporal
 resume: true

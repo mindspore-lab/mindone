@@ -1024,6 +1024,7 @@ class UNetSD_temporal(nn.Cell):
             return {k.replace("temopral_conv", "temporal_conv"): v for k, v in sd.items()}
 
         if not os.path.exists(path):
+            logger.info(f"Checkpoint {path} not exists. Start downloading...")
             download_checkpoint(_CKPT_URL["UNetSD_temporal"], "model_weights/")
         if not os.path.exists(path):
             raise ValueError(
@@ -1079,10 +1080,15 @@ class UNetSD_temporal(nn.Cell):
         # Paper: During the second stage pre-training, we adhere to [26],
         #   using a probability of 0.1 to keep all conditions, a probability of 0.1 to discard all conditions,
         # and an independent probability of 0.5 to keep or discard a specific condition.
-        sample_type = ops.multinomial(self.type_dist, batch)
-        zero_mask = sample_type == 0
-        keep_mask = sample_type == 1
-        # print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
+        if self.use_droppath_masking:
+            sample_type = ops.multinomial(self.type_dist, batch)
+            zero_mask = sample_type == 0
+            keep_mask = sample_type == 1
+            print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
+        else:
+            zero_mask = None
+            keep_mask = None
+
         misc_droppath = self.misc_dropout
 
         concat = x.new_zeros((batch, self.concat_dim, f, h, w))  # TODO:
@@ -1227,17 +1233,17 @@ class UNetSD_temporal(nn.Cell):
                 y_context = misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
                 y_context = misc_droppath(y)
-            context = y_context  # ops.cat([context, y_context], axis=1)
+            context = y_context  # (bs, 77 ,1024)
         else:
             y_context = zero_y.tile((batch, 1, 1))
             context = y_context  # ops.cat([context, y_context], axis=1)
 
         if image is not None:
             if self.use_droppath_masking:
-                image_context = misc_droppath(self.pre_image_condition(image), zero_mask=zero_mask, keep_mask=keep_mask)
+                image_context = misc_droppath(self.pre_image_condition(image), zero_mask=zero_mask, keep_mask=keep_mask) # (bs, 1, 1024)
             else:
                 image_context = misc_droppath(self.pre_image_condition(image))
-            context = ops.cat([context, image_context], axis=1)
+            context = ops.cat([context, image_context], axis=1) #(bs 78 1024)
 
         # repeat f times for spatial e and context
         e = e.repeat_interleave(repeats=f, dim=0)

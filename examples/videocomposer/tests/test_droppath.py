@@ -9,7 +9,6 @@ def test_mask_gen():
     zero_mask, keep_mask = gen_zero_keep_mask(0.2, 0.2, 8)
     print(zero_mask, keep_mask)
 
-
 def test():
     bs = 4
     d = 2
@@ -32,7 +31,7 @@ def test():
     # keep_mask= ms.numpy.rand((bs, 1)) < p_all_keep
 
     type_dist = ms.Tensor(
-        [p_all_zero, p_all_keep, 1 - (p_all_zero + p_all_keep)]
+        [[p_all_zero, p_all_keep, 1 - (p_all_zero + p_all_keep)]]
     )  # used to control keep/drop all conditions for a sample
     sample_type = ops.multinomial(type_dist, bs)
     zero_mask = sample_type == 0
