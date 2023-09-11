@@ -57,6 +57,25 @@ class ControlledUnetModel(UNetModel):
             for cell in celllist:
                 h = cell(h, emb, context)
 
+        # # to run graph mode:
+        # if control is not None:
+        #     item = control[-1]
+        #     h = h + item
+        
+        # hs_len = len(hs)
+        # congrol_len = len(control)
+
+        # for i, celllist in enumerate(self.output_blocks):
+        #     hs_item = hs[hs_len-1-i]
+        #     if only_mid_control or control is None:
+        #         h = self.cat((h, hs_item))
+        #     else:
+        #         item = control[control_len-2-i]
+        #         h = self.cat([h, hs_item + item])
+            
+        #     for cell in celllist:
+        #         h = cell(h, emb, context)
+        
         return self.out(h)
 
 
@@ -133,11 +152,17 @@ class ControlNet(nn.Cell):
         self.predict_codebook_ids = n_embed is not None
 
         time_embed_dim = model_channels * 4
-        self.time_embed = nn.SequentialCell(
+        # self.time_embed = nn.SequentialCell(
+        #     linear(model_channels, time_embed_dim, dtype=self.dtype),
+        #     nn.SiLU().to_float(self.dtype),
+        #     # nn.Sigmoid().to_float(self.dtype),
+        #     linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
+        # )
+        self.time_embed = nn.CellList([
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            nn.Sigmoid().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
-        )
+        ])
 
         self.input_blocks = nn.CellList(
             [
@@ -156,19 +181,26 @@ class ControlNet(nn.Cell):
         self.input_hint_block = nn.CellList(
             [
                 conv_nd(dims, hint_channels, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 16, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 16, 32, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 32, 32, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 32, 96, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 96, 96, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 96, 256, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                # nn.SiLU().to_float(self.dtype),
+                nn.Sigmoid().to_float(self.dtype),
                 zero_module(
                     conv_nd(dims, 256, model_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype)
                 ),
@@ -324,10 +356,20 @@ class ControlNet(nn.Cell):
 
     def construct(self, x, hint, timesteps, context, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-        emb = self.time_embed(t_emb)
+        # emb = self.time_embed(t_emb)
+        emb = t_emb
+        for cell in self.time_embed:
+            if type(cell) is not nn.Sigmoid:
+                emb = cell(emb)
+            else:
+                emb = emb * cell(emb)
+
         guided_hint = hint
         for cell in self.input_hint_block:
-            guided_hint = cell(guided_hint)
+            if type(cell) is not nn.Sigmoid:
+                guided_hint = cell(guided_hint)
+            else:
+                guided_hint = guided_hint * cell(guided_hint)
 
         outs = []
 
@@ -355,25 +397,39 @@ class ControlLDM(LatentDiffusion):
         self.only_mid_control = only_mid_control
         self.control_scales = [1.0] * 13
 
+    def construct(self, x, c):
+        t = self.uniform_int(
+            (x.shape[0],), ms.Tensor(0, dtype=ms.dtype.int32), ms.Tensor(self.num_timesteps, dtype=ms.dtype.int32)
+        )
+        x, c_crossattn, c_concat = self.get_input(x, c)
+        c_crossattn = self.get_learned_conditioning_fortrain(c_crossattn)
+        c_concat, c_crossattn = [c_concat], [c_crossattn]
+        return self.p_losses(x, c_concat, c_crossattn, t)
+    
+    def get_learned_conditioning_fortrain(self, c):
+        c = self.cond_stage_model.encode(self.cond_stage_model.tokenize(c))
+        return c
+
     def get_input(self, batch, k, bs=None, *args, **kwargs):
         self.set_train(False)
         x, c = super().get_input(batch, self.first_stage_key, *args, **kwargs)
-        control = batch[self.control_key]
+        # control = batch[self.control_key]
+        control = batch
         if bs is not None:
             control = control[:bs]
         control = ops.transpose(control, (0, 3, 1, 2))  # 'b h w c -> b c h w'
-        control.to_float(self.dtype)
-        return x, dict(c_crossattn=[c], c_concat=[control])
+        # control.to_float(self.dtype)
+        return x, c, control
 
-    def apply_model(self, x_noisy, t, cond, *args, **kwargs):
+    def apply_model(self, x_noisy, t, c_concat=None, c_crossattn=None, *args, **kwargs):
         diffusion_model = self.model.diffusion_model
-        cond_txt = ops.concat(cond["c_crossattn"], 1)
-        if isinstance(cond, list) or (isinstance(cond, dict) and cond["c_concat"] is None):
+        cond_txt = ops.concat(c_crossattn, 1)
+        if c_concat is None:
             eps = diffusion_model(
                 x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control
             )
         else:
-            control = self.control_model(x=x_noisy, hint=ops.concat(cond["c_concat"], 1), timesteps=t, context=cond_txt)
+            control = self.control_model(x=x_noisy, hint=ops.concat(c_concat, 1), timesteps=t, context=cond_txt)
             control = [c * scale for c, scale in zip(control, self.control_scales)]
             eps = diffusion_model(
                 x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control
@@ -398,3 +454,36 @@ class ControlLDM(LatentDiffusion):
             params += list(self.model.diffusion_model.out.get_parameters())
         opt = nn.optim.adam.AdamWeightDecay(params, learning_rate=lr)
         return opt
+
+    def p_losses(self, x_start, c_concat, c_crossattn, t, noise=None):
+        noise = ms.numpy.randn(x_start.shape)
+        x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
+        model_output = self.apply_model(
+            x_noisy,
+            t,
+            c_concat=c_concat, 
+            c_crossattn=c_crossattn
+        )
+
+        if self.parameterization == "x0":
+            target = x_start
+        elif self.parameterization == "eps":
+            target = noise
+        elif self.parameterization == "velocity":
+            # target = sqrt_alpha_cum * noise - sqrt_one_minus_alpha_prod * x_start
+            target = self.get_velocity(x_start, noise, t)  # TODO: parse train step from randint
+        else:
+            raise NotImplementedError()
+
+        loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
+
+        logvar_t = self.logvar[t]
+        loss = loss_simple / ops.exp(logvar_t) + logvar_t
+        loss = self.l_simple_weight * loss.mean()
+
+        # NOTE: original_elbo_weight is never set larger than 0. Diffuser remove it too. Let's remove it to save mem.
+        # loss_vlb = self.get_loss(model_output, target, mean=False).mean((1, 2, 3))
+        # loss_vlb = (self.lvlb_weights[t] * loss_vlb).mean()
+        # loss += (self.original_elbo_weight * loss_vlb)
+
+        return loss

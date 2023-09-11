@@ -1,0 +1,27 @@
+{
+    "model_config": "configs/v1_train_controlnet.yaml",
+    "pretrained_model_path": "/home/mindspore/congw/data/",
+    "pretrained_model_file": "control_sd15_canny_ms.ckpt",
+    "data_path": "/home/mindspore/congw/data/pokemon_blip_canny/train",
+    "train_batch_size": 1,
+    "gradient_accumulation_steps": 1,
+    "optim": "adamw",
+    "patch_size":32,
+    "epochs": 8,
+    "betas": [
+        0.9,
+        0.98
+    ],
+    "dropout": 0.1,
+    "weight_decay": 0.01,
+    "warmup_steps": 1000,
+    "seed": 3407,
+    "image_size": 512,
+    "image_filter_size": 256,
+    "random_crop": false,
+    "filter_small_size": true,
+    "start_learning_rate": 1e-5,
+    "end_learning_rate": 1e-7,
+    "decay_steps": 0,
+    "save_checkpoint_steps": 10000
+}
