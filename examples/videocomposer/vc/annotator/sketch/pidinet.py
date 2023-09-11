@@ -8,12 +8,11 @@ import os
 from functools import partial
 
 import numpy as np
-from utils.download import download_checkpoint
-
 from mindspore import Parameter, nn, ops
 from mindspore.common.initializer import Constant, HeUniform, Uniform, initializer
 
 from ...utils.pt2ms import load_pt_weights_in_model
+from ...utils.download import download_checkpoint
 
 __all__ = [
     "PiDiNet",

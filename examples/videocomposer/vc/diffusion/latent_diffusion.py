@@ -2,8 +2,6 @@ import logging
 from functools import partial
 
 import numpy as np
-from ldm.modules.diffusionmodules.util import make_beta_schedule
-from ldm.util import default, exists, extract_into_tensor
 
 import mindspore as ms
 from mindspore import Parameter, Tensor
@@ -11,6 +9,11 @@ from mindspore import dtype as mstype
 from mindspore import nn
 from mindspore import numpy as msnp
 from mindspore import ops
+
+import sys
+sys.path.append("../stable_diffusion_v2/")
+from ldm.modules.diffusionmodules.util import make_beta_schedule
+from ldm.util import default, exists, extract_into_tensor
 
 _logger = logging.getLogger(__name__)
 

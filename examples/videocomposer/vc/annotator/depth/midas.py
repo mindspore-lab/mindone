@@ -2,13 +2,13 @@ import collections
 import math
 import os
 
-from utils.download import download_checkpoint
-
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter
 from mindspore.common.initializer import Normal, initializer
+
+from ...utils.download import download_checkpoint
 
 __all__ = ["MiDaS", "midas_v3_dpt_large"]
 
@@ -40,8 +40,7 @@ class SelfAttention(nn.Cell):
         q, k, v = self.to_qkv(x).view(b, l, n * 3, d).chunk(3, axis=2)
 
         # compute attention
-        # ops.einsum('binc,bjnc->bnij', q, k)
-        attn = self.scale * ops.bmm(q.permute(0, 2, 1, 3), k.permute(0, 2, 3, 1))
+        # ops.einsum('binc,bjnc->bnij', q, k) attn = self.scale * ops.bmm(q.permute(0, 2, 1, 3), k.permute(0, 2, 3, 1))
         attn = ops.softmax(attn, axis=-1).astype(attn.dtype)
 
         # gather context
