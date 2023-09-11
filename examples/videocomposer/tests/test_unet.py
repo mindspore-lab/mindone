@@ -19,8 +19,8 @@ def test_unet():
     t = ms.Tensor(np.ones((1,))* 10, dtype=ms.int64) 
     y = ms.Tensor(np.random.normal(size=(1, 77, 1024)), dtype=ms.float16)
     #single_sketch = ms.Tensor(np.random.normal((1, 1, 16, 384, 384)), dtype=ms.float32)
-    motion = ms.Tensor(np.random.normal(size=(1, 2, 16, 256, 256)), dtype=ms.float32)
-    #motion = None
+    #motion = ms.Tensor(np.random.normal(size=(1, 2, 16, 256, 256)), dtype=ms.float32)
+    motion = None
 
     unet_fp16 = UNetSD_temporal(
         cfg=cfg,
