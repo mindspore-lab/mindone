@@ -1,6 +1,6 @@
 # VideoComposer based on MindSpore
 
-This is an **unofficial** implementation of VideoComposer based on mindspore.
+MindSpore implementation & optimization of VideoComposer.
 
 ## Progress
 
@@ -20,16 +20,17 @@ This is an **unofficial** implementation of VideoComposer based on mindspore.
 - [x] exp06: depth to video with style
 - Graph Mode
 - AMP
+- Training on 910A+MS2.0 (exp02 mainly)
 
 
 ### TODOs
-
-- Training
-- Speed Up
+- Training on 910B
+- Speed Up & Memory Usage Reduction (Flash Attention)
+- Support more training tasks
 
 ### Notes
 
-- Model configs are determined by `vc/config/base.py` and `configs/xxx.yaml` and CLI arg parser.
+- Model configs are determined by `vc/config/base.py` and `configs/xxx.yaml` and CLI arg parser, implemented with vc/config/parser.py 
 - Checkpoints needs to be placed in `model_weights`.
 - For ARM platform, `pip install motion-vector-extractor` will not work. Please obtain the wheel installation file from samithuang or wtomin.
 
@@ -44,47 +45,21 @@ This is an **unofficial** implementation of VideoComposer based on mindspore.
 2. Install requirements
     ```shell
     pip install -r requirements.txt
+    conda install ffmpeg
     ```
 
-<!-- ## Prepare Model Weights
+## Prepare Model Weights
 
 ### Download
 
 The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${PROJECT_ROOT}` means the root path of project.
-Download from [official website](https://www.modelscope.cn/models/damo/VideoComposer/summary) or from [other repository](https://huggingface.co/camenduru/VideoComposer/tree/main)
-and place them as:
 
-```
-model_weights
-├── clip
-│   ├── bpe_simple_vocab_16e6.txt.gz
-│   └── open_clip_pytorch_model.bin
-├── non_ema_228000.pth
-├── sketch_simplification_gan.pth
-├── table5_pidinet.pth
-```
-`bpe_simple_vocab_16e6.txt.gz` can be found under `mindone/examples/stable_diffusion_v2/ldm/models/clip/`.
+Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
-### Convert
-
-In another virtual environment with `torch`, run the following script：
-
-```shell
-python vc/utils/pt2ms.py
-```
-
-You'll get the converted weights file in the same path, with the same name, ending with `npy`.
-
-In addition, please change the current working directory to `examples/stable_diffusion_v2` and run:
-
-```bash
-python tools/_common/clip/convert_weights.py --torch_path ../videocomposer/model_weights/clip/open_clip_pytorch_model.bin --mindspore_path ../videocomposer/model_weights/clip/open_clip_vit_h_14.ckpt
-```
-This will convert the CLIP torch checkpoint file to mindspore checkpoint file. After conversion, please change the working directory back to `examples/videocomposer`. -->
-
-## Demos
+## Inference 
 
 For the first-time running, it takes longer time since this program needs to download some checkpoints from cloud, and save them to `model_weights/`
+
 ```shell
 bash run_net.sh
 ```
@@ -95,8 +70,23 @@ You can change the floating data type and mode in `mindone/examples/videocompose
 cfg.use_fp16 = True  # set to False if you want to use float32
 cfg.mode = 0  # 0: Graph mode; 1: Pynative mode
 ```
----
 
+## Training
+
+For standalone training, please run
+```shell
+bash run_train.sh
+```
+
+For distributed training, please use `run_train_distribute.sh` instead after generating the hccl config file.
+
+Training configuration can be changed in `configs/train_config.py`, such `max_frames`. 
+
+Currently, it's tested on 910A+MS2.0 with max_frames=8. 
+
+
+
+---
 **The following content is the readme of the original repository.**
 
 ---

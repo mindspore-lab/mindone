@@ -53,7 +53,9 @@ def load_clip_model(arch, pretrained_ckpt_path, dtype):
 
 
 def load_ckpt_tokenizer(tokenizer_path):
+    # TODO: check diff for using defualt pad token and "!" 
     text_processor = CLIPTokenizer(tokenizer_path, pad_token="!")
+    #text_processor = CLIPTokenizer(tokenizer_path)
     return text_processor
 
 

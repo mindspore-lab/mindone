@@ -9,6 +9,13 @@ import yaml
 _logger = logging.getLogger(__name__)
 
 
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
+
 class Config(object):
     def __init__(self, load=True, cfg_dict=None, cfg_level=None):
         self._level = "cfg" + ("." + cfg_level if cfg_level is not None else "")
@@ -83,6 +90,12 @@ class Config(object):
             default=None,
             nargs=argparse.REMAINDER,
         )
+        # new args for mindspore
+        parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+        parser.add_argument("--output_dir", default="outputs/train", type=str, help="output directory to save training results")
+        parser.add_argument(
+            "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+        )
         return parser.parse_args()
 
     def _path_join(self, path_list):
@@ -106,6 +119,7 @@ class Config(object):
             else:
                 with open(os.path.realpath(__file__).split("/")[-3] + "/configs/base.yaml", "r") as f:
                     cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
+            print("D--: ", cfg)
         return cfg
 
     def _load_yaml(self, args, file_name=""):
@@ -114,17 +128,18 @@ class Config(object):
             with open(file_name, "r") as f:
                 cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
         else:
-            if os.getcwd().split("/")[-1] == args.cfg_file.split("/")[0]:
-                args.cfg_file = args.cfg_file.replace(os.getcwd().split("/")[-1], "./")
-            try:
-                with open(args.cfg_file, "r") as f:
-                    cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
-                    file_name = args.cfg_file
-            except:  # noqa
-                args.cfg_file = os.path.realpath(__file__).split("/")[-3] + "/" + args.cfg_file
-                with open(args.cfg_file, "r") as f:
-                    cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
-                    file_name = args.cfg_file
+            #if os.getcwd().split("/")[-1] == args.cfg_file.split("/")[0]:
+            #    args.cfg_file = args.cfg_file.replace(os.getcwd().split("/")[-1], "./")
+            print("D--: ", args.cfg_file)
+            #try:
+            with open(args.cfg_file, "r") as f:
+                cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
+                file_name = args.cfg_file
+            #except:  # noqa
+            #    args.cfg_file = os.path.realpath(__file__).split("/")[-3] + "/" + args.cfg_file
+            #    with open(args.cfg_file, "r") as f:
+            #        cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
+            #        file_name = args.cfg_file
 
         if "_BASE_RUN" not in cfg.keys() and "_BASE_MODEL" not in cfg.keys() and "_BASE" not in cfg.keys():
             # return cfg if the base file is being accessed

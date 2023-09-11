@@ -40,7 +40,7 @@ model:
         context_dim: 1024 # SD_VERSION v2.0
         use_checkpoint: True
         legacy: False
-        use_fp16: True
+        use_fp16: False
         dropout: 0.1
 
     first_stage_config:

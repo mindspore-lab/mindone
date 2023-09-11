@@ -421,7 +421,7 @@ class LatentDiffusion(DDPM):
 
         return loss
 
-
+# latent diffusion (unet) forward based on input noised latent and encoded conditions  
 class DiffusionWrapper(nn.Cell):
     def __init__(self, diff_model_config, conditioning_key):
         super().__init__()

@@ -4,7 +4,7 @@ from PIL import Image
 
 import mindspore as ms
 from mindspore import ops
-from mindspore.dataset import vision
+from mindspore.dataset import vision, transforms 
 from mindspore.dataset.vision import Inter as InterpolationMode
 
 __all__ = [
@@ -72,3 +72,47 @@ def make_masked_images(imgs, masks):
         # concatenation
         masked_imgs.append(ops.cat([imgs[i] * (1 - mask), (1 - mask)], axis=1))
     return ops.stack(masked_imgs, axis=0)
+
+
+# TODO: add augmentation
+def create_transforms(cfg, is_training=True):
+    # [Transform] Transforms for different inputs
+
+    # video frames, norm to [-1, 1] for VAE
+    infer_transforms = transforms.Compose(
+        [
+            vision.CenterCrop(size=cfg.resolution),
+            vision.ToTensor(),
+            vision.Normalize(mean=cfg.mean, std=cfg.std, is_hwc=False),
+        ]
+    )
+    # NOTE: only norm to [0. 1] for stc encoder or for detph/sketch image preprocessor
+    misc_transforms = transforms.Compose(
+        [
+            RandomResize(size=cfg.misc_size),
+            vision.CenterCrop(cfg.misc_size),
+            vision.ToTensor(),
+        ]
+    )
+    # since is motion data, no norm
+    mv_transforms = transforms.Compose(
+        [
+            vision.Resize(size=cfg.resolution),
+            vision.CenterCrop(cfg.resolution),
+        ]
+    )
+    # 
+    vit_transforms = transforms.Compose(
+        [
+            CenterCrop(cfg.vit_image_size),
+            vision.ToTensor(), # to chw
+            vision.Normalize(mean=cfg.vit_mean, std=cfg.vit_std, is_hwc=False),
+        ]
+    )
+    
+    # depth/motion net transforms
+    # depth_input_process = ...
+
+    return infer_transforms, misc_transforms, mv_transforms, vit_transforms
+
+
