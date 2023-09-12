@@ -93,11 +93,6 @@ class UNet3DConditionModel(nn.Cell):
         else:
             self.class_embedding = None
 
-        # class embedding
-        self.down_blocks = nn.CellList([])
-        self.mid_block = None
-        self.up_blocks = nn.CellList([])
-
         if isinstance(only_cross_attention, bool):
             only_cross_attention = [only_cross_attention] * len(down_block_types)
 
@@ -106,6 +101,7 @@ class UNet3DConditionModel(nn.Cell):
 
         # down
         output_channel = block_out_channels[0]
+        down_blocks = []
 
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
@@ -131,7 +127,11 @@ class UNet3DConditionModel(nn.Cell):
                 upcast_attention=upcast_attention,
                 resnet_time_scale_shift=resnet_time_scale_shift,
             )
-            self.down_blocks.append(down_block)
+            down_blocks.append(down_block)
+
+        self.down_blocks = nn.CellList(down_blocks)
+
+        self.mid_block = None
 
         # mid
         if mid_block_type == "UNetMidBlock3DCrossAttn":
@@ -161,6 +161,7 @@ class UNet3DConditionModel(nn.Cell):
         only_cross_attention = list(reversed(only_cross_attention))
 
         output_channel = reversed_block_out_channels[0]
+        up_blocks = []
 
         for i, up_block_type in enumerate(up_block_types):
             is_final_block = i == len(block_out_channels) - 1
@@ -195,8 +196,10 @@ class UNet3DConditionModel(nn.Cell):
                 upcast_attention=upcast_attention,
                 resnet_time_scale_shift=resnet_time_scale_shift,
             )
-            self.up_blocks.append(up_block)
+            up_blocks.append(up_block)
             prev_output_channel = output_channel
+
+        self.up_blocks = nn.CellList(up_blocks)
 
         # out
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
