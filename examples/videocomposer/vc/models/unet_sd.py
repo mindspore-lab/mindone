@@ -8,7 +8,7 @@ import mindspore as ms
 import mindspore.common.initializer as init
 from mindspore import nn, ops
 
-from ..utils.pt2ms import load_pt_weights_in_model
+from ..utils.pt2ms import auto_map
 from .attention import (
     BasicTransformerBlock,
     CrossAttention,
@@ -32,10 +32,7 @@ from .stc_encoder import Transformer_v2
 # from functools import partial
 
 
-# from mindspore.numpy import ones
-
-
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 __all__ = ["UNetSD_temporal"]
 
@@ -731,7 +728,7 @@ class UNetSD_temporal(nn.Cell):
             )
 
         # Condition Dropout
-        self.misc_dropout = (
+        self.misc_droppath = (
             DropPathWithControl(drop_prob=misc_dropout, scale_by_keep=False)
             if use_droppath_masking
             else DropPath(misc_dropout)
@@ -1016,25 +1013,31 @@ class UNetSD_temporal(nn.Cell):
         # zero out the last layer params
         self.out[-1].weight.set_data(init.initializer("zeros", self.out[-1].weight.shape, self.out[-1].weight.dtype))
 
-    def load_state_dict(self, path, text_to_video_pretrain=False):
-        def prune_weights(sd):
-            return {key: p for key, p in sd.items() if "input_blocks.0.0" not in key}
-
-        def fix_typo(sd):
-            return {k.replace("temopral_conv", "temporal_conv"): v for k, v in sd.items()}
-
-        if not os.path.exists(path):
-            logger.info(f"Checkpoint {path} not exists. Start downloading...")
+    def load_state_dict(self, ckpt_path, prefix_to_remove="unet."):
+        # for save_unet_only, the saved params will start with 'unet.'
+        if not os.path.exists(ckpt_path):
+            _logger.info(f"Checkpoint {ckpt_path} not exists. Start downloading...")
             download_checkpoint(_CKPT_URL["UNetSD_temporal"], "model_weights/")
-        if not os.path.exists(path):
+        if not os.path.exists(ckpt_path):
             raise ValueError(
-                f"Maybe download failed. Please download it manually from {_CKPT_URL['UNetSD_temporal']} and place it under `model_weights/`"
+                f"Checkpoint not exist or download fail. Please download it manually from {_CKPT_URL['UNetSD_temporal']} and place it under `model_weights/`"
             )
 
-        if text_to_video_pretrain:
-            load_pt_weights_in_model(self, path, (prune_weights, fix_typo))
-        else:
-            load_pt_weights_in_model(self, path, (fix_typo,))
+        state_dict = ms.load_checkpoint(ckpt_path)
+        # remove "unet." prefix if have
+        if prefix_to_remove is not None:
+            param_names = list(state_dict.keys())
+            if param_names[0].startswith("unet.") and param_names[-1].startswith("unet."):
+                for pn in param_names:
+                    state_dict[pn[len(prefix_to_remove) :]] = state_dict.pop(pn)
+        state_dict = auto_map(
+            self, state_dict
+        )  # automatically map the ms parameter names with the key names in the checkpoint file.
+        param_not_load, ckpt_not_load = ms.load_param_into_net(self, state_dict, strict_load=True)
+        if param_not_load:
+            _logger.warning(f"Network params not loaded: {param_not_load}")
+        # if ckpt_not_load:
+        #    _logger.warning(f"Checkput params not used: {ckpt_not_load}")
 
     def construct(
         self,
@@ -1079,19 +1082,21 @@ class UNetSD_temporal(nn.Cell):
         # all-zero and all-keep masks
         # Paper: During the second stage pre-training, we adhere to [26],
         #   using a probability of 0.1 to keep all conditions, a probability of 0.1 to discard all conditions,
-        # and an independent probability of 0.5 to keep or discard a specific condition.
         if self.use_droppath_masking:
-            sample_type = ops.multinomial(self.type_dist, batch)
-            zero_mask = sample_type == 0
-            keep_mask = sample_type == 1
-            #print(f"D--: droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
+            # sample_type = ops.multinomial(self.type_dist, batch)
+            # zero_mask = sample_type == 0
+            # keep_mask = sample_type == 1
+            p_sample_type = ops.rand([batch, 1], dtype=ms.float32)  # adapt for 910b
+            zero_mask = ops.logical_and(p_sample_type >= 0, p_sample_type < self.type_dist[0])
+            keep_mask = ops.logical_and(
+                p_sample_type >= self.type_dist[0], p_sample_type < (self.type_dist[0] + self.type_dist[1])
+            )
+            # print(f"D-- : droppath zero mask: {zero_mask}, keep_mask: {keep_mask}")
         else:
             zero_mask = None
             keep_mask = None
 
-        misc_droppath = self.misc_dropout
-
-        concat = x.new_zeros((batch, self.concat_dim, f, h, w))  # TODO:
+        concat = x.new_zeros((batch, self.concat_dim, f, h, w))
 
         def rearrange_conditions(x, stage, batch, h):
             if stage == 0:
@@ -1119,9 +1124,9 @@ class UNetSD_temporal(nn.Cell):
             depth = self.depth_embedding_after(depth)
             depth = rearrange_conditions(depth, 2, batch, h)
             if self.use_droppath_masking:
-                concat = concat + misc_droppath(depth, zero_mask=zero_mask, keep_mask=keep_mask)
+                concat = concat + self.misc_droppath(depth, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                concat = concat + misc_droppath(depth)
+                concat = concat + self.misc_droppath(depth)
 
         # local_image_embedding
         if local_image is not None:
@@ -1134,9 +1139,9 @@ class UNetSD_temporal(nn.Cell):
             local_image = rearrange_conditions(local_image, 2, batch, h)
 
             if self.use_droppath_masking:
-                concat = concat + misc_droppath(local_image, zero_mask=zero_mask, keep_mask=keep_mask)
+                concat = concat + self.misc_droppath(local_image, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                concat = concat + misc_droppath(local_image)
+                concat = concat + self.misc_droppath(local_image)
 
         if motion is not None:
             motion = rearrange_conditions(motion, 0, batch, h)
@@ -1153,9 +1158,9 @@ class UNetSD_temporal(nn.Cell):
                 concat = concat + motion
             else:
                 if self.use_droppath_masking:
-                    concat = concat + misc_droppath(motion, zero_mask=zero_mask, keep_mask=keep_mask)
+                    concat = concat + self.misc_droppath(motion, zero_mask=zero_mask, keep_mask=keep_mask)
                 else:
-                    concat = concat + misc_droppath(motion)
+                    concat = concat + self.misc_droppath(motion)
 
         if canny is not None:
             # DropPath mask
@@ -1166,9 +1171,9 @@ class UNetSD_temporal(nn.Cell):
             canny = self.canny_embedding_after(canny)
             canny = rearrange_conditions(canny, 2, batch, h)
             if self.use_droppath_masking:
-                concat = concat + misc_droppath(canny, zero_mask=zero_mask, keep_mask=keep_mask)
+                concat = concat + self.misc_droppath(canny, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                concat = concat + misc_droppath(canny)
+                concat = concat + self.misc_droppath(canny)
 
         if sketch is not None:
             # DropPath mask
@@ -1179,9 +1184,9 @@ class UNetSD_temporal(nn.Cell):
             sketch = self.sketch_embedding_after(sketch)
             sketch = rearrange_conditions(sketch, 2, batch, h)
             if self.use_droppath_masking:
-                concat = concat + misc_droppath(sketch, zero_mask=zero_mask, keep_mask=keep_mask)
+                concat = concat + self.misc_droppath(sketch, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                concat = concat + misc_droppath(sketch)
+                concat = concat + self.misc_droppath(sketch)
 
         if single_sketch is not None:
             # DropPath mask
@@ -1192,9 +1197,9 @@ class UNetSD_temporal(nn.Cell):
             single_sketch = self.single_sketch_embedding_after(single_sketch)
             single_sketch = rearrange_conditions(single_sketch, 2, batch, h)
             if self.use_droppath_masking:
-                concat = concat + misc_droppath(single_sketch, zero_mask=zero_mask, keep_mask=keep_mask)
+                concat = concat + self.misc_droppath(single_sketch, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                concat = concat + misc_droppath(single_sketch)
+                concat = concat + self.misc_droppath(single_sketch)
 
         if masked is not None:
             # DropPath mask
@@ -1206,9 +1211,9 @@ class UNetSD_temporal(nn.Cell):
             masked = self.mask_embedding_after(masked)
             masked = rearrange_conditions(masked, 2, batch, h)
             if self.use_droppath_masking:
-                concat = concat + misc_droppath(masked, zero_mask=zero_mask, keep_mask=keep_mask)
+                concat = concat + self.misc_droppath(masked, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                concat = concat + misc_droppath(masked)
+                concat = concat + self.misc_droppath(masked)
 
         x = ops.cat([x, concat], axis=1)
         # b c f h w -> b f c h w -> (b f) c h w
@@ -1230,9 +1235,9 @@ class UNetSD_temporal(nn.Cell):
         # context = x.new_zeros((batch, 0, self.context_dim))  # empty tensor?
         if y is not None:
             if self.use_droppath_masking:
-                y_context = misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
+                y_context = self.misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
             else:
-                y_context = misc_droppath(y)
+                y_context = self.misc_droppath(y)
             context = y_context  # (bs, 77 ,1024)
         else:
             y_context = zero_y.tile((batch, 1, 1))
@@ -1240,10 +1245,12 @@ class UNetSD_temporal(nn.Cell):
 
         if image is not None:
             if self.use_droppath_masking:
-                image_context = misc_droppath(self.pre_image_condition(image), zero_mask=zero_mask, keep_mask=keep_mask) # (bs, 1, 1024)
+                image_context = self.misc_droppath(
+                    self.pre_image_condition(image), zero_mask=zero_mask, keep_mask=keep_mask
+                )  # (bs, 1, 1024)
             else:
-                image_context = misc_droppath(self.pre_image_condition(image))
-            context = ops.cat([context, image_context], axis=1) #(bs 78 1024)
+                image_context = self.misc_droppath(self.pre_image_condition(image))
+            context = ops.cat([context, image_context], axis=1)  # (bs 78 1024)
 
         # repeat f times for spatial e and context
         e = e.repeat_interleave(repeats=f, dim=0)

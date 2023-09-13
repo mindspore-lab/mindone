@@ -1,7 +1,7 @@
 import sys
 import time
 
-from configs.train_config import cfg
+from configs.train_base import cfg
 from vc.data.dataset_train import build_dataset
 
 import mindspore as ms

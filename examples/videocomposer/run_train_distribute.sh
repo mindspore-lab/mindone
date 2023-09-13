@@ -6,17 +6,17 @@ rank_table_file=/home/huangyongxiang/tools/hccl_8p_01234567_8.92.9.90.json
 CANDIDATE_DEVICE=(0 1 2 3 4 5 6 7 8)
 
 # ascend config
-export GLOG_v=3
+#export GLOG_v=3
 export HCCL_CONNECT_TIMEOUT=6000
-export ASCEND_GLOBAL_LOG_LEVEL=3
-export ASCEND_SLOG_PRINT_TO_STDOUT=0
+#export ASCEND_GLOBAL_LOG_LEVEL=3
+#export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
 ulimit -u unlimited
 ulimit -SHn 65535
 export DEVICE_NUM=$num_devices
 export RANK_SIZE=$num_devices
 RANK_TABLE_FILE=$rank_table_file
-export RANK_TABLE_FILE
+export RANK_TABLE_FILE=${RANK_TABLE_FILE}
 echo "RANK_TABLE_FILE=${RANK_TABLE_FILE}"
 
 # remove files

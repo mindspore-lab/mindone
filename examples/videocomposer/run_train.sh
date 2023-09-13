@@ -1,8 +1,8 @@
-export GLOG_v=3
+export GLOG_v=2
 export HCCL_CONNECT_TIMEOUT=6000
 export ASCEND_GLOBAL_LOG_LEVEL=1
-export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 0 to simplify
-export DEVICE_ID=7
+export ASCEND_SLOG_PRINT_TO_STDOUT=1 # 0 to simplify
+export DEVICE_ID=0
 
 output_path='outputs/train'
 

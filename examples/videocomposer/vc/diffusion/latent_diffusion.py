@@ -278,11 +278,11 @@ class LatentDiffusion(nn.Cell):
         # (bs 3 224 224) -> (bs 1 1024) -> (bs 1 1 1024) -> (bs 1 1024)
         # ViT-h preprocess has been applied in dataloader
         # print("D--: style image input shape: ", style_image.shape)
-        if self.clip_image_encoder is not None: 
+        if self.clip_image_encoder is not None:
             style_emb = ops.stop_gradient(self.clip_image_encoder(style_image))
             style_emb = ops.unsqueeze(style_emb, 1)
         else:
-            style_emb = None # TODO: need to give a blank/zero value?
+            style_emb = None  # TODO: need to give a blank/zero value?
         # print("D--: style embedding shape: : ", style_emb.shape)
 
         # 3.3 motion vectors

@@ -9,6 +9,7 @@ def test_mask_gen():
     zero_mask, keep_mask = gen_zero_keep_mask(0.2, 0.2, 8)
     print(zero_mask, keep_mask)
 
+
 def test():
     bs = 4
     d = 2

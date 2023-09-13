@@ -3,12 +3,12 @@ VC training/finetuning
 """
 import logging
 import os
-import numpy as np
 
-# import importlib
 # import datetime
-# import shutil
+import shutil
 import sys
+
+import numpy as np
 
 # from omegaconf import OmegaConf
 from vc.annotator.depth import midas_v3_dpt_large
@@ -29,7 +29,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../stable_diffusion_v2/")
-from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
+from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
@@ -59,12 +59,6 @@ def init_env(args):
             gradients_mean=True,
             device_num=device_num,
         )
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        print(dict(zip(var_info, var_value)), flush=True)
-
-        # if args.enable_modelarts:
-        #    split_and_sync_data(args, device_num, rank_id)
     else:
         device_num = 1
         device_id = int(os.getenv("DEVICE_ID", 0))
@@ -75,12 +69,12 @@ def init_env(args):
         mode=args.ms_mode,
         device_target="Ascend",
         device_id=device_id,
-        max_device_memory="30GB",
+        # max_device_memory="30GB", # adapt for 910b
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
     # logger
-    # ct = datetime.datetime.now().strftime("_%y%m%d_%H_%M")  # TODO:
+    # ct = datetime.datetime.now().strftime("_%y%m%d_%H_%M")
     # args.output_dir += ct
     setup_logger(output_dir=args.output_dir, rank=args.rank)
 
@@ -93,8 +87,8 @@ def check_config(cfg):
         if cond not in cfg.video_compositions:
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
-
     print("===> Conditions used for training: ", cfg.conditions_for_train)
+
 
 def main(cfg):
     check_config(cfg)
@@ -103,8 +97,6 @@ def main(cfg):
     rank_id, device_id, device_num = init_env(cfg)
 
     # 2. build model components for ldm
-    # create vae, clip, unet, and load pretrained weights
-
     # 2.1 clip - text encoder, and image encoder (optional)
     clip_text_encoder = FrozenOpenCLIPEmbedder(
         layer="penultimate",
@@ -115,8 +107,8 @@ def main(cfg):
     logger.info("clip text encoder init.")
     tokenizer = clip_text_encoder.tokenizer
     clip_text_encoder.set_train(False)
-    
-    if 'image' in cfg.conditions_for_train: 
+
+    if "image" in cfg.conditions_for_train:
         clip_image_encoder = FrozenOpenCLIPVisualEmbedder(
             layer="penultimate", pretrained_ckpt_path=get_abspath_of_weights(cfg.clip_checkpoint), use_fp16=cfg.use_fp16
         )
@@ -124,8 +116,6 @@ def main(cfg):
         logger.info("clip image encoder init.")
     else:
         clip_image_encoder = None
-
-    # print("D--: ", tokenizer("a dog", padding="max_length", max_length=77)["input_ids"])
 
     # 2.2 vae
     vae = AutoencoderKL(
@@ -141,8 +131,9 @@ def main(cfg):
     logger.info("vae init")
 
     # 2.3 unet3d with STC encoders
-    # TODO: optimize the args, consider isoldate stc encoder from unet
-    black_image_feature = ms.Tensor(np.zeros([1, 1, cfg.vit_dim]), ms.float32)  # img feature vector of vit-h is fxed to len of 1024
+    black_image_feature = ms.Tensor(
+        np.zeros([1, 1, cfg.vit_dim]), ms.float32
+    )  # img feature vector of vit-h is fxed to len of 1024
     unet = UNetSD_temporal(
         cfg=cfg,
         in_dim=cfg.unet_in_dim,
@@ -168,18 +159,17 @@ def main(cfg):
         zero_y=None,  # assume we always use text prompts  (y, even y="")
         black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
-        use_adaptive_pool=cfg.use_adaptive_pool,  # TODO: AdaptivePool2DGrad is not stable on ms2.0
+        use_adaptive_pool=cfg.use_adaptive_pool,
     )
     # TODO: use common checkpoiont download, mapping, and loading
-    unet.load_state_dict(get_abspath_of_weights(cfg.resume_checkpoint))
+    unet.load_state_dict(cfg.resume_checkpoint)
     unet = unet.set_train(True)
 
     # 2.4 other NN-based condition extractors
-    # TODO: add for depth/sketch to video training
     cfg.dtype = ms.float16 if cfg.use_fp16 else ms.float32
     extra_conds = {}
-    # 2.4 1) sktech - pidinet and cleaner
-    if "single_sketch" in cfg.conditions_for_train or "sketch" in cfg.conditions_for_train:
+    # 2.4 1) sketch - pidinet and cleaner
+    if ("single_sketch" in cfg.conditions_for_train) or ("sketch" in cfg.conditions_for_train):
         # sketch extractor
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
@@ -201,8 +191,6 @@ def main(cfg):
             "cleaner": cleaner,
         }
 
-        # TODO: set pidinet and cleaner as O3 amp
-
     # 2.4 2) depth - midas
     if "depthmap" in cfg.conditions_for_train:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
@@ -211,7 +199,7 @@ def main(cfg):
             param.requires_grad = False
         extra_conds["depthmap"] = {"midas": midas, "depth_clamp": cfg.depth_clamp, "depth_std": cfg.depth_std}
 
-        auto_mixed_precision(midas, amp_level="O3")  # TODO: check output type fp16 or fp32
+        auto_mixed_precision(midas, amp_level="O3")
 
     # count num params for each network
     param_nums = {
@@ -219,7 +207,7 @@ def main(cfg):
         "clip_text_encoder": count_params(clip_text_encoder)[0],
         "unet with stc encoders": count_params(unet)[0],
     }
-    if clip_image_encoder is not None: 
+    if clip_image_encoder is not None:
         param_nums["clip_image_encoder"] = count_params(clip_image_encoder)[0]
     for cond in extra_conds:
         for _net in extra_conds[cond]:
@@ -230,7 +218,7 @@ def main(cfg):
     tot_params = sum([param_nums[module] for module in param_nums])
     logger.info("Total parameters: {:,}".format(tot_params))
 
-    # 3. build latent diffusion with loss cell
+    # 3. build latent diffusion with loss cell (core)
     ldm_with_loss = LatentDiffusion(
         unet,
         vae,
@@ -246,82 +234,100 @@ def main(cfg):
         linear_end=cfg.linear_end,
     )
 
-    # auto_mixed_precision(ldm_with_loss, amp_level="O3") # TODO: debugging
+    # auto_mixed_precision(ldm_with_loss, amp_level="O3") # Note: O3 will lead to gradient overflow
 
     # 4. build training dataset
     dataloader = build_dataset(cfg, device_num, rank_id, tokenizer)
     num_batches = dataloader.get_dataset_size()
 
-    # test match btw dataloader and diffusion model
-    debug = False
-    if debug:
-        iterator = dataloader.create_dict_iterator()
-        for i, batch in enumerate(iterator):
-            for k in batch:
-                print(k, batch[k].shape, batch[k].min(), batch[k].max())
-            loss = ldm_with_loss(*list(batch.values()))
-            print(loss)
+    # 5. build training utils
+    learning_rate = build_lr_scheduler(
+        steps_per_epoch=num_batches,
+        scheduler=cfg.scheduler,
+        lr=cfg.learning_rate,
+        min_lr=cfg.end_learning_rate,
+        warmup_steps=cfg.warmup_steps,
+        decay_steps=cfg.decay_steps,
+        num_epochs=cfg.epochs,
+    )
+    optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate)
+    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65536, scale_factor=2, scale_window=1000)
 
-    else:
-        # 5. build training utils
-        learning_rate = build_lr_scheduler(
-            steps_per_epoch=num_batches,
-            scheduler=cfg.scheduler,
-            lr=cfg.learning_rate,
-            min_lr=cfg.end_learning_rate,
-            warmup_steps=cfg.warmup_steps,
-            decay_steps=cfg.decay_steps,
-            num_epochs=cfg.epochs,
+    net_with_grads = TrainOneStepWrapper(
+        ldm_with_loss,
+        optimizer=optimizer,
+        scale_sense=loss_scaler,
+        drop_overflow_update=True,
+        gradient_accumulation_steps=1,  # #args.gradient_accumulation_steps,
+        clip_grad=False,  # args.clip_grad,
+        clip_norm=1.0,  # args.max_grad_norm,
+        ema=None,  # TODO: add EMA
+    )
+
+    model = Model(net_with_grads)
+
+    callbacks = [TimeMonitor(cfg.log_interval), LossMonitor(cfg.log_interval), OverflowMonitor()]
+    if cfg.profile:
+        callbacks.append(ProfilerCallback())
+
+    start_epoch = 0
+    if rank_id == 0:
+        net_to_save = ldm_with_loss.unet if cfg.save_unet_only else ldm_with_loss
+        model_name = "vc_unet" if cfg.save_unet_only else "vc"
+        save_cb = EvalSaveCallback(
+            network=net_to_save,  # TODO: save unet seperately
+            use_lora=False,
+            rank_id=rank_id,
+            ckpt_save_dir=cfg.output_dir,
+            ema=None,
+            ckpt_save_policy="latest_k",
+            ckpt_max_keep=3,
+            step_mode=False,
+            ckpt_save_interval=cfg.ckpt_save_interval,
+            log_interval=cfg.log_interval,
+            start_epoch=start_epoch,
+            record_lr=False,  # LR retrival is not supportted on 910b currently
+            model_name=model_name,
         )
-        optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate)
-        loss_scaler = DynamicLossScaleUpdateCell(
-            loss_scale_value=65536, scale_factor=2, scale_window=1000
-        )  # TODO: tune
+        callbacks.append(save_cb)
 
-        net_with_grads = TrainOneStepWrapper(
-            ldm_with_loss,
-            optimizer=optimizer,
-            scale_sense=loss_scaler,
-            drop_overflow_update=True,  # TODO: orignally True in SD, but here overflow keep happening, debug True
-            gradient_accumulation_steps=1,  # #args.gradient_accumulation_steps,
-            clip_grad=False,  # args.clip_grad,
-            clip_norm=1.0,  # args.max_grad_norm,
-            ema=None,  # ema,
+    # - log and save training configs
+    if rank_id == 0:
+        _, num_trainable_params = count_params(ldm_with_loss)
+        key_info = "Key Settings:\n" + "=" * 50 + "\n"
+        key_info += "\n".join(
+            [
+                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {cfg.ms_mode}",
+                f"Distributed mode: {cfg.use_parallel}",
+                f"Dataset sink mode: {cfg.dataset_sink_mode}",
+                f"Data path: {cfg.root_dir}",
+                "Model: VideoComposer",
+                f"Conditions for training: {cfg.conditions_for_train}",
+                f"Num params: {param_nums}",
+                f"Num trainable params: {num_trainable_params:,}",
+                f"Use fp16: {cfg.use_fp16}",
+                f"Learning rate: {cfg.learning_rate}",
+                f"Batch size: {cfg.batch_size}",
+                f"Max frames: {cfg.max_frames}",
+                f"Weight decay: {cfg.weight_decay}",
+                f"Num epochs: {cfg.epochs}",
+            ]
         )
+        key_info += "\n" + "=" * 50
+        logger.info(key_info)
+        shutil.copyfile("configs/train_base.py", os.path.join(cfg.output_dir, "train_base.py"))
+        shutil.copyfile(cfg.cfg_file, os.path.join(cfg.output_dir, "train.yaml"))
 
-        model = Model(net_with_grads)
-
-        # callbacks
-        callback = [TimeMonitor(cfg.log_interval), LossMonitor(cfg.log_interval)]
-        ofm_cb = OverflowMonitor()
-        callback.append(ofm_cb)
-
-        start_epoch = 0
-        if rank_id == 0:
-            save_cb = EvalSaveCallback(
-                network=ldm_with_loss,  # TODO: save unet/vae seperately
-                use_lora=False,
-                rank_id=rank_id,
-                ckpt_save_dir=cfg.output_dir,
-                ema=None,
-                ckpt_save_policy="latest_k",
-                ckpt_max_keep=3,
-                step_mode=False,
-                ckpt_save_interval=cfg.ckpt_save_interval,
-                log_interval=cfg.log_interval,
-                start_epoch=start_epoch,
-            )
-
-            callback.append(save_cb)
-
-        # train
-        print("Start training. Please wait for graph compile (~20min)")
-        model.train(cfg.epochs, dataloader, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
+    # 6. train
+    logger.info("Start training. Please wait for graph compilation (~15 mins depending on processor)")
+    model.train(
+        cfg.epochs, dataloader, callbacks=callbacks, dataset_sink_mode=cfg.dataset_sink_mode, initial_epoch=start_epoch
+    )
 
 
 if __name__ == "__main__":
     # 0. parse config
-    from configs.train_config import cfg  # base config from train_config.py
+    from configs.train_base import cfg  # base config from train_base.py
 
     args_for_update = Config(load=True).cfg_dict  # config args from CLI (arg parser) and yaml files
 
@@ -330,5 +336,4 @@ if __name__ == "__main__":
         cfg[k] = v
 
     print(cfg)
-
     main(cfg)

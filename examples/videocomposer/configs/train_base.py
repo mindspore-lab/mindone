@@ -1,5 +1,3 @@
-import os
-
 from easydict import EasyDict
 
 cfg = EasyDict(__name__="Config: VideoComposer")
@@ -35,7 +33,7 @@ cfg.sketch_std = [0.229, 0.224, 0.225]
 # dataloader
 cfg.max_words = 1000
 cfg.feature_framerate = 4
-cfg.max_frames = 8  # 16
+cfg.max_frames = 8  # 16 for 910B, set 8 for 910A
 cfg.batch_size = 1
 cfg.chunk_size = 64
 cfg.num_workers = 8  # not used yet
@@ -117,17 +115,13 @@ cfg.fix_weight = False
 # resume
 cfg.resume = True
 cfg.resume_step = 228000  # 148000
-cfg.resume_check_dir = "."
-cfg.resume_checkpoint = os.path.join(cfg.resume_check_dir, f"step_{cfg.resume_step}/non_ema_{cfg.resume_step}.pth")
-cfg.resume_optimizer = False
-if cfg.resume_optimizer:
-    cfg.resume_optimizer = os.path.join(cfg.resume_check_dir, f"optimizer_step_{cfg.resume_step}.pt")
+cfg.resume_checkpoint = "model_weights/non_ema_228000-3bb2ee9a.ckpt"
 
 # acceleration
-cfg.load_from = None
+# cfg.load_from = None
 cfg.use_checkpoint = False
-cfg.use_sharded_ddp = False
-cfg.use_fsdp = False
+# cfg.use_sharded_ddp = False
+# cfg.use_fsdp = False
 cfg.use_fp16 = True
 cfg.use_adaptive_pool = False  # False (AvgPool2D) is much faster on ms2.0
 
@@ -147,9 +141,9 @@ cfg.ema_decay = 0.9999
 
 cfg.epochs = 50
 cfg.ckpt_save_interval = 50  # 1000 # only save last checkpoint for DEBUG
+cfg.save_unet_only = True
 cfg.ouptut_dir = "outputs/train"  # log will be saved here too
 cfg.viz_interval = 1000
-
 
 # logging
 cfg.log_interval = 1

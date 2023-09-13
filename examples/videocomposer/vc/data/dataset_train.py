@@ -204,7 +204,7 @@ def build_dataset(cfg, device_num, rank_id, tokenizer):
         python_multiprocessing=True,
         shuffle=cfg.shuffle,
         num_parallel_workers=2,
-        max_rowsize=64,  # video data require larger rowsize
+        max_rowsize=128,  # video data require larger rowsize
     )
 
     dl = dataloader.batch(

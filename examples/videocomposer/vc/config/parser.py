@@ -89,12 +89,19 @@ class Config(object):
             nargs=argparse.REMAINDER,
         )
         # new args for mindspore
-        parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-        parser.add_argument(
-            "--output_dir", default="outputs/train", type=str, help="output directory to save training results"
-        )
         parser.add_argument(
             "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+        )
+        parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+        parser.add_argument(
+            "--dataset_sink_mode",
+            default=True,
+            type=str2bool,
+            help="use dataset_sink_mode in model.train. Enable it can boost the performance but step_end callback will be disabled.",
+        )
+        parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
+        parser.add_argument(
+            "--output_dir", default="outputs/train", type=str, help="output directory to save training results"
         )
         return parser.parse_args()
 
@@ -170,9 +177,10 @@ class Config(object):
                         args.cfg_file.replace(args.cfg_file.split("/")[-1], ""),
                     )
                 cfg_base = self._load_yaml(args, cfg_base_file)
+                cfg = self._merge_cfg_from_base(cfg_base, cfg)
         cfg = self._merge_cfg_from_command(args, cfg)
         return cfg
-    
+
     def _merge_cfg_from_command(self, args, cfg):
         assert len(args.opts) % 2 == 0, "Override list {} has odd length: {}.".format(args.opts, len(args.opts))
         keys = args.opts[0::2]

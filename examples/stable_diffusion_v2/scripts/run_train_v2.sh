@@ -49,4 +49,5 @@ python train_text_to_image.py \
     --warmup_steps $warmup_steps \
     --image_filter_size=$image_filter_size \
     --weight_decay=$weight_decay \
+    --profile=True \
 #    > $output_path/$task_name/log_train_v2 2>&1 &

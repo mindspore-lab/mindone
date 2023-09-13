@@ -21,10 +21,10 @@ MindSpore implementation & optimization of VideoComposer.
 - Graph Mode
 - AMP
 - Training on 910A+MS2.0 (exp02 mainly)
+- Training on 910B+MS2.2 (master version) (exp02 mainly)
 
 
 ### TODOs
-- Training on 910B
 - Speed Up & Memory Usage Reduction (Flash Attention)
 - Support more training tasks
 
