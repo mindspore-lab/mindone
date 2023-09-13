@@ -16,6 +16,6 @@ seed: 14
 num_workers: 1
 mvs_visual: True
 chunk_size: 1
-resume_checkpoint: "non_ema_141000_no_watermark.pth"
+resume_checkpoint: "model_weights/non_ema_141000_no_watermark.pth"
 log_dir: 'outputs'
 num_steps: 1

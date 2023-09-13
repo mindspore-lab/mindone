@@ -68,7 +68,7 @@ def init_env(args):
         mode=context.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
-        max_device_memory="30GB",  # TODO: why limit?
+        max_device_memory="30GB",  # TODO: need to remove it or change to 60GB on 910B
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
@@ -141,6 +141,10 @@ def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
 
 
 def main(args):
+    if args.profile:
+        profiler = ms.Profiler(output_path="./profiler_data")
+        args.epochs = 3
+
     # init
     rank_id, device_id, device_num = init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -312,6 +316,9 @@ def main(args):
     # train
     model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
 
+    if args.profile:
+        profiler.analyse()
+
 
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
@@ -348,6 +355,7 @@ if __name__ == "__main__":
         type=str,
         help="resume training, can set True or path to resume checkpoint.(default=False)",
     )
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument("--train_config", default="configs/train_config.json", type=str, help="train config path")
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
     parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")

@@ -2,13 +2,13 @@ import collections
 import math
 import os
 
-from utils.download import download_checkpoint
-
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter
 from mindspore.common.initializer import Normal, initializer
+
+from ...utils.download import download_checkpoint
 
 __all__ = ["MiDaS", "midas_v3_dpt_large"]
 
