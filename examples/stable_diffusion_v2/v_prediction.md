@@ -66,27 +66,23 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 
 ### Finetune
 
-We will use the `scripts/run_train_v2_v_pred.sh` script for v-prediciton finetuning.
+We will use the `train_text_to_image.py` script for v-prediciton finetuning.
 
-Before running, please modify the `data_path` argument to your local dataset path. Make sure the `image_size` is set to `768`. For example
+Before running, please make sure the `image_size` is set to `768` and please modify the following arguments to your
+local path in the shell or in the config file `train_config_vanilla_v2_vpred.yaml`:
 
-```shell
-data_path=./datasets/pokemon_blip  # modify to your custum dataset path
-output_path=output/finetune_v_pred_pokemon  # modify to your custum output path
-image_size=768
-```
+* `--data_path=/path/to/data`
+* `--output_path=/path/to/save/output_data`
+* `--pretrained_model_path=/path/to/pretrained_model`
 
-Then modify `configs/v2-train.yaml` as follows to switch from `eps-prediction` to `v-prediction`,
-
-```yaml
-#parameterization: "eps"
-parameterization: "velocity"
-```
-
-Finally, execute the script to launch finetuning
+Then, execute the script to launch finetuning:
 
 ```shell
-sh scripts/run_train_v2_v_pred.sh
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_vanilla_v2_vpred.yaml" \
+    --data_path "datasets/pokemon_blip/train" \
+    --output_path "output/vpred_vanilla_finetune_pokemon/txt2img" \
+    --pretrained_model_path "models/sd_v2_768_v-e12e3a9b.ckpt"
 ```
 
 After training, the finetuned checkpoint will be saved in `{output_path}/ckpt/txt2img/ckpt/rank_0/sd-72.ckpt`.
@@ -123,8 +119,6 @@ python text_to_image.py \
 
 Please update `ckpt_path` according to your finetune settings.
 
-To avoid typing too many arguments in CLI, you may modify and run the `scripts/run_text_to_image_v2.sh` script. Note that you prefer single prompt inference, you should use the `prompt` argument instead of `data_path` for multiple prompts inference.
-
 Here are the example results.
 
 <div align="center">
@@ -153,18 +147,11 @@ We will evaluate the finetuned model on the split test set in `pokemon_blip.zip`
 
 Let us run text-to-image generation conditioned on the prompts in test set then evaluate the quality of the generated images by the following steps.
 
-1. Update the following path settings in `scripts/run_text_to_image_v2.sh`:
-   * `data_path`: path to your prompt txt file
-   * `output_path`: path to store the generated images
-   * `ckpt_path`: path to the fine-tuned checkpoint that you want to evaluate
+1. Before running, please modify the following arguments to your local path:
 
-For example,
-
-```shell
-data_path=./datasets/pokemon_blip/test/prompts.txt  # modify to your local data path
-ckpt_path=output/pokemon/txt2img/ckpt/rank_0/sd-72.ckpt  # modify to your finetuned v-predictioin checkpoint
-output_path=output/finetune_v_pred_pokemon  # modify to your output path
-```
+* `--data_path=/path/to/prompts.txt`
+* `--output_path=/path/to/save/output_data`
+* `--ckpt_path=/path/to/model_checkpoint`
 
 `prompts.txt` is a file which contains multiple prompts, and each line is the caption for a real image in test set, for example
 
@@ -178,7 +165,20 @@ a drawing of a pokemon pokemon with its mouth open
 2. Run multiple-prompt inference on the test set
 
 ```shell
-sh scripts/run_text_to_image_v2_v_pred.sh
+python text_to_image.py \
+    --version "2.0" \
+    --prompt "a wolf in winter" \
+    --config configs/v2-inference.yaml \
+    --output_path output/ \
+    --seed 42 \
+    --n_iter 4 \
+    --n_samples 1 \
+    --W 768 \
+    --H 768 \
+    --sampling_steps 15 \
+    --dpm_solver \
+    --scale 9 \
+    --ckpt_path "models/sd_v2_768_v-e12e3a9b.ckpt"
 ```
 
 The generated images will be saved in the `{output_path}/samples` folder.

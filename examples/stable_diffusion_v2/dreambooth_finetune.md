@@ -80,80 +80,30 @@ In [Google/DreamBooth](https://github.com/google/dreambooth), there are many ima
 
 ### 2.2 Finetuning
 
-#### 2.2.1 Environmental Variables
+#### 2.2.1 Experiment-Related Variables
 
-Before starting to run the finetuning program, some environmental variables are recommended to be set like:
+Before starting to run the finetuning program, please modify the following experiment-related variables in the shell or
+in the config file `train_config_dreambooth_v2.yaml` that may vary for different users:
 
-```bash
-# Ascend settings
-export GLOG_v=3
-export HCCL_CONNECT_TIMEOUT=600
-export ASCEND_GLOBAL_LOG_LEVEL=3
-export ASCEND_SLOG_PRINT_TO_STDOUT=0
+* `--instance_data_dir=/path/to/data`
+* `--class_data_dir=/path/to/class_image`
+* `--output_path=/path/to/save/output_data`
+* `--pretrained_model_path=/path/to/pretrained_model`
 
-# standalone training settings
-device_id=0
-export RANK_SIZE=1
-export DEVICE_ID=$device_id
-```
+#### 2.2.2 Training Command for DreamBooth
 
-#### 2.2.2 Experiment-Related Variables
+Then, execute the script to launch finetuning:
 
-Next, we define some experiment-related variables that may vary for different users:
-
-```bash
-# checkpoints will be saved in ${output_path}/${task_name}
-output_path=output/
-task_name=txt2img
-rm -rf ${output_path:?}/${task_name:?}
-mkdir -p ${output_path:?}/${task_name:?}
-export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}; \
-
-# define the instance data-dir/prompt and class data-dir/prompt
-instance_data_dir=dreambooth/dataset/dog
-instance_prompt="a photo of sks dog"
-class_data_dir=temp_class_images/dog
-class_prompt="a photo of a dog"
-
-# the weight file of the pretrained stable diffusion
-pretrained_model_path=models/
-pretrained_model_file=sd_v2_base-57526ee4.ckpt
-
-# the training configuration file. The arguments passed via command
-# line will overwrite what is in this configuration file
-train_config_file=configs/train_dreambooth_sd_v2.json
-
-# On Ascend 910 (30GB), when image size is (512, 512), train batch size
-# is recommended to be 1. On other hardware configuration, one can alter
-# them accordingly.
-image_size=512
-train_batch_size=1
-```
-
-
-#### 2.2.3 Training Command for DreamBooth
-
-In `scripts/run_train_dreambooth_sd_v2.sh`, the training command is like this:
-```bash
+```shell
 python train_dreambooth.py \
-    --version="2.0" \
-    --mode=0 \
-    --use_parallel=False \
-    --instance_data_dir=$instance_data_dir \
-    --instance_prompt="$instance_prompt"  \
-    --class_data_dir=$class_data_dir \
-    --class_prompt="$class_prompt" \
-    --train_config=$train_config_file \
-    --output_path=$output_path/$task_name \
-    --pretrained_model_path=$pretrained_model_path \
-    --pretrained_model_file=$pretrained_model_file \
-    --image_size=$image_size \
-    --train_batch_size=$train_batch_size \
-    --epochs=4 \
-    --start_learning_rate=2e-6 \
-    --train_text_encoder=True \
-    # --train_text_encoder=False \
+    --train_config "configs/train/train_config_dreambooth_v2.yaml" \
+    --instance_data_dir "datasets/dog" \
+    --class_data_dir "temp_class_images/dog" \
+    --output_path "output/dreambooth_dog/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
+
+To modify other important hyper-parameters, please refer to training config file `train_config_dreambooth_v2.yaml`.
 
 Using the command above, we will start standalone training (`use_parallel=False`) with a constant learning rate (`2e-6`) for 4 epochs (800 steps).
 
@@ -165,58 +115,33 @@ The finetuning process takes about 20 minutes.
 > 1. Setting `train_text_encoder` to `True` allows to finetune the stable diffusion model along with the CLIP text encoder. We recommend to set it to True, since it yields better performance than `train_text_encoder=False`.
 > 2. If `train_text_encoder` is set to `False` which saves some memory, we recommend you to change the `epochs` to 20 to achieve better performance.
 
-#### 2.2.4 Training Command for Vanilla Finetuning
+#### 2.2.3 Training Command for Vanilla Finetuning
 
 Vanilla Finetuning is to finetune the network with the five dogs images directly, without applying the prior perservation loss.
 
-To run Vanilla Finetuning, you can set the Environmental Variables as <a href="#221-environmental-variables">2.2.1</a> and the Experiment-Related Variables as <a href="#222-experiment-related-variables">2.2.2</a> (ignore `class_data_dir` and `class_prompt`). The training command for vanilla finetuning is:
+To run Vanilla Finetuning, you can set the Experiment-Related Variables as <a href="#221-experiment-related-variables">2.2.1</a>. The training command for vanilla finetuning is:
 
-```bash
+```shell
 python train_dreambooth.py \
-    --mode=0 \
-    --use_parallel=False \
-    --instance_data_dir=$instance_data_dir \
-    --instance_prompt="$instance_prompt"  \
-    --train_config=$train_config_file \
-    --output_path="output_vanilla_ft/txt2img" \
-    --pretrained_model_path=$pretrained_model_path \
-    --pretrained_model_file=$pretrained_model_file \
-    --image_size=$image_size \
-    --train_batch_size=$train_batch_size \
-    --epochs=4 \
-    --start_learning_rate=2e-6 \
-    --train_text_encoder=True \
-    --with_prior_preservation=False \
+    --train_config "configs/train/train_config_dreambooth_vanilla_v2.yaml" \
+    --instance_data_dir "datasets/dog" \
+    --output_path "output/dreambooth_vanilla_dog/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 
 #### 2.2.5 Training Command for DreamBooth with LoRA
 
 LoRA is a parameter-efficient finetuning method. Here, we combine DreamBooth with LoRA by injecting the LoRA parameters into the text encoder and the UNet of Text-to-Image model, and training with the prior preservation loss.
 
+Please execute the training command below to launch finetuning:
 
-In `scripts/run_train_dreambooth_w_lora_sd_v2.sh`, the training command is shown below:
-```bash
+```shell
 python train_dreambooth.py \
-    --mode=0 \
-    --use_parallel=False \
-    --instance_data_dir=$instance_data_dir \
-    --instance_prompt="$instance_prompt"  \
-    --class_data_dir=$class_data_dir \
-    --class_prompt="$class_prompt" \
-    --train_config=$train_config_file \
-    --output_path=$output_path/$task_name \
-    --pretrained_model_path=$pretrained_model_path \
-    --pretrained_model_file=$pretrained_model_file \
-    --image_size=$image_size \
-    --train_batch_size=$train_batch_size \
-    --epochs=4 \
-    --start_learning_rate=5e-5 \
-    --weight_decay=1e-4  \
-    --train_text_encoder=True \
-    --use_lora=True \
-    --lora_rank=64  \
-    --lora_ft_unet=True \
-    --lora_ft_text_encoder=True  \
+    --train_config "configs/train/train_config_dreambooth_lora_v2.yaml" \
+    --instance_data_dir "datasets/dog" \
+    --class_data_dir "temp_class_images/dog" \
+    --output_path "output/dreambooth_lora_dog/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 Note that we train the LoRA parameters with a constant learning rate `5e-5`, a weight decay `1e-4 ` for 4 epochs (800 steps). The rank of the LoRA parameter is 64.
 
@@ -225,7 +150,7 @@ Note that we train the LoRA parameters with a constant learning rate `5e-5`, a w
 
 The inference command generates images on a given prompt and save them to a given output directory. An example command is as follows:
 
-```bash
+```shell
 python text_to_image.py \
     --prompt "a sks dog swimming in a pool" \
     --output_path vis/output/dir \
@@ -319,7 +244,7 @@ The command to evaluate the CLIP-T score is shown below:
 
 ```shell
 python tools/eval/eval_clip_score.py  \
-    --load_checkpoint <path-to-clip-model>  \
+    --ckpt_path <path-to-clip-model>  \
     --image_path_or_dir <path-to-image>  \
     --prompt_or_path <string/path-to-txt>
 ```
@@ -330,7 +255,7 @@ The command to evaluate the CLIP-I score is shown below:
 
 ```shell
 python tools/eval/eval_clip_i_score.py  \
-    --load_checkpoint <path-to-clip-model>  \
+    --ckpt_path <path-to-clip-model>  \
     --gen_image_path_or_dir <path-to-generated-image>  \
     --real_image_path_or_dir <path-to-real-image>
 ```

@@ -380,20 +380,32 @@ class MetaLoader:
         return self.datalen
 
 
-def build_dataset(args, device_num, rank_id, tokenizer):
+def build_dataset(
+    data_path,
+    train_batch_size,
+    tokenizer,
+    image_size,
+    image_filter_size,
+    device_num,
+    rank_id,
+    random_crop,
+    filter_small_size,
+    replace,
+    enable_modelarts,
+):
     dataset = load_data(
-        data_path=args.data_path,
-        batch_size=args.train_batch_size,
+        data_path=data_path,
+        batch_size=train_batch_size,
         tokenizer=tokenizer,
-        image_size=args.image_size,
-        image_filter_size=args.image_filter_size,
+        image_size=image_size,
+        image_filter_size=image_filter_size,
         device_num=device_num,
         rank_id=rank_id,
-        random_crop=args.random_crop,
-        filter_small_size=args.filter_small_size,
-        replace=args.replace_small_images,
+        random_crop=random_crop,
+        filter_small_size=filter_small_size,
+        replace=replace,
         sample_num=-1,
-        enable_modelarts=args.enable_modelarts,
+        enable_modelarts=enable_modelarts,
     )
     _logger.info(f"Num batches for rank {rank_id}: {dataset.get_dataset_size()}")
 
