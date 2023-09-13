@@ -1,4 +1,4 @@
-version: SDXL-base-1.0
+version: SDXL-refiner-1.0
 model:
   target: gm.models.diffusion.DiffusionEngine
   params:
@@ -18,47 +18,45 @@ model:
           target: gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization
 
     network_config:
-      target: gm.modules.diffusionmodules.openaimodel.UNetModel
+      target: gm.modules.diffusionmodules.openaimodel.UNetModel_lora
       params:
-        adm_in_channels: 2816
+        lora_dim: 4                 # for LoRA
+        lora_alpha: 4               # for LoRA
+        lora_dropout: 0.0           # for LoRA
+        lora_merge_weights: False   # for LoRA
+        only_save_lora: True        # for LoRA
+
+        adm_in_channels: 2560
         num_classes: sequential
         in_channels: 4
         out_channels: 4
-        model_channels: 320
+        model_channels: 384
         attention_resolutions: [4, 2]
         num_res_blocks: 2
-        channel_mult: [1, 2, 4]
+        channel_mult: [1, 2, 4, 4]
         num_head_channels: 64
         use_spatial_transformer: True
         use_linear_in_transformer: True
-        transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
-        context_dim: 2048
-        spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
+        transformer_depth: 4
+        context_dim: [1280, 1280, 1280, 1280]  # 1280
+        spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
         legacy: False
+        use_recompute: False
 
     conditioner_config:
       target: gm.modules.GeneralConditioner
       params:
         emb_models:
-          # crossattn cond
-          - is_trainable: False
-            input_key: txt
-            target: gm.modules.embedders.modules.FrozenCLIPEmbedder
-            params:
-              layer: hidden
-              layer_idx: 11
-              version: openai/clip-vit-large-patch14
-              # pretrained: ''
           # crossattn and vector cond
           - is_trainable: False
             input_key: txt
             target: gm.modules.embedders.modules.FrozenOpenCLIPEmbedder2
             params:
               arch: ViT-bigG-14-Text
+              legacy: False
               freeze: True
               layer: penultimate
               always_return_pooled: True
-              legacy: False
               require_pretrained: False
           # vector cond
           - is_trainable: False
@@ -74,10 +72,10 @@ model:
               outdim: 256  # multiplied by two
           # vector cond
           - is_trainable: False
-            input_key: target_size_as_tuple
+            input_key: aesthetic_score
             target: gm.modules.embedders.modules.ConcatTimestepEmbedderND
             params:
-              outdim: 256  # multiplied by two
+              outdim: 256  # multiplied by one
 
     first_stage_config:
       target: gm.models.autoencoder.AutoencoderKLInferenceWrapper
@@ -96,6 +94,61 @@ model:
           num_res_blocks: 2
           attn_resolutions: []
           dropout: 0.0
-          decoder_attn_dtype: fp16
         lossconfig:
           target: mindspore.nn.Identity
+
+    sigma_sampler_config:
+        target: gm.modules.diffusionmodules.sigma_sampling.DiscreteSampling
+        params:
+            num_idx: 1000
+            discretization_config:
+                target: gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization
+
+    loss_fn_config:
+        target: gm.modules.diffusionmodules.loss.StandardDiffusionLoss
+
+
+optim:
+    base_learning_rate: 1.0e-4
+
+    optimizer_config:
+        target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
+        params:
+            beta1: 0.9
+            beta2: 0.999
+            weight_decay: 0.01
+            eps: 1.0e-8
+
+#    scheduler_config:
+#        target: gm.lr_scheduler.LambdaLinearScheduler
+#        params:
+#            warm_up_steps: [ 1e4 ]
+#            cycle_lengths: [ 1e13 ]
+#            f_start: [ 1.e-6 ]
+#            f_max: [ 1. ]
+#            f_min: [ 1. ]
+
+
+data:
+    per_batch_size: 1
+    total_step: 15000
+    num_parallel_workers: 6
+    python_multiprocessing: False
+    shuffle: True
+
+    dataset_config:
+        target: gm.data.dataset.Text2ImageDataset
+        params:
+            target_size: 1024
+            transforms:
+                - target: gm.data.mappers.Resize
+                  params:
+                    size: 1024
+                    interpolation: 3
+                - target: gm.data.mappers.Rescaler
+                  params:
+                    isfloat: False
+                - target: gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare
+                - target: gm.data.mappers.Transpose
+                  params:
+                    type: hwc2chw

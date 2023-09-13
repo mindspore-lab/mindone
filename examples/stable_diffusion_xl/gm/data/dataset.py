@@ -1,4 +1,5 @@
 import os
+import random
 import time
 
 import imagesize
@@ -16,16 +17,24 @@ class Text2ImageDataset:
         data_path,
         target_size=(1024, 1024),
         transforms=None,
+        batched_transforms=None,
         tokenizer=None,
         image_filter_size=0,
         random_crop=False,
         filter_small_size=False,
+        multi_aspect=None,  # for multi_aspect
+        seed=42,  # for multi_aspect
+        per_batch_size=1,  # for multi_aspect
     ):
         super().__init__()
         self.tokenizer = tokenizer
-        self.target_size = target_size if isinstance(target_size, (tuple, list)) else [target_size, target_size]
+        self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
+
+        self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
+        self.seed = seed
+        self.per_batch_size = per_batch_size
 
         all_images, all_captions = self.list_image_files_captions_recursively(data_path)
         if filter_small_size:
@@ -35,11 +44,22 @@ class Text2ImageDataset:
         self.local_captions = all_captions
 
         self.transforms = []
-        for i, trans_config in enumerate(transforms):
-            # Mapper
-            trans = instantiate_from_config(trans_config)
-            self.transforms.append(trans)
-            print(f"Adding mapper {trans.__class__.__name__} as transform #{i} " f"to the datapipeline")
+        if transforms:
+            for i, trans_config in enumerate(transforms):
+                # Mapper
+                trans = instantiate_from_config(trans_config)
+                self.transforms.append(trans)
+                print(f"Adding mapper {trans.__class__.__name__} as transform #{i} " f"to the datapipeline")
+
+        self.batched_transforms = []
+        if batched_transforms:
+            for i, bs_trans_config in enumerate(batched_transforms):
+                # Mapper
+                bs_trans = instantiate_from_config(bs_trans_config)
+                self.batched_transforms.append(bs_trans)
+                print(
+                    f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
+                )
 
         if self.tokenizer:
             raise NotImplementedError
@@ -63,6 +83,11 @@ class Text2ImageDataset:
             "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
             "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
             "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
+            "aesthetic_score": np.array(
+                [
+                    6.0,
+                ]
+            ),
         }
 
         for trans in self.transforms:
@@ -86,6 +111,16 @@ class Text2ImageDataset:
         return result
 
     def collate_fn(self, samples, batch_info):
+        new_size = self.target_size
+        if self.multi_aspect:
+            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            cur_seed = epoch_num * 10 + batch_num
+            random.seed(cur_seed)
+            new_size = random.choice(self.multi_aspect)
+
+        for bs_trans in self.batched_transforms:
+            samples = bs_trans(samples, target_size=new_size)
+
         batch_samples = {k: [] for k in samples[0]}
         for s in samples:
             for k in s:

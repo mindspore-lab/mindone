@@ -76,7 +76,7 @@ class Rescaler:
 
 
 class Resize:
-    def __init__(self, key: str = "image", size: int = 256, interpolation: int = 2):
+    def __init__(self, key: str = "image", size: Union[int, List] = 256, interpolation: int = 2):
         inter_map = {
             0: Inter.NEAREST,
             1: Inter.ANTIALIAS,
@@ -88,6 +88,7 @@ class Resize:
         if isinstance(interpolation, int):
             interpolation = inter_map.get(interpolation, Inter.BILINEAR)
 
+        size = size if isinstance(size, int) else list(size)
         self.resize_op = ms.dataset.transforms.vision.Resize(size, interpolation)
         self.key = key
 
