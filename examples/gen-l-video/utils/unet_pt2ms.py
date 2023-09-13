@@ -15,7 +15,6 @@ sys.path.append(workspace + "/../../stable_diffusion_v2")
 
 from ldm.util import instantiate_from_config
 
-
 __all__ = [
     "get_pt2ms_mappings",
     "convert_state_dict",

@@ -3,7 +3,7 @@ pretrained_model_path: "stabilityai/stable-diffusion-2-depth"
 output_dir: "./results/tuning-free-mix/car-turn"
 
 train_data:
-  video_path: "data/car-turn.mp4"
+  video_path: "data/car-turn.npy"
   prompt: "a jeep car is moving on the road"
   n_sample_frames: 20
   width: 512
