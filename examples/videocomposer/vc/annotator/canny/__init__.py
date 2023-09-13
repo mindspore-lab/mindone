@@ -5,13 +5,13 @@ import mindspore as ms
 
 
 class CannyDetector:
-    def __call__(self, img, low_threshold=None, high_threshold=None, random_threshold=True):
+    def __call__(self, img, low_threshold=None, high_threshold=None, random_threshold=True, return_tensor=False):
         #  Convert to numpy
         if isinstance(img, ms.Tensor):  # (h, w, c)
             img = img.asnumpy()
             img_np = cv2.convertScaleAbs((img * 255.0))
         elif isinstance(img, np.ndarray):  # (h, w, c)
-            img_np = img  # we assume values are in the range from 0 to 255.
+            img_np = cv2.convertScaleAbs((img * 255.0))
         else:
             raise TypeError(f"The input 'img' should be a 'mindspore.Tensor' or 'numpy.ndarray', but got {type(img)}.")
 
@@ -29,7 +29,9 @@ class CannyDetector:
 
         # Detect canny edge
         canny_edge = cv2.Canny(img_np, low_threshold, high_threshold)
-
-        canny_condition = ms.Tensor(canny_edge.copy()).unsqueeze(-1).float() / 255.0
+        if return_tensor:
+            canny_condition = ms.Tensor(canny_edge.copy()).unsqueeze(-1).float() / 255.0
+        else:
+            canny_condition = np.expand_dims(canny_edge, -1).astype("float32") / 255.0
 
         return canny_condition
