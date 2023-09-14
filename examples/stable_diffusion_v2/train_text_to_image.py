@@ -150,7 +150,6 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
-    print("D--: ", args.model_config)
     latent_diffusion_with_loss = build_model_from_config(args.model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
     if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
