@@ -2,39 +2,28 @@
 
 MindSpore implementation & optimization of VideoComposer.
 
-## Progress
+## Main Features
 
-### What's done
-
-- [x] exp01: inference different conditions from a video
-    - [x] image_depth
-    - [x] depth
-    - [x] local_image
-    - [x] masked
-    - [x] motion
-    - [x] sketch
-- [x] exp02: motion transfer from a video to a single image
-- [x] exp03: single sketch to videos with style
-- [x] exp04: single sketch to videos without style
-- [x] exp05: depth to video without style
-- [x] exp06: depth to video with style
-- Graph Mode
-- AMP
-- Training on 910A+MS2.0 (exp02 mainly)
-- Training on 910B+MS2.2 (master version) (exp02 mainly)
-
+- [x] Conditional Video Geneartion including the following tasks:
+    - Motion transfer from a video to a single image (exp02)
+    - Single sketch to videos with or without style guidance (exp03 and exp04)
+    - Depth to video with or without style guidance (exp5 and exp6)
+    - Genearte videos basd on multiple conditions:depth maps, local image, masks, motion, and sketch
+- [x] Model Training (vanilla finetuning) supporting both Ascend 910A and 910B
+- [x] Acceleration and Memeory Reduction
+    - [x] Mixed Precision
+    - [x] Graph Mode for Training
+    - [x] Recompute
 
 ### TODOs
-- Speed Up & Memory Usage Reduction (Flash Attention)
+- Speed Up & Memory Usage Reduction (e.g., Flash Attention)
 - Support more training tasks
+- Support more training features: EMA, Gradient accumulation, Gradient clipping
+- More effieicent online inference
+- 910B + Lite inference
+- Evaluation
 
-### Notes
-
-- Model configs are determined by `vc/config/base.py` and `configs/xxx.yaml` and CLI arg parser, implemented with vc/config/parser.py
-- Checkpoints needs to be placed in `model_weights`.
-- For ARM platform, `pip install motion-vector-extractor` will not work. Please obtain the wheel installation file from samithuang or wtomin.
-
-## Setup Environment
+## Installation
 
 1. Create virtual environment
     ```shell
@@ -45,12 +34,16 @@ MindSpore implementation & optimization of VideoComposer.
 2. Install requirements
     ```shell
     pip install -r requirements.txt
+    ```
+
+    Install `ffmpeg` by
+    ```shell
     conda install ffmpeg
     ```
 
-## Prepare Model Weights
+    If case you fail to install `motion-vector-extractor` via pip, please manually install it referring to the [official](https://github.com/LukasBommes/mv-extractor) repo.
 
-### Download
+## Prepare Pretrained Weights
 
 The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${PROJECT_ROOT}` means the root path of project.
 
@@ -58,36 +51,70 @@ Download the checkpoints shown in model_weights/README.md from https://download.
 
 ## Inference
 
-For the first-time running, it takes longer time since this program needs to download some checkpoints from cloud, and save them to `model_weights/`
+
+## Training
+
+To run all video generation tasks, please run
 
 ```shell
 bash run_net.sh
 ```
 
-You can change the floating data type and mode in `mindone/examples/videocomposer/vc/config/base.py`:
+To run a single task, you can pick the corresponding snippet of code in `run_net`.sh, such as
 
-```python
-cfg.use_fp16 = True  # set to False if you want to use float32
-cfg.mode = 0  # 0: Graph mode; 1: Pynative mode
+```shell
+python run_net.py\
+    --cfg configs/exp02_motion_transfer_vs_style.yaml\
+    --seed 9999\
+    --input_video "demo_video/motion_transfer.mp4"\
+    --image_path "demo_video/moon_on_water.jpg"\
+    --style_image "demo_video/moon_on_water.jpg"\
+    --input_text_desc "A beautiful big silver moon on the water"
 ```
+
+It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
+
+### Key arguments for inference
+
+You can adjust the arguemnts in `vc/config/base.py` (lower-priority) or `configs/exp{task_name}.yaml` (higher-priority, will overwrite base.py if overlap). Below are the key arguments influencing inference speed and memory usage.
+
+- use_fp16: whether enable mixed precision inference
+- mode: 0 for use graph mode,  1 for pynative mode
+
 
 ## Training
 
-For standalone training, please run
-```shell
-python train.py
+### Standalone Training
+To run training on a sepecifc task, please run
+
+```
+python train.py --cfg configs/train{task_name}.yaml
 ```
 
-The used arguments are stored in `configs/train_config.py`, including:
-    - `max_frames`: max number of frames, default is 8
-    - `root_dir`: dataset root dir which should contains a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
+E.g. `python train.py configs/train_exp02_motion_style.yaml `
 
 
-For distributed training, please use `run_train_distribute.sh` instead after generating the hccl config file.
+### Distributed Training
 
+Please generate the hccl config file on your running server at first. Then update `run_train_distribute.sh` by setting
 
-Currently, it's tested on 910A+MS2.0 with max_frames=8.
+```
+rank_table_file=path/to/hccl_8p_01234567_xxx.json
+```
 
+Then execute,
+```
+bash run_train_distribute.sh
+```
+
+###  Key arguemnts for training
+
+You can adjust the arguemnts in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
+
+- max_frames: number of frames to generate for each sample. Without memory reduction tricks, it can be set  up to 8 for 910A (30GB memory), and 16 for 910B (60GB memory) for task-2 finetuning.
+- optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910A to avoid OOM and `adamw` for 910B for better loss convergence.
+- use_recompute: by enabling it, you can reduce memory usage with a small increase of time cost.
+- `root_dir`: dataset root dir which should contains a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
 
 
 ---

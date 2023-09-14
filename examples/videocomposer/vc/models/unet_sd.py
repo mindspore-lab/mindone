@@ -928,7 +928,7 @@ class UNetSD_temporal(nn.Cell):
         # self.middle.append(ResidualBlock(out_dim, embed_dim, out_dim, use_scale_shift_norm, 'none'))
         middle_block.append(ResBlock(out_dim, embed_dim, dropout, use_scale_shift_norm=False, dtype=self.dtype))
         # self.middle.append(TemporalConvBlock(out_dim,dropout=dropout,use_image_dataset=use_image_dataset))
-        self.middle_blocks = nn.CellList(middle_block)
+        self.middle_block = nn.CellList(middle_block)
 
         # decoder
         output_blocks = []
@@ -1016,10 +1016,10 @@ class UNetSD_temporal(nn.Cell):
 
         # recompute to save NPU mem
         if use_recompute:
-            for block in self.middle_blocks:
-                block.recompute(parallel_optimizer_comm_recompute=True)
-            #for blaock in self.output_blocks:
-            #    block.recompute(parallel_optimizer_comm_recompute=True)
+            for mblock in self.middle_block:
+                mblock.recompute(parallel_optimizer_comm_recompute=True)
+            for oblock in self.output_blocks:
+                oblock.recompute(parallel_optimizer_comm_recompute=True)
 
     def load_state_dict(self, ckpt_path, prefix_to_remove="unet."):
         # for save_unet_only, the saved params will start with 'unet.'
@@ -1280,7 +1280,7 @@ class UNetSD_temporal(nn.Cell):
         # print(f"input_blocks executation time {time.time() - start_time}")
         # start_time = time.time()
         # middle
-        for module in self.middle_blocks:
+        for module in self.middle_block:
             x = self._forward_single(
                 module, x, e, context, time_rel_pos_bias, focus_present_mask, video_mask, batch=batch
             )
