@@ -474,6 +474,7 @@ class UNetSD_temporal(nn.Cell):
         use_fp16=False,
         use_adaptive_pool=True,
         use_droppath_masking=True,
+        use_recompute=False,
     ):
         self.use_adaptive_pool = use_adaptive_pool
         self.use_droppath_masking = use_droppath_masking
@@ -927,7 +928,7 @@ class UNetSD_temporal(nn.Cell):
         # self.middle.append(ResidualBlock(out_dim, embed_dim, out_dim, use_scale_shift_norm, 'none'))
         middle_block.append(ResBlock(out_dim, embed_dim, dropout, use_scale_shift_norm=False, dtype=self.dtype))
         # self.middle.append(TemporalConvBlock(out_dim,dropout=dropout,use_image_dataset=use_image_dataset))
-        self.middle_block = nn.CellList(middle_block)
+        self.middle_blocks = nn.CellList(middle_block)
 
         # decoder
         output_blocks = []
@@ -1012,6 +1013,11 @@ class UNetSD_temporal(nn.Cell):
 
         # zero out the last layer params
         self.out[-1].weight.set_data(init.initializer("zeros", self.out[-1].weight.shape, self.out[-1].weight.dtype))
+
+        # recompute to save NPU mem
+        if use_recompute:
+            self.middle_blocks.recompute()
+            self.output_blocks.recompute()
 
     def load_state_dict(self, ckpt_path, prefix_to_remove="unet."):
         # for save_unet_only, the saved params will start with 'unet.'
@@ -1272,7 +1278,7 @@ class UNetSD_temporal(nn.Cell):
         # print(f"input_blocks executation time {time.time() - start_time}")
         # start_time = time.time()
         # middle
-        for module in self.middle_block:
+        for module in self.middle_blocks:
             x = self._forward_single(
                 module, x, e, context, time_rel_pos_bias, focus_present_mask, video_mask, batch=batch
             )

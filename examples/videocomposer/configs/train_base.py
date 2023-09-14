@@ -117,13 +117,14 @@ cfg.resume = True
 cfg.resume_step = 228000  # 148000
 cfg.resume_checkpoint = "model_weights/non_ema_228000-3bb2ee9a.ckpt"
 
-# acceleration
+# acceleration or memory reduction
 # cfg.load_from = None
 cfg.use_checkpoint = False
 # cfg.use_sharded_ddp = False
 # cfg.use_fsdp = False
 cfg.use_fp16 = True
 cfg.use_adaptive_pool = False  # False (AvgPool2D) is much faster on ms2.0
+cfg.use_recompute = True # TODO: debugging
 
 # training - lr
 cfg.learning_rate = 1e-6  # 0.00005 in paper, but we are finetuning.

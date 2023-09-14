@@ -160,6 +160,7 @@ def main(cfg):
         black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
+        use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
     unet.load_state_dict(cfg.resume_checkpoint)
