@@ -115,7 +115,7 @@ cfg.fix_weight = False
 # resume
 cfg.resume = True
 cfg.resume_step = 228000  # 148000
-cfg.resume_checkpoint = "model_weights/non_ema_228000-3bb2ee9a.ckpt"
+cfg.resume_checkpoint = "model_weights/non_ema_228000-7f157ec2.ckpt"
 
 # acceleration
 # cfg.load_from = None
