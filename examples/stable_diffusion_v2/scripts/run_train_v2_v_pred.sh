@@ -8,11 +8,13 @@ device_id=6
 #output_path=output/vpred_vanilla_finetune_chinese_art_0720
 output_path=output/vpred_vanilla_finetune_pokemon_0720
 task_name=txt2img
-data_path=./dataset/pokemon_blip/train
+data_path=./datasets/pokemon_blip/train
 #data_path=/home/yx/datasets/diffusion/pokemon_blip/train
 pretrained_model_path=models/
-pretrained_model_file=sd_v2_768_v-e12e3a9b.ckpt
+#pretrained_model_file=sd_v2_768_v-e12e3a9b.ckpt
+pretrained_model_file=sd_v2-1_768_v-061732d1.ckpt
 train_config_file=configs/train_config_v2.json
+model_config=configs/v2-vpred-train.yaml
 #image_size=512
 #train_batch_size=3
 # uncomment the following two lines to finetune on 768x768 resolution.
@@ -30,9 +32,9 @@ export RANK_SIZE=1;export DEVICE_ID=$device_id;export MS_COMPILER_CACHE_PATH=${o
 
 # make sure [model.prediction_type: "v"] in config yaml
 python train_text_to_image.py \
-    --version="2.0" \
     --data_path=$data_path \
     --train_config=$train_config_file \
+    --model_config=$model_config \
     --output_path=$output_path/$task_name \
     --use_parallel=False \
     --pretrained_model_path=$pretrained_model_path \
