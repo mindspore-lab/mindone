@@ -4,14 +4,14 @@ import os
 import sys
 
 import numpy as np
+from glv.pipelines.pipeline_tuning_free import TuningFreePipeline
+from glv.util import ddim_inversion_long
 from omegaconf import OmegaConf
 
 import mindspore as ms
+from mindspore import ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
-print("workspace:", workspace, flush=True)
-sys.path.append(workspace)
-print("workspace:", workspace + "/../stable_diffusion_v2", flush=True)
 sys.path.append(workspace + "/../stable_diffusion_v2")
 
 from conditions.depth import DepthEstimator
@@ -19,8 +19,6 @@ from depth_to_image import load_model_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.train.tools import set_random_seed
 from utils.download import download_checkpoint
-
-from .pipelines.pipeline_tuning_free import TuningFreePipeline
 
 _version_cfg = {
     "2.0": ("sd_v2_depth-186e18a0.ckpt", "v2-depth-inference.yaml", 512),
@@ -47,7 +45,7 @@ def main(args):
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(mode=args.ms_mode, device_id=device_id)
     # ms.context.set_context(mode=args.ms_mode, device_target="Ascend",
-    #                        device_id=device_id, max_device_memory="30GB")
+    #                        device_id=device_id)
 
     # set random seed
     set_random_seed(args.seed)
@@ -57,8 +55,8 @@ def main(args):
     unet3d_config = OmegaConf.load(f"{args.unet3d_config}")
     glv_config = OmegaConf.load(f"{args.glv_config}")
 
-    # prepare video data as ms.Tensor
-    video = prepare_video(glv_config.train_data)
+    train_data = glv_config.train_data
+    validation_data = glv_config.validation_data
 
     # construct modules
     sd = load_model_from_config(config, args.ckpt_path)
@@ -68,6 +66,48 @@ def main(args):
 
     # build validation pipeline
     validation_pipeline_depth = TuningFreePipeline(sd, unet, noise_scheduler, depth_estimator)
+
+    ddim_inv_scheduler = PLMSSampler(sd)
+    ddim_inv_scheduler.make_schedule(validation_data.num_inv_steps, verbose=False)
+
+    # inference process
+    pixel_values = prepare_video(train_data)  # prepare video data as ms.Tensor
+    video_length = pixel_values.shape[0]
+    video_length = video_length - video_length % validation_data.video_length
+    pixel_values = pixel_values[:video_length]
+
+    latents = []
+
+    for i in range(0, video_length, validation_data.video_length):
+        latents.append(sd.encode_first_stage(pixel_values[i : i + validation_data.video_length]))
+
+    latents = ops.cat(latents, axis=0)
+    latents = latents.reshape(
+        latents.shape[0] // video_length, video_length, latents.shape[1], latents.shape[2], latents.shape[3]
+    )
+    latents = latents * 0.18215
+
+    samples = []
+    ddim_inv_latent = None
+    clip_length = validation_data.video_length
+
+    if glv_config.run_isolated:
+        if validation_data.use_inv_latent:
+            # Convert videos to latent space
+            ddim_inv_latent_lst = []
+
+            for i in range(0, video_length - clip_length + 1, clip_length):
+                ddim_inv_latent = ddim_inversion_long(
+                    validation_pipeline_depth,
+                    ddim_inv_scheduler,
+                    video_latent=latents[:, :, i : i + clip_length],
+                    num_inv_steps=validation_data.num_inv_steps,
+                    prompt="",
+                    window_size=clip_length,
+                    stride=clip_length,
+                    pixel_values=pixel_values[i : i + clip_length],
+                )[-1]
+                ddim_inv_latent_lst.append(ddim_inv_latent)
 
 
 if __name__ == "__main__":

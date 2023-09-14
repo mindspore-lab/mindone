@@ -1,8 +1,9 @@
-import decord
-import numpy as np
 import os
 
-decord.bridge.set_bridge('torch')
+import decord
+import numpy as np
+
+decord.bridge.set_bridge("torch")
 
 
 def video_convert(video_path, width, height):
