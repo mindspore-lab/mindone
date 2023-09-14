@@ -107,7 +107,7 @@ def main(args, initializer):
                 LossMonitor(),
                 EvalSaveCallback(
                     network=adapter_model,
-                    name="t2iadapter",
+                    model_name="t2iadapter",
                     rank_id=rank_id,
                     ckpt_save_dir=str(output_dir / "ckpt"),
                     ckpt_save_policy="latest_k",
