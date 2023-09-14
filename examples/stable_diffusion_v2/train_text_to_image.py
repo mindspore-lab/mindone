@@ -272,6 +272,7 @@ def main(args):
             lora_rank=args.lora_rank,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
+            record_lr=False,  # LR retrival is not supportted on 910b currently
         )
 
         callback.append(save_cb)

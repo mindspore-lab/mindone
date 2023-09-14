@@ -14,6 +14,6 @@ resume: true
 num_workers: 1
 mvs_visual: False
 chunk_size: 16
-resume_checkpoint: "model_weights/non_ema_228000-3bb2ee9a.ckpt"
+resume_checkpoint: "model_weights/non_ema_228000-7f157ec2.ckpt"
 log_dir: 'outputs'
 num_steps: 1

@@ -232,8 +232,8 @@ class EvalSaveCallback(Callback):
         opt = self._get_optimizer_from_cbp(cb_params)
         lr = opt.learning_rate
         if opt.dynamic_lr:
-            # lr = opt.learning_rate(opt.global_step - 1)[0]
-            lr = opt.learning_rate.asnumpy()(int(opt.global_step.asnumpy()) - 1)[0]
+            lr = opt.learning_rate(opt.global_step - 1)[0]
+            # lr = opt.learning_rate.asnumpy()(int(opt.global_step.asnumpy()) - 1)[0]
         return lr
 
 
