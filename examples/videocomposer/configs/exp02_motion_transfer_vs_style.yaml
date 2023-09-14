@@ -18,6 +18,5 @@ seed: 182
 mvs_visual: False
 num_workers: 1
 chunk_size: 16
-resume_checkpoint: "model_weights/non_ema_228000-3bb2ee9a.ckpt"
-#resume_checkpoint: "model_weights/non_ema_228000-7f157ec2.ckpt" # param names corrected
+resume_checkpoint: "model_weights/non_ema_228000-7f157ec2.ckpt"
 log_dir: 'outputs'
