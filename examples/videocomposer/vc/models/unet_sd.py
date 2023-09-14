@@ -1016,8 +1016,10 @@ class UNetSD_temporal(nn.Cell):
 
         # recompute to save NPU mem
         if use_recompute:
-            self.middle_blocks.recompute()
-            self.output_blocks.recompute()
+            for block in self.middle_blocks:
+                block.recompute(parallel_optimizer_comm_recompute=True)
+            #for blaock in self.output_blocks:
+            #    block.recompute(parallel_optimizer_comm_recompute=True)
 
     def load_state_dict(self, ckpt_path, prefix_to_remove="unet."):
         # for save_unet_only, the saved params will start with 'unet.'
