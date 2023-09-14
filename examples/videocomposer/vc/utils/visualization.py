@@ -37,6 +37,9 @@ def save_video_multiple_conditions(
     nrow=8,
     save_origin_video=True,
 ):
+    """
+    video_tensor: shape (bs c f h w)
+    """
     mean = ms.Tensor(mean).view(1, -1, 1, 1, 1)  # ncfhw
     std = ms.Tensor(std).view(1, -1, 1, 1, 1)  # ncfhw
     video_tensor = video_tensor * std + mean  # unnormalize back to [0,1]
@@ -46,6 +49,11 @@ def save_video_multiple_conditions(
         video_tensor = ops.clamp(video_tensor.float(), 0, 1)
 
     b, c, n, h, w = video_tensor.shape
+
+    # adapt for 910b, require ms >= 2.1, use `trilinear`
+    # since n=n, it equal to 2D resize/interpolate for each frame
+    # TODO: this average pooling will smooth the output video too much! Can Blur the video!
+
     source_imgs = ops.adaptive_avg_pool3d(source_imgs, (n, h, w))
 
     model_kwargs_channel3 = {}
@@ -66,17 +74,19 @@ def save_video_multiple_conditions(
         else:
             if conditions.shape[1] == 1:
                 conditions = ops.cat([conditions, conditions, conditions], axis=1)
-                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))
+                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))  # adapt for 910B
             elif conditions.shape[1] == 2:
                 conditions = ops.cat([conditions, conditions[:, :1]], axis=1)
-                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))
+                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))  # adapt for 910B
             elif conditions.shape[1] == 3:
-                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))
+                # if len(conditions.shape) == 4:
+                #    conditions = ops.expand_dims(conditions, 0)
+                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))  # adapt for 910B
             elif conditions.shape[1] == 4:  # means it is a mask.
                 color = (conditions[:, 0:3] + 1.0) / 2.0  # .astype(np.float32)
                 alpha = conditions[:, 3:4]  # .astype(np.float32)
                 conditions = color * alpha + 1.0 * (1.0 - alpha)
-                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))
+                conditions = ops.adaptive_avg_pool3d(conditions, (n, h, w))  # adapt for 910B
         model_kwargs_channel3[key] = conditions
 
     if not filename:
