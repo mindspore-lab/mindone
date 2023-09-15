@@ -460,6 +460,7 @@ def main(args):
             ckpt_max_keep=10,
             ckpt_save_interval=args.ckpt_save_interval,
             lora_rank=args.lora_rank,
+            record_lr=False,  # LR retrival is not supportted on 910b currently
         )
 
         callback.append(save_cb)
