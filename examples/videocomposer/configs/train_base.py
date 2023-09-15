@@ -33,7 +33,7 @@ cfg.sketch_std = [0.229, 0.224, 0.225]
 # dataloader
 cfg.max_words = 1000
 cfg.feature_framerate = 4
-cfg.max_frames = 16  # 16 for 910B, set 8 for 910A
+cfg.max_frames = 8  # 16 for 910B, set 8 for 910A
 cfg.batch_size = 1
 cfg.chunk_size = 64
 cfg.num_workers = 8  # not used yet
