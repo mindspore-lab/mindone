@@ -270,10 +270,10 @@ class Upsample(nn.Cell):
     def construct(self, x):
         assert x.shape[1] == self.channels
         if self.dims == 3:
-            #x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
+            # x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
             x = ops.ResizeNearestNeighbor((x.shape[2], x.shape[3] * 2, x.shape[4] * 2))(x)
         else:
-            #x = ops.interpolate(x, (x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
+            # x = ops.interpolate(x, (x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
             x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
         if self.use_conv:
             x = self.conv(x)

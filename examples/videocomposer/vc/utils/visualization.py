@@ -56,7 +56,7 @@ def save_video_multiple_conditions(
     # TODO: this average pooling will smooth the output video too much! Can Blur the video!
     def resize_op(x, target_size):
         if use_interpolate:
-            x = ops.interpolate(x, (n, h, w), mode='trilinear')
+            x = ops.interpolate(x, (n, h, w), mode="trilinear")
         else:
             x = ops.adaptive_avg_pool3d(x, (n, h, w))
         return x

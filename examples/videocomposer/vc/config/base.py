@@ -144,4 +144,4 @@ cfg.save_ckp_interval = 1000
 cfg.log_interval = 100
 composition_strings = "_".join(cfg.video_compositions)
 cfg.log_dir = "outputs/"
-cfg.mode = 1  # 0: Graph mode; 1: Pynative mode
+cfg.mode = 0  # 0: Graph mode; 1: Pynative mode
