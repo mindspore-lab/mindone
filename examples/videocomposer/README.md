@@ -5,10 +5,10 @@ MindSpore implementation & optimization of VideoComposer.
 ## Main Features
 
 - [x] Conditional Video Generation including the following tasks:
-    - Motion transfer from a video to a single image (exp02)
-    - Single sketch to videos with or without style guidance (exp03 and exp04)
-    - Depth to video with or without style guidance (exp5 and exp6)
-    - Genearte videos basd on multiple conditions:depth maps, local image, masks, motion, and sketch
+    - [x] Motion transfer from a video to a single image (exp02)
+    - [x] Single sketch to videos with or without style guidance (exp03 and exp04)
+    - [x] Depth to video with or without style guidance (exp5 and exp6)
+    - [x] Genearte videos basd on multiple conditions:depth maps, local image, masks, motion, and sketch
 - [x] Model Training (vanilla finetuning) supporting both Ascend 910A and 910B
 - [x] Acceleration and Memeory Reduction
     - [x] Mixed Precision
@@ -50,9 +50,6 @@ The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${P
 Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
 ## Inference
-
-
-## Training
 
 To run all video generation tasks, please run
 
@@ -96,7 +93,7 @@ E.g. `python train.py configs/train_exp02_motion_style.yaml `
 
 ### Distributed Training
 
-Please generate the hccl config file on your running server at first. Then update `run_train_distribute.sh` by setting
+Please generate the hccl config file on your running server at first referring to [this tutorial](https://github.com/mindspore-lab/mindocr/blob/main/docs/cn/tutorials/distribute_train.md#12-%E9%85%8D%E7%BD%AErank_table_file%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83). Then update `run_train_distribute.sh` by setting
 
 ```
 rank_table_file=path/to/hccl_8p_01234567_xxx.json
