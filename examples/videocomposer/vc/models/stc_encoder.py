@@ -13,7 +13,7 @@ class PreNormattention(nn.Cell):
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(self.dtype)
+        ).to_float(ms.float32)
         self.fn = fn
 
     def construct(self, x, **kwargs):
@@ -29,7 +29,7 @@ class PostNormattention(nn.Cell):
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(self.dtype)
+        ).to_float(ms.float32)
         self.fn = fn
 
     def construct(self, x, **kwargs):

@@ -191,19 +191,19 @@ class BasicTransformerBlock(nn.Cell):
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(self.dtype)
+        ).to_float(ms.float32)
         self.norm2 = nn.LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(self.dtype)
+        ).to_float(ms.float32)
         self.norm3 = nn.LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(self.dtype)
+        ).to_float(ms.float32)
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):

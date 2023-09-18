@@ -270,9 +270,11 @@ class Upsample(nn.Cell):
     def construct(self, x):
         assert x.shape[1] == self.channels
         if self.dims == 3:
-            x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
+            # x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
+            x = ops.ResizeNearestNeighbor((x.shape[2], x.shape[3] * 2, x.shape[4] * 2))(x)
         else:
-            x = ops.interpolate(x, (x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
+            # x = ops.interpolate(x, (x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
+            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
         if self.use_conv:
             x = self.conv(x)
         return x
@@ -474,6 +476,7 @@ class UNetSD_temporal(nn.Cell):
         use_fp16=False,
         use_adaptive_pool=True,
         use_droppath_masking=True,
+        use_recompute=False,
     ):
         self.use_adaptive_pool = use_adaptive_pool
         self.use_droppath_masking = use_droppath_masking
@@ -1012,6 +1015,13 @@ class UNetSD_temporal(nn.Cell):
 
         # zero out the last layer params
         self.out[-1].weight.set_data(init.initializer("zeros", self.out[-1].weight.shape, self.out[-1].weight.dtype))
+
+        # recompute to save NPU mem
+        if use_recompute:
+            for mblock in self.middle_block:
+                mblock.recompute(parallel_optimizer_comm_recompute=True)
+            for oblock in self.output_blocks:
+                oblock.recompute(parallel_optimizer_comm_recompute=True)
 
     def load_state_dict(self, ckpt_path, prefix_to_remove="unet."):
         # for save_unet_only, the saved params will start with 'unet.'
