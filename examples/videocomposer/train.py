@@ -160,6 +160,7 @@ def main(cfg):
         black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
+        use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
     unet.load_state_dict(cfg.resume_checkpoint)
@@ -305,12 +306,13 @@ def main(cfg):
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
                 f"Num trainable params: {num_trainable_params:,}",
-                f"Use fp16: {cfg.use_fp16}",
                 f"Learning rate: {cfg.learning_rate}",
                 f"Batch size: {cfg.batch_size}",
                 f"Max frames: {cfg.max_frames}",
                 f"Weight decay: {cfg.weight_decay}",
                 f"Num epochs: {cfg.epochs}",
+                f"Use fp16: {cfg.use_fp16}",
+                f"Use recompute: {cfg.use_recompute}",
             ]
         )
         key_info += "\n" + "=" * 50

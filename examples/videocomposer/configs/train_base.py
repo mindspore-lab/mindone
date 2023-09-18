@@ -33,7 +33,7 @@ cfg.sketch_std = [0.229, 0.224, 0.225]
 # dataloader
 cfg.max_words = 1000
 cfg.feature_framerate = 4
-cfg.max_frames = 8  # 16 for 910B, set 8 for 910A
+cfg.max_frames = 16  # 16 for 910B, set 8 for 910A
 cfg.batch_size = 1
 cfg.chunk_size = 64
 cfg.num_workers = 8  # not used yet
@@ -117,13 +117,14 @@ cfg.resume = True
 cfg.resume_step = 228000  # 148000
 cfg.resume_checkpoint = "model_weights/non_ema_228000-7f157ec2.ckpt"
 
-# acceleration
+# acceleration or memory reduction
 # cfg.load_from = None
 cfg.use_checkpoint = False
 # cfg.use_sharded_ddp = False
 # cfg.use_fsdp = False
 cfg.use_fp16 = True
 cfg.use_adaptive_pool = False  # False (AvgPool2D) is much faster on ms2.0
+cfg.use_recompute = False
 
 # training - lr
 cfg.learning_rate = 1e-6  # 0.00005 in paper, but we are finetuning.
@@ -133,7 +134,7 @@ cfg.warmup_steps = 3
 cfg.decay_steps = None  # None for auto compute
 
 # training - optim
-cfg.optim = "momentum"  # 'adamw'
+cfg.optim = "adamw"  # "momentum" for 910A, 'adamw' for 910B
 cfg.betas = [0.9, 0.98]
 cfg.weight_decay = 1e-6  # not mentioned in paper. let's start with small value
 cfg.use_ema = False
