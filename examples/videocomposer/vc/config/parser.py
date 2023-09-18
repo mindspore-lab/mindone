@@ -31,6 +31,7 @@ class Config(object):
     def _parse_args(self):
         parser = argparse.ArgumentParser(description="Argparser for configuring vidcomposer codebase")
         parser.add_argument(
+            "-c",
             "--cfg",
             dest="cfg_file",
             help="Path to the configuration file",
