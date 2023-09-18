@@ -3,11 +3,12 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import nn, ops
 
 
-class DiagonalGaussianDistribution:
+class DiagonalGaussianDistribution(nn.Cell):
     def __init__(self, deterministic=False):
+        super(DiagonalGaussianDistribution, self).__init__()
         self.deterministic = deterministic
         self.pi = np.pi
 

@@ -2,20 +2,43 @@
 
 This document provides a brief introduction to the usage of built-in command-line tools in SDXL.
 
+## Dependency
+
+- mindspore 2.1.0
+- openmpi 4.0.3 (for distributed mode)
+
+To install the dependency, please run
+
+```shell
+pip install -r requirements.txt
+```
+
 ## Preparation
 
 ### Convert Pretrained Checkpoint
 
-We provide a script for converting pre-trained weight from `.safetensors` to `.ckpt` in `scripts/convert/convert_weight.py`.
+We provide a script for converting pre-trained weight from `.safetensors` to `.ckpt` in `tools/model_conversion/convert_weight.py`.
 
-step1. Download [Official pre-train weights](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/blob/main/sd_xl_base_1.0.safetensors) from huggingface.
+step1. Download the [Official](https://github.com/Stability-AI/generative-models) pre-train weights [SDXL-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) and [SDXL-refiner-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0) from huggingface.
 
-step2. Convert Weight to MindSpore `.ckpt` format.
+step2. Convert weight to MindSpore `.ckpt` format and put it to `./checkpoints/`.
 
 ```shell
-python scripts/convert/convert_weight.py \
-  --weight_safetensors "./checkpoints/sd_xl_base_1.0.safetensors" \
-  --weight_ms "./checkpoints/sd_xl_base_1.0_ms.ckpt"
+cd tools/model_conversion
+
+# convert sdxl-base-1.0 model
+python convert_weight.py \
+  --weight_safetensors /PATH TO/sd_xl_base_1.0.safetensors \
+  --weight_ms /PATH TO/sd_xl_base_1.0_ms.ckpt \
+  --key_torch torch_key_base.yaml \
+  --key_ms mindspore_key_base.yaml
+
+# convert sdxl-refiner-1.0 model
+python convert_weight.py \
+  --weight_safetensors /PATH TO/sd_xl_refiner_1.0.safetensors \
+  --weight_ms /PATH TO/sd_xl_refiner_1.0_ms.ckpt \
+  --key_torch torch_key_refiner.yaml \
+  --key_ms mindspore_key_refiner.yaml
 ```
 
 ### Dataset Preparation for Fine-Tuning (Optional)
@@ -57,40 +80,47 @@ We provide a demo for text-to-image sampling in `demo/sampling_without_streamlit
 After obtaining the weights, place them into checkpoints/. Next, start the demo using
 
 ```shell
-# run with streamlit
+# (recommend) run with streamlit
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 
-# run without streamlit
+# run txt2img without streamlit on Ascend
 python demo/sampling_without_streamlit.py \
-  --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
-
-# run without streamlit (LoRA unmerge weight)
-python demo/sampling_without_streamlit.py \
+  --task txt2img \
+  --config configs/inference/sd_xl_base.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
-  --weight "checkpoints/sd_xl_base_1.0_ms.ckpt,SDXL-base-1.0_2000_lora.ckpt" \
-  --config config/training/sd_xl_base_finetune_lora.yaml
+  --device_target Ascend
+
+# run img2img without streamlit on Ascend
+python demo/sampling_without_streamlit.py \
+  --task img2img \
+  --config configs/inference/sd_xl_refiner.yaml \
+  --weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
+  --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
+  --img /PATH TO/img.jpg \
+  --device_target Ascend
+
+# run pipeline without streamlit on Ascend
+python demo/sampling_without_streamlit.py \
+  --task txt2img \
+  --config configs/inference/sd_xl_base.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
+  --add_pipeline True \
+  --pipeline_config configs/inference/sd_xl_refiner.yaml \
+  --pipeline_weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
+  --sd_xl_base_ratios "1.0_768" \
+  --device_target Ascend
+
+# run lora(unmerge weight) without streamlit on Ascend
+python demo/sampling_without_streamlit.py \
+  --task txt2img \
+  --config config/training/sd_xl_base_finetune_lora.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt,SDXL-base-1.0_2000_lora.ckpt \
+  --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
+  --device_target Ascend
 ```
-
-<br>
-
-Examples (sample 40 steps by EulerEDMSampler):
-
-<div align="center">
-<img src="https://github.com/mindspore-lab/mindone/assets/20476835/68d132e1-a954-418d-8cb8-5be4d8162342" width="320" />
-<img src="https://github.com/mindspore-lab/mindone/assets/20476835/9f0d0d2a-2ff5-4c9b-a0d0-1c744762ee92" width="320" />
-<img src="https://github.com/mindspore-lab/mindone/assets/20476835/dbaf0c77-d8d3-4457-b03c-82c3e4c1ba1d" width="320" />
-<img src="https://github.com/mindspore-lab/mindone/assets/20476835/f52168ef-53aa-4ee9-9f17-6889f10e0afb" width="320" />
-</div>
-<p align="center">
-<font size=3>
-<em> Fig1: "Vibrant portrait painting of Salvador Dalí with a robotic half face." </em> <br>
-<em> Fig2: "A capybara made of voxels sitting in a field." </em> <br>
-<em> Fig3: "Cute adorable little goat, unreal engine, cozy interior lighting, art station, detailed’ digital painting, cinematic, octane rendering." </em> <br>
-<em> Fig4: "A portrait photo of a kangaroo wearing an orange hoodie and blue sunglasses standing on the grass in front of the Sydney Opera House holding a sign on the chest that says "SDXL"!." </em>
-</font>
-</p>
-
-<br>
 
 ### Invisible Watermark Detection
 
@@ -99,23 +129,30 @@ To be supplemented
 
 ## Training and Fine-Tuning
 
+⚠️ This function is experimental. The script fine-tunes the whole model and often the model overfits and runs into issues like catastrophic forgetting. It's recommended to try different hyper-parameters to get the best result on your dataset.
+
 We are providing example training configs in `configs/training`. To launch a training, run
 
 ```shell
-# vanilla fine-tune with 1p on Ascend
-python train.py \
-  --config configs/training/sd_xl_base_finetune.yaml \
-  --data_path /path_to/dataset/ \
-
-# lora fine-tune with 1p on Ascend
+# sdxl-base lora fine-tune with 1p on Ascend
 python train.py \
   --config configs/training/sd_xl_base_finetune_lora.yaml \
-  --data_path /path_to/dataset/ \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --device_target Ascend
+
+# sdxl-refiner lora fine-tune with 1p on Ascend
+python train.py \
+  --config configs/training/sd_xl_refiner_finetune_lora.yaml \
+  --weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --device_target Ascend
 
 # run with multiple NPU/GPUs
 mpirun --allow-run-as-root -n 8 python train.py \
-  --config /path_to/config.yaml \
-  --data_path /path_to/dataset/ \
+  --config /PATH TO/config.yaml \
+  --weight /PATH TO/weight.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
   --is_parallel True \
-  --device_target <your_device>
+  --device_target <YOUR DEVCIE>
 ```
