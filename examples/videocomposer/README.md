@@ -49,7 +49,7 @@ The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${P
 
 Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
-## Training
+## Inference
 
 To run all video generation tasks, please run
 
