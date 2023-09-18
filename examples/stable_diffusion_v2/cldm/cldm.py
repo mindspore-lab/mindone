@@ -63,7 +63,7 @@ class ControlledUnetModel(UNetModel):
         #     h = h + item
         
         # hs_len = len(hs)
-        # congrol_len = len(control)
+        # control_len = len(control)
 
         # for i, celllist in enumerate(self.output_blocks):
         #     hs_item = hs[hs_len-1-i]
@@ -397,29 +397,28 @@ class ControlLDM(LatentDiffusion):
         self.only_mid_control = only_mid_control
         self.control_scales = [1.0] * 13
 
-    def construct(self, x, c):
+    def construct(self, x, c, control):
         t = self.uniform_int(
             (x.shape[0],), ms.Tensor(0, dtype=ms.dtype.int32), ms.Tensor(self.num_timesteps, dtype=ms.dtype.int32)
         )
-        x, c_crossattn, c_concat = self.get_input(x, c)
-        c_crossattn = self.get_learned_conditioning_fortrain(c_crossattn)
+        x, c_crossattn, c_concat = self.get_input(x, c, control)
         c_concat, c_crossattn = [c_concat], [c_crossattn]
         return self.p_losses(x, c_concat, c_crossattn, t)
     
-    def get_learned_conditioning_fortrain(self, c):
-        c = self.cond_stage_model.encode(self.cond_stage_model.tokenize(c))
-        return c
+    def get_input(self, x, c, control, bs=None, *args, **kwargs):
+        # batch: images, captions, controls
+        if len(x.shape) == 3:
+            x = x[..., None]
+        x = self.transpose(x, (0, 3, 1, 2)) # RGB -> BGR ?
+        z = ops.stop_gradient(self.get_first_stage_encoding(self.encode_first_stage(x)))        
+        
+        c = ops.stop_gradient(self.cond_stage_model.encode(c))
 
-    def get_input(self, batch, k, bs=None, *args, **kwargs):
-        self.set_train(False)
-        x, c = super().get_input(batch, self.first_stage_key, *args, **kwargs)
-        # control = batch[self.control_key]
-        control = batch
         if bs is not None:
             control = control[:bs]
         control = ops.transpose(control, (0, 3, 1, 2))  # 'b h w c -> b c h w'
         # control.to_float(self.dtype)
-        return x, c, control
+        return z, c, control
 
     def apply_model(self, x_noisy, t, c_concat=None, c_crossattn=None, *args, **kwargs):
         diffusion_model = self.model.diffusion_model
@@ -429,7 +428,8 @@ class ControlLDM(LatentDiffusion):
                 x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control
             )
         else:
-            control = self.control_model(x=x_noisy, hint=ops.concat(c_concat, 1), timesteps=t, context=cond_txt)
+            hint = ops.concat(c_concat, 1)
+            control = self.control_model(x=x_noisy, hint=hint, timesteps=t, context=cond_txt)
             control = [c * scale for c, scale in zip(control, self.control_scales)]
             eps = diffusion_model(
                 x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control

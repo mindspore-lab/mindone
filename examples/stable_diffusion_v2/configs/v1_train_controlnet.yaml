@@ -10,7 +10,7 @@ model:
     timesteps: 1000
     first_stage_key: "jpg" # "image" in v1-train.yaml, “jpg" in controlnet
     cond_stage_key: "txt" # "caption" in v1-train.yaml, "txt" in controlnet
-    control_key: "hint" 
+    control_key: "hint" # actually these three keys are not used due to the pass of list, not dict
     image_size: 64
     channels: 4
     cond_stage_trainable: false

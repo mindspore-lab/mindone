@@ -11,7 +11,7 @@ from annotator.canny import CannyDetector
 from annotator.util import HWC3, resize_image
 from cldm.ddim_hacked import DDIMSampler
 from cldm.model import create_model, load_model
-from ldm.data.dataset import build_dataset
+from ldm.data.dataset import build_controlnet_dataset, MODE
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -35,6 +35,7 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
 logger = logging.getLogger(__name__)
+
 
 
 def init_env(args):
@@ -69,6 +70,9 @@ def init_env(args):
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
+        pynative_synchronize=True, # to debug
+        # save_graphs=3,
+        # save_graphs_path="output/graphs",
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
@@ -142,7 +146,7 @@ def main(args):
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
-    dataset = build_dataset(args, rank_id, device_num, tokenizer)
+    dataset = build_controlnet_dataset(args, rank_id, device_num, tokenizer)
 
     # lora injection
     if args.use_lora:
@@ -370,6 +374,13 @@ if __name__ == "__main__":
 
     parser.add_argument("--train_controlnet", type=bool, default=True, help="train controlnet modules")
     parser.add_argument("--sd_locked", type=bool, default=False, help="lock unet modules")
+    parser.add_argument(
+    "--mode",
+    type=str,
+    default="canny",
+    choices=[MODE["canny"]],
+    help="control net task mode, only support canny now",
+)
     args = parser.parse_args()
     args = parse_with_config(args)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))

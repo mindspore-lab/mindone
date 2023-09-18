@@ -16,6 +16,21 @@ def t2i_collate(inputs):
     }
     return batch
 
+controlnet_data_column = ["img_feat", "txt_tokens", "controls"]
+
+def controlnet_collate(inputs):
+    """
+    Return:
+    :img_feat     (batch_size, height, weight, 3)
+    :txt_tokens   (n, max_txt_len)
+    """
+    img_feat, txt_tokens, controls = map(list, unzip(inputs))
+    batch = {
+        "img_feat": img_feat,
+        "txt_tokens": txt_tokens,
+        "controls": controls,
+    }
+    return batch
 
 def data_column_db(with_prior_preservation):
     if with_prior_preservation:
