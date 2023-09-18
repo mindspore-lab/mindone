@@ -149,7 +149,7 @@ class CrossAttention(nn.Cell):
             alpha=self.scale,
         )
 
-        if attention_mask is None:
+        if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
 
         if self.upcast_softmax:
@@ -211,8 +211,6 @@ class CrossAttention(nn.Cell):
 
     def construct(self, hidden_states, encoder_hidden_states=None, attention_mask=None, lora_id=None):
         batch_size, sequence_length, _ = hidden_states.shape
-
-        encoder_hidden_states = hidden_states
 
         if self.group_norm is not None:
             hidden_states = self.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)

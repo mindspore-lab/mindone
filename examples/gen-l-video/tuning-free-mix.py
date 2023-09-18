@@ -3,10 +3,12 @@ import logging
 import os
 import sys
 
+import cv2
 import numpy as np
 from glv.pipelines.pipeline_tuning_free import TuningFreePipeline
 from glv.util import ddim_inversion_long
 from omegaconf import OmegaConf
+from PIL import Image
 
 import mindspore as ms
 from mindspore import ops
@@ -29,15 +31,36 @@ logger = logging.getLogger(__name__)
 
 
 def prepare_video(cfg):
-    video = np.load(cfg.video_path)
-    sample_index = list(range(cfg.sample_start_idx, video.shape[0], cfg.sample_frame_rate))
-    video = video[sample_index, :, :, :]
-    video = video / 127.5 - 1.0
+    cap = cv2.VideoCapture(cfg.video_path)
+    pil_frames = []
+    resized_cv2_frames = []
 
-    video = ms.Tensor(video, dtype=ms.float32)
-    video = video.permute(0, 3, 1, 2)
+    while cap.isOpened():
+        ret, cv2_frame = cap.read()
 
-    return video
+        if ret:
+            converted_cv2_frame = cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2RGB)
+            pil_frames.append(Image.fromarray(converted_cv2_frame))
+            resized_cv2_frames.append(
+                cv2.resize(converted_cv2_frame, (cfg.width, cfg.height), interpolation=cv2.INTER_CUBIC)
+            )
+        else:
+            break
+
+    # sample frames
+    sample_index = list(range(cfg.sample_start_idx, len(pil_frames), cfg.sample_frame_rate))
+
+    pil_frames = [pil_frames[i] for i in sample_index]
+    resized_cv2_frames = [resized_cv2_frames[i] for i in sample_index]
+
+    resized_cv2_frames = np.stack(resized_cv2_frames, axis=0)
+
+    resized_cv2_frames = resized_cv2_frames / 127.5 - 1.0
+
+    resized_cv2_frames = ms.Tensor(resized_cv2_frames, dtype=ms.float32)
+    resized_cv2_frames = resized_cv2_frames.permute(0, 3, 1, 2)
+
+    return pil_frames, resized_cv2_frames
 
 
 def main(args):
@@ -71,9 +94,11 @@ def main(args):
     ddim_inv_scheduler.make_schedule(validation_data.num_inv_steps, verbose=False)
 
     # inference process
-    pixel_values = prepare_video(train_data)  # prepare video data as ms.Tensor
+    pil_frames, pixel_values = prepare_video(train_data)
     video_length = pixel_values.shape[0]
     video_length = video_length - video_length % validation_data.video_length
+
+    pil_frames = pil_frames[:video_length]
     pixel_values = pixel_values[:video_length]
 
     latents = []
@@ -84,7 +109,7 @@ def main(args):
     latents = ops.cat(latents, axis=0)
     latents = latents.reshape(
         latents.shape[0] // video_length, video_length, latents.shape[1], latents.shape[2], latents.shape[3]
-    )
+    ).permute(0, 2, 1, 3, 4)
     latents = latents * 0.18215
 
     samples = []
@@ -105,7 +130,7 @@ def main(args):
                     prompt="",
                     window_size=clip_length,
                     stride=clip_length,
-                    pixel_values=pixel_values[i : i + clip_length],
+                    pixel_values=pil_frames[i : i + clip_length],
                 )[-1]
                 ddim_inv_latent_lst.append(ddim_inv_latent)
 

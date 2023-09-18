@@ -2,6 +2,7 @@ import os
 import sys
 from typing import Union
 
+import imageio
 import numpy as np
 
 import mindspore as ms
@@ -11,6 +12,23 @@ from .pipelines.pipeline_tuning_free_inpaint import prepare_mask_and_masked_imag
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace + "/../../stable_diffusion_v2")
+
+
+def save_videos_grid(videos: ms.Tensor, path: str, rescale=False, n_rows=2, fps=10):
+    outputs = []
+
+    for x in videos:
+        x = ops.tile(x, (3, 1, 1))
+        x = ops.permute(x, (1, 2, 0))
+
+        if rescale:
+            x = (x + 1.0) / 2.0  # -1,1 -> 0,1
+
+        x = (x * 255).asnumpy().astype(np.uint8)
+        outputs.append(x)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    imageio.mimsave(path, outputs, loop=0, duration=(1000 / fps))
 
 
 def init_prompt(prompt, pipeline):
@@ -125,7 +143,6 @@ def ddim_inversion_long(
             height * pipeline.vae_scale_factor,
             width * pipeline.vae_scale_factor,
             video_latent.dtype,
-            video_latent.device,
             None,
             False,
         )
@@ -139,14 +156,7 @@ def ddim_inversion_long(
         ).permute(0, 2, 1, 3, 4)
     elif pixel_values is not None and hasattr(pipeline, "prepare_depth_map"):
         video_length = video_latent.shape[2]
-        depth_map = pipeline.prepare_depth_map(
-            pixel_values,
-            None,
-            1,
-            False,
-            video_latent.dtype,
-            video_latent.device,
-        )
+        depth_map = pipeline.prepare_depth_map(pixel_values, None, 1, False)
         depth_map = depth_map.reshape(
             depth_map.shape[0] // video_length,
             video_length,

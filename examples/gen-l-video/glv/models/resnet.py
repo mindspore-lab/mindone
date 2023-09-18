@@ -6,10 +6,15 @@ from .attention import GroupNorm
 
 class InflatedConv3d(nn.Conv2d):
     def construct(self, x):
-        batch, channel, frame, height, width = x.shape
-        x = super().construct(x.permute(0, 2, 1, 3, 4).reshape(batch * frame, channel, height, width))
+        video_length = x.shape[2]
 
-        return x.reshape(batch, frame, channel, height, width).permute(0, 2, 1, 3, 4)
+        x = x.permute(0, 2, 1, 3, 4)
+        x = x.reshape(x.shape[0] * x.shape[1], x.shape[2], x.shape[3], x.shape[4])
+        x = super().construct(x)
+        x = x.reshape(x.shape[0] // video_length, video_length, x.shape[1], x.shape[2], x.shape[3])
+        x = x.permute(0, 2, 1, 3, 4)
+
+        return x
 
 
 class Downsample3D(nn.Cell):
