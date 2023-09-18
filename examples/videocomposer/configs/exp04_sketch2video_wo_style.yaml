@@ -16,10 +16,9 @@ batch_sizes: {
 vit_image_size: 224
 network_name: UNetSD_temporal
 resume: true
-resume_step: 228000
 seed: 182
 num_workers: 1
 mvs_visual: False
-chunk_size: 1
-resume_checkpoint: "model_weights/non_ema_228000-3bb2ee9a.ckpt"
+chunk_size: 16
+resume_checkpoint: "model_weights/non_ema_228000-7f157ec2.ckpt"
 log_dir: 'outputs'

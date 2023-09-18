@@ -4,6 +4,7 @@ from typing import List, Union
 
 import numpy as np
 import yaml
+from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
 from gm.modules.diffusionmodules.sampler import EulerEDMSampler
 from gm.util import auto_mixed_precision, instantiate_from_config, seed_everything
 from omegaconf import ListConfig
@@ -25,6 +26,8 @@ SD_XL_BASE_RATIOS = {
     "0.88": (960, 1088),
     "0.94": (960, 1024),
     "1.0": (1024, 1024),
+    "1.0_768": (768, 768),
+    "1.0_512": (512, 512),
     "1.07": (1024, 960),
     "1.13": (1088, 960),
     "1.21": (1088, 896),
@@ -49,6 +52,13 @@ VERSION2SPECS = {
         "C": 4,
         "f": 8,
         "is_legacy": False,
+    },
+    "SDXL-refiner-1.0": {
+        "H": 1024,
+        "W": 1024,
+        "C": 4,
+        "f": 8,
+        "is_legacy": True,
     },
 }
 
@@ -101,7 +111,8 @@ def set_default(args):
 
 def create_model(config, checkpoints=None, freeze=False, load_filter=False, amp_level="O0"):
     # create model
-    model = load_model_from_config(config, checkpoints, amp_level=amp_level)
+    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
+
     if freeze:
         model.set_train(False)
         model.set_grad(False)
@@ -144,9 +155,8 @@ def get_loss_scaler(ms_loss_scaler="static", scale_value=1024, scale_factor=2, s
     return loss_scaler
 
 
-def load_model_from_config(config, ckpts=None, verbose=True, amp_level="O0"):
-    model = instantiate_from_config(config.model)
-    ignore_lora_key = len(ckpts) == 1
+def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
+    model = instantiate_from_config(model_config)
 
     if ckpts is not None:
         print(f"Loading model from {ckpts}")
@@ -167,12 +177,15 @@ def load_model_from_config(config, ckpts=None, verbose=True, amp_level="O0"):
         m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 
         if len(m) > 0 and verbose:
+            ignore_lora_key = len(ckpts) == 1
             m = m if not ignore_lora_key else [k for k in m if "lora_" not in k]
             print("missing keys:")
             print(m)
         if len(u) > 0 and verbose:
             print("unexpected keys:")
             print(u)
+    else:
+        print(f"Warning: Loading model from {ckpts}")
 
     auto_mixed_precision(model, amp_level=amp_level)
     model.set_train(False)
@@ -373,9 +386,12 @@ def init_sampling(
     sampler = get_sampler(sampler, steps, discretization_config, guider_config)
 
     if img2img_strength < 1.0:
-        raise NotImplementedError
+        print(f"WARNING: Wrapping {sampler.__class__.__name__} with Img2ImgDiscretizationWrapper")
+        sampler.discretization = Img2ImgDiscretizationWrapper(sampler.discretization, strength=img2img_strength)
     if stage2strength is not None:
-        raise NotImplementedError
+        sampler.discretization = Txt2NoisyDiscretizationWrapper(
+            sampler.discretization, strength=stage2strength, original_steps=steps
+        )
 
     return sampler, num_rows, num_cols
 
@@ -393,90 +409,6 @@ def _get_broadcast_datetime(rank_size=1, root_rank=0):
     x = x[0].asnumpy().tolist()
 
     return x
-
-
-def _do_sample(
-    model,
-    sampler,
-    value_dict,
-    num_samples,
-    H,
-    W,
-    C,
-    F,
-    force_uc_zero_embeddings: List = None,
-    batch2model_input: List = None,
-    return_latents=False,
-    filter=None,
-    amp_level="O0",
-):
-    print("Sampling")
-
-    if force_uc_zero_embeddings is None:
-        force_uc_zero_embeddings = []
-    if batch2model_input is None:
-        batch2model_input = []
-
-    num_samples = [num_samples]
-    batch, batch_uc = get_batch(
-        get_unique_embedder_keys_from_conditioner(model.conditioner),
-        value_dict,
-        num_samples,
-        dtype=ms.float32 if amp_level not in ("O2", "O3") else ms.float16,
-    )
-    for key in batch:
-        if isinstance(batch[key], Tensor):
-            print(key, batch[key].shape)
-        elif isinstance(batch[key], list):
-            print(key, [len(i) for i in batch[key]])
-        else:
-            print(key, batch[key])
-    print("Get Condition Done.")
-
-    print("Embedding Starting...")
-    c, uc = model.conditioner.get_unconditional_conditioning(
-        batch,
-        batch_uc=batch_uc,
-        force_uc_zero_embeddings=force_uc_zero_embeddings,
-    )
-    print("Embedding Done.")
-
-    for k in c:
-        if not k == "crossattn":
-            c[k], uc[k] = map(
-                lambda y: y[k][: int(np.prod(num_samples))],
-                (c, uc)
-                # lambda y: y[k][: math.prod(num_samples)], (c, uc)
-            )
-
-    additional_model_inputs = {}
-    for k in batch2model_input:
-        additional_model_inputs[k] = batch[k]
-
-    shape = (np.prod(num_samples), C, H // F, W // F)
-    randn = np.random.randn(*shape)
-
-    def denoiser(input, sigma, c):
-        return model.denoiser(model.model, input, sigma, c, **additional_model_inputs)
-
-    print("Sample latent Starting...")
-    samples_z = sampler(denoiser, randn, cond=c, uc=uc)
-    print("Sample latent Done.")
-
-    print("Decode latent Starting...")
-    samples_x = model.decode_first_stage(Tensor(samples_z, ms.float32)).asnumpy()
-    print("Decode latent Done.")
-
-    samples = np.clip((samples_x + 1.0) / 2.0, a_min=0.0, a_max=1.0)
-
-    if filter is not None:
-        print("Filter Starting...")
-        samples = filter(samples)
-        print("Filter Done.")
-
-    if return_latents:
-        return samples, samples_z
-    return samples
 
 
 def embed_watermark(img):
@@ -498,6 +430,10 @@ def perform_save_locally(save_path, samples):
 def save_checkpoint(model, path, only_save_lora=False):
     ckpt, ckpt_lora = [], []
     for n, p in model.parameters_and_names():
+        # FIXME: save checkpoint bug on mindspore 2.1.0
+        if "._backbone" in n:
+            _index = n.find("._backbone")
+            n = n[:_index] + n[_index + len("._backbone") :]
         if "lora_" in n:
             ckpt_lora.append({"name": n, "data": p})
         else:
@@ -511,3 +447,26 @@ def save_checkpoint(model, path, only_save_lora=False):
         path_lora = path[: -len(".ckpt")] + "_lora.ckpt"
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+
+
+def get_interactive_image(image) -> Image.Image:
+    if image is not None:
+        image = Image.open(image)
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
+    return image
+
+
+def load_img(image):
+    if isinstance(image, str):
+        image = get_interactive_image(image)
+    if image is None:
+        return None
+    w, h = image.size
+    print(f"loaded input image of size ({w}, {h})")
+    width, height = map(lambda x: x - x % 64, (w, h))  # resize to integer multiple of 64
+    image = image.resize((width, height))
+    image = np.array(image.convert("RGB"))
+    image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
+    image = image / 127.5 - 1.0  # norm to (-1, 1)
+    return image

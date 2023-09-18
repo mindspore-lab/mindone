@@ -219,7 +219,7 @@ class LatentDiffusion(nn.Cell):
         fps: ms.Tensor = None,
         style_image=None,
         motion_vectors=None,
-        single_image=None,  # extracted from the first frame of misc_images, TODO: let the dataloader do the copy
+        single_image=None,  # extracted from the first frame of misc_images
         mask_seq=None,
         # depth_seq=None, # TODO: adjust to depth net inputs, containing preprocess
         # sketch_seq=None,

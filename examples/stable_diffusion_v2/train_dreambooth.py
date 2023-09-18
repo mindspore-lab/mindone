@@ -350,8 +350,8 @@ def main(args):
 
     model_config = OmegaConf.load(args.model_config).model
     model_config["params"]["cond_stage_trainable"] = args.train_text_encoder  # overwrites the model_config
-    if args.use_lora and not args.lora_ft_text_encoder:
-        model_config["params"]["cond_stage_trainable"] = False
+    if args.use_lora:
+        model_config["params"]["cond_stage_trainable"] = False  # only lora params are trainable
     model_config["params"]["prior_loss_weight"] = args.prior_loss_weight if args.with_prior_preservation else 0.0
     latent_diffusion_with_loss = instantiate_from_config(model_config)
     pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
@@ -460,6 +460,7 @@ def main(args):
             ckpt_max_keep=10,
             ckpt_save_interval=args.ckpt_save_interval,
             lora_rank=args.lora_rank,
+            record_lr=False,  # LR retrival is not supportted on 910b currently
         )
 
         callback.append(save_cb)

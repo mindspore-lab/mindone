@@ -37,7 +37,7 @@ _logger = logging.getLogger(__name__)
 __all__ = ["UNetSD_temporal"]
 
 _CKPT_URL = {
-    "UNetSD_temporal": "https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/non_ema_228000-3bb2ee9a.ckpt"
+    "UNetSD_temporal": "https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/non_ema_228000-7f157ec2.ckpt"
 }
 
 USE_TEMPORAL_TRANSFORMER = True
