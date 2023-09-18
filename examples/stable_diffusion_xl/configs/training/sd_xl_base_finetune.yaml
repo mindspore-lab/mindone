@@ -1,3 +1,4 @@
+version: SDXL-base-1.0
 model:
     target: gm.models.diffusion.DiffusionEngine
     params:
@@ -99,17 +100,6 @@ model:
                 lossconfig:
                     target: mindspore.nn.Identity
 
-
-        # Module for Train
-        scheduler_config:
-            target: gm.lr_scheduler.LambdaLinearScheduler
-            params:
-                warm_up_steps: [ 1e4 ]
-                cycle_lengths: [ 1e13 ]
-                f_start: [ 1.e-6 ]
-                f_max: [ 1. ]
-                f_min: [ 1. ]
-
         sigma_sampler_config:
             target: gm.modules.diffusionmodules.sigma_sampling.DiscreteSampling
             params:
@@ -121,11 +111,47 @@ model:
             target: gm.modules.diffusionmodules.loss.StandardDiffusionLoss
 
 
+optim:
+    base_learning_rate: 1.0e-4
+
+    optimizer_config:
+        target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
+        params:
+            beta1: 0.9
+            beta2: 0.999
+            weight_decay: 0.01
+            eps: 1.0e-8
+
+    scheduler_config:
+        target: gm.lr_scheduler.LambdaLinearScheduler
+        params:
+            warm_up_steps: [ 1e4 ]
+            cycle_lengths: [ 1e13 ]
+            f_start: [ 1.e-6 ]
+            f_max: [ 1. ]
+            f_min: [ 1. ]
+
+
 data:
-    target: ""
-    param:
-        train: ""
-        total_step: 600000
-        per_batch_size: 64
-        num_parallel_workers: 6
-        image_size: [256, 256]
+    per_batch_size: 1
+    total_step: 15000
+    num_parallel_workers: 6
+    python_multiprocessing: False
+    shuffle: True
+
+    dataset_config:
+        target: gm.data.dataset.Text2ImageDataset
+        params:
+            target_size: 1024
+            transforms:
+                - target: gm.data.mappers.Resize
+                  params:
+                    size: 1024
+                    interpolation: 3
+                - target: gm.data.mappers.Rescaler
+                  params:
+                    isfloat: False
+                - target: gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare
+                - target: gm.data.mappers.Transpose
+                  params:
+                    type: hwc2chw

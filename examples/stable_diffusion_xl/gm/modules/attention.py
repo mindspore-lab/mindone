@@ -79,11 +79,11 @@ class LinearAttention(nn.Cell):
 class FlashAttention(nn.Cell):
     def __init__(self):
         super(FlashAttention, self).__init__()
-        self.flash_attention = get_flash_attention(tiling_stgy_name="xunfei")
+        self.flash_attention = get_flash_attention(tiling_stgy_name="sparse")
 
     def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
         # ALiBi, reference to https://arxiv.org/abs/2108.12409
-        batch_size, h, Nq, d = q.shape
+        _, h, Nq, d = q.shape
         dim_mask = ops.ones((d,), dtype=ms.int8)
         scale = d**-0.25
         q = q * scale
@@ -145,7 +145,7 @@ class MemoryEfficientCrossAttention(nn.Cell):
         v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
 
         head_dim = q.shape[-1]
-        if q_n % 16 == 0 and k_n % 16 == 0 and v_n % 16 == 0 and head_dim <= 256 and head_dim % 16 == 0:
+        if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
             out = self.flash_attention(q, k, v, mask)
         else:
             out = scaled_dot_product_attention(q, k, v, attn_mask=mask)  # scale is dim_head ** -0.5 per default
