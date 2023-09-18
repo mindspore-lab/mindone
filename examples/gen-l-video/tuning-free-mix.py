@@ -74,7 +74,7 @@ def main(args):
     set_random_seed(args.seed)
 
     # load configs
-    config = OmegaConf.load(f"{args.config}")
+    sd_config = OmegaConf.load(f"{args.sd_config}")
     unet3d_config = OmegaConf.load(f"{args.unet3d_config}")
     glv_config = OmegaConf.load(f"{args.glv_config}")
 
@@ -82,10 +82,13 @@ def main(args):
     validation_data = glv_config.validation_data
 
     # construct modules
-    sd = load_model_from_config(config, args.ckpt_path)
+    sd = load_model_from_config(sd_config, args.sd_ckpt_path)
     noise_scheduler = PLMSSampler(sd)
     unet = load_model_from_config(unet3d_config, args.unet3d_ckpt_path)
-    depth_estimator = DepthEstimator(amp_level=args.depth_est_amp_level)
+    depth_estimator = DepthEstimator(estimator_ckpt_path=args.depth_ckpt_path, amp_level=glv_config.amp_level)
+
+    if glv_config.amp_level != "O0":
+        unet = ms.amp.auto_mixed_precision(unet, amp_level=glv_config.amp_level)
 
     # build validation pipeline
     validation_pipeline_depth = TuningFreePipeline(sd, unet, noise_scheduler, depth_estimator)
@@ -141,57 +144,57 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ms_mode",
         type=int,
-        default=0,
-        help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)",
+        default=1,
+        help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0).",
     )
 
     parser.add_argument(
-        "--config",
+        "--sd_config",
         type=str,
         default=None,
-        help="path to config which constructs model.",
+        help="Path to config for Stable Diffusion.",
     )
 
     parser.add_argument(
         "--unet3d_config",
         type=str,
         default=None,
-        help="path to config which constructs UNet3D.",
+        help="Path to the config for UNet3D.",
     )
 
     parser.add_argument(
         "--glv_config",
         type=str,
         default=None,
-        help="path to config for Gen-L-Video.",
+        help="Path to the config for Gen-L-Video.",
     )
 
     parser.add_argument(
         "--seed",
         type=int,
         default=42,
-        help="the seed (for reproducible sampling)",
+        help="The seed (for reproducible sampling).",
     )
 
     parser.add_argument(
-        "--ckpt_path",
+        "--sd_ckpt_path",
         type=str,
         default=None,
-        help="path to checkpoint of model",
+        help="Path to the checkpoint of Stable Diffusion.",
     )
 
     parser.add_argument(
         "--unet3d_ckpt_path",
         type=str,
         default=None,
-        help="path to checkpoint of UNet3D model",
+        help="Path to the checkpoint of UNet3D.",
     )
 
     parser.add_argument(
-        "--depth_est_amp_level",
+        "--depth_ckpt_path",
         type=str,
-        default="O0",
-        help="amp level for running depth estimator",
+        default=None,
+        help="Path to the checkpoint of depth estimator.",
     )
 
     parser.add_argument(
@@ -200,30 +203,33 @@ if __name__ == "__main__":
         type=str,
         nargs="?",
         default="2.0",
-        help="Stable diffusion version, wukong or 2.0",
+        help="Stable diffusion version, wukong or 2.0.",
     )
 
     args = parser.parse_args()
 
     # overwrite env var by parsed arg
-    if args.ckpt_path is None:
+    if args.sd_ckpt_path is None:
         ckpt_name = _version_cfg[args.version][0]
-        args.ckpt_path = "models/" + ckpt_name
+        args.sd_ckpt_path = "models/" + ckpt_name
 
-        if not os.path.exists(args.ckpt_path):
+        if not os.path.exists(args.sd_ckpt_path):
             print(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
 
     if args.unet3d_ckpt_path is None:
         args.unet3d_ckpt_path = "models/diffusion_pytorch_model.ckpt"
 
-    if args.config is None:
-        args.config = "configs/tuning-free-mix/tuning-free-mix.yaml"
+    if args.depth_ckpt_path is None:
+        args.depth_ckpt_path = "models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt"
+
+    if args.sd_config is None:
+        args.sd_config = "configs/tuning-free-mix/sd.yaml"
 
     if args.unet3d_config is None:
         args.unet3d_config = "configs/tuning-free-mix/unet3d.yaml"
 
     if args.glv_config is None:
-        args.glv_config = "configs/tuning-free-mix/car-turn.yaml"
+        args.glv_config = "configs/tuning-free-mix/glv.yaml"
 
     main(args)

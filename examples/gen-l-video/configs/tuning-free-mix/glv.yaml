@@ -47,5 +47,4 @@ validation_data:
 run_isolated: True
 train_batch_size: 1
 seed: 33
-mixed_precision: fp16
-enable_xformers_memory_efficient_attention: True
+amp_level: "O0"
