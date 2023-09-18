@@ -4,7 +4,7 @@ MindSpore implementation & optimization of VideoComposer.
 
 ## Main Features
 
-- [x] Conditional Video Geneartion including the following tasks:
+- [x] Conditional Video Generation including the following tasks:
     - Motion transfer from a video to a single image (exp02)
     - Single sketch to videos with or without style guidance (exp03 and exp04)
     - Depth to video with or without style guidance (exp5 and exp6)
