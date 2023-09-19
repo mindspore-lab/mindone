@@ -22,9 +22,6 @@ from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.train.tools import set_random_seed
 from utils.download import download_checkpoint
 
-_version_cfg = {
-    "2.0": ("sd_v2_depth-186e18a0.ckpt", "v2-depth-inference.yaml", 512),
-}
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 
 logger = logging.getLogger(__name__)
@@ -197,20 +194,11 @@ if __name__ == "__main__":
         help="Path to the checkpoint of depth estimator.",
     )
 
-    parser.add_argument(
-        "-v",
-        "--version",
-        type=str,
-        nargs="?",
-        default="2.0",
-        help="Stable diffusion version, wukong or 2.0.",
-    )
-
     args = parser.parse_args()
 
     # overwrite env var by parsed arg
     if args.sd_ckpt_path is None:
-        ckpt_name = _version_cfg[args.version][0]
+        ckpt_name = "sd_v2_depth-186e18a0.ckpt"
         args.sd_ckpt_path = "models/" + ckpt_name
 
         if not os.path.exists(args.sd_ckpt_path):
