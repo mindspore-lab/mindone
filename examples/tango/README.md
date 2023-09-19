@@ -1,44 +1,53 @@
 # Tango
-A text-to-audio pipeline, based on stable-diffusion. Some domain knowledge on audio:
+A text-to-audio pipeline, based on stable-diffusion. Paper: [Text-to-Audio Generation using Instruction Tuned LLM and Latent Diffusion Model](https://arxiv.org/abs/2304.13731).
 
-- raw audio data is of shape [batch, time, channels], where time is Hz * seconds, channels is 1 for mono or 2 for stereo.
+Some domain knowledge on audio processing:
 
-- a common preprocessing technique on raw audio is to compute mel-spectrograms, giving features of shape: [batch, 1, time // hop_length, num_mels], where hop_length is usually 320, and num_mels is usually 80.
+- raw audio data is of shape `[batch, time, channels]`, e.g., `[1, 16000, 1]` for 1 second of 16kHz mono audio.
 
-- then everything basically follows stable-diffusion for text-to-image!
+- a common preprocessing technique on raw audio is to compute mel-spectrograms to get features of shape: `[batch, 1, time // hop_length, num_mels]`, e.g., `hop_length = 320, num_mels=80`.
 
-- text encoder: flan-t5-large that gives c of shape [batch, length=512, dim=1024]
+- now everything basically follows stable-diffusion for text-to-image!
+
+- the text encoder used for conditioning is flan-t5-large, which gives `c` of shape `[batch, max_length=512, dim=1024]`.
 
 ## Demo
 
-"A dog is barking" [audio]()
+"crowd applauding clapping hands" [audio](https://github.com/genshimamber/mindone/assets/145047261/b8537df0-4ba1-49a4-b961-0a15392b6ca7)
 
-"A cat is meowing" [audio]()
+"a dog is barking" [audio](https://github.com/genshimamber/mindone/assets/145047261/f67cf926-d0e7-43b4-a690-2f05eb7a96db)
 
-"Playing Chopin Piano Concerto 1" [audio]()
+"a cat is meowing" [audio](https://github.com/genshimamber/mindone/assets/145047261/647d7834-5ff5-4e70-96a7-d9ae718a0285)
+
+Note: we manually converted the generated recordings from `.wav` to `.webm` so we could put them in readme.
 
 ## Getting Started
 
-1. download [ckpt]()
+1. download weights from [tango_full_ft_audiocaps-fa8f707f](https://download.mindspore.cn/toolkits/mindone/tango/tango_full_ft_audiocaps-fa8f707f.ckpt). Ref: [tango-full-ft-audiocaps](https://huggingface.co/declare-lab/tango-full-ft-audiocaps).
 
 2. run:
 
 ```shell
 python text_to_audio.py \
---prompts "A dog is barking" \
---config_path "configs" \
---ckpt "PATH_TO_CKPT" \
---num_steps 200 \
---batch_size 1 \
---guidance 3 \
---num_samples 1 \
+  --prompts "A dog is barking" \
+  --config_path "configs" \
+  --ckpt tango_full_ft_audiocaps-fa8f707f.ckpt \
+  --num_steps 200 \
+  --batch_size 1 \
+  --guidance 3 \
+  --num_samples 1
+
 ```
 
 ## Training
 
 ### Data
 
-### Train
+### Full-Train
+
+### LoRA
+
+## Evaluation
 
 ## Acknowledgements
 
