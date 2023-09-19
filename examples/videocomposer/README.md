@@ -1,6 +1,6 @@
 # VideoComposer based on MindSpore
 
-MindSpore implementation & optimization of VideoComposer.
+MindSpore implementation & optimization of [VideoComposer: Compositional Video Synthesis with Motion Controllability](https://arxiv.org/pdf/2306.02018.pdf).
 
 ## Main Features
 
