@@ -308,6 +308,8 @@ class UNet3DConditionModel(nn.Cell):
 
         if control is not None and self.adapter is not None:
             features_adapter = self.adapter(control)
+        else:
+            features_adapter = None
 
         if control is not None and self.controlnet is not None:
             down_block_additional_residuals, mid_block_additional_residual = self.controlnet(

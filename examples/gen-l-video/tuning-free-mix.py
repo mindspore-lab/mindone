@@ -20,6 +20,7 @@ from conditions.depth import DepthEstimator
 from depth_to_image import load_model_from_config
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.train.tools import set_random_seed
+from ldm.util import count_params
 from utils.download import download_checkpoint
 
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
@@ -80,12 +81,26 @@ def main(args):
 
     # construct modules
     sd = load_model_from_config(sd_config, args.sd_ckpt_path)
+    sd.model = None  # discard unet2d of sd
     noise_scheduler = PLMSSampler(sd)
     unet = load_model_from_config(unet3d_config, args.unet3d_ckpt_path)
     depth_estimator = DepthEstimator(estimator_ckpt_path=args.depth_ckpt_path, amp_level=glv_config.amp_level)
 
+    num_params_text_encoder, _ = count_params(sd.cond_stage_model)
+    num_params_vae, _ = count_params(sd.first_stage_model)
+    num_params_sd, _ = count_params(sd)
+    num_params_unet3d, _ = count_params(unet)
+    num_params_depth_estimator, _ = count_params(depth_estimator.depth_estimator)
+
     if glv_config.amp_level != "O0":
         unet = ms.amp.auto_mixed_precision(unet, amp_level=glv_config.amp_level)
+
+    print(
+        f"Total Number of Parameters: "
+        f"{(num_params_text_encoder + num_params_vae + num_params_sd + num_params_unet3d + num_params_depth_estimator) * 1.e-6:.2f} "
+        f"M params.",
+        flush=True,
+    )
 
     # build validation pipeline
     validation_pipeline_depth = TuningFreePipeline(sd, unet, noise_scheduler, depth_estimator)
@@ -141,7 +156,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ms_mode",
         type=int,
-        default=1,
+        default=0,
         help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0).",
     )
 

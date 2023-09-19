@@ -69,7 +69,7 @@ model:
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
-        use_fp16: False
+        use_fp16: True
         tokenizer_name: "BpeTokenizer" # diff btw chinese and english version
         context_length: 77
         vocab_size: 49408

@@ -47,4 +47,4 @@ validation_data:
 run_isolated: True
 train_batch_size: 1
 seed: 33
-amp_level: "O0"
+amp_level: "O3"
