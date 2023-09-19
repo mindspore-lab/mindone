@@ -1,4 +1,5 @@
 import argparse
+import copy
 import logging
 import os
 import sys
@@ -6,7 +7,7 @@ import sys
 import cv2
 import numpy as np
 from glv.pipelines.pipeline_tuning_free import TuningFreePipeline
-from glv.util import ddim_inversion_long
+from glv.util import ddim_inversion_long, save_videos_grid
 from omegaconf import OmegaConf
 from PIL import Image
 
@@ -64,7 +65,7 @@ def prepare_video(cfg):
 def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_id=device_id, pynative_synchronize=True)
+    ms.context.set_context(mode=args.ms_mode, device_id=device_id)
 
     # set random seed
     set_random_seed(args.seed)
@@ -76,6 +77,13 @@ def main(args):
 
     train_data = glv_config.train_data
     validation_data = glv_config.validation_data
+
+    # Handle the output folder creation
+    output_dir = glv_config.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(f"{output_dir}/samples", exist_ok=True)
+    os.makedirs(f"{output_dir}/inv_latents", exist_ok=True)
+    OmegaConf.save(glv_config, os.path.join(output_dir, "glv.yaml"))
 
     # construct modules
     sd = load_model_from_config(sd_config, args.sd_ckpt_path)
@@ -143,6 +151,29 @@ def main(args):
                     pixel_values=pil_frames[i : i + clip_length],
                 )[-1]
                 ddim_inv_latent_lst.append(ddim_inv_latent)
+
+            ddim_inv_latent = ops.cat(ddim_inv_latent_lst, axis=2)
+            ms.save_checkpoint([{"name": "ddim_inv_latent", "data": ddim_inv_latent}], "ddim_latent-iso.ckpt")
+
+        for prompt in validation_data.prompts:
+            sample_lst = []
+            assert len(prompt) == video_length // clip_length
+
+            for i in range(0, video_length - clip_length + 1, clip_length):
+                validation_isodata = copy.deepcopy(validation_data)
+                validation_isodata.stride = clip_length
+                sample = validation_pipeline_depth(
+                    prompt[i // clip_length],
+                    pil_frames[i : i + clip_length],
+                    latents=ddim_inv_latent[:, :, i : i + clip_length],
+                    window_size=clip_length,
+                    **validation_data,
+                ).videos
+                sample_lst.append(sample)
+
+            sample = ops.cat(sample_lst, axis=2)
+            save_videos_grid(sample, f"{output_dir}/samples/sample-iso/{prompt}.gif")
+            samples.append(sample)
 
 
 if __name__ == "__main__":

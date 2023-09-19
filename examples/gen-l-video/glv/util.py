@@ -4,6 +4,7 @@ from typing import Union
 
 import imageio
 import numpy as np
+from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import ops
@@ -14,7 +15,7 @@ workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace + "/../../stable_diffusion_v2")
 
 
-def save_videos_grid(videos: ms.Tensor, path: str, rescale=False, n_rows=2, fps=10):
+def save_videos_grid(videos: ms.Tensor, path: str, rescale=False, fps=10):
     outputs = []
 
     for x in videos:
@@ -95,7 +96,7 @@ def ddim_loop_long(pipeline, ddim_scheduler, latent, num_inv_steps, prompt, wind
 
     ddim_scheduler_timesteps = ddim_scheduler.ddim_timesteps[::-1]
 
-    for i in range(num_inv_steps):
+    for i in tqdm(range(num_inv_steps)):
         count.fill(0)
         value.fill(0)
 

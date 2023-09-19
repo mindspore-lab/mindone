@@ -15,8 +15,12 @@ train_data:
 validation_data:
   prompts:
    - - "a jeep car is running on the beach, sunny day"
+     - "a jeep car is running on the beach, sunny day"
+     - "a jeep car is moving on the beach, night"
      - "a jeep car is moving on the beach, night"
    - - "a jeep car is moving on the snow, sunny day"
+     - "a jeep car is moving on the snow, sunny day"
+     - "a jeep car is moving on the snow, night"
      - "a jeep car is moving on the snow, night"
     # delete the above lines and uncomment the following lines for longer video.
     # - - "a jeep car is moving on the beach, sunny day"
@@ -35,7 +39,7 @@ validation_data:
     #   - "a jeep car is moving on the snow, night"
     #   - "a jeep car is moving on the snow, sunny day"
     #   - "a jeep car is moving on the snow, night"
-  video_length: 20
+  video_length: 10
   width: 512
   height: 512
   num_inference_steps: 50

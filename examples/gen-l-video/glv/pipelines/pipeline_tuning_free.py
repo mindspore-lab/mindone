@@ -1,3 +1,5 @@
+from typing import Callable, List, Optional, Union
+
 import PIL
 
 import mindspore as ms
@@ -54,3 +56,30 @@ class TuningFreePipeline:
         depth_map = ops.cat([depth_map] * 2) if do_classifier_free_guidance else depth_map  # classifier free guidance
 
         return depth_map
+
+    def __call__(
+        self,
+        prompt: Union[str, List[str]],
+        image: Union[ms.Tensor, PIL.Image.Image],
+        video_length: Optional[int],
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        depth_map: Optional[ms.Tensor] = None,
+        strength: float = 1.0,
+        num_inference_steps: Optional[int] = 50,
+        guidance_scale: Optional[float] = 7.5,
+        negative_prompt: Optional[Union[str, List[str]]] = None,
+        num_videos_per_prompt: Optional[int] = 1,
+        eta: Optional[float] = 0.0,
+        latents: Optional[ms.Tensor] = None,
+        output_type: Optional[str] = "tensor",
+        return_dict: bool = True,
+        callback: Optional[Callable[[int, int, ms.Tensor], None]] = None,
+        callback_steps: Optional[int] = 1,
+        use_l2=False,
+        window_size: Optional[int] = 16,
+        stride: Optional[int] = 8,
+        **kwargs,
+    ):
+        # TODO: to be implemented
+        pass
