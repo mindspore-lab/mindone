@@ -64,9 +64,7 @@ def prepare_video(cfg):
 def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_id=device_id)
-    # ms.context.set_context(mode=args.ms_mode, device_target="Ascend",
-    #                        device_id=device_id)
+    ms.context.set_context(mode=args.ms_mode, device_id=device_id, pynative_synchronize=True)
 
     # set random seed
     set_random_seed(args.seed)
@@ -86,8 +84,6 @@ def main(args):
     unet = load_model_from_config(unet3d_config, args.unet3d_ckpt_path)
     depth_estimator = DepthEstimator(estimator_ckpt_path=args.depth_ckpt_path, amp_level=glv_config.amp_level)
 
-    num_params_text_encoder, _ = count_params(sd.cond_stage_model)
-    num_params_vae, _ = count_params(sd.first_stage_model)
     num_params_sd, _ = count_params(sd)
     num_params_unet3d, _ = count_params(unet)
     num_params_depth_estimator, _ = count_params(depth_estimator.depth_estimator)
@@ -97,8 +93,7 @@ def main(args):
 
     print(
         f"Total Number of Parameters: "
-        f"{(num_params_text_encoder + num_params_vae + num_params_sd + num_params_unet3d + num_params_depth_estimator) * 1.e-6:.2f} "
-        f"M params.",
+        f"{(num_params_sd + num_params_unet3d + num_params_depth_estimator) * 1.e-6:.2f} M params.",
         flush=True,
     )
 
@@ -156,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ms_mode",
         type=int,
-        default=0,
+        default=1,
         help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0).",
     )
 

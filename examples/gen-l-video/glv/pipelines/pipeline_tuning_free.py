@@ -30,7 +30,7 @@ class TuningFreePipeline:
 
         if depth_map is None:
             if len(image) < 20:
-                depth_map = self.depth_estimator(image)
+                depth_map = ms.Tensor(self.depth_estimator(image))
             else:
                 depth_map = []
 
