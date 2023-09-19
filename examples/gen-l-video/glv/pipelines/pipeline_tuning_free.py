@@ -23,11 +23,6 @@ class TuningFreePipeline:
         else:
             image = [img for img in image]
 
-        if isinstance(image[0], PIL.Image.Image):
-            width, height = image[0].size
-        else:
-            width, height = image[0].shape[-2:]
-
         if depth_map is None:
             if len(image) < 20:
                 depth_map = ms.Tensor(self.depth_estimator(image))
