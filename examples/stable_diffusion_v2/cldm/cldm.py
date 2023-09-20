@@ -45,36 +45,36 @@ class ControlledUnetModel(UNetModel):
             h = module(h, emb, context)
 
         # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
-        if control is not None:
-            h += control.pop()
-
-        for celllist in self.output_blocks:
-            if only_mid_control or control is None:
-                h = self.cat((h, hs.pop()))
-            else:
-                h = self.cat([h, hs.pop() + control.pop()])
-
-            for cell in celllist:
-                h = cell(h, emb, context)
-
-        # # to run graph mode:
         # if control is not None:
-        #     item = control[-1]
-        #     h = h + item
-        
-        # hs_len = len(hs)
-        # control_len = len(control)
+        #     h += control.pop()
 
-        # for i, celllist in enumerate(self.output_blocks):
-        #     hs_item = hs[hs_len-1-i]
+        # for celllist in self.output_blocks:
         #     if only_mid_control or control is None:
-        #         h = self.cat((h, hs_item))
+        #         h = self.cat((h, hs.pop()))
         #     else:
-        #         item = control[control_len-2-i]
-        #         h = self.cat([h, hs_item + item])
-            
+        #         h = self.cat([h, hs.pop() + control.pop()])
+
         #     for cell in celllist:
         #         h = cell(h, emb, context)
+
+        # to run graph mode:
+        if control is not None:
+            item = control[-1]
+            h = h + item
+        
+        hs_len = len(hs)
+        control_len = len(control)
+
+        for i, celllist in enumerate(self.output_blocks):
+            hs_item = hs[hs_len-1-i]
+            if only_mid_control or control is None:
+                h = self.cat((h, hs_item))
+            else:
+                item = control[control_len-2-i]
+                h = self.cat([h, hs_item + item])
+            
+            for cell in celllist:
+                h = cell(h, emb, context)
         
         return self.out(h)
 
@@ -152,17 +152,12 @@ class ControlNet(nn.Cell):
         self.predict_codebook_ids = n_embed is not None
 
         time_embed_dim = model_channels * 4
-        # self.time_embed = nn.SequentialCell(
-        #     linear(model_channels, time_embed_dim, dtype=self.dtype),
-        #     nn.SiLU().to_float(self.dtype),
-        #     # nn.Sigmoid().to_float(self.dtype),
-        #     linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
-        # )
-        self.time_embed = nn.CellList([
+        self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.Sigmoid().to_float(self.dtype),
+            nn.SiLU().to_float(self.dtype),
+            # nn.Sigmoid().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
-        ])
+        )
 
         self.input_blocks = nn.CellList(
             [
@@ -181,26 +176,26 @@ class ControlNet(nn.Cell):
         self.input_hint_block = nn.CellList(
             [
                 conv_nd(dims, hint_channels, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),
                 conv_nd(dims, 16, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),,
                 conv_nd(dims, 16, 32, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),,
                 conv_nd(dims, 32, 32, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),,
                 conv_nd(dims, 32, 96, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),,
                 conv_nd(dims, 96, 96, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),,
                 conv_nd(dims, 96, 256, 3, padding=1, stride=2, has_bias=True, pad_mode="pad").to_float(self.dtype),
-                # nn.SiLU().to_float(self.dtype),
-                nn.Sigmoid().to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                # nn.Sigmoid().to_float(self.dtype),,
                 zero_module(
                     conv_nd(dims, 256, model_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype)
                 ),
@@ -356,20 +351,21 @@ class ControlNet(nn.Cell):
 
     def construct(self, x, hint, timesteps, context, **kwargs):
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-        # emb = self.time_embed(t_emb)
-        emb = t_emb
-        for cell in self.time_embed:
-            if type(cell) is not nn.Sigmoid:
-                emb = cell(emb)
-            else:
-                emb = emb * cell(emb)
+        emb = self.time_embed(t_emb)
+        # emb = t_emb
+        # for cell in self.time_embed:
+        #     if type(cell) is not nn.Sigmoid:
+        #         emb = cell(emb)
+        #     else:
+        #         emb = emb * cell(emb)
 
         guided_hint = hint
         for cell in self.input_hint_block:
-            if type(cell) is not nn.Sigmoid:
-                guided_hint = cell(guided_hint)
-            else:
-                guided_hint = guided_hint * cell(guided_hint)
+            guided_hint = cell(guided_hint)
+            # if type(cell) is not nn.Sigmoid:
+            #     guided_hint = cell(guided_hint)
+            # else:
+            #     guided_hint = guided_hint * cell(guided_hint)
 
         outs = []
 
@@ -401,7 +397,20 @@ class ControlLDM(LatentDiffusion):
         t = self.uniform_int(
             (x.shape[0],), ms.Tensor(0, dtype=ms.dtype.int32), ms.Tensor(self.num_timesteps, dtype=ms.dtype.int32)
         )
-        x, c_crossattn, c_concat = self.get_input(x, c, control)
+        # x, c_crossattn, c_concat = self.get_input(x, c, control)
+        
+        # batch: images, captions, controls
+        if len(x.shape) == 3:
+            x = x[..., None]
+        x = self.transpose(x, (0, 3, 1, 2)) # RGB -> BGR ?
+        z = ops.stop_gradient(self.get_first_stage_encoding(self.encode_first_stage(x)))        
+        
+        c = ops.stop_gradient(self.cond_stage_model.encode(c))
+
+        control = ops.transpose(control, (0, 3, 1, 2))  # 'b h w c -> b c h w'
+        # control.to_float(self.dtype)
+        x, c_crossattn, c_concat = z, c, control
+
         c_concat, c_crossattn = [c_concat], [c_crossattn]
         return self.p_losses(x, c_concat, c_crossattn, t)
     
@@ -420,7 +429,7 @@ class ControlLDM(LatentDiffusion):
         # control.to_float(self.dtype)
         return z, c, control
 
-    def apply_model(self, x_noisy, t, c_concat=None, c_crossattn=None, *args, **kwargs):
+    def apply_model(self, x_noisy, t, c_concat, c_crossattn, *args, **kwargs):
         diffusion_model = self.model.diffusion_model
         cond_txt = ops.concat(c_crossattn, 1)
         if c_concat is None:
@@ -461,8 +470,8 @@ class ControlLDM(LatentDiffusion):
         model_output = self.apply_model(
             x_noisy,
             t,
-            c_concat=c_concat, 
-            c_crossattn=c_crossattn
+            c_concat, 
+            c_crossattn
         )
 
         if self.parameterization == "x0":

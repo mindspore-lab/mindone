@@ -66,13 +66,14 @@ def init_env(args):
 
 
     context.set_context(
-        mode=context.PYNATIVE_MODE, #context.GRAPH_MODE
+        # mode=context.PYNATIVE_MODE, #context.GRAPH_MODE
+        mode=context.GRAPH_MODE,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
-        pynative_synchronize=True, # to debug
+        # pynative_synchronize=True, # to debug
         # save_graphs=3,
-        # save_graphs_path="output/graphs",
+        # save_graphs_path="output0920/try_silu_output_graph_1022/graphs3",
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
 
@@ -138,11 +139,11 @@ def main(args):
 
     # build model
     latent_diffusion_with_loss = build_model_from_config(args.model_config)
-    # pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
-    # if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
-    #     load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, args.custom_text_encoder, latent_diffusion_with_loss)
-    # else:
-    #     load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+    pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
+    if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
+        load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, args.custom_text_encoder, latent_diffusion_with_loss)
+    else:
+        load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer

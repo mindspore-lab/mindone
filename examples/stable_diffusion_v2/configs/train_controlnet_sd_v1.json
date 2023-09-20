@@ -1,7 +1,7 @@
 {
     "model_config": "configs/v1_train_controlnet.yaml",
     "pretrained_model_path": "/home/mindspore/congw/data/",
-    "pretrained_model_file": "control_sd15_canny_ms.ckpt",
+    "pretrained_model_file": "ms_v1_5_pruned_emaonly-d0ab7146.ckpt",
     "data_path": "/home/mindspore/congw/data/pokemon_blip_canny/train",
     "train_batch_size": 1,
     "gradient_accumulation_steps": 1,

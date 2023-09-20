@@ -6,11 +6,11 @@ export ASCEND_SLOG_PRINT_TO_STDOUT=0
 export SD_VERSION="1.x"
 device_id=6
 
-output_path=output/
-task_name=train_controlnet_all_sigmoid_091142053
+output_path=output0920/
+task_name=train_controlnet_graphmode_1107
 data_path=/home/mindspore/congw/data/pokemon_blip_canny/train
 pretrained_model_path=/home/mindspore/congw/data/
-pretrained_model_file=control_sd15_canny_ms.ckpt
+pretrained_model_file=ms_v1_5_pruned_emaonly-d0ab7146.ckpt
 train_config_file=configs/train_controlnet_sd_v1.json
 
 rm -rf ${output_path:?}/${task_name:?}
