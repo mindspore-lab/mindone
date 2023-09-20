@@ -200,3 +200,49 @@ class SDInpaint(SDInfer):
         latents = inputs["noise"]
         c_crossattn = self.prompt_embed(inputs["prompt_data"], inputs["negative_prompt_data"])
         return latents, c_crossattn, c_concat
+
+
+class SDControlNet(SDInfer):
+    def __init__(
+        self,
+        text_encoder,
+        unet,
+        vae,
+        scheduler,
+        scale_factor=1.0,
+        guidance_rescale=0.0,
+        num_inference_steps=50,
+    ):
+        super(SDControlNet, self).__init__(
+            text_encoder,
+            unet,
+            vae,
+            scheduler,
+            scale_factor=scale_factor,
+            guidance_rescale=guidance_rescale,
+            num_inference_steps=num_inference_steps,
+        )
+
+    def data_prepare(self, inputs):
+        latents = inputs["noise"]
+        c_crossattn = self.prompt_embed(inputs["prompt_data"], inputs["negative_prompt_data"])
+        control = inputs["control"]
+        return latents, c_crossattn, control
+
+    @ms.jit
+    def predict_noise(self, x, t_continuous, c_crossattn, guidance_scale, c_concat=None, control=None):
+        """
+        The noise predicition model function that is used for DPM-Solver.
+        """
+        t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
+        x_in = ops.concat([x] * 2, axis=0)
+        t_in = ops.concat([t_continuous] * 2, axis=0)
+        c_concat = ops.concat([c_concat] * 2, axis=0)
+
+        noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn, control=c_concat)
+        noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
+        noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
+        if self.guidance_rescale > 0:
+            noise_pred = self.rescale_noise_cfg(noise_pred, noise_pred_text)
+
+        return noise_pred
