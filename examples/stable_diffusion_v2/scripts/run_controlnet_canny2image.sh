@@ -11,7 +11,7 @@ export MODEL_DIR="./models/"
 
 rm -rf "output/"${TASK_NAME:?}
 mkdir -p "output/"${TASK_NAME:?}
-nohup python image2image.py \
+nohup python controlnet_image2image.py \
     --model_config "./configs/v1_inference_contorlnet.yaml" \
     --model_ckpt $MODEL_DIR"control_sd15_canny_ms.ckpt" \
     --input_image "path/to/test_imgs/"$INPUT_FILE_NAME".png" \
@@ -20,4 +20,3 @@ nohup python image2image.py \
     --task_name $TASK_NAME \
     --log_level logging.INFO \
     > "output/"$TASK_NAME"/logms_id"$DEVICE_ID"_"$INPUT_FILE_NAME"" 2>&1 &
-

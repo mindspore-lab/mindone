@@ -16,7 +16,9 @@ def t2i_collate(inputs):
     }
     return batch
 
+
 controlnet_data_column = ["img_feat", "txt_tokens", "controls"]
+
 
 def controlnet_collate(inputs):
     """
@@ -31,6 +33,7 @@ def controlnet_collate(inputs):
         "controls": controls,
     }
     return batch
+
 
 def data_column_db(with_prior_preservation):
     if with_prior_preservation:

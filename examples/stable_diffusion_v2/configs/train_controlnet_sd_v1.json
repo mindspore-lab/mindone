@@ -3,7 +3,7 @@
     "pretrained_model_path": "/home/mindspore/congw/data/",
     "pretrained_model_file": "ms_v1_5_pruned_emaonly-d0ab7146.ckpt",
     "data_path": "/home/mindspore/congw/data/pokemon_blip_canny/train",
-    "train_batch_size": 1,
+    "train_batch_size": 4,
     "gradient_accumulation_steps": 1,
     "optim": "adamw",
     "patch_size":32,

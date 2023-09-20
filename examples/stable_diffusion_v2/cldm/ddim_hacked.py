@@ -228,10 +228,12 @@ class DDIMSampler(object):
     ):
         b = x.shape[0]
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
-            model_output = self.model.apply_model(x, t, c_concat=c['c_concat'], c_crossattn=c['c_crossattn'])
+            model_output = self.model.apply_model(x, t, c["c_concat"], c["c_crossattn"])
         else:
-            model_t = self.model.apply_model(x, t, c_concat=c['c_concat'], c_crossattn=c['c_crossattn'])
-            model_uncond = self.model.apply_model(x, t, c_concat=unconditional_conditioning['c_concat'], c_crossattn=unconditional_conditioning['c_crossattn'])
+            model_t = self.model.apply_model(x, t, c["c_concat"], c["c_crossattn"])
+            model_uncond = self.model.apply_model(
+                x, t, unconditional_conditioning["c_concat"], unconditional_conditioning["c_crossattn"]
+            )
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
         # consider move this part to constrcut() function
@@ -305,11 +307,16 @@ class DDIMSampler(object):
         for i in tqdm(range(num_steps), desc="Encoding Image"):
             t = ms.numpy.full((x0.shape[0],), i, dtype=ms.int64)
             if unconditional_guidance_scale == 1.0:
-                noise_pred = self.model.apply_model(x_next, t, c_concat=c['c_concat'], c_crossattn=c['c_crossattn'])
+                noise_pred = self.model.apply_model(x_next, t, c["c_concat"], c["c_crossattn"])
             else:
                 assert unconditional_conditioning is not None
-                e_t_uncond = self.model.apply_model(x_next, t, c_concat=unconditional_conditioning['c_concat'], c_crossattn=unconditional_conditioning['c_crossattn'])
-                noise_pred = self.model.apply_model(x_next, t, c_concat=c['c_concat'], c_crossattn=c['c_crossattn'])
+                e_t_uncond = self.model.apply_model(
+                    x_next,
+                    t,
+                    unconditional_conditioning["c_concat"],
+                    c_crossattn=unconditional_conditioning["c_crossattn"],
+                )
+                noise_pred = self.model.apply_model(x_next, t, c["c_concat"], c["c_crossattn"])
                 noise_pred = e_t_uncond + unconditional_guidance_scale * (noise_pred - e_t_uncond)
 
             xt_weighted = (alphas_next[i] / alphas[i]).sqrt() * x_next

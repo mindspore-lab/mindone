@@ -22,7 +22,7 @@ import albumentations
 import imagesize
 import numpy as np
 import pandas as pd
-from ldm.data.t2i_collate import data_column, t2i_collate, controlnet_data_column, controlnet_collate
+from ldm.data.t2i_collate import controlnet_collate, controlnet_data_column, data_column, t2i_collate
 from PIL import Image
 
 from mindspore.communication.management import get_local_rank, get_local_rank_size
@@ -34,6 +34,7 @@ SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 MODE = {
     "canny": "canny",
 }
+
 
 def load_data(
     data_path,
@@ -406,6 +407,7 @@ def build_dataset(args, device_num, rank_id, tokenizer):
 
 # customize dataset for control net
 
+
 def list_controlnet_image_files_captions_recursively(data_path):
     original_path = os.path.join(data_path, "original")
     control_path = os.path.join(data_path, "control")
@@ -413,7 +415,7 @@ def list_controlnet_image_files_captions_recursively(data_path):
         raise ValueError(f"Data directory for original images {original_path} does not exist!")
     if not os.path.exists(control_path):
         raise ValueError(f"Data directory for control images {control_path} does not exist!")
-    
+
     anno_dir = data_path
     anno_list = sorted(
         [os.path.join(anno_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(anno_dir)))]
@@ -427,8 +429,9 @@ def list_controlnet_image_files_captions_recursively(data_path):
     assert len(all_images) == len(all_captions)
     all_originals = [os.path.join(original_path, f) for f in all_images]
     all_controls = [os.path.join(control_path, f) for f in all_images]
-    
+
     return all_originals, all_captions, all_controls
+
 
 class ControlImageDataset(ImageDataset):
     def __init__(
@@ -458,19 +461,19 @@ class ControlImageDataset(ImageDataset):
         )
         self.local_controls = control_paths
         self.mode = mode
-    
+
     def preprocess_control(self, control_path):
-        if self.mode ==  MODE["canny"]:
+        if self.mode == MODE["canny"]:
             control = Image.open(control_path)
             if not control.mode == "L":
                 raise ValueError(f"Control image {control_path} is not in grayscale mode!")
-            control = np.expand_dims(np.array(control).astype(np.float32), axis=2) # hw1
-            control = np.concatenate([control, control, control], axis=2) # hwc
+            control = np.expand_dims(np.array(control).astype(np.float32), axis=2)  # hw1
+            control = np.concatenate([control, control, control], axis=2)  # hwc
 
         else:
             raise NotImplementedError(f"Control mode {self.mode} is not implemented!")
         return control
-    
+
     def __getitem__(self, idx):
         # images preprocess
         img_path = self.local_images[idx]
@@ -480,18 +483,22 @@ class ControlImageDataset(ImageDataset):
         caption = self.local_captions[idx]
         caption_input = self.tokenize(caption)
 
-        # control images 
+        # control images
         control_path = self.local_controls[idx]
         control_input = self.preprocess_control(control_path)
 
-        return np.array(image_input, dtype=np.float32), np.array(caption_input, dtype=np.int32), np.array(control_input, dtype=np.float32)
+        return (
+            np.array(image_input, dtype=np.float32),
+            np.array(caption_input, dtype=np.int32),
+            np.array(control_input, dtype=np.float32),
+        )
+
 
 class ControlMetaLoader(MetaLoader):
     """For ControlNet"""
 
     def __init__(self, loaders, datalen, task_num=1):
         super().__init__(loaders, datalen, task_num)
-
 
     def get_batch(self, batch, task):
         """get_batch"""
@@ -521,7 +528,9 @@ def load_controlnet_data(
         raise ValueError(f"Data directory {data_path} does not exist!")
     all_images, all_captions, all_controls = list_controlnet_image_files_captions_recursively(data_path)
 
-    _logger.debug(f"The first image path is {all_images[0]}, its control image path is {all_controls[0]}, and the caption is {all_captions[0]}")
+    _logger.debug(
+        f"The first image path is {all_images[0]}, its control image path is {all_controls[0]}, and the caption is {all_captions[0]}"
+    )
     _logger.info(f"Total number of training samples: {len(all_images)}")
     dataloaders = {}
     dataset = ControlImageDataset(
@@ -549,7 +558,8 @@ def load_controlnet_data(
     dataset = GeneratorDataset(metaloader, column_names=controlnet_data_column, shuffle=True)
 
     return dataset
-    
+
+
 def build_controlnet_dataset(args, rank_id, device_num, tokenizer):
     dataset = load_controlnet_data(
         data_path=args.data_path,

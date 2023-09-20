@@ -1,6 +1,6 @@
 import logging
 
-logger = logging.getLogger("canny2image")
+logger = logging.getLogger("controlnet_image2image")
 # logger.setLevel(logging.ERROR)
 
 import datetime
@@ -40,16 +40,14 @@ def main(args):
     )
     work_dir = os.path.dirname(os.path.abspath(__file__))
     logger.info(f"WORK DIR:{work_dir}")
-    outpath = os.path.join(
-        work_dir, args.output_path + args.task_name + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    )
-    os.makedirs(outpath, exist_ok=True)
+    outpath = os.path.join(work_dir, args.output_path + args.task_name)
+
     logger.info(f"Output:{outpath}")
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(mode=ms.context.PYNATIVE_MODE, device_target="Ascend", device_id=device_id)
-    # ms.set_context(mode=ms.context.GRAPH_MODE, device_target='Ascend', device_id=6)
+    # ms.set_context(mode=ms.context.GRAPH_MODE, device_target='Ascend', device_id=device_id)
 
     # create model
     if os.path.exists(args.model_config):
@@ -93,6 +91,7 @@ def main(args):
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "".join(
         [
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {ms.context.get_context('mode')}",
             f"image_resolution: {image_resolution}\n",
             f"num_samples: {num_samples}\n",
             f"low_threshold: {low_threshold}\n",
@@ -240,9 +239,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--high_threshold", type=int, default=200, choices=range(1, 256), help="high threshold for canny"
     )
-    # args for model-based condition ckpt path
+    # args for ckpt path for condition model, eg segmentation model
     parser.add_argument(
-        "--condition_ckpt_path", type=str, default="", help="checkpoint path for contition control model"
+        "--condition_ckpt_path", type=str, default="", help="checkpoint path for condition control model, eg segmentation"
     )
 
     args = parser.parse_args()

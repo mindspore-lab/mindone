@@ -7,17 +7,13 @@ import logging
 import os
 import shutil
 
-from annotator.canny import CannyDetector
-from annotator.util import HWC3, resize_image
-from cldm.ddim_hacked import DDIMSampler
-from cldm.model import create_model, load_model
-from ldm.data.dataset import build_controlnet_dataset, MODE
+from ldm.data.dataset import MODE, build_controlnet_dataset
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
-from ldm.modules.train.learningrate import LearningRate
+from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import parse_with_config, set_random_seed
@@ -35,7 +31,6 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
 logger = logging.getLogger(__name__)
-
 
 
 def init_env(args):
@@ -63,7 +58,6 @@ def init_env(args):
         device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
         args.rank = rank_id
-
 
     context.set_context(
         # mode=context.PYNATIVE_MODE, #context.GRAPH_MODE
@@ -112,7 +106,6 @@ def load_pretrained_model(pretrained_ckpt, net):
         logger.info("Params not load: {}".format(param_not_load))
     else:
         logger.warning("Checkpoint file {pretrained_ckpt} dose not exist!!!")
-
 
 
 def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
@@ -177,13 +170,16 @@ def main(args):
                 param.requires_grad = True
             elif not args.sd_locked:
                 # refere to cldm.py ControlLDM:configure_optimizers()
-                if param.name.startswith("model.diffusion_model.output_blocks") or param.name.startswith("model.diffusion_model.out"):
+                if param.name.startswith("model.diffusion_model.output_blocks") or param.name.startswith(
+                    "model.diffusion_model.out"
+                ):
                     param.requires_grad = True
-                else: 
+                else:
                     param.requires_grad = False
-                # logging.info(f"Set param {param.name} trainable") 
+                # logging.info(f"Set param {param.name} trainable")
                 # 1026 params intotal, 686 for model.diffusion_model 340 for control_model
-            else: param.requires_grad = False
+            else:
+                param.requires_grad = False
 
     if not args.decay_steps:
         dataset_size = dataset.get_dataset_size()
@@ -194,7 +190,15 @@ def main(args):
                 f"Will force decay_steps to be set to 1."
             )
             args.decay_steps = 1
-    lr = LearningRate(args.start_learning_rate, args.end_learning_rate, args.warmup_steps, args.decay_steps)
+    lr = create_scheduler(
+        steps_per_epoch=dataset_size,
+        scheduler=args.scheduler,
+        lr=args.start_learning_rate,
+        min_lr=args.end_learning_rate,
+        warmup_steps=args.warmup_steps,
+        decay_steps=args.decay_steps,
+        num_epochs=args.epochs,
+    )
     optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
 
     loss_scaler = DynamicLossScaleUpdateCell(
@@ -339,6 +343,7 @@ if __name__ == "__main__":
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
+    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
     parser.add_argument("--epochs", default=10, type=int, help="epochs")
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
@@ -376,12 +381,12 @@ if __name__ == "__main__":
     parser.add_argument("--train_controlnet", type=bool, default=True, help="train controlnet modules")
     parser.add_argument("--sd_locked", type=bool, default=False, help="lock unet modules")
     parser.add_argument(
-    "--mode",
-    type=str,
-    default="canny",
-    choices=[MODE["canny"]],
-    help="control net task mode, only support canny now",
-)
+        "--mode",
+        type=str,
+        default="canny",
+        choices=[MODE["canny"]],
+        help="control net task mode, only support canny now",
+    )
     args = parser.parse_args()
     args = parse_with_config(args)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))

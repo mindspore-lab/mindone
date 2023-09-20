@@ -23,10 +23,8 @@ device_id=2
 
 output_path=output/
 task_name=txt2img
-# data_path=/home/yx/datasets/diffusion/pokemon
-# pretrained_model_path=models/
-data_path=/home/mindspore/congw/data/pokemon_blip/train
-pretrained_model_path=/home/mindspore/congw/data/
+data_path=/home/yx/datasets/diffusion/pokemon
+pretrained_model_path=models/
 pretrained_model_file=wukong-huahua-ms.ckpt
 train_config_file=configs/train_config.json
 
