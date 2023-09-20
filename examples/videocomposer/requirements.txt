@@ -6,6 +6,7 @@ matplotlib
 mindspore==2.0.0
 motion-vector-extractor
 numpy
+pandas
 omegaconf==2.3.0
 PyYAML
 regex==2023.8.8

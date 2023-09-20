@@ -47,6 +47,28 @@ The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${P
 
 Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
+## Prepare Training Data
+The training videos and their captions (.txt) should be placed in the following folder struture.
+```
+ ├── {DATA_DIR}
+ │   ├── video_name1.mp4
+ │   ├── video_name1.txt
+ │   ├── video_name2.mp4
+ │   ├── video_name2.txt
+ │   ├── ...
+```
+Run `examples/videocomposer/tools/data_converter.py` to generate `video_caption.csv` in `{DATA_DIR}`.
+```
+python data_converter.py {DATA_DIR}
+```
+Format of `video_caption.csv`:
+```
+video,caption
+video_name1.mp4,"an airliner is taxiing on the tarmac at Dubai Airport"
+video_name2.mp4,"a pigeon sitting on the street near the house"
+...
+```
+
 ## Inference
 
 ### Online Inference
