@@ -8,12 +8,11 @@ import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from omegaconf import OmegaConf
 
-import mindspore as ms
-from mindspore import Model, Tensor, nn
+from mindspore import Model, nn
 from mindspore.dataset.vision import Resize, ToTensor
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
-from examples.stable_diffusion_v2.adapters import get_adapter
+from examples.stable_diffusion_v2.adapters import SDAdapterPipeline, get_adapter
 from examples.stable_diffusion_v2.common import init_env
 from examples.stable_diffusion_v2.ldm.data.dataset_with_cond import CondDataset
 from examples.stable_diffusion_v2.ldm.data.loader import build_dataloader
@@ -36,28 +35,10 @@ def build_transforms(cond: str, tokenizer) -> List[dict]:
     ]
 
     if cond == "canny":  # generate Canny conditions with dynamic thresholds during training
-        transforms.append({"operations": CannyRandomThreshold(), "input_columns": ["caption"]})
+        transforms.append({"operations": CannyRandomThreshold(), "input_columns": ["condition"]})
 
     transforms.append({"operations": [Resize((512, 512)), ToTensor()], "input_columns": ["condition"]})
     return transforms
-
-
-class ModelWrapper(nn.Cell):
-    def __init__(self, network, adapter):
-        super().__init__()
-        self._network = network
-        self._adapter = adapter
-
-    def construct(self, x, mask, c):
-        t = self._network.uniform_int(
-            (x.shape[0],), Tensor(0, dtype=ms.int32), Tensor(self._network.num_timesteps, dtype=ms.int32)
-        )
-        x, c = self._network.get_input(x, c)
-        c = self._network.get_learned_conditioning(c)
-        adapter_features = self._adapter(mask)
-        # SD inference is set to FP16, so cast adapter's output
-        adapter_features = [feature.astype(ms.float16) for feature in adapter_features]
-        return self._network.p_losses(x, c, t, features_adapter=adapter_features)
 
 
 def main(args, initializer):
@@ -86,8 +67,8 @@ def main(args, initializer):
     )
 
     # step 4: load Adapter
-    adapter_model = get_adapter(**args.adapter)
-    full_model = ModelWrapper(sd_model, adapter_model)
+    adapter_model = get_adapter(**args.adapter, train=True)
+    full_model = SDAdapterPipeline(sd_model, adapter_model)
 
     # step 5: create optimizer and train the same way as regular SD
     optimizer = build_optimizer_unfold(adapter_model, **args.train.optimizer)
@@ -182,7 +163,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--sd_config", type=str, required=True)
     parser.add_argument("--sd_ckpt", type=str, required=True)
-    parser.add_function_arguments(get_adapter, "adapter")
+    parser.add_function_arguments(get_adapter, "adapter", skip={"train"})
     parser.add_class_arguments(nn.DynamicLossScaleUpdateCell, "LossScale", instantiate=False, fail_untyped=False)
 
     cfg = parser.parse_args()

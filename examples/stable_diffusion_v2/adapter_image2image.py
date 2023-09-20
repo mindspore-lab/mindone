@@ -87,7 +87,7 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
+    ms.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
 
     set_random_seed(args.seed)
 
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         type=str,
         default="2.0",
         choices=["1.5", "2.0", "2.1"],
-        help="Stable diffusion version, 1.5 or 2.0.",
+        help="Stable diffusion version, 1.5, 2.0, or 2.1",
     )
     parser.add_argument("--output_path", type=str, nargs="?", default="output", help="dir to write results to")
     parser.add_argument(
@@ -368,12 +368,14 @@ if __name__ == "__main__":
     if args.version == "1.5":
         args.config = "configs/v1-inference.yaml"
         ckpt_path = "models/sd_v1.5-d0ab7146.ckpt"
-    elif args.version == "2.0-v768":
-        args.config = "models/v2-vpred-inference.yaml"
-        ckpt_path = "models/sd_v2_768_v-e12e3a9b.ckpt"
-    else:
+    elif args.version == "2.0":
         args.config = "configs/v2-inference.yaml"
         ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
+    elif args.version == "2.1":
+        args.config = "configs/v2-inference.yaml"
+        ckpt_path = "models/sd_v2-1_base-7c8d09ce.ckpt"
+    else:
+        raise ValueError(f"Unsupported SD version: {args.version}")
 
     if args.ckpt_path is None:
         args.ckpt_path = ckpt_path

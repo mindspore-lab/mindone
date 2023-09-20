@@ -1,12 +1,17 @@
 from collections import OrderedDict
-from typing import List, Optional
+from typing import List, Optional, Union
 
-from mindspore import Parameter, Tensor, amp, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, amp
+from mindspore import dtype as ms_dtype
+from mindspore import load_checkpoint, load_param_into_net, nn, ops
 
+from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusion
 from examples.stable_diffusion_v2.tools._common.clip.clip_modules import QuickGELU
 
 
-def get_adapter(condition: str, checkpoint: Optional[str] = None, use_fp16: bool = False) -> nn.Cell:
+def get_adapter(
+    condition: str, checkpoint: Optional[str] = None, use_fp16: bool = False, train: bool = False
+) -> nn.Cell:
     """
     Get condition-specific T2I-Adapter.
 
@@ -14,6 +19,7 @@ def get_adapter(condition: str, checkpoint: Optional[str] = None, use_fp16: bool
         condition: Condition for adapter. Possible values are: "style", "color", "sketch", "canny", "other".
         checkpoint: Path to weights checkpoint.
         use_fp16: Use half-precision adapter.
+        train: Run adapter in train or inference mode.
 
     Returns:
         T2I-Adapter.
@@ -46,8 +52,9 @@ def get_adapter(condition: str, checkpoint: Optional[str] = None, use_fp16: bool
                 f"Please check that the path to the checkpoint is correct."
             )
 
+    adapter.set_train(train)
     if use_fp16:
-        adapter = amp.auto_mixed_precision(adapter, "O3")
+        adapter = amp.auto_mixed_precision(adapter, "O2")
 
     return adapter
 
@@ -235,3 +242,36 @@ class StyleT2IAdapter(nn.Cell):
         x = x @ self.proj  # batch matmul
 
         return x
+
+
+class SDAdapterPipeline(nn.Cell):
+    """
+    Wrap SD and a T2I-Adapter in a single network for easier training.
+
+    Args:
+        network: Stable Diffusion network.
+        adapter: T2I adapter.
+    """
+
+    def __init__(self, network: LatentDiffusion, adapter: Union[T2IAdapter, StyleT2IAdapter]):
+        super().__init__()
+        self._network = network
+        self._adapter = adapter
+
+    def construct(self, x: Tensor, cond: Tensor, c: Tensor):
+        """
+        Args:
+            x: target image.
+            cond: condition image.
+            c: prompt.
+
+        Returns:
+            SD Loss.
+        """
+        t = self._network.uniform_int(
+            (x.shape[0],), Tensor(0, dtype=ms_dtype.int32), Tensor(self._network.num_timesteps, dtype=ms_dtype.int32)
+        )
+        x, c = self._network.get_input(x, c)
+        c = self._network.get_learned_conditioning(c)
+        adapter_features = self._adapter(cond)
+        return self._network.p_losses(x, c, t, features_adapter=adapter_features)
