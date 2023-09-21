@@ -259,7 +259,7 @@ def main(cfg):
         optimizer=optimizer,
         scale_sense=loss_scaler,
         drop_overflow_update=True,
-        gradient_accumulation_steps=1,  # #args.gradient_accumulation_steps,
+        gradient_accumulation_steps=cfg.gradient_accumulation_steps,
         clip_grad=False,  # args.clip_grad,
         clip_norm=1.0,  # args.max_grad_norm,
         ema=None,  # TODO: add EMA
@@ -282,7 +282,7 @@ def main(cfg):
             ckpt_save_dir=cfg.output_dir,
             ema=None,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=3,
+            ckpt_max_keep=cfg.ckpt_max_keep,
             step_mode=False,
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
