@@ -16,15 +16,7 @@ import logging
 
 from audioldm.latent_diffusion.attention import SpatialTransformer
 from audioldm.latent_diffusion.ldm_util import is_old_ms_version
-from audioldm.latent_diffusion.util import (
-    Identity,
-    avg_pool_nd,
-    conv_nd,
-    linear,
-    normalization,
-    timestep_embedding,
-    zero_module,
-)
+from audioldm.latent_diffusion.util import Identity, avg_pool_nd, conv_nd, linear, normalization, timestep_embedding
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -168,11 +160,11 @@ class ResBlock(nn.Cell):
         else:
             self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout)
 
-        self.out_layers_conv = zero_module(
-            conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
-                self.dtype
-            )
-        )
+        # self.out_layers_conv = zero_module(
+        self.out_layers_conv = conv_nd(
+            dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
+        ).to_float(self.dtype)
+        # )
 
         if self.out_channels == channels:
             self.skip_connection = self.identity
@@ -589,11 +581,11 @@ class UNetModel(nn.Cell):
         self.out = nn.SequentialCell(
             normalization(ch),
             nn.SiLU().to_float(self.dtype),
-            zero_module(
-                conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
-                    self.dtype
-                )
-            ),
+            # zero_module(
+            conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
+                self.dtype
+            )
+            # ),
         )
 
         if self.predict_codebook_ids:
@@ -603,7 +595,7 @@ class UNetModel(nn.Cell):
             )
         self.cat = ops.Concat(axis=1)
 
-    def construct(self, x, timesteps=None, context=None, y=None):
+    def construct(self, x, timesteps=None, context=None, encoder_attention_mask=None, y=None):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.

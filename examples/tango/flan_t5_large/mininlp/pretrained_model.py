@@ -23,7 +23,7 @@ Abstract class for Pretrained models.
 import os
 from typing import Optional, Union
 
-from mindspore import log as logger
+# from mindspore import log as logger
 from mindspore import nn, ops
 from mindspore.train.serialization import load_checkpoint, load_param_into_net, save_checkpoint
 
@@ -339,10 +339,10 @@ class PreTrainedModel(nn.Cell, CellUtilMixin, GenerationMixin):
                     )
                 raise EnvironmentError(msg) from exc
 
-            if resolved_archive_file == archive_file:
-                logger.info("loading weights file %s", archive_file)
-            else:
-                logger.info("loading weights file %s from cache at %s", archive_file, resolved_archive_file)
+            # if resolved_archive_file == archive_file:
+            #     logger.info("loading weights file %s", archive_file)
+            # else:
+            #     logger.info("loading weights file %s from cache at %s", archive_file, resolved_archive_file)
         else:
             raise ValueError(
                 "the argument 'pretrained_model_name_or_path' should be "
@@ -375,7 +375,7 @@ class PreTrainedModel(nn.Cell, CellUtilMixin, GenerationMixin):
             save_dir: directory to which to save.
         """
         if os.path.isfile(save_dir):
-            logger.error(f"Provided path ({save_dir}) should be a directory, not a file")
+            # logger.error(f"Provided path ({save_dir}) should be a directory, not a file")
             return
         os.makedirs(save_dir, exist_ok=True)
 
@@ -389,4 +389,4 @@ class PreTrainedModel(nn.Cell, CellUtilMixin, GenerationMixin):
         output_model_file = os.path.join(save_dir, WEIGHTS_NAME)
         save_checkpoint(model_to_save, output_model_file)
 
-        logger.info(f"Model weights saved in {output_model_file}")
+        # logger.info(f"Model weights saved in {output_model_file}")

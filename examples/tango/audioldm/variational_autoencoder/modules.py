@@ -322,6 +322,8 @@ class Encoder(nn.Cell):
                 else:
                     down.downsample = Downsample(block_in, resamp_with_conv, dtype=self.dtype)
                 curr_res = curr_res // 2
+            else:
+                down.downsample = nn.Identity()
             self.down.append(down)
 
         # middle
@@ -463,6 +465,8 @@ class Decoder(nn.Cell):
                     up.upsample = UpsampleTimeStride4(block_in, resamp_with_conv)
                 else:
                     up.upsample = Upsample(block_in, resamp_with_conv)
+            else:
+                up.upsample = nn.Identity()
             curr_res = curr_res * 2
             up.update_parameters_name(prefix=self.param_prefix + f"up.{i_level}.")
             if len(self.up) != 0:
@@ -477,9 +481,6 @@ class Decoder(nn.Cell):
         ).to_float(self.dtype)
 
     def construct(self, z):
-        # assert z.shape[1:] == self.z_shape[1:]
-        self.last_z_shape = z.shape
-
         # timestep embedding
         temb = None
 

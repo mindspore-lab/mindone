@@ -62,22 +62,22 @@ class DiffusionWrapper(nn.Cell):
         self.conditioning_key = conditioning_key
         assert self.conditioning_key in [None, "concat", "crossattn", "hybrid", "adm"]
 
-    def construct(self, x, t, c_concat=None, c_crossattn=None):
+    def construct(self, x, t, c_concat=None, c_crossattn=None, encoder_attention_mask=None):
         if self.conditioning_key is None:
-            out = self.diffusion_model(x, t)
+            out = self.diffusion_model(x, t, encoder_attention_mask=encoder_attention_mask)
         elif self.conditioning_key == "concat":
             x_concat = ops.concat((x, c_concat), axis=1)
-            out = self.diffusion_model(x_concat, t)
+            out = self.diffusion_model(x_concat, t, encoder_attention_mask=encoder_attention_mask)
         elif self.conditioning_key == "crossattn":
             context = c_crossattn
-            out = self.diffusion_model(x, t, context=context)
+            out = self.diffusion_model(x, t, context=context, encoder_attention_mask=encoder_attention_mask)
         elif self.conditioning_key == "hybrid":
             x_concat = ops.concat((x, c_concat), axis=1)
             context = c_crossattn
-            out = self.diffusion_model(x_concat, t, context=context)
+            out = self.diffusion_model(x_concat, t, context=context, encoder_attention_mask=encoder_attention_mask)
         elif self.conditioning_key == "adm":
             cc = c_crossattn
-            out = self.diffusion_model(x, t, y=cc)
+            out = self.diffusion_model(x, t, y=cc, encoder_attention_mask=encoder_attention_mask)
         else:
             raise NotImplementedError()
 

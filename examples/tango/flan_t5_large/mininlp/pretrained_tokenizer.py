@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Union
 
 from tokenizers import AddedToken, Tokenizer
 
-from mindspore import log as logger
+# from mindspore import log as logger
 from mindspore.dataset.transforms.transforms import PyTensorOperation
 
 from .download import DEFAULT_ROOT, cached_path
@@ -95,10 +95,10 @@ class PreTrainedTokenizer(SpecialTokensMixin, PyTensorOperation):
                     )
                 raise EnvironmentError(msg) from exc
 
-            if resolved_archive_file == archive_file:
-                logger.info("loading tokenizer file %s", archive_file)
-            else:
-                logger.info("loading tokenizer file %s from cache at %s", archive_file, resolved_archive_file)
+            # if resolved_archive_file == archive_file:
+            #     logger.info("loading tokenizer file %s", archive_file)
+            # else:
+            #     logger.info("loading tokenizer file %s from cache at %s", archive_file, resolved_archive_file)
         else:
             raise ValueError(
                 "the argument 'pretrained_model_name_or_path' should be "

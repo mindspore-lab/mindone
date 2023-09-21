@@ -66,6 +66,7 @@ class AudioDiffusion(nn.Cell):
         self.uncondition = uncondition
         self.v_posterior = v_posterior
         self.dtype = ms.float16 if use_fp16 else ms.float32
+        self.uniform_int = ops.UniformInt()
 
         if unet_model_config_path:
             self.unet_config = json.load(open(unet_model_config_path))
@@ -76,7 +77,7 @@ class AudioDiffusion(nn.Cell):
 
         if "t5" in self.text_encoder_name:
             self.tokenizer = get_t5_tokenizer()
-            self.text_encoder = get_t5_encoder()
+            self.text_encoder = get_t5_encoder(trainable=not freeze_text_encoder)
         elif "stable-diffusion" in self.text_encoder_name:
             raise NotImplementedError("sd text encoder")
         else:
@@ -89,6 +90,13 @@ class AudioDiffusion(nn.Cell):
             linear_end=linear_end,
             cosine_s=cosine_s,
         )
+
+        self.noise_scheduler = DDPMScheduler()
+        self.noise_scheduler.sqrt_alphas_cumprod = self.sqrt_alphas_cumprod
+        self.noise_scheduler.sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod
+        self.noise_scheduler.alphas_cumprod = self.alphas_cumprod
+        self.noise_scheduler.num_train_timesteps = timesteps
+        assert self.noise_scheduler.config.prediction_type == "v_prediction"
 
     def register_schedule(
         self,
@@ -142,14 +150,34 @@ class AudioDiffusion(nn.Cell):
         self.posterior_mean_coef1 = to_mindspore(betas * np.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod))
         self.posterior_mean_coef2 = to_mindspore((1.0 - alphas_cumprod_prev) * np.sqrt(alphas) / (1.0 - alphas_cumprod))
 
-        self.noise_scheduler = DDPMScheduler()
-        self.noise_scheduler.alphas_cumprod = alphas_cumprod
-        self.noise_scheduler.num_train_timesteps = timesteps
+    def compute_snr(self, timesteps):
+        """
+        Computes SNR as per https://github.com/TiankaiHang/Min-SNR-Diffusion-Train
+        ing/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L847-L849
+        """
+        alphas_cumprod = self.noise_scheduler.alphas_cumprod
+        sqrt_alphas_cumprod = alphas_cumprod**0.5
 
-    def encode_text(self, prompt, num_samples_per_prompt, padding, truncation):
-        batch = self.tokenizer(prompt, self.tokenizer.model_max_length, padding, truncation)
-        input_ids, attention_mask = batch
+        # Adapted from https://github.com/TiankaiHang/Min-SNR-Diffusion-Train
+        # ing/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L1026
+        sqrt_alphas_cumprod = sqrt_alphas_cumprod[timesteps].float()
+        # while len(sqrt_alphas_cumprod.shape) < len(timesteps.shape):
+        #     sqrt_alphas_cumprod = sqrt_alphas_cumprod[..., None]
+        # alpha = sqrt_alphas_cumprod.expand(timesteps.shape)
+        alpha = sqrt_alphas_cumprod
 
+        sqrt_one_minus_alphas_cumprod = (1.0 - alphas_cumprod) ** 0.5
+        sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod[timesteps].float()
+        # while len(sqrt_one_minus_alphas_cumprod.shape) < len(timesteps.shape):
+        #     sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod[..., None]
+        # sigma = sqrt_one_minus_alphas_cumprod.expand(timesteps.shape)
+        sigma = sqrt_one_minus_alphas_cumprod
+
+        # Compute SNR.
+        snr = (alpha / sigma) ** 2
+        return snr
+
+    def encode_text(self, input_ids, attention_mask, num_samples_per_prompt=1):
         encoder_hidden_states = self.text_encoder(input_ids=input_ids, attention_mask=attention_mask)[0]
         encoder_hidden_states = encoder_hidden_states.repeat_interleave(num_samples_per_prompt, 0)
         attention_mask = attention_mask.repeat_interleave(num_samples_per_prompt, 0)
@@ -178,6 +206,44 @@ class AudioDiffusion(nn.Cell):
         else:
             return x_recon
 
+    def construct(self, latents, input_ids, attention_mask, validation_mode=False):
+        batch = latents.shape[0]
+        encoder_hidden_states, boolean_encoder_mask = self.encode_text(
+            input_ids, attention_mask, num_samples_per_prompt=1
+        )
+
+        if self.uncondition:
+            mask = (ms.numpy.rand((batch, 1, 1)) > 0.9).float()
+            encoder_hidden_states = encoder_hidden_states * mask
+            # mask_indices = [k for k in range(len(prompt)) if ms.numpy.rand() < 0.1]
+            # if len(mask_indices) > 0:
+            #     encoder_hidden_states[mask_indices] = 0
+
+        if validation_mode:
+            t = (self.num_timesteps // 2) * ops.ones((batch,), dtype=ms.int64)
+        else:
+            t = self.uniform_int((batch,), ms.Tensor(0, dtype=ms.int32), ms.Tensor(self.num_timesteps, dtype=ms.int32))
+        noise = ops.randn_like(latents)
+        noisy_latents = self.noise_scheduler.add_noise(latents, noise, t)
+
+        target = noise
+        # target = self.noise_scheduler.get_velocity(latents, noise, t)
+        key = "c_concat" if self.unet.conditioning_key == "concat" else "c_crossattn"
+        cond = {key: encoder_hidden_states, "encoder_attention_mask": boolean_encoder_mask}
+        model_pred = self.unet(noisy_latents, t, **cond)
+        if self.snr_gamma is None:
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+        else:
+            # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
+            # Adaptef from huggingface/diffusers/blob/main/examples/text_to_image/train_text_to_image.py
+            snr = self.compute_snr(t)
+            mse_loss_weights = ops.stack([snr, self.snr_gamma * ops.ones_like(t)], axis=1).min(axis=1) / snr
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.mean((1, 2, 3)) * mse_loss_weights
+            loss = loss.mean()
+
+        return loss
+
     def inference(
         self,
         prompt,
@@ -191,13 +257,12 @@ class AudioDiffusion(nn.Cell):
         padding=True,
         truncation=True,
     ):
-        classifier_free_guidance = guidance_scale > 1.0
         batch_size = len(prompt) * num_samples_per_prompt
 
-        if classifier_free_guidance:
-            uc, ucmask, c, cmask = self.encode_text_classifier_free(prompt, num_samples_per_prompt, padding, truncation)
-        else:
-            c, cmask = self.encode_text(prompt, num_samples_per_prompt, padding, truncation)
+        batch = self.tokenizer(prompt, self.tokenizer.model_max_length, padding, truncation)
+        uncond_batch = self.tokenizer([""] * len(prompt), batch[0].shape[1], padding=True, truncation=truncation)
+
+        uc, ucmask, c, cmask = self.encode_text_classifier_free(batch, uncond_batch, num_samples_per_prompt)
 
         num_channels_latents = self.unet_config["params"]["in_channels"]
         latents = self.prepare_latents(batch_size, inference_scheduler, num_channels_latents)
@@ -226,22 +291,15 @@ class AudioDiffusion(nn.Cell):
         # latents = latents * inference_scheduler.init_noise_sigma
         return latents
 
-    def encode_text_classifier_free(self, prompt, num_samples_per_prompt, padding, truncation):
-        batch = self.tokenizer(prompt, self.tokenizer.model_max_length, padding, truncation)
+    def encode_text_classifier_free(self, batch, uncond_batch, num_samples_per_prompt=1):
         input_ids, attention_mask = batch
-
         prompt_embeds = self.text_encoder(input_ids=input_ids, attention_mask=attention_mask)[0]
 
         prompt_embeds = prompt_embeds.repeat_interleave(num_samples_per_prompt, 0)
         attention_mask = attention_mask.repeat_interleave(num_samples_per_prompt, 0)
 
         # get unconditional embeddings for classifier free guidance
-        uncond_tokens = [""] * len(prompt)
-
-        max_length = prompt_embeds.shape[1]
-        uncond_batch = self.tokenizer(uncond_tokens, max_length=max_length, padding="max_length", truncation=True)
         uncond_input_ids, uncond_attention_mask = uncond_batch
-
         negative_prompt_embeds = self.text_encoder(input_ids=uncond_input_ids, attention_mask=uncond_attention_mask)[0]
 
         negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_samples_per_prompt, 0)

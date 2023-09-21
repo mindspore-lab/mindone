@@ -28,8 +28,8 @@ class AutoencoderKL(nn.Cell):
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
 
-        self.encoder = Encoder(**ddconfig)
-        self.decoder = Decoder(**ddconfig)
+        self.encoder = Encoder(dtype=self.dtype, **ddconfig).to_float(self.dtype)
+        self.decoder = Decoder(dtype=self.dtype, **ddconfig).to_float(self.dtype)
 
         self.subband = int(subband)
 
@@ -55,6 +55,8 @@ class AutoencoderKL(nn.Cell):
         self.mean, self.std = None, None
 
         self.scale_factor = scale_factor
+        self.split = ops.Split(axis=1, output_num=2)
+        self.stdnormal = ops.StandardNormal()
 
     def encode(self, x):
         # x = self.time_shuffle_operation(x)
@@ -63,7 +65,7 @@ class AutoencoderKL(nn.Cell):
         moments = self.quant_conv(h)
         mean, logvar = self.split(moments)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
-        std = self.exp(0.5 * logvar)
+        std = ops.exp(0.5 * logvar)
         x = mean + std * self.stdnormal(mean.shape)
         return x
 

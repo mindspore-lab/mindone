@@ -22,7 +22,7 @@ import json
 import os
 from typing import Dict, Optional, Tuple
 
-from mindspore import log as logger
+# from mindspore import log as logger
 
 HF_CONFIG_URL_BASE = "https://huggingface.co/{}/resolve/main/config.json"
 HF_MODEL_URL_BASE = "https://huggingface.co/{}/resolve/main/pytorch_model.bin"
@@ -128,7 +128,7 @@ class PreTrainedConfig:
         for key in to_remove:
             kwargs.pop(key, None)
 
-        logger.info("Model config %s", str(config))
+        # logger.info("Model config %s", str(config))
         if return_unused_kwargs:
             return config, kwargs
         return config
@@ -213,10 +213,10 @@ class PreTrainedConfig:
             )
             raise EnvironmentError(msg) from exc
 
-        if resolved_config_file == config_file:
-            logger.info("loading configuration file %s", config_file)
-        else:
-            logger.info("loading configuration file %s from cache at %s", config_file, resolved_config_file)
+        # if resolved_config_file == config_file:
+        #     logger.info("loading configuration file %s", config_file)
+        # else:
+        #     logger.info("loading configuration file %s from cache at %s", config_file, resolved_config_file)
 
         return config_dict, kwargs
 

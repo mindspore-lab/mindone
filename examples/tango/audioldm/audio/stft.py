@@ -43,10 +43,7 @@ class STFT(nn.Cell):
         self.inverse_basis = inverse_basis.float()
 
     def transform(self, input_data):
-        num_batches = input_data.shape(0)
-        num_samples = input_data.shape(1)
-
-        self.num_samples = num_samples
+        num_batches, num_samples = input_data.shape
 
         # similar to librosa, reflect-pad the input
         input_data = input_data.view(num_batches, 1, 1, num_samples)
@@ -106,11 +103,6 @@ class STFT(nn.Cell):
 
         return inverse_transform
 
-    def forward(self, input_data):
-        self.magnitude, self.phase = self.transform(input_data)
-        reconstruction = self.inverse(self.magnitude, self.phase)
-        return reconstruction
-
 
 class TacotronSTFT(nn.Cell):
     def __init__(
@@ -141,7 +133,7 @@ class TacotronSTFT(nn.Cell):
         output = dynamic_range_decompression(magnitudes)
         return output
 
-    def mel_spectrogram(self, y, normalize_fun=ops.log):
+    def construct(self, y, normalize_fun=ops.log):
         """Computes mel-spectrograms from a batch of waves
         PARAMS
         ------
@@ -151,8 +143,8 @@ class TacotronSTFT(nn.Cell):
         -------
         mel_output: Float, Tensor of shape (B, n_mel_channels, T)
         """
-        assert ops.min(y) >= -1, ops.min(y)
-        assert ops.max(y) <= 1, ops.max(y)
+        # assert ops.min(y)[0] >= -1, ops.min(y)[0]
+        # assert ops.max(y)[0] <= 1, ops.max(y)[0]
 
         magnitudes, phases = self.stft_fn.transform(y)
         mel_output = ops.matmul(self.mel_basis, magnitudes)
