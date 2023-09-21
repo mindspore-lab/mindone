@@ -67,14 +67,10 @@ def next_step(
     ddim_scheduler,
 ):
     timestep, next_timestep = (
-        min(timestep - ddim_scheduler.ddpm_num_timesteps // len(ddim_scheduler.ddim_timesteps), 999),
+        min(timestep - ddim_scheduler.config.num_train_timesteps // ddim_scheduler.num_inference_steps, 999),
         timestep,
     )
-
-    # NOTE: ddim_scheduler.alphas_cumprod[0] in MindONE is not equal to ddim_scheduler.final_alpha_cumprod
-    # if set_alpha_to_one is True for huggingface.diffusers.DDIMScheduler. Please refer to
-    # https://github.com/G-U-N/Gen-L-Video/blob/master/glv/util.py#L55. This should be handled later.
-    alpha_prod_t = ddim_scheduler.alphas_cumprod[timestep] if timestep >= 0 else ddim_scheduler.alphas_cumprod[0]
+    alpha_prod_t = ddim_scheduler.alphas_cumprod[timestep] if timestep >= 0 else ddim_scheduler.final_alpha_cumprod
     alpha_prod_t_next = ddim_scheduler.alphas_cumprod[next_timestep]
     beta_prod_t = 1 - alpha_prod_t
     next_original_sample = (sample - beta_prod_t**0.5 * model_output) / alpha_prod_t**0.5
@@ -94,8 +90,6 @@ def ddim_loop_long(pipeline, ddim_scheduler, latent, num_inv_steps, prompt, wind
     count = ops.zeros_like(latent)
     value = ops.zeros_like(latent)
 
-    ddim_scheduler_timesteps = ddim_scheduler.ddim_timesteps[::-1]
-
     for i in tqdm(range(num_inv_steps)):
         count.fill(0)
         value.fill(0)
@@ -103,7 +97,7 @@ def ddim_loop_long(pipeline, ddim_scheduler, latent, num_inv_steps, prompt, wind
         for t_start, t_end in views:
             control_tmp = None if control is None else control[:, :, t_start:t_end]
             latent_view = latent[:, :, t_start:t_end]
-            t = ddim_scheduler_timesteps[len(ddim_scheduler_timesteps) - i - 1]
+            t = ddim_scheduler.timesteps[len(ddim_scheduler.timesteps) - i - 1]
 
             if depth_map is not None:
                 latent_input = ops.cat([latent_view, depth_map[:, :, t_start:t_end]], axis=1)

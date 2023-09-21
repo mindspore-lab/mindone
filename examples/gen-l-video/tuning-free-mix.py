@@ -19,9 +19,8 @@ sys.path.append(workspace + "/../stable_diffusion_v2")
 
 from conditions.depth import DepthEstimator
 from depth_to_image import load_model_from_config
-from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.train.tools import set_random_seed
-from ldm.util import count_params
+from ldm.util import count_params, instantiate_from_config
 from utils.download import download_checkpoint
 
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
@@ -73,6 +72,7 @@ def main(args):
     # load configs
     sd_config = OmegaConf.load(f"{args.sd_config}")
     unet3d_config = OmegaConf.load(f"{args.unet3d_config}")
+    scheduler_config = OmegaConf.load(f"{args.scheduler_config}")
     glv_config = OmegaConf.load(f"{args.glv_config}")
 
     train_data = glv_config.train_data
@@ -87,9 +87,9 @@ def main(args):
 
     # construct modules
     sd = load_model_from_config(sd_config, args.sd_ckpt_path)
-    sd.model = None  # discard unet2d of sd
-    noise_scheduler = PLMSSampler(sd)
+    sd.model = None  # discard original unet2d of sd
     unet = load_model_from_config(unet3d_config, args.unet3d_ckpt_path)
+    noise_scheduler = instantiate_from_config(scheduler_config)
     depth_estimator = DepthEstimator(estimator_ckpt_path=args.depth_ckpt_path, amp_level=glv_config.amp_level)
 
     num_params_sd, _ = count_params(sd)
@@ -108,8 +108,8 @@ def main(args):
     # build validation pipeline
     validation_pipeline_depth = TuningFreePipeline(sd, unet, noise_scheduler, depth_estimator)
 
-    ddim_inv_scheduler = PLMSSampler(sd)
-    ddim_inv_scheduler.make_schedule(validation_data.num_inv_steps, verbose=False)
+    ddim_inv_scheduler = instantiate_from_config(scheduler_config)
+    ddim_inv_scheduler.set_timesteps(validation_data.num_inv_steps)
 
     # inference process
     pil_frames, pixel_values = prepare_video(train_data)
@@ -153,7 +153,8 @@ def main(args):
                 ddim_inv_latent_lst.append(ddim_inv_latent)
 
             ddim_inv_latent = ops.cat(ddim_inv_latent_lst, axis=2)
-            ms.save_checkpoint([{"name": "ddim_inv_latent", "data": ddim_inv_latent}], "ddim_latent-iso.ckpt")
+            inv_latents_path = os.path.join(output_dir, "inv_latents/ddim_latent-iso.pt")
+            ms.save_checkpoint([{"name": "ddim_inv_latent", "data": ddim_inv_latent}], inv_latents_path)
 
         for prompt in validation_data.prompts:
             sample_lst = []
@@ -174,6 +175,11 @@ def main(args):
             sample = ops.cat(sample_lst, axis=2)
             save_videos_grid(sample, f"{output_dir}/samples/sample-iso/{prompt}.gif")
             samples.append(sample)
+
+        samples = ops.concat(samples)
+        save_path = f"{output_dir}/samples/sample-iso.gif"
+        save_videos_grid(samples, save_path)
+        logging.info(f"Saved samples to {save_path}")
 
 
 if __name__ == "__main__":
@@ -198,6 +204,13 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="Path to the config for UNet3D.",
+    )
+
+    parser.add_argument(
+        "--scheduler_config",
+        type=str,
+        default=None,
+        help="Path to the config for scheduler.",
     )
 
     parser.add_argument(
@@ -238,6 +251,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # overwrite env var by parsed arg
+    if args.sd_config is None:
+        args.sd_config = "configs/tuning-free-mix/sd.yaml"
+
+    if args.unet3d_config is None:
+        args.unet3d_config = "configs/tuning-free-mix/unet3d.yaml"
+
+    if args.scheduler_config is None:
+        args.scheduler_config = "configs/tuning-free-mix/scheduler.yaml"
+
+    if args.glv_config is None:
+        args.glv_config = "configs/tuning-free-mix/glv.yaml"
+
     if args.sd_ckpt_path is None:
         ckpt_name = "sd_v2_depth-186e18a0.ckpt"
         args.sd_ckpt_path = "models/" + ckpt_name
@@ -251,14 +276,5 @@ if __name__ == "__main__":
 
     if args.depth_ckpt_path is None:
         args.depth_ckpt_path = "models/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt"
-
-    if args.sd_config is None:
-        args.sd_config = "configs/tuning-free-mix/sd.yaml"
-
-    if args.unet3d_config is None:
-        args.unet3d_config = "configs/tuning-free-mix/unet3d.yaml"
-
-    if args.glv_config is None:
-        args.glv_config = "configs/tuning-free-mix/glv.yaml"
 
     main(args)
