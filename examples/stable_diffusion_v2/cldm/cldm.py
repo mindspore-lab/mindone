@@ -31,15 +31,15 @@ _logger = logging.getLogger(__name__)
 class ControlledUnetModel(UNetModel):
     def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
         hs = []
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-        emb = self.time_embed(t_emb)
+        t_emb = ops.stop_gradient(timestep_embedding(timesteps, self.model_channels, repeat_only=False))
+        emb = ops.stop_gradient(self.time_embed(t_emb))
         h = x
         for celllist in self.input_blocks:
             for cell in celllist:
-                h = cell(h, emb, context)
+                h = ops.stop_gradient(cell(h, emb, context))
             hs.append(h)
         for module in self.middle_block:
-            h = module(h, emb, context)
+            h = ops.stop_gradient(module(h, emb, context))
 
         # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
         # to run graph mode:
@@ -353,12 +353,13 @@ class ControlNet(nn.Cell):
 
 
 class ControlLDM(LatentDiffusion):
-    def __init__(self, control_stage_config, control_key, only_mid_control, *args, **kwargs):
+    def __init__(self, control_stage_config, control_key, only_mid_control, sd_locked=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.control_model = instantiate_from_config(control_stage_config)
         self.control_key = control_key
         self.only_mid_control = only_mid_control
         self.control_scales = [1.0] * 13
+        self.sd_locked = sd_locked
 
     def construct(self, x, c, control):
         t = self.uniform_int(

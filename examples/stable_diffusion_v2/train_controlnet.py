@@ -165,10 +165,11 @@ def main(args):
     if args.train_controlnet:
         # freeze network
         latent_diffusion_with_loss.set_train(True)
+        logging.info(f"sd_locked is {latent_diffusion_with_loss.sd_locked}")  # set in args.model_config file
         for param in latent_diffusion_with_loss.get_parameters():
             if param.name.startswith("control_model"):
                 param.requires_grad = True
-            elif not args.sd_locked:
+            elif not latent_diffusion_with_loss.sd_locked:
                 # refere to cldm.py ControlLDM:configure_optimizers()
                 if param.name.startswith("model.diffusion_model.output_blocks") or param.name.startswith(
                     "model.diffusion_model.out"
@@ -379,12 +380,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--train_controlnet", type=bool, default=True, help="train controlnet modules")
-    parser.add_argument("--sd_locked", type=bool, default=False, help="lock unet modules")
     parser.add_argument(
         "--mode",
         type=str,
         default="canny",
-        choices=[MODE["canny"]],
+        choices=list(MODE.keys()),
         help="control net task mode, only support canny now",
     )
     args = parser.parse_args()

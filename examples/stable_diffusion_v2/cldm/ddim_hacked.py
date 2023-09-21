@@ -314,7 +314,7 @@ class DDIMSampler(object):
                     x_next,
                     t,
                     unconditional_conditioning["c_concat"],
-                    c_crossattn=unconditional_conditioning["c_crossattn"],
+                    unconditional_conditioning["c_crossattn"],
                 )
                 noise_pred = self.model.apply_model(x_next, t, c["c_concat"], c["c_crossattn"])
                 noise_pred = e_t_uncond + unconditional_guidance_scale * (noise_pred - e_t_uncond)

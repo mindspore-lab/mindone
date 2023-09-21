@@ -20,6 +20,7 @@ model:
     use_ema: False
     only_mid_control: False
     use_fp16: True
+    sd_locked: True # if unlock, the decoder part of unet would be trained.
 
     control_stage_config:
       target: cldm.cldm.ControlNet

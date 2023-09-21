@@ -25,6 +25,7 @@ def controlnet_collate(inputs):
     Return:
     :img_feat     (batch_size, height, weight, 3)
     :txt_tokens   (n, max_txt_len)
+    :controls     (batch_size, height, weight, 3)
     """
     img_feat, txt_tokens, controls = map(list, unzip(inputs))
     batch = {

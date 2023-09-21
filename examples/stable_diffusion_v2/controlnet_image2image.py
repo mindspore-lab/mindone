@@ -91,7 +91,7 @@ def main(args):
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "".join(
         [
-            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {ms.context.get_context('mode')}",
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {ms.context.get_context('mode')}\n",
             f"image_resolution: {image_resolution}\n",
             f"num_samples: {num_samples}\n",
             f"low_threshold: {low_threshold}\n",
@@ -110,6 +110,7 @@ def main(args):
             f"output_path: {outpath}\n",
             f"model_config: {args.model_config}\n",
             f"model_ckpt: {args.model_ckpt}\n",
+            f"condition_ckpt_path: {args.condition_ckpt_path}\n",
             f"log_level: {args.log_level}\n",
             f"task_name: {args.task_name}\n",
         ]
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_config", type=str, required=True, help="model config file (.yaml)")
     parser.add_argument("--model_ckpt", type=str, required=True, help="model checkpoint file path")
     parser.add_argument("--n_samples", type=int, default=4, choices=range(1, 13), help="num samples")
-    parser.add_argument("--image_resolution", type=int, default=256, choices=range(256, 769), help="image resolution")
+    parser.add_argument("--image_resolution", type=int, default=512, choices=range(256, 769), help="image resolution")
 
     parser.add_argument("--strength", type=float, default=1, help="strength")
     parser.add_argument("--guess_mode", type=bool, default=False, help="guess mode")
@@ -241,7 +242,10 @@ if __name__ == "__main__":
     )
     # args for ckpt path for condition model, eg segmentation model
     parser.add_argument(
-        "--condition_ckpt_path", type=str, default="", help="checkpoint path for condition control model, eg segmentation"
+        "--condition_ckpt_path",
+        type=str,
+        default="",
+        help="checkpoint path for condition control model, eg segmentation",
     )
 
     args = parser.parse_args()
