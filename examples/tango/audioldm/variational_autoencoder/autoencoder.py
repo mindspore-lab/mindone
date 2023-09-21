@@ -28,8 +28,8 @@ class AutoencoderKL(nn.Cell):
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
 
-        self.encoder = Encoder(**ddconfig)
-        self.decoder = Decoder(**ddconfig)
+        self.encoder = Encoder(dtype=self.dtype, **ddconfig).to_float(self.dtype)
+        self.decoder = Decoder(dtype=self.dtype, **ddconfig).to_float(self.dtype)
 
         self.subband = int(subband)
 

@@ -31,6 +31,18 @@ class Tango(nn.Cell):
         self.vae = AutoencoderKL(**vae_config)
         self.stft = TacotronSTFT(**stft_config)
         self.model = AudioDiffusion(**main_config)
+        self.vae.set_train(False)
+        for param in self.vae.get_parameters():
+            param.requires_grad = False
+        self.stft.set_train(False)
+        for param in self.stft.get_parameters():
+            param.requires_grad = False
+
+    def construct(self, wav, input_ids, attention_mask, validation_mode=False):
+        mel = self.stft(wav)
+        latents = self.vae.encode_first_stage(mel)
+        loss = self.model(latents, input_ids, attention_mask, validation_mode=validation_mode)
+        return loss
 
     def chunks(self, lst, n):
         """Yield successive n-sized chunks from a list."""
