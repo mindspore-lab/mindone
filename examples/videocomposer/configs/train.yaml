@@ -16,4 +16,4 @@ epochs: 50
 
 # accelerate or memory reduction
 dataset_sink_mode: True
-use_recompute: True
+use_recompute: False

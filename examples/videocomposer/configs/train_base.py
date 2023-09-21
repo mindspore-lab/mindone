@@ -125,6 +125,7 @@ cfg.use_checkpoint = False
 cfg.use_fp16 = True
 cfg.use_adaptive_pool = False  # False (AvgPool2D) is much faster on ms2.0
 cfg.use_recompute = False
+cfg.gradient_accumulation_steps = 1 # for increasing global batch size
 
 # training - lr
 cfg.learning_rate = 1e-6  # 0.00005 in paper, but we are finetuning.
@@ -142,6 +143,7 @@ cfg.ema_decay = 0.9999
 
 cfg.epochs = 50
 cfg.ckpt_save_interval = 50  # 1000 # only save last checkpoint for DEBUG
+cfg.ckpt_max_keep = 3
 cfg.save_unet_only = True
 cfg.ouptut_dir = "outputs/train"  # log will be saved here too
 cfg.viz_interval = 1000
