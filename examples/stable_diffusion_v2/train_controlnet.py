@@ -9,7 +9,6 @@ import shutil
 
 from ldm.data.dataset import MODE, build_controlnet_dataset
 from ldm.modules.logger import set_logger
-from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
@@ -142,30 +141,14 @@ def main(args):
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
     dataset = build_controlnet_dataset(args, rank_id, device_num, tokenizer)
 
-    # lora injection
-    if args.use_lora:
+    if args.train_controlnet:
         # freeze network
         for param in latent_diffusion_with_loss.get_parameters():
             param.requires_grad = False
 
-        # inject lora params
-        injected_attns, injected_trainable_params = inject_trainable_lora(
-            latent_diffusion_with_loss,
-            rank=args.lora_rank,
-            use_fp16=args.lora_fp16,
-        )
-
-        # TODO: support lora inject to text encoder (remove .model)
-        assert len(latent_diffusion_with_loss.trainable_params()) == len(
-            injected_trainable_params
-        ), "Only lora params should be trainable. but got {} trainable params".format(
-            len(latent_diffusion_with_loss.trainable_params())
-        )
-        # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
-    if args.train_controlnet:
-        # freeze network
-        latent_diffusion_with_loss.set_train(True)
-        logging.info(f"sd_locked is {latent_diffusion_with_loss.sd_locked}")  # set in args.model_config file
+        logging.info(
+            f"[Controlnet] sd_locked is {latent_diffusion_with_loss.sd_locked}"
+        )  # set in args.model_config file
         for param in latent_diffusion_with_loss.get_parameters():
             if param.name.startswith("control_model"):
                 param.requires_grad = True
@@ -181,7 +164,7 @@ def main(args):
                 # 1026 params intotal, 686 for model.diffusion_model 340 for control_model
             else:
                 param.requires_grad = False
-
+        logging.info(f"[Controlnet] Num of trainable params: {len(latent_diffusion_with_loss.trainable_params())}")
     if not args.decay_steps:
         dataset_size = dataset.get_dataset_size()
         args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
@@ -253,7 +236,6 @@ def main(args):
     if rank_id == 0:
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss,  # TODO: save unet/vae seperately
-            use_lora=args.use_lora,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
@@ -261,7 +243,6 @@ def main(args):
             ckpt_max_keep=10,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
-            lora_rank=args.lora_rank,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
         )
@@ -284,8 +265,6 @@ def main(args):
                 f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
-                f"Use LoRA: {args.use_lora}",
-                f"LoRA rank: {args.lora_rank}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Weight decay: {args.weight_decay}",
@@ -326,14 +305,6 @@ if __name__ == "__main__":
     parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")
     parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
     parser.add_argument("--pretrained_model_file", default="", type=str, help="pretrained model file name")
-    parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
-    parser.add_argument(
-        "--lora_rank",
-        default=4,
-        type=int,
-        help="lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.",
-    )
-    parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
 
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")

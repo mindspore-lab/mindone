@@ -41,7 +41,6 @@ class ControlledUnetModel(UNetModel):
         for module in self.middle_block:
             h = ops.stop_gradient(module(h, emb, context))
 
-        # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
         # to run graph mode:
         if control is not None:
             item = control[-1]
