@@ -49,7 +49,7 @@ def convert_state_dict(model, state_dict_pt):
     return state_dict_ms
 
 
-def auto_map(model, param_dict):
+def auto_map(model, param_dict, verbose=True):
     """Raname part of the param_dict such that names from checkpoint and model are consistent"""
     updated_param_dict = deepcopy(param_dict)
     net_param = model.get_parameters()
@@ -57,10 +57,10 @@ def auto_map(model, param_dict):
     remap = {}
     for param in net_param:
         if param.name not in ckpt_param:
-            _logger.info(f"Cannot find a param to load: {param.name}")
             poss = difflib.get_close_matches(param.name, ckpt_param, n=3, cutoff=0.6)
             if len(poss) > 0:
-                _logger.info(f"=> Find most matched param: {poss[0]},  loaded")
+                if verbose:
+                    _logger.info(f"{param.name} not exist in checkpoint. Find a most matched one: {poss[0]}")
                 updated_param_dict[param.name] = updated_param_dict.pop(poss[0])  # replace
                 remap[param.name] = poss[0]
             else:
@@ -94,8 +94,10 @@ def load_pt_weights_in_model(model, checkpoint_file_pt, state_dict_refiners=None
         sd = ms.load_checkpoint(checkpoint_file_ms)
     sd = auto_map(model, sd)  # automatically map the ms parameter names with the key names in the checkpoint file.
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, sd, strict_load=True)
-    if param_not_load or ckpt_not_load:
-        _logger.warning(f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!")
+    if param_not_load:
+        _logger.warning(f"{param_not_load} in network is not loaded")
+    if ckpt_not_load:
+        _logger.warning(f"{ckpt_not_load} in checkpoint is not loaded!")
 
 
 if __name__ == "__main__":

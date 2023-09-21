@@ -65,15 +65,16 @@ class Upsample(nn.Cell):
         # assert x.shape[1] == self.channels
         if self.dims == 3:
             t_factor = 1 if not self.third_up else 2
-            x = ops.interpolate(
-                x,
+
+            # x = ops.interpolate(x, size=(t_factor * x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest",)
+            x = ops.ResizeNearestNeighbor(
                 size=(t_factor * x.shape[2], x.shape[3] * 2, x.shape[4] * 2),
-                mode="nearest",
-            )
+            )(x)
         else:
-            x = ops.interpolate(
-                x, size=(x.shape[-2] * 2, x.shape[-1] * 2), mode="nearest"  # scale_factor=2., (not support with ms2.1)
-            )
+            # x = ops.interpolate(x, size=(x.shape[-2] * 2, x.shape[-1] * 2), mode="nearest")  # scale_factor=2., (not support with ms2.1)
+            x = ops.ResizeNearestNeighbor(
+                size=(x.shape[-2] * 2, x.shape[-1] * 2),
+            )(x)
         if self.use_conv:
             x = self.conv(x)
         return x

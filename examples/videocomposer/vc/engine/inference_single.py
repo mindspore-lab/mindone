@@ -1,5 +1,7 @@
+import datetime
 import logging
 import os
+import time
 
 from PIL import Image
 
@@ -65,7 +67,8 @@ def inference_single(cfg_update, **kwargs):
 
 
 def init(gpu, cfg, video_name=None):
-    ms.set_context(mode=cfg.mode, pynative_synchronize=True)
+    ms.set_context(mode=cfg.mode)
+    ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
     # LOCAL_RANK - The local rank.
     cfg.gpu = gpu
     # RANK - The global rank.
@@ -88,7 +91,8 @@ def init(gpu, cfg, video_name=None):
     # todo: need `all_gather` to get consistent `log_dir` between each proc if running in distributed mode.
     log_dir = cfg.log_dir
     if video_name is None:
-        exp_name = os.path.basename(cfg.cfg_file).split(".")[0] + "-S%05d" % (cfg.seed)
+        ct = datetime.datetime.now().strftime("-%y%m%d%H%M")
+        exp_name = os.path.basename(cfg.cfg_file).split(".")[0] + "-S%05d" % (cfg.seed) + ct
     else:
         exp_name = os.path.basename(cfg.cfg_file).split(".")[0] + f"-{video_name}" + "-S%05d" % (cfg.seed)
     log_dir = os.path.join(log_dir, exp_name)
@@ -152,6 +156,7 @@ def prepare_dataloader(cfg, transforms_list):
         vit_transforms=vit_transforms,
         vit_image_size=cfg.vit_image_size,
         misc_size=cfg.misc_size,
+        mvs_visual=cfg.mvs_visual,
     )
     dataloader = ds.GeneratorDataset(
         source=dataset,
@@ -188,7 +193,7 @@ def read_image_if_provided(flag, path, transform=None, return_tensor=True, dtype
 
 def prepare_condition_models(cfg):
     # [Conditions] Generators for various conditions
-    if "depthmap" in cfg.video_compositions:
+    if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
         midas = midas.set_train(False).to_float(cfg.dtype)
         for _, param in midas.parameters_and_names():
@@ -202,7 +207,7 @@ def prepare_condition_models(cfg):
     else:
         depth_extractor = None
 
-    if "canny" in cfg.video_compositions:
+    if "canny" in cfg.video_compositions and "canny" in cfg.guidances:
         canny_detector = CannyDetector()
 
         def canny_extractor(misc_imgs):
@@ -214,7 +219,7 @@ def prepare_condition_models(cfg):
     else:
         canny_extractor = None
 
-    if "sketch" in cfg.video_compositions:
+    if "sketch" in cfg.video_compositions and ("single_sketch" in cfg.guidances or "sketch" in cfg.guidances):
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
         )
@@ -252,7 +257,7 @@ def extract_conditions(batch_size, condition_extractor, data_list):
     return cond_data
 
 
-def prepare_autoencoder_unet(cfg, zero_y, black_image_feature, version="2.1"):
+def prepare_autoencoder_unet(cfg, zero_y=None, black_image_feature=None, version="2.1"):
     # [Model] autoencoder & unet
     autoencoder = AutoencoderKL(
         cfg.ddconfig,
@@ -271,7 +276,6 @@ def prepare_autoencoder_unet(cfg, zero_y, black_image_feature, version="2.1"):
             in_dim=cfg.unet_in_dim,
             concat_dim=cfg.unet_concat_dim,
             dim=cfg.unet_dim,
-            y_dim=cfg.unet_y_dim,
             context_dim=cfg.unet_context_dim,
             out_dim=cfg.unet_out_dim,
             dim_mult=cfg.unet_dim_mult,
@@ -292,6 +296,7 @@ def prepare_autoencoder_unet(cfg, zero_y, black_image_feature, version="2.1"):
             zero_y=zero_y,
             black_image_feature=black_image_feature,
             use_fp16=cfg.use_fp16,
+            use_adaptive_pool=False,
         )
         model = model.set_train(False)
         for _, param in model.parameters_and_names():
@@ -300,15 +305,9 @@ def prepare_autoencoder_unet(cfg, zero_y, black_image_feature, version="2.1"):
         raise NotImplementedError(f"The model {cfg.network_name} not implement")
 
     # load checkpoint
-    resume_step = 1
     if cfg.resume and cfg.resume_checkpoint:
-        if hasattr(cfg, "text_to_video_pretrain") and cfg.text_to_video_pretrain:
-            model.load_state_dict(get_abspath_of_weights(cfg.resume_checkpoint), text_to_video_pretrain=True)
-        else:
-            model.load_state_dict(get_abspath_of_weights(cfg.resume_checkpoint), text_to_video_pretrain=False)
-        if cfg.resume_step:
-            resume_step = cfg.resume_step
-        _logger.info(f"Successfully load step {resume_step} model from {cfg.resume_checkpoint}")
+        model.load_state_dict(cfg.resume_checkpoint)
+        _logger.info(f"Successfully load unet from {cfg.resume_checkpoint}")
     else:
         raise ValueError(f"The checkpoint file {cfg.resume_checkpoint} is wrong ")
     _logger.info(
@@ -323,7 +322,8 @@ def worker(gpu, cfg):
     misc_transforms = transforms_list[1]
     dataloader = prepare_dataloader(cfg, transforms_list)
     clip_encoder, clip_encoder_visual = prepare_clip_encoders(cfg)
-    zero_y = ms.ops.stop_gradient(clip_encoder.encode(""))  # [1, 77, 1024]
+    zero_y = ms.ops.stop_gradient(clip_encoder.encode([""]))  # [1, 77, 1024]
+    # zero_y = None
     black_image_feature = clip_encoder_visual.encode(clip_encoder_visual.black_image).unsqueeze(1)  # [1, 1, 1024]
     black_image_feature = ms.ops.zeros_like(black_image_feature)  # for old
 
@@ -344,156 +344,171 @@ def worker(gpu, cfg):
 
     # global variables
     viz_num = cfg.batch_size
-    for step, batch in enumerate(dataloader.create_tuple_iterator()):
-        model.set_train(False)
+    time_cost = []
+    n_trials = 1  # set 4 for testing inference speed
+    for tidx in range(n_trials):
+        for step, batch in enumerate(dataloader.create_tuple_iterator()):
+            start = time.time()
+            model.set_train(False)
 
-        caps = batch[1].numpy().tolist()
-        del batch[1]
-        if cfg.max_frames == 1 and cfg.use_image_dataset:
-            ref_imgs, video_data, misc_data, mask, mv_data = batch
-            fps = ms.Tensor([cfg.feature_framerate] * cfg.batch_size, dtype=ms.int64)
-        else:
-            ref_imgs, video_data, misc_data, fps, mask, mv_data = batch
+            caps = batch[1].numpy().tolist()
+            del batch[1]
+            if cfg.max_frames == 1 and cfg.use_image_dataset:
+                ref_imgs, video_data, misc_data, mask, mv_data = batch
+                fps = ms.Tensor([cfg.feature_framerate] * cfg.batch_size, dtype=ms.int64)
+            else:
+                ref_imgs, video_data, misc_data, fps, mask, mv_data = batch
 
-        # save for visualization
-        misc_backups = misc_data.copy()
-        misc_backups = ms.ops.transpose(misc_backups, (0, 2, 1, 3, 4))
-        mv_data_video = []
-        if "motion" in cfg.video_compositions:
-            mv_data_video = ms.ops.transpose(mv_data, (0, 2, 1, 3, 4))
-        # mask images
-        masked_video = []
-        if "mask" in cfg.video_compositions:
-            masked_video = make_masked_images((misc_data - 0.5) / 0.5, mask)
-            masked_video = ms.ops.transpose(masked_video, (0, 2, 1, 3, 4))
-        # Single Image
-        image_local = []
-        if "local_image" in cfg.video_compositions:
+            # save for visualization
+            misc_backups = misc_data.copy()
+            misc_backups = ms.ops.transpose(misc_backups, (0, 2, 1, 3, 4))
+            mv_data_video = []
+            if "motion" in cfg.video_compositions and "motion" in cfg.guidances:
+                mv_data_video = ms.ops.transpose(mv_data, (0, 2, 1, 3, 4))
+            # mask images
+            masked_video = []
+            if "mask" in cfg.video_compositions and "masked" in cfg.guidances:  # TODO: fix the name
+                masked_video = make_masked_images((misc_data - 0.5) / 0.5, mask)
+                masked_video = ms.ops.transpose(masked_video, (0, 2, 1, 3, 4))
+            # Single Image
+            image_local = []
             frames_num = misc_data.shape[1]
-            bs_vd_local = misc_data.shape[0]
-            if cfg.read_image:
-                image_local = frame_in.unsqueeze(0).tile((bs_vd_local, frames_num, 1, 1, 1))
+            if "local_image" in cfg.video_compositions and "local_image" in cfg.guidances:
+                bs_vd_local = misc_data.shape[0]
+                if cfg.read_image:
+                    image_local = frame_in.unsqueeze(0).tile((bs_vd_local, frames_num, 1, 1, 1))
+                else:
+                    image_local = misc_data[:, :1].copy().tile((1, frames_num, 1, 1, 1))
+                image_local = ms.ops.transpose(image_local, (0, 2, 1, 3, 4))  # (1, 3, 16, 384, 384)
+
+            # encode the video_data
+            bs_vd = video_data.shape[0]
+            video_data_origin = video_data.copy()  # noqa
+            # [bs, F, 3, 256, 256] -> (bs*f 3 256 256)
+            video_data = ms.ops.reshape(video_data, (video_data.shape[0] * video_data.shape[1], *video_data.shape[2:]))
+            video_data_list = ms.ops.chunk(video_data, video_data.shape[0] // cfg.chunk_size, axis=0)
+            # print("D--: frames shape after chunk: ", video_data_list.shape)
+
+            # [bs, F, 3, 384, 384] -> (bs*f 3 384 384)
+            misc_data = ms.ops.reshape(misc_data, (misc_data.shape[0] * misc_data.shape[1], *misc_data.shape[2:]))
+
+            misc_data_list = ms.ops.chunk(misc_data, misc_data.shape[0] // cfg.chunk_size, axis=0)
+
+            decode_data = []
+            # TODO:
+            for vd_data in video_data_list:
+                encoder_posterior = autoencoder.encode(vd_data)
+                tmp = get_first_stage_encoding(encoder_posterior)
+                decode_data.append(tmp)
+            video_data = ms.ops.cat(decode_data, axis=0)
+            # (b f) c h w -> b f c h w -> b c f h w
+            video_data = ms.ops.reshape(video_data, (bs_vd, video_data.shape[0] // bs_vd, *video_data.shape[1:]))
+            video_data = ms.ops.transpose(video_data, (0, 2, 1, 3, 4))
+
+            depth_data = []
+            if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
+                depth_data = extract_conditions(bs_vd, depth_extractor, misc_data_list)
+            canny_data = []
+            if "canny" in cfg.video_compositions and "canny" in cfg.guidances:
+                canny_data = extract_conditions(bs_vd, canny_extractor, misc_data_list)
+            sketch_data = []
+            if "sketch" in cfg.video_compositions and ("single_sketch" in cfg.guidances or "sketch" in cfg.guidances):
+                sketch_list = misc_data_list
+                if cfg.read_sketch:
+                    sketch_repeat = frame_sketch.tile((frames_num, 1, 1, 1))
+                    sketch_list = [sketch_repeat]
+                sketch_data = extract_conditions(bs_vd, sketch_extractor, sketch_list)
+            single_sketch_data = []
+            if "single_sketch" in cfg.video_compositions and "single_sketch" in cfg.guidances:
+                single_sketch_data = sketch_data.copy()[:, :, :1].tile((1, 1, frames_num, 1, 1))
+
+            # preprocess for input text descripts
+            y = clip_encoder.encode(caps)  # [1, 77, 1024]
+            y0 = y.copy()
+            y_visual = []
+            if "image" in cfg.video_compositions and "image" in cfg.guidances:  # TODO: check
+                # with torch.no_grad():
+                if cfg.read_style:
+                    y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0)  # from style is Image raw
+                    y_visual0 = y_visual.copy()
+                else:
+                    y_visual = clip_encoder_visual(ref_imgs).unsqueeze(
+                        1
+                    )  # [1, 1, 1024], since ref_imgs has been processed via vit_transform to nchw normalized tensor
+                    y_visual0 = y_visual.copy()
+
+            if cfg.share_noise:
+                b, c, f, h, w = video_data.shape
+                noise = ms.ops.randn((viz_num, c, h, w))
+                noise = noise.repeat_interleave(repeats=f, dim=0)
+                # (b f) c h w -> b c f h w
+                noise = ms.ops.reshape(noise, (viz_num, noise.shape[0] // viz_num, *noise.shape[1:]))
+                noise = ms.ops.transpose(noise, (0, 2, 1, 3, 4))
             else:
-                image_local = misc_data[:, :1].copy().tile((1, frames_num, 1, 1, 1))
-            image_local = ms.ops.transpose(image_local, (0, 2, 1, 3, 4))
+                noise = ms.ops.randn_like(video_data[:viz_num])
 
-        # encode the video_data
-        bs_vd = video_data.shape[0]
-        video_data_origin = video_data.copy()  # noqa
-        video_data = ms.ops.reshape(video_data, (video_data.shape[0] * video_data.shape[1], *video_data.shape[2:]))
-        misc_data = ms.ops.reshape(misc_data, (misc_data.shape[0] * misc_data.shape[1], *misc_data.shape[2:]))
+            full_model_kwargs = [
+                {
+                    "y": y0[:viz_num],
+                    "local_image": None if len(image_local) == 0 else image_local[:viz_num],
+                    "image": None if len(y_visual) == 0 else y_visual0[:viz_num],
+                    "depth": None if len(depth_data) == 0 else depth_data[:viz_num],
+                    "canny": None if len(canny_data) == 0 else canny_data[:viz_num],
+                    "sketch": None if len(sketch_data) == 0 else sketch_data[:viz_num],
+                    "masked": None if len(masked_video) == 0 else masked_video[:viz_num],
+                    "motion": None if len(mv_data_video) == 0 else mv_data_video[:viz_num],
+                    "single_sketch": None if len(single_sketch_data) == 0 else single_sketch_data[:viz_num],
+                    "fps": fps[:viz_num],
+                },
+                {
+                    "y": zero_y.tile((viz_num, 1, 1)) if not cfg.use_fps_condition else ms.ops.zeros_like(y0)[:viz_num],
+                    "local_image": None if len(image_local) == 0 else image_local[:viz_num],
+                    "image": None if len(y_visual) == 0 else ms.ops.zeros_like(y_visual0[:viz_num]),
+                    "depth": None if len(depth_data) == 0 else depth_data[:viz_num],
+                    "canny": None if len(canny_data) == 0 else canny_data[:viz_num],
+                    "sketch": None if len(sketch_data) == 0 else sketch_data[:viz_num],
+                    "masked": None if len(masked_video) == 0 else masked_video[:viz_num],
+                    "motion": None if len(mv_data_video) == 0 else mv_data_video[:viz_num],
+                    "single_sketch": None if len(single_sketch_data) == 0 else single_sketch_data[:viz_num],
+                    "fps": fps[:viz_num],
+                },
+            ]
 
-        video_data_list = ms.ops.chunk(video_data, video_data.shape[0] // cfg.chunk_size, axis=0)
-        misc_data_list = ms.ops.chunk(misc_data, misc_data.shape[0] // cfg.chunk_size, axis=0)
+            # Save generated videos
+            # --------------------------------------
+            partial_keys = cfg.guidances
+            noise_motion = noise.copy()
+            model_kwargs = prepare_model_kwargs(
+                partial_keys=partial_keys,
+                full_model_kwargs=full_model_kwargs,
+                use_fps_condition=cfg.use_fps_condition,
+            )
+            video_output = diffusion.ddim_sample_loop(
+                noise=noise_motion,
+                model=model.set_train(False),
+                model_kwargs=model_kwargs,
+                guide_scale=9.0,
+                ddim_timesteps=cfg.ddim_timesteps,
+                eta=0.0,
+            )
 
-        decode_data = []
-        for vd_data in video_data_list:
-            encoder_posterior = autoencoder.encode(vd_data)
-            tmp = get_first_stage_encoding(encoder_posterior)
-            decode_data.append(tmp)
-        video_data = ms.ops.cat(decode_data, axis=0)
-        # (b f) c h w -> b f c h w -> b c f h w
-        video_data = ms.ops.reshape(video_data, (bs_vd, video_data.shape[0] // bs_vd, *video_data.shape[1:]))
-        video_data = ms.ops.transpose(video_data, (0, 2, 1, 3, 4))
+            visualize_with_model_kwargs(
+                model_kwargs=model_kwargs,
+                video_data=video_output,
+                autoencoder=autoencoder,
+                ori_video=misc_backups,
+                viz_num=viz_num,
+                step=step,
+                caps=caps,
+                palette=palette,
+                cfg=cfg,
+                sample_idx=tidx,
+            )
+            # --------------------------------------
 
-        depth_data = []
-        if "depthmap" in cfg.video_compositions:
-            depth_data = extract_conditions(bs_vd, depth_extractor, misc_data_list)
-        canny_data = []
-        if "canny" in cfg.video_compositions:
-            canny_data = extract_conditions(bs_vd, canny_extractor, misc_data_list)
-        sketch_data = []
-        if "sketch" in cfg.video_compositions:
-            sketch_list = misc_data_list
-            if cfg.read_sketch:
-                sketch_repeat = frame_sketch.tile((frames_num, 1, 1, 1))
-                sketch_list = [sketch_repeat]
-            sketch_data = extract_conditions(bs_vd, sketch_extractor, sketch_list)
-        single_sketch_data = []
-        if "single_sketch" in cfg.video_compositions:
-            single_sketch_data = sketch_data.copy()[:, :, :1].tile((1, 1, frames_num, 1, 1))
-
-        # preprocess for input text descripts
-        y = clip_encoder.encode(caps)  # [1, 77, 1024]
-        y0 = y.copy()
-        y_visual = []
-        if "image" in cfg.video_compositions:
-            # with torch.no_grad():
-            if cfg.read_style:
-                y_visual = clip_encoder_visual.encode(frame_style).unsqueeze(0)
-                y_visual0 = y_visual.copy()
-            else:
-                y_visual = clip_encoder_visual.encode(ref_imgs).unsqueeze(1)  # [1, 1, 1024]
-                y_visual0 = y_visual.copy()
-
-        if cfg.share_noise:
-            b, c, f, h, w = video_data.shape
-            noise = ms.ops.randn((viz_num, c, h, w))
-            noise = noise.repeat_interleave(repeats=f, dim=0)
-            # (b f) c h w -> b c f h w
-            noise = ms.ops.reshape(noise, (viz_num, noise.shape[0] // viz_num, *noise.shape[1:]))
-            noise = ms.ops.transpose(noise, (0, 2, 1, 3, 4))
-        else:
-            noise = ms.ops.randn_like(video_data[:viz_num])
-
-        full_model_kwargs = [
-            {
-                "y": y0[:viz_num],
-                "local_image": None if len(image_local) == 0 else image_local[:viz_num],
-                "image": None if len(y_visual) == 0 else y_visual0[:viz_num],
-                "depth": None if len(depth_data) == 0 else depth_data[:viz_num],
-                "canny": None if len(canny_data) == 0 else canny_data[:viz_num],
-                "sketch": None if len(sketch_data) == 0 else sketch_data[:viz_num],
-                "masked": None if len(masked_video) == 0 else masked_video[:viz_num],
-                "motion": None if len(mv_data_video) == 0 else mv_data_video[:viz_num],
-                "single_sketch": None if len(single_sketch_data) == 0 else single_sketch_data[:viz_num],
-                "fps": fps[:viz_num],
-            },
-            {
-                "y": zero_y.tile((viz_num, 1, 1)) if not cfg.use_fps_condition else ms.ops.zeros_like(y0)[:viz_num],
-                "local_image": None if len(image_local) == 0 else image_local[:viz_num],
-                "image": None if len(y_visual) == 0 else ms.ops.zeros_like(y_visual0[:viz_num]),
-                "depth": None if len(depth_data) == 0 else depth_data[:viz_num],
-                "canny": None if len(canny_data) == 0 else canny_data[:viz_num],
-                "sketch": None if len(sketch_data) == 0 else sketch_data[:viz_num],
-                "masked": None if len(masked_video) == 0 else masked_video[:viz_num],
-                "motion": None if len(mv_data_video) == 0 else mv_data_video[:viz_num],
-                "single_sketch": None if len(single_sketch_data) == 0 else single_sketch_data[:viz_num],
-                "fps": fps[:viz_num],
-            },
-        ]
-
-        # Save generated videos
-        # --------------------------------------
-        partial_keys = cfg.guidances
-        noise_motion = noise.copy()
-        model_kwargs = prepare_model_kwargs(
-            partial_keys=partial_keys,
-            full_model_kwargs=full_model_kwargs,
-            use_fps_condition=cfg.use_fps_condition,
-        )
-        video_output = diffusion.ddim_sample_loop(
-            noise=noise_motion,
-            model=model.set_train(False),
-            model_kwargs=model_kwargs,
-            guide_scale=9.0,
-            ddim_timesteps=cfg.ddim_timesteps,
-            eta=0.0,
-        )
-        visualize_with_model_kwargs(
-            model_kwargs=model_kwargs,
-            video_data=video_output,
-            autoencoder=autoencoder,
-            ori_video=misc_backups,
-            viz_num=viz_num,
-            step=step,
-            caps=caps,
-            palette=palette,
-            cfg=cfg,
-        )
-        # --------------------------------------
-
-    _logger.info("Congratulations! The inference is completed!")
+            time_cost.append(time.time() - start)
+            print("D--: ", time_cost)
+        _logger.info("Congratulations! The inference is completed!")
 
 
 def prepare_model_kwargs(partial_keys, full_model_kwargs, use_fps_condition):
@@ -532,6 +547,7 @@ def visualize_with_model_kwargs(
     caps,
     palette,
     cfg,
+    sample_idx=0,
 ):
     scale_factor = 0.18215
     video_data = 1.0 / scale_factor * video_data
@@ -553,28 +569,28 @@ def visualize_with_model_kwargs(
     video_data = ms.ops.transpose(video_data, (0, 2, 1, 3, 4))
     ori_video = ori_video[:viz_num]
 
-    oss_key = os.path.join(cfg.log_dir, f"rank_{cfg.world_size}-{cfg.rank}.gif")
+    oss_key = os.path.join(cfg.log_dir, f"Sample_{sample_idx}.gif")
     text_key = os.path.join(cfg.log_dir, "text_description.txt")
 
     # Save videos and text inputs.
-    try:
-        del model_kwargs[0][list(model_kwargs[0].keys())[0]]
-        del model_kwargs[1][list(model_kwargs[1].keys())[0]]
-        save_video_multiple_conditions(
-            oss_key,
-            video_data,
-            model_kwargs,
-            ori_video,
-            palette,
-            cfg.mean,
-            cfg.std,
-            nrow=1,
-            save_origin_video=cfg.save_origin_video,
-        )
-        if cfg.rank == 0:
-            texts = "\n".join(caps[:viz_num])
-            open(text_key, "w").writelines(texts)
-    except Exception as e:
-        _logger.warning(f"Got an error when saving text or video: {e}")
+    # try:
+    del model_kwargs[0][list(model_kwargs[0].keys())[0]]
+    del model_kwargs[1][list(model_kwargs[1].keys())[0]]
+    save_video_multiple_conditions(
+        oss_key,
+        video_data,
+        model_kwargs,
+        ori_video,
+        palette,
+        cfg.mean,
+        cfg.std,
+        nrow=1,
+        save_origin_video=cfg.save_origin_video,
+    )
+    if cfg.rank == 0:
+        texts = "\n".join(caps[:viz_num])
+        open(text_key, "w").writelines(texts)
 
     _logger.info(f"Successfully saved videos to {oss_key}")
+    # except Exception as e:
+    #    _logger.warning(f"Got an error when saving text or video: {e}")

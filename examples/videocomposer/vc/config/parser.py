@@ -9,16 +9,21 @@ import yaml
 _logger = logging.getLogger(__name__)
 
 
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
+
+
 class Config(object):
     def __init__(self, load=True, cfg_dict=None, cfg_level=None):
         self._level = "cfg" + ("." + cfg_level if cfg_level is not None else "")
         if load:
             self.args = self._parse_args()
             _logger.info("Loading config from {}.".format(self.args.cfg_file))
-            self.need_initialization = True
-            cfg_base = self._initialize_cfg()
             cfg_dict = self._load_yaml(self.args)
-            cfg_dict = self._merge_cfg_from_base(cfg_base, cfg_dict)
             cfg_dict = self._update_from_args(cfg_dict)
             self.cfg_dict = cfg_dict
         self._update_dict(cfg_dict)
@@ -26,10 +31,11 @@ class Config(object):
     def _parse_args(self):
         parser = argparse.ArgumentParser(description="Argparser for configuring vidcomposer codebase")
         parser.add_argument(
+            "-c",
             "--cfg",
             dest="cfg_file",
             help="Path to the configuration file",
-            default="configs/exp01_vidcomposer_full.yaml",
+            default="configs/train.yaml",
         )
         parser.add_argument(
             "--init_method",
@@ -83,6 +89,21 @@ class Config(object):
             default=None,
             nargs=argparse.REMAINDER,
         )
+        # new args for mindspore
+        parser.add_argument(
+            "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+        )
+        parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+        parser.add_argument(
+            "--dataset_sink_mode",
+            default=True,
+            type=str2bool,
+            help="use dataset_sink_mode in model.train. Enable it can boost the performance but step_end callback will be disabled.",
+        )
+        parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
+        parser.add_argument(
+            "--output_dir", default="outputs/train", type=str, help="output directory to save training results"
+        )
         return parser.parse_args()
 
     def _path_join(self, path_list):
@@ -96,17 +117,6 @@ class Config(object):
         for var in vars(args):
             cfg_dict[var] = getattr(args, var)
         return cfg_dict
-
-    def _initialize_cfg(self):
-        if self.need_initialization:
-            self.need_initialization = False
-            if os.path.exists("./configs/base.yaml"):
-                with open("./configs/base.yaml", "r") as f:
-                    cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
-            else:
-                with open(os.path.realpath(__file__).split("/")[-3] + "/configs/base.yaml", "r") as f:
-                    cfg = yaml.load(f.read(), Loader=yaml.SafeLoader)
-        return cfg
 
     def _load_yaml(self, args, file_name=""):
         assert args.cfg_file is not None
@@ -142,7 +152,6 @@ class Config(object):
                     args.cfg_file.replace(args.cfg_file.split("/")[-1], ""),
                 )
             cfg_base = self._load_yaml(args, cfg_base_file)
-            cfg = self._merge_cfg_from_base(cfg_base, cfg)
         else:
             if "_BASE_RUN" in cfg.keys():
                 if cfg["_BASE_RUN"][1] == ".":
@@ -156,7 +165,6 @@ class Config(object):
                         args.cfg_file.replace(args.cfg_file.split("/")[-1], ""),
                     )
                 cfg_base = self._load_yaml(args, cfg_base_file)
-                cfg = self._merge_cfg_from_base(cfg_base, cfg, preserve_base=True)
             if "_BASE_MODEL" in cfg.keys():
                 if cfg["_BASE_MODEL"][1] == ".":
                     prev_count = cfg["_BASE_MODEL"].count("..")
@@ -173,18 +181,6 @@ class Config(object):
                 cfg = self._merge_cfg_from_base(cfg_base, cfg)
         cfg = self._merge_cfg_from_command(args, cfg)
         return cfg
-
-    def _merge_cfg_from_base(self, cfg_base, cfg_new, preserve_base=False):
-        for k, v in cfg_new.items():
-            if k in cfg_base.keys():
-                if isinstance(v, dict):
-                    self._merge_cfg_from_base(cfg_base[k], v)
-                else:
-                    cfg_base[k] = v
-            else:
-                if "BASE" not in k or preserve_base:
-                    cfg_base[k] = v
-        return cfg_base
 
     def _merge_cfg_from_command(self, args, cfg):
         assert len(args.opts) % 2 == 0, "Override list {} has odd length: {}.".format(args.opts, len(args.opts))

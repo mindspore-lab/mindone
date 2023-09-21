@@ -45,7 +45,7 @@ cfg.batch_sizes = {
     str(16): 1,
 }
 cfg.chunk_size = 64
-cfg.num_workers = 8
+cfg.num_workers = 8  # not used yet
 cfg.prefetch_factor = 2
 cfg.seed = 8888
 

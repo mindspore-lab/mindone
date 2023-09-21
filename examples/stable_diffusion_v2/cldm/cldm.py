@@ -60,6 +60,77 @@ class ControlledUnetModel(UNetModel):
         return self.out(h)
 
 
+class ControlnetUnetModel(UNetModel):
+    def __init__(self, control_stage_config, guess_mode=False, strength=1.0, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.controlnet = instantiate_from_config(control_stage_config)
+        self.control_scales = (
+            [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
+        )
+
+    def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
+        hs = []
+
+        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
+        emb = self.time_embed(t_emb)
+        emb_c = self.controlnet.time_embed(t_emb)
+
+        if control is not None:
+            guided_hint = control
+            for cell in self.controlnet.input_hint_block:
+                guided_hint = cell(guided_hint)
+        else:
+            guided_hint = None
+
+        control_list = []
+
+        h_c = x
+        h = x
+
+        for c_celllist, celllist, zero_convs in zip(
+            self.controlnet.input_blocks, self.input_blocks, self.controlnet.zero_convs
+        ):
+            if control is not None:
+                for cell in c_celllist:
+                    h_c = cell(h_c, emb_c, context)
+                if guided_hint is not None:
+                    h_c += guided_hint
+                    guided_hint = None
+                control_list.append(zero_convs(h_c, emb_c, context))
+
+            for cell in celllist:
+                h = cell(h, emb, context)
+            hs.append(h)
+
+        for c_module, module in zip(self.controlnet.middle_block, self.middle_block):
+            if control is not None:
+                h_c = c_module(h_c, emb_c, context)
+            h = module(h, emb, context)
+
+        if control is not None:
+            control_list.append(self.controlnet.middle_block_out(h_c, emb_c, context))
+            control_list = [c * scale for c, scale in zip(control_list, self.control_scales)]
+
+        control_index = -1
+        if control_list:
+            h = h + control_list[control_index]
+            control_index -= 1
+
+        hs_index = -1
+        for celllist in self.output_blocks:
+            if only_mid_control or len(control_list) == 0:
+                h = self.cat((h, hs[hs_index]))
+            else:
+                h = self.cat([h, hs[hs_index] + control_list[control_index]])
+            hs_index -= 1
+            control_index -= 1
+            for cell in celllist:
+                h = cell(h, emb, context)
+
+        return self.out(h)
+
+
 class ControlNet(nn.Cell):
     def __init__(
         self,

@@ -23,12 +23,19 @@ from mindspore import Tensor
 
 def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
-    parser.add_argument("--version", type=str, default="SDXL-base-1.0")
-    parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
+    parser.add_argument("--version", type=str, default="SDXL-base-1.0", choices=["SDXL-base-1.0", "SDXL-refiner-1.0"])
     parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_lora.yaml")
-    parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img"])
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--task",
+        type=str,
+        default="txt2img",
+        choices=[
+            "txt2img",
+        ],
+    )
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     parser.add_argument("--data_path", type=str, default="")
     parser.add_argument("--save_path", type=str, default="./runs")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
@@ -145,8 +152,8 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
             else:
                 cur_lr = optimizer.learning_rate.asnumpy().item()
             print(
-                f"Step {i + 1}/{total_step}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}, "
-                f"time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
+                f"Step {i + 1}/{total_step}, size: {data['image'].shape[2:]}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
+                f", time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
                 flush=True,
             )
             s_time = time.time()

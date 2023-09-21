@@ -4,6 +4,7 @@ import random
 
 import cv2
 import numpy as np
+import pandas as pd
 from PIL import Image
 
 from ..annotator.mask import make_irregular_mask, make_rectangle_mask, make_uncrop
@@ -19,8 +20,8 @@ _logger = logging.getLogger(__name__)
 class VideoDataset(object):
     def __init__(
         self,
-        cfg,
-        tokenizer=None,
+        cfg=None,
+        root_dir=None,
         max_words=30,
         feature_framerate=1,
         max_frames=16,
@@ -31,10 +32,15 @@ class VideoDataset(object):
         vit_transforms=None,
         vit_image_size=336,
         misc_size=384,
+        mvs_visual=False,
     ):
+        """
+        Args:
+            root_dir: dir containing csv file which records video path and caption.
+        """
+
         self.cfg = cfg
 
-        self.tokenizer = tokenizer
         self.max_words = max_words
         self.feature_framerate = feature_framerate
         self.max_frames = max_frames
@@ -45,16 +51,14 @@ class VideoDataset(object):
         self.vit_transforms = vit_transforms
         self.vit_image_size = vit_image_size
         self.misc_size = misc_size
+        self.mvs_visual = mvs_visual
 
-        self.video_cap_pairs = [[self.cfg.input_video, self.cfg.input_text_desc]]
-
-        self.SPECIAL_TOKEN = {
-            "CLS_TOKEN": "<|startoftext|>",
-            "SEP_TOKEN": "<|endoftext|>",
-            "MASK_TOKEN": "[MASK]",
-            "UNK_TOKEN": "[UNK]",
-            "PAD_TOKEN": "[PAD]",
-        }  # TODO: get it from the tokenizer.special_tokens
+        if root_dir is not None:
+            video_paths, captions = get_video_paths_captions(root_dir)
+            num_samples = len(video_paths)
+            self.video_cap_pairs = [[video_paths[i], captions[i]] for i in range(num_samples)]
+        else:
+            self.video_cap_pairs = [[self.cfg.input_video, self.cfg.input_text_desc]]
 
     def __len__(self):
         return len(self.video_cap_pairs)
@@ -65,7 +69,7 @@ class VideoDataset(object):
         feature_framerate = self.feature_framerate
         if os.path.exists(video_key):
             ref_frame, vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
-                video_key, feature_framerate, self.cfg.mvs_visual
+                video_key, feature_framerate, self.mvs_visual
             )
         else:  # use dummy data
             _logger.warning(f"The video path: {video_key} does not exist or no video dir provided!")
@@ -128,3 +132,20 @@ class VideoDataset(object):
         ref_frame = vit_image
 
         return ref_frame, vit_image, video_data, misc_data, mv_data
+
+
+def get_video_paths_captions(data_dir):
+    anno_list = sorted(
+        [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(data_dir)))]
+    )
+    db_list = [pd.read_csv(f) for f in anno_list]
+    video_paths = []
+    all_captions = []
+    for db in db_list:
+        video_paths.extend(list(db["video"]))
+        all_captions.extend(list(db["caption"]))
+    assert len(video_paths) == len(all_captions)
+    video_paths = [os.path.join(data_dir, f) for f in video_paths]
+    _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
+
+    return video_paths, all_captions

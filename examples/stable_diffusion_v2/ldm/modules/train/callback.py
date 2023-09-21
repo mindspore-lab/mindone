@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 
@@ -7,9 +8,11 @@ from mindspore.train.callback._callback import Callback, _handle_loss
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
 
+_logger = logging.getLogger(__name__)
+
 
 class OverflowMonitor(ms.Callback):
-    def step_end(self, run_context):
+    def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         cur_epoch_num = cb_params.get("cur_epoch_num", 1)
         cur_step_in_epoch = (cb_params.cur_step_num - 1) % cb_params.batch_num + 1
@@ -34,6 +37,8 @@ class EvalSaveCallback(Callback):
         lora_rank=None,
         log_interval=10,
         start_epoch=0,
+        record_lr=True,
+        model_name="sd",
     ):
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
@@ -41,6 +46,7 @@ class EvalSaveCallback(Callback):
         self.ckpt_save_dir = ckpt_save_dir
         self.ckpt_save_interval = ckpt_save_interval
         self.step_mode = step_mode
+        self.model_name = model_name
         if not os.path.exists(ckpt_save_dir):
             os.makedirs(ckpt_save_dir)
 
@@ -49,6 +55,7 @@ class EvalSaveCallback(Callback):
         self.step_start_time = time.time()
         self.log_interval = log_interval
         self.start_epoch = start_epoch
+        self.record_lr = record_lr
 
         if self.is_main_device:
             self.ckpt_save_policy = ckpt_save_policy
@@ -58,7 +65,10 @@ class EvalSaveCallback(Callback):
                 k=ckpt_max_keep,
             )
             if self.start_epoch == 0:
-                perf_columns = ["step", "loss", "lr", "train_time(s)"]
+                if self.record_lr:
+                    perf_columns = ["step", "loss", "lr", "train_time(s)"]
+                else:
+                    perf_columns = ["step", "loss", "train_time(s)"]
                 self.rec = PerfRecorder(self.ckpt_save_dir, metric_names=perf_columns)
             else:
                 self.rec = PerfRecorder(self.ckpt_save_dir, resume=True)
@@ -120,7 +130,9 @@ class EvalSaveCallback(Callback):
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-{cur_step}.ckpt", append_dict=append_dict)
+                self.ckpt_manager.save(
+                    self.net_to_save, None, ckpt_name=f"{self.model_name}-{cur_step}.ckpt", append_dict=append_dict
+                )
 
                 # TODO: resume training for step.
                 ms.save_checkpoint(
@@ -138,10 +150,13 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_after_eval()
 
             if cur_step % self.log_interval == 0 or cur_step == step_num:
-                cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
+                if self.record_lr:
+                    cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
 
                 train_time = time.time() - self.step_start_time
-                step_pref_value = [cur_step, loss, cur_lr, train_time]
+                step_pref_value = (
+                    [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
+                )
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
@@ -218,4 +233,30 @@ class EvalSaveCallback(Callback):
         lr = opt.learning_rate
         if opt.dynamic_lr:
             lr = opt.learning_rate(opt.global_step - 1)[0]
+            # lr = opt.learning_rate.asnumpy()(int(opt.global_step.asnumpy()) - 1)[0]
         return lr
+
+
+class ProfilerCallback(ms.Callback):
+    def __init__(self, start_step=1, end_step=2, exit_after_analyze=True, out_dir="./profiler_data"):
+        self.start_step = start_step
+        self.end_step = end_step
+        self.exit_after_analyze = exit_after_analyze
+        self.profiler = ms.Profiler(start_profile=False, output_path=out_dir)
+
+    def on_train_step_begin(self, run_context):
+        cb_params = run_context.original_args()
+        cur_step = cb_params.cur_step_num
+        if cur_step == self.start_step:
+            _logger.info(f"start analyzing profiler in step range [{self.start_step}, {self.end_step}]")
+            self.profiler.start()
+
+    def on_train_step_end(self, run_context):
+        cb_params = run_context.original_args()
+        cur_step = cb_params.cur_step_num
+        if cur_step == self.end_step:
+            self.profiler.stop()
+            self.profiler.analyse()
+            _logger.info(f"finish analyzing profiler in step range [{self.start_step}, {self.end_step}]")
+            if self.exit_after_analyze:
+                run_context.request_stop()
