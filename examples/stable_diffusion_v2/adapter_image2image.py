@@ -20,7 +20,7 @@ from mindspore.nn import Cell
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
-from adapters import get_adapter
+from adapters import CombinedAdapter, get_adapter
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.logger import set_logger
@@ -49,28 +49,6 @@ def read_images(cond_paths: List[str], size: int) -> Tuple[List[ms.Tensor], Tupl
 
         conds.append(image2tensor(cond))
     return conds, image_shape
-
-
-def apply_adapters(
-    adapters: List[Cell], conds: List[ms.Tensor], weights: List[float]
-) -> Tuple[Union[List[ms.Tensor], None], Union[ms.Tensor, None]]:
-    feature_map = None
-    feature_seq = None
-
-    for adapter, cond, weight in zip(adapters, conds, weights):
-        features = adapter(cond)
-        if isinstance(features, list):
-            if feature_map is None:
-                feature_map = list(map(lambda x: x * weight, features))
-            else:
-                feature_map = list(map(lambda x, y: x + y * weight, feature_map, features))
-        else:
-            if feature_seq is None:
-                feature_seq = features * weight
-            else:
-                feature_seq = ms.ops.cat([feature_seq, features * weight], axis=1)
-
-    return feature_map, feature_seq
 
 
 def main(args):
@@ -118,6 +96,7 @@ def main(args):
         get_adapter(a_cond, ckpt, use_fp16=not args.adapter_full_precision)
         for a_cond, ckpt in zip(args.adapter_condition, args.adapter_ckpt_path)
     ]
+    adapters = CombinedAdapter(adapters, cond_weights, output_fp16=True)
 
     cond_paths = args.condition_image
     assert all([os.path.isfile(cond) for cond in cond_paths]), "Paths to condition images must be files."
@@ -165,7 +144,7 @@ def main(args):
 
     conds, img_shape = read_images(cond_paths, min(args.H, args.W))
     args.H, args.W = img_shape
-    adapter_features, context = apply_adapters(adapters, conds, cond_weights)
+    adapter_features, context = adapters(conds)
 
     base_count = 0
     for n in range(args.n_iter):
@@ -194,10 +173,9 @@ def main(args):
             x_T=start_code,
         )
         x_samples_ddim = model.decode_first_stage(samples_ddim)
-        x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-        x_samples_ddim_numpy = x_samples_ddim.asnumpy()
+        x_samples_ddim = np.clip((x_samples_ddim.asnumpy() + 1.0) / 2.0, 0.0, 1.0)
 
-        for x_sample in x_samples_ddim_numpy:
+        for x_sample in x_samples_ddim:
             x_sample = 255.0 * x_sample.transpose(1, 2, 0)
             img = Image.fromarray(x_sample.astype(np.uint8))
             img.save(sample_path / f"{base_count:05}.png")
