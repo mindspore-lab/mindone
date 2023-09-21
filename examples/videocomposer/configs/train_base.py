@@ -125,7 +125,7 @@ cfg.use_checkpoint = False
 cfg.use_fp16 = True
 cfg.use_adaptive_pool = False  # False (AvgPool2D) is much faster on ms2.0
 cfg.use_recompute = False
-cfg.gradient_accumulation_steps = 1 # for increasing global batch size
+cfg.gradient_accumulation_steps = 1  # for increasing global batch size
 
 # training - lr
 cfg.learning_rate = 1e-6  # 0.00005 in paper, but we are finetuning.
