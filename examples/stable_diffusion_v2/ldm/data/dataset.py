@@ -406,8 +406,6 @@ def build_dataset(args, device_num, rank_id, tokenizer):
 
 
 # customize dataset for control net
-
-
 def list_controlnet_image_files_captions_recursively(data_path):
     original_path = os.path.join(data_path, "original")
     control_path = os.path.join(data_path, "control")
@@ -465,10 +463,14 @@ class ControlImageDataset(ImageDataset):
     def preprocess_control(self, control_path):
         if self.mode == MODE["canny"]:
             control = Image.open(control_path)
-            if not control.mode == "L":
-                raise ValueError(f"Control image {control_path} is not in grayscale mode!")
-            control = np.expand_dims(np.array(control).astype(np.float32), axis=2)  # hw1
-            control = np.concatenate([control, control, control], axis=2)  # hwc
+            if control.mode == "L":
+                control = np.array(control).astype(np.float32)/255.0 # to [0,1]
+                control = np.expand_dims(control, axis=2)  # hw1
+                control = np.concatenate([control, control, control], axis=2)  # hwc
+            elif control.mode == "RGB":
+                control = np.array(control).astype(np.float32)/255.0 # to [0,1]
+            else:
+                raise NotImplementedError(f"Process control image in {control.mode} is not implemented!")
 
         else:
             raise NotImplementedError(f"Control mode {self.mode} is not implemented!")

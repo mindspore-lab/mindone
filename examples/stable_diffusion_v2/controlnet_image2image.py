@@ -187,6 +187,24 @@ def main(args):
 
     logger.info(f"Save result to {outpath} done.")
 
+    # second sampling, no need upload this part
+    logging.info("Start the second sampling:")
+    samples, intermediates = sampler.sample(
+        ddim_steps,
+        num_samples,
+        shape,
+        cond,
+        verbose=False,
+        eta=eta,
+        unconditional_guidance_scale=scale,
+        unconditional_conditioning=un_cond,
+    )
+    logging.info("The second sampling, done")
+
+    decode_and_save_result(args, samples, detected_map, outpath, "results")
+
+    logger.info(f"Save result to {outpath} done.")
+
 
 if __name__ == "__main__":
     import argparse
