@@ -5,7 +5,7 @@ output_dir: "./results/tuning-free-mix/car-turn"
 train_data:
   video_path: "data/car-turn.mp4"
   prompt: "a jeep car is moving on the road"
-  n_sample_frames: 20
+  n_sample_frames: 10
   width: 512
   height: 512
   sample_start_idx: 0
