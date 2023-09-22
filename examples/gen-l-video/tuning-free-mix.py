@@ -46,7 +46,7 @@ def prepare_video(cfg):
             break
 
     # sample frames
-    sample_index = list(range(cfg.sample_start_idx, len(pil_frames), cfg.sample_frame_rate))
+    sample_index = list(range(cfg.sample_start_idx, len(pil_frames) // 4, cfg.sample_frame_rate))
 
     pil_frames = [pil_frames[i] for i in sample_index]
     resized_cv2_frames = [resized_cv2_frames[i] for i in sample_index]

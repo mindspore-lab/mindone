@@ -18,10 +18,14 @@ sys.path.append(workspace + "/../../stable_diffusion_v2")
 def save_videos_grid(videos: ms.Tensor, path: str, rescale=False, fps=10):
     outputs = []
 
-    for x in videos:
-        x = ops.tile(x, (3, 1, 1))
-        x = ops.permute(x, (1, 2, 0))
+    if videos.ndim == 5:
+        videos = videos.permute(0, 2, 3, 4, 1)
+        videos = videos.reshape(videos.shape[0] * videos.shape[1], videos.shape[2], videos.shape[3], videos.shape[4])
+    elif videos.ndim == 4:
+        videos = videos.permute(0, 2, 3, 1)
+        videos = videos.tile((1, 1, 1, 3))
 
+    for x in videos:
         if rescale:
             x = (x + 1.0) / 2.0  # -1,1 -> 0,1
 
