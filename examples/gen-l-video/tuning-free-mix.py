@@ -153,8 +153,8 @@ def main(args):
                 ddim_inv_latent_lst.append(ddim_inv_latent)
 
             ddim_inv_latent = ops.cat(ddim_inv_latent_lst, axis=2)
-            inv_latents_path = os.path.join(output_dir, "inv_latents/ddim_latent-iso.pt")
-            ms.save_checkpoint([{"name": "ddim_inv_latent", "data": ddim_inv_latent}], inv_latents_path)
+            inv_latents_path = os.path.join(output_dir, "inv_latents/ddim_latent-iso.npy")
+            np.save(inv_latents_path, ddim_inv_latent.asnumpy())
 
         for prompt in validation_data.prompts:
             sample_lst = []
