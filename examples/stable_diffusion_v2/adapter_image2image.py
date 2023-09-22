@@ -7,7 +7,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -16,7 +16,6 @@ from omegaconf import OmegaConf
 from PIL import Image
 
 import mindspore as ms
-from mindspore.nn import Cell
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
