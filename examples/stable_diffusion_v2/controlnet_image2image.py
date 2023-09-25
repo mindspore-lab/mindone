@@ -29,6 +29,25 @@ workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
 
 
+def decode_and_save_result(model, args, samples, detected_map, outpath, filename):
+    x_samples = model.decode_first_stage(samples)
+    x_samples = (ops.transpose(x_samples, (0, 2, 3, 1)) * 127.5 + 127.5).asnumpy().clip(0, 255).astype(np.uint8)
+    results = [x_samples[i] for i in range(num_samples)]
+    if args.mode == MODE["canny"]:
+        results = [255 - detected_map] + results
+    elif args.mode == MODE["segmentation"]:
+        results = [detected_map] + results
+    else:
+        raise NotImplementedError(f"mode {args.mode} not supported")
+
+    for i, result in enumerate(results):
+        img = Image.fromarray(result)
+        tmp_filename = f"{filename}_index{i}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
+        img.save(os.path.join(outpath, tmp_filename))
+        logger.info(f"Save result with filename {tmp_filename} done.")
+        # print(result)
+
+
 def main(args):
     ms.set_seed(args.seed)
     # set logger
@@ -165,43 +184,7 @@ def main(args):
         unconditional_conditioning=un_cond,
     )
 
-    def decode_and_save_result(args, samples, detected_map, outpath, filename):
-        x_samples = model.decode_first_stage(samples)
-        x_samples = (ops.transpose(x_samples, (0, 2, 3, 1)) * 127.5 + 127.5).asnumpy().clip(0, 255).astype(np.uint8)
-        results = [x_samples[i] for i in range(num_samples)]
-        if args.mode == MODE["canny"]:
-            results = [255 - detected_map] + results
-        elif args.mode == MODE["segmentation"]:
-            results = [detected_map] + results
-        else:
-            raise NotImplementedError(f"mode {args.mode} not supported")
-
-        for i, result in enumerate(results):
-            img = Image.fromarray(result)
-            tmp_filename = f"{filename}_index{i}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
-            img.save(os.path.join(outpath, tmp_filename))
-            logger.info(f"Save result with filename {tmp_filename} done.")
-            # print(result)
-
-    decode_and_save_result(args, samples, detected_map, outpath, "results")
-
-    logger.info(f"Save result to {outpath} done.")
-
-    # second sampling, no need upload this part
-    logging.info("Start the second sampling:")
-    samples, intermediates = sampler.sample(
-        ddim_steps,
-        num_samples,
-        shape,
-        cond,
-        verbose=False,
-        eta=eta,
-        unconditional_guidance_scale=scale,
-        unconditional_conditioning=un_cond,
-    )
-    logging.info("The second sampling, done")
-
-    decode_and_save_result(args, samples, detected_map, outpath, "results")
+    decode_and_save_result(model, args, samples, detected_map, outpath, "results")
 
     logger.info(f"Save result to {outpath} done.")
 

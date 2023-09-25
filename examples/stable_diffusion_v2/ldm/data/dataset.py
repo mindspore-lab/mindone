@@ -464,11 +464,11 @@ class ControlImageDataset(ImageDataset):
         if self.mode == MODE["canny"]:
             control = Image.open(control_path)
             if control.mode == "L":
-                control = np.array(control).astype(np.float32)/255.0 # to [0,1]
+                control = np.array(control).astype(np.float32) / 255.0  # to [0,1]
                 control = np.expand_dims(control, axis=2)  # hw1
                 control = np.concatenate([control, control, control], axis=2)  # hwc
             elif control.mode == "RGB":
-                control = np.array(control).astype(np.float32)/255.0 # to [0,1]
+                control = np.array(control).astype(np.float32) / 255.0  # to [0,1]
             else:
                 raise NotImplementedError(f"Process control image in {control.mode} is not implemented!")
 
