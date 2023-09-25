@@ -17,13 +17,13 @@ model:
     cond_stage_key: "caption" # not used
     image_size: 64
     channels: 4
-    cond_stage_trainable: false   # freeze text encoder
+    cond_stage_trainable: False   # freeze text encoder
     conditioning_key: hybrid   #  c_concat, c_crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
     finetune_keys: null
-    use_ema: false
-    use_fp16: True
+    use_ema: False
+    use_fp16: False
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel
@@ -42,14 +42,14 @@ model:
         context_dim: 1024  # diff btw sd2 and 1.x
         use_checkpoint: True
         legacy: False
-        use_fp16: True
+        use_fp16: False
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 4
         monitor: val/rec_loss
-        use_fp16: True
+        use_fp16: False
         ddconfig:
           double_z: true
           z_channels: 4
@@ -69,7 +69,7 @@ model:
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
-        use_fp16: True
+        use_fp16: False
         tokenizer_name: "BpeTokenizer" # diff btw chinese and english version
         context_length: 77
         vocab_size: 49408

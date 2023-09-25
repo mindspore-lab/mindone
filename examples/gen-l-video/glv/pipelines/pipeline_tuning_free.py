@@ -281,7 +281,11 @@ class TuningFreePipeline:
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
 
         # 6. Prepare latent variables
-        num_channels_latents = self.unet._backbone.conv_in.in_channels - 1
+        if hasattr(self.unet, "_backbone"):
+            num_channels_latents = self.unet._backbone.conv_in.in_channels - 1
+        else:
+            num_channels_latents = self.unet.conv_in.in_channels - 1
+
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             num_channels_latents,
