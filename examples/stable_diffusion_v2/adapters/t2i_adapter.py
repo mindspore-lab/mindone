@@ -267,7 +267,7 @@ class CombinedAdapter(nn.Cell):
         self._regular_ids, self._style_ids = [], []
         for i, adapter in enumerate(adapters):
             # if an adapter is with automatic mixed precision applied
-            instance_type = type(adapter._backbone if isinstance(adapter, amp._OutputTo32) else adapter)
+            instance_type = type(adapter._backbone if hasattr(adapter, "_backbone") else adapter)
             if isinstance(instance_type, T2IAdapter):
                 self._regular_ids.append(i)
             if isinstance(instance_type, StyleT2IAdapter):
