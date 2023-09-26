@@ -94,13 +94,13 @@ To transfer other Stable Diffusion models to MindSpore, please refer to [model c
 
 ### Text-to-Image Generation
 
-To generate images by providing a text prompt, please download [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) to `models/` folder, and run:
+To generate images by providing a text prompt with SD 2.0, run the following command:
 
 ```shell
 # Text to image generation with SD-2.0-base
-python text_to_image.py --prompt "elven forest"
+python text_to_image.py --prompt "elven forest" -v 2.0
 ```
-> The default version of SD model used is 2.1. It is easy to change the model version by setting the `-v` argument according to the version names defined in [pretrained weights](#pretrained-weights).
+> The default version of SD model used is 2.1. It is easy to change the model version by setting the `-v` argument according to the version names defined in [pretrained weights](#pretrained-weights). And the pipeline will automatically download the version-specific pretrain-weights file into `models/` folder.
 
 For example, to use SD 2.1-v for generating images of 768x768 resolution, please run
 ```shell
@@ -274,7 +274,7 @@ after setting `data_path` to your dataset path.
 
 
 To run in the distributed mode, please execute:
-```
+```shell
 bash scripts/run_train_v2_distributed.sh
 ```
 , after updating `data_path` and `num_devices`, `rank_table_file`, `CANDIDATE_DEVICES` according to your running devices.
@@ -303,13 +303,13 @@ To replace the original CLIP used in SD with CN-CLIP, please:
 
 3. Run the vanilla training script after setting the `--custom_text_encoder` and `--config` arguments.
 
-```
+```shell
 python train_text_to_image.py --custom_text_encoder models/ms_cnclip_h14-d780480a.ckpt --config configs/v2-inference-cnclip.yaml ...
 ```
 
 After the training is finished, similarly, you can load the model and run Chinese text-to-image generation.
 
-```
+```shell
 python text_to_image.py --config configs/v2-inference-cnclip.yaml --ckpt_path {path to trained checkpoint} ...
 ```
 
@@ -322,17 +322,15 @@ It is simple to switch from SD 2.0 to SD 1.5 by setting the `--version` (`-v`) a
 
 ### SD1.5 Text-to-Image Generation
 
-Download [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) to `models/` folder. Then run,
-
-```
+```shell
+# Note: The pipeline automatically download the checkpoint file of the pretrained weight(here, sd_v1.5-d0ab7146.ckpt) to `models/` folder when setting `-v 1.5`.
 python text_to_image.py --prompt "A cute wolf in winter forest" -v 1.5
 ```
 
 ### Chinese Text-to-Image Generation
 
-Download [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) to `models/` folder. Then run,
-
-```
+```shell
+# Note: The pipeline automatically download the checkpoint file of the pretrained weight(here, wukong-huahua-ms.ckpt) to `models/` folder when setting  `-v 1.5-wukong`.
 python text_to_image.py --prompt "雪中之狼"  -v 1.5-wukong
 ```
 
@@ -340,7 +338,7 @@ python text_to_image.py --prompt "雪中之狼"  -v 1.5-wukong
 
 Download [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) to `models/` folder. Then run,
 
-```
+```shell
 python inpaint.py --image {path to input image} --mask {path to mask image} --prompt "图片编辑内容描述"  -v 1.5-wukong
 ```
 

@@ -15,7 +15,6 @@
 import logging
 import math
 
-from ldm.util import is_old_ms_version
 from tqdm import tqdm
 
 import mindspore as ms
@@ -367,10 +366,7 @@ def model_wrapper(
                 else:
                     c_in = ops.concat([unconditional_condition, condition])
                 noise_output = noise_pred_fn(x_in, t_in, cond=c_in)
-                if is_old_ms_version():
-                    noise_uncond, noise = ops.split(noise_output, output_num=2)
-                else:
-                    noise_uncond, noise = ops.split(noise_output, split_size_or_sections=noise_output.shape[0] // 2)
+                noise_uncond, noise = ops.split(noise_output, split_size_or_sections=noise_output.shape[0] // 2)
                 return noise_uncond + guidance_scale * (noise - noise_uncond)
 
     assert model_type in ["noise", "x_start", "v", "score"]

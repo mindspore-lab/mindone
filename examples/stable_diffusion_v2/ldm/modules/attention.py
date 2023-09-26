@@ -14,7 +14,6 @@
 # ============================================================================
 
 import numpy as np
-from ldm.util import is_old_ms_version
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -73,7 +72,7 @@ class FeedForward(nn.Cell):
         )
         self.net = nn.SequentialCell(
             project_in,
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
+            nn.Dropout(p=1 - dropout),
             nn.Dense(inner_dim, dim_out).to_float(dtype),
         )
 
@@ -131,7 +130,7 @@ class CrossAttention(nn.Cell):
         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_out = nn.SequentialCell(
             nn.Dense(inner_dim, query_dim).to_float(dtype),
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
+            nn.Dropout(p=1 - dropout),
         )
 
         self.enable_flash_attention = (

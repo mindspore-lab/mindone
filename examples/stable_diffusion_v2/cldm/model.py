@@ -1,9 +1,8 @@
 import logging
 import os
 
-from ldm.util import instantiate_from_config
+from ldm.util import instantiate_from_config, load_param_into_net_with_filter
 from omegaconf import OmegaConf
-from utils import model_utils
 
 import mindspore as ms
 
@@ -31,7 +30,7 @@ def load_model(model, ckpt_path):
     if os.path.exists(ckpt_path):
         param_dict = ms.load_checkpoint(ckpt_path)
         if param_dict:
-            param_not_load, ckpt_not_load = model_utils.load_param_into_net_with_filter(model, param_dict, filter=None)
+            param_not_load, ckpt_not_load = load_param_into_net_with_filter(model, param_dict, filter=None)
             if len(param_not_load) > 0:
                 logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")]))
     else:
