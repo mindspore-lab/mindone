@@ -35,7 +35,7 @@ class Config(object):
             "--cfg",
             dest="cfg_file",
             help="Path to the configuration file",
-            default="configs/train.yaml",
+            default="configs/train_exp02_motion_transfer.yaml",
         )
         parser.add_argument(
             "--init_method",

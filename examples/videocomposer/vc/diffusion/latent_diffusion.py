@@ -30,6 +30,7 @@ class LatentDiffusion(nn.Cell):
         clip_text_encoder: nn.Cell,  # cond_stage_config
         clip_image_encoder: nn.Cell = None,
         extra_conds=None,
+        conditions=None,
         use_fp16=True,
         num_timesteps_cond=1,
         cond_stage_trainable=False,
@@ -54,6 +55,8 @@ class LatentDiffusion(nn.Cell):
         super().__init__()
         # 0. pass args
         self.cond_stage_trainable = cond_stage_trainable  # clip text encoder trainable
+        self.conditions = conditions
+
         if extra_conds is None:
             extra_conds = {}
         self.extra_conds = extra_conds
@@ -62,8 +65,8 @@ class LatentDiffusion(nn.Cell):
             self.depth_clamp = extra_conds["depthmap"]["depth_clamp"]
             self.depth_std = extra_conds["depthmap"]["depth_std"]
         if "sketch" in extra_conds or "single_sketch" in extra_conds:
-            self.pidi_mean = ms.Tensor(extra_conds["sketch"]["sketch_mean"]).view(1, -1, 1, 1)
-            self.pidi_std = ms.Tensor(extra_conds["sketch"]["sketch_std"]).view(1, -1, 1, 1)
+            self.pidi_mean = ms.Tensor(extra_conds["sketch"]["sketch_mean"])
+            self.pidi_std = ms.Tensor(extra_conds["sketch"]["sketch_std"])
             self.pidinet = extra_conds["sketch"]["pidinet"]
             self.cleaner = extra_conds["sketch"]["cleaner"]
 
@@ -120,9 +123,6 @@ class LatentDiffusion(nn.Cell):
         self.uniform_int = ops.UniformInt()
         self.transpose = ops.Transpose()
         self.isnan = ops.IsNan()
-
-        # condition select
-        self.conditions = ["text", "motion", "style", "local_image"]
 
     # create noise scheduler
     def register_schedule(
@@ -219,8 +219,8 @@ class LatentDiffusion(nn.Cell):
         fps: ms.Tensor = None,
         style_image=None,
         motion_vectors=None,
-        single_image=None,  # extracted from the first frame of misc_images
-        mask_seq=None,
+        single_image=None,  # extracted from the first frame of misc_images, TODO: let the dataloader do the copy
+        masked=None,
         # depth_seq=None, # TODO: adjust to depth net inputs, containing preprocess
         # sketch_seq=None,
         # single_sketch=None, # use the first frame of sketch_seq
@@ -241,7 +241,7 @@ class LatentDiffusion(nn.Cell):
             depth_seq: two cases: 1) depth maps for each video frame postprocessed to shape (bs, F, 1, 384, 384).
             2)  video frames preprocessed to shape (bs, F, 3, 384, 384) for MiDas Net input.
             sketch_seq: similar
-            single_sketch: sketch of first frame
+            masked: the concatenation of [masked_video, masks], shape [bs, F, 4, 384, 384]
 
         Notes:
             single_image can be derived from misc_data from dataloader
@@ -268,17 +268,20 @@ class LatentDiffusion(nn.Cell):
         # 3.1 text embedding
         # (bs 77) -> (bs 77 1024)
         # print("D--: clip text encoder input shape: ", text_tokens.shape)
-        if self.cond_stage_trainable:
-            text_emb = self.clip_text_encoder(text_tokens)
+        if self.clip_text_encoder is not None and "text" in self.conditions:
+            if self.cond_stage_trainable:
+                text_emb = self.clip_text_encoder(text_tokens)
+            else:
+                text_emb = ops.stop_gradient(self.clip_text_encoder(text_tokens))
         else:
-            text_emb = ops.stop_gradient(self.clip_text_encoder(text_tokens))
+            text_emb = None
         # print("D--: clip text encoder output shape: ", text_emb.shape)
 
         # 3.2 image style embedding
         # (bs 3 224 224) -> (bs 1 1024) -> (bs 1 1 1024) -> (bs 1 1024)
         # ViT-h preprocess has been applied in dataloader
         # print("D--: style image input shape: ", style_image.shape)
-        if self.clip_image_encoder is not None:
+        if self.clip_image_encoder is not None and "image" in self.conditions:
             style_emb = ops.stop_gradient(self.clip_image_encoder(style_image))
             style_emb = ops.unsqueeze(style_emb, 1)
         else:
@@ -286,15 +289,21 @@ class LatentDiffusion(nn.Cell):
         # print("D--: style embedding shape: : ", style_emb.shape)
 
         # 3.3 motion vectors
-        # (bs f 2 h w) ->  (bs 2 f h w)
-        motion_vectors = ops.stop_gradient(ops.transpose(motion_vectors, (0, 2, 1, 3, 4)))
+        if "motion" in self.conditions:
+            # (bs f 2 h w) ->  (bs 2 f h w)
+            motion_vectors = ops.stop_gradient(ops.transpose(motion_vectors, (0, 2, 1, 3, 4)))
+        else:
+            motion_vectors = None
         # print("D--: motion vectors shape: : ", motion_vectors.shape)
 
         # 3.4 single image # TODO: change adapter to output single image
-        # (bs 1 c h w) -> (bs f c h w) -> (bs c f 384 384)
-        # TODO: if these tile and reshape operation is slow in MS graph, try to move to dataloader part and run with CPU.
-        single_image = ops.tile(single_image, (1, f, 1, 1, 1))  # ops.unsqueeze(single_image, 1),
-        single_image = ops.transpose(single_image, (0, 2, 1, 3, 4))
+        if "local_image" in self.conditions:
+            # (bs 1 c h w) -> (bs f c h w) -> (bs c f 384 384)
+            # TODO: if these tile and reshape operation is slow in MS graph, try to move to dataloader part and run with CPU.
+            single_image = ops.tile(single_image, (1, f, 1, 1, 1))  # ops.unsqueeze(single_image, 1),
+            single_image = ops.transpose(single_image, (0, 2, 1, 3, 4))
+        else:
+            single_image = None
         # print("D--: single image shape : ", single_image.shape)
 
         # 3.5 fps
@@ -325,6 +334,22 @@ class LatentDiffusion(nn.Cell):
             sketch = None
 
         # 3.8 single sketch.
+        if "single_sketch" in self.conditions:
+            single_sketch = sketch[:, :, :1].tile((1, 1, f, 1, 1))
+        else:
+            single_sketch = None
+
+        # 3.9 mask.
+        if "mask" in self.conditions:
+            masked = masked.transpose((0, 2, 1, 3, 4))  # b f c h w -> b c f h w
+        else:
+            masked = None
+
+        # # 3.10 canny.  canny is not used by UNetSD
+        # if "canny" in self.conditions:
+        #     canny = canny.transpose((0, 2, 1, 3, 4))  # b f c h w -> b c f h w
+        # else:
+        canny = None
         # 4. diffusion forward and loss compute
         loss = self.p_losses(
             z,
@@ -336,6 +361,9 @@ class LatentDiffusion(nn.Cell):
             fps=fps,
             depth=depth,
             sketch=sketch,
+            single_sketch=single_sketch,
+            masked=masked,
+            canny=canny,
         )
 
         return loss
@@ -352,6 +380,9 @@ class LatentDiffusion(nn.Cell):
         fps=None,  # TODO: add more conditions
         depth=None,
         sketch=None,
+        single_sketch=None,
+        masked=None,
+        canny=None,
     ):
         # 4. add noise to latent z
         noise = msnp.randn(x_start.shape)
@@ -369,6 +400,9 @@ class LatentDiffusion(nn.Cell):
             fps=fps,
             depth=depth,
             sketch=sketch,
+            single_sketch=single_sketch,
+            masked=masked,
+            canny=canny,
         )
 
         loss_simple = self.get_loss(noise_pred, noise, mean=False).mean([1, 2, 3, 4])
