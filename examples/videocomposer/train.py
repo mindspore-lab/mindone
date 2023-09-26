@@ -90,8 +90,8 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
     print("===> Conditions used for training: ", cfg.conditions_for_train)
-    if not cfg.root_dir.startswith("/"): 
-        cfg.root_dir = os.path.join(__dir__, cfg.root_dir) # turn to abs path for modelarts running
+    if not cfg.root_dir.startswith("/"):
+        cfg.root_dir = os.path.join(__dir__, cfg.root_dir)  # turn to abs path for modelarts running
 
 
 def main(cfg):
