@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import yaml
 from ldm.data.dataset_db import load_data
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
@@ -13,7 +14,7 @@ from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.modules.train.tools import parse_with_config, set_random_seed
+from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import instantiate_from_config, load_pretrained_model, str2bool
 from omegaconf import OmegaConf
@@ -32,9 +33,7 @@ logger = logging.getLogger(__name__)
 
 def init_env(args):
     set_random_seed(args.seed)
-    mode_dict = {0: context.GRAPH_MODE, 1: context.PYNATIVE_MODE}
-    mode = mode_dict[vars(args).get("mode", 0)]
-    ms.set_context(mode=mode)  # needed for MS2.0
+    ms.set_context(mode=args.mode)  # needed for MS2.0
     if args.use_parallel:
         init()
         device_id = int(os.getenv("DEVICE_ID"))
@@ -57,7 +56,7 @@ def init_env(args):
         args.rank = rank_id
 
     context.set_context(
-        mode=mode,
+        mode=args.mode,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
@@ -67,16 +66,22 @@ def init_env(args):
     return rank_id, device_id, device_num
 
 
+def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
+    actions_dest = [action.dest for action in parser._actions]
+    defaults_key = parser._defaults.keys()
+    for k in cfgs.keys():
+        if k not in actions_dest and k not in defaults_key:
+            raise KeyError(f"{k} does not exist in ArgumentParser!")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="A training script for dreambooth.")
 
     parser.add_argument(
-        "-v",
-        "--version",
+        "--train_config",
+        default="",
         type=str,
-        nargs="?",
-        default="2.1",
-        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
+        help="train config path to load a yaml file that override the default arguments",
     )
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
@@ -94,16 +99,10 @@ def parse_args():
         "potentially better generation quality.",
     )
     parser.add_argument(
-        "--train_config",
-        default="configs/train_config.json",
-        type=str,
-        help="Specify the path to the train config file",
+        "--model_config", default="configs/train_dreambooth_sd_v2.yaml", type=str, help="model config path"
     )
     parser.add_argument(
-        "--pretrained_model_path", default="", type=str, help="Specify the directory of the pretrained model"
-    )
-    parser.add_argument(
-        "--pretrained_model_file", default="", type=str, help="Specify the filename of the pretrained model"
+        "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
     )
     parser.add_argument(
         "--output_path",
@@ -115,21 +114,18 @@ def parse_args():
         "--instance_data_dir",
         type=str,
         default=None,
-        required=True,
         help="Specify the folder containing the training data of instance images.",
     )
     parser.add_argument(
         "--class_data_dir",
         type=str,
         default=None,
-        required=False,
         help="Specify the folder containing the training data of class images.",
     )
     parser.add_argument(
         "--instance_prompt",
         type=str,
         default=None,
-        required=True,
         help="Specify the prompt with an identifier that specifies the instance.",
     )
     parser.add_argument(
@@ -137,6 +133,13 @@ def parse_args():
         type=str,
         default=None,
         help="Specify the prompt to identify images in the same class as the provided instance images.",
+    )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=9.0,
+        help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
+        "Simplified: `uc + scale * (uc - prompt)`",
     )
 
     # loss
@@ -232,7 +235,17 @@ def parse_args():
     )
     parser.add_argument("--seed", type=int, default=3407, help="Specify a seed for reproducible training.")
     parser.add_argument("--epochs", type=int, default=8)
+
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+    default_args = parser.parse_args()
+    if default_args.train_config:
+        default_args.train_config = os.path.join(abs_path, default_args.train_config)
+        with open(default_args.train_config, "r") as f:
+            cfg = yaml.safe_load(f)
+            _check_cfgs_in_parser(cfg, parser)
+            parser.set_defaults(**cfg)
     args = parser.parse_args()
+    args.model_config = os.path.join(abs_path, args.model_config)
 
     if args.instance_data_dir is None:
         raise ValueError("You must specify a train data directory.")
@@ -260,9 +273,6 @@ def parse_args():
         if not args.train_text_encoder:
             raise ValueError("When `lora_ft_text_encoder` is True, `train_text_encoder` has to be True")
 
-    args = parse_with_config(args)
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
-    args.model_config = os.path.join(abs_path, args.model_config)
     logger.info(args)
     return args
 
@@ -278,8 +288,7 @@ def generate_class_images(args):
         return None
     logger.info("Start generating class images. ")
     model = instantiate_from_config(args.model_config)
-    pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
-    load_pretrained_model(pretrained_ckpt, model)
+    load_pretrained_model(args.pretrained_model_path, model)
     model.set_train(False)
     for param in model.get_parameters():
         param.requires_grad = False
@@ -291,12 +300,9 @@ def generate_class_images(args):
         sample_dataset = [args.class_prompt] * (
             N_prompts + 1 if num_new_images % args.sample_batch_size != 0 else N_prompts
         )
-    else:
-        logger.info(f"Number of class images to sample: {num_new_images}.")
     start_time = time.time()
     start_code = None
     for prompt in sample_dataset:
-        scale = 7.5 if args.version.startswith("1.") else 9.0
         uc_prompts = args.sample_batch_size * [""]
         c_prompts = args.sample_batch_size * [prompt]
         uc = model.get_learned_conditioning(model.tokenize(uc_prompts))
@@ -308,7 +314,7 @@ def generate_class_images(args):
             batch_size=args.sample_batch_size,
             shape=shape,
             verbose=False,
-            unconditional_guidance_scale=scale,
+            unconditional_guidance_scale=args.scale,
             unconditional_conditioning=uc,
             eta=0.0,  # deterministic sampling
             x_T=start_code,
@@ -354,8 +360,7 @@ def main(args):
         model_config["params"]["cond_stage_trainable"] = False  # only lora params are trainable
     model_config["params"]["prior_loss_weight"] = args.prior_loss_weight if args.with_prior_preservation else 0.0
     latent_diffusion_with_loss = instantiate_from_config(model_config)
-    pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
-    load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+    load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
 
     # lora injection
     if args.use_lora:
@@ -410,7 +415,14 @@ def main(args):
         with_prior_preservation=args.with_prior_preservation,
     )
 
-    optimizer = build_optimizer(latent_diffusion_with_loss, args, args.start_learning_rate)
+    # build optimizer
+    optimizer = build_optimizer(
+        model=latent_diffusion_with_loss,
+        optim=args.optim,
+        betas=args.betas,
+        weight_decay=args.weight_decay,
+        lr=args.start_learning_rate,
+    )
 
     loss_scaler = DynamicLossScaleUpdateCell(
         loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
@@ -476,7 +488,6 @@ def main(args):
                 f"Instance Prompt: {args.instance_prompt}",
                 f"Class Data path: {args.class_data_dir}",
                 f"Class Prompt: {args.class_prompt}",
-                f"Model: StableDiffusion v{args.version}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
                 f"Use LoRA: {args.use_lora}",
                 f"LoRA rank: {args.lora_rank}",
