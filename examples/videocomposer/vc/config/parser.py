@@ -96,9 +96,13 @@ class Config(object):
         parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
         parser.add_argument(
             "--dataset_sink_mode",
-            default=True,
             type=str2bool,
             help="use dataset_sink_mode in model.train. Enable it can boost the performance but step_end callback will be disabled.",
+        )
+        parser.add_argument(
+            "--use_recompute",
+            type=str2bool,
+            help="use recompute in UNet. Enable it can slow down the speed but save some memory.",
         )
         parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
         parser.add_argument(
@@ -115,7 +119,8 @@ class Config(object):
     def _update_from_args(self, cfg_dict):
         args = self.args
         for var in vars(args):
-            cfg_dict[var] = getattr(args, var)
+            if getattr(args, var) is not None:
+                cfg_dict[var] = getattr(args, var)  # overwrite the key argument if provided by the command
         return cfg_dict
 
     def _load_yaml(self, args, file_name=""):

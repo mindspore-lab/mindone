@@ -9,7 +9,11 @@ yaml_file=configs/${task_name}.yaml
 output_path=outputs
 rm -rf ${output_path:?}/${task_name:?}
 mkdir -p ${output_path:?}/${task_name:?}
-export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}
+
+# uncomment this following line for caching and loading the compiled graph, which is saved in ${output_path}/${task_name}_cache
+# export MS_COMPILER_CACHE_ENABLE=1
+mkdir -p ${output_path:?}/${task_name:?}_cache
+export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}_cache
 
 nohup python -u train.py  \
      -c $yaml_file  \
