@@ -19,7 +19,7 @@ from vc.diffusion.latent_diffusion import LatentDiffusion
 from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
 from vc.trainer.lr_scheduler import build_lr_scheduler
 from vc.trainer.optim import build_optimizer
-from vc.utils import CUSTOM_BLACK_LIST, get_abspath_of_weights, setup_logger
+from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weights, setup_logger
 
 import mindspore as ms
 from mindspore import Model, context
@@ -28,7 +28,9 @@ from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
-sys.path.append("../stable_diffusion_v2/")
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
+
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
@@ -88,6 +90,11 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
     print("===> Conditions used for training: ", cfg.conditions_for_train)
+
+    # turn to abs path if it's relative path, for modelarts running
+    cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
+    cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
+    cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
 
 
 def main(cfg):
@@ -325,7 +332,7 @@ def main(cfg):
         )
         key_info += "\n" + "=" * 50
         logger.info(key_info)
-        shutil.copyfile("configs/train_base.py", os.path.join(cfg.output_dir, "train_base.py"))
+        shutil.copyfile(os.path.join(__dir__, "configs/train_base.py"), os.path.join(cfg.output_dir, "train_base.py"))
         shutil.copyfile(cfg.cfg_file, os.path.join(cfg.output_dir, "train.yaml"))
 
     # 6. train
