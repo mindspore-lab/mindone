@@ -19,16 +19,18 @@ from vc.diffusion.latent_diffusion import LatentDiffusion
 from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
 from vc.trainer.lr_scheduler import build_lr_scheduler
 from vc.trainer.optim import build_optimizer
-from vc.utils import get_abspath_of_weights, setup_logger
+from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weights, setup_logger
 
 import mindspore as ms
 from mindspore import Model
-from mindspore.amp import auto_mixed_precision
+from mindspore.amp import custom_mixed_precision
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
-sys.path.append("../stable_diffusion_v2/")
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
+
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
@@ -88,6 +90,11 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
     print("===> Conditions used for training: ", cfg.conditions_for_train)
+
+    # turn to abs path if it's relative path, for modelarts running
+    cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
+    cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
+    cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
 
 
 def main(cfg):
@@ -175,32 +182,39 @@ def main(cfg):
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
         )
-        pidinet = pidinet.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            pidinet, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        pidinet = pidinet.set_train(False)
         for _, param in pidinet.parameters_and_names():
             param.requires_grad = False
         # cleaner
         cleaner = sketch_simplification_gan(
             pretrained=True, ckpt_path=get_abspath_of_weights(cfg.sketch_simplification_checkpoint)
         )
-        cleaner = cleaner.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            cleaner, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        cleaner = cleaner.set_train(False)
         for _, param in cleaner.parameters_and_names():
             param.requires_grad = False
         extra_conds["sketch"] = {
             "pidinet": pidinet,
-            "sketch_mean": cfg.sketch_mean,
-            "sketch_std": cfg.sketch_std,
+            "sketch_mean": np.array(cfg.sketch_mean).reshape((1, -1, 1, 1)),
+            "sketch_std": np.array(cfg.sketch_std).reshape((1, -1, 1, 1)),
             "cleaner": cleaner,
         }
 
     # 2.4 2) depth - midas
     if "depthmap" in cfg.conditions_for_train:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
-        midas = midas.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            midas, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        midas = midas.set_train(False)
         for _, param in midas.parameters_and_names():
             param.requires_grad = False
         extra_conds["depthmap"] = {"midas": midas, "depth_clamp": cfg.depth_clamp, "depth_std": cfg.depth_std}
-
-        auto_mixed_precision(midas, amp_level="O3")
 
     # count num params for each network
     param_nums = {
@@ -225,6 +239,7 @@ def main(cfg):
         vae,
         clip_text_encoder,
         clip_image_encoder=clip_image_encoder,
+        conditions=cfg.conditions_for_train,
         extra_conds=extra_conds,
         use_fp16=cfg.use_fp16,
         timesteps=cfg.num_timesteps,
@@ -259,7 +274,7 @@ def main(cfg):
         optimizer=optimizer,
         scale_sense=loss_scaler,
         drop_overflow_update=True,
-        gradient_accumulation_steps=1,  # #args.gradient_accumulation_steps,
+        gradient_accumulation_steps=cfg.gradient_accumulation_steps,
         clip_grad=False,  # args.clip_grad,
         clip_norm=1.0,  # args.max_grad_norm,
         ema=None,  # TODO: add EMA
@@ -282,7 +297,7 @@ def main(cfg):
             ckpt_save_dir=cfg.output_dir,
             ema=None,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=3,
+            ckpt_max_keep=cfg.ckpt_max_keep,
             step_mode=False,
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
@@ -317,7 +332,7 @@ def main(cfg):
         )
         key_info += "\n" + "=" * 50
         logger.info(key_info)
-        shutil.copyfile("configs/train_base.py", os.path.join(cfg.output_dir, "train_base.py"))
+        shutil.copyfile(os.path.join(__dir__, "configs/train_base.py"), os.path.join(cfg.output_dir, "train_base.py"))
         shutil.copyfile(cfg.cfg_file, os.path.join(cfg.output_dir, "train.yaml"))
 
     # 6. train

@@ -196,7 +196,7 @@ class EvalSaveCallback(Callback):
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(
-                    self.net_to_save, None, ckpt_name=f"sd-{cur_epoch}.ckpt", append_dict=append_dict
+                    self.net_to_save, None, ckpt_name=f"{self.model_name}-{cur_epoch}.ckpt", append_dict=append_dict
                 )
 
                 ms.save_checkpoint(

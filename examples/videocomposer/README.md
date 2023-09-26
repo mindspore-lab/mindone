@@ -57,7 +57,7 @@ To run all video generation tasks, please run
 bash run_net.sh
 ```
 
-To run a single task, you can pick the corresponding snippet of code in `run_net`.sh, such as
+To run a single task, you can pick the corresponding snippet of code in `run_net.sh`, such as
 
 ```shell
 python run_net.py\
@@ -81,23 +81,69 @@ You can adjust the arguemnts in `vc/config/base.py` (lower-priority) or `configs
 
 ## Training
 
-### Standalone Training
-To run training on a sepecifc task, please run
+### Standalone Training:
+To run training on a specific task, please refer to `run_train.sh`:
+
+```bash
+export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERROR, 3:FATAL
+export HCCL_CONNECT_TIMEOUT=6000
+export ASCEND_GLOBAL_LOG_LEVEL=1  # Global log message level for Ascend. Setting it to 0 can slow down the process
+export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
+export DEVICE_ID=0  # The device id to runing training on
+
+task_name=train_exp02_motion_transfer  # the default training task
+yaml_file=configs/${task_name}.yaml
+output_path=outputs
+rm -rf ${output_path:?}/${task_name:?}
+mkdir -p ${output_path:?}/${task_name:?}
+export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}
+
+nohup python -u train.py  \
+     -c $yaml_file  \
+     --output_dir $output_path/$task_name \
+    > $output_path/$task_name/train.log 2>&1 &
 
 ```
-python train.py --cfg configs/train{task_name}.yaml
+Under `configs/`, we provide several tasks' yaml files:
+```bash
+configs/
+├── train_exp02_motion_transfer_vs_style.yaml
+├── train_exp02_motion_transfer.yaml
+├── train_exp03_sketch2video_style.yaml
+├── train_exp04_sketch2video_wo_style.yaml
+├── train_exp05_text_depths_wo_style.yaml
+└── train_exp06_text_depths_vs_style.yaml
 ```
 
-E.g. `python train.py configs/train_exp02_motion_style.yaml `
+Taking `configs/train_exp02_motion_transfer.yaml` as an example, there is one critical argument:
+```yaml
+video_compositions: ['text', 'mask', 'depthmap', 'sketch', 'single_sketch', 'motion', 'image', 'local_image']
+```
+`video_compositions` defines all available conditions:
+- `text`: the text embedding.
+- `mask`: the masked video frames.
+- `depthmap`: the depth images extracted from visual frames.
+- `sketch`: the sketch images extracted from visual frames.
+- `single_sketch`: the first sketch image from `sketch`.
+- `motion`: the motion vectors extracted from the training video.
+- `image`: the image embedding used as an image style vector.
+- `local_image`: the first frame extracted from the training video.
 
+However, not all conditions are included in the training process in each of tasks above. As defined in `configs/train_exp02_motion_transfer.yaml`,
+
+```yaml
+conditions_for_train: ['text', 'local_image', 'motion']
+```
+`conditions_for_train` defines the three conditions used for training which are `['text', 'local_image', 'motion']`.
 
 ### Distributed Training
 
 Please generate the hccl config file on your running server at first referring to [this tutorial](https://github.com/mindspore-lab/mindocr/blob/main/docs/cn/tutorials/distribute_train.md#12-%E9%85%8D%E7%BD%AErank_table_file%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83). Then update `run_train_distribute.sh` by setting
-
 ```
 rank_table_file=path/to/hccl_8p_01234567_xxx.json
 ```
+
+After that, please set `task_name` according to your target task. The default training task is `train_exp02_motion_transfer`.
 
 Then execute,
 ```

@@ -7,6 +7,7 @@ import logging
 import os
 import shutil
 
+import yaml
 from ldm.data.dataset import build_dataset
 from ldm.data.dataset_dist import split_and_sync_data
 from ldm.modules.logger import set_logger
@@ -17,7 +18,7 @@ from ldm.modules.train.ema import EMA
 from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.modules.train.tools import parse_with_config, set_random_seed
+from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
@@ -56,7 +57,7 @@ def init_env(args):
         print(dict(zip(var_info, var_value)), flush=True)
 
         if args.enable_modelarts:
-            split_and_sync_data(args, device_num, rank_id)
+            split_and_sync_data(args.json_data_path, args.num_workers, device_num, rank_id)
     else:
         device_num = 1
         device_id = int(os.getenv("DEVICE_ID", 0))
@@ -64,7 +65,7 @@ def init_env(args):
         args.rank = rank_id
 
     ms.set_context(
-        mode=ms.GRAPH_MODE,  # needed for MS2.0
+        mode=args.mode,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",  # TODO: need to remove it or change to 60GB on 910B
@@ -108,20 +109,6 @@ def load_pretrained_model(pretrained_ckpt, net):
         logger.warning(f"Checkpoint file {pretrained_ckpt} dose not exist!!!")
 
 
-def load_pretrained_model_clip_and_vae(pretrained_ckpt, net):
-    new_param_dict = {}
-    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
-    if os.path.exists(pretrained_ckpt):
-        param_dict = load_checkpoint(pretrained_ckpt)
-        for key in param_dict:
-            if key.startswith("first") or key.startswith("cond"):
-                new_param_dict[key] = param_dict[key]
-        param_not_load = load_param_into_net(net, new_param_dict)
-        logger.info("Params not load: {}".format(param_not_load))
-    else:
-        logger.warning(f"Checkpoint file {pretrained_ckpt} dose not exist!!!")
-
-
 def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
     new_param_dict = {}
     logger.info(f"Loading pretrained model from {pretrained_ckpt}, {cnclip_ckpt}")
@@ -139,6 +126,128 @@ def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
         logger.warning(f"Checkpoint file {pretrained_ckpt}, {cnclip_ckpt} dose not exist!!!")
 
 
+def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
+    actions_dest = [action.dest for action in parser._actions]
+    defaults_key = parser._defaults.keys()
+    for k in cfgs.keys():
+        if k not in actions_dest and k not in defaults_key:
+            raise KeyError(f"{k} does not exist in ArgumentParser!")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--train_config",
+        default="",
+        type=str,
+        help="train config path to load a yaml file that override the default arguments",
+    )
+    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--replace_small_images",
+        default=True,
+        type=str2bool,
+        help="replace the small-size images with other training samples",
+    )
+    parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
+    parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
+    parser.add_argument(
+        "--json_data_path",
+        default="mindone/examples/stable_diffusion_v2/ldm/data/num_samples_64_part.json",
+        type=str,
+        help="the path of num_samples.json containing a dictionary with 64 parts. "
+        "Each part is a large dictionary containing counts of samples of 533 tar packages.",
+    )
+    parser.add_argument("--data_path", default="dataset", type=str, help="data path")
+    parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
+    parser.add_argument(
+        "--resume",
+        default=False,
+        type=str,
+        help="resume training, can set True or path to resume checkpoint.(default=False)",
+    )
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
+    parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
+    parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")
+    parser.add_argument(
+        "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
+    )
+    parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
+    parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether to apply lora finetune to unet")
+    parser.add_argument(
+        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder"
+    )
+    parser.add_argument(
+        "--lora_rank",
+        default=4,
+        type=int,
+        help="lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.",
+    )
+    parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
+
+    parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
+    parser.add_argument(
+        "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
+    )
+    parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
+    parser.add_argument("--seed", default=3407, type=int, help="data path")
+    parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
+    parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--callback_size", default=1, type=int, help="callback size.")
+    parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
+    parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
+    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--epochs", default=10, type=int, help="epochs")
+    parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
+    parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
+    parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
+    parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
+    # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
+    parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
+    parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
+    parser.add_argument(
+        "--max_grad_norm",
+        default=1.0,
+        type=float,
+        help="max gradient norm for clipping, effective when `clip_grad` enabled.",
+    )
+
+    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument(
+        "--step_mode",
+        default=False,
+        type=str2bool,
+        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+    )
+    parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
+    parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
+    parser.add_argument("--image_size", default=512, type=int, help="images size")
+    parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
+
+    parser.add_argument(
+        "--log_level",
+        type=str,
+        default="logging.INFO",
+        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
+    )
+
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+    default_args = parser.parse_args()
+    if default_args.train_config:
+        default_args.train_config = os.path.join(abs_path, default_args.train_config)
+        with open(default_args.train_config, "r") as f:
+            cfg = yaml.safe_load(f)
+            _check_cfgs_in_parser(cfg, parser)
+            parser.set_defaults(**cfg)
+    args = parser.parse_args()
+    args.model_config = os.path.join(abs_path, args.model_config)
+
+    logger.info(args)
+    return args
+
+
 def main(args):
     if args.profile:
         profiler = ms.Profiler(output_path="./profiler_data")
@@ -150,15 +259,28 @@ def main(args):
 
     # build model
     latent_diffusion_with_loss = build_model_from_config(args.model_config)
-    pretrained_ckpt = os.path.join(args.pretrained_model_path, args.pretrained_model_file)
     if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
-        load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, args.custom_text_encoder, latent_diffusion_with_loss)
+        load_pretrained_model_vae_unet_cnclip(
+            args.pretrained_model_path, args.custom_text_encoder, latent_diffusion_with_loss
+        )
     else:
-        load_pretrained_model(pretrained_ckpt, latent_diffusion_with_loss)
+        load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
-    dataset = build_dataset(args, device_num, rank_id, tokenizer)
+    dataset = build_dataset(
+        data_path=args.data_path,
+        train_batch_size=args.train_batch_size,
+        tokenizer=tokenizer,
+        image_size=args.image_size,
+        image_filter_size=args.image_filter_size,
+        device_num=device_num,
+        rank_id=rank_id,
+        random_crop=args.random_crop,
+        filter_small_size=args.filter_small_size,
+        replace=args.replace_small_images,
+        enable_modelarts=args.enable_modelarts,
+    )
 
     # lora injection
     if args.use_lora:
@@ -198,6 +320,8 @@ def main(args):
                 f"Will force decay_steps to be set to 1."
             )
             args.decay_steps = 1
+
+    # build learning rate scheduler
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
         scheduler=args.scheduler,
@@ -207,7 +331,15 @@ def main(args):
         decay_steps=args.decay_steps,
         num_epochs=args.epochs,
     )
-    optimizer = build_optimizer(latent_diffusion_with_loss, args, lr)
+
+    # build optimizer
+    optimizer = build_optimizer(
+        model=latent_diffusion_with_loss,
+        optim=args.optim,
+        betas=args.betas,
+        weight_decay=args.weight_decay,
+        lr=lr,
+    )
 
     loss_scaler = DynamicLossScaleUpdateCell(
         loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
@@ -286,10 +418,9 @@ def main(args):
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
-                "MindSpore mode[GRAPH(0)/PYNATIVE(1)]: 0",
+                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Model: StableDiffusion v{args.version}",
                 f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
@@ -311,7 +442,6 @@ def main(args):
         logger.info("Start training...")
         # backup config files
         shutil.copyfile(args.model_config, os.path.join(args.output_path, "model_config.yaml"))
-        shutil.copyfile(args.train_config, os.path.join(args.output_path, "train_config.yaml"))
 
     # train
     model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
@@ -322,106 +452,5 @@ def main(args):
 
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-v",
-        "--version",
-        type=str,
-        nargs="?",
-        default="2.1",
-        help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
-    )
-    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-    parser.add_argument(
-        "--replace_small_images",
-        default=True,
-        type=str2bool,
-        help="replace the small-size images with other training samples",
-    )
-    parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
-    parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
-    parser.add_argument(
-        "--json_data_path",
-        default="mindone/examples/stable_diffusion_v2/ldm/data/num_samples_64_part.json",
-        type=str,
-        help="the path of num_samples.json containing a dictionary with 64 parts. "
-        "Each part is a large dictionary containing counts of samples of 533 tar packages.",
-    )
-    parser.add_argument("--data_path", default="dataset", type=str, help="data path")
-    parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
-    parser.add_argument(
-        "--resume",
-        default=False,
-        type=str,
-        help="resume training, can set True or path to resume checkpoint.(default=False)",
-    )
-    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
-    parser.add_argument("--train_config", default="configs/train_config.json", type=str, help="train config path")
-    parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
-    parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")
-    parser.add_argument("--pretrained_model_path", default="", type=str, help="pretrained model directory")
-    parser.add_argument("--pretrained_model_file", default="", type=str, help="pretrained model file name")
-    parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
-    parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether to apply lora finetune to unet")
-    parser.add_argument(
-        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder"
-    )
-    parser.add_argument(
-        "--lora_rank",
-        default=4,
-        type=int,
-        help="lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.",
-    )
-    parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
-
-    parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
-    parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
-    parser.add_argument("--seed", default=3407, type=int, help="data path")
-    parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
-    parser.add_argument("--callback_size", default=1, type=int, help="callback size.")
-    parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
-    parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
-    parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
-    parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
-    parser.add_argument("--epochs", default=10, type=int, help="epochs")
-    parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
-    parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
-    parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
-    parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
-    # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
-    parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
-    parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
-    parser.add_argument(
-        "--max_grad_norm",
-        default=1.0,
-        type=float,
-        help="max gradient norm for clipping, effective when `clip_grad` enabled.",
-    )
-
-    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
-    parser.add_argument(
-        "--step_mode",
-        default=False,
-        type=str2bool,
-        help="whether save ckpt by steps. If False, save ckpt by epochs.",
-    )
-    parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
-    parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
-    parser.add_argument("--image_size", default=512, type=int, help="images size")
-    parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
-
-    parser.add_argument(
-        "--log_level",
-        type=str,
-        default="logging.INFO",
-        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
-    )
-
-    args = parser.parse_args()
-    args = parse_with_config(args)
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
-    args.model_config = os.path.join(abs_path, args.model_config)
-
-    logger.info(args)
+    args = parse_args()
     main(args)

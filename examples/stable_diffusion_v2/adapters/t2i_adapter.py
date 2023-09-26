@@ -1,7 +1,9 @@
 from collections import OrderedDict
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
-from mindspore import Parameter, Tensor, amp, load_checkpoint, load_param_into_net, nn, ops
+from mindspore import Parameter, Tensor, amp
+from mindspore import dtype as ms_dtype
+from mindspore import load_checkpoint, load_param_into_net, nn, ops
 
 from examples.stable_diffusion_v2.tools._common.clip.clip_modules import QuickGELU
 
@@ -47,7 +49,7 @@ def get_adapter(condition: str, checkpoint: Optional[str] = None, use_fp16: bool
             )
 
     if use_fp16:
-        adapter = amp.auto_mixed_precision(adapter, "O3")
+        adapter = amp.auto_mixed_precision(adapter, "O2")
 
     return adapter
 
@@ -235,3 +237,69 @@ class StyleT2IAdapter(nn.Cell):
         x = x @ self.proj  # batch matmul
 
         return x
+
+
+class CombinedAdapter(nn.Cell):
+    """
+    Combine individual T2I-Adapters to infer on multiple conditions by summing up their weighted outputs.
+    Also can be used with a single Adapter if features scaling (weighting) is desired.
+
+    Args:
+        adapters: A list of T2I-Adapters to combine.
+        weights: A list of weights for each adapter. The larger the weight, the more aligned the generated image
+                 and condition will be, but the generated quality may be reduced.
+        output_fp16: Whether the output should be float16. Default: True.
+
+    Raises:
+        AssertionError: If the number of adapters and weights do not match.
+    """
+
+    def __init__(self, adapters: List[nn.Cell], weights: List[float], output_fp16: bool = True):
+        super().__init__()
+        assert len(adapters) == len(
+            weights
+        ), f"Number of adapters ({len(adapters)}) and weights ({len(weights)}) should match"
+
+        self._adapters = adapters
+        self._weights = weights
+        self._out_cast = ms_dtype.float16 if output_fp16 else ms_dtype.float32
+
+        self._regular_ids, self._style_ids = [], []
+        for i, adapter in enumerate(adapters):
+            # if an adapter is with automatic mixed precision applied
+            instance_type = type(adapter._backbone if hasattr(adapter, "_backbone") else adapter)
+            if isinstance(instance_type, T2IAdapter):
+                self._regular_ids.append(i)
+            if isinstance(instance_type, StyleT2IAdapter):
+                self._style_ids.append(i)
+
+    def construct(self, conds: List[Tensor]) -> Tuple[Union[List[Tensor], None], Union[Tensor, None]]:
+        """
+        Combined adapters inference.
+
+        Args:
+            conds: A list of tensors representing conditions.
+
+        Returns:
+            A tuple containing the feature map and the context (for style transfer).
+        """
+        feature_map = None
+        feature_seq = None
+
+        if self._regular_ids:
+            i = self._regular_ids[0]
+            feature_map = [feat * self._weights[i] for feat in self._adapters[i](conds[i])]
+            for i in self._regular_ids[1:]:
+                feature_map = [
+                    feature_map[j] + feat * self._weights[i] for j, feat in enumerate(self._adapters[i](conds[i]))
+                ]
+
+            # TODO: in the original implementation adapter features are applied to both
+            #  unconditional and conditional guidance
+            feature_map = [ops.cat((feat, feat)).astype(self._out_cast) for feat in feature_map]
+
+        if self._style_ids:
+            feature_seq = [self._adapters[i](conds[i]) * self._weights[i] for i in self._style_ids]
+            feature_seq = ops.cat(feature_seq, axis=1).astype(self._out_cast)
+
+        return feature_map, feature_seq
