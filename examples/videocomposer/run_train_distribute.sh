@@ -18,6 +18,8 @@ export RANK_SIZE=$num_devices
 RANK_TABLE_FILE=$rank_table_file
 export RANK_TABLE_FILE=${RANK_TABLE_FILE}
 echo "RANK_TABLE_FILE=${RANK_TABLE_FILE}"
+export MS_COMPILER_CACHE_ENABLE=1
+#export MS_COMPILER_CACHE_PATH=/cache
 
 # remove files
 rm -rf ${output_dir:?}

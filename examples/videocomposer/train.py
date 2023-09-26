@@ -90,6 +90,8 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
     print("===> Conditions used for training: ", cfg.conditions_for_train)
+    if not cfg.root_dir.startswith("/"): 
+        cfg.root_dir = os.path.join(__dir__, cfg.root_dir) # turn to abs path for modelarts running
 
 
 def main(cfg):
@@ -240,7 +242,6 @@ def main(cfg):
     # auto_mixed_precision(ldm_with_loss, amp_level="O3") # Note: O3 will lead to gradient overflow
 
     # 4. build training dataset
-    
     dataloader = build_dataset(cfg, device_num, rank_id, tokenizer)
     num_batches = dataloader.get_dataset_size()
 
