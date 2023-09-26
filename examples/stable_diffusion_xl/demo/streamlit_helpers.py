@@ -3,7 +3,8 @@
 import os
 
 import streamlit as st
-from gm.helpers import create_model
+from gm.helpers import create_model, get_interactive_image, load_img
+from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
 from gm.modules.diffusionmodules.sampler import EulerEDMSampler
 from omegaconf import OmegaConf
 
@@ -72,7 +73,7 @@ def init_save_locally(_dir, init_value: bool = False):
     return save_locally, save_path
 
 
-def init_sampling(
+def init_sampling_with_streamlit(
     key=1,
     img2img_strength=1.0,
     specify_num_samples=True,
@@ -110,9 +111,12 @@ def init_sampling(
     sampler = get_sampler(sampler, steps, discretization_config, guider_config, key=key)
 
     if img2img_strength < 1.0:
-        raise NotImplementedError
+        st.warning(f"Wrapping {sampler.__class__.__name__} with Img2ImgDiscretizationWrapper")
+        sampler.discretization = Img2ImgDiscretizationWrapper(sampler.discretization, strength=img2img_strength)
     if stage2strength is not None:
-        raise NotImplementedError
+        sampler.discretization = Txt2NoisyDiscretizationWrapper(
+            sampler.discretization, strength=stage2strength, original_steps=steps
+        )
 
     return sampler, num_rows, num_cols
 
@@ -208,3 +212,13 @@ def get_sampler(sampler_name, steps, discretization_config, guider_config, key=1
         raise ValueError(f"unknown sampler {sampler_name}!")
 
     return sampler
+
+
+def load_img_with_streamlit(display=True, key=None):
+    image = st.file_uploader("Input", type=["jpg", "JPEG", "png"], key=key)
+    image = get_interactive_image(image)
+    if image is None:
+        return None
+    if display:
+        st.image(image)
+    return load_img(image)

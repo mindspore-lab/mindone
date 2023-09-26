@@ -32,7 +32,8 @@ class Upsample(nn.Cell):
 
     def construct(self, x):
         # x = ops.interpolate(x, scale_factor=2.0, mode="nearest")
-        x = ops.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
+        # x = ops.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
+        x = ops.ResizeNearestNeighbor(size=(x.shape[2] * 2, x.shape[3] * 2))(x)
         if self.with_conv:
             x = self.conv(x)
         return x
@@ -118,9 +119,10 @@ class ResnetBlock(nn.Cell):
 
 
 class AttnBlock(nn.Cell):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, attn_dtype=None):
         super().__init__()
         self.in_channels = in_channels
+        self.attn_dtype = attn_dtype
 
         self.norm = Normalize(in_channels)
         self.q = nn.Conv2d(
@@ -154,8 +156,8 @@ class AttnBlock(nn.Cell):
         b_v, c_v, _, _ = v.shape
         v = v.view(b_v, 1, c_v, -1).swapaxes(-1, -2)  # b c h w -> b 1 c (h w) -> b 1 (h w) c
 
-        h_ = scaled_dot_product_attention(q, k, v)  # scale is dim ** -0.5 per default
         # compute attention
+        h_ = scaled_dot_product_attention(q, k, v, dtype=self.attn_dtype)  # scale is dim ** -0.5 per default
 
         # out = rearrange(h_, "b 1 (h w) c -> b c h w", h=h, w=w, c=c, b=b)
         out = h_.swapaxes(-1, -2).view(b, c, h, w)  # b 1 (h w) c -> b 1 c (h w) -> b c h w
@@ -170,12 +172,13 @@ class AttnBlock(nn.Cell):
 
 
 class MemoryEfficientAttnBlock(nn.Cell):
-    def __init__(self, in_channels):
+    def __init__(self, in_channels, attn_dtype=None):
         super().__init__()
 
         assert FLASH_IS_AVAILABLE
 
         self.in_channels = in_channels
+        self.attn_dtype = attn_dtype
 
         self.norm = Normalize(in_channels)
         self.q = nn.Conv2d(
@@ -211,12 +214,12 @@ class MemoryEfficientAttnBlock(nn.Cell):
         b_v, c_v, _, _ = v.shape
         v = v.view(b_v, 1, c_v, -1).swapaxes(-1, -2)  # b c h w -> b 1 c (h w) -> b 1 (h w) c
 
-        q_n, k_n, v_n = q.shape[-2], k.shape[-2], v.shape[-2]
+        q_n, k_n = q.shape[-2], k.shape[-2]
         head_dim = q.shape[-1]
-        if q_n % 16 == 0 and k_n % 16 == 0 and v_n % 16 == 0 and head_dim % 16 == 0 and head_dim <= 256:
+        if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
             h_ = self.flash_attention(q, k, v)
         else:
-            h_ = scaled_dot_product_attention(q, k, v)  # scale is dim_head ** -0.5 per default
+            h_ = scaled_dot_product_attention(q, k, v, dtype=self.attn_dtype)  # scale is dim_head ** -0.5 per default
 
         # out = rearrange(h_, "b 1 (h w) c -> b c h w", h=h, w=w, c=c, b=b)
         out = h_.swapaxes(-1, -2).view(b, c, h, w)  # b 1 (h w) c -> b 1 c (h w) -> b c h w
@@ -237,10 +240,10 @@ class LinAttnBlock(LinearAttention):
         super().__init__(dim=in_channels, heads=1, dim_head=in_channels)
 
 
-def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
+def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None, attn_dtype=None):
     assert attn_type in ["vanilla", "flash-attention", "linear", "none"], f"attn_type {attn_type} unknown"
 
-    print(f"making attention of type '{attn_type}' with {in_channels} in_channels")
+    print(f"AE: making attention of type '{attn_type}' with {in_channels} in_channels")
 
     if attn_type == "flash-attention" and not FLASH_IS_AVAILABLE:
         print(
@@ -252,10 +255,10 @@ def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
 
     if attn_type == "vanilla":
         assert attn_kwargs is None
-        return AttnBlock(in_channels)
+        return AttnBlock(in_channels, attn_dtype=attn_dtype)
     elif attn_type == "flash-attention":
         print(f"building FlashAttention with {in_channels} in_channels...")
-        return MemoryEfficientAttnBlock(in_channels)
+        return MemoryEfficientAttnBlock(in_channels, attn_dtype=attn_dtype)
     elif attn_type == "none":
         return nn.Identity()
     elif attn_type == "linear":
@@ -279,11 +282,15 @@ class Encoder(nn.Cell):
         double_z=True,
         use_linear_attn=False,
         attn_type="vanilla",
+        encoder_attn_dtype=None,
         **ignore_kwargs,
     ):
         super().__init__()
         if use_linear_attn:
             attn_type = "linear"
+        if encoder_attn_dtype:
+            encoder_attn_dtype = ms.float16 if encoder_attn_dtype in ("fp16", "float16") else None
+
         self.ch = ch
         self.temb_ch = 0
         self.num_resolutions = len(ch_mult)
@@ -316,7 +323,7 @@ class Encoder(nn.Cell):
                 )
                 block_in = block_out
                 if curr_res in attn_resolutions:
-                    attn.append(make_attn(block_in, attn_type=attn_type))
+                    attn.append(make_attn(block_in, attn_type=attn_type, attn_dtype=encoder_attn_dtype))
 
             class DownCell(nn.Cell):
                 def __init__(self, block, attn, downsample=None):
@@ -339,7 +346,7 @@ class Encoder(nn.Cell):
             temb_channels=self.temb_ch,
             dropout=dropout,
         )
-        self.mid.attn_1 = make_attn(block_in, attn_type=attn_type)
+        self.mid.attn_1 = make_attn(block_in, attn_type=attn_type, attn_dtype=encoder_attn_dtype)
         self.mid.block_2 = ResnetBlock(
             in_channels=block_in,
             out_channels=block_in,
@@ -405,11 +412,15 @@ class Decoder(nn.Cell):
         tanh_out=False,
         use_linear_attn=False,
         attn_type="vanilla",
+        decoder_attn_dtype=None,
         **ignorekwargs,
     ):
         super().__init__()
         if use_linear_attn:
             attn_type = "linear"
+        if decoder_attn_dtype:
+            decoder_attn_dtype = ms.float16 if decoder_attn_dtype in ("fp16", "float16") else None
+
         self.ch = ch
         self.temb_ch = 0
         self.num_resolutions = len(ch_mult)
@@ -442,7 +453,7 @@ class Decoder(nn.Cell):
             temb_channels=self.temb_ch,
             dropout=dropout,
         )
-        self.mid.attn_1 = make_attn_cls(block_in, attn_type=attn_type)
+        self.mid.attn_1 = make_attn_cls(block_in, attn_type=attn_type, attn_dtype=decoder_attn_dtype)
         self.mid.block_2 = make_resblock_cls(
             in_channels=block_in,
             out_channels=block_in,
@@ -466,7 +477,7 @@ class Decoder(nn.Cell):
                 )
                 block_in = block_out
                 if curr_res in attn_resolutions:
-                    attn.append(make_attn_cls(block_in, attn_type=attn_type))
+                    attn.append(make_attn_cls(block_in, attn_type=attn_type, attn_dtype=decoder_attn_dtype))
 
             block = nn.CellList(block)
             attn = nn.CellList(attn)

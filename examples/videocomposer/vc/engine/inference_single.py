@@ -345,8 +345,8 @@ def worker(gpu, cfg):
     # global variables
     viz_num = cfg.batch_size
     time_cost = []
-    n_trials = 1  # set 3 for testing inference speed
-    for _ in range(n_trials):
+    n_trials = 1  # set 4 for testing inference speed
+    for tidx in range(n_trials):
         for step, batch in enumerate(dataloader.create_tuple_iterator()):
             start = time.time()
             model.set_train(False)
@@ -502,6 +502,7 @@ def worker(gpu, cfg):
                 caps=caps,
                 palette=palette,
                 cfg=cfg,
+                sample_idx=tidx,
             )
             # --------------------------------------
 
@@ -546,6 +547,7 @@ def visualize_with_model_kwargs(
     caps,
     palette,
     cfg,
+    sample_idx=0,
 ):
     scale_factor = 0.18215
     video_data = 1.0 / scale_factor * video_data
@@ -567,7 +569,7 @@ def visualize_with_model_kwargs(
     video_data = ms.ops.transpose(video_data, (0, 2, 1, 3, 4))
     ori_video = ori_video[:viz_num]
 
-    oss_key = os.path.join(cfg.log_dir, f"rank_{cfg.world_size}-{cfg.rank}.gif")
+    oss_key = os.path.join(cfg.log_dir, f"Sample_{sample_idx}.gif")
     text_key = os.path.join(cfg.log_dir, "text_description.txt")
 
     # Save videos and text inputs.

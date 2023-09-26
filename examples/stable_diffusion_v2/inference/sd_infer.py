@@ -4,6 +4,7 @@ import os
 import sys
 import time
 
+import cv2
 import numpy as np
 from omegaconf import OmegaConf
 from PIL import Image
@@ -13,10 +14,13 @@ from mindspore import ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
+from conditions.canny.canny_detector import CannyDetector
+from conditions.segmentation.segment_detector import SegmentDetector
+from conditions.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
 from ldm.util import instantiate_from_config, str2bool
 from libs.helper import VaeImageProcessor, load_model_from_config, set_env
-from libs.sd_models import SDImg2Img, SDInpaint, SDText2Img
+from libs.sd_models import SDControlNet, SDImg2Img, SDInpaint, SDText2Img
 
 logger = logging.getLogger("Stable Diffusion Inference")
 
@@ -45,6 +49,8 @@ def main(args):
     # read prompts
     batch_size = args.n_samples
     prompt = args.inputs.prompt
+    if args.inputs.a_prompt:
+        prompt = prompt + ", " + args.inputs.a_prompt
     data = batch_size * [prompt]
     negative_prompt = args.inputs.negative_prompt
     assert negative_prompt is not None
@@ -117,6 +123,45 @@ def main(args):
         masked_image = image * (1 - mask)
         inputs["masked_image"] = ms.Tensor(np.repeat(masked_image, batch_size, axis=0), ms.float16)
         inputs["mask"] = ms.Tensor(np.repeat(mask, batch_size, axis=0), ms.float16)
+    elif args.task == "controlnet":
+        sd_infer = SDControlNet(
+            text_encoder,
+            unet,
+            vae,
+            scheduler,
+            scale_factor=model.scale_factor,
+            num_inference_steps=args.sampling_steps,
+        )
+
+        image = cv2.imread(args.inputs.image_path)
+        input_image = np.array(image, dtype=np.uint8)
+        img = resize_image(HWC3(input_image), args.inputs.image_resolution)
+        H, W, C = img.shape
+        args.inputs.H = H
+        args.inputs.W = W
+        if args.inputs.controlnet_mode == "canny":
+            apply_canny = CannyDetector()
+            detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
+            detected_map = HWC3(detected_map)
+        elif args.inputs.controlnet_mode == "segmentation":
+            if os.path.exists(args.inputs.condition_ckpt_path):
+                apply_segment = SegmentDetector(ckpt_path=args.inputs.condition_ckpt_path)
+            else:
+                logger.warning(
+                    f"!!!Warning!!!: Condition Detector checkpoint path {args.inputs.condition_ckpt_path} doesn't exist"
+                )
+            detected_map = apply_segment(img)
+            detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+        else:
+            raise NotImplementedError(f"mode {args.inputs.controlnet_mode} not supported")
+
+        Image.fromarray(detected_map).save(os.path.join(args.sample_path, "detected_map.png"))
+
+        control = ms.Tensor(detected_map.copy()).float() / 255.0
+        control = control.permute(2, 0, 1)
+        control = ops.stack([control for _ in range(batch_size)], axis=0).astype(ms.float16)
+        inputs["control"] = control
+
     else:
         raise ValueError(f"Not support task: {args.task}")
 
@@ -160,9 +205,9 @@ if __name__ == "__main__":
         "--task",
         type=str,
         default="text2img",
-        help="Task name, should be [text2img, img2img, inpaint], "
+        help="Task name, should be [text2img, img2img, inpaint, controlnet], "
         "if choose a task name, use the config/[task].yaml for inputs",
-        choices=["text2img", "img2img", "inpaint"],
+        choices=["text2img", "img2img", "inpaint", "controlnet"],
     )
     parser.add_argument("--model", type=str, required=True, help="path to config which constructs model.")
     parser.add_argument("--output_path", type=str, default="output", help="dir to write results to")
@@ -219,6 +264,9 @@ if __name__ == "__main__":
     elif args.task == "inpaint":
         inputs_config_path = "./config/inpaint.yaml"
         default_ckpt = "./models/sd_v2_inpaint-f694d5cf.ckpt"
+    elif args.task == "controlnet":
+        inputs_config_path = "./config/controlnet.yaml"
+        default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
     else:
         raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
     inputs = OmegaConf.load(inputs_config_path)

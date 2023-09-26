@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from typing import Dict, List, Union
 
 import numpy as np
+from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
 from gm.modules import UNCONDITIONAL_CONFIG
 from gm.modules.diffusionmodules.wrappers import OPENAIUNETWRAPPER
 from gm.util import append_dims, default, get_obj_from_str, instantiate_from_config
@@ -212,8 +213,6 @@ class DiffusionEngine(nn.Cell):
         filter=None,
         amp_level="O0",
     ):
-        from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
-
         print("Sampling")
 
         dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
@@ -277,6 +276,85 @@ class DiffusionEngine(nn.Cell):
 
         if return_latents:
             return samples, samples_z
+        return samples
+
+    def do_img2img(
+        self,
+        img,
+        sampler,
+        value_dict,
+        num_samples,
+        force_uc_zero_embeddings=[],
+        additional_kwargs={},
+        offset_noise_level: int = 0.0,
+        return_latents=False,
+        skip_encode=False,
+        filter=None,
+        add_noise=True,
+        amp_level="O0",
+    ):
+        dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
+
+        batch, batch_uc = get_batch(
+            get_unique_embedder_keys_from_conditioner(self.conditioner), value_dict, [num_samples], dtype=dtype
+        )
+        for key in batch:
+            if isinstance(batch[key], Tensor):
+                print(key, batch[key].shape)
+            elif isinstance(batch[key], list):
+                print(key, [len(i) for i in batch[key]])
+            else:
+                print(key, batch[key])
+        print("Get Condition Done.")
+
+        print("Embedding Starting...")
+        c, uc = self.conditioner.get_unconditional_conditioning(
+            batch,
+            batch_uc=batch_uc,
+            force_uc_zero_embeddings=force_uc_zero_embeddings,
+        )
+        print("Embedding Done.")
+
+        for k in c:
+            c[k], uc[k] = map(lambda y: y[k][:num_samples], (c, uc))
+        for k in additional_kwargs:
+            c[k] = uc[k] = additional_kwargs[k]
+
+        z = img if skip_encode else self.encode_first_stage(img)
+        noise = ops.randn_like(z)
+
+        sigmas = sampler.discretization(sampler.num_steps)
+        sigma = Tensor(sigmas[0], z.dtype)
+        print(f"all sigmas: {sigmas}")
+        print(f"noising sigma: {sigmas[0]}")
+
+        if offset_noise_level > 0.0:
+            noise = noise + offset_noise_level * append_dims(ops.randn(z.shape[0], dtype=z.dtype), z.ndim)
+        if add_noise:
+            noised_z = z + noise * append_dims(sigma, z.ndim)
+            noised_z = noised_z / ops.sqrt(
+                1.0 + sigma**2.0
+            )  # Note: hardcoded to DDPM-like scaling. need to generalize later.
+        else:
+            noised_z = z / ops.sqrt(1.0 + sigma**2.0)
+
+        print("Sample latent Starting...")
+        samples_z = sampler(self, noised_z, cond=c, uc=uc)
+        print("Sample latent Done.")
+
+        print("Decode latent Starting...")
+        samples_x = self.decode_first_stage(samples_z)
+        samples_x = samples_x.asnumpy()
+        print("Decode latent Done.")
+
+        samples = np.clip((samples_x + 1.0) / 2.0, a_min=0.0, a_max=1.0)
+
+        if filter is not None:
+            samples = filter(samples)
+
+        if return_latents:
+            return samples, samples_z
+
         return samples
 
     def log_conditionings(self):

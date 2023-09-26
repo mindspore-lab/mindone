@@ -1,3 +1,4 @@
+version: SDXL-base-1.0
 model:
   target: gm.models.diffusion.DiffusionEngine
   params:
@@ -32,7 +33,7 @@ model:
         use_linear_in_transformer: True
         transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
         context_dim: 2048
-        spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
+        spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
         legacy: False
 
     conditioner_config:
@@ -59,7 +60,6 @@ model:
               always_return_pooled: True
               legacy: False
               require_pretrained: False
-              # pretrained: ''  # laion2b_s32b_b79k.ckpt
           # vector cond
           - is_trainable: False
             input_key: original_size_as_tuple
@@ -96,5 +96,6 @@ model:
           num_res_blocks: 2
           attn_resolutions: []
           dropout: 0.0
+          decoder_attn_dtype: fp16
         lossconfig:
           target: mindspore.nn.Identity

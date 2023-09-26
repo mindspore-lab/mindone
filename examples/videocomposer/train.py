@@ -160,6 +160,7 @@ def main(cfg):
         black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
+        use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
     unet.load_state_dict(cfg.resume_checkpoint)
@@ -258,7 +259,7 @@ def main(cfg):
         optimizer=optimizer,
         scale_sense=loss_scaler,
         drop_overflow_update=True,
-        gradient_accumulation_steps=1,  # #args.gradient_accumulation_steps,
+        gradient_accumulation_steps=cfg.gradient_accumulation_steps,
         clip_grad=False,  # args.clip_grad,
         clip_norm=1.0,  # args.max_grad_norm,
         ema=None,  # TODO: add EMA
@@ -281,7 +282,7 @@ def main(cfg):
             ckpt_save_dir=cfg.output_dir,
             ema=None,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=3,
+            ckpt_max_keep=cfg.ckpt_max_keep,
             step_mode=False,
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
@@ -305,12 +306,13 @@ def main(cfg):
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
                 f"Num trainable params: {num_trainable_params:,}",
-                f"Use fp16: {cfg.use_fp16}",
                 f"Learning rate: {cfg.learning_rate}",
                 f"Batch size: {cfg.batch_size}",
                 f"Max frames: {cfg.max_frames}",
                 f"Weight decay: {cfg.weight_decay}",
                 f"Num epochs: {cfg.epochs}",
+                f"Use fp16: {cfg.use_fp16}",
+                f"Use recompute: {cfg.use_recompute}",
             ]
         )
         key_info += "\n" + "=" * 50
