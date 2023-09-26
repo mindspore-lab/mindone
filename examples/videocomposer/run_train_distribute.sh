@@ -24,6 +24,10 @@ RANK_TABLE_FILE=$rank_table_file
 export RANK_TABLE_FILE=${RANK_TABLE_FILE}
 echo "RANK_TABLE_FILE=${RANK_TABLE_FILE}"
 
+# uncomment this following line for caching and loading the compiled graph
+#export MS_COMPILER_CACHE_ENABLE=1
+#export MS_COMPILER_CACHE_PATH=/cache
+
 # remove files
 rm -rf ${output_dir:?}
 mkdir -p ${output_dir:?}
