@@ -2,6 +2,8 @@ import collections
 import math
 import os
 
+import numpy as np
+
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
@@ -129,7 +131,7 @@ class VisionTransformer(nn.Cell):
         self.patch_embedding = conv_nd(
             3, 3, dim, kernel_size=patch_size, stride=patch_size, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
-        self.cls_embedding = Parameter(ms.Tensor(ops.zeros((1, 1, dim)), self.dtype))
+        self.cls_embedding = Parameter(ms.Tensor(np.zeros((1, 1, dim)), self.dtype))
         self.pos_embedding = Parameter(initializer(Normal(sigma=0.02), (1, self.num_patches + 1, dim), ms.float32))
 
         # blocks
@@ -200,7 +202,9 @@ class FusionBlock(nn.Cell):
             x = self.layer2(xs[0] + self.layer1(xs[1]))
         size = x.shape[2:]
         size = [s * 2 for s in size]
-        x = ops.interpolate(x, size=size, mode="bilinear", align_corners=True)
+        ori_dtype = x.dtype
+        x = ops.interpolate(x.to(ms.float32), size=size, mode="bilinear", align_corners=True)
+        x = x.to(ori_dtype)
         x = self.conv_out(x)
         return x
 
@@ -238,7 +242,7 @@ class MiDaS(nn.Cell):
         self.patch_embedding = conv_nd(
             2, 3, dim, kernel_size=patch_size, stride=patch_size, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
-        self.cls_embedding = Parameter(ms.Tensor(ops.zeros((1, 1, dim)), self.dtype))
+        self.cls_embedding = Parameter(ms.Tensor(np.zeros((1, 1, dim)), self.dtype))
         self.pos_embedding = Parameter(initializer(Normal(sigma=0.02), (1, self.num_patches + 1, dim), ms.float32))
 
         # blocks
@@ -384,7 +388,7 @@ class MiDaS(nn.Cell):
             [
                 self.pos_embedding[:, :1],
                 ops.interpolate(
-                    self.pos_embedding[:, 1:].reshape(1, grid, grid, -1).permute(0, 3, 1, 2),
+                    ops.reshape(self.pos_embedding[:, 1:], (1, grid, grid, -1)).permute(0, 3, 1, 2).to(ms.float32),
                     size=(hp, wp),
                     mode="bilinear",
                     align_corners=False,
@@ -393,7 +397,7 @@ class MiDaS(nn.Cell):
                 .reshape(1, hp * wp, -1),
             ],
             axis=1,
-        )
+        ).to(self.dtype)
 
         x = ops.flatten(self.patch_embedding(x), start_dim=2).permute(0, 2, 1)
         x = ops.concat([self.cls_embedding.repeat(b, axis=0).to(self.dtype), x.to(self.dtype)], axis=1)
@@ -432,7 +436,9 @@ class MiDaS(nn.Cell):
         x = self.head[0](x1)
         size = x.shape[2:]
         size = [s * 2 for s in size]
-        x = ops.interpolate(x, size=size, mode="bilinear", align_corners=True)
+        ori_dtype = x.dtype
+        x = ops.interpolate(x.to(ms.float32), size=size, mode="bilinear", align_corners=True)
+        x = x.to(ori_dtype)
         x = self.head[2](x)
         x = self.head[3](x)
         x = self.head[4](x)

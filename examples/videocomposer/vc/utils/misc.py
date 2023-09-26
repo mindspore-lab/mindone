@@ -5,11 +5,21 @@ import random
 import numpy as np
 
 import mindspore as ms
+from mindspore import nn
 
 __all__ = [
     "setup_seed",
     "rand_name",
     "get_abspath_of_weights",
+    "CUSTOM_BLACK_LIST",
+]
+
+CUSTOM_BLACK_LIST = [
+    nn.BatchNorm1d,
+    nn.BatchNorm2d,
+    nn.BatchNorm3d,
+    nn.LayerNorm,
+    nn.Sigmoid,  # additional to AMP_BLACK_LIST
 ]
 
 

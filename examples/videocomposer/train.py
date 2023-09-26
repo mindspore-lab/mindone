@@ -19,11 +19,11 @@ from vc.diffusion.latent_diffusion import LatentDiffusion
 from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
 from vc.trainer.lr_scheduler import build_lr_scheduler
 from vc.trainer.optim import build_optimizer
-from vc.utils import get_abspath_of_weights, setup_logger
+from vc.utils import CUSTOM_BLACK_LIST, get_abspath_of_weights, setup_logger
 
 import mindspore as ms
 from mindspore import Model, context
-from mindspore.amp import auto_mixed_precision
+from mindspore.amp import custom_mixed_precision
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
@@ -175,32 +175,39 @@ def main(cfg):
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
         )
-        pidinet = pidinet.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            pidinet, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        pidinet = pidinet.set_train(False)
         for _, param in pidinet.parameters_and_names():
             param.requires_grad = False
         # cleaner
         cleaner = sketch_simplification_gan(
             pretrained=True, ckpt_path=get_abspath_of_weights(cfg.sketch_simplification_checkpoint)
         )
-        cleaner = cleaner.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            cleaner, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        cleaner = cleaner.set_train(False)
         for _, param in cleaner.parameters_and_names():
             param.requires_grad = False
         extra_conds["sketch"] = {
             "pidinet": pidinet,
-            "sketch_mean": cfg.sketch_mean,
-            "sketch_std": cfg.sketch_std,
+            "sketch_mean": np.array(cfg.sketch_mean).reshape((1, -1, 1, 1)),
+            "sketch_std": np.array(cfg.sketch_std).reshape((1, -1, 1, 1)),
             "cleaner": cleaner,
         }
 
     # 2.4 2) depth - midas
     if "depthmap" in cfg.conditions_for_train:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
-        midas = midas.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            midas, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        midas = midas.set_train(False)
         for _, param in midas.parameters_and_names():
             param.requires_grad = False
         extra_conds["depthmap"] = {"midas": midas, "depth_clamp": cfg.depth_clamp, "depth_std": cfg.depth_std}
-
-        auto_mixed_precision(midas, amp_level="O3")
 
     # count num params for each network
     param_nums = {
@@ -225,6 +232,7 @@ def main(cfg):
         vae,
         clip_text_encoder,
         clip_image_encoder=clip_image_encoder,
+        conditions=cfg.conditions_for_train,
         extra_conds=extra_conds,
         use_fp16=cfg.use_fp16,
         timesteps=cfg.num_timesteps,
