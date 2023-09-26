@@ -32,7 +32,7 @@ sys.path.append(workspace)
 def decode_and_save_result(model, args, samples, detected_map, outpath, filename):
     x_samples = model.decode_first_stage(samples)
     x_samples = (ops.transpose(x_samples, (0, 2, 3, 1)) * 127.5 + 127.5).asnumpy().clip(0, 255).astype(np.uint8)
-    results = [x_samples[i] for i in range(num_samples)]
+    results = [x_samples[i] for i in range(args.n_samples)]
     if args.mode == MODE["canny"]:
         results = [255 - detected_map] + results
     elif args.mode == MODE["segmentation"]:
