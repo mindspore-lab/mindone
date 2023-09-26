@@ -28,7 +28,9 @@ from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
-sys.path.append("../stable_diffusion_v2/")
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
+
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
@@ -163,7 +165,7 @@ def main(cfg):
         use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
-    unet.load_state_dict(cfg.resume_checkpoint)
+    unet.load_state_dict(os.path.join(__dir__, cfg.resume_checkpoint))
     unet = unet.set_train(True)
 
     # 2.4 other NN-based condition extractors
@@ -238,6 +240,7 @@ def main(cfg):
     # auto_mixed_precision(ldm_with_loss, amp_level="O3") # Note: O3 will lead to gradient overflow
 
     # 4. build training dataset
+    
     dataloader = build_dataset(cfg, device_num, rank_id, tokenizer)
     num_batches = dataloader.get_dataset_size()
 
@@ -317,7 +320,7 @@ def main(cfg):
         )
         key_info += "\n" + "=" * 50
         logger.info(key_info)
-        shutil.copyfile("configs/train_base.py", os.path.join(cfg.output_dir, "train_base.py"))
+        shutil.copyfile(os.path.join(__dir__, "configs/train_base.py"), os.path.join(cfg.output_dir, "train_base.py"))
         shutil.copyfile(cfg.cfg_file, os.path.join(cfg.output_dir, "train.yaml"))
 
     # 6. train
