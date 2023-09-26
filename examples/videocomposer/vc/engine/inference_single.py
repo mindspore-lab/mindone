@@ -7,6 +7,7 @@ from PIL import Image
 
 import mindspore as ms
 from mindspore import dataset as ds
+from mindspore.amp import custom_mixed_precision
 from mindspore.dataset import transforms, vision
 
 from ..annotator.canny import CannyDetector
@@ -22,7 +23,7 @@ from ..models import (
     UNetSD_temporal,
     get_first_stage_encoding,
 )
-from ..utils import get_abspath_of_weights, save_video_multiple_conditions, setup_logger, setup_seed
+from ..utils import CUSTOM_BLACK_LIST, get_abspath_of_weights, save_video_multiple_conditions, setup_logger, setup_seed
 
 __all__ = [
     "inference_single",
@@ -195,7 +196,10 @@ def prepare_condition_models(cfg):
     # [Conditions] Generators for various conditions
     if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
         midas = midas_v3_dpt_large(pretrained=True, ckpt_path=get_abspath_of_weights(cfg.midas_checkpoint))
-        midas = midas.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            midas, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        midas = midas.set_train(False)
         for _, param in midas.parameters_and_names():
             param.requires_grad = False
 
@@ -223,13 +227,19 @@ def prepare_condition_models(cfg):
         pidinet = pidinet_bsd(
             pretrained=True, vanilla_cnn=True, ckpt_path=get_abspath_of_weights(cfg.pidinet_checkpoint)
         )
-        pidinet = pidinet.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            pidinet, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        pidinet = pidinet.set_train(False)
         for _, param in pidinet.parameters_and_names():
             param.requires_grad = False
         cleaner = sketch_simplification_gan(
             pretrained=True, ckpt_path=get_abspath_of_weights(cfg.sketch_simplification_checkpoint)
         )
-        cleaner = cleaner.set_train(False).to_float(cfg.dtype)
+        custom_mixed_precision(
+            cleaner, black_list=CUSTOM_BLACK_LIST
+        )  # similar to O2, cast to fp16 except for those in black_list
+        cleaner = cleaner.set_train(False)
         for _, param in cleaner.parameters_and_names():
             param.requires_grad = False
         pidi_mean = ms.Tensor(cfg.sketch_mean).view(1, -1, 1, 1)
@@ -383,7 +393,6 @@ def worker(gpu, cfg):
 
             # encode the video_data
             bs_vd = video_data.shape[0]
-            video_data_origin = video_data.copy()  # noqa
             # [bs, F, 3, 256, 256] -> (bs*f 3 256 256)
             video_data = ms.ops.reshape(video_data, (video_data.shape[0] * video_data.shape[1], *video_data.shape[2:]))
             video_data_list = ms.ops.chunk(video_data, video_data.shape[0] // cfg.chunk_size, axis=0)
