@@ -92,11 +92,7 @@ class VideoDatasetForTrain(object):
                 video_key, feature_framerate, self.mvs_visual
             )
         else:  # use dummy data
-            _logger.warning(f"The video path: {video_key} does not exist or no video dir provided!")
-            vit_image = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)  # noqa
-            video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
-            misc_data = np.zeros((self.max_frames, 3, self.misc_size, self.misc_size), dtype=np.float32)
-            mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
+            return self._get_dummy_data(video_key)
 
         # inpainting mask
         p = random.random()
@@ -127,6 +123,15 @@ class VideoDatasetForTrain(object):
             misc_data,
         )
 
+    def _get_dummy_data(self, video_key):
+        _logger.warning(f"The video path: {video_key} does not exist or no video dir provided!")
+        vit_image = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)  # noqa
+        video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
+        misc_data = np.zeros((self.max_frames, 3, self.misc_size, self.misc_size), dtype=np.float32)
+        mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
+
+        return vit_image, video_data, misc_data, mv_data
+
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
         filename = video_key
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
@@ -137,6 +142,10 @@ class VideoDatasetForTrain(object):
         start_indices = np.where(
             (np.array(frame_types) == "I") & (total_frames - np.arange(total_frames) >= self.max_frames)
         )[0]
+
+        if start_indices.size == 0:  # empty, no frames
+            return self._get_dummy_data(video_key)
+
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)
 
