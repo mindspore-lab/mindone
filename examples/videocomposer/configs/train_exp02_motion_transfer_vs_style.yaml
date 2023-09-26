@@ -10,8 +10,8 @@ seed: 182
 mvs_visual: False
 chunk_size: 16
 log_dir: 'outputs'
-learning_rate: 0.00001 #0.00005 in paper, but we are finetuning.
-epochs: 50
+resume_checkpoint: "" # set "" to train from scratch
+#resume_checkpoint: "model_weights/non_ema_228000-7f157ec2.ckpt"
 
 # accelerate or memory reduction
 dataset_sink_mode: True

@@ -1,3 +1,5 @@
+export MS_ENABLE_REF_MODE=1 # NEEDED for 910B + MS2.2 0907 version for saving checkpoint correctly
+
 task_name=train_exp02_motion_transfer
 yaml_file=configs/${task_name}.yaml
 output_path=outputs

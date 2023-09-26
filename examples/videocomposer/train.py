@@ -170,7 +170,11 @@ def main(cfg):
         use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
-    unet.load_state_dict(cfg.resume_checkpoint)
+    print("D--: ", cfg.resume_checkpoint)
+    if cfg.resume_checkpoint.endswith(".ckpt") and os.path.exists(cfg.resume_checkpoint):
+        unet.load_state_dict(cfg.resume_checkpoint)
+    else:
+        logger.warning(f"UNet checkpoint is not given or not exists. UNet will be trained from scratch!!!")
     unet = unet.set_train(True)
 
     # 2.4 other NN-based condition extractors

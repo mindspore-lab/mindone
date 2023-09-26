@@ -87,12 +87,18 @@ class VideoDatasetForTrain(object):
         video_key, cap_txt = self.video_cap_pairs[index]
 
         feature_framerate = self.feature_framerate
+        read_success = False
         if os.path.exists(video_key):
-            vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
-                video_key, feature_framerate, self.mvs_visual
-            )
-        else:  # use dummy data
-            _logger.warning(f"The video path: {video_key} does not exist or no video dir provided!")
+            try:
+                vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
+                    video_key, feature_framerate, self.mvs_visual
+                )
+                read_success = True
+            except Exception as e:
+                print(f"Fail to read {video_key}: ", e)
+
+        if not read_success:
+            _logger.warning(f"The video path: {video_key} does not exist or broken or no video dir provided!")
             vit_image = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)  # noqa
             video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
             misc_data = np.zeros((self.max_frames, 3, self.misc_size, self.misc_size), dtype=np.float32)
