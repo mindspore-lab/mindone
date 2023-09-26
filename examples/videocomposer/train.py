@@ -19,7 +19,7 @@ from vc.diffusion.latent_diffusion import LatentDiffusion
 from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
 from vc.trainer.lr_scheduler import build_lr_scheduler
 from vc.trainer.optim import build_optimizer
-from vc.utils import CUSTOM_BLACK_LIST, get_abspath_of_weights, convert_to_abspath, setup_logger
+from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weights, setup_logger
 
 import mindspore as ms
 from mindspore import Model, context
