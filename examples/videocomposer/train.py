@@ -19,7 +19,7 @@ from vc.diffusion.latent_diffusion import LatentDiffusion
 from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
 from vc.trainer.lr_scheduler import build_lr_scheduler
 from vc.trainer.optim import build_optimizer
-from vc.utils import get_abspath_of_weights, setup_logger
+from vc.utils import convert_to_abspath, get_abspath_of_weights, setup_logger
 
 import mindspore as ms
 from mindspore import Model, context
@@ -90,8 +90,11 @@ def check_config(cfg):
             raise ValueError(f"Unknown condition: {cond}. Available conditions are: {cfg.video_compositions}")
             # idx = cfg.video_compositions.index(cond)
     print("===> Conditions used for training: ", cfg.conditions_for_train)
-    if not cfg.root_dir.startswith("/"):
-        cfg.root_dir = os.path.join(__dir__, cfg.root_dir)  # turn to abs path for modelarts running
+
+    # turn to abs path if it's relative path, for modelarts running
+    cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
+    cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
+    cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
 
 
 def main(cfg):
@@ -167,7 +170,7 @@ def main(cfg):
         use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
-    unet.load_state_dict(os.path.join(__dir__, cfg.resume_checkpoint))
+    unet.load_state_dict(cfg.resume_checkpoint)
     unet = unet.set_train(True)
 
     # 2.4 other NN-based condition extractors
