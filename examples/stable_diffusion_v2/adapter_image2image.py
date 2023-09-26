@@ -11,7 +11,7 @@ from typing import List, Tuple
 
 import cv2
 import numpy as np
-from annotator.util import resize_image
+from conditions.utils import resize_image
 from omegaconf import OmegaConf
 from PIL import Image
 
