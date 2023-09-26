@@ -70,8 +70,8 @@ Currently, we provide pre-trained Stable Diffusion model weights that are compat
 |--------------------|------------------|-----------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.1                | text-to-image    | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt)          | [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)         | 512x512        |
 | 2.1-v              | text-to-image    | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt)        | [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1)                   | 768x768        |
-| 2.1-unclip-l              | image-to-image    | [sd21-unclip-l-baa7c8b5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)        | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)                   | 768x768        |
-| 2.1-unclip-h              | image-to-image    | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)        | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)                   | 768x768        |
+| 2.1-unclip-l       | image-to-image   | [sd21-unclip-l-baa7c8b5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)        | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)     | 768x768        |
+| 2.1-unclip-h       | image-to-image   | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)        | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)     | 768x768        |
 | 2.0                | text-to-image    | [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt)              | [stable-diffusion-2-base](https://huggingface.co/stabilityai/stable-diffusion-2-base)             | 512x512        |
 | 2.0-v              | text-to-image    | [sd_v2_768_v-e12e3a9b.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_768_v-e12e3a9b.ckpt)            | [stable-diffusion-2](https://huggingface.co/stabilityai/stable-diffusion-2)                       | 768x768        |
 | 2.0-inpaint        | image inpainting | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
@@ -98,7 +98,7 @@ To generate images by providing a text prompt, please download [sd_v2_base-57526
 
 ```shell
 # Text to image generation with SD-2.0-base
-python text_to_image.py --prompt "elven forest"
+python text_to_image.py --prompt "elven forest" -v 2.0
 ```
 > The default version of SD model used is 2.1. It is easy to change the model version by setting the `-v` argument according to the version names defined in [pretrained weights](#pretrained-weights).
 
@@ -265,19 +265,25 @@ Coming soon
 
 Vanilla finetuning is to finetune the latent diffusion model (UNet) directly, which can be viewed as the second-stage training mentioned in the [LDM paper](https://arxiv.org/abs/2112.10752). In this setting, both CLIP-TextEncoder and VAE will be frozen, and **only UNet will be updated**.
 
-To run vanilla finetuning on a single device, please execute:
+To run vanilla finetuning on a single device, please download [sd_v2_base-57526ee4.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) to `models/` folder, and execute:
 
 ```shell
-sh scripts/run_train_v2.sh
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_vanilla_v2.yaml" \
+    --data_path "datasets/pokemon_blip/train" \
+    --output_path "output/finetune_pokemon/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 after setting `data_path` to your dataset path.
 
+> Note: to modify other important hyper-parameters, please refer to training config file `train_config_vanilla_v2.yaml`.
+
 
 To run in the distributed mode, please execute:
-```
+```shell
 bash scripts/run_train_v2_distributed.sh
 ```
-, after updating `data_path` and `num_devices`, `rank_table_file`, `CANDIDATE_DEVICES` according to your running devices.
+after updating `data_path` and `num_devices`, `rank_table_file`, `CANDIDATE_DEVICE` according to your running devices.
 
 **Flash Attention**: You can enable flash attention to reduce the memory footprint. Make sure you have installed MindSpore >= 2.1 and set `enable_flash_attention: True` in `configs/v2-train.yaml`.
 
@@ -297,19 +303,15 @@ To replace the original CLIP used in SD with CN-CLIP, please:
 
 1. Download [CN-CLIP ViT-H/14](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_cnclip_h14-d780480a.ckpt) to `models` folder.
 
-2. Update `scripts/train_config_v2.json` by setting the model config as follows.
+2. Run the vanilla training script after setting the `--custom_text_encoder` and `--model_config` arguments.
 
-`"model_config": "configs/v2-train-cnclip.yaml"`
-
-3. Run the vanilla training script after setting the `--custom_text_encoder` and `--config` arguments.
-
-```
-python train_text_to_image.py --custom_text_encoder models/ms_cnclip_h14-d780480a.ckpt --config configs/v2-inference-cnclip.yaml ...
+```shell
+python train_text_to_image.py --custom_text_encoder models/ms_cnclip_h14-d780480a.ckpt --model_config configs/v2-inference-cnclip.yaml ...
 ```
 
 After the training is finished, similarly, you can load the model and run Chinese text-to-image generation.
 
-```
+```shell
 python text_to_image.py --config configs/v2-inference-cnclip.yaml --ckpt_path {path to trained checkpoint} ...
 ```
 
@@ -324,7 +326,7 @@ It is simple to switch from SD 2.0 to SD 1.5 by setting the `--version` (`-v`) a
 
 Download [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) to `models/` folder. Then run,
 
-```
+```shell
 python text_to_image.py --prompt "A cute wolf in winter forest" -v 1.5
 ```
 
@@ -332,7 +334,7 @@ python text_to_image.py --prompt "A cute wolf in winter forest" -v 1.5
 
 Download [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) to `models/` folder. Then run,
 
-```
+```shell
 python text_to_image.py --prompt "雪中之狼"  -v 1.5-wukong
 ```
 
@@ -340,21 +342,36 @@ python text_to_image.py --prompt "雪中之狼"  -v 1.5-wukong
 
 Download [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) to `models/` folder. Then run,
 
-```
+```shell
 python inpaint.py --image {path to input image} --mask {path to mask image} --prompt "图片编辑内容描述"  -v 1.5-wukong
 ```
 
 ## Training
 
-To train SD 1.5 on a custom text-image dataset, please run
+To train SD 1.5 on a custom text-image dataset, please download [SD1.5 checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) to `models/` folder, and execute:
 
 ```shell
 # SD 1.5 vanilla training
-sh scripts/run_train_v1.sh
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_vanilla_v1.yaml" \
+    --data_path "datasets/pokemon_blip/train" \
+    --output_path "output/finetune_pokemon/txt2img" \
+    --pretrained_model_path "models/sd_v1.5-d0ab7146.ckpt"
 ```
-after setting `data_path` in `run_train_v1.sh` to your dataset path.
+after setting `data_path` to your dataset path.
 
-> Note: to run other training pipelines on SD 1.5, you can refer to training tutorials of SD 2.0 and change the following arguments in the training script: set `--model_config` argument to `configs/v1-train.yaml`, `--train_config` to `configs/train_config.json`, and set `--ckpt_path` to `models/sd_v1.5-d0ab7146.ckpt`.
+> Note: to modify other important hyper-parameters, please refer to training config file `train_config_vanilla_v1.yaml`.
+
+
+To train SD 1.5 on a Chinese text-image pair dataset, please download [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) to `models/` folder, and execute:
+
+```shell
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_vanilla_v1_chinese.yaml" \
+    --data_path "datasets/pokemon_cn/train" \
+    --output_path "output/txt2img" \
+    --pretrained_model_path "models/wukong-huahua-ms.ckpt"
+```
 
 # Stable Diffusion with ControlNet
 

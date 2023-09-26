@@ -12,10 +12,12 @@ gen_dummpy_data()
 @pytest.mark.parametrize("finetuning", ["Vanilla", "LoRA"])
 def test_train_infer(use_ema, finetuning):
     data_path = "data/Canidae/val/dogs"
-    train_config_file = "configs/train_config_v2.json"
+    model_config_file = "configs/v2-train.yaml"
+    pretrained_model_path = "models/sd_v2_base-57526ee4.ckpt"
     output_path = "out"
     train_batch_size = 1
     epochs = 1
+    image_size = 512
     if os.path.exists(output_path):
         os.system(f"rm {output_path} -rf")
     if finetuning == "Vanilla":
@@ -23,7 +25,8 @@ def test_train_infer(use_ema, finetuning):
     elif finetuning == "LoRA":
         use_lora = True
     cmd = (
-        f"python train_text_to_image.py --data_path={data_path} --train_config={train_config_file} "
+        f"python train_text_to_image.py --data_path={data_path} --model_config={model_config_file} "
+        f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size={image_size} "
         f"--epochs={epochs} --ckpt_save_interval=1 --start_learning_rate=0.0001 --train_batch_size={train_batch_size} "
         f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=0 --use_ema={use_ema} "
     )
@@ -54,20 +57,20 @@ def test_train_infer(use_ema, finetuning):
 @pytest.mark.parametrize("use_ema", [True])
 def test_train_infer_DreamBooth(use_ema):
     data_path = "data/Canidae/val/wolves"
-    train_config_file = "configs/train_dreambooth_sd_v2.json"
+    model_config_file = "configs/train_dreambooth_sd_v2.yaml"
     instance_prompt = "wolves"
     output_path = "out"
-    pretrained_model_path = "models/"
-    pretrained_model_file = "sd_v2_base-57526ee4.ckpt"
+    pretrained_model_path = "models/sd_v2_base-57526ee4.ckpt"
     train_batch_size = 1
     epochs = 1
+    image_size = 512
     if os.path.exists(output_path):
         os.system(f"rm {output_path} -rf")
     cmd = (
         f"python train_dreambooth.py --mode=0 --instance_data_dir={data_path} --instance_prompt='{instance_prompt}' "
-        f"--train_config={train_config_file} --class_data_dir={data_path} --class_prompt='{instance_prompt}' "
-        f"--pretrained_model_path={pretrained_model_path} --pretrained_model_file={pretrained_model_file} "
-        f"--epochs={epochs} --start_learning_rate=0.00002 --train_batch_size={train_batch_size} "
+        f"--model_config={model_config_file} --class_data_dir={data_path} --class_prompt='{instance_prompt}' "
+        f"--pretrained_model_path={pretrained_model_path} --warmup_steps=200 --image_size={image_size} "
+        f"--epochs={epochs} --start_learning_rate=0.00002 --train_batch_size={train_batch_size} --random_crop=True"
         f"--num_class_images=2 --output_path={output_path} --use_ema={use_ema}  --train_text_encoder=True "
         f"--train_data_repeats=2"
     )

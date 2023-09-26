@@ -19,7 +19,7 @@ from examples.stable_diffusion_v2.ldm.data.loader import build_dataloader
 from examples.stable_diffusion_v2.ldm.data.transforms import CannyRandomThreshold, TokenizerWrapper
 from examples.stable_diffusion_v2.ldm.modules.logger import set_logger
 from examples.stable_diffusion_v2.ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
-from examples.stable_diffusion_v2.ldm.modules.train.optim import build_optimizer_unfold
+from examples.stable_diffusion_v2.ldm.modules.train.optim import build_optimizer
 from examples.stable_diffusion_v2.ldm.modules.train.trainer import TrainOneStepWrapper
 from examples.stable_diffusion_v2.ldm.util import count_params
 from examples.stable_diffusion_v2.text_to_image import load_model_from_config
@@ -71,7 +71,7 @@ def main(args, initializer):
     full_model = SDAdapterPipeline(sd_model, adapter_model)
 
     # step 5: create optimizer and train the same way as regular SD
-    optimizer = build_optimizer_unfold(adapter_model, **args.train.optimizer)
+    optimizer = build_optimizer(adapter_model, **args.train.optimizer)
 
     loss_scaler = nn.DynamicLossScaleUpdateCell(**args.LossScale)
 
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         "train.dataloader",
         skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )
-    parser.add_function_arguments(build_optimizer_unfold, "train.optimizer", skip={"model"})
+    parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model"})
     parser.add_class_arguments(
         TrainOneStepWrapper, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}, instantiate=False
     )
