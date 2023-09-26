@@ -93,7 +93,7 @@ def calculate_split(num_devices, rank_id, json_data_path):
     )
 
 
-def split_and_sync_data(args, device_num, rank_id):
+def split_and_sync_data(json_data_path, num_workers, device_num, rank_id):
     (
         start_part_idx,
         start_tar_idx,
@@ -103,8 +103,8 @@ def split_and_sync_data(args, device_num, rank_id):
         end_sample_idx,
         tars_to_sync,
         mapping,
-    ) = calculate_split(args.num_workers, int(rank_id / 8), args.json_data_path)
-    download_tar(tars_to_sync, mapping, start_sample_idx, end_sample_idx, args.json_data_path)
+    ) = calculate_split(num_workers, int(rank_id / 8), json_data_path)
+    download_tar(tars_to_sync, mapping, start_sample_idx, end_sample_idx, json_data_path)
     var_info = [
         "device_num",
         "rank_id",

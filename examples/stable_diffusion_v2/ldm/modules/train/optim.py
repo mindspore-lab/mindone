@@ -1,17 +1,3 @@
-# Copyright 2022 Huawei Technologies Co., Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ============================================================================
 """
  build optimizer for ms
 """
@@ -19,11 +5,13 @@ from mindspore import nn
 from mindspore.nn.optim.adam import Adam, AdamWeightDecay
 
 
-def build_optimizer(model, opts, lr):
+def build_optimizer(model, optim, betas, weight_decay, lr):
     """
 
     :param model:
-    :param opts:
+    :param optim:
+    :param betas:
+    :param weight_decay:
     :param lr:
     :return: optimizer
     """
@@ -36,23 +24,23 @@ def build_optimizer(model, opts, lr):
     other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
     group_params = []
     if len(decay_params) > 0:
-        group_params.append({"params": decay_params, "weight_decay": opts.weight_decay})  # 1e-6})
+        group_params.append({"params": decay_params, "weight_decay": weight_decay})  # 1e-6})
     if len(other_params) > 0:
         group_params.append({"params": other_params, "weight_decay": 0.0})
     group_params.append({"order_params": param_optimizer})
 
-    if opts.optim == "adam":
+    if optim == "adam":
         OptimCls = Adam
-    elif opts.optim == "adamw":
+    elif optim == "adamw":
         OptimCls = AdamWeightDecay
-    elif opts.optim in ["sgd", "momentum"]:
+    elif optim in ["sgd", "momentum"]:
         OptimCls = nn.Momentum
     else:
         raise ValueError("invalid optimizer")
 
-    if opts.optim in ["sgd", "momentum"]:
+    if optim in ["sgd", "momentum"]:
         optimizer = OptimCls(group_params, learning_rate=lr, momentum=0.9)
     else:
-        optimizer = OptimCls(group_params, learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1])
+        optimizer = OptimCls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1])
 
     return optimizer

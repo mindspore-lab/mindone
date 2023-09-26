@@ -44,7 +44,7 @@ pip install -r requirements.txt
 
 #### Pretrained Models
 
-Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `stable_diffusion_v2/models` folder.
+Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder.
 
 
 #### Text-image Dataset Preparation
@@ -76,18 +76,24 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 
 ### LoRA Finetune
 
-We will use the `scripts/run_train_v2_lora.sh` script for LoRA finetuning. Before running, please modify the `data_path` argument to your local dataset path, for example
+We will use the `train_text_to_image.py` script and set argument `use_lora=True` for LoRA finetuning.
+Before running, please modify the following arguments to your local path in the shell or in the config file `train_config_lora_v2.yaml`:
+
+* `--data_path=/path/to/data`
+* `--output_path=/path/to/save/output_data`
+* `--pretrained_model_path=/path/to/pretrained_model`
+
+Then, execute the script to launch finetuning:
 
 ```shell
-data_path=./datasets/pokemon_blip
-output_path=output/lora_pokemon
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_lora_v2.yaml" \
+    --data_path "datasets/pokemon_blip/train" \
+    --output_path "output/lora_pokemon/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 
-Then, execute the script to launch finetuning
-
-```shell
-sh scripts/run_train_v2_lora.sh
-```
+> Note: to modify other important hyper-parameters, please refer to training config file `train_config_lora_v2.yaml`.
 
 After training, the lora checkpoint will be saved in `{output_path}/ckpt/txt2img/ckpt/rank_0/sd-72.ckpt` by default, which only contains the LoRA parameters and is small.
 
@@ -119,7 +125,7 @@ parameterization: "velocity"
 
 To perform text-to-image generation with the finetuned lora checkpoint, please run
 
-```python
+```shell
 python text_to_image.py \
         --prompt "A drawing of a fox with a red tail" \
         --use_lora True \
@@ -127,8 +133,6 @@ python text_to_image.py \
 ```
 
 Please update `lora_ckpt_path` according to your finetune settings.
-
-To avoid typing too many arguments in CLI, you may modify and run the `scripts/run_text_to_image_v2_lora.sh` script. Note that you prefer single prompt inference, you should use the `prompt` argument instead of `data_path` for multiple prompts inference.
 
 Here are the example results.
 
@@ -158,18 +162,11 @@ We will evaluate the finetuned model on the split test set in `pokemon_blip.zip`
 
 Let us run text-to-image generation conditioned on the prompts in test set then evaluate the quality of the generated images by the following steps.
 
-1. Update the following path settings in `scripts/run_text_to_image_v2_lora.sh`:
-    - `data_path`: path to your prompt txt file
-    - `output_path`: path to store the generated images
-    - `lora_ckpt_path`: path to the finetuned lora checkpoint that you want to evalute
+1. Before running, please modify the following arguments to your local path:
 
-For example,
-
-```shell
-data_path=./datasets/pokemon_blip/test/prompts.txt  # modify to your local data path
-lora_ckpt_path=output/pokemon/txt2img/ckpt/rank_0/sd-72.ckpt  # modify to your lora checkpoint
-output_path=output/lora_pokemon  # modify to your output path
-```
+* `--data_path=/path/to/prompts.txt`
+* `--output_path=/path/to/save/output_data`
+* `--lora_ckpt_path=/path/to/lora_checkpoint`
 
 `prompts.txt` is a file which contains multiple prompts, and each line is the caption for a real image in test set, for example
 
@@ -183,7 +180,21 @@ a drawing of a pokemon pokemon with its mouth open
 2. Run multiple-prompt inference on the test set
 
 ```shell
-sh scripts/run_text_to_image_v2_lora.sh
+python text_to_image.py \
+    --version "2.0" \
+    --config "configs/v2-inference.yaml" \
+    --output_path "output/lora_pokemon_infer" \
+    --n_iter 1 \
+    --n_samples 2 \
+    --scale 9.0 \
+    --W 512 \
+    --H 512 \
+    --use_lora True \
+    --lora_ft_text_encoder False \
+    --lora_ckpt_path "output/lora_pokemon/txt2img/ckpt/rank_0/sd-72.ckpt" \
+    --dpm_solver \
+    --sampling_steps 20 \
+    --data_path datasets/pokemon_blip/test/prompts.txt
 ```
 
 The generated images will be saved in the `{output_path}/samples` folder.
@@ -200,7 +211,7 @@ For more details, please run `python text_to_image.py -h`.
 
 ```shell
 python eval/eval_fid.py --real_dir {path/to/test_images} --gen_dir {path/to/generated_images}
-python eval/eval_clip_score.py --image_path {path/to/test_images} --prompt {path/to/prompts_file} --load_checkpoint {path/to/checkpoint}
+python eval/eval_clip_score.py --image_path_or_dir {path/to/generated_images} --prompt_or_path {path/to/prompts_file} --ckpt_path {path/to/checkpoint}
 ```
 
 For details, please refer to the guideline [Diffusion Evaluation](tools/eval/README.md).
@@ -209,10 +220,10 @@ Here are the evaluation results for our implementation.
 
 <div align="center">
 
-| Pretrained Model        | Dataset  |   Finetune Method | Sampling Algo. | FID (Ours) &#8595; |  FID (Diffuser) &#8595;  | CLIP Score (Ours) &#8593; | CLIP Score (Diffuser) &#8593;  |
-|--------------|------|-------------|-----------|--------|------------|------------|------------|
-| stable_diffusion_2.0_base| pokemon_blip |  LoRA  | DPM Solver (scale: 9, steps: 15)   |   108  |   106  | 30.8 | 31.6 |
-| stable_diffusion_2.0_base| chinese_art_blip |  LoRA | DPM Solver (scale: 4, steps: 15)   |  257 |   254  | 33.6 | 33.2 |
+| Pretrained Model          | Dataset          | Finetune Method | Sampling Algo.                   | FID (Ours) &#8595; | FID (Diffuser) &#8595; | CLIP Score (Ours) &#8593; | CLIP Score (Diffuser) &#8593; |
+|---------------------------|------------------|-----------------|----------------------------------|--------------------|------------------------|---------------------------|-------------------------------|
+| stable_diffusion_2.0_base | pokemon_blip     | LoRA            | DPM Solver (scale: 9, steps: 15) | 108                | 106                    | 30.8                      | 31.6                          |
+| stable_diffusion_2.0_base | chinese_art_blip | LoRA            | DPM Solver (scale: 4, steps: 15) | 257                | 254                    | 33.6                      | 33.2                          |
 
 </div>
 

@@ -146,7 +146,7 @@ Please note that if `n_samples` is increased (e.g., 8), the time required for ea
 
 The difference schedulers can be used for stable diffusion model + LoRA inference (see [LoRA](./lora_finetune.md#introduction) for more information).
 Users can specify schedulers in the same manner as described in chapter [Inference with Different Schedulers](#32-inference-with-different-schedulers).
-Refer to the inference script for additional information, e.g., in [run_text_to_image_v2_lora](scripts/run_text_to_image_v2_lora.sh).
+For detailed additional information, please refer to [Use LoRA for Stable Diffusion Finetune](lora_finetune.md).
 In this chapter, we will provide a visual, qualitative and quantitative comparison with Diffusers using different schedulers based on LoRa finetune.
 
 ### 4.1 Visual Comparison
