@@ -128,6 +128,12 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_before_eval()
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
+                # adapt for 910B. TODO: testing
+                if ms.context.get_context("enable_ge"):
+                    from mindspore.train.callback import _set_cur_net
+                    _set_cur_net(cb_params.train_network)
+                    cb_params.train_network.exec_checkpoint_graph() 
+
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(
