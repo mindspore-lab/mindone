@@ -65,9 +65,7 @@ def main():
     args = parse_args()
 
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(
-        mode=ms.context.PYNATIVE_MODE, device_target="Ascend", device_id=device_id, max_device_memory="30GB"
-    )
+    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
 
     # set_random_seed(args.seed)
 

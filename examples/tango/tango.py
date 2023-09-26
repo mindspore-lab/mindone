@@ -3,10 +3,11 @@ import os
 
 from audioldm.audio.stft import TacotronSTFT
 from audioldm.variational_autoencoder import AutoencoderKL
-from models import AudioDiffusion
 from tqdm import tqdm
 
 import mindspore.nn as nn
+
+from models import AudioDiffusion
 
 
 class dotdict(dict):

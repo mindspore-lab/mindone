@@ -135,7 +135,7 @@ class CrossAttention(nn.Cell):
         )
 
         self.enable_flash_attention = (
-            enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
+            enable_flash_attention and FLASH_IS_AVAILABLE and (ms.get_context("device_target") == "Ascend")
         )
         if enable_flash_attention and not self.enable_flash_attention:
             print("WARNING: flash attention not available.")
