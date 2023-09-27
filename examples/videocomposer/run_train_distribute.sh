@@ -29,8 +29,7 @@ export RANK_TABLE_FILE=${RANK_TABLE_FILE}
 echo "RANK_TABLE_FILE=${RANK_TABLE_FILE}"
 
 # remove files
-rm -rf ${output_dir:?}
-mkdir -p ${output_dir:?}
+output_dir=$output_path/$task_name
 cp $0 $output_dir/.
 
 export SERVER_ID=0
@@ -44,7 +43,7 @@ do
     echo "start training for rank $RANK_ID, device $DEVICE_ID"
     nohup python -u train.py \
         --cfg=$yaml_file  \
-        --output_dir=$output_path/$task_name \
+        --output_dir=$output_dir \
         --use_parallel=True \
-        > $output_path/$task_name/rank_$i/train.log 2>&1 &
+        > $output_dir/rank_$i/train.log 2>&1 &
 done
