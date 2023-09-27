@@ -1,0 +1,37 @@
+# system
+mode: 0
+use_parallel: False
+
+# dataset
+instance_data_dir: "/path/to/data"
+instance_prompt: "a photo of sks dog"
+class_data_dir: "/path/to/class_image"
+class_prompt: "a photo of a dog"
+num_class_images: 200
+scale: 9.0
+random_crop: True
+image_size: 512
+train_batch_size: 1
+
+# model
+model_config: "configs/train_dreambooth_sd_v2.yaml"
+pretrained_model_path: "/path/to/pretrained_model"
+output_path: "/path/to/save/output_data"
+ckpt_save_interval: 1
+epochs: 4
+train_text_encoder: True
+with_prior_preservation: True
+
+# lr scheduler
+start_learning_rate: 5e-5
+
+# optimizer
+optim: "adamw"
+betas: [0.9, 0.98]
+weight_decay: 1e-4
+
+# lora
+use_lora: True
+lora_rank: 64
+lora_ft_unet: True
+lora_ft_text_encoder: True

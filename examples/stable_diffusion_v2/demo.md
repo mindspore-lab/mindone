@@ -7,9 +7,9 @@ Step 1. Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/m
 Step 2. Run `text_to_image.py` to generate images for the prompt of your interest.
 
 
-```python
+```shell
 # Stable Diffusion 2.0 Inference
-!python text_to_image.py --prompt 'A cute wolf in winter forest'
+!python text_to_image.py --prompt 'A cute wolf in winter forest' -v 2.0
 ```
 
     [2023-07-04 10:54:58] INFO: Loading model from models/sd_v2_base-57526ee4.ckpt
@@ -41,7 +41,7 @@ Step 2. Run `text_to_image.py` to generate images for the prompt of your interes
 > Note: The SD2.0 checkpoint does NOT well support Chinese prompts. If you prefer to use Chinese prompts, please refer to Section 2.1.
 
 
-```python
+```shell
 # The generated images are saved in `output/samples` folder by default
 !ls output/samples
 ```
@@ -66,15 +66,19 @@ plt.show()
 
 Step 1. Download the [SD2.0 checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/stablediffusion/stablediffusionv2_512.ckpt) and put it under `models/` folder
 
-Step 2. Prepare your image-text pair data (referring to README.md) and change `data_path` in `scripts/run_train_v2.sh` accordingly.
+Step 2. Prepare your image-text pair data (referring to README.md) and change `data_path` to your local path.
 
 Step 3. Run the training script as follows
 
 
-```python
+```shell
 # After preparing the checkpoint and image-text pair data, run the follow script to finetune SD2.0 on a single NPU
 
-!sh scripts/run_train_v2.sh
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_vanilla_v2.yaml" \
+    --data_path "datasets/pokemon_blip/train" \
+    --output_path "output/finetune_pokemon/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 
     [2023-07-04 11:02:49] INFO: Total number of training samples: 833
@@ -118,8 +122,12 @@ Step 3. Run the training script as follows
 
 For detailed illustration, please refer to [Use LoRA for Stable Diffusion Finetune](lora_finetune.md)
 
-```python
-!sh scripts/run_train_v2_lora.sh
+```shell
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_lora_v2.yaml" \
+    --data_path "datasets/pokemon_blip/train" \
+    --output_path "output/lora_pokemon/txt2img" \
+    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 
     [2023-07-04 11:57:45] INFO: Total number of training samples: 833
@@ -161,7 +169,7 @@ For detailed illustration, please refer to [Use LoRA for Stable Diffusion Finetu
 
 ## 1.4 Inference with Finetuned Model
 
-```python
+```shell
 !python text_to_image.py --prompt "A drawing of a fox with a red tail" --use_lora True --lora_rank 128 --lora_ckpt_path output/lora_pokemon/txt2img/ckpt/rank_0/sd-72.ckpt
 ```
 
@@ -206,13 +214,13 @@ Step 2. Run `text_to_image.py` to generate images for the prompt of your interes
 
 
 
-```python
+```shell
 # Stable Diffusion 1.x Inference
 !python text_to_image.py --prompt '雪中之狼' -v 1.x
 ```
 
 
-```python
+```shell
 # The generated images are saved in `output/samples` folder by default
 !ls output/samples
 ```
@@ -228,13 +236,17 @@ plt.show()
 
 Step 1.Download the [SD1.x checkpoint](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) (credit to WuKongHuaHua) and put it under `models/` folder
 
-Step 2. Prepare your image-text pair data (referring to README.md) and change `data_path` in `scripts/run_train_v1.sh` accordingly.
+Step 2. Prepare your image-text pair data (referring to README.md) and change `data_path` to your local path.
 
 Step 3. Run the training script as follows
 
 
-```python
-# After preparing the checkpoint and image-text pair data, run the follow script to finetune SD2.0 on a single NPU
+```shell
+# After preparing the checkpoint and image-text pair data, run the follow script to finetune SD1.5 on a single NPU
 
-!sh scripts/run_train_v1.sh
+python train_text_to_image.py \
+    --train_config "configs/train/train_config_vanilla_v1_chinese.yaml" \
+    --data_path datasets/pokemon_cn/train \
+    --output_path "output/txt2img" \
+    --pretrained_model_path "models/wukong-huahua-ms.ckpt"
 ```

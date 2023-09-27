@@ -78,17 +78,32 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
 
    Run the command below to generate images
 
-   ```shell
-   sh scripts/run_controlnet_canny2image.sh
-   ```
+```shell
+python controlnet_image2image.py \
+    --model_config "configs/v1_inference_contorlnet.yaml" \
+    --model_ckpt "models/control_canny_sd_v1.5-3b5e0f2f.ckpt" \
+    --input_image "test_imgs/dog2.png" \
+    --prompt "cute toy" \
+    --task_name "canny2image"
+```
 
 2. Segmentation edge maps (DeeplabV3Plus):
 
    Run the command below to generate images
 
-   ```shell
-   sh scripts/run_controlnet_seg2image.sh
-   ```
+```shell
+python controlnet_image2image.py \
+    --model_config "configs/v1_inference_contorlnet.yaml" \
+    --model_ckpt "models/control_segmentation_sd_v1.5-6d4a264f.ckpt" \
+    --input_image "test_imgs/bird.png" \
+    --scale 9.0 \
+    --prompt "Bird" \
+    --a_prompt "best quality, extremely detailed" \
+    --mode "segmentation" \
+    --image_resolution 512 \
+    --condition_ckpt_path "models/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt" \
+    --task_name "seg2image"
+```
 
 #### Important arguments in the shell scripts
 - `model_ckpt`: The path to load trained ControlNet model. Please set differently according to different controls. (Default is `stable_diffusion_v2/models` introduced above.)
