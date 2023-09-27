@@ -64,7 +64,7 @@ def prepare_video(cfg):
 def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_id=device_id)
+    ms.context.set_context(mode=args.ms_mode, device_id=device_id, pynative_synchronize=True)
 
     # set random seed
     set_random_seed(args.seed)
@@ -122,7 +122,11 @@ def main(args):
     latents = []
 
     for i in range(0, video_length, validation_data.video_length):
-        latents.append(sd.encode_first_stage(pixel_values[i : i + validation_data.video_length]))
+        latent = sd.first_stage_model.encoder(pixel_values[i : i + validation_data.video_length])
+        latent = sd.first_stage_model.quant_conv(latent)
+        latent, _ = sd.first_stage_model.split(latent)
+        latents.append(latent.to(ms.float32))
+        # latents.append(sd.encode_first_stage(pixel_values[i : i + validation_data.video_length]))
 
     latents = ops.cat(latents, axis=0)
     latents = latents.reshape(
