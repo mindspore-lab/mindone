@@ -1,9 +1,13 @@
 task_name=train_exp02_motion_transfer
 yaml_file=configs/${task_name}.yaml
 output_path=outputs
+
 rm -rf ${output_path:?}/${task_name:?}
 mkdir -p ${output_path:?}/${task_name:?}
-export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}
+# uncomment this following line for caching and loading the compiled graph, which is saved in ${output_path}/${task_name}_cache
+# export MS_COMPILER_CACHE_ENABLE=1
+mkdir -p ${output_path:?}/${task_name:?}_cache
+export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}_cache
 
 # Parallel config
 num_devices=8
@@ -24,15 +28,9 @@ RANK_TABLE_FILE=$rank_table_file
 export RANK_TABLE_FILE=${RANK_TABLE_FILE}
 echo "RANK_TABLE_FILE=${RANK_TABLE_FILE}"
 
-# uncomment this following line for caching and loading the compiled graph
-#export MS_COMPILER_CACHE_ENABLE=1
-#export MS_COMPILER_CACHE_PATH=/cache
-
 # remove files
-rm -rf ${output_dir:?}
-mkdir -p ${output_dir:?}
+output_dir=$output_path/$task_name
 cp $0 $output_dir/.
-#export MS_COMPILER_CACHE_PATH=${output_dir:?}
 
 export SERVER_ID=0
 rank_start=$((DEVICE_NUM * SERVER_ID))
@@ -45,7 +43,7 @@ do
     echo "start training for rank $RANK_ID, device $DEVICE_ID"
     nohup python -u train.py \
         --cfg=$yaml_file  \
-        --output_dir=$output_path/$task_name \
+        --output_dir=$output_dir \
         --use_parallel=True \
-        > $output_path/$task_name/rank_$i/train.log 2>&1 &
+        > $output_dir/rank_$i/train.log 2>&1 &
 done
