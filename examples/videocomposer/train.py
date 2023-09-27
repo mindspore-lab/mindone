@@ -32,6 +32,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
 
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from ldm.modules.train.ema import EMA
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
@@ -268,7 +269,14 @@ def main(cfg):
     )
     optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate)
     loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65536, scale_factor=2, scale_window=1000)
-
+    ema = (
+        EMA(
+            ldm_with_loss.unet,
+            ema_decay=0.9999,
+        )
+        if cfg.use_ema
+        else None
+    )
     net_with_grads = TrainOneStepWrapper(
         ldm_with_loss,
         optimizer=optimizer,
@@ -277,7 +285,7 @@ def main(cfg):
         gradient_accumulation_steps=cfg.gradient_accumulation_steps,
         clip_grad=False,  # args.clip_grad,
         clip_norm=1.0,  # args.max_grad_norm,
-        ema=None,  # TODO: add EMA
+        ema=ema,
     )
 
     model = Model(net_with_grads)
@@ -295,7 +303,7 @@ def main(cfg):
             use_lora=False,
             rank_id=rank_id,
             ckpt_save_dir=cfg.output_dir,
-            ema=None,
+            ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=cfg.ckpt_max_keep,
             step_mode=False,
@@ -328,6 +336,7 @@ def main(cfg):
                 f"Num epochs: {cfg.epochs}",
                 f"Use fp16: {cfg.use_fp16}",
                 f"Use recompute: {cfg.use_recompute}",
+                f"Use EMA: {cfg.use_ema}",
             ]
         )
         key_info += "\n" + "=" * 50
