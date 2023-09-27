@@ -129,10 +129,10 @@ class EvalSaveCallback(Callback):
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # adapt for 910B. TODO: testing
-                if ms.context.get_context("enable_ge"):
-                    from mindspore.train.callback import _set_cur_net
-                    _set_cur_net(cb_params.train_network)
-                    cb_params.train_network.exec_checkpoint_graph() 
+		# TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
+                if ms.context.get_context("enable_ge") and not os.getenv('MS_ENABLE_REF_MODE') and ms.context.get_context("mode") == ms.context.GRAPH_MODE:
+                    set_cur_net(cb_params.train_network)
+                    cb_params.train_network.exec_checkpoint_graph()
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
@@ -198,6 +198,11 @@ class EvalSaveCallback(Callback):
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
                     # print('DEBUG: Store ema weights to save checkpoint.')
+
+		# TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
+                if ms.context.get_context("enable_ge") and not os.getenv('MS_ENABLE_REF_MODE') and ms.context.get_context("mode") == ms.context.GRAPH_MODE:
+                    set_cur_net(cb_params.train_network)
+                    cb_params.train_network.exec_checkpoint_graph()
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None

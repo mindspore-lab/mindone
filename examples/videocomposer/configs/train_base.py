@@ -12,7 +12,7 @@ cfg.pidinet_checkpoint = "table5_pidinet-37904a63.ckpt"
 cfg.sketch_simplification_checkpoint = "sketch_simplification_gan-b928fdfa.ckpt"
 
 # dataset
-cfg.root_dir = "./demo_video"  # "webvid10m/"
+cfg.root_dir = "datasets/webvid5/"
 cfg.alpha = 0.7
 cfg.misc_size = 384
 cfg.depth_std = 20.0
@@ -128,7 +128,7 @@ cfg.use_recompute = False
 cfg.gradient_accumulation_steps = 1  # for increasing global batch size
 
 # training - lr
-cfg.learning_rate = 1e-6  # 0.00005 in paper, but we are finetuning.
+cfg.learning_rate = 5e-5  # 0.00005 in paper, but we are finetuning.
 cfg.scheduler = "cosine_decay"
 cfg.end_learning_rate = 1e-7
 cfg.warmup_steps = 3
@@ -137,7 +137,7 @@ cfg.decay_steps = None  # None for auto compute
 # training - optim
 cfg.optim = "adamw"  # "momentum" for 910A, 'adamw' for 910B
 cfg.betas = [0.9, 0.98]
-cfg.weight_decay = 1e-6  # not mentioned in paper. let's start with small value
+cfg.weight_decay = 0  # not mentioned in paper. let's start with small value
 cfg.use_ema = False
 cfg.ema_decay = 0.9999
 
