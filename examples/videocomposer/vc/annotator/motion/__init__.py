@@ -49,7 +49,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     # open the video file
     ret = cap.open(tmp_video)
     if not ret:
-        raise RuntimeError(f"Could not open {tmp_video}")
+        _logger.warning(f"Could not open {tmp_video}")
 
     step = 0
     times = []
