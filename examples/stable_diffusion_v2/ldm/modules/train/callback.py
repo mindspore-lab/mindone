@@ -128,7 +128,7 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_before_eval()
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
-                # adapt for 910B. TODO: testing
+                # adapt for 910B.
                 # TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
                 if (
                     ms.context.get_context("enable_ge")
