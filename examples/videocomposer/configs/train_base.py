@@ -3,8 +3,7 @@ from easydict import EasyDict
 cfg = EasyDict(__name__="Config: VideoComposer")
 
 # image is style_image, loca-image is single_image in paper
-# cfg.video_compositions = ["text", "mask", "depthmap", "sketch", "motion", "image", "local_image", "single_sketch"]
-cfg.video_compositions = ["text", "motion", "image", "local_image"]
+cfg.video_compositions = ["text", "mask", "depthmap", "sketch", "motion", "image", "local_image", "single_sketch"]
 cfg.conditions_for_train = ["text", "motion", "image", "local_image"]  # PyTorch + Ascend setting
 
 cfg.midas_checkpoint = "midas_v3_dpt_large-c8fd1049.ckpt"
@@ -129,9 +128,9 @@ cfg.gradient_accumulation_steps = 1  # for increasing global batch size
 
 # training - lr
 cfg.learning_rate = 5e-5  # 0.00005 in paper, but we are finetuning.
-cfg.scheduler = "cosine_decay"
-cfg.end_learning_rate = 1e-7
-cfg.warmup_steps = 3
+cfg.scheduler = "constant"
+cfg.end_learning_rate = 5e-5
+cfg.warmup_steps = 10
 cfg.decay_steps = None  # None for auto compute
 
 # training - optim
