@@ -1,5 +1,5 @@
 # export MS_ENABLE_REF_MODE=1 # NEEDED for 910B + MS2.2 0907 version for saving checkpoint correctly
-export INF_NAN_MODE_ENABLE=1 # recommend to enable it for mixed precision training for 910B. it determines how overflow is detected 
+export INF_NAN_MODE_ENABLE=1 # recommend to enable it for mixed precision training for 910B. it determines how overflow is detected
 
 task_name=train_exp02_motion_transfer
 yaml_file=configs/${task_name}.yaml

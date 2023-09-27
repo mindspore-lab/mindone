@@ -3,7 +3,7 @@ import os
 import time
 
 import mindspore as ms
-from mindspore.train.callback._callback import Callback, _handle_loss
+from mindspore.train.callback._callback import Callback, _handle_loss, set_cur_net
 
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
@@ -129,8 +129,12 @@ class EvalSaveCallback(Callback):
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # adapt for 910B. TODO: testing
-		# TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
-                if ms.context.get_context("enable_ge") and not os.getenv('MS_ENABLE_REF_MODE') and ms.context.get_context("mode") == ms.context.GRAPH_MODE:
+                # TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
+                if (
+                    ms.context.get_context("enable_ge")
+                    and not os.getenv("MS_ENABLE_REF_MODE")
+                    and ms.context.get_context("mode") == ms.context.GRAPH_MODE
+                ):
                     set_cur_net(cb_params.train_network)
                     cb_params.train_network.exec_checkpoint_graph()
 
@@ -199,8 +203,12 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_before_eval()
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
-		# TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
-                if ms.context.get_context("enable_ge") and not os.getenv('MS_ENABLE_REF_MODE') and ms.context.get_context("mode") == ms.context.GRAPH_MODE:
+                # TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
+                if (
+                    ms.context.get_context("enable_ge")
+                    and not os.getenv("MS_ENABLE_REF_MODE")
+                    and ms.context.get_context("mode") == ms.context.GRAPH_MODE
+                ):
                     set_cur_net(cb_params.train_network)
                     cb_params.train_network.exec_checkpoint_graph()
 

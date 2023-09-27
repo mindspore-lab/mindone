@@ -310,16 +310,6 @@ def main(cfg):
         )
         callbacks.append(save_cb)
 
-        '''
-        config_ck = CheckpointConfig(save_checkpoint_steps=opts.save_checkpoint_steps,
-                                         keep_checkpoint_max=10,
-                                         integrated_save=False,
-                                         saved_network=LatentDiffusionWithLoss)
-        ckpoint_cb = TrainableParamsCheckPoint(prefix="wkhh_txt2img_lora",
-                                         directory=ckpt_dir,
-                                         config=config_ck)
-        '''
-
     # - log and save training configs
     if rank_id == 0:
         _, num_trainable_params = count_params(ldm_with_loss)
