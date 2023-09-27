@@ -130,11 +130,7 @@ class EvalSaveCallback(Callback):
 
                 # adapt for 910B.
                 # TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
-                if (
-                    ms.context.get_context("enable_ge")
-                    and not os.getenv("MS_ENABLE_REF_MODE")
-                    and ms.context.get_context("mode") == ms.context.GRAPH_MODE
-                ):
+                if ms.context.get_context("enable_ge"):
                     set_cur_net(cb_params.train_network)
                     cb_params.train_network.exec_checkpoint_graph()
 
@@ -204,11 +200,7 @@ class EvalSaveCallback(Callback):
                     # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # TODO(MS_ENABLE_REF_MODE): Delete when remove MS_ENABLE_REF_MODE env.
-                if (
-                    ms.context.get_context("enable_ge")
-                    and not os.getenv("MS_ENABLE_REF_MODE")
-                    and ms.context.get_context("mode") == ms.context.GRAPH_MODE
-                ):
+                if ms.context.get_context("enable_ge"):
                     set_cur_net(cb_params.train_network)
                     cb_params.train_network.exec_checkpoint_graph()
 
