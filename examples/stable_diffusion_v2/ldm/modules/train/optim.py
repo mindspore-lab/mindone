@@ -5,14 +5,14 @@ from mindspore import nn
 from mindspore.nn.optim.adam import Adam, AdamWeightDecay
 
 
-def build_optimizer(model, optim, betas, weight_decay, lr):
+def build_optimizer(model, optim, lr, betas=[0.9, 0.999], weight_decay=1e-6):
     """
 
     :param model:
     :param optim:
+    :param lr:
     :param betas:
     :param weight_decay:
-    :param lr:
     :return: optimizer
     """
 

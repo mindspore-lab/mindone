@@ -419,9 +419,9 @@ def main(args):
     optimizer = build_optimizer(
         model=latent_diffusion_with_loss,
         optim=args.optim,
+        lr=args.start_learning_rate,
         betas=args.betas,
         weight_decay=args.weight_decay,
-        lr=args.start_learning_rate,
     )
 
     loss_scaler = DynamicLossScaleUpdateCell(
