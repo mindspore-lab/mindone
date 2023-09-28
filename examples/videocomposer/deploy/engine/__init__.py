@@ -1,0 +1,1 @@
+from .inference_single_lite import inference_single_lite

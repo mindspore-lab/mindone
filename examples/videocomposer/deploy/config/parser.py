@@ -90,6 +90,7 @@ class Config(object):
             help="save video frames",
         )
         parser.add_argument("--guidance_scale", type=float, default=9.0, help="The guidance scale value in inference.")
+        parser.add_argument("--use_lite", action="store_true", help="Use Mindsproe Lite for inference")
         parser.add_argument(
             "opts",
             help="other configurations",
@@ -99,17 +100,6 @@ class Config(object):
         # new args for mindspore
         parser.add_argument(
             "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
-        )
-        parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-        parser.add_argument(
-            "--dataset_sink_mode",
-            type=str2bool,
-            help="use dataset_sink_mode in model.train. Enable it can boost the performance but step_end callback will be disabled.",
-        )
-        parser.add_argument(
-            "--use_recompute",
-            type=str2bool,
-            help="use recompute in UNet. Enable it can slow down the speed but save some memory.",
         )
         parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
         parser.add_argument(
@@ -126,8 +116,7 @@ class Config(object):
     def _update_from_args(self, cfg_dict):
         args = self.args
         for var in vars(args):
-            if getattr(args, var) is not None:
-                cfg_dict[var] = getattr(args, var)  # overwrite the key argument if provided by the command
+            cfg_dict[var] = getattr(args, var)
         return cfg_dict
 
     def _load_yaml(self, args, file_name=""):
