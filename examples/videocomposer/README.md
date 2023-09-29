@@ -19,8 +19,6 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 - Speed Up & Memory Usage Reduction (e.g., Flash Attention)
 - Support more training tasks
 - Support more training features: EMA, Gradient accumulation, Gradient clipping
-- More effieicent online inference
-- 910B + Lite inference
 - Evaluation
 
 ## Installation
@@ -51,23 +49,28 @@ Download the checkpoints shown in model_weights/README.md from https://download.
 
 ## Inference
 
-To run all video generation tasks, please run
+### Online Inference
+
+To run all video generation tasks on 910A or 910B, please run
 
 ```shell
-bash run_net.sh
+bash run_infer.sh
 ```
 
-To run a single task, you can pick the corresponding snippet of code in `run_net.sh`, such as
+On 910A, to run a single task, you can pick the corresponding snippet of code in `run_infer.sh`, such as
 
 ```shell
-python run_net.py\
-    --cfg configs/exp02_motion_transfer_vs_style.yaml\
-    --seed 9999\
-    --input_video "demo_video/motion_transfer.mp4"\
-    --image_path "demo_video/moon_on_water.jpg"\
-    --style_image "demo_video/moon_on_water.jpg"\
+# export MS_ENABLE_GE=1  # for 910B
+python infer.py \
+    --cfg configs/exp02_motion_transfer_vs_style.yaml \
+    --seed 9999 \
+    --input_video "demo_video/motion_transfer.mp4" \
+    --image_path "demo_video/moon_on_water.jpg" \
+    --style_image "demo_video/moon_on_water.jpg" \
     --input_text_desc "A beautiful big silver moon on the water"
 ```
+
+On 910B, you need enable the GE Mode first by running `export MS_ENABLE_GE=1`.
 
 It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
 
@@ -76,7 +79,68 @@ It takes additional time for graph compilation to execute the first step inferen
 You can adjust the arguemnts in `vc/config/base.py` (lower-priority) or `configs/exp{task_name}.yaml` (higher-priority, will overwrite base.py if overlap). Below are the key arguments influencing inference speed and memory usage.
 
 - use_fp16: whether enable mixed precision inference
-- mode: 0 for use graph mode,  1 for pynative mode
+
+### Offline (Mindspore Lite) Inference
+
+#### Install Mindspore Lite
+You need to have a Mindspore Lite Environment first for offline inference.
+
+To install Mindspore Lite, please Refer to [Lite install](https://mindspore.cn/lite/docs/zh-CN/r2.1/use/downloads.html)
+
+1. Download the supporting tar.gz and whl packages according to the environment.
+2. Unzip the tar.gz package and install the corresponding version of the WHL package.
+
+   ```shell
+   tar -zxvf mindspore-lite-2.1.0-*.tar.gz
+   pip install mindspore_lite-2.1.0-*.whl
+   ```
+
+3. Configure Lite's environment variables
+
+   `LITE_HOME` is the folder path extracted from tar.gz, and it is recommended to use an absolute path.
+
+   ```shell
+   export LITE_HOME=/path/to/mindspore-lite-{version}-{os}-{platform}
+   export LD_LIBRARY_PATH=$LITE_HOME/runtime/lib:$LITE_HOME/tools/converter/lib:$LD_LIBRARY_PATH
+   export PATH=$LITE_HOME/tools/converter/converter:$LITE_HOME/tools/benchmark:$PATH
+
+
+#### Export Mindspore Lite Model
+
+For different task, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B before running the code snippet.
+
+```shell
+# export MS_ENABLE_GE=1  # for 910B
+python export.py\
+    --cfg configs/exp02_motion_transfer_vs_style.yaml \
+    --input_video "demo_video/motion_transfer.mp4" \
+    --image_path "demo_video/moon_on_water.jpg" \
+    --style_image "demo_video/moon_on_water.jpg" \
+    --input_text_desc "A beautiful big silver moon on the water"
+```
+
+The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. And please note that on 910B, you need to unset `MS_ENABLE_GE` environmental variable befor running the conversion.
+
+```shell
+unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910B
+python convert_lite.py
+```
+
+#### Inference using the exported Lite models.
+
+Then you can run the offline inference using the `infer_lite.py` for the given task, e.g,
+
+```shell
+python infer_lite.py\
+    --cfg configs/exp02_motion_transfer_vs_style.yaml \
+    --seed 9999 \
+    --input_video "demo_video/motion_transfer.mp4" \
+    --image_path "demo_video/moon_on_water.jpg" \
+    --style_image "demo_video/moon_on_water.jpg" \
+    --input_text_desc "A beautiful big silver moon on the water" \
+```
+
+The compiling time is much shorter compared with the online inference mode.
 
 
 ## Training
