@@ -56,7 +56,6 @@ cfg.scale_factor = 0.18215
 
 # classifier-free guidance
 cfg.p_zero = 0.9
-cfg.guide_scale = 6.0
 
 # stable diffusion
 cfg.sd_checkpoint = "sd_v2-1_base-7c8d09ce.ckpt"
@@ -150,5 +149,3 @@ cfg.viz_interval = 1000
 
 # logging
 cfg.log_interval = 1
-composition_strings = "_".join(cfg.video_compositions)
-cfg.mode = 0  # 0: Graph mode; 1: Pynative mode

@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 from vc.config import Config
-from vc.engine.inference_multi import inference_multi
-from vc.engine.inference_single import inference_single
+from vc.export_modules import export_single
 
 
 def main():
@@ -12,9 +12,9 @@ def main():
     task_type = cfg.TASK_TYPE
     print(f"TASK TYPE: {task_type}")
     if task_type == "MULTI_TASK":
-        inference_multi(cfg.cfg_dict)
+        raise NotImplementedError()
     elif task_type == "SINGLE_TASK":
-        inference_single(cfg.cfg_dict)
+        export_single(cfg.cfg_dict)
     else:
         raise NotImplementedError(f"TASK TYPE: {task_type} is not supported!")
 

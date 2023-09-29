@@ -4,15 +4,6 @@ from typing import Dict, Tuple
 import imageio
 import numpy as np
 
-import mindspore as ms
-import mindspore.ops as ops
-from mindspore import JitConfig, Tensor
-
-try:
-    _config = JitConfig(jit_level="O3") if os.environ.get("MS_ENABLE_GE", 0) else None
-except ValueError:  # for MS > 2.1
-    _config = JitConfig(jit_level="O2")
-
 __all__ = ["save_video_multiple_conditions"]
 
 
@@ -46,24 +37,6 @@ def unormalize_tensor(x: np.ndarray, mean: Tuple[float, float, float], std: Tupl
     std = np.reshape(std, (1, -1, 1, 1, 1))
     x = x * std + mean
     x = np.clip(x, 0, 1)
-    return x
-
-
-@ms.jit(jit_config=_config)
-def resize_tensor_for_visual(x: Tensor, n: int, h: int, w: int) -> Tensor:
-    """Resize the tensor to (-1, -1, n, h, w) shape
-    Args:
-        x: b c f h w
-    """
-    # TODO: change to ops.interpolate(mode="trilinear") once it is ok on 910B
-    b, c, f, _, _ = x.shape
-    x = ops.reshape(x, (-1, f, x.shape[3], x.shape[4]))
-    x = ops.interpolate(x, size=(h, w), mode="bilinear")
-    x = ops.reshape(x, (-1, f, h * w))
-    x = ops.transpose(x, (0, 2, 1))
-    x = ops.adaptive_avg_pool1d(x, n)
-    x = ops.transpose(x, (0, 2, 1))
-    x = ops.reshape(x, (b, c, n, h, w))
     return x
 
 
@@ -119,16 +92,18 @@ def save_video_multiple_conditions(
         else:
             raise ValueError(f"Unsupported dimension `{c}`")
 
-        model_kwargs_channel3[key] = resize_tensor_for_visual(Tensor(conditions, dtype=ms.float32), n, h, w).asnumpy()
+        model_kwargs_channel3[key] = conditions
 
     cons_list = [rearrange_tensor(con, nrow=nrow) for con in model_kwargs_channel3.values()]
 
     if save_origin_video:
         source_imgs = swap_c_t(source_imgs)
-        source_imgs = resize_tensor_for_visual(Tensor(source_imgs, dtype=ms.float32), n, h, w).asnumpy()
         source_imgs = rearrange_tensor(source_imgs, nrow=nrow)
-        vid_gif = np.concatenate([source_imgs, *cons_list, vid_gif], axis=2)
+        vid_gif = [source_imgs, *cons_list, vid_gif]
     else:
-        vid_gif = np.concatenate([*cons_list, vid_gif], axis=2)
+        vid_gif = [*cons_list, vid_gif]
 
-    video_tensor_to_gif(vid_gif, filename, save_frames=save_frames)
+    root, ext = os.path.splitext(filename)
+    for i, vid_gif in enumerate(vid_gif):
+        filename = f"{root}_{i}{ext}"
+        video_tensor_to_gif(vid_gif, filename, save_frames=save_frames)

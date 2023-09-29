@@ -1,3 +1,4 @@
+import binascii
 import logging
 import os
 import subprocess
@@ -6,8 +7,6 @@ import time
 import cv2
 import numpy as np
 from mvextractor.videocap import VideoCap
-
-from ...utils.misc import rand_name
 
 __all__ = [
     "draw_motion_vectors",
@@ -114,3 +113,12 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
             cv2.imwrite(os.path.join(dump_path, f"frame-mv-{i}.jpg"), mv_visual)
 
     return frame_types, frames, mvs, mvs_visual
+
+
+def rand_name(length=8, suffix=""):
+    name = binascii.b2a_hex(os.urandom(length)).decode("utf-8")
+    if suffix:
+        if not suffix.startswith("."):
+            suffix = "." + suffix
+        name += suffix
+    return name
