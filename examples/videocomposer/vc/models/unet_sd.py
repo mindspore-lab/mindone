@@ -1045,7 +1045,7 @@ class UNetSD_temporal(nn.Cell):
         # if ckpt_not_load:
         #    _logger.warning(f"Checkput params not used: {ckpt_not_load}")
 
-    # Remember that the inputs and the default value should be consistent with vc/engine/modules/sampler.py - DiffusionSampler
+    # Remember that the inputs and the default value should be consistent with vc/infer_engine/schedulers/sampler.py - DiffusionSampler
     def construct(
         self,
         x,

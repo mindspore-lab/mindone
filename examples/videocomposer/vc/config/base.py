@@ -132,7 +132,7 @@ cfg.load_from = None
 cfg.use_checkpoint = False
 cfg.use_sharded_ddp = False
 cfg.use_fsdp = False
-cfg.use_fp16 = True
+cfg.use_fp16 = True  # TODO: set False for MS > 2.1, need fix
 
 # training
 cfg.ema_decay = 0.9999
