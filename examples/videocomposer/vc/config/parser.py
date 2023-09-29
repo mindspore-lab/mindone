@@ -75,6 +75,7 @@ class Config(object):
         )
         parser.add_argument(
             "--style_image",
+            default="",
             help="Single Sketch Input",
             type=str,
         )
