@@ -107,7 +107,7 @@ class DiffusionSampler:
         # diffusion process (TODO: clamp is inaccurate! Consider replacing the stride by explicit prev/next steps)
         steps = 1 + np.arange(0, self.num_timesteps, self.num_timesteps // timesteps)
         steps = np.clip(steps, 0, self.num_timesteps - 1)
-        steps = np.flip(steps)
+        steps = np.flip(steps).astype(np.int32)
 
         stride = self.num_timesteps // timesteps
 
