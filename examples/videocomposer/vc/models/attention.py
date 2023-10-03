@@ -143,14 +143,16 @@ class CrossAttention(nn.Cell):
 
 
 class GroupNorm(nn.GroupNorm):
+    # GroupNorm in calculated in FP32
     def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
         super().__init__(num_groups=num_groups, num_channels=num_channels, eps=eps, affine=affine)
 
     def construct(self, x):
         x_shape = x.shape
+        dtype = x.dtype
         if x.ndim >= 3:
             x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
-        y = super().construct(x)
+        y = super().construct(x.to(ms.float32)).to(dtype)
         return y.view(x_shape)
 
 
@@ -242,7 +244,7 @@ class SpatialTransformer(nn.Cell):
         self.dtype = dtype
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
             self.proj_in = nn.Conv2d(
                 in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
@@ -323,7 +325,7 @@ class TemporalAttentionBlock(nn.Cell):
         self.heads = heads
         hidden_dim = dim_head * heads
 
-        self.norm = GroupNorm(32, dim).to_float(ms.float32)
+        self.norm = GroupNorm(32, dim)
         self.rotary_emb = rotary_emb.to_float(self.dtype)
         self.to_qkv = nn.Dense(dim, hidden_dim * 3).to_float(self.dtype)  # , bias = False)
         self.to_out = nn.Dense(hidden_dim, dim).to_float(self.dtype)  # , bias = False)
@@ -490,7 +492,7 @@ class TemporalTransformer(nn.Cell):
             context_dim = [context_dim]
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
             self.proj_in = nn.Conv1d(
                 in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
@@ -609,14 +611,14 @@ class TemporalConvBlock_v2(nn.Cell):
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            GroupNorm(32, in_dim).to_float(ms.float32),
+            GroupNorm(32, in_dim),
             nn.SiLU().to_float(self.dtype),
             nn.Conv3d(in_dim, out_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
             ),
         )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
+            GroupNorm(32, out_dim),
             nn.SiLU().to_float(self.dtype),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
@@ -624,7 +626,7 @@ class TemporalConvBlock_v2(nn.Cell):
             ),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
+            GroupNorm(32, out_dim),
             nn.SiLU().to_float(self.dtype),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
@@ -632,7 +634,7 @@ class TemporalConvBlock_v2(nn.Cell):
             ),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
+            GroupNorm(32, out_dim),
             nn.SiLU().to_float(self.dtype),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
