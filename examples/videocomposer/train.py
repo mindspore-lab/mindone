@@ -75,7 +75,7 @@ def init_env(args):
         # max_device_memory="30GB", # adapt for 910b
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
-    #ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})  # TODO: testing bf16
+    # ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})  # TODO: testing bf16
 
     # logger
     # ct = datetime.datetime.now().strftime("_%y%m%d_%H_%M")
@@ -140,9 +140,6 @@ def main(cfg):
     logger.info("vae init")
 
     # 2.3 unet3d with STC encoders
-    black_image_feature = ms.Tensor(
-        np.zeros([1, 1, cfg.vit_dim]), ms.float32
-    )  # img feature vector of vit-h is fxed to len of 1024
     unet = UNetSD_temporal(
         cfg=cfg,
         in_dim=cfg.unet_in_dim,

@@ -17,51 +17,67 @@ import numpy as np
 
 from mindspore import context, nn
 from mindspore.common import dtype as mstype
-from mindspore.ops import operations as P
+from mindspore.common.initializer import initializer
+from mindspore.common.parameter import Parameter, ParameterTuple
+from mindspore.common.tensor import Tensor
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.common.initializer import initializer
-from mindspore.common.tensor import Tensor
-from mindspore.common.parameter import Parameter, ParameterTuple
+from mindspore.ops import operations as P
+
 # MindSpore 2.0 has changed the APIs of _checkparam, the following try except is for compatibility
 try:
-    from mindspore._checkparam import Validator as validator
     from mindspore._checkparam import Rel
+    from mindspore._checkparam import Validator as validator
 except ImportError:
     import mindspore._checkparam as validator
     import mindspore._checkparam as Rel
+
 from mindspore.nn.optim.optimizer import Optimizer
 
-__all__ = ['FusedAdamWeightDecay', 'FP32StateAdamWeightDecay']
+__all__ = ["FusedAdamWeightDecay", "FP32StateAdamWeightDecay"]
 
 _adam_opt = C.MultitypeFuncGraph("adam_opt")
 _scaler_one = Tensor(1, mstype.int32)
 op_mul = P.Mul()
 
 
-@_adam_opt.register("Function", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor",
-                    "Tensor", "Tensor", "Bool", "Bool")
-def _fused_update_with_global_norm(opt, global_norm, beta1, beta2, eps, lr, weight_decay,
-                                   param, m, v, gradient, decay_flags, optim_filter):
+@_adam_opt.register(
+    "Function",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Bool",
+    "Bool",
+)
+def _fused_update_with_global_norm(
+    opt, global_norm, beta1, beta2, eps, lr, weight_decay, param, m, v, gradient, decay_flags, optim_filter
+):
     """
     Update parameters by FusedAdamWeightDecay.
     """
     success = True
     if optim_filter:
         if decay_flags:
-            next_param = opt(param, m, v, lr, beta1, beta2, eps, weight_decay,
-                             P.Cast()(gradient, mstype.float16), global_norm)
+            next_param = opt(
+                param, m, v, lr, beta1, beta2, eps, weight_decay, P.Cast()(gradient, mstype.float16), global_norm
+            )
         else:
-            next_param = opt(param, m, v, lr, beta1, beta2, eps, 0.0,
-                             P.Cast()(gradient, mstype.float16), global_norm)
+            next_param = opt(param, m, v, lr, beta1, beta2, eps, 0.0, P.Cast()(gradient, mstype.float16), global_norm)
         return F.depend(success, next_param)
     return success
 
 
-@_adam_opt.register("Function", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor",
-                    "Tensor", "Tensor", "Bool", "Bool")
-def _fused_update(opt, beta1, beta2, eps, lr, weight_decay,
-                  param, m, v, gradient, decay_flags, optim_filter):
+@_adam_opt.register(
+    "Function", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Bool", "Bool"
+)
+def _fused_update(opt, beta1, beta2, eps, lr, weight_decay, param, m, v, gradient, decay_flags, optim_filter):
     """
     Update parameters by FusedAdamWeightDecay.
     """
@@ -75,10 +91,24 @@ def _fused_update(opt, beta1, beta2, eps, lr, weight_decay,
     return success
 
 
-@_adam_opt.register("Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor", "Tensor",
-                    "Tensor", "Bool", "Bool")
-def _update_run_op(beta1_power, beta2_power, beta1, beta2, eps, lr, weight_decay, param, \
-                   m, v, gradient, decay_flag, optim_filter):
+@_adam_opt.register(
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Tensor",
+    "Bool",
+    "Bool",
+)
+def _update_run_op(
+    beta1_power, beta2_power, beta1, beta2, eps, lr, weight_decay, param, m, v, gradient, decay_flag, optim_filter
+):
     """
     Update parameters.
 
@@ -111,11 +141,13 @@ def _update_run_op(beta1_power, beta2_power, beta1, beta2, eps, lr, weight_decay
         v_fp32 = op_cast(v, mstype.float32)
         gradient_fp32 = op_cast(gradient, mstype.float32)
 
-        next_m = op_mul(beta1, m_fp32) + op_mul(op_cast(F.tuple_to_array((1.0,)), mstype.float32)
-                                                - beta1, gradient_fp32)
+        next_m = op_mul(beta1, m_fp32) + op_mul(
+            op_cast(F.tuple_to_array((1.0,)), mstype.float32) - beta1, gradient_fp32
+        )
 
-        next_v = op_mul(beta2, v_fp32) + op_mul(op_cast(F.tuple_to_array((1.0,)), mstype.float32)
-                                                - beta2, op_square(gradient_fp32))
+        next_v = op_mul(beta2, v_fp32) + op_mul(
+            op_cast(F.tuple_to_array((1.0,)), mstype.float32) - beta2, op_square(gradient_fp32)
+        )
 
         regulate_m = next_m / (_scaler_one - beta1_power)
         regulate_v = next_v / (_scaler_one - beta2_power)
@@ -143,6 +175,7 @@ def _check_param_value(beta1, beta2, eps, prim_name):
     validator.check_float_range(beta1, 0.0, 1.0, Rel.INC_NEITHER, "beta1", prim_name)
     validator.check_float_range(beta2, 0.0, 1.0, Rel.INC_NEITHER, "beta2", prim_name)
     validator.check_positive_float(eps, "eps", prim_name)
+
 
 class FusedAdamWeightDecay(Optimizer):
     """
@@ -215,17 +248,16 @@ class FusedAdamWeightDecay(Optimizer):
         >>>
         >>> loss = nn.SoftmaxCrossEntropyWithLogits()
         >>> model = Model(net, loss_fn=loss, optimizer=optim)
-   """
+    """
 
-    def __init__(self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0,
-                 offload=False):
+    def __init__(self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0, offload=False):
         super(FusedAdamWeightDecay, self).__init__(learning_rate, params, weight_decay)
         _check_param_value(beta1, beta2, eps, self.cls_name)
         self.beta1 = Tensor(np.array([beta1]).astype(np.float32))
         self.beta2 = Tensor(np.array([beta2]).astype(np.float32))
         self.eps = Tensor(np.array([eps]).astype(np.float32))
-        self.moments1 = self.clone_state(prefix="adam_m", init='zeros')
-        self.moments2 = self.clone_state(prefix="adam_v", init='zeros')
+        self.moments1 = self.clone_state(prefix="adam_m", init="zeros")
+        self.moments2 = self.clone_state(prefix="adam_v", init="zeros")
         self.opt = P.AdamWeightDecay()
         if offload:
             self.opt.add_prim_attr("primitive_target", "CPU")
@@ -235,35 +267,52 @@ class FusedAdamWeightDecay(Optimizer):
         lr = self.get_lr()
         if self.is_group:
             if self.is_group_lr:
-                optim_result = self.map_reverse(F.partial(_adam_opt, self.opt,
-                                                          self.beta1, self.beta2, self.eps),
-                                                lr, self.weight_decay, self._parameters, self.moments1, self.moments2,
-                                                gradients, self.decay_flags, self.optim_filter)
+                optim_result = self.map_reverse(
+                    F.partial(_adam_opt, self.opt, self.beta1, self.beta2, self.eps),
+                    lr,
+                    self.weight_decay,
+                    self._parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
             else:
-                optim_result = self.map_reverse(F.partial(_adam_opt, self.opt,
-                                                          self.beta1, self.beta2, self.eps, lr),
-                                                self.weight_decay, self._parameters, self.moments1, self.moments2,
-                                                gradients, self.decay_flags, self.optim_filter)
+                optim_result = self.map_reverse(
+                    F.partial(_adam_opt, self.opt, self.beta1, self.beta2, self.eps, lr),
+                    self.weight_decay,
+                    self._parameters,
+                    self.moments1,
+                    self.moments2,
+                    gradients,
+                    self.decay_flags,
+                    self.optim_filter,
+                )
         else:
-            optim_result = self.map_reverse(F.partial(_adam_opt, self.opt,
-                                                      self.beta1, self.beta2, self.eps, lr,
-                                                      self.weight_decay), self._parameters, self.moments1,
-                                            self.moments2,
-                                            gradients, self.decay_flags, self.optim_filter)
+            optim_result = self.map_reverse(
+                F.partial(_adam_opt, self.opt, self.beta1, self.beta2, self.eps, lr, self.weight_decay),
+                self._parameters,
+                self.moments1,
+                self.moments2,
+                gradients,
+                self.decay_flags,
+                self.optim_filter,
+            )
         if self.use_parallel:
             self.broadcast_params(optim_result)
         return optim_result
 
     def clone_state(self, prefix, init, forced_dtype=mstype.float32, is_follow=False):
         r"""
-            Clone the parameters
-            parameter_tuple: ParameterTuple. The parameters of the network
-            prefix: str. The prefix name of the parameters
-            init: str. The initialization method
-            forced_dtype: mstype. The except the dtype to be cloned. If is_follow is True, forced_dtype will be ignored.
-                   Default: mstype.float32
-            is_follow: bool. Is clone the parameters with the original dtype. If is_follow is True, the forced_dtype
-                   argument will be ignored. Default: False.
+        Clone the parameters
+        parameter_tuple: ParameterTuple. The parameters of the network
+        prefix: str. The prefix name of the parameters
+        init: str. The initialization method
+        forced_dtype: mstype. The except the dtype to be cloned. If is_follow is True, forced_dtype will be ignored.
+               Default: mstype.float32
+        is_follow: bool. Is clone the parameters with the original dtype. If is_follow is True, the forced_dtype
+               argument will be ignored. Default: False.
         """
         parameter_tuple = self.parameters
         new = []
@@ -287,7 +336,7 @@ class FusedAdamWeightDecay(Optimizer):
             new_state.requires_aggr = old_param.requires_aggr
             if old_param.cache_shape:
                 new_state.cache_shape = old_param.cache_shape
-            new_state.name = prefix + '.' + new_state.name
+            new_state.name = prefix + "." + new_state.name
             new.append(new_state)
         return ParameterTuple(new)
 
@@ -392,16 +441,16 @@ class FP32StateAdamWeightDecay(nn.AdamWeightDecay):
         >>>
         >>> loss = nn.SoftmaxCrossEntropyWithLogits()
         >>> model = ms.Model(net, loss_fn=loss, optimizer=optim)
-   """
+    """
 
-    def __init__(self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0,  offload=False):
+    def __init__(self, params, learning_rate=1e-3, beta1=0.9, beta2=0.999, eps=1e-6, weight_decay=0.0, offload=False):
         super(nn.AdamWeightDecay, self).__init__(learning_rate, params, weight_decay)
         _check_param_value(beta1, beta2, eps, self.cls_name)
         self.beta1 = Tensor(np.array([beta1]).astype(np.float32))
         self.beta2 = Tensor(np.array([beta2]).astype(np.float32))
         self.eps = Tensor(np.array([eps]).astype(np.float32))
-        self.moments1 = self.clone_state(prefix='adam_m', init='zeros')
-        self.moments2 = self.clone_state(prefix='adam_v', init='zeros')
+        self.moments1 = self.clone_state(prefix="adam_m", init="zeros")
+        self.moments2 = self.clone_state(prefix="adam_v", init="zeros")
         self.fused_opt = P.AdamWeightDecay()
         if context.get_context("device_target") == "CPU":
             self.use_fused_opt = True
@@ -413,9 +462,9 @@ class FP32StateAdamWeightDecay(nn.AdamWeightDecay):
 
     def clone_state(self, prefix, init):
         r"""
-            parameter_tuple: ParameterTuple. The parameters of the network
-            prefix: str. The prefix name of the parameters
-            init: str. The initialization method
+        parameter_tuple: ParameterTuple. The parameters of the network
+        prefix: str. The prefix name of the parameters
+        init: str. The initialization method
         """
         parameter_tuple = self.parameters
         new = []
@@ -428,6 +477,6 @@ class FP32StateAdamWeightDecay(nn.AdamWeightDecay):
                 old_param.param_info.cloned_obj = [new_state]
             new_state.is_init = False
             new_state.set_data(initializer(init, shape=old_param.shape, dtype=mstype.float32))
-            new_state.name = prefix + '.' + new_state.name
+            new_state.name = prefix + "." + new_state.name
             new.append(new_state)
         return ParameterTuple(new)
