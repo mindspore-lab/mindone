@@ -405,16 +405,16 @@ class PiDiNet(nn.Cell):
             x_fuses = [x1, x2, x3, x4]
 
         e1 = self.conv_reduces[0](x_fuses[0])
-        e1 = ops.interpolate(e1, (H, W), mode="bilinear", align_corners=False)
+        e1 = ops.ResizeBilinear((H, W))(e1)
 
         e2 = self.conv_reduces[1](x_fuses[1])
-        e2 = ops.interpolate(e2, (H, W), mode="bilinear", align_corners=False)
+        e2 = ops.ResizeBilinear((H, W))(e2)
 
         e3 = self.conv_reduces[2](x_fuses[2])
-        e3 = ops.interpolate(e3, (H, W), mode="bilinear", align_corners=False)
+        e3 = ops.ResizeBilinear((H, W))(e3)
 
         e4 = self.conv_reduces[3](x_fuses[3])
-        e4 = ops.interpolate(e4, (H, W), mode="bilinear", align_corners=False)
+        e4 = ops.ResizeBilinear((H, W))(e4)
 
         outputs = [e1, e2, e3, e4]
         output = self.classifier(ops.concat(outputs, axis=1))

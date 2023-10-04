@@ -10,9 +10,7 @@ seed: 182
 mvs_visual: False
 chunk_size: 16
 log_dir: 'outputs'
-learning_rate: 0.00001 #0.00005 in paper, but we are finetuning.
-epochs: 50
 
 # accelerate or memory reduction
-dataset_sink_mode: True
+dataset_sink_mode: False
 use_recompute: False  # use_recompute being True scarifices speed for more memory. Set it to True if OOM

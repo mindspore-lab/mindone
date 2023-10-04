@@ -62,7 +62,6 @@ cfg.use_div_loss = False
 
 # classifier-free guidance
 cfg.p_zero = 0.9
-cfg.guide_scale = 6.0
 
 # stable diffusion
 cfg.sd_checkpoint = "sd_v2-1_base-7c8d09ce.ckpt"
@@ -133,7 +132,7 @@ cfg.load_from = None
 cfg.use_checkpoint = False
 cfg.use_sharded_ddp = False
 cfg.use_fsdp = False
-cfg.use_fp16 = True
+cfg.use_fp16 = True  # TODO: set False for MS > 2.1, need fix
 
 # training
 cfg.ema_decay = 0.9999
@@ -142,6 +141,4 @@ cfg.save_ckp_interval = 1000
 
 # logging
 cfg.log_interval = 100
-composition_strings = "_".join(cfg.video_compositions)
 cfg.log_dir = "outputs/"
-cfg.mode = 0  # 0: Graph mode; 1: Pynative mode

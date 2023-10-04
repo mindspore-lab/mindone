@@ -471,8 +471,6 @@ class UNetSD_temporal(nn.Cell):
         video_compositions=["text", "mask"],
         p_all_zero=0.1,
         p_all_keep=0.1,
-        zero_y=None,
-        black_image_feature=None,
         use_fp16=False,
         use_adaptive_pool=True,
         use_droppath_masking=True,
@@ -485,8 +483,6 @@ class UNetSD_temporal(nn.Cell):
         num_heads = num_heads if num_heads else dim // 32
         super(UNetSD_temporal, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
-        self.zero_y = zero_y
-        self.black_image_feature = black_image_feature
         self.cfg = cfg
         self.in_dim = in_dim
         self.dim = dim
@@ -1049,12 +1045,12 @@ class UNetSD_temporal(nn.Cell):
         # if ckpt_not_load:
         #    _logger.warning(f"Checkput params not used: {ckpt_not_load}")
 
+    # Remember that the inputs and the default value should be consistent with vc/infer_engine/schedulers/sampler.py - DiffusionSampler
     def construct(
         self,
         x,
         t,
         y=None,
-        zero_y=None,
         depth=None,
         image=None,  # Style Image encoded by clip-vit, shape: [bs, 1, 1024]
         motion=None,
@@ -1063,7 +1059,6 @@ class UNetSD_temporal(nn.Cell):
         masked=None,
         canny=None,
         sketch=None,
-        histogram=None,
         fps=None,
         video_mask=None,
         focus_present_mask=None,
@@ -1242,16 +1237,10 @@ class UNetSD_temporal(nn.Cell):
         else:
             e = self.time_embed(sinusoidal_embedding(t, self.dim))
 
-        # context = x.new_zeros((batch, 0, self.context_dim))  # empty tensor?
-        if y is not None:
-            if self.use_droppath_masking:
-                y_context = self.misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
-            else:
-                y_context = self.misc_droppath(y)
-            context = y_context  # (bs, 77 ,1024)
+        if self.use_droppath_masking:
+            context = self.misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
         else:
-            y_context = zero_y.tile((batch, 1, 1))
-            context = y_context  # ops.cat([context, y_context], axis=1)
+            context = self.misc_droppath(y)
 
         if image is not None:
             if self.use_droppath_masking:

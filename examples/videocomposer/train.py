@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 VC training/finetuning
 """
@@ -164,14 +165,16 @@ def main(cfg):
         misc_dropout=cfg.misc_dropout,
         p_all_zero=cfg.p_all_zero,
         p_all_keep=cfg.p_all_zero,
-        zero_y=None,  # assume we always use text prompts  (y, even y="")
         black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
         use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
-    unet.load_state_dict(cfg.resume_checkpoint)
+    if cfg.resume_checkpoint.endswith(".ckpt") and os.path.exists(cfg.resume_checkpoint):
+        unet.load_state_dict(cfg.resume_checkpoint)
+    else:
+        logger.warning("UNet checkpoint is not given or not exists. UNet will be trained from scratch!!!")
     unet = unet.set_train(True)
 
     # 2.4 other NN-based condition extractors

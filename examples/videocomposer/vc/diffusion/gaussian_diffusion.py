@@ -1,3 +1,6 @@
+"""This file is legacy now, will be removed in future.
+"""
+
 import math
 
 from tqdm import tqdm

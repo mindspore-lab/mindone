@@ -38,22 +38,10 @@ class Config(object):
             default="configs/train_exp02_motion_transfer.yaml",
         )
         parser.add_argument(
-            "--init_method",
-            help="Initialization method, includes TCP or shared file-system",
-            default="tcp://localhost:9999",
-            type=str,
-        )
-        parser.add_argument(
             "--seed",
             type=int,
             default=8888,
             help="Need to explore for different videos",
-        )
-        parser.add_argument(
-            "--debug",
-            action="store_true",
-            default=False,
-            help="Into debug information",
         )
         parser.add_argument(
             "--input_video",
@@ -75,7 +63,8 @@ class Config(object):
         )
         parser.add_argument(
             "--style_image",
-            help="Single Sketch Input",
+            default="",
+            help="Style image input",
             type=str,
         )
         parser.add_argument(
@@ -83,6 +72,24 @@ class Config(object):
             default="A colorful and beautiful fish swimming in a small glass bowl with multicolored piece of stone",
             type=str,
         ),
+        parser.add_argument(
+            "--sample_scheduler",
+            default="DDIM",
+            choices=["DDIM", "PLMS"],
+            help="Schduler method for using for inference. ",
+        )
+        parser.add_argument(
+            "--n_iter",
+            type=int,
+            default=4,
+            help="number of iterations or trials. sample this often, ",
+        )
+        parser.add_argument(
+            "--save_frames",
+            action="store_true",
+            help="save video frames",
+        )
+        parser.add_argument("--guidance_scale", type=float, default=9.0, help="The guidance scale value in inference.")
         parser.add_argument(
             "opts",
             help="other configurations",

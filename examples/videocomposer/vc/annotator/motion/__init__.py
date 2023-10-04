@@ -43,7 +43,13 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     )
     if os.path.exists(tmp_video):
         os.remove(tmp_video)
-    subprocess.run(args=ffmpeg_cmd, shell=True, timeout=120)
+
+    try:
+        subprocess.run(args=ffmpeg_cmd, shell=True, timeout=120, check=True)
+    except Exception as e:
+        raise RuntimeError(
+            "Cannot run ffmpeg, please make sure `ffmpeg` is correctly installed and added to your path."
+        ) from e
 
     cap = VideoCap()
     # open the video file
