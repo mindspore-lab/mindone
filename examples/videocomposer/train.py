@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 VC training/finetuning
 """
@@ -76,6 +75,7 @@ def init_env(args):
         # max_device_memory="30GB", # adapt for 910b
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
+    #ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})  # TODO: testing bf16
 
     # logger
     # ct = datetime.datetime.now().strftime("_%y%m%d_%H_%M")
@@ -165,7 +165,6 @@ def main(cfg):
         misc_dropout=cfg.misc_dropout,
         p_all_zero=cfg.p_all_zero,
         p_all_keep=cfg.p_all_zero,
-        black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
         use_recompute=cfg.use_recompute,
@@ -173,6 +172,7 @@ def main(cfg):
     # TODO: use common checkpoiont download, mapping, and loading
     if cfg.resume_checkpoint.endswith(".ckpt") and os.path.exists(cfg.resume_checkpoint):
         unet.load_state_dict(cfg.resume_checkpoint)
+        logger.warning(f"UNet loaded from {cfg.resume_checkpoint}")
     else:
         logger.warning("UNet checkpoint is not given or not exists. UNet will be trained from scratch!!!")
     unet = unet.set_train(True)
@@ -270,8 +270,8 @@ def main(cfg):
         decay_steps=cfg.decay_steps,
         num_epochs=cfg.epochs,
     )
-    optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate)
-    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65536, scale_factor=2, scale_window=1000)
+    optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate, eps=cfg.optim_eps)
+    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=cfg.loss_scale, scale_factor=2, scale_window=1000)
     ema = (
         EMA(
             ldm_with_loss.unet,
@@ -332,6 +332,7 @@ def main(cfg):
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
                 f"Num trainable params: {num_trainable_params:,}",
+                f"Optimizer: {cfg.optim}",
                 f"Learning rate: {cfg.learning_rate}",
                 f"Batch size: {cfg.batch_size}",
                 f"Max frames: {cfg.max_frames}",

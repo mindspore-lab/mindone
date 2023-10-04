@@ -17,9 +17,10 @@
 """
 from mindspore import nn
 from mindspore.nn.optim.adam import Adam, AdamWeightDecay
+from .adamw_fp32 import FP32StateAdamWeightDecay
 
 
-def build_optimizer(model, opts, lr):
+def build_optimizer(model, opts, lr, eps=1e-8, offload=False):
     """
 
     :param model:
@@ -45,14 +46,22 @@ def build_optimizer(model, opts, lr):
         OptimCls = Adam
     elif opts.optim == "adamw":
         OptimCls = AdamWeightDecay
+    elif opts.optim == "adamw_fp32":
+        OptimCls = FP32StateAdamWeightDecay
     elif opts.optim in ["sgd", "momentum"]:
         OptimCls = nn.Momentum
     else:
         raise ValueError("invalid optimizer")
+    
+    if offload and opts.optim != 'adamw_fp32':
+        print("WARNING: currently only adamw_fp32 supports offloading.")
 
     if opts.optim in ["sgd", "momentum"]:
         optimizer = OptimCls(group_params, learning_rate=lr, momentum=0.9)
     else:
-        optimizer = OptimCls(group_params, learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1])
+        if opts.optim == 'adamw_fp32':
+            optimizer = OptimCls(group_params, learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1], eps=eps, offload=offload)
+        else:
+            optimizer = OptimCls(group_params, learning_rate=lr, beta1=opts.betas[0], beta2=opts.betas[1], eps=eps)
 
     return optimizer
