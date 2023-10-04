@@ -320,7 +320,7 @@ class ResBlock(nn.Cell):
         self.dtype = dtype
 
         self.in_layers = nn.SequentialCell(
-            GroupNorm(32, channels).to_float(ms.float32),
+            GroupNorm(32, channels),
             nn.SiLU().to_float(self.dtype),
             nn.Conv2d(channels, self.out_channels, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
         )
@@ -344,7 +344,7 @@ class ResBlock(nn.Cell):
             ).to_float(self.dtype),
         )
         self.out_layers = nn.SequentialCell(
-            GroupNorm(32, self.out_channels).to_float(ms.float32),
+            GroupNorm(32, self.out_channels),
             nn.SiLU().to_float(self.dtype),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             zero_module(
@@ -1004,7 +1004,7 @@ class UNetSD_temporal(nn.Cell):
 
         # head
         self.out = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
+            GroupNorm(32, out_dim),
             nn.SiLU().to_float(self.dtype),
             nn.Conv2d(out_dim, self.out_dim, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
         )
