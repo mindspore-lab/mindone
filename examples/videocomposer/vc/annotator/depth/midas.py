@@ -20,12 +20,6 @@ _CKPT_URL = {
 # midas_v3_dpt_large-c8fd1049.ckpt is converted from midas_v3_dpt_large.pth in https://www.modelscope.cn/models/damo/VideoComposer/summary
 
 
-class LayerNorm(nn.LayerNorm):
-    def construct(self, input_x):
-        dtype = input_x.dtype
-        return super().construct(input_x.to(ms.float32)).to(dtype)
-
-
 class SelfAttention(nn.Cell):
     def __init__(self, dim, num_heads, dtype=ms.float32):
         assert dim % num_heads == 0
@@ -50,7 +44,7 @@ class SelfAttention(nn.Cell):
         # compute attention
         # ops.einsum('binc,bjnc->bnij', q, k)
         attn = self.scale * ops.bmm(q.permute(0, 2, 1, 3), k.permute(0, 2, 3, 1))
-        attn = ops.softmax(attn.to(ms.float32), axis=-1).astype(self.dtype)
+        attn = ops.softmax(attn, axis=-1).astype(attn.dtype)
 
         # gather context
         # ops.einsum('bnij,bjnc->binc', attn, v)
@@ -78,9 +72,9 @@ class AttentionBlock(nn.Cell):
         self.dtype = dtype
 
         # layers
-        self.norm1 = LayerNorm((dim,))
+        self.norm1 = nn.LayerNorm((dim,)).to_float(self.dtype)
         self.attn = SelfAttention(dim, num_heads, self.dtype)
-        self.norm2 = LayerNorm((dim,))
+        self.norm2 = nn.LayerNorm((dim,)).to_float(self.dtype)
         self.mlp = nn.SequentialCell(
             collections.OrderedDict(
                 [
@@ -145,7 +139,7 @@ class VisionTransformer(nn.Cell):
             collections.OrderedDict([(str(i), AttentionBlock(dim, num_heads, self.dtype)) for i in range(num_layers)])
         )
 
-        self.norm = LayerNorm((dim,))
+        self.norm = nn.LayerNorm((dim,)).to_float(self.dtype)
 
         # head
         self.head = nn.Dense(dim, out_dim).to_float(self.dtype)
