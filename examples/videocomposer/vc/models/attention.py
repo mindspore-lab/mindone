@@ -37,6 +37,12 @@ def zero_module(module):
     return module
 
 
+class LayerNorm(nn.LayerNorm):
+    def construct(self, input_x):
+        dtype = input_x.dtype
+        return super().construct(input_x.to(ms.float32)).to(dtype)
+
+
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
@@ -80,7 +86,6 @@ class CrossAttention(nn.Cell):
         self.heads = heads
 
         self.reshape = ops.Reshape()
-        self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
@@ -89,6 +94,7 @@ class CrossAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim).to_float(dtype),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
         )
+        self.dtype = dtype
 
     def construct(self, x, context=None, mask=None):
         q = self.to_q(x)
@@ -124,7 +130,7 @@ class CrossAttention(nn.Cell):
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
-        attn = self.softmax(sim)
+        attn = ops.softmax(sim.to(ms.float32)).to(self.dtype)
         out = ops.matmul(attn, v)
 
         def rearange_out(x):
@@ -188,24 +194,24 @@ class BasicTransformerBlock(nn.Cell):
         self.attn2 = CrossAttention(
             query_dim=dim, context_dim=context_dim, heads=n_heads, dim_head=d_head, dropout=dropout, dtype=self.dtype
         )  # is self-attn if context is none
-        self.norm1 = nn.LayerNorm(
+        self.norm1 = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
-        self.norm2 = nn.LayerNorm(
+        )
+        self.norm2 = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
-        self.norm3 = nn.LayerNorm(
+        )
+        self.norm3 = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
+        )
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
@@ -408,7 +414,7 @@ class TemporalAttentionBlock(nn.Cell):
 
         # numerical stability
         sim = sim - sim.amax(axis=-1, keepdims=True)
-        attn = sim.float().softmax(axis=-1)
+        attn = sim.to(ms.float32).softmax(axis=-1).to(self.dtype)
 
         # aggregate values
         out = ops.bmm(attn, v)
