@@ -29,6 +29,7 @@ def save_videos_grid(videos: ms.Tensor, path: str, rescale=False, fps=10):
         if rescale:
             x = (x + 1.0) / 2.0  # -1,1 -> 0,1
 
+        x = ops.clip_by_value(x, clip_value_min=0.0, clip_value_max=1.0)
         x = (x * 255).asnumpy().astype(np.uint8)
         outputs.append(x)
 
