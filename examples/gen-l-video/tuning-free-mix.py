@@ -64,7 +64,7 @@ def prepare_video(cfg):
 def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_id=device_id, pynative_synchronize=True)
+    ms.context.set_context(mode=args.ms_mode, device_id=device_id)
 
     # set random seed
     set_random_seed(args.seed)
@@ -177,12 +177,12 @@ def main(args):
                 sample_lst.append(sample)
 
             sample = ops.cat(sample_lst, axis=2)
-            save_videos_grid(sample, f"{output_dir}/samples/sample-iso/{prompt}.gif")
+            save_videos_grid(sample, f"{output_dir}/samples/sample-iso/{prompt}.gif", rescale=True)
             samples.append(sample)
 
         samples = ops.concat(samples)
         save_path = f"{output_dir}/samples/sample-iso.gif"
-        save_videos_grid(samples, save_path)
+        save_videos_grid(samples, save_path, rescale=True)
         logging.info(f"Saved samples to {save_path}")
 
 
