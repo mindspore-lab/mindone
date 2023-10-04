@@ -115,8 +115,6 @@ class TuningFreePipeline:
         )
         video = video.permute(0, 2, 1, 3, 4)
 
-        video = (video / 2 + 0.5).clamp(0, 1)
-
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
         video = video.float().asnumpy()
 
