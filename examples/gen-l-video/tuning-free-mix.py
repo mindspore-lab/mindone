@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 def prepare_video(cfg):
     cap = cv2.VideoCapture(cfg.video_path)
     pil_frames = []
-    resized_cv2_frames = []
+    resized_frames = []
 
     while cap.isOpened():
         ret, cv2_frame = cap.read()
@@ -39,8 +39,8 @@ def prepare_video(cfg):
         if ret:
             converted_cv2_frame = cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2RGB)
             pil_frames.append(Image.fromarray(converted_cv2_frame))
-            resized_cv2_frames.append(
-                cv2.resize(converted_cv2_frame, (cfg.width, cfg.height), interpolation=cv2.INTER_CUBIC)
+            resized_frames.append(
+                np.array(pil_frames[-1].resize((cfg.width, cfg.height), resample=Image.LANCZOS), dtype=np.float32)
             )
         else:
             break
@@ -49,16 +49,16 @@ def prepare_video(cfg):
     sample_index = list(range(cfg.sample_start_idx, len(pil_frames), cfg.sample_frame_rate))[: cfg.n_sample_frames]
 
     pil_frames = [pil_frames[i] for i in sample_index]
-    resized_cv2_frames = [resized_cv2_frames[i] for i in sample_index]
+    resized_frames = [resized_frames[i] for i in sample_index]
 
-    resized_cv2_frames = np.stack(resized_cv2_frames, axis=0)
+    resized_frames = np.stack(resized_frames, axis=0)
 
-    resized_cv2_frames = resized_cv2_frames / 127.5 - 1.0
+    resized_frames = resized_frames / 255.0
+    resized_frames = resized_frames * 2 - 1
 
-    resized_cv2_frames = ms.Tensor(resized_cv2_frames, dtype=ms.float32)
-    resized_cv2_frames = resized_cv2_frames.permute(0, 3, 1, 2)
+    resized_frames = ms.Tensor(resized_frames, dtype=ms.float32)
 
-    return pil_frames, resized_cv2_frames
+    return pil_frames, resized_frames
 
 
 def main(args):
@@ -122,17 +122,12 @@ def main(args):
     latents = []
 
     for i in range(0, video_length, validation_data.video_length):
-        latent = sd.first_stage_model.encoder(pixel_values[i : i + validation_data.video_length])
-        latent = sd.first_stage_model.quant_conv(latent)
-        latent, _ = sd.first_stage_model.split(latent)
-        latents.append(latent.to(ms.float32))
-        # latents.append(sd.encode_first_stage(pixel_values[i : i + validation_data.video_length]))
+        latents.append(sd.get_input(pixel_values[i : i + validation_data.video_length], None)[0])
 
     latents = ops.cat(latents, axis=0)
     latents = latents.reshape(
         latents.shape[0] // video_length, video_length, latents.shape[1], latents.shape[2], latents.shape[3]
     ).permute(0, 2, 1, 3, 4)
-    latents = latents * 0.18215
 
     samples = []
     ddim_inv_latent = None
