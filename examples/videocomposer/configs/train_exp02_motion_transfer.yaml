@@ -21,11 +21,11 @@ optim_eps: 1.e-8
 offload: False #
 
 max_frames: 16
-epochs: 10000
-ckpt_save_interval: 1000
+epochs: 500
+ckpt_save_interval: 50
 ckpt_max_keep: 10
 
-loss_scale: 128
+loss_scale: 65536
 
 batch_size: 1
 learning_rate: 5.e-5
