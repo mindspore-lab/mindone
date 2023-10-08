@@ -42,6 +42,7 @@ class LayerNorm(nn.LayerNorm):
         dtype = input_x.dtype
         return super().construct(input_x.to(ms.float32)).to(dtype)
 
+
 # SiLU fp32 compute
 class SiLU(nn.SiLU):
     def construct(self, input_x):
