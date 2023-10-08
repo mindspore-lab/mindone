@@ -25,7 +25,7 @@ epochs: 500
 ckpt_save_interval: 50
 ckpt_max_keep: 10
 
-loss_scale: 65536
+loss_scale: 1024
 
 batch_size: 1
 learning_rate: 5.e-5
