@@ -1,5 +1,5 @@
 export MS_ENABLE_REF_MODE=0 # will be set to 1 in latest ms version. TODO: remove for future MS version
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE" # for ms+910B, check overflow
+export MS_ASCEND_CHECK_OVERFLOW_MODE=1 #"INFNAN_MODE" # for ms+910B, check overflow
 #export INF_NAN_MODE_ENABLE=1 # For pytorch+npu, recommend to enable it for mixed precision training for 910B. it determines how overflow is detected
 
 export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERROR, 3:FATAL
