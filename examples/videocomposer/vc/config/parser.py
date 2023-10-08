@@ -113,6 +113,9 @@ class Config(object):
         )
         parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
         parser.add_argument(
+            "--resume_checkpoint", default=None, type=str, help="unet checkpoint path. If not None, it will overwrite the checkpiont path in yaml file config."
+        )
+        parser.add_argument(
             "--output_dir", default="outputs/train", type=str, help="output directory to save training results"
         )
         return parser.parse_args()
