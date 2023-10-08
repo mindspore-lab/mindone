@@ -340,11 +340,7 @@ class TemporalAttentionBlock(nn.Cell):
         identity = x
         n, height = x.shape[2], x.shape[-2]
         b, f, c, h, w = x.shape
-        # b c f h w -> b f c h w -> (b f) c h w
-        x = x.transpose((0, 2, 1, 3, 4)).reshape((b * f, c, h, w))
         x = self.norm(x)
-        # (b f) c h w -> b f c h w -> b c f h w
-        x = x.reshape((b, f, c, h, w)).transpose((0, 2, 1, 3, 4))
 
         # b c f h w -> b c f (h w) -> b (h w) f c
         x = ops.reshape(x, (x.shape[0], x.shape[1], x.shape[2], -1))
@@ -543,11 +539,7 @@ class TemporalTransformer(nn.Cell):
             context = [context]
         b, c, f, h, w = x.shape
         x_in = x
-        # b c f h w -> b f c h w -> (b f) c h w
-        x = x.transpose((0, 2, 1, 3, 4)).reshape((b * f, c, h, w))
         x = self.norm(x)
-        # (b f) c h w -> b f c h w -> b c f h w
-        x = x.reshape((b, f, c, h, w)).transpose((0, 2, 1, 3, 4))
 
         if not self.use_linear:
             # b c f h w -> b h w c f -> (b h w) c f
