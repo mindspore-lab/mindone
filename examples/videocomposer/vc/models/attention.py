@@ -42,6 +42,12 @@ class LayerNorm(nn.LayerNorm):
         dtype = input_x.dtype
         return super().construct(input_x.to(ms.float32)).to(dtype)
 
+# SiLU fp32 compute
+class SiLU(nn.SiLU):
+    def construct(self, input_x):
+        dtype = input_x.dtype
+        return super().construct(input_x.to(ms.float32)).to(dtype)
+
 
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
@@ -610,14 +616,14 @@ class TemporalConvBlock_v2(nn.Cell):
         # conv layers
         self.conv1 = nn.SequentialCell(
             GroupNorm(32, in_dim),
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Conv3d(in_dim, out_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
             ),
         )
         self.conv2 = nn.SequentialCell(
             GroupNorm(32, out_dim),
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
@@ -625,7 +631,7 @@ class TemporalConvBlock_v2(nn.Cell):
         )
         self.conv3 = nn.SequentialCell(
             GroupNorm(32, out_dim),
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
@@ -633,7 +639,7 @@ class TemporalConvBlock_v2(nn.Cell):
         )
         self.conv4 = nn.SequentialCell(
             GroupNorm(32, out_dim),
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
