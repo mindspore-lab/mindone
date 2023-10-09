@@ -129,12 +129,12 @@ class EulerEDMSampler(EDMSampler):
 
 
 class HeunEDMSampler(EDMSampler):
-    def possible_correction_step(self, euler_step, x, d, dt, next_sigma, denoiser, cond, uc):
+    def possible_correction_step(self, euler_step, x, d, dt, next_sigma, model, cond, uc):
         if ops.sum(next_sigma) < 1e-14:
             # Save a network evaluation if all noise levels are 0
             return euler_step
         else:
-            denoised = self.denoise(euler_step, denoiser, next_sigma, cond, uc)
+            denoised = self.denoise(euler_step, model, next_sigma, cond, uc)
             d_new = to_d(euler_step, next_sigma, denoised)
             d_prime = (d + d_new) / 2.0
 
@@ -172,12 +172,12 @@ class DPMPP2MSampler(BaseDiffusionSampler):
         previous_sigma,
         sigma,
         next_sigma,
-        denoiser,
+        model,
         x,
         cond,
         uc=None,
     ):
-        denoised = self.denoise(x, denoiser, sigma, cond, uc)
+        denoised = self.denoise(x, model, sigma, cond, uc)
 
         h, r, t, t_next = self.get_variables(sigma, next_sigma, previous_sigma)
         mult = [append_dims(mult, x.ndim) for mult in self.get_mult(h, r, t, t_next, previous_sigma)]
@@ -195,7 +195,7 @@ class DPMPP2MSampler(BaseDiffusionSampler):
 
         return x, denoised
 
-    def __call__(self, denoiser, x, cond, uc=None, num_steps=None, **kwargs):
+    def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
 
         old_denoised = None
@@ -205,7 +205,7 @@ class DPMPP2MSampler(BaseDiffusionSampler):
                 None if i == 0 else s_in * sigmas[i - 1],
                 s_in * sigmas[i],
                 s_in * sigmas[i + 1],
-                denoiser,
+                model,
                 x,
                 cond,
                 uc=uc,
