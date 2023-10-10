@@ -19,6 +19,10 @@ _logger = logging.getLogger(__name__)
 
 # vc model
 # class VCModelWrapper()
+import os
+import os.path as osp
+
+DUMP_DIR = os.getenv("DUMP_DIR", "dump_res")
 
 
 # net with loss + noise scheduling
@@ -250,9 +254,11 @@ class LatentDiffusion(nn.Cell):
 
         # 1. sample timestep, t ~ uniform(0, T)
         # (bs, )
-        t = self.uniform_int(
-            (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
-        )
+        # t = self.uniform_int(
+        #     (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
+        # )
+        # fix t to control the randomness
+        t = Tensor(34, dtype=mstype.int32).reshape((x.shape[0],))
 
         # 2. prepare input latent frames z
         # (bs f c h w) -> (bs*f c h w) -> (bs*f z h//8 w//8) -> (b z f h//8 w//8)
@@ -387,10 +393,20 @@ class LatentDiffusion(nn.Cell):
     ):
         # 4. add noise to latent z
         noise = msnp.randn(x_start.shape)
+        index = 0
+        filename = f"input_noise_{index}_ms.npy"
+        while osp.exists(osp.join(DUMP_DIR, filename)):
+            index += 1
+            filename = f"input_noise_{index}_ms.npy"
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
-
+        np.save(open(osp.join(DUMP_DIR, f"input_noise_{index}_ms.npy"), "wb"), noise.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"input_x_noisy_{index}_ms.npy"), "wb"), x_noisy.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"input_text_emb_{index}_ms.npy"), "wb"), style_emb.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"input_single_image_{index}_ms.npy"), "wb"), single_image.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"input_motion_vectors_{index}_ms.npy"), "wb"), motion_vectors.asnumpy())
         # 5. predict noise
         # output shape: (b c f h//8 w//8)
+        #
         noise_pred = self.unet(
             x_noisy,
             t,
@@ -405,13 +421,15 @@ class LatentDiffusion(nn.Cell):
             masked=masked,
             canny=canny,
         )
+        np.save(open(osp.join(DUMP_DIR, f"noise_pred_{index}_ms.npy"), "wb"), noise_pred.asnumpy())
 
         loss_simple = self.get_loss(noise_pred, noise, mean=False).mean([1, 2, 3, 4])
 
         logvar_t = self.logvar[t]
         loss = loss_simple / ops.exp(logvar_t) + logvar_t
         loss = self.l_simple_weight * loss.mean()
-
+        np.save(open(osp.join(DUMP_DIR, f"output_loss_{index}_ms.npy"), "wb"), loss.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"output_loss_simple_{index}_ms.npy"), "wb"), loss_simple.asnumpy())
         return loss
 
     # TODO: try improve efficiency

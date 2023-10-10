@@ -195,6 +195,7 @@ def get_video_paths_captions(data_dir):
 def build_dataset(cfg, device_num, rank_id, tokenizer):
     infer_transforms, misc_transforms, mv_transforms, vit_transforms = create_transforms(cfg)
     dataset = VideoDatasetForTrain(
+        cfg=cfg,
         root_dir=cfg.root_dir,
         max_words=cfg.max_words,
         feature_framerate=cfg.feature_framerate,

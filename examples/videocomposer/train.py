@@ -22,6 +22,8 @@ from vc.trainer.optim import build_optimizer
 from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weights, setup_logger
 
 import mindspore as ms
+
+ms.set_seed(100)
 from mindspore import Model, context
 from mindspore.amp import custom_mixed_precision
 from mindspore.communication.management import get_group_size, get_rank, init
@@ -94,7 +96,8 @@ def check_config(cfg):
     print("===> Conditions used for training: ", cfg.conditions_for_train)
 
     # turn to abs path if it's relative path, for modelarts running
-    cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
+    if cfg.root_dir is not None:
+        cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
     cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
     cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
 
@@ -256,6 +259,7 @@ def main(cfg):
     # 4. build training dataset
     dataloader = build_dataset(cfg, device_num, rank_id, tokenizer)
     num_batches = dataloader.get_dataset_size()
+    print("Number of batches", num_batches)
 
     # 5. build training utils
     learning_rate = build_lr_scheduler(

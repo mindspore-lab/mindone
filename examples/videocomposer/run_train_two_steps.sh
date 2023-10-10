@@ -6,7 +6,7 @@ export GLOG_v=3  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERRO
 export HCCL_CONNECT_TIMEOUT=6000
 export ASCEND_GLOBAL_LOG_LEVEL=3  # Global log message level for Ascend. Setting it to 0 can slow down the process
 export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
-export DEVICE_ID=$1  # The device id to runing training on
+export DEVICE_ID=1  # The device id to runing training on
 
 
 # on ms2.1
@@ -17,8 +17,8 @@ export DEVICE_ID=$1  # The device id to runing training on
 # export MS_DEV_FORCE_ACL=1
 
 
-task_name=train_exp02_gn_ln_softmax_fp32_e10000
-yaml_file=configs/train_exp02_motion_transfer.yaml
+task_name=train_exp02_two_steps
+yaml_file=configs/train_exp02_motion_transfer_two_steps.yaml
 #yaml_file=configs/train_text_to_video.yaml
 output_path=outputs
 rm -rf ${output_path:?}/${task_name:?}

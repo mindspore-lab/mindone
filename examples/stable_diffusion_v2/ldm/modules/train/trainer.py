@@ -1,5 +1,8 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
 from packaging import version
+import os
+import os.path as osp
+import pickle as pkl
 
 import mindspore as ms
 import mindspore.context as context
@@ -9,6 +12,8 @@ from mindspore.common import dtype as mstype
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
+
+DUMP_DIR = os.getenv("DUMP_DIR", "dump_res")
 
 _grad_scale = C.MultitypeFuncGraph("grad_scale")
 reciprocal = P.Reciprocal()
@@ -163,5 +168,11 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         # else:
         #    print("WARNING: Gradient overflow! update skipped.") # TODO: recover it after 910B in-graph print issue fixed
         #    pass
-
+        # save grads to disk
+        index = 0
+        filename = f"output_grads_{index}_ms.pkl"
+        while osp.exists(osp.join(DUMP_DIR, filename)):
+            index += 1
+            filename = f"output_grads_{index}_ms.pkl"
+        pkl.dump(grads, open(osp.join(DUMP_DIR, filename), "wb"))
         return loss, cond, scaling_sens
