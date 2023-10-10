@@ -6,11 +6,11 @@ import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
+from vc.annotator.mask import make_irregular_mask, make_rectangle_mask, make_uncrop
+from vc.annotator.motion import extract_motion_vectors
 
 from mindspore import dataset as ds
 
-from ..annotator.mask import make_irregular_mask, make_rectangle_mask, make_uncrop
-from ..annotator.motion import extract_motion_vectors
 from .transforms import create_transforms
 
 __all__ = [

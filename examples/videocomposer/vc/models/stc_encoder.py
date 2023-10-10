@@ -1,19 +1,19 @@
 import mindspore as ms
 from mindspore import nn, ops
 
-from .attention import FeedForward, is_old_ms_version
+from .attention import FeedForward, LayerNorm, is_old_ms_version
 
 
 class PreNormattention(nn.Cell):
     def __init__(self, dim, fn, dtype=ms.float32):
         super().__init__()
         self.dtype = dtype
-        self.norm = nn.LayerNorm(
+        self.norm = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
+        )
         self.fn = fn
 
     def construct(self, x, **kwargs):
@@ -24,12 +24,12 @@ class PostNormattention(nn.Cell):
     def __init__(self, dim, fn, dtype=ms.float32):
         super().__init__()
         self.dtype = dtype
-        self.norm = nn.LayerNorm(
+        self.norm = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
+        )
         self.fn = fn
 
     def construct(self, x, **kwargs):
@@ -46,7 +46,6 @@ class Attention(nn.Cell):
         self.scale = dim_head**-0.5
         self.dtype = dtype
 
-        self.attend = nn.Softmax(axis=-1)
         self.to_qkv = nn.Dense(dim, inner_dim * 3, has_bias=False).to_float(self.dtype)
 
         self.to_out = (
@@ -70,7 +69,7 @@ class Attention(nn.Cell):
 
         q, k, v = map(rearrange_qkv, qkv)
         dots = ops.bmm(q, k.transpose(0, 1, 3, 2)) * self.scale
-        attn = self.attend(dots)
+        attn = ops.softmax(dots.to(ms.float32)).to(self.dtype)
         out = ops.bmm(attn, v)
         # b h n d -> b n h d -> b n (h d)
         out = ops.transpose(out, (0, 2, 1, 3))
