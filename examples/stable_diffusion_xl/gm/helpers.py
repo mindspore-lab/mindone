@@ -5,9 +5,15 @@ from typing import List, Union
 import numpy as np
 import yaml
 from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
-
-from gm.modules.diffusionmodules.sampler import EulerEDMSampler,AncestralSampler,LinearMultistepSampler,EulerAncestralSampler,DPMPP2SAncestralSampler, HeunEDMSampler,DPMPP2MSampler
-
+from gm.modules.diffusionmodules.sampler import (
+    AncestralSampler,
+    DPMPP2MSampler,
+    DPMPP2SAncestralSampler,
+    EulerAncestralSampler,
+    EulerEDMSampler,
+    HeunEDMSampler,
+    LinearMultistepSampler,
+)
 from gm.util import auto_mixed_precision, instantiate_from_config, seed_everything
 from omegaconf import ListConfig
 from PIL import Image
@@ -15,8 +21,6 @@ from PIL import Image
 import mindspore as ms
 from mindspore import Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
-
-
 
 SD_XL_BASE_RATIOS = {
     "0.5": (704, 1408),
@@ -350,7 +354,6 @@ def get_sampler(
         else:
             raise ValueError
     if sampler_name in ("AncestralSampler"):
-
         sampler = AncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
@@ -363,7 +366,7 @@ def get_sampler(
             discretization_config=discretization_config,
             guider_config=guider_config,
             verbose=True,
-            eta = 0.001,
+            eta=0.001,
         )
     elif sampler_name in ("DPMPP2SAncestralSampler"):
         sampler = DPMPP2SAncestralSampler(

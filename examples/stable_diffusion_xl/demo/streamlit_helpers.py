@@ -5,9 +5,15 @@ import os
 import streamlit as st
 from gm.helpers import create_model, get_interactive_image, load_img
 from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
-
-from gm.modules.diffusionmodules.sampler import EulerEDMSampler,EulerAncestralSampler,DPMPP2SAncestralSampler,AncestralSampler,LinearMultistepSampler, HeunEDMSampler,DPMPP2MSampler
-
+from gm.modules.diffusionmodules.sampler import (
+    AncestralSampler,
+    DPMPP2MSampler,
+    DPMPP2SAncestralSampler,
+    EulerAncestralSampler,
+    EulerEDMSampler,
+    HeunEDMSampler,
+    LinearMultistepSampler,
+)
 from omegaconf import OmegaConf
 
 
@@ -221,14 +227,14 @@ def get_sampler(sampler_name, steps, discretization_config, guider_config, key=1
             verbose=True,
             eta=0.001,
         )
-    elif sampler_name in ( "DPMPP2SAncestralSampler"):
+    elif sampler_name in ("DPMPP2SAncestralSampler"):
         sampler = DPMPP2SAncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
             verbose=True,
         )
-    elif sampler_name in ( "AncestralSampler"):
+    elif sampler_name in ("AncestralSampler"):
         sampler = AncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,

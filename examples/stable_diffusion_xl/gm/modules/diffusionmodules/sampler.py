@@ -5,7 +5,7 @@
 from typing import Dict, Union
 
 import numpy as np
-from gm.modules.diffusionmodules.sampling_utils import (get_ancestral_step,to_neg_log_sigma,to_sigma,to_d, to_neg_log_sigma, to_sigma)
+from gm.modules.diffusionmodules.sampling_utils import get_ancestral_step, to_d, to_neg_log_sigma, to_sigma
 from gm.util import append_dims, default, instantiate_from_config
 from omegaconf import ListConfig, OmegaConf
 from scipy import integrate
@@ -13,7 +13,6 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import Tensor, ops
-
 
 DEFAULT_GUIDER = {"target": "gm.modules.diffusionmodules.guiders.IdentityGuider"}
 
@@ -115,9 +114,7 @@ class AncestralSampler(SingleStepDiffusionSampler):
         return x
 
     def __call__(self, model, x, cond, uc=None, num_steps=None):
-        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(
-            x, cond, uc, num_steps
-        )
+        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
 
         for i in self.get_sigma_gen(num_sigmas):
             x = self.sampler_step(
@@ -137,7 +134,7 @@ class LinearMultistepSampler(BaseDiffusionSampler):
         super().__init__(*args, **kwargs)
         self.order = order
 
-    def linear_multistep_coeff(self,order, t, i, j, epsrel=1e-4):
+    def linear_multistep_coeff(self, order, t, i, j, epsrel=1e-4):
         if order - 1 > i:
             raise ValueError(f"Order {order} too high for step {i}")
 
@@ -152,24 +149,19 @@ class LinearMultistepSampler(BaseDiffusionSampler):
         return integrate.quad(fn, t[i], t[i + 1], epsrel=epsrel)[0]
 
     def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
-        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(
-            x, cond, uc, num_steps
-        )
+        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
 
         ds = []
         sigmas_cpu = sigmas  # 转换为NumPy数组
         for i in self.get_sigma_gen(num_sigmas):
             sigma = s_in * sigmas[i]
-            denoised = self.denoise( x, model, sigma, cond, uc)
+            denoised = self.denoise(x, model, sigma, cond, uc)
             d = to_d(x, sigma, denoised)  # 假定有一个名为to_d的函数用于计算d
             ds.append(d)
             if len(ds) > self.order:
                 ds.pop(0)
             cur_order = min(i + 1, self.order)
-            coeffs = [
-                self.linear_multistep_coeff(cur_order, sigmas_cpu, i, j)
-                for j in range(cur_order)
-            ]
+            coeffs = [self.linear_multistep_coeff(cur_order, sigmas_cpu, i, j) for j in range(cur_order)]
             x = x + ms.Tensor(np.sum([coeff * d for coeff, d in zip(coeffs, reversed(ds))], axis=0))
             x = x + sum(coeff * d for coeff, d in zip(coeffs, reversed(ds)))
 
@@ -259,9 +251,7 @@ class DPMPP2SAncestralSampler(AncestralSampler):
             x = x_euler
         else:
             h, s, t, t_next = self.get_variables(sigma, sigma_down)
-            mult = [
-                append_dims(mult, x.ndim) for mult in self.get_mult(h, s, t, t_next)
-            ]
+            mult = [append_dims(mult, x.ndim) for mult in self.get_mult(h, s, t, t_next)]
 
             x2 = mult[0] * x - mult[1] * denoised
             denoised2 = self.denoise(x2, model, to_sigma(s), cond, uc)
