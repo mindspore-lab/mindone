@@ -5,7 +5,9 @@ import os
 import streamlit as st
 from gm.helpers import create_model, get_interactive_image, load_img
 from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
-from gm.modules.diffusionmodules.sampler import EulerEDMSampler,EulerAncestralSampler,DPMPP2SAncestralSampler,AncestralSampler,LinearMultistepSampler
+
+from gm.modules.diffusionmodules.sampler import EulerEDMSampler,EulerAncestralSampler,DPMPP2SAncestralSampler,AncestralSampler,LinearMultistepSampler, HeunEDMSampler,DPMPP2MSampler
+
 from omegaconf import OmegaConf
 
 
@@ -198,7 +200,16 @@ def get_sampler(sampler_name, steps, discretization_config, guider_config, key=1
                 verbose=True,
             )
         elif sampler_name == "HeunEDMSampler":
-            raise NotImplementedError
+            sampler = HeunEDMSampler(
+                num_steps=steps,
+                discretization_config=discretization_config,
+                guider_config=guider_config,
+                s_churn=s_churn,
+                s_tmin=s_tmin,
+                s_tmax=s_tmax,
+                s_noise=s_noise,
+                verbose=True,
+            )
         else:
             raise ValueError
 
@@ -225,7 +236,12 @@ def get_sampler(sampler_name, steps, discretization_config, guider_config, key=1
             verbose=True,
         )
     elif sampler_name in ("DPMPP2MSampler",):
-        raise NotImplementedError
+        sampler = DPMPP2MSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
     elif sampler_name in ("LinearMultistepSampler",):
         sampler = LinearMultistepSampler(
             num_steps=steps,

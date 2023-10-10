@@ -5,7 +5,7 @@
 from typing import Dict, Union
 
 import numpy as np
-from gm.modules.diffusionmodules.sampling_utils import to_d
+from gm.modules.diffusionmodules.sampling_utils import to_d, to_neg_log_sigma, to_sigma
 from gm.util import append_dims, default, instantiate_from_config
 from omegaconf import ListConfig, OmegaConf
 from scipy import integrate
@@ -285,3 +285,89 @@ class DPMPP2SAncestralSampler(AncestralSampler):
 class EulerEDMSampler(EDMSampler):
     def possible_correction_step(self, euler_step, x, d, dt, next_sigma, model, cond, uc):
         return euler_step
+
+
+class HeunEDMSampler(EDMSampler):
+    def possible_correction_step(self, euler_step, x, d, dt, next_sigma, model, cond, uc):
+        if ops.sum(next_sigma) < 1e-14:
+            # Save a network evaluation if all noise levels are 0
+            return euler_step
+        else:
+            denoised = self.denoise(euler_step, model, next_sigma, cond, uc)
+            d_new = to_d(euler_step, next_sigma, denoised)
+            d_prime = (d + d_new) / 2.0
+
+            # apply correction if noise level is not 0
+            x = ops.where(append_dims(next_sigma, x.ndim) > 0.0, x + d_prime * dt, euler_step)
+            return x
+
+
+class DPMPP2MSampler(BaseDiffusionSampler):
+    def get_variables(self, sigma, next_sigma, previous_sigma=None):
+        t, t_next = [to_neg_log_sigma(s) for s in (sigma, next_sigma)]
+        h = t_next - t
+
+        if previous_sigma is not None:
+            h_last = t - to_neg_log_sigma(previous_sigma)
+            r = h_last / h
+            return h, r, t, t_next
+        else:
+            return h, None, t, t_next
+
+    def get_mult(self, h, r, t, t_next, previous_sigma):
+        mult1 = to_sigma(t_next) / to_sigma(t)
+        mult2 = (-h).expm1()
+
+        if previous_sigma is not None:
+            mult3 = 1 + 1 / (2 * r)
+            mult4 = 1 / (2 * r)
+            return mult1, mult2, mult3, mult4
+        else:
+            return mult1, mult2
+
+    def sampler_step(
+        self,
+        old_denoised,
+        previous_sigma,
+        sigma,
+        next_sigma,
+        model,
+        x,
+        cond,
+        uc=None,
+    ):
+        denoised = self.denoise(x, model, sigma, cond, uc)
+
+        h, r, t, t_next = self.get_variables(sigma, next_sigma, previous_sigma)
+        mult = [append_dims(mult, x.ndim) for mult in self.get_mult(h, r, t, t_next, previous_sigma)]
+
+        x_standard = mult[0] * x - mult[1] * denoised
+        if old_denoised is None or ops.sum(next_sigma) < 1e-14:
+            # Save a network evaluation if all noise levels are 0 or on the first step
+            return x_standard, denoised
+        else:
+            denoised_d = mult[2] * denoised - mult[3] * old_denoised
+            x_advanced = mult[0] * x - mult[1] * denoised_d
+
+            # apply correction if noise level is not 0 and not first step
+            x = ops.where(append_dims(next_sigma, x.ndim) > 0.0, x_advanced, x_standard)
+
+        return x, denoised
+
+    def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
+        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
+
+        old_denoised = None
+        for i in self.get_sigma_gen(num_sigmas):
+            x, old_denoised = self.sampler_step(
+                old_denoised,
+                None if i == 0 else s_in * sigmas[i - 1],
+                s_in * sigmas[i],
+                s_in * sigmas[i + 1],
+                model,
+                x,
+                cond,
+                uc=uc,
+            )
+
+        return x
