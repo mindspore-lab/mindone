@@ -3,6 +3,7 @@
 from gm.util import append_dims
 
 from mindspore import  ops
+
 class NoDynamicThresholding:
     def __call__(self, uncond, cond, scale):
         return uncond + scale * (cond - uncond)
@@ -11,13 +12,11 @@ class NoDynamicThresholding:
 def to_d(x, sigma, denoised):
     return (x - denoised) / append_dims(sigma, x.ndim)
 
-
 def to_neg_log_sigma(sigma):
     return sigma.log().neg()
 
 def to_sigma(neg_log_sigma):
     return neg_log_sigma.neg().exp()
-
 
 def get_ancestral_step( sigma_from, sigma_to, eta=1.0):
     if not eta:

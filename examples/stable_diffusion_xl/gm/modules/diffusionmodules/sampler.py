@@ -5,7 +5,7 @@
 from typing import Dict, Union
 
 import numpy as np
-from gm.modules.diffusionmodules.sampling_utils import to_d, to_neg_log_sigma, to_sigma
+from gm.modules.diffusionmodules.sampling_utils import (get_ancestral_step,to_neg_log_sigma,to_sigma,to_d, to_neg_log_sigma, to_sigma)
 from gm.util import append_dims, default, instantiate_from_config
 from omegaconf import ListConfig, OmegaConf
 from scipy import integrate
@@ -13,8 +13,6 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import Tensor, ops
-from ...modules.diffusionmodules.sampling_utils import (get_ancestral_step,to_neg_log_sigma,to_sigma)
-
 
 
 DEFAULT_GUIDER = {"target": "gm.modules.diffusionmodules.guiders.IdentityGuider"}
@@ -93,6 +91,7 @@ class SingleStepDiffusionSampler(BaseDiffusionSampler):
     def euler_step(self, x, d, dt):
         return x + dt * d
 
+
 class AncestralSampler(SingleStepDiffusionSampler):
     def __init__(self, eta=1.0, s_noise=1.0, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -115,8 +114,7 @@ class AncestralSampler(SingleStepDiffusionSampler):
         )
         return x
 
-
-    def __call__(self, denoiser, x, cond, uc=None, num_steps=None):
+    def __call__(self, model, x, cond, uc=None, num_steps=None):
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(
             x, cond, uc, num_steps
         )
@@ -125,15 +123,13 @@ class AncestralSampler(SingleStepDiffusionSampler):
             x = self.sampler_step(
                 s_in * sigmas[i],
                 s_in * sigmas[i + 1],
-                denoiser,
+                model,
                 x,
                 cond,
                 uc,
             )
 
         return x
-
-
 
 
 class LinearMultistepSampler(BaseDiffusionSampler):
@@ -155,7 +151,7 @@ class LinearMultistepSampler(BaseDiffusionSampler):
 
         return integrate.quad(fn, t[i], t[i + 1], epsrel=epsrel)[0]
 
-    def __call__(self, denoiser, x, cond, uc=None, num_steps=None, **kwargs):
+    def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(
             x, cond, uc, num_steps
         )
@@ -164,7 +160,7 @@ class LinearMultistepSampler(BaseDiffusionSampler):
         sigmas_cpu = sigmas  # 转换为NumPy数组
         for i in self.get_sigma_gen(num_sigmas):
             sigma = s_in * sigmas[i]
-            denoised = self.denoise( x, denoiser, sigma, cond, uc)
+            denoised = self.denoise( x, model, sigma, cond, uc)
             d = to_d(x, sigma, denoised)  # 假定有一个名为to_d的函数用于计算d
             ds.append(d)
             if len(ds) > self.order:
@@ -177,10 +173,7 @@ class LinearMultistepSampler(BaseDiffusionSampler):
             x = x + ms.Tensor(np.sum([coeff * d for coeff, d in zip(coeffs, reversed(ds))], axis=0))
             x = x + sum(coeff * d for coeff, d in zip(coeffs, reversed(ds)))
 
-
         return x
-
-
 
 
 class EDMSampler(SingleStepDiffusionSampler):
@@ -232,13 +225,14 @@ class EulerAncestralSampler(AncestralSampler):
         super(EulerAncestralSampler, self).__init__(*args, **kwargs)
         self.eta = eta
 
-    def sampler_step(self, sigma, next_sigma, denoiser, x, cond, uc):
+    def sampler_step(self, sigma, next_sigma, model, x, cond, uc):
         sigma_down, sigma_up = get_ancestral_step(sigma, next_sigma)
-        denoised = self.denoise(x, denoiser, sigma, cond, uc)
+        denoised = self.denoise(x, model, sigma, cond, uc)
         x = self.ancestral_euler_step(x, denoised, sigma, sigma_down)
         x = self.ancestral_step(x, sigma, next_sigma, sigma_up)
 
         return x
+
 
 class DPMPP2SAncestralSampler(AncestralSampler):
     def get_variables(self, sigma, sigma_down):
@@ -255,9 +249,9 @@ class DPMPP2SAncestralSampler(AncestralSampler):
 
         return mult1, mult2, mult3, mult4
 
-    def sampler_step(self, sigma, next_sigma, denoiser, x, cond, uc=None, **kwargs):
+    def sampler_step(self, sigma, next_sigma, model, x, cond, uc=None, **kwargs):
         sigma_down, sigma_up = get_ancestral_step(sigma, next_sigma, eta=self.eta)
-        denoised = self.denoise(x, denoiser, sigma, cond, uc)
+        denoised = self.denoise(x, model, sigma, cond, uc)
         x_euler = self.ancestral_euler_step(x, denoised, sigma, sigma_down)
 
         if ops.sum(sigma_down) < 1e-14:
@@ -270,7 +264,7 @@ class DPMPP2SAncestralSampler(AncestralSampler):
             ]
 
             x2 = mult[0] * x - mult[1] * denoised
-            denoised2 = self.denoise(x2, denoiser, to_sigma(s), cond, uc)
+            denoised2 = self.denoise(x2, model, to_sigma(s), cond, uc)
             x_dpmpp2s = mult[2] * x - mult[3] * denoised2
 
             # apply correction if noise level is not 0
@@ -278,8 +272,6 @@ class DPMPP2SAncestralSampler(AncestralSampler):
 
         x = self.ancestral_step(x, sigma, next_sigma, sigma_up)
         return x
-
-
 
 
 class EulerEDMSampler(EDMSampler):
