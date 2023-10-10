@@ -155,16 +155,16 @@ def main(cfg):
         head_dim=cfg.unet_head_dim,
         num_res_blocks=cfg.unet_res_blocks,
         attn_scales=cfg.unet_attn_scales,
-        dropout=cfg.unet_dropout,
+        dropout=0.0,  # cfg.unet_dropout,
         temporal_attention=cfg.temporal_attention,
         temporal_attn_times=cfg.temporal_attn_times,
         use_checkpoint=cfg.use_checkpoint,
         use_fps_condition=cfg.use_fps_condition,
         use_sim_mask=cfg.use_sim_mask,
         video_compositions=cfg.video_compositions,
-        misc_dropout=cfg.misc_dropout,
-        p_all_zero=cfg.p_all_zero,
-        p_all_keep=cfg.p_all_zero,
+        misc_dropout=0.0,  # cfg.misc_dropout,
+        p_all_zero=0.0,  # cfg.p_all_zero,
+        p_all_keep=1.0,  # cfg.p_all_keep,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
         use_recompute=cfg.use_recompute,
@@ -238,6 +238,11 @@ def main(cfg):
     logger.info("Total parameters: {:,}".format(tot_params))
 
     # 3. build latent diffusion with loss cell (core)
+    noise = None
+    noise_path = "/mnt/sde/docker_home/ddd/videocomposer-main_msft_bak/input_noise_common.npy"
+    if len(noise_path) > 0:
+        noise = np.load(noise_path)
+
     ldm_with_loss = LatentDiffusion(
         unet,
         vae,
@@ -252,6 +257,7 @@ def main(cfg):
         cond_stage_trainable=cfg.cond_stage_trainable,
         linear_start=cfg.linear_start,
         linear_end=cfg.linear_end,
+        noise=noise,
     )
 
     # auto_mixed_precision(ldm_with_loss, amp_level="O3") # Note: O3 will lead to gradient overflow

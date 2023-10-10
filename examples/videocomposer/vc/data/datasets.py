@@ -102,7 +102,8 @@ class VideoDataset(object):
         start_indices = np.where(
             (np.array(frame_types) == "I") & (total_frames - np.arange(total_frames) >= self.max_frames)
         )[0]
-        start_index = np.random.choice(start_indices)
+        # start_index = np.random.choice(start_indices)
+        start_index = sorted(start_indices)[0]
         indices = np.arange(start_index, start_index + self.max_frames)
 
         # note frames are in BGR mode, need to trans to RGB mode

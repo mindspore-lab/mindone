@@ -102,8 +102,8 @@ def create_transforms(cfg, is_training=True):
     # NOTE: only norm to [0. 1] for stc encoder or for detph/sketch image preprocessor
     misc_transforms = transforms.Compose(
         [
-            RandomResize(size=cfg.misc_size),
-            CenterCrop(cfg.misc_size),
+            # RandomResize(size=cfg.misc_size),
+            vision.CenterCrop(cfg.misc_size),
             vision.ToTensor(),
         ]
     )

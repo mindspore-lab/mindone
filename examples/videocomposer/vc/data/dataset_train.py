@@ -146,7 +146,8 @@ class VideoDatasetForTrain(object):
         if start_indices.size == 0:  # empty, no frames
             return self._get_dummy_data(video_key)
 
-        start_index = np.random.choice(start_indices)
+        # start_index = np.random.choice(start_indices)
+        start_index = sorted(start_indices)[0]
         indices = np.arange(start_index, start_index + self.max_frames)
 
         # note frames are in BGR mode, need to trans to RGB mode

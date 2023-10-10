@@ -54,6 +54,7 @@ class LatentDiffusion(nn.Cell):
         # scheduler_config=None, # not used
         learn_logvar=False,
         logvar_init=0.0,  # not used in training, used in inference sample
+        noise=None,
     ):
         """ """
         super().__init__()
@@ -64,6 +65,9 @@ class LatentDiffusion(nn.Cell):
         if extra_conds is None:
             extra_conds = {}
         self.extra_conds = extra_conds
+        if isinstance(noise, np.ndarray):
+            noise = ms.Tensor(noise)
+        self.noise = noise
         if "depthmap" in extra_conds:
             self.midas = extra_conds["depthmap"]["midas"]
             self.depth_clamp = extra_conds["depthmap"]["depth_clamp"]
@@ -393,6 +397,9 @@ class LatentDiffusion(nn.Cell):
     ):
         # 4. add noise to latent z
         noise = msnp.randn(x_start.shape)
+        if self.noise is not None:
+            # fix noise
+            noise = self.noise
         index = 0
         filename = f"input_noise_{index}_ms.npy"
         while osp.exists(osp.join(DUMP_DIR, filename)):
@@ -401,7 +408,7 @@ class LatentDiffusion(nn.Cell):
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         np.save(open(osp.join(DUMP_DIR, f"input_noise_{index}_ms.npy"), "wb"), noise.asnumpy())
         np.save(open(osp.join(DUMP_DIR, f"input_x_noisy_{index}_ms.npy"), "wb"), x_noisy.asnumpy())
-        np.save(open(osp.join(DUMP_DIR, f"input_text_emb_{index}_ms.npy"), "wb"), style_emb.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"input_text_emb_{index}_ms.npy"), "wb"), text_emb.asnumpy())
         np.save(open(osp.join(DUMP_DIR, f"input_single_image_{index}_ms.npy"), "wb"), single_image.asnumpy())
         np.save(open(osp.join(DUMP_DIR, f"input_motion_vectors_{index}_ms.npy"), "wb"), motion_vectors.asnumpy())
         # 5. predict noise
