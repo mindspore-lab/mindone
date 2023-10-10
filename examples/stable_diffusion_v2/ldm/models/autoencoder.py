@@ -72,11 +72,14 @@ class AutoencoderKL(nn.Cell):
         dec = self.decoder(z)
         return dec
 
-    def encode(self, x):
+    def encode(self, x, deterministic=False):
         h = self.encoder(x)
         moments = self.quant_conv(h)
         mean, logvar = self.split(moments)
-        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
-        std = self.exp(0.5 * logvar)
-        x = mean + std * self.stdnormal(mean.shape)
+        if deterministic:
+            return mean
+        else:
+            logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+            std = self.exp(0.5 * logvar)
+            x = mean + std * self.stdnormal(mean.shape)
         return x
