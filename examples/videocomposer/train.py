@@ -24,6 +24,7 @@ from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weigh
 import mindspore as ms
 
 ms.set_seed(100)
+np.random.seed(100)
 from mindspore import Model, context
 from mindspore.amp import custom_mixed_precision
 from mindspore.communication.management import get_group_size, get_rank, init

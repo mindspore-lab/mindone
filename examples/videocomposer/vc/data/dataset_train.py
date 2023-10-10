@@ -148,6 +148,7 @@ class VideoDatasetForTrain(object):
 
         # start_index = np.random.choice(start_indices)
         start_index = sorted(start_indices)[0]
+        print("start index", start_index)
         indices = np.arange(start_index, start_index + self.max_frames)
 
         # note frames are in BGR mode, need to trans to RGB mode

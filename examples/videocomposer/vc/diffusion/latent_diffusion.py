@@ -407,6 +407,7 @@ class LatentDiffusion(nn.Cell):
             filename = f"input_noise_{index}_ms.npy"
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         np.save(open(osp.join(DUMP_DIR, f"input_noise_{index}_ms.npy"), "wb"), noise.asnumpy())
+        np.save(open(osp.join(DUMP_DIR, f"input_x_start_{index}_ms.npy"), "wb"), x_start.asnumpy())
         np.save(open(osp.join(DUMP_DIR, f"input_x_noisy_{index}_ms.npy"), "wb"), x_noisy.asnumpy())
         np.save(open(osp.join(DUMP_DIR, f"input_text_emb_{index}_ms.npy"), "wb"), text_emb.asnumpy())
         np.save(open(osp.join(DUMP_DIR, f"input_single_image_{index}_ms.npy"), "wb"), single_image.asnumpy())
