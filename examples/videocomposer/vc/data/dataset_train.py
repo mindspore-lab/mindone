@@ -1,5 +1,7 @@
 import logging
 import os
+import os.path as osp
+import pickle as pkl
 import random
 
 import cv2
@@ -13,6 +15,9 @@ from mindspore import dataset as ds
 
 from .transforms import create_transforms
 
+DUMP_DIR = os.getenv("DUMP_DIR", "dump_res")
+if not osp.exists(DUMP_DIR):
+    os.makedirs(DUMP_DIR)
 __all__ = [
     "VideoDatasetForTrain",
 ]
@@ -111,6 +116,14 @@ class VideoDatasetForTrain(object):
         caption_tokens = self.tokenize(cap_txt)
         # style_image = vit_image
         single_image = misc_data[:1].copy()  # [1, 3, h, w]
+        # save motion vectors, captions, video_data, misc_data
+        save_data = {"motion": mv_data, "text": caption_tokens, "video": video_data, "misc": misc_data}
+        index = 0
+        filename = f"save_batch_data_{index}_ms.pkl"
+        while osp.exists(osp.join(DUMP_DIR, filename)):
+            index += 1
+            filename = f"save_batch_data_{index}_ms.pkl"
+        pkl.dump(save_data, open(osp.join(DUMP_DIR, filename), "wb"))
 
         return (
             video_data,
@@ -158,6 +171,13 @@ class VideoDatasetForTrain(object):
         have_frames = len(frames) > 0
         middle_index = int(len(frames) / 2)
         if have_frames:
+            save_data = {"motion": mvs, "video": frames}
+            index = 0
+            filename = f"save_batch_data_{index}_before_transforms_ms.pkl"
+            while osp.exists(osp.join(DUMP_DIR, filename)):
+                index += 1
+                filename = f"save_batch_data_{index}_before_transforms_ms.pkl"
+            pkl.dump(save_data, open(osp.join(DUMP_DIR, filename), "wb"))
             ref_frame = frames[middle_index]
             vit_image = self.vit_transforms(ref_frame)[0]
             misc_imgs = np.stack([self.misc_transforms(frame)[0] for frame in frames], axis=0)
