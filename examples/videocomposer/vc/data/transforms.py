@@ -103,7 +103,7 @@ def create_transforms(cfg, is_training=True):
     misc_transforms = transforms.Compose(
         [
             # RandomResize(size=cfg.misc_size),
-            vision.CenterCrop(cfg.misc_size),
+            CenterCrop(cfg.misc_size),
             vision.ToTensor(),
         ]
     )
