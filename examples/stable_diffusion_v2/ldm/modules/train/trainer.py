@@ -7,6 +7,7 @@ from mindspore.common import RowTensor
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
+from mindspore.common import dtype as mstype
 
 _grad_scale = C.MultitypeFuncGraph("grad_scale")
 reciprocal = P.Reciprocal()
