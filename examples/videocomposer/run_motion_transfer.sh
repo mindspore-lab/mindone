@@ -20,3 +20,4 @@ python infer.py\
     --input_text_desc "Cloudy moscow kremlin time lapse" \
     --resume_checkpoint $1 \
     --ms_mode 0
+
