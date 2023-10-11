@@ -1,4 +1,5 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
+from packaging import version
 import mindspore as ms
 import mindspore.context as context
 from mindspore import Parameter, Tensor, nn, ops
@@ -107,12 +108,15 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         grads = self.hyper_map(F.partial(_grad_scale, scaling_sens * self.grad_accu_steps), grads)
 
         # 3. check gradient overflow
-        if not self.is_cpu_device:
-            cond = self.get_overflow_status(status, grads)
-            overflow = self.process_loss_scale(cond)
+        if version.parse(ms.__version__) >= version.parse("2.1"):
+            status = Tensor([0]*8, mstype.int32)
         else:
-            overflow = ms.Tensor(False)
-            cond = ms.Tensor(False)
+            if not self.is_cpu_device:
+                cond = self.get_overflow_status(status, grads)
+                overflow = self.process_loss_scale(cond)
+            else:
+                overflow = ms.Tensor(False)
+                cond = ms.Tensor(False)
 
         # accumulate gradients and update model weights if no overflow or allow to update even when overflow
         if (not self.drop_overflow_update) or (not overflow):
