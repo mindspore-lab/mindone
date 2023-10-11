@@ -74,6 +74,19 @@ def make_masked_images(imgs, masks):
     return ops.stack(masked_imgs, axis=0)
 
 
+class CenterCrop_Array(object):
+    def __init__(self, size=224):
+        self.size = size
+
+    def __call__(self, img):
+        w, h, _ = img.shape
+        assert min(w, h) >= self.size
+        crop_top = int(round((w - self.size) / 2.0))
+        crop_left = int(round((h - self.size) / 2.0))
+        img = img[crop_top : crop_top + self.size, crop_left : crop_left + self.size, :]
+        return img
+
+
 # TODO: add augmentation
 def create_transforms(cfg, is_training=True):
     # [Transform] Transforms for different inputs
@@ -81,7 +94,7 @@ def create_transforms(cfg, is_training=True):
     # video frames, norm to [-1, 1] for VAE
     infer_transforms = transforms.Compose(
         [
-            vision.CenterCrop(size=cfg.resolution),
+            CenterCrop(size=cfg.resolution),
             vision.ToTensor(),
             vision.Normalize(mean=cfg.mean, std=cfg.std, is_hwc=False),
         ]
@@ -90,7 +103,7 @@ def create_transforms(cfg, is_training=True):
     misc_transforms = transforms.Compose(
         [
             RandomResize(size=cfg.misc_size),
-            vision.CenterCrop(cfg.misc_size),
+            CenterCrop(cfg.misc_size),
             vision.ToTensor(),
         ]
     )
@@ -98,7 +111,7 @@ def create_transforms(cfg, is_training=True):
     mv_transforms = transforms.Compose(
         [
             vision.Resize(size=cfg.resolution),
-            vision.CenterCrop(cfg.resolution),
+            CenterCrop_Array(cfg.resolution),
         ]
     )
     #
