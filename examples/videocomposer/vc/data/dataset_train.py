@@ -117,7 +117,7 @@ class VideoDatasetForTrain(object):
         # style_image = vit_image
         single_image = misc_data[:1].copy()  # [1, 3, h, w]
         # save motion vectors, captions, video_data, misc_data
-        save_data = {"motion": mv_data, "text": caption_tokens, "video": video_data, "misc": misc_data}
+        save_data = {"motion": mv_data, "text": cap_txt, "video": video_data, "misc": misc_data}
         index = 0
         filename = f"save_batch_data_{index}_ms.pkl"
         while osp.exists(osp.join(DUMP_DIR, filename)):
