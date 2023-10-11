@@ -77,7 +77,7 @@ class VideoDatasetForTrain(object):
             self.video_cap_pairs = [[video_paths[i], captions[i]] for i in range(num_samples)]
         else:
             self.video_cap_pairs = [[self.cfg.input_video, self.cfg.input_text_desc]]
-
+        print("video captions pairs ", self.video_cap_pairs)
         self.tokenizer = tokenizer  # bpe
 
     def tokenize(self, text):

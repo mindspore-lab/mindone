@@ -25,9 +25,7 @@ epochs: 2
 ckpt_save_interval: 1  # save each epoch(step)
 ckpt_max_keep: 10
 root_dir: null
-# run single video training for two epochs(steps)
-input_video: "datasets/webvid5/1.mp4"
-input_text_desc: "Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect."
+# run single video training for two epochs(steps) in parser.py, demo_video/video_8800.mp4
 
 loss_scale: 1024
 
