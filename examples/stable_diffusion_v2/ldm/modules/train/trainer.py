@@ -1,8 +1,11 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
+from packaging import version
+
 import mindspore as ms
 import mindspore.context as context
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import RowTensor
+from mindspore.common import dtype as mstype
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 from mindspore.ops import operations as P
@@ -91,11 +94,14 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         loss = self.network(*inputs)  # mini-batch loss
         scaling_sens = self.scale_sense
 
-        # check loss overflow
-        if not self.is_cpu_device:
-            status, scaling_sens = self.start_overflow_check(loss, scaling_sens)
+        # check loss overflow. (after ms2.1, it's done together with gradient overflow checking)
+        if version.parse(ms.__version__) >= version.parse("2.1"):
+            status = Tensor([0] * 8, mstype.int32)
         else:
-            status = None
+            if not self.is_cpu_device:
+                status, scaling_sens = self.start_overflow_check(loss, scaling_sens)
+            else:
+                status = None
 
         scaling_sens_filled = C.ones_like(loss) * F.cast(scaling_sens, F.dtype(loss))  # loss scale value
 
