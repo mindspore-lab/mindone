@@ -93,7 +93,7 @@ class EvalSaveCallback(Callback):
                     self.ema.swap_before_eval()
 
                 # save history checkpoints
-                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"sd-test.ckpt")
+                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=f"{self.model_name}-test.ckpt")
                 #ms.save_checkpoint(
                 #    cb_params.train_network,
                 #    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),

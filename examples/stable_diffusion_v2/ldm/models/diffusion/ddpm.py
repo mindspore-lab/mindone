@@ -389,13 +389,14 @@ class LatentDiffusion(DDPM):
         c = self.get_learned_conditioning_fortrain(c)
         return self.p_losses(x, c, t)
 
-    def p_losses(self, x_start, cond, t, noise=None):
+    def p_losses(self, x_start, cond, t, noise=None, **kwargs):
         noise = msnp.randn(x_start.shape)
         x_noisy = self.q_sample(x_start=x_start, t=t, noise=noise)
         model_output = self.apply_model(
             x_noisy,
             t,
             cond=cond,
+            **kwargs,
         )
 
         if self.parameterization == "x0":
