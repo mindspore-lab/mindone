@@ -139,6 +139,7 @@ cfg.betas = [0.9, 0.98]
 cfg.weight_decay = 0  # not mentioned in paper. let's start with small value
 cfg.use_ema = False
 cfg.ema_decay = 0.9999
+cfg.loss_scale = 65536
 
 cfg.epochs = 50
 cfg.ckpt_save_interval = 50  # 1000 # only save last checkpoint for DEBUG
