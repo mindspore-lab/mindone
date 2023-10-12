@@ -364,7 +364,7 @@ class ResBlock(nn.Cell):
 
         if self.use_temporal_conv:
             self.temporal_conv = TemporalConvBlock_v2(
-                self.out_channels, self.out_channels, dropout=0.1, use_image_dataset=use_image_dataset, dtype=self.dtype
+                self.out_channels, self.out_channels, dropout=0.0, use_image_dataset=use_image_dataset, dtype=self.dtype
             )
             # self.temporal_conv_2 = TemporalConvBlock(self.out_channels, self.out_channels, dropout=0.1, use_image_dataset=use_image_dataset)
 
