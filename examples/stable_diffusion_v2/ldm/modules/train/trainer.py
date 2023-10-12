@@ -84,7 +84,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         self.verbose = verbose
         self.is_cpu_device = context.get_context("device_target") == "CPU"  # to support CPU in CI
-        self.skip_start_overflow_check = (version.parse(ms.__version__) >= version.parse("2.1"))
+        self.skip_start_overflow_check = version.parse(ms.__version__) >= version.parse("2.1")
 
         self.map = ops.Map()
         self.partial = ops.Partial()
