@@ -122,7 +122,8 @@ def main(args):
     latents = []
 
     for i in range(0, video_length, validation_data.video_length):
-        latents.append(sd.get_input(pixel_values[i : i + validation_data.video_length], None)[0])
+        h = sd.first_stage_model.encoder(pixel_values[i : i + validation_data.video_length].permute(0, 3, 1, 2))
+        latents.append(sd.get_first_stage_encoding(sd.first_stage_model.quant_conv(h).chunk(2, axis=1)[0]))
 
     latents = ops.cat(latents, axis=0)
     latents = latents.reshape(
