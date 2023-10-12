@@ -267,13 +267,19 @@ class LatentDiffusion(nn.Cell):
         # 2. prepare input latent frames z
         # (bs f c h w) -> (bs*f c h w) -> (bs*f z h//8 w//8) -> (b z f h//8 w//8)
         b, f, c, h_vid, w_vid = x.shape
+        index = 0
+        filename = f"video_data_before_vae_encode_{index}_ms.npy"
+        while osp.exists(osp.join(DUMP_DIR, filename)):
+            index += 1
+            filename = f"video_data_before_vae_encode_{index}_ms.npy"
+        np.save(open(osp.join(DUMP_DIR, f"video_data_before_vae_encode_{index}_ms.npy"), "wb"), x.asnumpy())
         x = ops.reshape(x, (-1, c, h_vid, w_vid))
         # print("D--: vae input x shape", x.shape)
         z = ops.stop_gradient(self.scale_factor * self.vae.encode(x))
         # (b*f, c, h, w) - > (b, f, c, h, w) -> (b, c, f, h, w)
         z = ops.reshape(z, (b, f, z.shape[1], z.shape[2], z.shape[3])).permute((0, 2, 1, 3, 4))
         # print("D--: vae output z shape: ", z.shape)
-
+        np.save(open(osp.join(DUMP_DIR, f"video_data_after_vae_encode_{index}_ms.npy"), "wb"), z.asnumpy())
         # 3. prepare conditions
 
         # 3.1 text embedding
