@@ -12,6 +12,7 @@ __all__ = [
     "CenterCrop",
     "AddGaussianNoise",
     "make_masked_images",
+    "CenterCrop_Array",
 ]
 
 

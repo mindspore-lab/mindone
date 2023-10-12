@@ -7,7 +7,7 @@ import mindspore.dataset as ds
 from mindspore.dataset import transforms, vision
 
 from ..config import Config
-from ..data import CenterCrop, RandomResize, VideoDataset
+from ..data import CenterCrop, CenterCrop_Array, RandomResize, VideoDataset
 from ..utils import MSLiteModelBuilder
 from .extractor import CannyExtractor
 
@@ -113,7 +113,7 @@ def prepare_transforms(cfg: Config) -> Tuple[Callable, Callable, Callable, Calla
     # [Transform] Transforms for different inputs
     infer_transforms = transforms.Compose(
         [
-            vision.CenterCrop(size=cfg.resolution),
+            CenterCrop(size=cfg.resolution),
             vision.ToTensor(),
             vision.Normalize(mean=cfg.mean, std=cfg.std, is_hwc=False),
         ]
@@ -121,14 +121,14 @@ def prepare_transforms(cfg: Config) -> Tuple[Callable, Callable, Callable, Calla
     misc_transforms = transforms.Compose(
         [
             RandomResize(size=cfg.misc_size),
-            vision.CenterCrop(cfg.misc_size),
+            CenterCrop(cfg.misc_size),
             vision.ToTensor(),
         ]
     )
     mv_transforms = transforms.Compose(
         [
             vision.Resize(size=cfg.resolution),
-            vision.CenterCrop(cfg.resolution),
+            CenterCrop_Array(cfg.resolution),
         ]
     )
     vit_transforms = transforms.Compose(
