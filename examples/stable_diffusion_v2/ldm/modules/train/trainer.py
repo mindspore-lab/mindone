@@ -84,6 +84,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         self.verbose = verbose
         self.is_cpu_device = context.get_context("device_target") == "CPU"  # to support CPU in CI
+        self.skip_start_overflow_check = version.parse(ms.__version__) >= version.parse("2.1")
 
         self.map = ops.Map()
         self.partial = ops.Partial()
@@ -95,7 +96,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         scaling_sens = self.scale_sense
 
         # check loss overflow. (after ms2.1, it's done together with gradient overflow checking)
-        if version.parse(ms.__version__) >= version.parse("2.1"):
+        if self.skip_start_overflow_check:
             status = Tensor([0] * 8, mstype.int32)
         else:
             if not self.is_cpu_device:
