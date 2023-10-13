@@ -64,15 +64,10 @@ class VideoDataset(object):
 
     def __getitem__(self, index):
         video_key, cap_txt = self.video_cap_pairs[index]
-
         feature_framerate = self.feature_framerate
-        if os.path.exists(video_key):
-            ref_frame, vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
-                video_key, feature_framerate, self.mvs_visual
-            )
-        else:  # use dummy data
-            _logger.warning(f"The video: {video_key} does not exist! Please check the video path.")
-            ref_frame, vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
+        ref_frame, vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
+            video_key, feature_framerate, self.mvs_visual
+        )
 
         # inpainting mask
         p = random.random()
@@ -88,16 +83,10 @@ class VideoDataset(object):
 
         return ref_frame, cap_txt, video_data, misc_data, feature_framerate, mask, mv_data
 
-    def _get_dummy_data(self, video_key):
-        ref_frame = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)
-        vit_image = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)  # noqa
-        video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
-        misc_data = np.zeros((self.max_frames, 3, self.misc_size, self.misc_size), dtype=np.float32)
-        mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
-
-        return ref_frame, vit_image, video_data, misc_data, mv_data
-
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
+        if not os.path.exists(video_key):
+            raise FileNotFoundError(f"The video '{video_key}' does not exist!")
+
         filename = video_key
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
             input_video=filename, fps=feature_framerate, viz=viz_mv
@@ -109,8 +98,7 @@ class VideoDataset(object):
         )[0]
 
         if start_indices.size == 0:  # empty, no frames
-            _logger.warning(f"Failed to load the video: {filename}. The video may be broken.")
-            return self._get_dummy_data(filename)
+            raise RuntimeError(f"Failed to process the video '{filename}'! The video may be broken.")
 
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)
@@ -128,7 +116,7 @@ class VideoDataset(object):
             frames = np.stack([self.transforms(frame)[0] for frame in frames], axis=0)
             mvs = np.stack([self.mv_transforms(mv).transpose((2, 0, 1)) for mv in mvs], axis=0)
         else:
-            raise RuntimeError(f"Got no frames from {filename}!")
+            raise RuntimeError(f"Got no frames from '{filename}'!")
 
         video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
         mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
