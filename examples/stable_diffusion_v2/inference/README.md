@@ -1,4 +1,4 @@
-# Stabel Diffusion Inference
+# Stable Diffusion Inference
 
 ## Installation Guide
 
@@ -150,4 +150,4 @@ You can get images at "output/samples".
 | sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910A | Lite | 3.21 s |
 | sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910B | Lite | 2.7 s |
 
-The samlper schedule is DDIM.
+The sampler schedule is DDIM.
