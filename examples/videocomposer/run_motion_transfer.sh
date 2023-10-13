@@ -1,7 +1,7 @@
-export MS_ASCEND_CHECK_OVERFLOW_MODE=1 # for ms+910B, check overflow
+# Only for MS2.1, uncomment the below line if use MS2.1 on 910B
+#export MS_ENABLE_GE=1
 
 # Exp02, Motion Transfer from a video to a Single Image
-<<com
 python infer.py\
     --cfg configs/exp02_motion_transfer.yaml\
     --seed 9999\
@@ -10,8 +10,9 @@ python infer.py\
     --input_text_desc "Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect." \
     --resume_checkpoint $1 \
     --ms_mode 0
-com
 
+
+<<com
 python infer.py\
     --cfg configs/exp02_motion_transfer.yaml\
     --seed 9999\
@@ -20,3 +21,4 @@ python infer.py\
     --input_text_desc "Cloudy moscow kremlin time lapse" \
     --resume_checkpoint $1 \
     --ms_mode 0
+com
