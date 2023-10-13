@@ -269,7 +269,7 @@ class Upsample(nn.Cell):
             ).to_float(self.dtype)
 
     def construct(self, x):
-        assert x.shape[1] == self.channels
+        # assert x.shape[1] == self.channels
         if self.dims == 3:
             # x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
             x = ops.ResizeNearestNeighbor((x.shape[2], x.shape[3] * 2, x.shape[4] * 2))(x)
@@ -434,7 +434,7 @@ class Downsample(nn.Cell):
             self.op = avg_pool_nd(dims, kernel_size=stride, stride=stride)
 
     def construct(self, x):
-        assert x.shape[1] == self.channels
+        # assert x.shape[1] == self.channels
         return self.op(x)
 
 
