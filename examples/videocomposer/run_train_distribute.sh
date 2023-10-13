@@ -19,7 +19,7 @@ export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}_cache
 #rank_table_file=/home/docker_home/jason/hccl_2p_45_10.170.22.51.json
 #CANDIDATE_DEVICE=(4 5)
 
-# 
+#
 num_devices=8
 rank_table_file=/home/docker_home/jason/hccl_8p_01234567_10.170.22.51.json
 CANDIDATE_DEVICE=(0 1 2 3 4 5 6 7)

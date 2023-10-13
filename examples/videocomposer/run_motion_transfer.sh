@@ -1,7 +1,7 @@
 # Only for MS2.1, uncomment the below line if use MS2.1 on 910B
 #export MS_ENABLE_GE=1
 
-# since ms2.2 0907 
+# since ms2.2 0907
 export MS_ENABLE_REF_MODE=1
 
 # Exp02, Motion Transfer from a video to a Single Image
