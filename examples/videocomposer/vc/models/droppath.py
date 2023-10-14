@@ -100,7 +100,7 @@ class DropPathFromVCPT(nn.Cell):
         return output[0] if len(args) == 1 else output
 
     def broadcast(self, src, dst):
-        assert src.shape[0] == dst.shape[0]
+        # assert src.shape[0] == dst.shape[0]
         shape = (dst.shape[0],) + (1,) * (dst.ndim - 1)
         return src.view(shape)
 

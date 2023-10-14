@@ -13,16 +13,16 @@ def exists(val):
 def broadcat(tensors, dim=-1):
     num_tensors = len(tensors)
     shape_lens = set(list(map(lambda t: len(t.shape), tensors)))
-    assert len(shape_lens) == 1, "tensors must all have the same number of dimensions"
+    # assert len(shape_lens) == 1, "tensors must all have the same number of dimensions"
     shape_len = list(shape_lens)[0]
 
     dim = (dim + shape_len) if dim < 0 else dim
     dims = list(zip(*map(lambda t: list(t.shape), tensors)))
 
     expandable_dims = [(i, val) for i, val in enumerate(dims) if i != dim]
-    assert all(
-        [*map(lambda t: len(set(t[1])) <= 2, expandable_dims)]
-    ), "invalid dimensions for broadcastable concatentation"
+    # assert all(
+    #    [*map(lambda t: len(set(t[1])) <= 2, expandable_dims)]
+    # ), "invalid dimensions for broadcastable concatentation"
     max_dims = list(map(lambda t: (t[0], max(t[1])), expandable_dims))
     expanded_dims = list(map(lambda t: (t[0], (t[1],) * num_tensors), max_dims))
     expanded_dims.insert(dim, (dim, dims[dim]))
@@ -47,9 +47,9 @@ def apply_rotary_emb(freqs, t, start_index=0, scale=1.0):
     freqs = freqs.to(t.dtype)
     rot_dim = freqs.shape[-1]
     end_index = start_index + rot_dim
-    assert (
-        rot_dim <= t.shape[-1]
-    ), f"feature dimension {t.shape[-1]} is not of sufficient size to rotate in all the positions {rot_dim}"
+    # assert (
+    #    rot_dim <= t.shape[-1]
+    # ), f"feature dimension {t.shape[-1]} is not of sufficient size to rotate in all the positions {rot_dim}"
     t_left, t, t_right = t[..., :start_index], t[..., start_index:end_index], t[..., end_index:]
     t = (t * freqs.cos() * scale) + (rotate_half(t) * freqs.sin() * scale)
     return ops.cat((t_left, t, t_right), axis=-1)
@@ -108,7 +108,7 @@ class RotaryEmbedding(nn.Cell):
         self.freqs = ms.Parameter(freqs, requires_grad=learned_freq)
 
         # interpolation factors
-        assert interpolate_factor >= 1.0
+        # assert interpolate_factor >= 1.0
         self.interpolate_factor = interpolate_factor
 
         # xpos
@@ -126,9 +126,9 @@ class RotaryEmbedding(nn.Cell):
         return (ops.arange(seq_len, dtype=dtype) + offset) / self.interpolate_factor
 
     def rotate_queries_or_keys(self, t, seq_dim=-2, offset=0):
-        assert (
-            not self.use_xpos
-        ), "you must use `.rotate_queries_and_keys` method instead and pass in both queries and keys, for length extrapolatable rotary embeddings"
+        # assert (
+        #    not self.use_xpos
+        # ), "you must use `.rotate_queries_and_keys` method instead and pass in both queries and keys, for length extrapolatable rotary embeddings"
         dtype, seq_len = t.dtype, t.shape[seq_dim]
         freqs = self.construct(
             lambda: self.get_seq_pos(seq_len, dtype=dtype, offset=offset),
@@ -137,7 +137,7 @@ class RotaryEmbedding(nn.Cell):
         return apply_rotary_emb(freqs, t)
 
     def rotate_queries_and_keys(self, q, k, seq_dim=-2):
-        assert self.use_xpos
+        # assert self.use_xpos
         dtype, seq_len = q.dtype, q.shape[seq_dim]
         seq = self.get_seq_pos(seq_len, dtype=dtype)
         freqs = self.construct(lambda: seq, cache_key=f"freqs:{seq_len}")
@@ -147,7 +147,7 @@ class RotaryEmbedding(nn.Cell):
         return rotated_q, rotated_k
 
     def get_scale(self, t, cache_key=None):
-        assert self.use_xpos
+        # assert self.use_xpos
 
         if exists(cache_key) and cache_key in self.cache:
             return self.cache[cache_key]

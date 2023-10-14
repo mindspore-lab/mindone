@@ -90,7 +90,7 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
         self.tokenizer = load_ckpt_tokenizer(tokenizer_path)
 
     def delete_last_n_layers_from_resblocks(self, layer_index):
-        assert layer_index < len(self.model.transformer.resblocks) and layer_index >= 0
+        # assert layer_index < len(self.model.transformer.resblocks) and layer_index >= 0
         N = len(self.model.transformer.resblocks)
         index = N - 1
         for _ in range(layer_index):
