@@ -90,7 +90,7 @@ def pre_process_canny(input_video, low_threshold=100, high_threshold=200):
     return control
 
 
-def create_video(frames, fps, mode="gif", rescale=False, path=None):
+def create_video(frames, fps, mode="mp4", rescale=False, path=None):
     if path is None:
         dir = "temporal"
         os.makedirs(dir, exist_ok=True)
