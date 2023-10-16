@@ -1,7 +1,7 @@
 model:
   target: ldm.models.diffusion.ddpm.LatentDiffusion
   version: "1.5"
-  pretrained_ckpt: "/disk1/gh/data/ckpt/control_canny_sd_v1.5_static-6350d204.ckpt" # change it to ckpt corresponding to certain control mode
+  pretrained_ckpt: "stable_diffusion_v2/models/control_canny_sd_v1.5_static-6350d204.ckpt" # change it to ckpt corresponding to certain control mode
   prediction_type: "noise" # Note: set to "v" if trained with v objective
   params:
     linear_start: 0.00085
@@ -39,6 +39,8 @@ model:
         use_checkpoint: True
         legacy: False
         use_fp16: True
+        cross_frame_attention: True
+        unet_chunk_size: 2
 
         control_stage_config:
           target: cldm.cldm.ControlNet
@@ -57,6 +59,8 @@ model:
             use_checkpoint: True
             legacy: False
             use_fp16: True
+            cross_frame_attention: True
+            unet_chunk_size: 2
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL

@@ -10,3 +10,4 @@ toolz
 pillow==9.1.1
 tqdm
 jsonargparse[signatures,omegaconf,urls]>=4.25.0
+decord==0.6.0

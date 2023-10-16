@@ -40,6 +40,7 @@ For a quick tour, please view [demo](demo.md).
   - [Training](#training-1)
 - [Stable Diffusion with ControlNet](#stable-diffusion-with-controlnet)
   - [Inference](#inference-2)
+- [Text2Video-Zero](#text2video-zero)
 - [Stable Diffusion with T2I-Adapter](#stable-diffusion-with-t2i-adapter)
 - [Data Preparation for Training](#dataset-preparation-for-finetuning)
 - [Supported Schedulers](#supported-schedulers)
@@ -380,6 +381,12 @@ ControlNet controls pretrained large diffusion models to support additional inpu
 ## Inference
 
 For details, please refer to the tutorial [ControlNet image generation](controlnet.md).
+
+# Text2Video-Zero
+
+Text2Video-Zero introduces a new task of zeroshot text-to-video generation and propose a low-cost approach (without any training or optimization) by leveraging the power of existing text-to-image synthesis methods (e.g. Stable Diffusion), making them suitable for the video domain. In practice, with a pretrained generative model, it can impaint videos with text prompts and other controls like canny edge. And it doesn't need any further fine-tuning.
+
+For details, please refer to the tutorial [Text2Video-Zero](text2video_zero.md).
 
 # Stable Diffusion with T2I-Adapter
 

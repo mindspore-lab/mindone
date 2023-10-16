@@ -16,10 +16,10 @@ workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
 from conditions.canny.canny_detector import CannyDetector
 from conditions.segmentation.segment_detector import SegmentDetector
-from conditions.utils import HWC3, resize_image
+from conditions.utils import HWC3, create_video, pre_process_canny, prepare_video, resize_image
 from ldm.modules.logger import set_logger
 from ldm.util import instantiate_from_config, str2bool
-from libs.helper import VaeImageProcessor, load_model_from_config, set_env
+from libs.helper import VaeImageProcessor, inference_text2video, load_model_from_config, set_env
 from libs.sd_models import SDControlNet, SDImg2Img, SDInpaint, SDText2Img
 
 logger = logging.getLogger("Stable Diffusion Inference")
@@ -162,6 +162,28 @@ def main(args):
         control = ops.stack([control for _ in range(batch_size)], axis=0).astype(ms.float16)
         inputs["control"] = control
 
+    elif args.task == "text2video_zero":
+        sd_infer = SDControlNet(
+            text_encoder,
+            unet,
+            vae,
+            scheduler,
+            scale_factor=model.scale_factor,
+            num_inference_steps=args.sampling_steps,
+        )
+        video, fps = prepare_video(args.inputs.video_path, args.inputs.image_resolution, False)
+        if args.inputs.controlnet_mode == "canny":
+            control = pre_process_canny(video, args.inputs.low_threshold, args.inputs.high_threshold).astype(ms.float16)
+        else:
+            raise NotImplementedError(f"mode {args.inputs.controlnet_mode} not supported")
+        f, h, w, _ = video.shape
+        args.inputs.H = h
+        args.inputs.W = w
+        prompt_data = [prompt] * f
+        negative_prompt_data = [negative_prompt] * f
+        prompt_data = model.tokenize(prompt_data)
+        negative_prompt_data = model.tokenize(negative_prompt_data)
+
     else:
         raise ValueError(f"Not support task: {args.task}")
 
@@ -171,24 +193,35 @@ def main(args):
         f"Negative prompt(s): {inputs['negative_prompt']}"
     )
 
-    for n in range(args.n_iter):
-        start_time = time.time()
-        inputs["noise"] = ops.standard_normal((args.n_samples, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(
-            ms.float16
+    if args.task == "text2video_zero":
+        noise = ops.standard_normal((1, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(ms.float16)
+        noise = ops.tile(noise, (f, 1, 1, 1))
+        result = inference_text2video(
+            control, inputs, noise, prompt_data, negative_prompt_data, sd_infer, img_processor
         )
-        x_samples = sd_infer(inputs)
-        x_samples = img_processor.postprocess(x_samples)
-
-        for sample in x_samples:
-            sample.save(os.path.join(args.sample_path, f"{args.base_count:05}.png"))
-            args.base_count += 1
-
-        end_time = time.time()
-        logger.info(
-            "{}/{} images generated, time cost for current trial: {:.3f}s".format(
-                batch_size * (n + 1), batch_size * args.n_iter, end_time - start_time
+        video_name = args.inputs.video_path.split("/")[-1]
+        video_name = args.inputs.controlnet_mode + "_" + video_name
+        save_path = os.path.join(args.sample_path, video_name)
+        create_video(result, fps, path=save_path)
+    else:
+        for n in range(args.n_iter):
+            start_time = time.time()
+            inputs["noise"] = ops.standard_normal((args.n_samples, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(
+                ms.float16
             )
-        )
+            x_samples = sd_infer(inputs)
+            x_samples = img_processor.postprocess(x_samples)
+
+            for sample in x_samples:
+                sample.save(os.path.join(args.sample_path, f"{args.base_count:05}.png"))
+                args.base_count += 1
+
+            end_time = time.time()
+            logger.info(
+                "{}/{} images generated, time cost for current trial: {:.3f}s".format(
+                    batch_size * (n + 1), batch_size * args.n_iter, end_time - start_time
+                )
+            )
 
     logger.info(f"Done! All generated images are saved in: {args.output_path}/samples" f"\nEnjoy.")
 
@@ -207,7 +240,7 @@ if __name__ == "__main__":
         default="text2img",
         help="Task name, should be [text2img, img2img, inpaint, controlnet], "
         "if choose a task name, use the config/[task].yaml for inputs",
-        choices=["text2img", "img2img", "inpaint", "controlnet"],
+        choices=["text2img", "img2img", "inpaint", "controlnet", "text2video_zero"],
     )
     parser.add_argument("--model", type=str, required=True, help="path to config which constructs model.")
     parser.add_argument("--output_path", type=str, default="output", help="dir to write results to")
@@ -267,8 +300,13 @@ if __name__ == "__main__":
     elif args.task == "controlnet":
         inputs_config_path = "./config/controlnet.yaml"
         default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
+    elif args.task == "text2video_zero":
+        inputs_config_path = "./config/text2video-zero.yaml"
+        default_ckpt = "./models/control_canny_sd_v1.5_static-6350d204.ckpt"
     else:
-        raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
+        raise ValueError(
+            f"{args.task} is invalid, should be in [text2img, img2img, inpaint, controlnet, text2video_zero]"
+        )
     inputs = OmegaConf.load(inputs_config_path)
 
     key_settings_info = ["Key Settings:\n" + "=" * 50]

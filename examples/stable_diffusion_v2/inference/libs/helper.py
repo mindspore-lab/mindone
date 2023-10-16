@@ -277,3 +277,28 @@ class VaeImageProcessor:
 
         if output_type == "pil":
             return self.numpy_to_pil(image)
+
+
+def inference_text2video(
+    control, inputs, noise, prompt_data, negative_prompt_data, sd_infer, img_processor, chunk_size=8
+):
+    frames_counter = 0
+    f = control.shape[0]
+    chunk_ids = np.arange(0, f, chunk_size - 1)
+    result = []
+    for i in range(len(chunk_ids)):
+        ch_start = chunk_ids[i]
+        ch_end = f if i == len(chunk_ids) - 1 else chunk_ids[i + 1]
+        frame_ids = [0] + list(range(ch_start, ch_end))
+        print(f"Processing chunk {i + 1} / {len(chunk_ids)}")
+        inputs["prompt_data"] = prompt_data[frame_ids]
+        inputs["negative_prompt_data"] = negative_prompt_data[frame_ids]
+        inputs["noise"] = noise[frame_ids]
+        inputs["control"] = control[frame_ids]
+        result_frame = sd_infer(inputs)[1:]
+        result_frame = img_processor.postprocess(result_frame, output_type="np")
+        result.append(result_frame)
+        frames_counter += len(chunk_ids) - 1
+
+    result = np.concatenate(result)
+    return result
