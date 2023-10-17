@@ -81,7 +81,8 @@ class CenterCrop_Array(object):
 
     def __call__(self, img):
         w, h, _ = img.shape
-        assert min(w, h) >= self.size
+        if min(w, h) < self.size:
+            raise ValueError
         crop_top = int(round((w - self.size) / 2.0))
         crop_left = int(round((h - self.size) / 2.0))
         img = img[crop_top : crop_top + self.size, crop_left : crop_left + self.size, :]

@@ -8,7 +8,7 @@ export ASCEND_GLOBAL_LOG_LEVEL=1  # Global log message level for Ascend. Setting
 export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
 export DEVICE_ID=$1  # The device id to runing training on
 
-task_name=train_exp02_gn_ln_softmax_fp32_e10000
+task_name=train_exp02_bugFixed_graphFusionOff
 yaml_file=configs/train_exp02_motion_transfer.yaml
 #yaml_file=configs/train_text_to_video.yaml
 output_path=outputs

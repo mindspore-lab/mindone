@@ -22,7 +22,7 @@ cfg.alpha_img = 0.7
 cfg.resolution = 256
 cfg.mean = [0.5, 0.5, 0.5]
 cfg.std = [0.5, 0.5, 0.5]
-cfg.dataset_sink_mode = False
+cfg.dataset_sink_mode = True
 
 cfg.shuffle = True
 
