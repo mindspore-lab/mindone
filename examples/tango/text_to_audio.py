@@ -17,9 +17,13 @@ def parse_args():
         default="A dog is barking",
         nargs="+",
     )
+    parser.add_argument("--mode", type=str, default="graph", choices=["graph", "pynative"])
     parser.add_argument("--config_path", type=str, default="configs", help="Path containing config.json")
     parser.add_argument(
-        "--ckpt", type=str, default="../../../tango_ms_full.ckpt", help="Path for saved model bin file."
+        "--ckpt",
+        type=str,
+        default="../../../tango_full_ft_audiocaps-fa8f707f.ckpt",
+        help="Path for saved model bin file.",
     )
     parser.add_argument(
         "--num_steps",
@@ -50,7 +54,10 @@ def main():
 
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(
-        mode=ms.context.PYNATIVE_MODE, device_target="Ascend", device_id=device_id, max_device_memory="30GB"
+        mode=ms.context.PYNATIVE_MODE if args.mode == "pynative" else ms.context.GRAPH_MODE,
+        device_target="Ascend",
+        device_id=device_id,
+        max_device_memory="30GB",
     )
 
     # set_random_seed(args.seed)

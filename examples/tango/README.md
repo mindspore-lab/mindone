@@ -23,11 +23,14 @@ Note: we manually converted the generated recordings from `.wav` to `.webm` so w
 
 ## Getting Started
 
-1. download weights from [tango_full_ft_audiocaps-fa8f707f](https://download.mindspore.cn/toolkits/mindone/tango/tango_full_ft_audiocaps-fa8f707f.ckpt). Ref: [tango-full-ft-audiocaps](https://huggingface.co/declare-lab/tango-full-ft-audiocaps).
+1. Download weights from [tango_full_ft_audiocaps-fa8f707f](https://download.mindspore.cn/toolkits/mindone/tango/tango_full_ft_audiocaps-fa8f707f.ckpt). Ref: [tango-full-ft-audiocaps](https://huggingface.co/declare-lab/tango-full-ft-audiocaps).
 
-2. run:
+2. Run:
 
 ```shell
+# put your ckpt here
+cd mindone/examples/tango
+
 python text_to_audio.py \
   --prompts "A dog is barking" \
   --config_path "configs" \
@@ -43,11 +46,31 @@ python text_to_audio.py \
 
 ### Data
 
+The [TangoPromptBank](https://huggingface.co/datasets/declare-lab/TangoPromptBank) dataset contains (prompt, audio) data points for text-to-audio training. We read in the `data.json` file. <b> Make sure your data paths matches those in this file. <b>
+
 ### Full-Train
+
+```shell
+
+cd mindone/examples/tango
+
+python train.py \
+    --data_path=PATH_TO_JSON \
+    --train_config=configs/train_config_v.json \
+    --output_path="output/exp" \
+    --use_parallel=False \
+    --pretrained_model_path="." \
+    --pretrained_model_file="tango_full_ft_audiocaps-fa8f707f.ckpt" \
+    --train_batch_size=1 \
+```
 
 ### LoRA
 
 ## Evaluation
+
+```shell
+sh evaluate.sh
+```
 
 ## Acknowledgements
 

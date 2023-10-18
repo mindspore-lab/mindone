@@ -1,7 +1,5 @@
 import copy
 import json
-import logging
-import math
 import os
 
 import numpy as np
@@ -30,7 +28,7 @@ PRETRAINED_MODEL_ARCHIVE_MAP = {model: MINDNLP_MODEL_URL_BASE.format("t5", model
 class T5Tokenizer(T5T):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.model_max_length = 512
+        self.model_max_length = 10  # max 9 for tangopromptbank; change to 512 if needed
         self.rng = np.random.RandomState(0)
         self._pad_token = 0
 
@@ -220,22 +218,18 @@ class T5Attention(nn.Cell):
         # now relative_position is in the range [0, inf)
         # half of the buckets are for exact increments in positions
         max_exact = num_buckets // 2
-        is_small = relative_position < max_exact
+        is_small = (relative_position < max_exact).astype(relative_position.dtype)
         # The other half of the buckets are for logarithmically bigger bins in positions up to max_distance
-        relative_position_if_large = max_exact + (
-            ops.log(relative_position.astype(ms.float32) / max_exact)
-            / math.log(max_distance / max_exact)
-            * (num_buckets - max_exact)
-        ).astype(ms.int64)
+        _temp = ops.log(relative_position.astype(ms.float32) / max_exact)
+        _temp = _temp / ops.log(ms.Tensor(max_distance / max_exact, dtype=ms.float32))
+        relative_position_if_large = max_exact + (_temp * (num_buckets - max_exact)).astype(ms.int64)
         relative_position_if_large = ops.minimum(
             relative_position_if_large,
-            ops.fill(relative_position_if_large.dtype, relative_position_if_large.shape, num_buckets - 1),
+            ops.zeros(relative_position_if_large.shape, relative_position_if_large.dtype) + num_buckets - 1,
+            # ops.fill(relative_position_if_large.dtype, relative_position_if_large.shape, num_buckets - 1),
         )
-        # relative_buckets += ops.where(is_small, relative_position\
-        # , relative_position_if_large) # mindspore 2.0
-        relative_buckets += ops.select(
-            is_small.astype(ms.bool_), relative_position, relative_position_if_large
-        )  # mindspore 1.10
+        relative_buckets += is_small * relative_position + (1 - is_small) * relative_position_if_large
+        # relative_buckets += ops.where(is_small, relative_position, relative_position_if_large)  # mindspore 2.0
         return relative_buckets
 
     def compute_bias(self, query_length, key_length):
@@ -337,8 +331,8 @@ class T5Attention(nn.Cell):
         if position_bias is None:
             if not self.has_relative_attention_bias:
                 position_bias = ops.zeros((1, self.n_heads, real_seq_length, key_length), scores.dtype)
-                if self.gradient_checkpointing and self.training:
-                    position_bias.requires_grad = True
+                # if self.gradient_checkpointing and self.training:
+                #     position_bias.requires_grad = True
             else:
                 position_bias = self.compute_bias(real_seq_length, key_length)
 
@@ -350,12 +344,12 @@ class T5Attention(nn.Cell):
             if mask is not None:
                 position_bias = position_bias + mask  # (batch_size, n_heads, seq_length, key_length)
 
-        if self.pruned_heads:
-            mask = ops.ones(position_bias.shape[1], ms.float32)
-            mask[list(self.pruned_heads)] = 0
-            position_bias_masked = position_bias[:, mask.bool()]
-        else:
-            position_bias_masked = position_bias
+        # if self.pruned_heads:
+        #     mask = ops.ones(position_bias.shape[1], ms.float32)
+        #     mask[list(self.pruned_heads)] = 0
+        #     position_bias_masked = position_bias[:, mask.bool()]
+        # else:
+        position_bias_masked = position_bias
 
         scores += position_bias_masked
         attn_weights = ops.softmax(scores.astype(ms.float32), axis=-1).astype(
@@ -480,8 +474,8 @@ class T5Block(nn.Cell):
         # return_dict=True,
     ):
         if past_key_value is not None:
-            if not self.is_decoder:
-                logging.warning("`past_key_values` is passed to the encoder. Please make sure this is intended.")
+            # if not self.is_decoder:
+            #     logging.warning("`past_key_values` is passed to the encoder. Please make sure this is intended.")
             expected_num_past_key_values = 2 if encoder_hidden_states is None else 4
 
             if len(past_key_value) != expected_num_past_key_values:
@@ -635,6 +629,7 @@ class T5Stack(T5PreTrainedModel):
         )
         self.final_layer_norm = T5LayerNorm(config.d_model, eps=config.layer_norm_epsilon)
         self.dropout = Dropout(config.dropout_rate)
+        self.num_layers = config.num_layers
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -652,18 +647,9 @@ class T5Stack(T5PreTrainedModel):
         head_mask=None,
         cross_attn_head_mask=None,
         past_key_values=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
+        use_cache=False,
+        output_attentions=False,
     ):
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
         if input_ids is not None and inputs_embeds is not None:
             err_msg_prefix = "decoder_" if self.is_decoder else ""
             raise ValueError(
@@ -682,13 +668,10 @@ class T5Stack(T5PreTrainedModel):
             assert self.embed_tokens is not None, "You have to initialize the model with valid token embeddings"
             inputs_embeds = self.embed_tokens(input_ids)
 
-        batch_size, seq_length = input_shape
+        batch_size, seq_length = input_ids.shape
 
         # required mask seq length can be calculated via length of past
         mask_seq_length = past_key_values[0][0].shape[2] + seq_length if past_key_values is not None else seq_length
-
-        if use_cache is True:
-            assert self.is_decoder, f"`use_cache` can only be set to `True` if {self} is used as a decoder"
 
         if attention_mask is None:
             attention_mask = ops.ones((batch_size, mask_seq_length), ms.float32)
@@ -716,12 +699,8 @@ class T5Stack(T5PreTrainedModel):
             encoder_extended_attention_mask = None
 
         # Prepare head mask if needed
-        head_mask = self.get_head_mask(head_mask, self.config.num_layers)
-        cross_attn_head_mask = self.get_head_mask(cross_attn_head_mask, self.config.num_layers)
-        present_key_value_states = () if use_cache else None
-        all_hidden_states = () if output_hidden_states else None
-        all_attentions = () if output_attentions else None
-        all_cross_attentions = () if (output_attentions and self.is_decoder) else None
+        head_mask = self.get_head_mask(head_mask, self.num_layers)
+        cross_attn_head_mask = self.get_head_mask(cross_attn_head_mask, self.num_layers)
         position_bias = None
         encoder_decoder_position_bias = None
 
@@ -730,8 +709,6 @@ class T5Stack(T5PreTrainedModel):
         for i, (layer_module, past_key_value) in enumerate(zip(self.block, past_key_values)):
             layer_head_mask = head_mask[i]
             cross_attn_layer_head_mask = cross_attn_head_mask[i]
-            if output_hidden_states:
-                all_hidden_states = all_hidden_states + (hidden_states,)
 
             layer_outputs = layer_module(
                 hidden_states,
@@ -759,44 +736,11 @@ class T5Stack(T5PreTrainedModel):
             # layer_outputs = hidden-states, key-value-states (self-attention position bias), (self-attention weights),
             # (cross-attention position bias), (cross-attention weights)
             position_bias = layer_outputs[2]
-            if self.is_decoder and encoder_hidden_states is not None:
-                encoder_decoder_position_bias = layer_outputs[4 if output_attentions else 3]
-            # append next layer key value states
-            if use_cache:
-                present_key_value_states = present_key_value_states + (present_key_value_state,)
-
-            if output_attentions:
-                all_attentions = all_attentions + (layer_outputs[3],)
-                if self.is_decoder:
-                    all_cross_attentions = all_cross_attentions + (layer_outputs[5],)
 
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
-        # Add last layer
-        if output_hidden_states:
-            all_hidden_states = all_hidden_states + (hidden_states,)
-
-        if not return_dict:
-            return tuple(
-                v
-                for v in [
-                    hidden_states,
-                    present_key_value_states,
-                    all_hidden_states,
-                    all_attentions,
-                    all_cross_attentions,
-                ]
-                if v is not None
-            )
-        output = (
-            (hidden_states,)
-            + (present_key_value_state,)
-            + (all_hidden_states,)
-            + (all_attentions,)
-            + (all_cross_attentions,)
-        )
-        return output
+        return (hidden_states,)
 
 
 class T5EncoderModel(T5PreTrainedModel):
@@ -830,20 +774,12 @@ class T5EncoderModel(T5PreTrainedModel):
         attention_mask=None,
         head_mask=None,
         inputs_embeds=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
     ):
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
         encoder_outputs = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
             inputs_embeds=inputs_embeds,
             head_mask=head_mask,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
         )
 
         return encoder_outputs

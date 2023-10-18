@@ -23,9 +23,9 @@ import numpy as np
 from tokenizers import AddedToken
 
 import mindspore
-from mindspore import Tensor
-from mindspore import log as logger
-from mindspore import ops
+
+# from mindspore import log as logger
+from mindspore import Tensor, ops
 
 from .legacy import arange
 
@@ -122,12 +122,12 @@ class CellUtilMixin:
             # - if the model is a decoder, apply a causal mask in addition to the padding mask
             # - if the model is an encoder, make the mask broadcastable
             #   to [batch_size, num_heads, seq_length, seq_length]
-            if self.config.is_decoder:
-                extended_attention_mask = CellUtilMixin.create_extended_attention_mask_for_decoder(
-                    input_shape, attention_mask
-                )
-            else:
-                extended_attention_mask = attention_mask[:, None, None, :]
+            # if self.config.is_decoder:
+            #     extended_attention_mask = CellUtilMixin.create_extended_attention_mask_for_decoder(
+            #         input_shape, attention_mask
+            #     )
+            # else:
+            extended_attention_mask = attention_mask[:, None, None, :]
         else:
             raise ValueError(
                 f"Wrong shape for input_ids (shape {input_shape}) or attention_mask (shape {attention_mask.shape})"
@@ -168,9 +168,7 @@ class CellUtilMixin:
             if is_attention_chunked is True:
                 head_mask = head_mask.expand_dims(-1)
         else:
-            head_mask = ()
-            for _ in range(num_hidden_layers):
-                head_mask += (None,)
+            head_mask = tuple(None for _ in range(num_hidden_layers))
 
         return head_mask
 
@@ -334,8 +332,8 @@ class SpecialTokensMixin:
         for key, value in special_tokens_dict.items():
             assert key in self.SPECIAL_TOKENS_ATTRIBUTES, f"Key {key} is not a special token"
 
-            if self.verbose:
-                logger.info(f"Assigning {value} to the {key} key of the tokenizer")
+            # if self.verbose:
+            #     logger.info(f"Assigning {value} to the {key} key of the tokenizer")
 
             if key == "additional_special_tokens":
                 assert isinstance(value, (list, tuple)) and all(
@@ -424,8 +422,8 @@ class SpecialTokensMixin:
         `str`: Beginning of sentence token. Log an error if used while not having been set.
         """
         if self._bos_token is None:
-            if self.verbose:
-                logger.error("Using bos_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using bos_token, but it is not set yet.")
             return None
         return str(self._bos_token)
 
@@ -435,8 +433,8 @@ class SpecialTokensMixin:
         `str`: End of sentence token. Log an error if used while not having been set.
         """
         if self._eos_token is None:
-            if self.verbose:
-                logger.error("Using eos_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using eos_token, but it is not set yet.")
             return None
         return str(self._eos_token)
 
@@ -446,8 +444,8 @@ class SpecialTokensMixin:
         `str`: Unknown token. Log an error if used while not having been set.
         """
         if self._unk_token is None:
-            if self.verbose:
-                logger.error("Using unk_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using unk_token, but it is not set yet.")
             return None
         return str(self._unk_token)
 
@@ -458,8 +456,8 @@ class SpecialTokensMixin:
         having been set.
         """
         if self._sep_token is None:
-            if self.verbose:
-                logger.error("Using sep_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using sep_token, but it is not set yet.")
             return None
         return str(self._sep_token)
 
@@ -469,8 +467,8 @@ class SpecialTokensMixin:
         `str`: Padding token. Log an error if used while not having been set.
         """
         if self._pad_token is None:
-            if self.verbose:
-                logger.error("Using pad_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using pad_token, but it is not set yet.")
             return None
         return str(self._pad_token)
 
@@ -481,8 +479,8 @@ class SpecialTokensMixin:
         depth of the model. Log an error if used while not having been set.
         """
         if self._cls_token is None:
-            if self.verbose:
-                logger.error("Using cls_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using cls_token, but it is not set yet.")
             return None
         return str(self._cls_token)
 
@@ -493,8 +491,8 @@ class SpecialTokensMixin:
         having been set.
         """
         if self._mask_token is None:
-            if self.verbose:
-                logger.error("Using mask_token, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using mask_token, but it is not set yet.")
             return None
         return str(self._mask_token)
 
@@ -505,8 +503,8 @@ class SpecialTokensMixin:
         set.
         """
         if self._additional_special_tokens is None:
-            if self.verbose:
-                logger.error("Using additional_special_tokens, but it is not set yet.")
+            # if self.verbose:
+            #     logger.error("Using additional_special_tokens, but it is not set yet.")
             return None
         return [str(tok) for tok in self._additional_special_tokens]
 
