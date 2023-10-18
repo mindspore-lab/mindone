@@ -218,11 +218,13 @@ bash run_train_distribute.sh
 By default, training is done in epoch mode, i.e. checkpoint will be save in every `ckpt_save_interval` epochs.
 To change to step mode, in train_xxx.yaml, please modify as: 
 ```yaml
+dataset_sink_mode: False
 step_mode: True
 ckpt_save_interval: 1000
-
 ```
 e.g., it will save checkpoints every 1000 training steps.
+
+Currently, it's not compatiable with dataset_sink_mode=True. It can be solved by setting `sink_size=ckpt_save_intervel` and `epochs=num_epochs*(num_steps_per_epoch//ckpt_save_intervel)` in `model.train(...)`, which is under testing.
 
 
 #### Supporting Annotation File Format
