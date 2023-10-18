@@ -98,6 +98,8 @@ def check_config(cfg):
     cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
     cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
 
+    # TODO: set sink_size and epochs to solve it
+    assert not (cfg.step_mode and cfg.dataset_sink_mode), f"step_mode is enabled, dataset_sink_mode should be set to False, but got {cfg.dataset_sink_mode})" 
 
 def main(cfg):
     check_config(cfg)
@@ -314,7 +316,7 @@ def main(cfg):
             model_name=model_name,
         )
         callbacks.append(save_cb)
-
+    
     # - log and save training configs
     if rank_id == 0:
         _, num_trainable_params = count_params(ldm_with_loss)
