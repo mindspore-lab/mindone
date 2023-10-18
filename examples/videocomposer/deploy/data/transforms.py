@@ -10,6 +10,7 @@ from mindspore.dataset.vision import Inter as InterpolationMode
 __all__ = [
     "RandomResize",
     "CenterCrop",
+    "CenterCrop_Array",
 ]
 
 
@@ -62,3 +63,16 @@ class AddGaussianNoise(object):
 
     def __repr__(self):
         return self.__class__.__name__ + "(mean={0}, std={1})".format(self.mean, self.std)
+
+
+class CenterCrop_Array(object):
+    def __init__(self, size=224):
+        self.size = size
+
+    def __call__(self, img):
+        w, h, _ = img.shape
+        assert min(w, h) >= self.size
+        crop_top = int(round((w - self.size) / 2.0))
+        crop_left = int(round((h - self.size) / 2.0))
+        img = img[crop_top : crop_top + self.size, crop_left : crop_left + self.size, :]
+        return img

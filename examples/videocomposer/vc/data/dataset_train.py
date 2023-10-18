@@ -92,7 +92,8 @@ class VideoDatasetForTrain(object):
                 video_key, feature_framerate, self.mvs_visual
             )
         else:  # use dummy data
-            return self._get_dummy_data(video_key)
+            _logger.warning(f"The video: {video_key} does not exist! Please check the video path.")
+            vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
 
         # inpainting mask
         p = random.random()
@@ -144,7 +145,8 @@ class VideoDatasetForTrain(object):
         )[0]
 
         if start_indices.size == 0:  # empty, no frames
-            return self._get_dummy_data(video_key)
+            _logger.warning(f"Failed to load the video: {filename}. The video may be broken.")
+            return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)

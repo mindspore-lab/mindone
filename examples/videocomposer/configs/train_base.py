@@ -22,7 +22,7 @@ cfg.alpha_img = 0.7
 cfg.resolution = 256
 cfg.mean = [0.5, 0.5, 0.5]
 cfg.std = [0.5, 0.5, 0.5]
-cfg.dataset_sink_mode = False
+cfg.dataset_sink_mode = True
 
 cfg.shuffle = True
 
@@ -139,6 +139,7 @@ cfg.betas = [0.9, 0.98]
 cfg.weight_decay = 0  # not mentioned in paper. let's start with small value
 cfg.use_ema = False
 cfg.ema_decay = 0.9999
+cfg.loss_scale = 65536
 
 cfg.epochs = 50
 cfg.ckpt_save_interval = 50  # 1000 # only save last checkpoint for DEBUG
