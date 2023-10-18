@@ -193,14 +193,14 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
     video_paths = []
     all_captions = []
     if (len(json_anno_list) == 0) or only_use_csv_anno:
-        _logger.info("Reading annotation from csv files: ", csv_anno_list)
+        print("Reading annotation from csv files: ", csv_anno_list)
         db_list = [pd.read_csv(f) for f in csv_anno_list]
         for db in db_list:
             video_paths.extend(list(db["video"]))
             all_captions.extend(list(db["caption"]))
         # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
     elif len(json_anno_list) > 0:
-        _logger.info("Reading annotation from json files: ", json_anno_list)
+        print("Reading annotation from JSON files: ", json_anno_list)
         for json_fp in json_anno_list:
              with open(json_fp, 'r', encoding='utf-8') as fp:
                 datasets_dict = json.load(fp)
@@ -212,7 +212,7 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
 
     assert len(video_paths) == len(all_captions)
     video_paths = [os.path.join(data_dir, f) for f in video_paths]
-    #print("D--: ", video_paths, all_captions)
+    print("D--: ", video_paths, all_captions)
     
     return video_paths, all_captions
 

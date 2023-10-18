@@ -11,6 +11,8 @@ mvs_visual: False
 chunk_size: 16
 log_dir: 'outputs'
 
+root_dir: "./datasets"
+
 # accelerate or memory reduction
 dataset_sink_mode: False # to show every-step loss
 num_parallel_workers: 2 # num workers used in generator datasets
@@ -23,8 +25,8 @@ offload: False #
 
 max_frames: 16
 epochs: 50
-step_mode: True
-ckpt_save_interval: 50 
+step_mode: False # True
+ckpt_save_interval: 25
 ckpt_max_keep: 10
 
 loss_scale: 65536
