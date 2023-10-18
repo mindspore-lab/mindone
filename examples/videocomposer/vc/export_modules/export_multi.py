@@ -1,46 +1,43 @@
+# TODO: remove the unnecessary input arguments, use dummy data instead.
 import logging
-import os
 from functools import partial
 from typing import Any, Dict, List, Union
 
 import numpy as np
-import tqdm
 
 import mindspore.nn as nn
 from mindspore import Tensor
 
 from ..config import Config, cfg
-from .modules import (
+from ..infer_engine.modules import (
     prepare_clip_encoders,
     prepare_condition_models,
     prepare_dataloader,
     prepare_decoder_unet,
     prepare_model_kwargs,
-    prepare_model_visual_kwargs,
     prepare_transforms,
 )
-from .schedulers import DiffusionSampler
-from .utils import init_infer, make_masked_images, swap_c_t_and_tile, visualize_with_model_kwargs
+from ..infer_engine.schedulers import DiffusionSampler
+from ..infer_engine.utils import init_infer, make_masked_images, model_export, swap_c_t_and_tile
 
-__all__ = ["inference_multi"]
+__all__ = ["export_multi"]
 
 _logger = logging.getLogger(__name__)
 
 
-def inference_multi(cfg_update: Dict[str, Any], **kwargs: Any) -> None:
+def export_multi(cfg_update: Dict[str, Any], **kwargs: Any) -> None:
     cfg.update(**kwargs)
 
     for k, v in cfg_update.items():
         cfg[k] = v
 
-    cfg.save_origin_video = getattr(cfg, "save_origin_video", True)
+    cfg.n_iter = 1
 
-    _inference_multi(cfg)
+    _export_multi(cfg)
 
 
-def _inference_multi(cfg: Config) -> None:
-    input_video_name = os.path.basename(cfg.input_video).split(".")[0]
-    init_infer(cfg, video_name=input_video_name)
+def _export_multi(cfg: Config) -> None:
+    init_infer(cfg)
 
     transforms_list = prepare_transforms(cfg)
     dataloader = prepare_dataloader(cfg, transforms_list)
@@ -50,7 +47,9 @@ def _inference_multi(cfg: Config) -> None:
 
     decoder, model = prepare_decoder_unet(cfg)
     # diffusion
-    diffusion = DiffusionSampler(model, scheduler_name=cfg.sample_scheduler, num_timesteps=cfg.num_timesteps)
+    diffusion = DiffusionSampler(
+        model, scheduler_name=cfg.sample_scheduler, num_timesteps=cfg.num_timesteps, show_progress_bar=False
+    )
 
     # global variables
     batch_size = cfg.batch_size
@@ -67,6 +66,9 @@ def _inference_multi(cfg: Config) -> None:
     ]
 
     for step, batch in enumerate(dataloader.create_tuple_iterator(num_epochs=1)):
+        if step > 1:
+            break
+
         if cfg.max_frames == 1 and cfg.use_image_dataset:
             ref_imgs, caps, _, misc_data, mask, mv_data = batch
             fps = np.array([cfg.feature_framerate] * batch_size, dtype=np.int64)
@@ -75,7 +77,7 @@ def _inference_multi(cfg: Config) -> None:
 
         caps = caps.asnumpy().tolist()
 
-        for trial in tqdm.trange(cfg.n_iter, desc="trial"):
+        for _ in range(cfg.n_iter):
             if "motion" in cfg.video_compositions:
                 mv_data_video = swap_c_t_and_tile(mv_data)
             else:
@@ -98,6 +100,7 @@ def _inference_multi(cfg: Config) -> None:
             # preprocess for input text descripts
             text_tensor = clip_encoder.preprocess(caps)
             text_embs = clip_encoder(text_tensor).asnumpy()  # [N, 77, 1024]
+            model_export(clip_encoder, [text_tensor], "clip_encoder")
             empty_text_tensor = clip_encoder.preprocess([""] * batch_size)
             empty_text_embs = clip_encoder(empty_text_tensor).asnumpy()  # [2*N, 77, 1024]
             if cfg.use_fps_condition:
@@ -109,6 +112,7 @@ def _inference_multi(cfg: Config) -> None:
             # preprocess for input image
             if "image" in cfg.video_compositions:
                 img_embs = clip_encoder_visual(ref_imgs).asnumpy()  # [N, 1, 1024]
+                model_export(clip_encoder_visual, [ref_imgs], "clip_encoder_visual")
                 img_embs = np.expand_dims(img_embs, 1)
                 img_embs = np.concatenate([img_embs, np.zeros_like(img_embs)])
             else:
@@ -116,6 +120,7 @@ def _inference_multi(cfg: Config) -> None:
 
             if "depthmap" in cfg.video_compositions:
                 depth_data = depth_extractor(misc_data)
+                model_export(depth_extractor, [misc_data], "depth_extractor_guidance")
             else:
                 depth_data = None
 
@@ -126,6 +131,7 @@ def _inference_multi(cfg: Config) -> None:
 
             if "sketch" in cfg.video_compositions:
                 sketch_data = sketch_extractor(misc_data)
+                model_export(sketch_extractor, [misc_data], "sketch_extractor_guidance")
             else:
                 sketch_data = None
 
@@ -158,38 +164,29 @@ def _inference_multi(cfg: Config) -> None:
             }
 
             # Save generated videos
-            infer = partial(
-                _infer_with_partial_keys,
+            export = partial(
+                _export_with_partial_keys,
                 full_model_kwargs=full_model_kwargs,
                 diffusion=diffusion,
                 decoder=decoder,
                 noise=noise,
-                misc=misc_data,
                 empty_text_embs=empty_text_embs,
-                caps=caps,
-                step=step,
-                trial=trial,
                 cfg=cfg,
             )
 
             for task in tasks:
-                infer(task)
+                export(task)
 
-    _logger.info("Congratulations! The inference is completed!")
-    _logger.info(f"The output is saved at `{cfg.log_dir}`.")
+    _logger.info("Congratulations! The model conversion is completed!")
 
 
-def _infer_with_partial_keys(
+def _export_with_partial_keys(
     partial_keys: List[str],
     full_model_kwargs: Dict[str, Union[Tensor, np.ndarray]],
     diffusion: DiffusionSampler,
     decoder: nn.Cell,
     noise: Tensor,
-    misc: Tensor,
     empty_text_embs: Tensor,
-    caps: List[str],
-    step: int,
-    trial: int,
     cfg: Config,
 ) -> None:
     if "y" not in partial_keys:
@@ -202,23 +199,16 @@ def _infer_with_partial_keys(
         use_fps_condition=cfg.use_fps_condition,
     )
 
+    task_model_name = f"{'-'.join(sorted(partial_keys))}_{cfg.sample_scheduler}_model"
+
     diffusion_output = diffusion(
         noise,
         model_kwargs=model_kwargs,
         guide_scale=cfg.guidance_scale,
         timesteps=cfg.sample_steps,
         eta=cfg.ddim_eta,
+        export_only=True,
+        export_name=task_model_name,
     )
-    video_output = decoder(diffusion_output)
 
-    fname = "-".join(partial_keys)
-    visualize_with_model_kwargs(
-        model_kwargs=prepare_model_visual_kwargs(model_kwargs),
-        video_data=video_output.asnumpy(),
-        ori_video=misc.asnumpy(),
-        caps=caps,
-        fname=f"{fname}_vid{step * cfg.n_iter + trial:04d}.gif",
-        step=step,
-        trial=trial,
-        cfg=cfg,
-    )
+    model_export(decoder, [diffusion_output], "decoder")

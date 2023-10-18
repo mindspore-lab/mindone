@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Iterable, Optional, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from mindspore_lite import Model
@@ -13,18 +13,18 @@ from .extractor import CannyExtractor
 
 __all__ = [
     "prepare_condition_models",
-    "prepare_decoder_unet",
+    "prepare_unet",
     "prepare_lite_model_kwargs",
     "prepare_dataloader",
     "prepare_transforms",
 ]
 
 
-def prepare_condition_models(cfg: Config) -> Tuple[Optional[Model], Optional[Model], Optional[Model]]:
+def prepare_condition_models(
+    lite_builder: MSLiteModelBuilder, cfg: Config
+) -> Tuple[Optional[Model], Optional[Model], Optional[Model]]:
     if not hasattr(cfg, "guidances"):
         cfg["guidances"] = ["depth", "canny", "sketch"]
-
-    lite_builder = MSLiteModelBuilder()
 
     # [Conditions] Generators for various conditions
     if "depthmap" in cfg.video_compositions and "depth" in cfg.guidances:
@@ -45,11 +45,13 @@ def prepare_condition_models(cfg: Config) -> Tuple[Optional[Model], Optional[Mod
     return depth_extractor, canny_extractor, sketch_extractor
 
 
-def prepare_decoder_unet(model_name: str) -> Tuple[Model, Model]:
-    lite_builder = MSLiteModelBuilder()
-    decoder = lite_builder("decoder")
-    model = lite_builder(model_name)
-    return decoder, model
+def prepare_unet(lite_builder: MSLiteModelBuilder, task: List[str], sample_scheduler: str = "DDIM") -> Model:
+    if "y" not in task:
+        task.append("y")
+
+    task_model_names = f"{'-'.join(sorted(task))}_{sample_scheduler}_model"
+    model = lite_builder(task_model_names)
+    return model
 
 
 def prepare_lite_model_kwargs(

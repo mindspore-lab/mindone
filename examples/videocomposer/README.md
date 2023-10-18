@@ -61,6 +61,7 @@ On 910A, to run a single task, you can pick the corresponding snippet of code in
 
 ```shell
 # export MS_ENABLE_GE=1  # for 910B
+# export MS_ENABLE_REF_MODE=1 # for 910B and Mindspore > 2.1
 python infer.py \
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --seed 9999 \
@@ -70,7 +71,7 @@ python infer.py \
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-On 910B, you need enable the GE Mode first by running `export MS_ENABLE_GE=1`.
+On 910B, you need enable the GE Mode first by running `export MS_ENABLE_GE=1`. And for Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
 
 It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
 
@@ -107,10 +108,11 @@ To install Mindspore Lite, please Refer to [Lite install](https://mindspore.cn/l
 
 #### Export Mindspore Lite Model
 
-For different task, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B before running the code snippet.
+For different task, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
 
 ```shell
 # export MS_ENABLE_GE=1  # for 910B
+# export MS_ENABLE_REF_MODE=1 # for 910B and Mindspore > 2.1
 python export.py\
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --input_video "demo_video/motion_transfer.mp4" \
@@ -119,10 +121,11 @@ python export.py\
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. And please note that on 910B, you need to unset `MS_ENABLE_GE` environmental variable befor running the conversion.
+The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. And please note that on 910B, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variable befor running the conversion.
 
 ```shell
 unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910B
+unset MS_ENABLE_REF_MODE  # Remember to unset MS_ENABLE_REF_MODE on 910B and Mindspore > 2.1
 python convert_lite.py
 ```
 

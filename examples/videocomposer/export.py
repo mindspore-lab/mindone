@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from vc.config import Config
-from vc.export_modules import export_single
+from vc.export_modules import export_multi, export_single
 
 
 def main():
@@ -12,7 +12,7 @@ def main():
     task_type = cfg.TASK_TYPE
     print(f"TASK TYPE: {task_type}")
     if task_type == "MULTI_TASK":
-        raise NotImplementedError()
+        export_multi(cfg.cfg_dict)
     elif task_type == "SINGLE_TASK":
         export_single(cfg.cfg_dict)
     else:
