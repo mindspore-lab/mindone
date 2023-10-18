@@ -12,7 +12,7 @@ chunk_size: 16
 log_dir: 'outputs'
 
 # accelerate or memory reduction
-dataset_sink_mode: True # to show every-step loss
+dataset_sink_mode: False # to show every-step loss
 num_parallel_workers: 2 # num workers used in generator datasets
 use_recompute: True #False # to avoid OOM
 
