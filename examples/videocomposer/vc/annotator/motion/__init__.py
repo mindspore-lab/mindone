@@ -14,6 +14,10 @@ __all__ = [
     "extract_motion_vectors",
 ]
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+cache_dir = os.path.abspath(os.path.join(__dir__, "../../../tmp_videos/"))
+os.makedirs(cache_dir, exist_ok=True)
+
 _logger = logging.getLogger(__name__)
 
 
@@ -29,7 +33,9 @@ def draw_motion_vectors(frame, motion_vectors):
 
 def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=False):
     tmp_name = rand_name()
-    tmp_video = os.path.splitext(input_video)[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
+    # tmp_video = os.path.splitext(input_video)[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
+    cache_video_name = os.path.basename(input_video).split(".")[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
+    tmp_video = os.path.join(cache_dir, cache_video_name)
     videocapture = cv2.VideoCapture(input_video)
     frames_num = videocapture.get(cv2.CAP_PROP_FRAME_COUNT)
     fps_video = videocapture.get(cv2.CAP_PROP_FPS)
