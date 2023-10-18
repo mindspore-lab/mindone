@@ -153,7 +153,7 @@ export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERRO
 export HCCL_CONNECT_TIMEOUT=6000
 export ASCEND_GLOBAL_LOG_LEVEL=1  # Global log message level for Ascend. Setting it to 0 can slow down the process
 export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
-export DEVICE_ID=0  # The device id to runing training on
+export DEVICE_ID=$1  # The device id to runing training on
 
 task_name=train_exp02_motion_transfer  # the default training task
 yaml_file=configs/${task_name}.yaml
@@ -168,6 +168,14 @@ nohup python -u train.py  \
     > $output_path/$task_name/train.log 2>&1 &
 
 ```
+
+You should change the `task_name` and `yaml_file` according to your task, then run:
+
+```shell
+bash run_train.sh $DEVICE_ID
+```
+e.g. `bash run_train.sh 0` to launch the trainin task using NPU card 0.
+
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
 configs/
