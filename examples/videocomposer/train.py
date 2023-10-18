@@ -306,7 +306,7 @@ def main(cfg):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=cfg.ckpt_max_keep,
-            step_mode=False,
+            step_mode=cfg.step_mode,
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
             start_epoch=start_epoch,
