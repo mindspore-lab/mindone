@@ -31,7 +31,7 @@ def test_dataset():
     iterator = dl.create_dict_iterator()
     for i, batch in enumerate(iterator):
         for k in batch:
-            print(k, batch[k].shape, batch[k].min(), batch[k].max())
+            # print(k, batch[k].shape, batch[k].min(), batch[k].max())
             if k in ["cap_tokens", "feature_framerate"]:
                 print(batch[k])
         times.append(time.time() - start)
