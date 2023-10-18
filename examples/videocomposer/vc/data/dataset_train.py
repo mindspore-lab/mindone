@@ -89,9 +89,14 @@ class VideoDatasetForTrain(object):
 
         feature_framerate = self.feature_framerate
         if os.path.exists(video_key):
-            vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
-                video_key, feature_framerate, self.mvs_visual
-            )
+            try:
+                vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
+                    video_key, feature_framerate, self.mvs_visual
+                )
+            except Exception as e:
+                print("Load video {} fails, Error: {}".format(video_key, e), flush=True)
+                _logger.warning(f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data.")
+                vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
         else:  # use dummy data
             _logger.warning(f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data.")
             vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
@@ -146,7 +151,7 @@ class VideoDatasetForTrain(object):
         )[0]
 
         if start_indices.size == 0:  # empty, no frames
-            _logger.warning(f"Failed to load the video: {filename}. The video may be broken.")
+            _logger.warning(f"Failed to load the video: {filename}. The video may be broken or too short (frames: {len(total_frames)}).")
             return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
@@ -193,14 +198,14 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
     video_paths = []
     all_captions = []
     if (len(json_anno_list) == 0) or only_use_csv_anno:
-        print("Reading annotation from csv files: ", csv_anno_list)
+        _logger.info("Reading annotation from csv files: {}".format(csv_anno_list))
         db_list = [pd.read_csv(f) for f in csv_anno_list]
         for db in db_list:
             video_paths.extend(list(db["video"]))
             all_captions.extend(list(db["caption"]))
         # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
     elif len(json_anno_list) > 0:
-        print("Reading annotation from JSON files: ", json_anno_list)
+        _logger.info("Reading annotation from json files: {}".format(json_anno_list))
         for json_fp in json_anno_list:
              with open(json_fp, 'r', encoding='utf-8') as fp:
                 datasets_dict = json.load(fp)
