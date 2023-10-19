@@ -131,13 +131,13 @@ python convert_lite.py
 Then you can run the offline inference using the `infer_lite.py` for the given task, e.g,
 
 ```shell
-python infer_lite.py\
+python lite_infer.py\
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --seed 9999 \
     --input_video "demo_video/motion_transfer.mp4" \
     --image_path "demo_video/moon_on_water.jpg" \
     --style_image "demo_video/moon_on_water.jpg" \
-    --input_text_desc "A beautiful big silver moon on the water" \
+    --input_text_desc "A beautiful big silver moon on the water"
 ```
 
 The compiling time is much shorter compared with the online inference mode.
