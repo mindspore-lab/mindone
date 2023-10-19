@@ -98,6 +98,9 @@ def main(args):
 
     if glv_config.amp_level != "O0":
         unet = ms.amp.auto_mixed_precision(unet, amp_level=glv_config.amp_level)
+        custom_black_list = ms.amp.get_black_list()
+        custom_black_list.append(ms.nn.GroupNorm)
+        unet = ms.amp.custom_mixed_precision(unet, black_list=custom_black_list)
 
     print(
         f"Total Number of Parameters: "
@@ -129,6 +132,9 @@ def main(args):
     latents = latents.reshape(
         latents.shape[0] // video_length, video_length, latents.shape[1], latents.shape[2], latents.shape[3]
     ).permute(0, 2, 1, 3, 4)
+
+    if glv_config.amp_level != "O0":
+        latents = latents.to(ms.float32)
 
     samples = []
     ddim_inv_latent = None

@@ -49,9 +49,13 @@ class GroupNorm(nn.GroupNorm):
 
     def construct(self, x):
         x_shape = x.shape
+        dtype = x.dtype
+
         if x.ndim >= 3:
             x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
-        y = super().construct(x)
+
+        y = super().construct(x.to(ms.float32)).to(dtype)
+
         return y.view(x_shape)
 
 

@@ -280,7 +280,7 @@ class TuningFreePipeline:
 
         # 6. Prepare latent variables
         if hasattr(self.unet, "_backbone"):
-            num_channels_latents = self.unet._backbone.conv_in.in_channels - 1
+            num_channels_latents = self.unet._backbone._backbone.conv_in.in_channels - 1
         else:
             num_channels_latents = self.unet.conv_in.in_channels - 1
 
