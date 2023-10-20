@@ -488,12 +488,13 @@ class CLIPTokenizer:
                 source_ids = [source_ids]
             for i in range(len(source_ids)):
                 if max_length < len(source_ids[i]):
-                    raise ValueError(
-                        f"The length of input_ids {len(source_ids[i])} "
-                        f"exceeds the max_length {max_length}, "
-                        f"please increase the `max_length` of the tokenizer."
+                    print(
+                            f"WARNING: The length of input_ids {len(source_ids[i])} "
+                            f"exceeds the max_length {max_length} and will be clipped. "
                     )
-                source_ids[i] += [pad_value] * (max_length - len(source_ids[i]))
+                    source_ids[i] = source_ids[i][:max_length] 
+                else:
+                    source_ids[i] += [pad_value] * (max_length - len(source_ids[i]))
             if not is_batch:
                 source_ids = source_ids[0]
 
