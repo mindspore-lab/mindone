@@ -10,7 +10,6 @@ from omegaconf import OmegaConf
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
@@ -157,10 +156,10 @@ def main(args):
 
         Image.fromarray(detected_map).save(os.path.join(args.sample_path, "detected_map.png"))
 
-        control = ms.Tensor(detected_map.copy()).float() / 255.0
-        control = control.permute(2, 0, 1)
-        control = ops.stack([control for _ in range(batch_size)], axis=0).astype(ms.float16)
-        inputs["control"] = control
+        control = detected_map.copy().astype(np.float32) / 255.0
+        control = np.transpose(control, (2, 0, 1))
+        control = np.stack([control for _ in range(batch_size)], axis=0).astype(ms.float16)
+        inputs["control"] = ms.Tensor(control, ms.float16)
 
     else:
         raise ValueError(f"Not support task: {args.task}")
@@ -173,9 +172,9 @@ def main(args):
 
     for n in range(args.n_iter):
         start_time = time.time()
-        inputs["noise"] = ops.standard_normal((args.n_samples, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(
-            ms.float16
-        )
+        noise = np.random.randn(args.n_samples, 4, args.inputs.H // 8, args.inputs.W // 8)
+        inputs["noise"] = ms.Tensor(noise, ms.float16)
+
         x_samples = sd_infer(inputs)
         x_samples = img_processor.postprocess(x_samples)
 
