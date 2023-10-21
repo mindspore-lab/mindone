@@ -1,7 +1,7 @@
+import json
 import logging
 import os
 import random
-import json
 
 import cv2
 import numpy as np
@@ -95,10 +95,14 @@ class VideoDatasetForTrain(object):
                 )
             except Exception as e:
                 print("Load video {} fails, Error: {}".format(video_key, e), flush=True)
-                _logger.warning(f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data.")
+                _logger.warning(
+                    f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data."
+                )
                 vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
         else:  # use dummy data
-            _logger.warning(f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data.")
+            _logger.warning(
+                f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data."
+            )
             vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
 
         # inpainting mask
@@ -151,7 +155,9 @@ class VideoDatasetForTrain(object):
         )[0]
 
         if start_indices.size == 0:  # empty, no frames
-            _logger.warning(f"Failed to load the video: {filename}. The video may be broken or too short (frames: {len(total_frames)}).")
+            _logger.warning(
+                f"Failed to load the video: {filename}. The video may be broken or too short (frames: {len(total_frames)})."
+            )
             return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
@@ -184,16 +190,16 @@ class VideoDatasetForTrain(object):
 
 
 def get_video_paths_captions(data_dir, only_use_csv_anno=False):
-    '''
-    JSON files have higher priority, i.e., if both JSON and csv annotion files exist, only JSON files will be loaded. 
-    To force to read CSV annotation, please parse only_use_csv_anno=True. 
-    '''
+    """
+    JSON files have higher priority, i.e., if both JSON and csv annotion files exist, only JSON files will be loaded.
+    To force to read CSV annotation, please parse only_use_csv_anno=True.
+    """
     csv_anno_list = sorted(
         [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(data_dir)))]
     )
     json_anno_list = sorted(
-            [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".json"), os.listdir(data_dir)))]
-        )
+        [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".json"), os.listdir(data_dir)))]
+    )
 
     video_paths = []
     all_captions = []
@@ -207,18 +213,18 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
     elif len(json_anno_list) > 0:
         _logger.info("Reading annotation from json files: {}".format(json_anno_list))
         for json_fp in json_anno_list:
-             with open(json_fp, 'r', encoding='utf-8') as fp:
+            with open(json_fp, "r", encoding="utf-8") as fp:
                 datasets_dict = json.load(fp)
                 for dataset in datasets_dict:
-                    rel_path_caption_pair_list = datasets_dict[dataset] 
+                    rel_path_caption_pair_list = datasets_dict[dataset]
                     for rel_path_caption_pair in rel_path_caption_pair_list:
                         video_paths.append(rel_path_caption_pair[0])
                         all_captions.append(rel_path_caption_pair[1])
 
     assert len(video_paths) == len(all_captions)
     video_paths = [os.path.join(data_dir, f) for f in video_paths]
-    print("D--: ", video_paths, all_captions)
-    
+    # print("D--: ", video_paths, all_captions)
+
     return video_paths, all_captions
 
 

@@ -224,7 +224,7 @@ bash run_train_distribute.sh
 
 #### Training in Step Mode
 By default, training is done in epoch mode, i.e. checkpoint will be save in every `ckpt_save_interval` epochs.
-To change to step mode, in train_xxx.yaml, please modify as: 
+To change to step mode, in train_xxx.yaml, please modify as:
 ```yaml
 dataset_sink_mode: False
 step_mode: True
