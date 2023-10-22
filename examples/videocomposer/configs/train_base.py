@@ -23,6 +23,7 @@ cfg.resolution = 256
 cfg.mean = [0.5, 0.5, 0.5]
 cfg.std = [0.5, 0.5, 0.5]
 cfg.dataset_sink_mode = True
+cfg.num_parallel_workers = 2
 
 cfg.shuffle = True
 
@@ -142,6 +143,7 @@ cfg.ema_decay = 0.9999
 cfg.loss_scale = 65536
 
 cfg.epochs = 50
+cfg.step_mode = False
 cfg.ckpt_save_interval = 50  # 1000 # only save last checkpoint for DEBUG
 cfg.ckpt_max_keep = 3
 cfg.save_unet_only = True
