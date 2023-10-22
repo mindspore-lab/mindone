@@ -153,7 +153,7 @@ export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERRO
 export HCCL_CONNECT_TIMEOUT=6000
 export ASCEND_GLOBAL_LOG_LEVEL=1  # Global log message level for Ascend. Setting it to 0 can slow down the process
 export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
-export DEVICE_ID=0  # The device id to runing training on
+export DEVICE_ID=$1  # The device id to runing training on
 
 task_name=train_exp02_motion_transfer  # the default training task
 yaml_file=configs/${task_name}.yaml
@@ -168,6 +168,14 @@ nohup python -u train.py  \
     > $output_path/$task_name/train.log 2>&1 &
 
 ```
+
+You should change the `task_name` and `yaml_file` according to your task, then run:
+
+```shell
+bash run_train.sh $DEVICE_ID
+```
+e.g. `bash run_train.sh 0` to launch the trainin task using NPU card 0.
+
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
 configs/
@@ -214,6 +222,23 @@ Then execute,
 bash run_train_distribute.sh
 ```
 
+#### Training in Step Mode
+By default, training is done in epoch mode, i.e. checkpoint will be save in every `ckpt_save_interval` epochs.
+To change to step mode, in train_xxx.yaml, please modify as:
+```yaml
+dataset_sink_mode: False
+step_mode: True
+ckpt_save_interval: 1000
+```
+e.g., it will save checkpoints every 1000 training steps.
+
+Currently, it's not compatiable with dataset_sink_mode=True. It can be solved by setting `sink_size=ckpt_save_intervel` and `epochs=num_epochs*(num_steps_per_epoch//ckpt_save_intervel)` in `model.train(...)`, which is under testing.
+
+
+#### Supporting Annotation File Format
+
+Both json and csv file are supportd. JSON has higher priority.
+
 ###  Key arguemnts for training
 
 You can adjust the arguemnts in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
@@ -222,3 +247,4 @@ You can adjust the arguemnts in `configs/train_base.py` (lower-priority) or `con
 - optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910A to avoid OOM and `adamw` for 910B for better loss convergence.
 - use_recompute: by enabling it, you can reduce memory usage with a small increase of time cost. For example, on 910A, the max number of trainable frames per batch increases from 8 to 14 after recompute enabled.
 - `root_dir`: dataset root dir which should contains a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
+- `num_parallel_workers`: defalut is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)

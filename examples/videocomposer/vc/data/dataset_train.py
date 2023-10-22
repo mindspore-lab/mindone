@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import random
@@ -88,11 +89,20 @@ class VideoDatasetForTrain(object):
 
         feature_framerate = self.feature_framerate
         if os.path.exists(video_key):
-            vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
-                video_key, feature_framerate, self.mvs_visual
-            )
+            try:
+                vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
+                    video_key, feature_framerate, self.mvs_visual
+                )
+            except Exception as e:
+                print("Load video {} fails, Error: {}".format(video_key, e), flush=True)
+                _logger.warning(
+                    f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data."
+                )
+                vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
         else:  # use dummy data
-            _logger.warning(f"The video: {video_key} does not exist! Please check the video path.")
+            _logger.warning(
+                f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data."
+            )
             vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
 
         # inpainting mask
@@ -145,7 +155,9 @@ class VideoDatasetForTrain(object):
         )[0]
 
         if start_indices.size == 0:  # empty, no frames
-            _logger.warning(f"Failed to load the video: {filename}. The video may be broken.")
+            _logger.warning(
+                f"Failed to load the video: {filename}. The video may be broken or too short (frames: {len(total_frames)})."
+            )
             return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
@@ -177,19 +189,41 @@ class VideoDatasetForTrain(object):
         return vit_image, video_data, misc_data, mv_data
 
 
-def get_video_paths_captions(data_dir):
-    anno_list = sorted(
+def get_video_paths_captions(data_dir, only_use_csv_anno=False):
+    """
+    JSON files have higher priority, i.e., if both JSON and csv annotion files exist, only JSON files will be loaded.
+    To force to read CSV annotation, please parse only_use_csv_anno=True.
+    """
+    csv_anno_list = sorted(
         [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(data_dir)))]
     )
-    db_list = [pd.read_csv(f) for f in anno_list]
+    json_anno_list = sorted(
+        [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".json"), os.listdir(data_dir)))]
+    )
+
     video_paths = []
     all_captions = []
-    for db in db_list:
-        video_paths.extend(list(db["video"]))
-        all_captions.extend(list(db["caption"]))
+    if (len(json_anno_list) == 0) or only_use_csv_anno:
+        _logger.info("Reading annotation from csv files: {}".format(csv_anno_list))
+        db_list = [pd.read_csv(f) for f in csv_anno_list]
+        for db in db_list:
+            video_paths.extend(list(db["video"]))
+            all_captions.extend(list(db["caption"]))
+        # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
+    elif len(json_anno_list) > 0:
+        _logger.info("Reading annotation from json files: {}".format(json_anno_list))
+        for json_fp in json_anno_list:
+            with open(json_fp, "r", encoding="utf-8") as fp:
+                datasets_dict = json.load(fp)
+                for dataset in datasets_dict:
+                    rel_path_caption_pair_list = datasets_dict[dataset]
+                    for rel_path_caption_pair in rel_path_caption_pair_list:
+                        video_paths.append(rel_path_caption_pair[0])
+                        all_captions.append(rel_path_caption_pair[1])
+
     assert len(video_paths) == len(all_captions)
     video_paths = [os.path.join(data_dir, f) for f in video_paths]
-    # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
+    # print("D--: ", video_paths, all_captions)
 
     return video_paths, all_captions
 
@@ -230,7 +264,7 @@ def build_dataset(cfg, device_num, rank_id, tokenizer):
         shard_id=rank_id,
         python_multiprocessing=True,
         shuffle=cfg.shuffle,
-        num_parallel_workers=2,
+        num_parallel_workers=cfg.num_parallel_workers,
         max_rowsize=128,  # video data require larger rowsize
     )
 
