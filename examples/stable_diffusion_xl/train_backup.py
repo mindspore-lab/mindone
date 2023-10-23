@@ -21,14 +21,6 @@ import mindspore as ms
 from mindspore import Tensor
 
 
-def str2bool(b):
-    if b.lower() not in ["false", "true"]:
-        raise Exception("Invalid Bool Value")
-    if b.lower() in ["false"]:
-        return False
-    return True
-
-
 def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
     parser.add_argument("--version", type=str, default="SDXL-base-1.0", choices=["SDXL-base-1.0", "SDXL-refiner-1.0"])
@@ -82,83 +74,12 @@ def get_parser_train():
         default="/cache/pretrain_ckpt/",
         help="ModelArts: local device path to checkpoint folder",
     )
-
-    # args for dreambooth
-    parser.add_argument(
-        "--instance_data_dir",
-        type=str,
-        default=None,
-        help="Specify the folder containing the training data of instance images.",
-    )
-    parser.add_argument(
-        "--class_data_dir",
-        type=str,
-        default=None,
-        help="Specify the folder containing the training data of class images.",
-    )
-    parser.add_argument(
-        "--instance_prompt",
-        type=str,
-        default=None,
-        help="Specify the prompt with an identifier that specifies the instance.",
-    )
-    parser.add_argument(
-        "--class_prompt",
-        type=str,
-        default=None,
-        help="Specify the prompt to identify images in the same class as the provided instance images.",
-    )
-    parser.add_argument(
-        "--with_prior_preservation", type=str2bool, default=True, help="Specify whether to use prior preservation loss."
-    )
-    parser.add_argument(
-        "--prior_loss_weight", type=float, default=1.0, help="Specify the weight of the prior preservation loss."
-    )
-    parser.add_argument(
-        "--num_class_images",
-        type=int,
-        default=200,
-        help=(
-            "Specify the number of class images for prior preservation loss. If there are not enough images"
-            " already present in class_data_dir, additional images will be sampled using class_prompt."
-        ),
-    )
-    parser.add_argument(
-        "--train_data_repeats",
-        type=int,
-        default=40,
-        help=(
-            "Repeat the instance images by N times in order to match the number of class images."
-            " We recommend setting it as [number of class images] / [number of instance images]."
-        ),
-    )
-    parser.add_argument(
-        "--sampling_steps",
-        type=int,
-        default=50,
-        help="Specify the number of ddim sampling steps.",
-    )
-
-
     return parser
-
-
-# TODO
-def generate_class_images(args):
-    """Generate images for the class, for dreambooth"""
-    pass
 
 
 def train(args):
     # Init Env
     args = set_default(args)
-
-    if args.with_prior_preservation:
-        generate_class_images(args)
-    else:
-        print(
-            f"With with_prior_preservation=False, dreambooth is not applied."
-        )
 
     # Create model
     config = OmegaConf.load(args.config)
