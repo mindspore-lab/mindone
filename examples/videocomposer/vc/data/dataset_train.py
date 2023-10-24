@@ -164,7 +164,7 @@ class VideoDatasetForTrain(object):
 
         if self.record_data_stat:
             _raw_frames_len = len(frames) * 4
-            _resolution = frames[0].shape[-2:]
+            _resolution = frames[0].shape[-3:-1]
             _stat = f"{video_key},{_raw_frames_len},{_resolution},{time.time()-vstart}" 
             with open(self.stat_fp, "a", encoding="utf-8") as fp:
                 fp.write(_stat+ "\n")
