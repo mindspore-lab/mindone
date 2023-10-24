@@ -31,7 +31,7 @@ def draw_motion_vectors(frame, motion_vectors):
     return frame
 
 
-def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=False):
+def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=False, skip_long_videos=False, max_duration=30):
     tmp_name = rand_name()
     # tmp_video = os.path.splitext(input_video)[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
     cache_video_name = os.path.basename(input_video).split(".")[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
@@ -39,6 +39,12 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     videocapture = cv2.VideoCapture(input_video)
     frames_num = videocapture.get(cv2.CAP_PROP_FRAME_COUNT)
     fps_video = videocapture.get(cv2.CAP_PROP_FPS)
+
+    if skip_long_videos:
+        dur = frames_num / fps_video
+        if dur > max_duration:
+            raise ValueError(f"{input_video} is too long. frames: {frames_num}, video_fps: {fps_video}, dur: {dur}. Will be skipped! Please trim it in pre-processing")
+
     # check if enough frames
     if frames_num / fps_video * fps > 16:
         fps = max(fps, 1)
