@@ -1,6 +1,28 @@
-from mindspore import nn, Parameter, Tensor
-from ldm.modules.diffusionmodules.openaimodel import UNetModel
-from ldm.modules.attention import BasicTransformerBlock
+import numpy as np
+
+from mindspore import Parameter, Tensor, nn
+
+from ...stable_diffusion_v2.ldm.modules.attention import BasicTransformerBlock
+from ...stable_diffusion_v2.ldm.modules.diffusionmodules.openaimodel import UNetModel
+
+
+def _positional_encoding(length: int, dim: int) -> np.ndarray:
+    """
+    Generate sinusoidal positional encodings.
+
+    Args:
+        length: The length of the sequence.
+        dim: The dimension of the positional encodings.
+
+    Returns:
+        A numpy array of shape (length, dim) containing the positional encodings.
+    """
+    encodings = np.zeros((length, dim))
+    positions = np.arange(0, length)[:, np.newaxis]
+    div_term = np.exp(np.arange(0, dim, 2) * -(np.log(10000.0) / dim))
+    encodings[:, 0::2] = np.sin(positions * div_term)
+    encodings[:, 1::2] = np.cos(positions * div_term)
+    return encodings
 
 
 class GroupNorm3D(nn.GroupNorm):
@@ -69,6 +91,8 @@ class TemporalTransformer(nn.Cell):
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
 
+        self._pe = Tensor(_positional_encoding(num_frames, inner_dim))
+
         self.norm = GroupNorm3D(32, in_channels, eps=1e-6)
         self.proj_in = nn.Dense(in_channels, inner_dim)
 
@@ -96,19 +120,22 @@ class TemporalTransformer(nn.Cell):
         # 1. Input
         _, c, h, w = x.shape
 
-        x = x.reshape(-1, self._num_frames, c, h, w).swapaxes(1, 2)     # (b t) c h w -> b c t h w
+        x = x.reshape(-1, self._num_frames, c, h, w).swapaxes(1, 2)  # (b t) c h w -> b c t h w
         x = self.norm(x)
-        x = x.transpose(0, 3, 4, 2, 1).reshape(-1, self._num_frames, c)  # b c t h w -> (b h w) t c
+        x = x.transpose(0, 3, 4, 2, 1).reshape(-1, h * w, self._num_frames, c)  # b c t h w -> b (h w) t c
+
+        x = x + self._pe
         x = self.proj_in(x)
 
         # 2. Blocks
+        context = context[:: self._num_frames].expand_dims(1)  # sample context for each video
         for block in self.transformer_blocks:
             x = block(x, context=context)
 
         # 3. Output
         x = self.proj_out(x)
 
-        x = x.reshape(-1, h, w, self._num_frames, c).permute(0, 3, 4, 1, 2)  # (b h w) t c -> b t c h w
+        x = x.reshape(-1, h, w, self._num_frames, c).permute(0, 3, 4, 1, 2)  # b (h w) t c -> b t c h w
         x = x.reshape(-1, c, h, w)  # b t c h w -> (b t) c h w
 
         # TODO: limit alpha with no grad

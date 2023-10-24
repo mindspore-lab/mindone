@@ -149,39 +149,58 @@ class CrossAttention(nn.Cell):
         k = self.to_k(context)
         v = self.to_v(context)
 
-        def rearange_in(x):
-            # (b, n, h*d) -> (b*h, n, d)
-            h = self.heads
+        q = self._rearrange_in(q)
+        k = self._rearrange_in(k)
+        v = self._rearrange_in(v)
+
+        if self.enable_flash_attention and q.shape[-1] % 16 == 0 and k.shape[-1] % 16 == 0:
+            out = self.flash_attention(q, k, v)
+        else:
+            out = self.attention(q, k, v, mask)
+
+        out = self._rearrange_out(out)
+        return self.to_out(out)
+
+    def _rearrange_in(self, x: Tensor) -> Tensor:
+        # (b, n, h*d) -> (b*h, n, d)
+        h = self.heads
+
+        if x.ndim == 3:
             b, n, d = x.shape
             d = d // h
 
             x = self.reshape(x, (b, n, h, d))
             x = self.transpose(x, (0, 2, 1, 3))
             x = self.reshape(x, (b * h, n, d))
-            return x
-
-        q = rearange_in(q)
-        k = rearange_in(k)
-        v = rearange_in(v)
-
-        if self.enable_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
-            out = self.flash_attention(q, k, v)
         else:
-            out = self.attention(q, k, v, mask)
+            b, hw, n, d = x.shape
+            d = d // h
 
-        def rearange_out(x):
-            # (b*h, n, d) -> (b, n, h*d)
-            h = self.heads
+            x = self.reshape(x, (b, hw, n, h, d))
+            x = self.transpose(x, (0, 3, 1, 2, 4))
+            x = self.reshape(x, (b * h, hw, n, d))
+        return x
+
+    def _rearrange_out(self, x: Tensor) -> Tensor:
+        # (b*h, n, d) -> (b, n, h*d)
+        h = self.heads
+
+        if x.ndim == 3:
             b, n, d = x.shape
             b = b // h
 
             x = self.reshape(x, (b, h, n, d))
             x = self.transpose(x, (0, 2, 1, 3))
             x = self.reshape(x, (b, n, h * d))
-            return x
+        else:
+            bh, hw, n, d = x.shape
+            b = bh // h
 
-        out = rearange_out(out)
-        return self.to_out(out)
+            x = self.reshape(x, (b, h, hw, n, d))
+            x = self.transpose(x, (0, 2, 3, 1, 4))
+            x = self.reshape(x, (b, hw, n, h * d))
+
+        return x
 
 
 class Attention(nn.Cell):
@@ -192,7 +211,7 @@ class Attention(nn.Cell):
         self.scale = dim_head**-0.5
 
     def construct(self, q, k, v, mask):
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+        sim = ops.matmul(q, k.swapaxes(-2, -1)) * self.scale
 
         if exists(mask):
             mask = self.reshape(mask, (mask.shape[0], -1))
