@@ -43,6 +43,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     if skip_long_videos:
         dur = frames_num / fps_video
         if dur > max_duration:
+            videocapture.release()
             raise ValueError(f"{input_video} is too long. frames: {frames_num}, video_fps: {fps_video}, dur: {dur}. Will be skipped! Please trim it in pre-processing")
 
     # check if enough frames
@@ -56,11 +57,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     if os.path.exists(tmp_video):
         os.remove(tmp_video)
 
-    try:
-        subprocess.run(args=ffmpeg_cmd, shell=True, timeout=120, check=True)
-    except Exception as e:
-        print("ffmpeg execute fails, Error: {}".format(e), flush=True)
-        raise ValueError
+    subprocess.run(args=ffmpeg_cmd, shell=True, timeout=120)
 
     cap = VideoCap()
     # open the video file
@@ -74,7 +71,12 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     frames = []
     mvs = []
     mvs_visual = []
+
     # continuously read and display video frames and motion vectors
+    is_timeout = False
+    READ_TIMEOUT= 120
+    read_start = time.time()
+    
     while True:
         if verbose:
             _logger.info(f"Frame: {step}")
@@ -110,9 +112,18 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
         frames.append(frame)
         mvs.append(mv)
         mvs_visual.append(mv_visual)
+
+        time_spent = time.time() - read_start
+        if  time_spent > READ_TIMEOUT: 
+            _logger.info(f"Read video time out: {time_spent}. {len(frames)} frames are loaded.")
+            is_timeout = True
+            break
+
     if verbose:
         _logger.info(f"average dt: {np.mean(times)}")
+
     cap.release()
+    videocapture.release()
 
     if os.path.exists(tmp_video):
         os.remove(tmp_video)
