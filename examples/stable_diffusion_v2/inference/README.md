@@ -53,7 +53,7 @@ Currently, we provide pre-trained stable diffusion model weights that are compat
 | wukong    | text2img |  [wukong-huahua-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-ms.ckpt) |  | [v1-inference-chinese](config/model/v1-inference-chinese.yaml) | 512x512 |
 | wukong-inpaint    | image inpainting |  [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |  | [v1-inpaint-inference-chinese](config/model/v1-inpaint-inference-chinese.yaml) | 512x512 |
 | controlnet-canny    | image inpainting |  [control_canny_sd_v1.5_static-6350d204.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5_static-6350d204.ckpt) | [controlnet-canny](https://github.com/lllyasviel/ControlNet/blob/main/gradio_canny2image.py) | [v1-controlnet-canny](config/model/v1-inference-controlnet.yaml) | 512x512 |
-| controlnet-segmentation    | image inpainting |  [control_segmentation_sd_v1.5_static-6350d204.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt) | [controlnet-segmentation](https://github.com/lllyasviel/ControlNet/blob/main/gradio_canny2image.py) | [v1-controlnet-segmentation](config/model/v1-inference-controlnet.yaml) | 512x512 |
+| controlnet-segmentation    | image inpainting |  [control_segmentation_sd_v1.5_static-77bea2e9.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt) | [controlnet-segmentation](https://github.com/lllyasviel/ControlNet/blob/main/gradio_canny2image.py) | [v1-controlnet-segmentation](config/model/v1-inference-controlnet.yaml) | 512x512 |
 
 </details>
 

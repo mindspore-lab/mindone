@@ -1,7 +1,6 @@
 import os
 
 import cv2
-import decord
 import imageio
 import numpy as np
 from conditions.canny.canny_detector import CannyDetector
@@ -40,26 +39,22 @@ def resize_image(image: np.ndarray, resolution: int) -> np.ndarray:
     return cv2.resize(image, (w, h), interpolation=cv2.INTER_LANCZOS4 if k > 1 else cv2.INTER_AREA)
 
 
-def prepare_video(
-    video_path: str, resolution: int, normalize=True, start_t: float = 0, end_t: float = -1, output_fps: int = -1
-):
-    vr = decord.VideoReader(video_path)
-    initial_fps = vr.get_avg_fps()
+def prepare_video(video_path: str, resolution: int, normalize=True, output_fps: int = -1):
+    vr = cv2.VideoCapture(video_path)
+    initial_fps = vr.get(cv2.CAP_PROP_FPS)
     if output_fps == -1:
         output_fps = int(initial_fps)
-    if end_t == -1:
-        end_t = len(vr) / initial_fps
-    else:
-        end_t = min(len(vr) / initial_fps, end_t)
-    assert 0 <= start_t < end_t
-    assert output_fps > 0
-    start_f_ind = int(start_t * initial_fps)
-    end_f_ind = int(end_t * initial_fps)
-    num_f = int((end_t - start_t) * output_fps)
-    sample_idx = np.linspace(start_f_ind, end_f_ind, num_f, endpoint=False).astype(int)
-    video = vr.get_batch(sample_idx)
 
-    video = video.asnumpy()
+    assert output_fps > 0
+
+    frame_list = []
+    while True:
+        ret, frame = vr.read()
+        if not ret:
+            break
+        frame_list.append(frame)
+
+    video = np.stack(frame_list, axis=0)
     _, h, w, _ = video.shape
 
     # Use max if you want the larger side to be equal to resolution (e.g. 512)

@@ -158,7 +158,7 @@ def main(args):
 
         control = detected_map.copy().astype(np.float32) / 255.0
         control = np.transpose(control, (2, 0, 1))
-        control = np.stack([control for _ in range(batch_size)], axis=0).astype(ms.float16)
+        control = np.stack([control for _ in range(batch_size)], axis=0).astype(np.float16)
         inputs["control"] = ms.Tensor(control, ms.float16)
 
     else:
