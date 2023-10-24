@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import time
 
 import cv2
 import numpy as np
@@ -44,6 +45,8 @@ class VideoDatasetForTrain(object):
         mvs_visual=False,
         tokenizer=None,
         conditions_for_train=None,
+        record_data_stat=False,
+        rank_id=0,
     ):
         """
         Args:
@@ -75,6 +78,13 @@ class VideoDatasetForTrain(object):
             self.video_cap_pairs = [[self.cfg.input_video, self.cfg.input_text_desc]]
 
         self.tokenizer = tokenizer  # bpe
+
+        self.record_data_stat = record_data_stat
+        if self.record_data_stat:
+            header = ",".join(['video_path', 'frames', 'resolution', 'load_time'])
+            self.stat_fp = os.path.join(cfg.output_dir, f'data_stat_rank_{rank_id}.csv')
+            with open(self.stat_fp, "w", encoding="utf-8") as fp:
+                fp.write(header + "\n")
 
     def tokenize(self, text):
         tokens = self.tokenizer(text, padding="max_length", max_length=77)["input_ids"]
@@ -145,9 +155,19 @@ class VideoDatasetForTrain(object):
 
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
         filename = video_key
+        if self.record_data_stat:
+            vstart = time.time()
+
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
             input_video=filename, fps=feature_framerate, viz=viz_mv
         )
+
+        if self.record_data_stat:
+            _raw_frames_len = len(frames) * 4
+            _resolution = frames[0].shape[-2:]
+            _stat = f"{video_key},{_raw_frames_len},{_resolution},{time.time()-vstart}" 
+            with open(self.stat_fp, "a", encoding="utf-8") as fp:
+                fp.write(_stat+ "\n")
 
         total_frames = len(frame_types)
         start_indices = np.where(
@@ -228,9 +248,10 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
     return video_paths, all_captions
 
 
-def build_dataset(cfg, device_num, rank_id, tokenizer):
+def build_dataset(cfg, device_num, rank_id, tokenizer, record_data_stat=False):
     infer_transforms, misc_transforms, mv_transforms, vit_transforms = create_transforms(cfg)
     dataset = VideoDatasetForTrain(
+        cfg=cfg,
         root_dir=cfg.root_dir,
         max_words=cfg.max_words,
         feature_framerate=cfg.feature_framerate,
@@ -244,6 +265,8 @@ def build_dataset(cfg, device_num, rank_id, tokenizer):
         misc_size=cfg.misc_size,
         mvs_visual=cfg.mvs_visual,
         tokenizer=tokenizer,
+        record_data_stat=record_data_stat,
+        rank_id=rank_id,
     )
 
     print("Total number of samples: ", len(dataset))

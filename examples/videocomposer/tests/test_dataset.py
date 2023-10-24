@@ -34,30 +34,27 @@ def test_dataset():
     # cfg.batch_size = 1
 
     tokenizer = CLIPTokenizer(os.path.join(__dir__, "../model_weights/bpe_simple_vocab_16e6.txt.gz"))
-    dl = build_dataset(cfg, 1, 0, tokenizer)
-    dl.get_dataset_size()
+    dl = build_dataset(cfg, 1, 0, tokenizer, record_data_stat=True)
+    num_batches = dl.get_dataset_size()
 
     ms.set_context(mode=0)
 
-    # num_tries = 4 * 100
-    num_tries = 5
+    num_tries = num_batches
     start = time.time()
-    times = []
+    warmup = 0
+    warmup_steps = 3
     iterator = dl.create_dict_iterator()
     for i, batch in enumerate(iterator):
-        # print(batch)
+        print(f"{i}/{num_batches}")
         for k in batch:
             print(k, batch[k].shape)  # , batch[k].min(), batch[k].max())
             # if k in ["cap_tokens", "feature_framerate"]:
             #    print(batch[k])
-        times.append(time.time() - start)
-        if i >= num_tries:
-            break
-        start = time.time()
+        if i == warmup_steps - 1:
+            warmup = time.time() - start
+    tot_time = time.time() - start - warmup
 
-    WU = 2
-    tot = sum(times[WU:])  # skip warmup
-    mean = tot / (num_tries - WU)
+    mean = tot_time / (num_tries - warmup_steps)
     print("Avg batch loading time: ", mean)
 
 
