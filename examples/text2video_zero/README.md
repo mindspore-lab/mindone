@@ -48,7 +48,7 @@ pip install -r requirements.txt
 Put them under `text2video_zero/models` folder.
 
 #### Testing videos preparation
-Please prepare the videos that you want to impaint. There are some examples:
+Please prepare the videos that you want to impaint. There are two examples:
 
 <div align="center">
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/2a460733-3f47-4f04-8a12-c215adfb7536" width="240" height="240" />
