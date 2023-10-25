@@ -88,8 +88,10 @@ class VideoDatasetForTrain(object):
 
     def tokenize(self, text, max_length=77):
         tokens = self.tokenizer(text, padding="max_length", max_length=max_length)["input_ids"]
+        # truncate for over-long tokens
         if len(tokens) > max_length:
             tokens = tokens[:max_length]
+            tokens[-1] = self.tokenizer.eos_token_id
 
         return tokens
 
