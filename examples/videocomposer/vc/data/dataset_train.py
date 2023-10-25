@@ -86,8 +86,10 @@ class VideoDatasetForTrain(object):
             with open(self.stat_fp, "w", encoding="utf-8") as fp:
                 fp.write(header + "\n")
 
-    def tokenize(self, text):
-        tokens = self.tokenizer(text, padding="max_length", max_length=77)["input_ids"]
+    def tokenize(self, text, max_length=77):
+        tokens = self.tokenizer(text, padding="max_length", max_length=max_length)["input_ids"]
+        if len(tokens) > max_length:
+            tokens = tokens[:max_length]
 
         return tokens
 
