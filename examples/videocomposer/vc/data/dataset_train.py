@@ -159,16 +159,10 @@ class VideoDatasetForTrain(object):
         filename = video_key
         if self.record_data_stat:
             vstart = time.time()
-        
-        # align with torch
-        for _ in range(5):
-            try:
-                frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
-                    input_video=filename, fps=feature_framerate, viz=viz_mv
-                )
-                break
-            except Exception as e:
-                print('{} read video frames and motion vectors failed with errror: {}'.format(video_key, e), flush=True)
+    
+        frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
+            input_video=filename, fps=feature_framerate, viz=viz_mv
+        )
 
         if self.record_data_stat:
             _raw_frames_len = len(frames) * 4
@@ -198,8 +192,8 @@ class VideoDatasetForTrain(object):
             frames = np.stack([self.transforms(frame)[0] for frame in frames], axis=0)
             mvs = np.stack([self.mv_transforms(mv).transpose((2, 0, 1)) for mv in mvs], axis=0)
         else:
-            # raise RuntimeError(f"Got no frames from {filename}!")
-            vit_image = np.zerso(3, self.vit_image_size, self.vit_image_size)
+            raise RuntimeError(f"Got no frames from {filename}!")
+            # vit_image = np.zerso(3, self.vit_image_size, self.vit_image_size)
 
         video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
         mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
@@ -209,10 +203,6 @@ class VideoDatasetForTrain(object):
             misc_data[: len(frames), ...] = misc_imgs
             mv_data[: len(frames), ...] = mvs
         
-        # align with torch
-        del frames
-        del misc_imgs
-        del mvs
 
         return vit_image, video_data, misc_data, mv_data
 

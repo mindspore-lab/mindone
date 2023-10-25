@@ -73,12 +73,6 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     mvs_visual = []
 
     # continuously read and display video frames and motion vectors
-    is_timeout = False
-    READ_TIMEOUT= 120
-    read_start = time.time()
-
-    max_frames_to_read = 2500
-    
     while True:
         if verbose:
             _logger.info(f"Frame: {step}")
@@ -117,17 +111,6 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
         frames.append(frame)
         mvs.append(mv)
         mvs_visual.append(mv_visual)
-
-        time_spent = time.time() - read_start
-        if  time_spent > READ_TIMEOUT: 
-            _logger.info(f"Read video ({input_video}) time out: {time_spent}. {len(frames)} frames are loaded.")
-            is_timeout = True
-            break
-
-        if len(frames) > max_frames_to_read:
-            _logger.info(f"Input video ({input_video}) read frames > {max_frames_to_read}. Video reading ended.")
-            break
-            
 
     if verbose:
         _logger.info(f"average dt: {np.mean(times)}")
