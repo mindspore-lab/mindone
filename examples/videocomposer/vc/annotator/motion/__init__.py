@@ -85,6 +85,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
         t_start = time.perf_counter()
         # read next video frame and corresponding motion vectors
         ret, frame, motion_vectors, frame_type, timestamp = cap.read()
+
         t_end = time.perf_counter()
         times.append(t_end - t_start)
         # if there is an error reading the frame
@@ -95,8 +96,10 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
 
         # visualization of motion vectors
         mv_visual = np.zeros(frame.shape, dtype=np.uint8)
+
         if viz:
             mv_visual = draw_motion_vectors(mv_visual, motion_vectors)
+
         if frame.shape[1] >= frame.shape[0]:
             w_half = (frame.shape[1] - frame.shape[0]) // 2
             mv_visual = mv_visual[:, w_half:-w_half]

@@ -157,10 +157,16 @@ class VideoDatasetForTrain(object):
         filename = video_key
         if self.record_data_stat:
             vstart = time.time()
-
-        frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
-            input_video=filename, fps=feature_framerate, viz=viz_mv
-        )
+        
+        # align with torch
+        for _ in range(5):
+            try:
+                frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
+                    input_video=filename, fps=feature_framerate, viz=viz_mv
+                )
+                break
+            except Exception as e:
+                print('{} read video frames and motion vectors failed with errror: {}'.format(video_key, e), flush=True)
 
         if self.record_data_stat:
             _raw_frames_len = len(frames) * 4
@@ -173,12 +179,6 @@ class VideoDatasetForTrain(object):
         start_indices = np.where(
             (np.array(frame_types) == "I") & (total_frames - np.arange(total_frames) >= self.max_frames)
         )[0]
-
-        if start_indices.size == 0:  # empty, no frames
-            _logger.warning(
-                f"Failed to load the video: {filename}. The video may be broken or too short (frames: {len(total_frames)})."
-            )
-            return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)
@@ -196,7 +196,8 @@ class VideoDatasetForTrain(object):
             frames = np.stack([self.transforms(frame)[0] for frame in frames], axis=0)
             mvs = np.stack([self.mv_transforms(mv).transpose((2, 0, 1)) for mv in mvs], axis=0)
         else:
-            raise RuntimeError(f"Got no frames from {filename}!")
+            # raise RuntimeError(f"Got no frames from {filename}!")
+            vit_image = np.zerso(3, self.vit_image_size, self.vit_image_size)
 
         video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
         mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
@@ -205,6 +206,11 @@ class VideoDatasetForTrain(object):
             video_data[: len(frames), ...] = frames
             misc_data[: len(frames), ...] = misc_imgs
             mv_data[: len(frames), ...] = mvs
+        
+        # align with torch
+        del frames
+        del misc_imgs
+        del mvs
 
         return vit_image, video_data, misc_data, mv_data
 
