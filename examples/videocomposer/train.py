@@ -330,6 +330,7 @@ def main(cfg):
                 f"Distributed mode: {cfg.use_parallel}",
                 f"Dataset sink mode: {cfg.dataset_sink_mode}",
                 f"Data path: {cfg.root_dir}",
+                f"Num batches per card: {num_batches}",
                 "Model: VideoComposer",
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
