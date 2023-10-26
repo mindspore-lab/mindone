@@ -1,0 +1,40 @@
+environment:
+  mode: 0
+  debug: True
+  seed: 42
+  distributed: False
+  enable_modelarts: False
+
+train:
+  epochs: 1
+  output_dir: output/videoldm_sd_v2.1/
+
+  dataset:
+    class_path: examples.video_ldm.data.video_dataset.VideoDataset
+    init_args:
+      data_dir: /data1/webvid-10m/dataset/2M_val/part0/00000
+      metadata_dir: /home/rustam/projects/mindone/data/
+      frames: 8
+      step: 1
+
+  dataloader:
+    batch_size: 2
+    shuffle: True
+    drop_remainder: True
+
+  optimizer:
+    name: adamw
+    lr: 1.0e-5
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.01
+
+  settings:
+    drop_overflow_update: True
+    gradient_accumulation_steps: 1
+    clip_grad: False
+    clip_norm: 1.0
+
+LossScale:
+  loss_scale_value: 65536
+  scale_factor: 2
+  scale_window: 1000

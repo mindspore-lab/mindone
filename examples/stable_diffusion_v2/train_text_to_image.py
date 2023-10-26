@@ -2,13 +2,12 @@
 Stable diffusion model training/finetuning
 """
 import argparse
-import importlib
 import logging
 import os
 import shutil
 
 import yaml
-from common import init_env
+from common import build_model_from_config, init_env
 from ldm.data.dataset import build_dataset
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
@@ -19,7 +18,6 @@ from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
-from omegaconf import OmegaConf
 
 from mindspore import Model, Profiler, load_checkpoint, load_param_into_net
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
@@ -28,27 +26,6 @@ from mindspore.train.callback import LossMonitor, TimeMonitor
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
-
-
-def build_model_from_config(config):
-    config = OmegaConf.load(config).model
-    if "target" not in config:
-        if config == "__is_first_stage__":
-            return None
-        elif config == "__is_unconditional__":
-            return None
-        raise KeyError("Expected key `target` to instantiate.")
-    config_params = config.get("params", dict())
-    # config_params['cond_stage_trainable'] = cond_stage_trainable # TODO: easy config
-    return get_obj_from_str(config["target"])(**config_params)
-
-
-def get_obj_from_str(string, reload=False):
-    module, cls = string.rsplit(".", 1)
-    if reload:
-        module_imp = importlib.import_module(module)
-        importlib.reload(module_imp)
-    return getattr(importlib.import_module(module, package=None), cls)
 
 
 def load_pretrained_model(pretrained_ckpt, net):

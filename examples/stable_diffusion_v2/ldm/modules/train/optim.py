@@ -45,17 +45,17 @@ def build_optimizer(
     group_params.append({"order_params": param_optimizer})
 
     if name.lower() == "adam":
-        OptimCls = Adam
+        optim_cls = Adam
     elif name.lower() == "adamw":
-        OptimCls = AdamWeightDecay
+        optim_cls = AdamWeightDecay
     elif name.lower() in ["sgd", "momentum"]:
-        OptimCls = Momentum
+        optim_cls = Momentum
     else:
         raise ValueError("invalid optimizer")
 
     if name.lower() in ["sgd", "momentum"]:
-        optimizer = OptimCls(group_params, learning_rate=lr, momentum=0.9)
+        optimizer = optim_cls(group_params, learning_rate=lr, momentum=0.9)
     else:
-        optimizer = OptimCls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1])
+        optimizer = optim_cls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1])
 
     return optimizer
