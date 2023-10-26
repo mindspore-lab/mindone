@@ -31,7 +31,7 @@ def draw_motion_vectors(frame, motion_vectors):
     return frame
 
 
-def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=False):
+def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=False, skip_long_videos=False, max_duration=30):
     tmp_name = rand_name()
     # tmp_video = os.path.splitext(input_video)[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
     cache_video_name = os.path.basename(input_video).split(".")[0] + f"_{tmp_name}" + os.path.splitext(input_video)[-1]
@@ -39,6 +39,13 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     videocapture = cv2.VideoCapture(input_video)
     frames_num = videocapture.get(cv2.CAP_PROP_FRAME_COUNT)
     fps_video = videocapture.get(cv2.CAP_PROP_FPS)
+
+    if skip_long_videos:
+        dur = frames_num / fps_video
+        if dur > max_duration:
+            videocapture.release()
+            raise ValueError(f"{input_video} is too long. frames: {frames_num}, video_fps: {fps_video}, dur: {dur}. Will be skipped! Please trim it in pre-processing")
+
     # check if enough frames
     if frames_num / fps_video * fps > 16:
         fps = max(fps, 1)
@@ -50,11 +57,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     if os.path.exists(tmp_video):
         os.remove(tmp_video)
 
-    try:
-        subprocess.run(args=ffmpeg_cmd, shell=True, timeout=120, check=True)
-    except Exception as e:
-        print("ffmpeg execute fails, Error: {}".format(e), flush=True)
-        raise ValueError
+    subprocess.run(args=ffmpeg_cmd, shell=True, timeout=120)
 
     cap = VideoCap()
     # open the video file
@@ -68,6 +71,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
     frames = []
     mvs = []
     mvs_visual = []
+
     # continuously read and display video frames and motion vectors
     while True:
         if verbose:
@@ -75,6 +79,7 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
         t_start = time.perf_counter()
         # read next video frame and corresponding motion vectors
         ret, frame, motion_vectors, frame_type, timestamp = cap.read()
+
         t_end = time.perf_counter()
         times.append(t_end - t_start)
         # if there is an error reading the frame
@@ -85,8 +90,10 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
 
         # visualization of motion vectors
         mv_visual = np.zeros(frame.shape, dtype=np.uint8)
+
         if viz:
             mv_visual = draw_motion_vectors(mv_visual, motion_vectors)
+
         if frame.shape[1] >= frame.shape[0]:
             w_half = (frame.shape[1] - frame.shape[0]) // 2
             mv_visual = mv_visual[:, w_half:-w_half]
@@ -104,9 +111,12 @@ def extract_motion_vectors(input_video, fps=4, viz=False, dump=False, verbose=Fa
         frames.append(frame)
         mvs.append(mv)
         mvs_visual.append(mv_visual)
+
     if verbose:
         _logger.info(f"average dt: {np.mean(times)}")
+
     cap.release()
+    videocapture.release()
 
     if os.path.exists(tmp_video):
         os.remove(tmp_video)

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import random
+import time
 
 import cv2
 import numpy as np
@@ -44,6 +45,8 @@ class VideoDatasetForTrain(object):
         mvs_visual=False,
         tokenizer=None,
         conditions_for_train=None,
+        record_data_stat=False,
+        rank_id=0,
     ):
         """
         Args:
@@ -76,8 +79,19 @@ class VideoDatasetForTrain(object):
 
         self.tokenizer = tokenizer  # bpe
 
-    def tokenize(self, text):
-        tokens = self.tokenizer(text, padding="max_length", max_length=77)["input_ids"]
+        self.record_data_stat = record_data_stat
+        if self.record_data_stat:
+            header = ",".join(['video_path', 'frames', 'resolution', 'load_time'])
+            self.stat_fp = os.path.join(cfg.output_dir, f'data_stat_rank_{rank_id}.csv')
+            with open(self.stat_fp, "w", encoding="utf-8") as fp:
+                fp.write(header + "\n")
+
+    def tokenize(self, text, max_length=77):
+        tokens = self.tokenizer(text, padding="max_length", max_length=max_length)["input_ids"]
+        # truncate for over-long tokens
+        if len(tokens) > max_length:
+            tokens = tokens[:max_length]
+            tokens[-1] = self.tokenizer.eos_token_id
 
         return tokens
 
@@ -145,20 +159,24 @@ class VideoDatasetForTrain(object):
 
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
         filename = video_key
+        if self.record_data_stat:
+            vstart = time.time()
+    
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
             input_video=filename, fps=feature_framerate, viz=viz_mv
         )
+
+        if self.record_data_stat:
+            _raw_frames_len = len(frames) * 4
+            _resolution = frames[0].shape[-3:-1]
+            _stat = f"{video_key},{_raw_frames_len},{_resolution},{time.time()-vstart}" 
+            with open(self.stat_fp, "a", encoding="utf-8") as fp:
+                fp.write(_stat+ "\n")
 
         total_frames = len(frame_types)
         start_indices = np.where(
             (np.array(frame_types) == "I") & (total_frames - np.arange(total_frames) >= self.max_frames)
         )[0]
-
-        if start_indices.size == 0:  # empty, no frames
-            _logger.warning(
-                f"Failed to load the video: {filename}. The video may be broken or too short (frames: {len(total_frames)})."
-            )
-            return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)
@@ -177,6 +195,7 @@ class VideoDatasetForTrain(object):
             mvs = np.stack([self.mv_transforms(mv).transpose((2, 0, 1)) for mv in mvs], axis=0)
         else:
             raise RuntimeError(f"Got no frames from {filename}!")
+            # vit_image = np.zerso(3, self.vit_image_size, self.vit_image_size)
 
         video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
         mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
@@ -185,6 +204,7 @@ class VideoDatasetForTrain(object):
             video_data[: len(frames), ...] = frames
             misc_data[: len(frames), ...] = misc_imgs
             mv_data[: len(frames), ...] = mvs
+        
 
         return vit_image, video_data, misc_data, mv_data
 
@@ -228,9 +248,10 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
     return video_paths, all_captions
 
 
-def build_dataset(cfg, device_num, rank_id, tokenizer):
+def build_dataset(cfg, device_num, rank_id, tokenizer, record_data_stat=False):
     infer_transforms, misc_transforms, mv_transforms, vit_transforms = create_transforms(cfg)
     dataset = VideoDatasetForTrain(
+        cfg=cfg,
         root_dir=cfg.root_dir,
         max_words=cfg.max_words,
         feature_framerate=cfg.feature_framerate,
@@ -244,6 +265,8 @@ def build_dataset(cfg, device_num, rank_id, tokenizer):
         misc_size=cfg.misc_size,
         mvs_visual=cfg.mvs_visual,
         tokenizer=tokenizer,
+        record_data_stat=record_data_stat,
+        rank_id=rank_id,
     )
 
     print("Total number of samples: ", len(dataset))
