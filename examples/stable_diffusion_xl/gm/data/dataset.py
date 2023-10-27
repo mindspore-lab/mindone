@@ -171,6 +171,7 @@ class Text2ImageDatasetDreamBooth:
         class_data_path,
         instance_prompt,
         class_prompt,
+        train_data_repeat=1,
         target_size=(1024, 1024),
         transforms=None,
         batched_transforms=None,
@@ -199,6 +200,11 @@ class Text2ImageDatasetDreamBooth:
         # self.local_images = all_images
         # self.local_captions = all_captions
         instance_images = self.list_image_files_recursively(instance_data_path)
+        instance_images = self.repeat_data(instance_images, train_data_repeat)
+        print(
+            f"The training data is repeated {train_data_repeat} times, and the total number is {len(instance_images)}"
+        )
+
         class_images = self.list_image_files_recursively(class_data_path)
         if filter_small_size:
             instance_images = self.filter_small_image(instance_images, image_filter_size)
@@ -245,16 +251,26 @@ class Text2ImageDatasetDreamBooth:
         class_image = np.array(class_image).astype(np.uint8)
 
         # caption preprocess
-        instance_caption = self.instance_caption if self.tokenizer is None else np.array(self.tokenize(self.instance_caption), dtype=np.int32)
+        instance_caption = (
+            self.instance_caption
+            if self.tokenizer is None
+            else np.array(self.tokenize(self.instance_caption), dtype=np.int32)
+        )
         instance_caption = np.array(instance_caption)
 
-        class_caption = self.class_caption if self.tokenizer is None else np.array(self.tokenize(self.class_caption), dtype=np.int32)
+        class_caption = (
+            self.class_caption
+            if self.tokenizer is None
+            else np.array(self.tokenize(self.class_caption), dtype=np.int32)
+        )
         class_caption = np.array(class_caption)
 
         instance_sample = {
             "image": instance_image,
             "txt": instance_caption,
-            "original_size_as_tuple": np.array([instance_image.shape[0], instance_image.shape[1]]),  # original h, original w
+            "original_size_as_tuple": np.array(
+                [instance_image.shape[0], instance_image.shape[1]]
+            ),  # original h, original w
             "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
             "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
             "aesthetic_score": np.array(
@@ -298,7 +314,7 @@ class Text2ImageDatasetDreamBooth:
 
         return result
 
-    def collate_fn(self, samples, batch_info):
+    def collate_fn(self, instance_samples, class_samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
             epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
@@ -307,13 +323,24 @@ class Text2ImageDatasetDreamBooth:
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:
-            samples = bs_trans(samples, target_size=new_size)
+            instance_samples = bs_trans(instance_samples, target_size=new_size)
+            class_samples = bs_trans(class_samples, target_size=new_size)
 
-        batch_samples = {k: [] for k in samples[0]}
-        for s in samples:
+        instance_batch_samples = {k: [] for k in instance_samples[0]}
+        class_batch_samples = {k: [] for k in class_samples[0]}
+        for s in instance_samples:
             for k in s:
-                batch_samples[k].append(s[k])
-        return {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
+                instance_batch_samples[k].append(s[k])
+        for s in class_samples:
+            for k in s:
+                class_batch_samples[k].append(s[k])
+        instance_batch_samples = {
+            k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in instance_batch_samples.items()
+        }
+        class_batch_samples = {
+            k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in class_batch_samples.items()
+        }
+        return instance_batch_samples, class_batch_samples
 
     def __len__(self):
         return len(self.instance_images)
@@ -336,9 +363,11 @@ class Text2ImageDatasetDreamBooth:
             else:
                 filted_images.append(image)
         return filted_images
-    
 
-    
+    @staticmethod
+    def repeat_data(data_list, repeats):
+        return data_list * repeats
+
 
 # if __name__ == "__main__":
 #     import argparse
@@ -368,6 +397,7 @@ class Text2ImageDatasetDreamBooth:
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="check dataset")
     parser.add_argument("--instance_data_path", type=str)
     parser.add_argument("--class_data_path", type=str)
@@ -379,12 +409,14 @@ if __name__ == "__main__":
         {"target": "gm.data.mappers.Rescaler", "params": {"isfloat": False}},
         {"target": "gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
     ]
-    dataset = Text2ImageDatasetDreamBooth(instance_data_path=args.instance_data_path, 
-                                          class_data_path=args.class_data_path, 
-                                          instance_prompt=args.instance_prompt, 
-                                          class_prompt=args.class_prompt, 
-                                          target_size=1024,
-                                          transforms=transforms)
+    dataset = Text2ImageDatasetDreamBooth(
+        instance_data_path=args.instance_data_path,
+        class_data_path=args.class_data_path,
+        instance_prompt=args.instance_prompt,
+        class_prompt=args.class_prompt,
+        target_size=1024,
+        transforms=transforms,
+    )
     dataset_size = len(dataset)
     print(f"dataset size: {dataset_size}")
 

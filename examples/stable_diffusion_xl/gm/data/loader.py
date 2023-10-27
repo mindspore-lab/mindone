@@ -87,6 +87,7 @@ def create_loader_dreambooth(
     class_prompt,
     rank=0,
     rank_size=1,
+    train_data_repeat=1,
     *,
     dataset_config,
     per_batch_size,
@@ -100,11 +101,14 @@ def create_loader_dreambooth(
     Returns:
         BatchDataset, dataset batched.
     """
-    dataset = get_obj_from_str(dataset_config["target"])(instance_data_path = instance_data_path,
-                                                         class_data_path = class_data_path,
-                                                         instance_prompt = instance_prompt,
-                                                         class_prompt = class_prompt,
-                                                         **dataset_config.get("params", dict()))
+    dataset = get_obj_from_str(dataset_config["target"])(
+        instance_data_path=instance_data_path,
+        class_data_path=class_data_path,
+        instance_prompt=instance_prompt,
+        class_prompt=class_prompt,
+        train_data_repeat=train_data_repeat,
+        **dataset_config.get("params", dict()),
+    )
     batch_collate_fn, dataset_column_names = dataset.collate_fn, dataset.dataset_column_names
     dataset_size = len(dataset)
     num_step_per_epoch = dataset_size // (per_batch_size * rank_size)

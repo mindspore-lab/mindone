@@ -364,3 +364,78 @@ class DiffusionEngine(nn.Cell):
     def log_images(self):
         # TODO
         raise NotImplementedError
+
+
+class DiffusionEngineDreamBooth(DiffusionEngine):
+    def __init__(self, prior_loss_weight=1.0, *args, **kargs):
+        super().__init__(self, args, **kargs)
+        self.prior_loss_weight = prior_loss_weight
+
+    def get_grad_func(self, optimizer, reducer, scaler, jit=True):
+        from mindspore.amp import all_finite
+
+        loss_fn = self.loss_fn
+        denoiser = self.denoiser
+        model = self.model
+
+        def _shared_step(x, noised_input, sigmas, w, concat, context, y):
+            c_skip, c_out, c_in, c_noise = denoiser(sigmas, noised_input.ndim)
+            model_output = model(
+                ops.cast(noised_input * c_in, ms.float32),
+                ops.cast(c_noise, ms.int32),
+                concat=concat,
+                context=context,
+                y=y,
+            )
+            model_output = model_output * c_out + noised_input * c_skip
+            loss = loss_fn(model_output, x, w)
+            loss = loss.mean()
+            return loss
+
+        def _forward_func(batch):
+            # get latent and condition
+            x, noised_input, sigmas, w, cond = self.get_inputs(batch, "instance_samples")
+            reg_x, reg_noised_input, reg_sigmas, reg_w, reg_cond = self.get_inputs(batch, "class_samples")
+            # get loss
+            print("Compute Loss Starting...")
+            loss_train = _shared_step(x, noised_input, sigmas, w, **cond)
+            loss_reg = _shared_step(reg_x, reg_noised_input, reg_sigmas, reg_w, **reg_cond)
+            loss = loss_train + self.prior_loss_weight * loss_reg
+            return scaler.scale(loss)
+
+        grad_fn = ops.value_and_grad(_forward_func, grad_position=None, weights=optimizer.parameters)
+
+        def grad_and_update_func(batch):
+            loss, grads = grad_fn(batch)
+            grads = reducer(grads)
+            unscaled_grads = scaler.unscale(grads)
+            grads_finite = all_finite(unscaled_grads)
+            loss = ops.depend(loss, optimizer(unscaled_grads))
+            return scaler.unscale(loss), unscaled_grads, grads_finite
+
+        @ms.jit
+        def jit_warpper(*args, **kwargs):
+            return grad_and_update_func(*args, **kwargs)
+
+        return grad_and_update_func if not jit else jit_warpper
+
+    def get_inputs(self, batch, input_column):
+        # get latent and condition
+        batch = batch[input_column]
+        x = batch[self.input_key]
+        x = self.encode_first_stage(x)
+        cond = self.conditioner(batch)
+        cond = self.openai_input_warpper(cond)
+        sigmas = self.sigma_sampler(x.shape[0])
+        noise = ops.randn_like(x)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
+        return x, noised_input, sigmas, w, cond
+
+    def train_step(self, batch, grad_func):
+        # print("Compute Loss Starting...")
+        loss, _, _ = grad_func(batch)
+        # loss, _, _ = grad_func(x, noised_input, sigmas, w, **cond)
+        print("Compute Loss Done...")
+
+        return loss
