@@ -103,8 +103,6 @@ def main(args):
     noise = ops.standard_normal((1, 4, args.inputs.H // 8, args.inputs.W // 8))
     noise = noise_prepare(noise)
 
-    # noise = ops.standard_normal((1, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(ms.float16)
-    # noise = ops.tile(noise, (f, 1, 1, 1))
     result = inference_text2video(control, inputs, noise, prompt_data, negative_prompt_data, sd_infer, img_processor)
     video_name = args.inputs.video_path.split("/")[-1]
     video_name = args.inputs.controlnet_mode + "_" + video_name
