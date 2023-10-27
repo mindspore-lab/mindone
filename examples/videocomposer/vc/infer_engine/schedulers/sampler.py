@@ -10,6 +10,7 @@ from mindspore import Tensor
 
 from ..utils.export import model_export
 from .ddim import DDIM
+from .ddpm import DDPM
 from .plms import PLMS
 
 __all__ = ["beta_schedule", "DiffusionSampler"]
@@ -72,7 +73,7 @@ class DiffusionSampler:
     def __init__(
         self,
         model: nn.Cell,
-        scheduler: str = "DDIM",
+        scheduler_name: str = "DDIM",
         betas: Optional[np.ndarray] = None,
         num_timesteps: int = 1000,
         show_progress_bar: bool = True,
@@ -80,17 +81,20 @@ class DiffusionSampler:
         if betas is None:
             betas = beta_schedule("linear_sd", num_timesteps, init_beta=0.00085, last_beta=0.0120)
 
-        if scheduler == "DDIM":
+        if scheduler_name == "DDIM":
             self.scheduler = DDIM(model, betas).set_train(False)
-        elif scheduler == "PLMS":
+        elif scheduler_name == "PLMS":
             self.scheduler = PLMS(model, betas).set_train(False)
+        elif scheduler_name == "DDPM":
+            self.scheduler = DDPM(model, betas).set_train(False)
         else:
-            raise NotImplementedError(f"Scheduler `{scheduler}` is not supported.")
+            raise NotImplementedError(f"Scheduler `{scheduler_name}` is not supported.")
         for _, param in self.scheduler.parameters_and_names():
             param.requires_grad = False
 
         self.num_timesteps = len(betas)
         self.show_progress_bar = show_progress_bar
+        self.scheduler_name = scheduler_name
 
     def __call__(
         self,
@@ -137,12 +141,37 @@ class DiffusionSampler:
             model_full_args[k] = v
 
         for step in tqdm.tqdm(steps, desc="sample_loop", disable=not self.show_progress_bar, leave=False):
-            xt = self.scheduler(xt, Tensor(step), stride, eta, guide_scale, *model_full_args.values())
+            if self.scheduler_name == "DDPM":
+                xt = self.scheduler(xt, Tensor(step), guide_scale, *model_full_args.values())
+            elif self.scheduler_name == "PLMS":
+                xt = self.scheduler(xt, Tensor(step), stride, guide_scale, *model_full_args.values())
+            else:
+                xt = self.scheduler(xt, Tensor(step), stride, eta, guide_scale, *model_full_args.values())
+
             if export_only:
-                model_export(
-                    self.scheduler,
-                    [xt, Tensor(step, ms.int32), stride, eta, guide_scale, *model_full_args.values()],
-                    export_name,
-                )
+                if self.scheduler_name == "DDPM":
+                    model_export(
+                        self.scheduler,
+                        [xt, Tensor(step, ms.int32), guide_scale, *model_full_args.values()],
+                        export_name,
+                    )
+                elif self.scheduler_name == "PLMS":
+                    model_export(
+                        self.scheduler,
+                        [xt, Tensor(step, ms.int32), stride, guide_scale, *model_full_args.values()],
+                        export_name,
+                    )
+                else:
+                    model_export(
+                        self.scheduler,
+                        [xt, Tensor(step, ms.int32), stride, eta, guide_scale, *model_full_args.values()],
+                        export_name,
+                    )
                 break
+
+        if self.scheduler_name == "PLMS":
+            # TODO: on MS2.1 + 910B, it does not work. Uncomment this after fix.
+            # self.scheduler.reset_cache()
+            pass
+
         return xt

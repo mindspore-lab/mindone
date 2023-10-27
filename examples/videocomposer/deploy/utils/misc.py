@@ -39,9 +39,6 @@ def init_lite_infer(cfg: Config, video_name: Optional[str] = None) -> None:
     setup_logger(output_dir=cfg.log_dir)
     _logger.info(cfg)
 
-    cfg.max_frames = cfg.frame_lens[0]  # assume all frame_lens are same
-    cfg.batch_size = cfg.batch_sizes[str(cfg.max_frames)]
-
     setup_seed(cfg.seed)
 
 
