@@ -75,7 +75,7 @@ class Config(object):
         parser.add_argument(
             "--sample_scheduler",
             default="DDIM",
-            choices=["DDIM", "DDPM"],
+            choices=["DDIM", "DDPM", "PLMS"],
             help="Schduler method for using for inference. ",
         )
         parser.add_argument("--sample_steps", type=int, default=50, help="Sampling Step.")
