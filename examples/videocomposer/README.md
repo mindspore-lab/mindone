@@ -305,4 +305,3 @@ The video generation speed is as follows.
 | 910B        | MindSpore-Lite-2.2(20230907) |   DDIM 	|	50	| 	11.6	|
 
 Note that with MindSpore-Lite, the graph compilation time is eliminated.
-

@@ -12,9 +12,9 @@ ONE is short for "ONE for all" and "Optimal generators with No Exception" (credi
 
 - [Stable Diffusion 1.5/2.x](examples/stable_diffusion_v2): Text-to-image generation via latent diffusion models (with support for inference and finetuning)
 
-- [Stable Diffusion XL](examples/stable_diffusion_xl): New state-of-the-art SD model with double text embedders and larger UNet. 
+- [Stable Diffusion XL](examples/stable_diffusion_xl): New state-of-the-art SD model with double text embedders and larger UNet.
 
-- [VideoComposer](examples/videocomposer): Genearte videos with prompts or reference videos via controllable video diffusion (both training and inference are supported) 
+- [VideoComposer](examples/videocomposer): Genearte videos with prompts or reference videos via controllable video diffusion (both training and inference are supported)
 
 
 ## Awesome List
