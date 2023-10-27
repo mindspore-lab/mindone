@@ -102,10 +102,10 @@ video_name2.mp4,"a pigeon sitting on the street near the house"
 To run all video generation tasks on 910A or 910B, please run
 
 ```shell
-bash run_infer.sh
+bash scripts/run_infer.sh
 ```
 
-On 910A, to run a single task, you can pick the corresponding snippet of code in `run_infer.sh`, such as
+On 910A, to run a single task, you can pick the corresponding snippet of code in `scripts/run_infer.sh`, such as
 
 ```shell
 # export MS_ENABLE_GE=1  # for 910B
@@ -156,7 +156,7 @@ To install Mindspore Lite, please refer to [Lite install](https://mindspore.cn/l
 
 #### Export Mindspore Lite Model
 
-For different tasks, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
+For different tasks, you can use the corresponding snippet of the code in `scripts/run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
 
 ```shell
 # export MS_ENABLE_GE=1  # for 910B
@@ -197,14 +197,14 @@ The compiling time is much shorter compared with the online inference mode.
 ## Training
 
 ### Standalone Training:
-To run training on a specific task, please refer to `run_train.sh`.
+To run training on a specific task, please refer to `scripts/run_train.sh`.
 
 After changing the `task_name` and `yaml_file` in the script for your task, run:
 
 ```shell
-bash run_train.sh $DEVICE_ID
+bash scripts/run_train.sh $DEVICE_ID
 ```
-e.g. `bash run_train.sh 0` to launch the training task using NPU card 0.
+e.g. `bash scripts/run_train.sh 0` to launch the training task using NPU card 0.
 
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
@@ -240,7 +240,7 @@ conditions_for_train: ['text', 'local_image', 'motion']
 
 ### Distributed Training
 
-Please generate the HCCL config file on your running server at first referring to [this tutorial](https://github.com/mindspore-lab/mindocr/blob/main/docs/cn/tutorials/distribute_train.md#12-%E9%85%8D%E7%BD%AErank_table_file%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83). Then update `run_train_distribute.sh` by setting
+Please generate the HCCL config file on your running server at first referring to [this tutorial](https://github.com/mindspore-lab/mindocr/blob/main/docs/cn/tutorials/distribute_train.md#12-%E9%85%8D%E7%BD%AErank_table_file%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83). Then update `scripts/run_train_distribute.sh` by setting
 ```
 rank_table_file=path/to/hccl_8p_01234567_xxx.json
 ```
@@ -249,7 +249,7 @@ After that, please set `task_name` according to your target task. The default tr
 
 Then execute,
 ```
-bash run_train_distribute.sh
+bash scripts/run_train_distribute.sh
 ```
 
 #### Training in Step Mode
