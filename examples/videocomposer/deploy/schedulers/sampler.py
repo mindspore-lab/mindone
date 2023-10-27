@@ -67,6 +67,7 @@ class DiffusionSampler:
     def __init__(
         self,
         model: Model,
+        scheduler_name: str,
         betas: Optional[np.ndarray] = None,
         num_timesteps: int = 1000,
         show_progress_bar: bool = True,
@@ -75,7 +76,7 @@ class DiffusionSampler:
             betas = beta_schedule("linear_sd", num_timesteps, init_beta=0.00085, last_beta=0.0120)
 
         self.model = model
-
+        self.scheduler_name = scheduler_name
         self.num_timesteps = len(betas)
         self.show_progress_bar = show_progress_bar
 
@@ -125,6 +126,13 @@ class DiffusionSampler:
                 model_lite_args_list.append(model_kwargs[k])
 
         for step in tqdm.tqdm(steps, desc="sample_loop", disable=not self.show_progress_bar, leave=False):
-            xt = lite_predict(self.model, xt, np.array(step, np.int32), stride, eta, guide_scale, *model_lite_args_list)
+            if self.scheduler_name == "DDPM":
+                xt = lite_predict(self.model, xt, np.array(step, np.int32), guide_scale, *model_lite_args_list)
+            elif self.scheduler_name == "PLMS":
+                xt = lite_predict(self.model, xt, np.array(step, np.int32), stride, guide_scale, *model_lite_args_list)
+            else:
+                xt = lite_predict(
+                    self.model, xt, np.array(step, np.int32), stride, eta, guide_scale, *model_lite_args_list
+                )
 
         return xt

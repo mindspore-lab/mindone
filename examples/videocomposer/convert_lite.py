@@ -22,7 +22,7 @@ def main():
         for name in args.names:
             lite_converter(name)
     elif args.root:
-        names = os.listdir(args.root)
+        names = sorted(os.listdir(args.root))
         names = [x.replace(".mindir", "") for x in names if x.endswith(".mindir")]
         names = [x.replace("_graph", "") for x in names]
         _logger.info(f"converting {names}")
