@@ -8,9 +8,9 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
     - [x] Motion transfer from a video to a single image (exp02)
     - [x] Single sketch to videos with or without style guidance (exp03 and exp04)
     - [x] Depth to video with or without style guidance (exp5 and exp6)
-    - [x] Genearte videos basd on multiple conditions:depth maps, local image, masks, motion, and sketch
+    - [x] Generate videos based on multiple conditions: depth maps, local image, masks, motion, and sketch
 - [x] Model Training (vanilla finetuning) supporting both Ascend 910A and 910B
-- [x] Acceleration and Memeory Reduction
+- [x] Acceleration and Memory Reduction
     - [x] Mixed Precision
     - [x] Graph Mode for Training
     - [x] Recompute
@@ -18,10 +18,10 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 ## Environment Setup
 
-**NOTES:** The training code of VC is well tested on **NPU 910B + MindSpore 2.2 (20230907) + CANN 7.0T2 + Ascend driver 23.0.rc3.b060**. Other mindspore and CANN versions may suffer from precision issue.
+**NOTES:** The training code of VC is well tested on **NPU 910B + MindSpore 2.2 (20230907) + CANN 7.0T2 + Ascend driver 23.0.rc3.b060**. Other mindspore and CANN versions may suffer from precision issues.
 
 ### 1. Framework Installation
-- For 910B NPU, please make sure the follow packages are installed with the exact version.
+- For 910B NPU, please make sure the following packages are installed using the exact versions.
     1. CANN 7.0-T2. Version check:
     ```
         ll /usr/local/Ascend/latest
@@ -35,23 +35,23 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
         pip show mindspore
     ```
 
-### 2. Pacthing
+### 2. Patching
 
-For CANN 7.0T2, please disable `AdamApplyOneFusionPasss` to avoid overflow in training. It needs to be done by modifying `/usr/local/Ascend/latest/ops/built-in/fusion_pass/config/fusion_config.json` as follows:
-    ```json
-   	{
+For CANN 7.0T2, please disable `AdamApplyOneFusionPasss` to avoid overflow in training. It can be done by modifying `/usr/local/Ascend/latest/ops/built-in/fusion_pass/config/fusion_config.json` as follows:
+
+```
+{
     "Switch":{
-        "GraphFusion":{
-            "AdamApplyOneFusionPass":"off",  # ==> add this line in the file
-			"GroupConv2DFusionPass": "off",
-			...
-        },
-        "UBFusion":{
-			...
-        }
+	"GraphFusion":{
+    		"AdamApplyOneFusionPass":"off",  # ==> add this line in the file
+		"GroupConv2DFusionPass": "off",
+		...
+    },
+    "UBFusion":{
+	...
     }
-	}
-    ```
+}
+```
 
 ### 3. Pip Package Installation
     ```shell
@@ -74,7 +74,7 @@ The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${P
 Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
 ## Prepare Training Data
-The training videos and their captions (.txt) should be placed in the following folder struture.
+The training videos and their captions (.txt) should be placed in the following folder structure.
 ```
  ├── {DATA_DIR}
  │   ├── video_name1.mp4
@@ -119,13 +119,13 @@ python infer.py \
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-On 910B, you need enable the GE Mode first by running `export MS_ENABLE_GE=1`. And for Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
+On 910B, you need to enable the GE Mode first by running `export MS_ENABLE_GE=1`. For Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
 
 It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
 
 ### Key arguments for inference
 
-You can adjust the arguemnts in `vc/config/base.py` (lower-priority) or `configs/exp{task_name}.yaml` (higher-priority, will overwrite base.py if overlap). Below are the key arguments influencing inference speed and memory usage.
+You can adjust the arguments in `vc/config/base.py` (lower-priority) or `configs/exp{task_name}.yaml` (higher-priority, will overwrite base.py if overlap). Below are the key arguments influencing inference speed and memory usage.
 
 - use_fp16: whether enable mixed precision inference
 
@@ -134,7 +134,7 @@ You can adjust the arguemnts in `vc/config/base.py` (lower-priority) or `configs
 #### Install Mindspore Lite
 You need to have a Mindspore Lite Environment first for offline inference.
 
-To install Mindspore Lite, please Refer to [Lite install](https://mindspore.cn/lite/docs/zh-CN/r2.1/use/downloads.html)
+To install Mindspore Lite, please refer to [Lite install](https://mindspore.cn/lite/docs/zh-CN/r2.1/use/downloads.html)
 
 1. Download the supporting tar.gz and whl packages according to the environment.
 2. Unzip the tar.gz package and install the corresponding version of the WHL package.
@@ -156,7 +156,7 @@ To install Mindspore Lite, please Refer to [Lite install](https://mindspore.cn/l
 
 #### Export Mindspore Lite Model
 
-For different task, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
+For different tasks, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
 
 ```shell
 # export MS_ENABLE_GE=1  # for 910B
@@ -169,7 +169,7 @@ python export.py\
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. And please note that on 910B, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variable befor running the conversion.
+The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. Please note that on 910B, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variables before running the conversion.
 
 ```shell
 unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910B
@@ -204,7 +204,7 @@ After changing the `task_name` and `yaml_file` in the script for your task, run:
 ```shell
 bash run_train.sh $DEVICE_ID
 ```
-e.g. `bash run_train.sh 0` to launch the trainin task using NPU card 0.
+e.g. `bash run_train.sh 0` to launch the training task using NPU card 0.
 
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
@@ -231,7 +231,7 @@ video_compositions: ['text', 'mask', 'depthmap', 'sketch', 'single_sketch', 'mot
 - `image`: the image embedding used as an image style vector.
 - `local_image`: the first frame extracted from the training video.
 
-However, not all conditions are included in the training process in each of tasks above. As defined in `configs/train_exp02_motion_transfer.yaml`,
+However, not all conditions are included in the training process in each of the tasks above. As defined in `configs/train_exp02_motion_transfer.yaml`,
 
 ```yaml
 conditions_for_train: ['text', 'local_image', 'motion']
@@ -240,7 +240,7 @@ conditions_for_train: ['text', 'local_image', 'motion']
 
 ### Distributed Training
 
-Please generate the hccl config file on your running server at first referring to [this tutorial](https://github.com/mindspore-lab/mindocr/blob/main/docs/cn/tutorials/distribute_train.md#12-%E9%85%8D%E7%BD%AErank_table_file%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83). Then update `run_train_distribute.sh` by setting
+Please generate the HCCL config file on your running server at first referring to [this tutorial](https://github.com/mindspore-lab/mindocr/blob/main/docs/cn/tutorials/distribute_train.md#12-%E9%85%8D%E7%BD%AErank_table_file%E8%BF%9B%E8%A1%8C%E8%AE%AD%E7%BB%83). Then update `run_train_distribute.sh` by setting
 ```
 rank_table_file=path/to/hccl_8p_01234567_xxx.json
 ```
@@ -253,7 +253,7 @@ bash run_train_distribute.sh
 ```
 
 #### Training in Step Mode
-By default, training is done in epoch mode, i.e. checkpoint will be save in every `ckpt_save_interval` epochs.
+By default, training is done in epoch mode, i.e. checkpoint will be saved in every `ckpt_save_interval` epoch.
 To change to step mode, in train_xxx.yaml, please modify as:
 ```yaml
 dataset_sink_mode: False
@@ -262,19 +262,19 @@ ckpt_save_interval: 1000
 ```
 e.g., it will save checkpoints every 1000 training steps.
 
-Currently, it's not compatiable with dataset_sink_mode=True. It can be solved by setting `sink_size=ckpt_save_intervel` and `epochs=num_epochs*(num_steps_per_epoch//ckpt_save_intervel)` in `model.train(...)`, which is under testing.
+Currently, it's not compatible with dataset_sink_mode=True. It can be solved by setting `sink_size=ckpt_save_intervel` and `epochs=num_epochs*(num_steps_per_epoch//ckpt_save_intervel)` in `model.train(...)`, which is under testing.
 
 
 #### Supporting Annotation File Format
 
-Both json and csv file are supportd. JSON has higher priority.
+Both json and csv file are supported. JSON has a higher priority.
 
-###  Key arguemnts for training
+###  Key arguments for training
 
-You can adjust the arguemnts in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
+You can adjust the arguments in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
 
 - max_frames: number of frames to generate for each sample. Without memory reduction tricks, it can be set  up to 8 for 910A (30GB memory), and 16 for 910B (60GB memory) for task-2 finetuning.
 - optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910A to avoid OOM and `adamw` for 910B for better loss convergence.
-- use_recompute: by enabling it, you can reduce memory usage with a small increase of time cost. For example, on 910A, the max number of trainable frames per batch increases from 8 to 14 after recompute enabled.
-- `root_dir`: dataset root dir which should contains a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
-- `num_parallel_workers`: defalut is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)
+- use_recompute: by enabling it, you can reduce memory usage with a small increase in time cost. For example, on 910A, the max number of trainable frames per batch increases from 8 to 14 after recomputing is enabled.
+- `root_dir`: dataset root dir which should contain a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
+- `num_parallel_workers`: default is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)
