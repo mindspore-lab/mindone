@@ -81,8 +81,8 @@ class VideoDatasetForTrain(object):
 
         self.record_data_stat = record_data_stat
         if self.record_data_stat:
-            header = ",".join(['video_path', 'frames', 'resolution', 'load_time'])
-            self.stat_fp = os.path.join(cfg.output_dir, f'data_stat_rank_{rank_id}.csv')
+            header = ",".join(["video_path", "frames", "resolution", "load_time"])
+            self.stat_fp = os.path.join(cfg.output_dir, f"data_stat_rank_{rank_id}.csv")
             with open(self.stat_fp, "w", encoding="utf-8") as fp:
                 fp.write(header + "\n")
 
@@ -161,7 +161,7 @@ class VideoDatasetForTrain(object):
         filename = video_key
         if self.record_data_stat:
             vstart = time.time()
-    
+
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
             input_video=filename, fps=feature_framerate, viz=viz_mv
         )
@@ -169,9 +169,9 @@ class VideoDatasetForTrain(object):
         if self.record_data_stat:
             _raw_frames_len = len(frames) * 4
             _resolution = frames[0].shape[-3:-1]
-            _stat = f"{video_key},{_raw_frames_len},{_resolution},{time.time()-vstart}" 
+            _stat = f"{video_key},{_raw_frames_len},{_resolution},{time.time()-vstart}"
             with open(self.stat_fp, "a", encoding="utf-8") as fp:
-                fp.write(_stat+ "\n")
+                fp.write(_stat + "\n")
 
         total_frames = len(frame_types)
         start_indices = np.where(
@@ -204,7 +204,6 @@ class VideoDatasetForTrain(object):
             video_data[: len(frames), ...] = frames
             misc_data[: len(frames), ...] = misc_imgs
             mv_data[: len(frames), ...] = mvs
-        
 
         return vit_image, video_data, misc_data, mv_data
 

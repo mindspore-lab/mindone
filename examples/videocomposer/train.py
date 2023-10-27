@@ -38,7 +38,7 @@ from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params
 
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"  # large value may block the log of error info on modelarts
 
 logger = logging.getLogger(__name__)
 

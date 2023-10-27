@@ -1,63 +1,46 @@
 """
 VC training/finetuning
 """
+import json
 import logging
 import os
-import math
-import time
-import json
-import cv2
 
 # import datetime
-import shutil
 import sys
-from mindspore import dataset as ds
+import time
+
+import cv2
 import pandas as pd
 
-import numpy as np
-
 # from omegaconf import OmegaConf
-from vc.annotator.depth import midas_v3_dpt_large
-from vc.annotator.motion import extract_motion_vectors
-from vc.annotator.sketch import pidinet_bsd, sketch_simplification_gan
 from vc.config import Config
-from vc.data.dataset_train import build_dataset
-from vc.diffusion.latent_diffusion import LatentDiffusion
-from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
-from vc.trainer.lr_scheduler import build_lr_scheduler
-from vc.trainer.optim import build_optimizer
-from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weights, setup_logger
+from vc.utils import convert_to_abspath, setup_logger
 
 import mindspore as ms
-from mindspore import Model, context
-from mindspore.amp import custom_mixed_precision
+from mindspore import context
+from mindspore import dataset as ds
 from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-from mindspore.train.callback import LossMonitor, TimeMonitor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
 
-from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
-from ldm.modules.train.ema import EMA
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
-from ldm.modules.train.trainer import TrainOneStepWrapper
-from ldm.util import count_params
-from tools._common.clip import CLIPTokenizer
 
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+# os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
+
 
 def get_video_info(input_video):
     videocapture = cv2.VideoCapture(input_video)
     frames_num = videocapture.get(cv2.CAP_PROP_FRAME_COUNT)
     fps_video = videocapture.get(cv2.CAP_PROP_FPS)
     dur = frames_num / fps_video
-    
+
     videocapture.release()
     return frames_num, fps_video, dur
+
 
 class VidReader(object):
     def __init__(
@@ -108,8 +91,8 @@ class VidReader(object):
         self.rel_video_paths = rel_video_paths
         self.tokenizer = tokenizer  # bpe
 
-        self.stat_fp = os.path.join(cfg.output_dir, f'data_stat_rank_{rank_id}.csv')
-        header = ",".join(['video_path', 'caption', 'frames', 'fps', 'duration'])
+        self.stat_fp = os.path.join(cfg.output_dir, f"data_stat_rank_{rank_id}.csv")
+        header = ",".join(["video_path", "caption", "frames", "fps", "duration"])
         with open(self.stat_fp, "w", encoding="utf-8") as fp:
             fp.write(header + "\n")
 
@@ -120,14 +103,13 @@ class VidReader(object):
         video_key, cap_txt = self.video_cap_pairs[index]
         rel_video_path = self.rel_video_paths[index]
 
-        feature_framerate = self.feature_framerate
         if os.path.exists(video_key):
             try:
                 frames_num, fps_video, dur = get_video_info(video_key)
 
-                _stat = f"{rel_video_path},\"{cap_txt}\",{frames_num},{fps_video},{dur}" 
+                _stat = f'{rel_video_path},"{cap_txt}",{frames_num},{fps_video},{dur}'
                 with open(self.stat_fp, "a", encoding="utf-8") as fp:
-                    fp.write(_stat+ "\n")
+                    fp.write(_stat + "\n")
 
             except Exception as e:
                 print("Load video {} fails, Error: {}".format(video_key, e), flush=True)
@@ -175,7 +157,7 @@ def get_video_paths_captions(data_dir, only_use_csv_anno=False):
     abs_video_paths = [os.path.join(data_dir, f) for f in video_paths]
     print("D--: ", video_paths, all_captions)
 
-    return abs_video_paths, all_captions, video_paths 
+    return abs_video_paths, all_captions, video_paths
 
 
 def build_dataset(cfg, device_num, rank_id, tokenizer):
@@ -282,31 +264,31 @@ def main(cfg):
     start = time.time()
     warmup = 0
     warmup_steps = 2
-    warmup_stesp = min(num_tries-1, warmup_steps)
+    warmup_steps = min(num_tries - 1, warmup_steps)
     iterator = dataloader.create_dict_iterator()
     for i, batch in enumerate(iterator):
         logger.info(f"{i}/{num_batches}")
-        #for k in batch:
+        # for k in batch:
         #    print(k, batch[k].shape)  # , batch[k].min(), batch[k].max())
         if i == warmup_steps - 1:
             warmup = time.time() - start
     tot_time = time.time() - start - warmup
     mean = tot_time / (num_tries - warmup_steps)
     print("Avg batch loading time: ", mean)
-    
-    # saving csv annotation 
-    
+
+    # saving csv annotation
+
     df = pd.read_csv(stat_fp)
     max_duration = 30
-    short_df = df[df['duration'] <= max_duration]
+    short_df = df[df["duration"] <= max_duration]
     print("Filter by max_duration ", max_duration)
     print(short_df)
-    short_df = short_df[['video_path', 'caption']]
+    short_df = short_df[["video_path", "caption"]]
 
-    save_fp = os.path.join(cfg.output_dir, f'video_caption_short_rank_{rank_id}.csv')
+    save_fp = os.path.join(cfg.output_dir, f"video_caption_short_rank_{rank_id}.csv")
     short_df.to_csv(save_fp, index=False, sep=",")
 
-   
+
 if __name__ == "__main__":
     # 0. parse config
     from configs.train_base import cfg  # base config from train_base.py
