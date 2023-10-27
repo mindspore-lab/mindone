@@ -263,7 +263,7 @@ class CLIPTokenizer:
             return_batch=return_batch,
             **kwargs,
         )
-        
+
         return output_dict
 
     def truncate_sequences(self, ids, id_pairs, nums_tokens_to_remove):
