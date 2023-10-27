@@ -3,45 +3,24 @@ VC training/finetuning
 """
 import logging
 import os
-import math
+import sys
 import time
 
-# import datetime
-import shutil
-import sys
-
-import numpy as np
-
 # from omegaconf import OmegaConf
-from vc.annotator.depth import midas_v3_dpt_large
-from vc.annotator.sketch import pidinet_bsd, sketch_simplification_gan
 from vc.config import Config
 from vc.data.dataset_train import build_dataset
-from vc.diffusion.latent_diffusion import LatentDiffusion
-from vc.models import AutoencoderKL, FrozenOpenCLIPEmbedder, FrozenOpenCLIPVisualEmbedder, UNetSD_temporal
-from vc.trainer.lr_scheduler import build_lr_scheduler
-from vc.trainer.optim import build_optimizer
-from vc.utils import CUSTOM_BLACK_LIST, convert_to_abspath, get_abspath_of_weights, setup_logger
+from vc.utils import convert_to_abspath, setup_logger
 
 import mindspore as ms
-from mindspore import Model, context
-from mindspore.amp import custom_mixed_precision
+from mindspore import context
 from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-from mindspore.train.callback import LossMonitor, TimeMonitor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
 
-from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
-from ldm.modules.train.ema import EMA
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
-from ldm.modules.train.trainer import TrainOneStepWrapper
-from ldm.util import count_params
 from tools._common.clip import CLIPTokenizer
-
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
 
@@ -101,9 +80,9 @@ def check_config(cfg):
     cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
 
     # TODO: set sink_size and epochs to solve it
-    #assert not (
+    # assert not (
     #    cfg.step_mode and cfg.dataset_sink_mode
-    #), f"step_mode is enabled, dataset_sink_mode should be set to False, but got {cfg.dataset_sink_mode})"
+    # ), f"step_mode is enabled, dataset_sink_mode should be set to False, but got {cfg.dataset_sink_mode})"
 
 
 def main(cfg):
@@ -124,11 +103,11 @@ def main(cfg):
     start = time.time()
     warmup = 0
     warmup_steps = 2
-    warmup_stesp = min(num_tries-1, warmup_steps)
+    warmup_steps = min(num_tries - 1, warmup_steps)
     iterator = dataloader.create_dict_iterator()
     for i, batch in enumerate(iterator):
         logger.info(f"{i}/{num_batches}")
-        #for k in batch:
+        # for k in batch:
         #    print(k, batch[k].shape)  # , batch[k].min(), batch[k].max())
         if i == warmup_steps - 1:
             warmup = time.time() - start
@@ -137,7 +116,7 @@ def main(cfg):
     mean = tot_time / (num_tries - warmup_steps)
     print("Avg batch loading time: ", mean)
 
-   
+
 if __name__ == "__main__":
     # 0. parse config
     from configs.train_base import cfg  # base config from train_base.py

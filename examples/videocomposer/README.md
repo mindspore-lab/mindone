@@ -15,31 +15,57 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
     - [x] Graph Mode for Training
     - [x] Recompute
 
-### TODOs
-- Speed Up & Memory Usage Reduction (e.g., Flash Attention)
-- Support more training tasks
-- Support more training features: EMA, Gradient accumulation, Gradient clipping
-- Evaluation
 
-## Installation
+## Environment Setup
 
-1. Create virtual environment
-    ```shell
-    conda create -n ms2.0 python=3.9
-    conda activate ms2.0
+**NOTES:** The training code of VC is well tested on **NPU 910B + MindSpore 2.2 (20230907) + CANN 7.0T2 + Ascend driver 23.0.rc3.b060**. Other mindspore and CANN versions may suffer from precision issue.
+
+### 1. Framework Installation
+- For 910B NPU, please make sure the follow packages are installed with the exact version.
+    1. CANN 7.0-T2. Version check:
+    ```
+        ll /usr/local/Ascend/latest
+    ```
+    2. Ascend driver 23.0.rc3.b060. Version check:
+    ```
+        cat /usr/local/Ascend/driver/version.info
+    ```
+    3. MindSpore 2.2 (20230907)
+    ```
+        pip show mindspore
     ```
 
-2. Install requirements
+### 2. Pacthing
+
+For CANN 7.0T2, please disable `AdamApplyOneFusionPasss` to avoid overflow in training. It needs to be done by modifying `/usr/local/Ascend/latest/ops/built-in/fusion_pass/config/fusion_config.json` as follows:
+    ```json
+   	{
+    "Switch":{
+        "GraphFusion":{
+            "AdamApplyOneFusionPass":"off",  # ==> add this line in the file
+			"GroupConv2DFusionPass": "off",
+			...
+        },
+        "UBFusion":{
+			...
+        }
+    }
+	}
+    ```
+
+### 3. Pip Package Installation
     ```shell
     pip install -r requirements.txt
     ```
 
-    Install `ffmpeg` by
+    For `ffmpeg`, install by
     ```shell
     conda install ffmpeg
     ```
 
     If case you fail to install `motion-vector-extractor` via pip, please manually install it referring to the [official](https://github.com/LukasBommes/mv-extractor) repo.
+
+> Notes for 910A: the code is also runnable on 910A for training and inference. But the number of frames `max_frames` for training should be changed from 16 to 8 frames or fewer due to memory limitation.
 
 ## Prepare Pretrained Weights
 
@@ -171,30 +197,9 @@ The compiling time is much shorter compared with the online inference mode.
 ## Training
 
 ### Standalone Training:
-To run training on a specific task, please refer to `run_train.sh`:
+To run training on a specific task, please refer to `run_train.sh`.
 
-```bash
-export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERROR, 3:FATAL
-export HCCL_CONNECT_TIMEOUT=6000
-export ASCEND_GLOBAL_LOG_LEVEL=1  # Global log message level for Ascend. Setting it to 0 can slow down the process
-export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
-export DEVICE_ID=$1  # The device id to runing training on
-
-task_name=train_exp02_motion_transfer  # the default training task
-yaml_file=configs/${task_name}.yaml
-output_path=outputs
-rm -rf ${output_path:?}/${task_name:?}
-mkdir -p ${output_path:?}/${task_name:?}
-export MS_COMPILER_CACHE_PATH=${output_path:?}/${task_name:?}
-
-nohup python -u train.py  \
-     -c $yaml_file  \
-     --output_dir $output_path/$task_name \
-    > $output_path/$task_name/train.log 2>&1 &
-
-```
-
-You should change the `task_name` and `yaml_file` according to your task, then run:
+After changing the `task_name` and `yaml_file` in the script for your task, run:
 
 ```shell
 bash run_train.sh $DEVICE_ID
