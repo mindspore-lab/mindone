@@ -113,6 +113,7 @@ if __name__ == "__main__":
         "model_weights/v2-1_512-ema-pruned.ckpt",
         "model_weights/sketch_simplification_gan.pth",
         "model_weights/table5_pidinet.pth",
+        "model_weights/non_ema_141000_no_watermark.pth",
     ]
 
     for pytorch_model_path in pytorch_model_paths:
@@ -132,3 +133,62 @@ if __name__ == "__main__":
         dst_path = f"{src_path}.bak"
         print(f"moving {src_path} to {dst_path} ...")
         shutil.move(src_path, dst_path)
+
+    path = "model_weights/non_ema_141000_no_watermark.npy"
+
+    from vc.config.base import cfg
+    from vc.models.unet_sd import UNetSD_temporal
+
+    model = UNetSD_temporal(
+        cfg=cfg,
+        in_dim=cfg.unet_in_dim,
+        concat_dim=cfg.unet_concat_dim,
+        dim=cfg.unet_dim,
+        context_dim=cfg.unet_context_dim,
+        out_dim=cfg.unet_out_dim,
+        dim_mult=cfg.unet_dim_mult,
+        num_heads=cfg.unet_num_heads,
+        head_dim=cfg.unet_head_dim,
+        num_res_blocks=cfg.unet_res_blocks,
+        attn_scales=cfg.unet_attn_scales,
+        dropout=cfg.unet_dropout,
+        temporal_attention=cfg.temporal_attention,
+        temporal_attn_times=cfg.temporal_attn_times,
+        use_checkpoint=cfg.use_checkpoint,
+        use_fps_condition=cfg.use_fps_condition,
+        use_sim_mask=cfg.use_sim_mask,
+        video_compositions=cfg.video_compositions,
+        misc_dropout=cfg.misc_dropout,
+        p_all_zero=cfg.p_all_zero,
+        p_all_keep=cfg.p_all_zero,
+        use_fp16=cfg.use_fp16,
+        use_adaptive_pool=False,
+    )
+
+    def fix_typo(sd):
+        return {k.replace("temopral_conv", "temporal_conv"): v for k, v in sd.items()}
+
+    def fix_typo_1(sd):
+        return {k.replace("input_blocks.3.op.weight", "input_blocks.3.0.op.weight"): v for k, v in sd.items()}
+
+    def fix_typo_2(sd):
+        return {k.replace("input_blocks.3.op.bias", "input_blocks.3.0.op.bias"): v for k, v in sd.items()}
+
+    def fix_typo_3(sd):
+        return {k.replace("input_blocks.6.op.weight", "input_blocks.6.0.op.weight"): v for k, v in sd.items()}
+
+    def fix_typo_4(sd):
+        return {k.replace("input_blocks.6.op.bias", "input_blocks.6.0.op.bias"): v for k, v in sd.items()}
+
+    def fix_typo_5(sd):
+        return {k.replace("input_blocks.9.op.weight", "input_blocks.9.0.op.weight"): v for k, v in sd.items()}
+
+    def fix_typo_6(sd):
+        return {k.replace("input_blocks.9.op.bias", "input_blocks.9.0.op.bias"): v for k, v in sd.items()}
+
+    load_pt_weights_in_model(
+        model,
+        checkpoint_file_pt=path,
+        state_dict_refiners=(fix_typo, fix_typo_1, fix_typo_2, fix_typo_3, fix_typo_4, fix_typo_5, fix_typo_6),
+    )
+    print("done!!")
