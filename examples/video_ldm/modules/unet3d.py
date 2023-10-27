@@ -1,6 +1,6 @@
 import numpy as np
 
-from mindspore import Parameter, Tensor, nn
+from mindspore import Parameter, Tensor, float16, nn
 
 from ...stable_diffusion_v2.ldm.modules.attention import BasicTransformerBlock
 from ...stable_diffusion_v2.ldm.modules.diffusionmodules.openaimodel import UNetModel
@@ -143,25 +143,62 @@ class TemporalTransformer(nn.Cell):
 
 
 class VideoLDMUNetModel(UNetModel):
-    def __init__(self, num_frames=5, **kwargs):
+    def __init__(self, num_frames=5, fp16_output: bool = True, **kwargs):
         super().__init__(**kwargs)
+        self._temporal_params = []  # temporal parameters names
+        self._params_map = {}  # map old parameter names to new names (after injecting 3D layers): {old_name: new_name}
 
         # inject 3D convolutions and temporal attention into input and output blocks
-        for blocks in [self.input_blocks, self.output_blocks]:
-            for i in range(len(blocks)):
-                names = [block.cls_name for block in blocks[i]]
+        for blocks, b_name in zip([self.input_blocks, self.output_blocks], ["input_blocks", "output_blocks"]):
+            for b_id in range(len(blocks)):
+                names = [block.cls_name for block in blocks[b_id]]
                 if "ResBlock" in names and "SpatialTransformer" in names:
-                    out_channels = blocks[i][0].out_channels
-                    blocks[i].insert(1, Conv3DLayer(out_channels, out_channels, num_frames))
-                    blocks[i].append(
-                        TemporalTransformer(
-                            out_channels,
-                            num_frames,
-                            n_heads=8,
-                            d_head=out_channels // 8,
-                            dropout=1.0,
-                            context_dim=kwargs["context_dim"],
-                            depth=2,
-                            enable_flash_attention=kwargs["enable_flash_attention"],
-                        )
+                    out_channels = blocks[b_id][0].out_channels
+                    conv3d = Conv3DLayer(out_channels, out_channels, num_frames)
+                    tt = TemporalTransformer(
+                        out_channels,
+                        num_frames,
+                        n_heads=8,
+                        d_head=out_channels // 8,
+                        dropout=1.0,
+                        context_dim=kwargs["context_dim"],
+                        depth=2,
+                        enable_flash_attention=kwargs["enable_flash_attention"],
                     )
+
+                    if fp16_output:
+                        conv3d = conv3d.to_float(float16)
+                        tt = tt.to_float(float16)
+
+                    blocks[b_id].insert(1, conv3d)
+                    if len(blocks[b_id]) == 3:
+                        blocks[b_id].append(tt)
+                    else:
+                        blocks[b_id].insert(3, tt)
+
+                    self._temporal_params.extend(
+                        [name for name, _ in conv3d.parameters_and_names(name_prefix=f"{b_name}.{b_id}.1")]
+                    )
+                    self._temporal_params.extend(
+                        [name for name, _ in tt.parameters_and_names(name_prefix=f"{b_name}.{b_id}.3")]
+                    )
+
+                    self._params_map.update(  # Spatial Transformer
+                        {
+                            f"{b_name}.{b_id}.1." + name: f"{b_name}.{b_id}.2." + name
+                            for name, _ in blocks[b_id][2].parameters_and_names()
+                        }
+                    )
+                    for i in range(4, len(blocks[b_id])):  # remaining layers after Temporal Transformer
+                        self._params_map.update(
+                            {
+                                f"{b_name}.{b_id}.{i - 2}." + name: f"{b_name}.{b_id}.{i}." + name
+                                for name, _ in blocks[b_id][i].parameters_and_names()
+                            }
+                        )
+
+    def get_temporal_params(self, prefix: str = "") -> set:
+        return {prefix + name for name in self._temporal_params}
+
+    def get_weights_map(self, prefix: str = "") -> dict:
+        return {prefix + old_name: prefix + new_name for old_name, new_name in self._params_map.items()}
