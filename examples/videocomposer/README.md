@@ -301,8 +301,8 @@ The training performance for exp02-motion transfer is as follows.
 The video generation speed is as follows.
 | **NPU**     | ** Framework **    | ** Sampler ** | ** Steps ** |** Performance (s/trial)**  |
 |-------------|-------------------|----------------|----------------|----------------|
-| 910B        | MindSpore	 |  DDIM   	|	50 	|	12	|
-| 910B        | MindSpore-Lite	 |   DDIM 	|	50	| 	11.6	|
+| 910B        | MindSpore-2.2(20230907)	 |  DDIM   	|	50 	|	12	|
+| 910B        | MindSpore-Lite-2.2(20230907) |   DDIM 	|	50	| 	11.6	|
 
 Note that with MindSpore-Lite, the graph compilation time is eliminated.
 
