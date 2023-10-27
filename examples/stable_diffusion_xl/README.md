@@ -6,8 +6,9 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 - [x] Text-to-image generation with SDXL-1.0-Base/SDXL-1.0-PipeLine(Base+Refiner).
 - [x] Image-to-image generation with SDXL-1.0-Refiner.
-- [x] Support SoTA diffusion process samplers including EulerEDMSampler, etc. (under continuous update)
+- [x] Support 7 SoTA diffusion process samplers.
 - [x] [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base/SDXL-1.0-Refiner.
+- [ ] [DreamBooth](https://arxiv.org/abs/2208.12242) fine-tune with SDXL-1.0-Base.
 - [ ] Vanilla fine-tune.
 - [ ] Quantitative evaluation for diffusion models: FID, CLIP-Score
 - [x] Memory Efficient Sampling and Tuning: [Flash-Attention](https://arxiv.org/abs/2205.14135), Auto-Mix-Precision, Recompute, etc. (under continuous update)

@@ -12,7 +12,6 @@ import ftfy
 import numpy as np
 import regex as re
 
-import mindspore as ms
 from mindspore import Tensor
 
 # https://stackoverflow.com/q/62691279
@@ -162,7 +161,7 @@ def decode(output_ids: Tensor):
     return _tokenizer.decode(output_ids)
 
 
-def tokenize(texts: Union[str, List[str]], context_length: int = 77) -> Tensor:
+def tokenize(texts: Union[str, List[str]], context_length: int = 77) -> [np.ndarray, np.ndarray]:
     """
     Returns the tokenized representation of given input string(s)
 
@@ -184,11 +183,13 @@ def tokenize(texts: Union[str, List[str]], context_length: int = 77) -> Tensor:
     eot_token = _tokenizer.encoder["<end_of_text>"]
     all_tokens = [[sot_token] + _tokenizer.encode(text) + [eot_token] for text in texts]
     result = np.zeros((len(all_tokens), context_length), np.int32)
+    length = np.zeros(len(all_tokens), np.int32)
 
     for i, tokens in enumerate(all_tokens):
         if len(tokens) > context_length:
             tokens = tokens[:context_length]  # Truncate
             tokens[-1] = eot_token
         result[i, : len(tokens)] = np.array(tokens, np.int32)
+        length[i] = len(tokens)
 
-    return Tensor(result, dtype=ms.int32)
+    return result, length
