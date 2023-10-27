@@ -15,6 +15,12 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
     - [x] Graph Mode for Training
     - [x] Recompute
 
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/eb8a19d3-9ce2-4a31-9696-d6a13857e986" width="720" />
+</div>
+<p align="center">
+<em> VideoComposer Architecture </em>
+</p>
 
 ## Environment Setup
 
@@ -278,3 +284,25 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 - use_recompute: by enabling it, you can reduce memory usage with a small increase in time cost. For example, on 910A, the max number of trainable frames per batch increases from 8 to 14 after recomputing is enabled.
 - `root_dir`: dataset root dir which should contain a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
 - `num_parallel_workers`: default is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)
+
+
+## Results
+
+### Training
+The training performance for exp02-motion transfer is as follows.
+
+| **NPU**     | ** Num. Cards**    | **Dataset**  |  **Batch size** | ** Performance (ms/step)**  |
+|-------------|----------------|---------------|----------------|----------------|
+| 910B        | 1x8 		| WebVid     | 	1	|   ~950	|
+| 910B        | 8x8 		| WebVid     | 	1	|   ~1100 	|
+
+### Inference
+
+The video generation speed is as follows.
+| **NPU**     | ** Framework **    | ** Sampler ** | ** Steps ** |** Performance (s/trial)**  |
+|-------------|-------------------|----------------|----------------|----------------|
+| 910B        | MindSpore	 |  DDIM   	|	50 	|	12	|
+| 910B        | MindSpore-Lite	 |   DDIM 	|	50	| 	11.6	|
+
+Note that with MindSpore-Lite, the graph compilation time is eliminated.
+
