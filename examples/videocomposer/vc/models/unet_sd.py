@@ -15,6 +15,7 @@ from .attention import (
     FeedForward,
     GroupNorm,
     RelativePositionBias,
+    SiLU,
     SpatialTransformer,
     TemporalAttentionBlock,
     TemporalAttentionMultiBlock,
@@ -268,7 +269,7 @@ class Upsample(nn.Cell):
             ).to_float(self.dtype)
 
     def construct(self, x):
-        assert x.shape[1] == self.channels
+        # assert x.shape[1] == self.channels
         if self.dims == 3:
             # x = ops.interpolate(x, (x.shape[2], x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
             x = ops.ResizeNearestNeighbor((x.shape[2], x.shape[3] * 2, x.shape[4] * 2))(x)
@@ -320,8 +321,8 @@ class ResBlock(nn.Cell):
         self.dtype = dtype
 
         self.in_layers = nn.SequentialCell(
-            GroupNorm(32, channels).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, channels),
+            SiLU(),
             nn.Conv2d(channels, self.out_channels, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
         )
 
@@ -337,15 +338,15 @@ class ResBlock(nn.Cell):
             self.h_upd = self.x_upd = nn.Identity()
 
         self.emb_layers = nn.SequentialCell(
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Dense(
                 emb_channels,
                 2 * self.out_channels if use_scale_shift_norm else self.out_channels,
             ).to_float(self.dtype),
         )
         self.out_layers = nn.SequentialCell(
-            GroupNorm(32, self.out_channels).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, self.out_channels),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             zero_module(
                 nn.Conv2d(self.out_channels, self.out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
@@ -433,7 +434,7 @@ class Downsample(nn.Cell):
             self.op = avg_pool_nd(dims, kernel_size=stride, stride=stride)
 
     def construct(self, x):
-        assert x.shape[1] == self.channels
+        # assert x.shape[1] == self.channels
         return self.op(x)
 
 
@@ -471,8 +472,6 @@ class UNetSD_temporal(nn.Cell):
         video_compositions=["text", "mask"],
         p_all_zero=0.1,
         p_all_keep=0.1,
-        zero_y=None,
-        black_image_feature=None,
         use_fp16=False,
         use_adaptive_pool=True,
         use_droppath_masking=True,
@@ -485,8 +484,6 @@ class UNetSD_temporal(nn.Cell):
         num_heads = num_heads if num_heads else dim // 32
         super(UNetSD_temporal, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
-        self.zero_y = zero_y
-        self.black_image_feature = black_image_feature
         self.cfg = cfg
         self.in_dim = in_dim
         self.dim = dim
@@ -531,12 +528,12 @@ class UNetSD_temporal(nn.Cell):
         # embeddings
         self.time_embed = nn.SequentialCell(
             nn.Dense(dim, embed_dim).to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Dense(embed_dim, embed_dim).to_float(self.dtype),
         )
         self.pre_image_condition = nn.SequentialCell(
             nn.Dense(1024, 1024).to_float(self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            SiLU(),
             nn.Dense(1024, 1024).to_float(self.dtype),
         )
 
@@ -544,12 +541,12 @@ class UNetSD_temporal(nn.Cell):
         if "depthmap" in self.video_compositions:
             self.depth_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=3, stride=3),
                 nn.Conv2d(
                     concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                 ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Conv2d(concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True).to_float(
                     self.dtype
                 ),
@@ -571,12 +568,12 @@ class UNetSD_temporal(nn.Cell):
             # ks, st = get_kernel_size_and_stride(256, 128)
             self.motion_embedding = nn.SequentialCell(
                 nn.Conv2d(2, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=2, stride=2),
                 nn.Conv2d(
                     concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                 ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Conv2d(concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True).to_float(
                     self.dtype
                 ),
@@ -598,12 +595,12 @@ class UNetSD_temporal(nn.Cell):
         if "canny" in self.video_compositions:
             self.canny_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=3, stride=3),
                 nn.Conv2d(
                     concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                 ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Conv2d(concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True).to_float(
                     self.dtype
                 ),
@@ -625,14 +622,14 @@ class UNetSD_temporal(nn.Cell):
             self.masked_embedding = (
                 nn.SequentialCell(
                     nn.Conv2d(4, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                    nn.SiLU().to_float(self.dtype),
+                    SiLU(),
                     nn.AdaptiveAvgPool2d((128, 128))
                     if self.use_adaptive_pool
                     else nn.AvgPool2d(kernel_size=3, stride=3),
                     nn.Conv2d(
                         concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                     ).to_float(self.dtype),
-                    nn.SiLU().to_float(self.dtype),
+                    SiLU(),
                     nn.Conv2d(
                         concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                     ).to_float(self.dtype),
@@ -656,12 +653,12 @@ class UNetSD_temporal(nn.Cell):
         if "sketch" in self.video_compositions:
             self.sketch_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=3, stride=3),
                 nn.Conv2d(
                     concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                 ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Conv2d(concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True).to_float(
                     self.dtype
                 ),
@@ -682,12 +679,12 @@ class UNetSD_temporal(nn.Cell):
         if "single_sketch" in self.video_compositions:
             self.single_sketch_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=3, stride=3),
                 nn.Conv2d(
                     concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                 ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Conv2d(concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True).to_float(
                     self.dtype
                 ),
@@ -708,12 +705,12 @@ class UNetSD_temporal(nn.Cell):
         if "local_image" in self.video_compositions:
             self.local_image_embedding = nn.SequentialCell(
                 nn.Conv2d(3, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.AdaptiveAvgPool2d((128, 128)) if self.use_adaptive_pool else nn.AvgPool2d(kernel_size=3, stride=3),
                 nn.Conv2d(
                     concat_dim * 4, concat_dim * 4, 3, stride=2, pad_mode="pad", padding=1, has_bias=True
                 ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Conv2d(concat_dim * 4, concat_dim, 3, stride=2, pad_mode="pad", padding=1, has_bias=True).to_float(
                     self.dtype
                 ),
@@ -749,7 +746,7 @@ class UNetSD_temporal(nn.Cell):
         if self.use_fps_condition:
             self.fps_embedding = nn.SequentialCell(
                 nn.Dense(dim, embed_dim).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                SiLU(),
                 nn.Dense(embed_dim, embed_dim).to_float(self.dtype),
             )
             self.fps_embedding[-1].weight.set_data(
@@ -1008,8 +1005,8 @@ class UNetSD_temporal(nn.Cell):
 
         # head
         self.out = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, out_dim),
+            SiLU(),
             nn.Conv2d(out_dim, self.out_dim, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
         )
 
@@ -1049,12 +1046,12 @@ class UNetSD_temporal(nn.Cell):
         # if ckpt_not_load:
         #    _logger.warning(f"Checkput params not used: {ckpt_not_load}")
 
+    # Remember that the inputs and the default value should be consistent with vc/infer_engine/schedulers/sampler.py - DiffusionSampler
     def construct(
         self,
         x,
         t,
         y=None,
-        zero_y=None,
         depth=None,
         image=None,  # Style Image encoded by clip-vit, shape: [bs, 1, 1024]
         motion=None,
@@ -1063,7 +1060,6 @@ class UNetSD_temporal(nn.Cell):
         masked=None,
         canny=None,
         sketch=None,
-        histogram=None,
         fps=None,
         video_mask=None,
         focus_present_mask=None,
@@ -1242,16 +1238,10 @@ class UNetSD_temporal(nn.Cell):
         else:
             e = self.time_embed(sinusoidal_embedding(t, self.dim))
 
-        # context = x.new_zeros((batch, 0, self.context_dim))  # empty tensor?
-        if y is not None:
-            if self.use_droppath_masking:
-                y_context = self.misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
-            else:
-                y_context = self.misc_droppath(y)
-            context = y_context  # (bs, 77 ,1024)
+        if self.use_droppath_masking:
+            context = self.misc_droppath(y, zero_mask=zero_mask, keep_mask=keep_mask)
         else:
-            y_context = zero_y.tile((batch, 1, 1))
-            context = y_context  # ops.cat([context, y_context], axis=1)
+            context = self.misc_droppath(y)
 
         if image is not None:
             if self.use_droppath_masking:

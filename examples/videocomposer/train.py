@@ -32,6 +32,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../stable_diffusion_v2/")))
 
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from ldm.modules.train.ema import EMA
 from ldm.modules.train.parallel_config import ParallelConfig
 from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
@@ -74,6 +75,7 @@ def init_env(args):
         # max_device_memory="30GB", # adapt for 910b
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
+    # ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})  # TODO: testing bf16
 
     # logger
     # ct = datetime.datetime.now().strftime("_%y%m%d_%H_%M")
@@ -95,6 +97,11 @@ def check_config(cfg):
     cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
     cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
     cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
+
+    # TODO: set sink_size and epochs to solve it
+    assert not (
+        cfg.step_mode and cfg.dataset_sink_mode
+    ), f"step_mode is enabled, dataset_sink_mode should be set to False, but got {cfg.dataset_sink_mode})"
 
 
 def main(cfg):
@@ -138,9 +145,6 @@ def main(cfg):
     logger.info("vae init")
 
     # 2.3 unet3d with STC encoders
-    black_image_feature = ms.Tensor(
-        np.zeros([1, 1, cfg.vit_dim]), ms.float32
-    )  # img feature vector of vit-h is fxed to len of 1024
     unet = UNetSD_temporal(
         cfg=cfg,
         in_dim=cfg.unet_in_dim,
@@ -163,14 +167,16 @@ def main(cfg):
         misc_dropout=cfg.misc_dropout,
         p_all_zero=cfg.p_all_zero,
         p_all_keep=cfg.p_all_zero,
-        zero_y=None,  # assume we always use text prompts  (y, even y="")
-        black_image_feature=black_image_feature,
         use_fp16=cfg.use_fp16,
         use_adaptive_pool=cfg.use_adaptive_pool,
         use_recompute=cfg.use_recompute,
     )
     # TODO: use common checkpoiont download, mapping, and loading
-    unet.load_state_dict(cfg.resume_checkpoint)
+    if cfg.resume_checkpoint.endswith(".ckpt") and os.path.exists(cfg.resume_checkpoint):
+        unet.load_state_dict(cfg.resume_checkpoint)
+        logger.warning(f"UNet loaded from {cfg.resume_checkpoint}")
+    else:
+        logger.warning("UNet checkpoint is not given or not exists. UNet will be trained from scratch!!!")
     unet = unet.set_train(True)
 
     # 2.4 other NN-based condition extractors
@@ -266,9 +272,16 @@ def main(cfg):
         decay_steps=cfg.decay_steps,
         num_epochs=cfg.epochs,
     )
-    optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate)
-    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65536, scale_factor=2, scale_window=1000)
-
+    optimizer = build_optimizer(ldm_with_loss, cfg, learning_rate, eps=cfg.optim_eps)
+    loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=cfg.loss_scale, scale_factor=2, scale_window=1000)
+    ema = (
+        EMA(
+            ldm_with_loss.unet,
+            ema_decay=0.9999,
+        )
+        if cfg.use_ema
+        else None
+    )
     net_with_grads = TrainOneStepWrapper(
         ldm_with_loss,
         optimizer=optimizer,
@@ -277,7 +290,7 @@ def main(cfg):
         gradient_accumulation_steps=cfg.gradient_accumulation_steps,
         clip_grad=False,  # args.clip_grad,
         clip_norm=1.0,  # args.max_grad_norm,
-        ema=None,  # TODO: add EMA
+        ema=ema,
     )
 
     model = Model(net_with_grads)
@@ -295,10 +308,10 @@ def main(cfg):
             use_lora=False,
             rank_id=rank_id,
             ckpt_save_dir=cfg.output_dir,
-            ema=None,
+            ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=cfg.ckpt_max_keep,
-            step_mode=False,
+            step_mode=cfg.step_mode,
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
             start_epoch=start_epoch,
@@ -317,10 +330,12 @@ def main(cfg):
                 f"Distributed mode: {cfg.use_parallel}",
                 f"Dataset sink mode: {cfg.dataset_sink_mode}",
                 f"Data path: {cfg.root_dir}",
+                f"Num batches per card: {num_batches}",
                 "Model: VideoComposer",
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
                 f"Num trainable params: {num_trainable_params:,}",
+                f"Optimizer: {cfg.optim}",
                 f"Learning rate: {cfg.learning_rate}",
                 f"Batch size: {cfg.batch_size}",
                 f"Max frames: {cfg.max_frames}",
@@ -328,6 +343,7 @@ def main(cfg):
                 f"Num epochs: {cfg.epochs}",
                 f"Use fp16: {cfg.use_fp16}",
                 f"Use recompute: {cfg.use_recompute}",
+                f"Use EMA: {cfg.use_ema}",
             ]
         )
         key_info += "\n" + "=" * 50

@@ -19,8 +19,6 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 - Speed Up & Memory Usage Reduction (e.g., Flash Attention)
 - Support more training tasks
 - Support more training features: EMA, Gradient accumulation, Gradient clipping
-- More effieicent online inference
-- 910B + Lite inference
 - Evaluation
 
 ## Installation
@@ -49,25 +47,53 @@ The root path of downloading must be `${PROJECT_ROOT}\model_weights`, where `${P
 
 Download the checkpoints shown in model_weights/README.md from https://download.mindspore.cn/toolkits/mindone/videocomposer/model_weights/ and https://download.mindspore.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt
 
+## Prepare Training Data
+The training videos and their captions (.txt) should be placed in the following folder struture.
+```
+ ├── {DATA_DIR}
+ │   ├── video_name1.mp4
+ │   ├── video_name1.txt
+ │   ├── video_name2.mp4
+ │   ├── video_name2.txt
+ │   ├── ...
+```
+Run `examples/videocomposer/tools/data_converter.py` to generate `video_caption.csv` in `{DATA_DIR}`.
+```
+python data_converter.py {DATA_DIR}
+```
+Format of `video_caption.csv`:
+```
+video,caption
+video_name1.mp4,"an airliner is taxiing on the tarmac at Dubai Airport"
+video_name2.mp4,"a pigeon sitting on the street near the house"
+...
+```
+
 ## Inference
 
-To run all video generation tasks, please run
+### Online Inference
+
+To run all video generation tasks on 910A or 910B, please run
 
 ```shell
-bash run_net.sh
+bash run_infer.sh
 ```
 
-To run a single task, you can pick the corresponding snippet of code in `run_net.sh`, such as
+On 910A, to run a single task, you can pick the corresponding snippet of code in `run_infer.sh`, such as
 
 ```shell
-python run_net.py\
-    --cfg configs/exp02_motion_transfer_vs_style.yaml\
-    --seed 9999\
-    --input_video "demo_video/motion_transfer.mp4"\
-    --image_path "demo_video/moon_on_water.jpg"\
-    --style_image "demo_video/moon_on_water.jpg"\
+# export MS_ENABLE_GE=1  # for 910B
+# export MS_ENABLE_REF_MODE=1 # for 910B and Mindspore > 2.1
+python infer.py \
+    --cfg configs/exp02_motion_transfer_vs_style.yaml \
+    --seed 9999 \
+    --input_video "demo_video/motion_transfer.mp4" \
+    --image_path "demo_video/moon_on_water.jpg" \
+    --style_image "demo_video/moon_on_water.jpg" \
     --input_text_desc "A beautiful big silver moon on the water"
 ```
+
+On 910B, you need enable the GE Mode first by running `export MS_ENABLE_GE=1`. And for Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
 
 It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
 
@@ -76,7 +102,70 @@ It takes additional time for graph compilation to execute the first step inferen
 You can adjust the arguemnts in `vc/config/base.py` (lower-priority) or `configs/exp{task_name}.yaml` (higher-priority, will overwrite base.py if overlap). Below are the key arguments influencing inference speed and memory usage.
 
 - use_fp16: whether enable mixed precision inference
-- mode: 0 for use graph mode,  1 for pynative mode
+
+### Offline (Mindspore Lite) Inference
+
+#### Install Mindspore Lite
+You need to have a Mindspore Lite Environment first for offline inference.
+
+To install Mindspore Lite, please Refer to [Lite install](https://mindspore.cn/lite/docs/zh-CN/r2.1/use/downloads.html)
+
+1. Download the supporting tar.gz and whl packages according to the environment.
+2. Unzip the tar.gz package and install the corresponding version of the WHL package.
+
+   ```shell
+   tar -zxvf mindspore-lite-2.1.0-*.tar.gz
+   pip install mindspore_lite-2.1.0-*.whl
+   ```
+
+3. Configure Lite's environment variables
+
+   `LITE_HOME` is the folder path extracted from tar.gz, and it is recommended to use an absolute path.
+
+   ```shell
+   export LITE_HOME=/path/to/mindspore-lite-{version}-{os}-{platform}
+   export LD_LIBRARY_PATH=$LITE_HOME/runtime/lib:$LITE_HOME/tools/converter/lib:$LD_LIBRARY_PATH
+   export PATH=$LITE_HOME/tools/converter/converter:$LITE_HOME/tools/benchmark:$PATH
+
+
+#### Export Mindspore Lite Model
+
+For different task, you can use the corresponding snippet of the code in `run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
+
+```shell
+# export MS_ENABLE_GE=1  # for 910B
+# export MS_ENABLE_REF_MODE=1 # for 910B and Mindspore > 2.1
+python export.py\
+    --cfg configs/exp02_motion_transfer_vs_style.yaml \
+    --input_video "demo_video/motion_transfer.mp4" \
+    --image_path "demo_video/moon_on_water.jpg" \
+    --style_image "demo_video/moon_on_water.jpg" \
+    --input_text_desc "A beautiful big silver moon on the water"
+```
+
+The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. And please note that on 910B, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variable befor running the conversion.
+
+```shell
+unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910B
+unset MS_ENABLE_REF_MODE  # Remember to unset MS_ENABLE_REF_MODE on 910B and Mindspore > 2.1
+python convert_lite.py
+```
+
+#### Inference using the exported Lite models.
+
+Then you can run the offline inference using the `infer_lite.py` for the given task, e.g,
+
+```shell
+python lite_infer.py\
+    --cfg configs/exp02_motion_transfer_vs_style.yaml \
+    --seed 9999 \
+    --input_video "demo_video/motion_transfer.mp4" \
+    --image_path "demo_video/moon_on_water.jpg" \
+    --style_image "demo_video/moon_on_water.jpg" \
+    --input_text_desc "A beautiful big silver moon on the water"
+```
+
+The compiling time is much shorter compared with the online inference mode.
 
 
 ## Training
@@ -89,7 +178,7 @@ export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERRO
 export HCCL_CONNECT_TIMEOUT=6000
 export ASCEND_GLOBAL_LOG_LEVEL=1  # Global log message level for Ascend. Setting it to 0 can slow down the process
 export ASCEND_SLOG_PRINT_TO_STDOUT=0 # 1: detail, 0: simple
-export DEVICE_ID=0  # The device id to runing training on
+export DEVICE_ID=$1  # The device id to runing training on
 
 task_name=train_exp02_motion_transfer  # the default training task
 yaml_file=configs/${task_name}.yaml
@@ -104,6 +193,14 @@ nohup python -u train.py  \
     > $output_path/$task_name/train.log 2>&1 &
 
 ```
+
+You should change the `task_name` and `yaml_file` according to your task, then run:
+
+```shell
+bash run_train.sh $DEVICE_ID
+```
+e.g. `bash run_train.sh 0` to launch the trainin task using NPU card 0.
+
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
 configs/
@@ -150,6 +247,23 @@ Then execute,
 bash run_train_distribute.sh
 ```
 
+#### Training in Step Mode
+By default, training is done in epoch mode, i.e. checkpoint will be save in every `ckpt_save_interval` epochs.
+To change to step mode, in train_xxx.yaml, please modify as:
+```yaml
+dataset_sink_mode: False
+step_mode: True
+ckpt_save_interval: 1000
+```
+e.g., it will save checkpoints every 1000 training steps.
+
+Currently, it's not compatiable with dataset_sink_mode=True. It can be solved by setting `sink_size=ckpt_save_intervel` and `epochs=num_epochs*(num_steps_per_epoch//ckpt_save_intervel)` in `model.train(...)`, which is under testing.
+
+
+#### Supporting Annotation File Format
+
+Both json and csv file are supportd. JSON has higher priority.
+
 ###  Key arguemnts for training
 
 You can adjust the arguemnts in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
@@ -158,3 +272,4 @@ You can adjust the arguemnts in `configs/train_base.py` (lower-priority) or `con
 - optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910A to avoid OOM and `adamw` for 910B for better loss convergence.
 - use_recompute: by enabling it, you can reduce memory usage with a small increase of time cost. For example, on 910A, the max number of trainable frames per batch increases from 8 to 14 after recompute enabled.
 - `root_dir`: dataset root dir which should contains a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
+- `num_parallel_workers`: defalut is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)

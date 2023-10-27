@@ -418,7 +418,7 @@ def main(args):
     # build optimizer
     optimizer = build_optimizer(
         model=latent_diffusion_with_loss,
-        optim=args.optim,
+        name=args.optim,
         betas=args.betas,
         weight_decay=args.weight_decay,
         lr=args.start_learning_rate,

@@ -37,6 +37,19 @@ def zero_module(module):
     return module
 
 
+class LayerNorm(nn.LayerNorm):
+    def construct(self, input_x):
+        dtype = input_x.dtype
+        return super().construct(input_x.to(ms.float32)).to(dtype)
+
+
+# SiLU fp32 compute
+class SiLU(nn.SiLU):
+    def construct(self, input_x):
+        dtype = input_x.dtype
+        return super().construct(input_x.to(ms.float32)).to(dtype)
+
+
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
@@ -80,7 +93,6 @@ class CrossAttention(nn.Cell):
         self.heads = heads
 
         self.reshape = ops.Reshape()
-        self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
@@ -89,6 +101,7 @@ class CrossAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim).to_float(dtype),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
         )
+        self.dtype = dtype
 
     def construct(self, x, context=None, mask=None):
         q = self.to_q(x)
@@ -124,7 +137,7 @@ class CrossAttention(nn.Cell):
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
-        attn = self.softmax(sim)
+        attn = ops.softmax(sim.to(ms.float32)).to(self.dtype)
         out = ops.matmul(attn, v)
 
         def rearange_out(x):
@@ -143,14 +156,16 @@ class CrossAttention(nn.Cell):
 
 
 class GroupNorm(nn.GroupNorm):
+    # GroupNorm in calculated in FP32
     def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
         super().__init__(num_groups=num_groups, num_channels=num_channels, eps=eps, affine=affine)
 
     def construct(self, x):
         x_shape = x.shape
+        dtype = x.dtype
         if x.ndim >= 3:
             x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
-        y = super().construct(x)
+        y = super().construct(x.to(ms.float32)).to(dtype)
         return y.view(x_shape)
 
 
@@ -186,24 +201,24 @@ class BasicTransformerBlock(nn.Cell):
         self.attn2 = CrossAttention(
             query_dim=dim, context_dim=context_dim, heads=n_heads, dim_head=d_head, dropout=dropout, dtype=self.dtype
         )  # is self-attn if context is none
-        self.norm1 = nn.LayerNorm(
+        self.norm1 = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
-        self.norm2 = nn.LayerNorm(
+        )
+        self.norm2 = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
-        self.norm3 = nn.LayerNorm(
+        )
+        self.norm3 = LayerNorm(
             [
                 dim,
             ],
             epsilon=1e-05,
-        ).to_float(ms.float32)
+        )
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
@@ -242,7 +257,7 @@ class SpatialTransformer(nn.Cell):
         self.dtype = dtype
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
             self.proj_in = nn.Conv2d(
                 in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
@@ -323,7 +338,7 @@ class TemporalAttentionBlock(nn.Cell):
         self.heads = heads
         hidden_dim = dim_head * heads
 
-        self.norm = GroupNorm(32, dim).to_float(ms.float32)
+        self.norm = GroupNorm(32, dim)
         self.rotary_emb = rotary_emb.to_float(self.dtype)
         self.to_qkv = nn.Dense(dim, hidden_dim * 3).to_float(self.dtype)  # , bias = False)
         self.to_out = nn.Dense(hidden_dim, dim).to_float(self.dtype)  # , bias = False)
@@ -332,11 +347,7 @@ class TemporalAttentionBlock(nn.Cell):
         identity = x
         n, height = x.shape[2], x.shape[-2]
         b, f, c, h, w = x.shape
-        # b c f h w -> b f c h w -> (b f) c h w
-        x = x.transpose((0, 2, 1, 3, 4)).reshape((b * f, c, h, w))
         x = self.norm(x)
-        # (b f) c h w -> b f c h w -> b c f h w
-        x = x.reshape((b, f, c, h, w)).transpose((0, 2, 1, 3, 4))
 
         # b c f h w -> b c f (h w) -> b (h w) f c
         x = ops.reshape(x, (x.shape[0], x.shape[1], x.shape[2], -1))
@@ -406,7 +417,7 @@ class TemporalAttentionBlock(nn.Cell):
 
         # numerical stability
         sim = sim - sim.amax(axis=-1, keepdims=True)
-        attn = sim.float().softmax(axis=-1)
+        attn = sim.to(ms.float32).softmax(axis=-1).to(self.dtype)
 
         # aggregate values
         out = ops.bmm(attn, v)
@@ -490,7 +501,7 @@ class TemporalTransformer(nn.Cell):
             context_dim = [context_dim]
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
-        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+        self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
             self.proj_in = nn.Conv1d(
                 in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
@@ -535,11 +546,7 @@ class TemporalTransformer(nn.Cell):
             context = [context]
         b, c, f, h, w = x.shape
         x_in = x
-        # b c f h w -> b f c h w -> (b f) c h w
-        x = x.transpose((0, 2, 1, 3, 4)).reshape((b * f, c, h, w))
         x = self.norm(x)
-        # (b f) c h w -> b f c h w -> b c f h w
-        x = x.reshape((b, f, c, h, w)).transpose((0, 2, 1, 3, 4))
 
         if not self.use_linear:
             # b c f h w -> b h w c f -> (b h w) c f
@@ -609,31 +616,31 @@ class TemporalConvBlock_v2(nn.Cell):
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            GroupNorm(32, in_dim).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, in_dim),
+            SiLU(),
             nn.Conv3d(in_dim, out_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
             ),
         )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, out_dim),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
             ),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, out_dim),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype
             ),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(32, out_dim).to_float(ms.float32),
-            nn.SiLU().to_float(self.dtype),
+            GroupNorm(32, out_dim),
+            SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, (3, 1, 1), pad_mode="pad", padding=(1, 1, 0, 0, 0, 0), has_bias=True).to_float(
                 self.dtype

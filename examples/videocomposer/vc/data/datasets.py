@@ -6,9 +6,8 @@ import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
-
-from ..annotator.mask import make_irregular_mask, make_rectangle_mask, make_uncrop
-from ..annotator.motion import extract_motion_vectors
+from vc.annotator.mask import make_irregular_mask, make_rectangle_mask, make_uncrop
+from vc.annotator.motion import extract_motion_vectors
 
 __all__ = [
     "VideoDataset",
@@ -72,12 +71,8 @@ class VideoDataset(object):
                 video_key, feature_framerate, self.mvs_visual
             )
         else:  # use dummy data
-            _logger.warning(f"The video path: {video_key} does not exist or no video dir provided!")
-            ref_frame = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)
-            vit_image = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)  # noqa
-            video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
-            misc_data = np.zeros((self.max_frames, 3, self.misc_size, self.misc_size), dtype=np.float32)
-            mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
+            _logger.warning(f"The video: {video_key} does not exist! Please check the video path.")
+            ref_frame, vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
 
         # inpainting mask
         p = random.random()
@@ -93,6 +88,15 @@ class VideoDataset(object):
 
         return ref_frame, cap_txt, video_data, misc_data, feature_framerate, mask, mv_data
 
+    def _get_dummy_data(self, video_key):
+        ref_frame = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)
+        vit_image = np.zeros((3, self.vit_image_size, self.vit_image_size), dtype=np.float32)  # noqa
+        video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
+        misc_data = np.zeros((self.max_frames, 3, self.misc_size, self.misc_size), dtype=np.float32)
+        mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
+
+        return ref_frame, vit_image, video_data, misc_data, mv_data
+
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
         filename = video_key
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
@@ -103,6 +107,11 @@ class VideoDataset(object):
         start_indices = np.where(
             (np.array(frame_types) == "I") & (total_frames - np.arange(total_frames) >= self.max_frames)
         )[0]
+
+        if start_indices.size == 0:  # empty, no frames
+            _logger.warning(f"Failed to load the video: {filename}. The video may be broken.")
+            return self._get_dummy_data(filename)
+
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)
 
@@ -146,6 +155,6 @@ def get_video_paths_captions(data_dir):
         all_captions.extend(list(db["caption"]))
     assert len(video_paths) == len(all_captions)
     video_paths = [os.path.join(data_dir, f) for f in video_paths]
-    _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
+    # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
 
     return video_paths, all_captions

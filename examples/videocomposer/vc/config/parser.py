@@ -38,26 +38,14 @@ class Config(object):
             default="configs/train_exp02_motion_transfer.yaml",
         )
         parser.add_argument(
-            "--init_method",
-            help="Initialization method, includes TCP or shared file-system",
-            default="tcp://localhost:9999",
-            type=str,
-        )
-        parser.add_argument(
             "--seed",
             type=int,
             default=8888,
             help="Need to explore for different videos",
         )
         parser.add_argument(
-            "--debug",
-            action="store_true",
-            default=False,
-            help="Into debug information",
-        )
-        parser.add_argument(
             "--input_video",
-            default="demo_video/video_8800.mp4",
+            default="",
             help="input video for full task, or motion vector of input videos",
             type=str,
         ),
@@ -75,14 +63,34 @@ class Config(object):
         )
         parser.add_argument(
             "--style_image",
-            help="Single Sketch Input",
+            default="",
+            help="Style image input",
             type=str,
         )
         parser.add_argument(
             "--input_text_desc",
-            default="A colorful and beautiful fish swimming in a small glass bowl with multicolored piece of stone",
+            default="",
             type=str,
         ),
+        parser.add_argument(
+            "--sample_scheduler",
+            default="DDIM",
+            choices=["DDIM", "DDPM", "PLMS"],
+            help="Schduler method for using for inference. ",
+        )
+        parser.add_argument("--sample_steps", type=int, default=50, help="Sampling Step.")
+        parser.add_argument(
+            "--n_iter",
+            type=int,
+            default=4,
+            help="number of iterations or trials. sample this often, ",
+        )
+        parser.add_argument(
+            "--save_frames",
+            action="store_true",
+            help="save video frames",
+        )
+        parser.add_argument("--guidance_scale", type=float, default=9.0, help="The guidance scale value in inference.")
         parser.add_argument(
             "opts",
             help="other configurations",
@@ -96,11 +104,27 @@ class Config(object):
         parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
         parser.add_argument(
             "--dataset_sink_mode",
-            default=True,
             type=str2bool,
             help="use dataset_sink_mode in model.train. Enable it can boost the performance but step_end callback will be disabled.",
         )
+        parser.add_argument(
+            "--step_mode",
+            default=None,
+            type=str2bool,
+            help="If True, checkpoints will be save in every `ckpt_save_interval` steps, which is useful when the training steps in a epoch is extremely large. Otherwise, checkpoint will be save in every `ckpt_save_inteveral` epochs. Default: False",
+        )
+        parser.add_argument(
+            "--use_recompute",
+            type=str2bool,
+            help="use recompute in UNet. Enable it can slow down the speed but save some memory.",
+        )
         parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
+        parser.add_argument(
+            "--resume_checkpoint",
+            default=None,
+            type=str,
+            help="unet checkpoint path. If not None, it will overwrite the checkpiont path in yaml file config.",
+        )
         parser.add_argument(
             "--output_dir", default="outputs/train", type=str, help="output directory to save training results"
         )
@@ -115,7 +139,8 @@ class Config(object):
     def _update_from_args(self, cfg_dict):
         args = self.args
         for var in vars(args):
-            cfg_dict[var] = getattr(args, var)
+            if getattr(args, var) is not None:
+                cfg_dict[var] = getattr(args, var)  # overwrite the key argument if provided by the command
         return cfg_dict
 
     def _load_yaml(self, args, file_name=""):

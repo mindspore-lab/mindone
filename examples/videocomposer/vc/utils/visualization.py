@@ -1,121 +1,134 @@
-import logging
+import os
+from typing import Dict, Tuple
 
 import imageio
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+import mindspore.ops as ops
+from mindspore import JitConfig, Tensor
 
-from .misc import rand_name
+try:
+    _config = JitConfig(jit_level="O3") if os.environ.get("MS_ENABLE_GE", 0) else None
+except ValueError:  # for MS > 2.1
+    _config = JitConfig(jit_level="O2")
 
-__all__ = [
-    "video_tensor_to_gif",
-    "save_video_multiple_conditions",
-]
-
-_logger = logging.getLogger(__name__)
+__all__ = ["save_video_multiple_conditions"]
 
 
-# @torch.no_grad()
-def video_tensor_to_gif(tensor, path, duration=120, loop=0, optimize=True):
-    tensor = tensor.permute(1, 2, 3, 0)
-    images = tensor.unbind(dim=0)
-    images = [(image.numpy() * 255).astype("uint8") for image in images]
+def rearrange_tensor(x: np.ndarray, nrow: int = 1) -> np.ndarray:
+    """b c f h w -> f (i h) (j w) c, where i = nrow, j=ncol, i x j = b"""
+    b, c, f, h, w = x.shape
+    nrow = min(nrow, b)
+    x = np.reshape(x, (nrow, b // nrow, c, f, h, w))  # i j c f h w
+    x = np.transpose(x, (2, 3, 0, 4, 1, 5))  # c f i h j w
+    x = np.reshape(x, (c, f, nrow * h, -1))  # c f (i h) (j w)
+    x = np.transpose(x, (1, 2, 3, 0))
+    return x
+
+
+def swap_c_t(x: np.ndarray) -> np.ndarray:
+    """Swap the second and third dimension"""
+    x = np.transpose(x, (0, 2, 1, 3, 4))
+    return x
+
+
+def unormalize_tensor(x: np.ndarray, mean: Tuple[float, float, float], std: Tuple[float, float, float]) -> np.ndarray:
+    """Convert from [-1, 1] to [0, 1]
+    Args:
+        x: b c f h w
+        mean: (3, )
+        std: (3, )
+    """
+    mean = np.array(mean, dtype=np.float32)
+    std = np.array(std, dtype=np.float32)
+    mean = np.reshape(mean, (1, -1, 1, 1, 1))
+    std = np.reshape(std, (1, -1, 1, 1, 1))
+    x = x * std + mean
+    x = np.clip(x, 0, 1)
+    return x
+
+
+@ms.jit(jit_config=_config)
+def resize_tensor_for_visual(x: Tensor, n: int, h: int, w: int) -> Tensor:
+    """Resize the tensor to (-1, -1, n, h, w) shape
+    Args:
+        x: b c f h w
+    """
+    # TODO: change to ops.interpolate(mode="trilinear") once it is ok on 910B
+    b, c, f, _, _ = x.shape
+    x = ops.reshape(x, (-1, f, x.shape[3], x.shape[4]))
+    x = ops.interpolate(x, size=(h, w), mode="bilinear")
+    x = ops.reshape(x, (-1, f, h * w))
+    x = ops.transpose(x, (0, 2, 1))
+    x = ops.adaptive_avg_pool1d(x, n)
+    x = ops.transpose(x, (0, 2, 1))
+    x = ops.reshape(x, (b, c, n, h, w))
+    return x
+
+
+def video_tensor_to_gif(images: np.ndarray, path: str, duration: int = 120, save_frames: bool = False) -> None:
+    """images: f x h x w x c"""
+    images = (images * 255).round().clip(0, 255).astype(np.uint8)
+    images = [x for x in images]
     imageio.mimwrite(path, images, duration=duration)
-    return images
+    if save_frames:
+        root = os.path.join(os.path.splitext(path)[0], "frames")
+        if not os.path.isdir(root):
+            os.makedirs(root)
+        for i, x in enumerate(images):
+            imageio.imwrite(os.path.join(root, f"{i:04d}.jpg"), x)
 
 
-# @torch.no_grad()
 def save_video_multiple_conditions(
-    filename,
-    video_tensor,
-    model_kwargs,
-    source_imgs,
-    palette,
-    mean=(0.5, 0.5, 0.5),
-    std=(0.5, 0.5, 0.5),
-    nrow=8,
-    save_origin_video=True,
-    use_interpolate=True,
-):
-    """
-    video_tensor: shape (bs c f h w)
-    """
-    mean = ms.Tensor(mean).view(1, -1, 1, 1, 1)  # ncfhw
-    std = ms.Tensor(std).view(1, -1, 1, 1, 1)  # ncfhw
-    video_tensor = video_tensor * std + mean  # unnormalize back to [0,1]
-    try:
-        video_tensor = ops.clamp(video_tensor, 0, 1)
-    except:  # noqa
-        video_tensor = ops.clamp(video_tensor.float(), 0, 1)
+    filename: str,
+    video_tensor: np.ndarray,
+    model_kwargs: Dict[str, np.ndarray],
+    source_imgs: np.ndarray,
+    mean: Tuple[float, float, float] = (0.5, 0.5, 0.5),
+    std: Tuple[float, float, float] = (0.5, 0.5, 0.5),
+    save_origin_video: bool = True,
+    save_frames: bool = False,
+    nrow: int = 1,
+) -> None:
+    """Save video gifs"""
 
-    b, c, n, h, w = video_tensor.shape
+    # prepare the output image
+    video_tensor = unormalize_tensor(video_tensor, mean, std)
+    _, _, n, h, w = video_tensor.shape
+    vid_gif = rearrange_tensor(video_tensor, nrow=nrow)
 
-    # adapt for 910b, require ms >= 2.1, use `trilinear`
-    # since n=n, it equal to 2D resize/interpolate for each frame
-    # TODO: this average pooling will smooth the output video too much! Can Blur the video!
-    def resize_op(x, target_size):
-        try:
-            x = ops.interpolate(x, target_size, mode="trilinear")
-        except Exception:
-            x = ops.adaptive_avg_pool3d(x, target_size)
-        return x
-
-    source_imgs = resize_op(source_imgs, (n, h, w))
-
-    model_kwargs_channel3 = {}
-    for key, conditions in model_kwargs[0].items():
+    # prepare the conditional image
+    model_kwargs_channel3 = dict()
+    for key, conditions in model_kwargs.items():
         if conditions.shape[-1] == 1024:  # Skip for style embedding
             continue
-        if len(conditions.shape) == 3:  # which means that it is histogram.
-            conditions_np = conditions.numpy()
-            conditions = []
-            for i in conditions_np:
-                vis_i = []
-                for j in i:
-                    vis_i.append(palette.get_palette_image(j, percentile=90, width=256, height=256))
-                conditions.append(np.stack(vis_i))
-            conditions = ms.Tensor(np.stack(conditions))  # (8, 16, 256, 256, 3)
-            # b n h w c -> b c n h w
-            conditions = ops.transpose(conditions, (0, 4, 1, 2, 3))
+
+        c = conditions.shape[1]
+        if c == 1:
+            conditions = np.tile(conditions, (1, 3, 1, 1, 1))
+        elif c == 2:
+            # TODO: use HSV for u, v vector
+            conditions = np.concatenate([conditions, conditions[:, :1]], axis=1)
+        elif c == 3:
+            pass
+        elif c == 4:
+            color = (conditions[:, :3] + 1.0) / 2.0
+            alpha = conditions[:, 3:4]
+            conditions = color * alpha + (1.0 - alpha)
         else:
-            if conditions.shape[1] == 1:
-                conditions = ops.cat([conditions, conditions, conditions], axis=1)
-                conditions = resize_op(conditions, (n, h, w))  # adapt for 910B
-            elif conditions.shape[1] == 2:
-                conditions = ops.cat([conditions, conditions[:, :1]], axis=1)
-                conditions = resize_op(conditions, (n, h, w))  # adapt for 910B
-            elif conditions.shape[1] == 3:
-                # if len(conditions.shape) == 4:
-                #    conditions = ops.expand_dims(conditions, 0)
-                conditions = resize_op(conditions, (n, h, w))  # adapt for 910B
-            elif conditions.shape[1] == 4:  # means it is a mask.
-                color = (conditions[:, 0:3] + 1.0) / 2.0  # .astype(np.float32)
-                alpha = conditions[:, 3:4]  # .astype(np.float32)
-                conditions = color * alpha + 1.0 * (1.0 - alpha)
-                conditions = resize_op(conditions, (n, h, w))  # adapt for 910B
-        model_kwargs_channel3[key] = conditions
+            raise ValueError(f"Unsupported dimension `{c}`")
 
-    if not filename:
-        filename = "output/output_" + rand_name(suffix=".gif")
-    try:
-        # (i j) c f h w -> i j c f h w -> c f i h j w -> c f (i h) (j w), num_sample_rows=8
-        def rearrange_tensor(x):
-            x = ops.reshape(x, (nrow, x.shape[0] // nrow, *x.shape[1:]))
-            x = ops.transpose(x, (2, 3, 0, 4, 1, 5))
-            x = ops.reshape(x, (*x.shape[:2], x.shape[2] * x.shape[3], -1))
-            return x
+        model_kwargs_channel3[key] = resize_tensor_for_visual(Tensor(conditions, dtype=ms.float32), n, h, w).asnumpy()
 
-        vid_gif = rearrange_tensor(video_tensor)
-        dtype = vid_gif.dtype
-        cons_list = [rearrange_tensor(con).to(dtype) for _, con in model_kwargs_channel3.items()]
-        source_imgs = rearrange_tensor(source_imgs)
+    cons_list = [rearrange_tensor(con, nrow=nrow) for con in model_kwargs_channel3.values()]
 
-        if save_origin_video:
-            vid_gif = ops.cat([source_imgs, *cons_list, vid_gif], axis=3)
-        else:
-            vid_gif = ops.cat([*cons_list, vid_gif], axis=3)
+    if save_origin_video:
+        source_imgs = swap_c_t(source_imgs)
+        source_imgs = resize_tensor_for_visual(Tensor(source_imgs, dtype=ms.float32), n, h, w).asnumpy()
+        source_imgs = rearrange_tensor(source_imgs, nrow=nrow)
+        vid_gif = np.concatenate([source_imgs, *cons_list, vid_gif], axis=2)
+    else:
+        vid_gif = np.concatenate([*cons_list, vid_gif], axis=2)
 
-        video_tensor_to_gif(vid_gif, filename)
-    except Exception as e:
-        _logger.warning("save video to {} failed, error: {}".format(filename, e))
+    video_tensor_to_gif(vid_gif, filename, save_frames=save_frames)

@@ -260,7 +260,8 @@ class LatentDiffusion(nn.Cell):
         x = ops.reshape(x, (-1, c, h_vid, w_vid))
         # print("D--: vae input x shape", x.shape)
         z = ops.stop_gradient(self.scale_factor * self.vae.encode(x))
-        z = ops.reshape(z, (b, z.shape[1], f, z.shape[2], z.shape[3]))
+        # (b*f, c, h, w) - > (b, f, c, h, w) -> (b, c, f, h, w)
+        z = ops.reshape(z, (b, f, z.shape[1], z.shape[2], z.shape[3])).permute((0, 2, 1, 3, 4))
         # print("D--: vae output z shape: ", z.shape)
 
         # 3. prepare conditions

@@ -1,12 +1,9 @@
 import sys
 from typing import Optional
 
-import numpy as np
-
 sys.path.append("../stable_diffusion_v2/")
 import os
 
-from PIL import Image
 from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse, support_list
 from utils.download import download_checkpoint
 
@@ -93,7 +90,7 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
         self.tokenizer = load_ckpt_tokenizer(tokenizer_path)
 
     def delete_last_n_layers_from_resblocks(self, layer_index):
-        assert layer_index < len(self.model.transformer.resblocks) and layer_index >= 0
+        # assert layer_index < len(self.model.transformer.resblocks) and layer_index >= 0
         N = len(self.model.transformer.resblocks)
         index = N - 1
         for _ in range(layer_index):
@@ -101,18 +98,11 @@ class FrozenOpenCLIPEmbedder(nn.Cell):
             index -= 1
         return
 
-    def process_text(self, text_prompt):
+    def preprocess(self, text_prompt):
         return ms.Tensor(self.tokenizer(text_prompt, padding="max_length", max_length=77)["input_ids"])
 
     def construct(self, token_ids: ms.Tensor):
         text_features = self.get_text_features(token_ids)
-        return text_features
-
-    def encode(self, text):
-        if isinstance(text, str):
-            text = [text]
-        token_ids = self.process_text(text)
-        text_features = self.construct(token_ids)
         return text_features
 
     def get_text_features(self, text: ms.Tensor, input_ids: Optional[ms.Tensor] = None):
@@ -157,9 +147,6 @@ class FrozenOpenCLIPVisualEmbedder(nn.Cell):
         self.model = model
         self.image_processor = CLIPImageProcessor(resolution)
 
-        data_white = np.ones((resolution, resolution, 3)) * 255
-        self.black_image = Image.fromarray(data_white.astype(np.uint8)).convert("RGB")
-
         self.layer = layer  # the layer does not apply to visual embedder
         if self.layer == "last":
             self.layer_index = 0
@@ -174,24 +161,8 @@ class FrozenOpenCLIPVisualEmbedder(nn.Cell):
             for name, param in self.model.parameters_and_names():
                 param.requires_grad = False
 
-    def encode(self, image):
-        if not isinstance(image, list):
-            image_ = self.image_processor(image)
-            image_features = self.construct(image_)
-        else:
-            image_ = [self.image_processor(img) for img in image]
-            image_features = [self.construct(img) for img in image_]
-        # the returned features are non-normalilzed
-
-        # normalization
-        # if not is_old_ms_version("2.0.0-alpha"):
-        #     L2_norm_ops = partial(ops.norm, ord=2, dim=1, keepdim=True)
-        # else:
-        #     L2_norm_ops = partial(ops.norm, p=2, axis=1, keep_dims=True)
-
-        # image_features = L2_norm_ops(image_features) if not isinstance(image_features, list) else [
-        #     L2_norm_ops(img_feat) for img_feat in image_features]
-        return image_features
+    def preprocess(self, image):
+        return self.image_processor(image)
 
     def construct(self, image):
         return self.model.get_image_features(image)

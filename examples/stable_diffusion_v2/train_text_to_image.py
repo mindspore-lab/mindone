@@ -8,8 +8,8 @@ import os
 import shutil
 
 import yaml
+from common import init_env
 from ldm.data.dataset import build_dataset
-from ldm.data.dataset_dist import split_and_sync_data
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -17,62 +17,17 @@ from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
-from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
-import mindspore as ms
-from mindspore import Model, load_checkpoint, load_param_into_net
-from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore import Model, Profiler, load_checkpoint, load_param_into_net
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(args):
-    set_random_seed(args.seed)
-
-    if args.use_parallel:
-        init()
-        device_id = int(os.getenv("DEVICE_ID"))
-        device_num = get_group_size()
-        ParallelConfig.dp = device_num
-        rank_id = get_rank()
-        args.rank = rank_id
-        logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(device_id, rank_id, device_num))
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            # parallel_mode=ms.ParallelMode.AUTO_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        print(dict(zip(var_info, var_value)), flush=True)
-
-        if args.enable_modelarts:
-            split_and_sync_data(args.json_data_path, args.num_workers, device_num, rank_id)
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        args.rank = rank_id
-
-    ms.set_context(
-        mode=args.mode,
-        device_target="Ascend",
-        device_id=device_id,
-        max_device_memory="30GB",  # TODO: need to remove it or change to 60GB on 910B
-        ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910B
-    )
-
-    return rank_id, device_id, device_num
 
 
 def build_model_from_config(config):
@@ -250,11 +205,19 @@ def parse_args():
 
 def main(args):
     if args.profile:
-        profiler = ms.Profiler(output_path="./profiler_data")
+        profiler = Profiler(output_path="./profiler_data")
         args.epochs = 3
 
     # init
-    rank_id, device_id, device_num = init_env(args)
+    device_id, rank_id, device_num = init_env(
+        logger,
+        args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        enable_modelarts=args.enable_modelarts,
+        num_workers=args.num_workers,
+        json_data_path=args.json_data_path,
+    )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
@@ -335,7 +298,7 @@ def main(args):
     # build optimizer
     optimizer = build_optimizer(
         model=latent_diffusion_with_loss,
-        optim=args.optim,
+        name=args.optim,
         betas=args.betas,
         weight_decay=args.weight_decay,
         lr=lr,
@@ -348,8 +311,8 @@ def main(args):
     # resume ckpt
     if rank_id == 0:
         ckpt_dir = os.path.join(args.output_path, "ckpt")
-        if not os.path.exists(ckpt_dir):
-            os.makedirs(ckpt_dir)
+        os.makedirs(ckpt_dir, exist_ok=True)
+
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
