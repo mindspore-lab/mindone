@@ -1,0 +1,8 @@
+type: euler_edm
+target: libs.scheduler.euler_edm_sampler.EulerEDMSampler
+params:
+  num_steps: 40
+  s_churn: 0.0
+  s_tmin: 0.0
+  s_tmax: 999.0
+  s_noise: 1.0
