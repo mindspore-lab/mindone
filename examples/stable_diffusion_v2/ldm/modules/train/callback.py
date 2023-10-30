@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from typing import List
 
 import mindspore as ms
 from mindspore.train.callback._callback import Callback, _handle_loss, set_cur_net
@@ -166,8 +167,19 @@ class EvalSaveCallback(Callback):
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
+
+                if isinstance(cur_lr, List):
+                    cur_lr = set(cur_lr)
+                    cur_lr = cur_lr.pop()  # if group lr, get the first lr
+                    lr_str = f"lr_0: {cur_lr:.7f}, "
+                else:
+                    lr_str = f"lr: {cur_lr:.7f}, "
+
                 _logger.info("epoch: %s step: %s, loss is %s" % (cur_epoch, cur_step, loss))
+                if self.record_lr:
+                    _logger.info(ls_str)
                 _logger.info(f"average step time (in {self.log_interval} steps): {train_time / self.log_interval} s")
+
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -245,7 +257,17 @@ class EvalSaveCallback(Callback):
         opt = self._get_optimizer_from_cbp(cb_params)
         lr = opt.learning_rate
         if opt.dynamic_lr:
-            lr = opt.learning_rate(opt.global_step - 1)[0]
+            if opt.is_group_lr:
+                lr = ()
+                for learning_rate in opt.learning_rate:
+                    cur_dynamic_lr = learning_rate(opt.global_step - 1).reshape(())
+                    lr += (cur_dynamic_lr,)
+            else:
+                lr = opt.learning_rate(opt.global_step - 1).reshape(())
+            # print(f"After, global step: {opt.global_step}")
+
+            # lr = opt.learning_rate(opt.global_step - 1)[0]
+
             # lr = opt.learning_rate.asnumpy()(int(opt.global_step.asnumpy()) - 1)[0]
         return lr
 

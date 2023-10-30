@@ -34,6 +34,8 @@ except ImportError:
 
 from mindspore.nn.optim.optimizer import Optimizer
 
+from ..utils.version_control import flag_fix_optim_global_step
+
 __all__ = ["FusedAdamWeightDecay", "FP32StateAdamWeightDecay"]
 
 _adam_opt = C.MultitypeFuncGraph("adam_opt")
@@ -262,9 +264,14 @@ class FusedAdamWeightDecay(Optimizer):
         if offload:
             self.opt.add_prim_attr("primitive_target", "CPU")
 
+        self.version_flag = flag_fix_optim_global_step()
+
     def construct(self, gradients):
         """construct with gradients"""
         lr = self.get_lr()
+        if self.version_flag:
+            self.assignadd(self.global_step, self.global_step_increase_tensor)
+        
         if self.is_group:
             if self.is_group_lr:
                 optim_result = self.map_reverse(
