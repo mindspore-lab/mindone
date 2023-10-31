@@ -1,7 +1,3 @@
-import numpy as np
-from PIL import Image
-
-
 def compute_torchmetric_clip(images, texts, model_name):
     import os
     from functools import partial
