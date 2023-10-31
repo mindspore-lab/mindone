@@ -367,8 +367,8 @@ class DiffusionEngine(nn.Cell):
 
 
 class DiffusionEngineDreamBooth(DiffusionEngine):
-    def __init__(self, prior_loss_weight=1.0, *args, **kargs):
-        super().__init__(self, args, **kargs)
+    def __init__(self, prior_loss_weight=1.0, *args, **kwargs):
+        super().__init__(self, *args, **kwargs)
         self.prior_loss_weight = prior_loss_weight
 
     def get_grad_func(self, optimizer, reducer, scaler, jit=True):
@@ -392,21 +392,61 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
             loss = loss.mean()
             return loss
 
-        def _forward_func(batch):
-            # get latent and condition
-            x, noised_input, sigmas, w, cond = self.get_inputs(batch, "instance_samples")
-            reg_x, reg_noised_input, reg_sigmas, reg_w, reg_cond = self.get_inputs(batch, "class_samples")
-            # get loss
-            print("Compute Loss Starting...")
-            loss_train = _shared_step(x, noised_input, sigmas, w, **cond)
-            loss_reg = _shared_step(reg_x, reg_noised_input, reg_sigmas, reg_w, **reg_cond)
+        def _forward_func(
+            x,
+            noised_input,
+            sigmas,
+            w,
+            concat,
+            context,
+            y,
+            reg_x,
+            reg_noised_input,
+            reg_sigmas,
+            reg_w,
+            reg_concat,
+            reg_context,
+            reg_y,
+        ):
+            loss_train = _shared_step(x, noised_input, sigmas, w, concat, context, y)
+            loss_reg = _shared_step(reg_x, reg_noised_input, reg_sigmas, reg_w, reg_concat, reg_context, reg_y)
             loss = loss_train + self.prior_loss_weight * loss_reg
             return scaler.scale(loss)
 
         grad_fn = ops.value_and_grad(_forward_func, grad_position=None, weights=optimizer.parameters)
 
-        def grad_and_update_func(batch):
-            loss, grads = grad_fn(batch)
+        def grad_and_update_func(
+            x,
+            noised_input,
+            sigmas,
+            w,
+            concat,
+            context,
+            y,
+            reg_x,
+            reg_noised_input,
+            reg_sigmas,
+            reg_w,
+            reg_concat,
+            reg_context,
+            reg_y,
+        ):
+            loss, grads = grad_fn(
+                x,
+                noised_input,
+                sigmas,
+                w,
+                concat,
+                context,
+                y,
+                reg_x,
+                reg_noised_input,
+                reg_sigmas,
+                reg_w,
+                reg_concat,
+                reg_context,
+                reg_y,
+            )
             grads = reducer(grads)
             unscaled_grads = scaler.unscale(grads)
             grads_finite = all_finite(unscaled_grads)
@@ -433,8 +473,31 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
         return x, noised_input, sigmas, w, cond
 
     def train_step(self, batch, grad_func):
-        # print("Compute Loss Starting...")
-        loss, _, _ = grad_func(batch)
+        # get latent and condition
+        x, noised_input, sigmas, w, cond = self.get_inputs(batch, "instance_samples")
+        reg_x, reg_noised_input, reg_sigmas, reg_w, reg_cond = self.get_inputs(batch, "class_samples")
+
+        concat, context, y = cond["concat"], cond["context"], cond["y"]
+        reg_concat, reg_context, reg_y = reg_cond["concat"], reg_cond["context"], reg_cond["y"]
+
+        # get loss
+        print("Compute Loss Starting...")
+        loss, _, _ = grad_func(
+            x,
+            noised_input,
+            sigmas,
+            w,
+            concat,
+            context,
+            y,
+            reg_x,
+            reg_noised_input,
+            reg_sigmas,
+            reg_w,
+            reg_concat,
+            reg_context,
+            reg_y,
+        )
         # loss, _, _ = grad_func(x, noised_input, sigmas, w, **cond)
         print("Compute Loss Done...")
 

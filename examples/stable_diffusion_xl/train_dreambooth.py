@@ -3,8 +3,9 @@ import ast
 import os
 import time
 from functools import partial
+from pathlib import Path
 
-from gm.data.loader import create_loader
+from gm.data.loader import create_loader, create_loader_dreambooth  # noqa: F401
 from gm.helpers import (
     SD_XL_BASE_RATIOS,
     VERSION2SPECS,
@@ -21,10 +22,18 @@ import mindspore as ms
 from mindspore import Tensor
 
 
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
+
+
 def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
     parser.add_argument("--version", type=str, default="SDXL-base-1.0", choices=["SDXL-base-1.0", "SDXL-refiner-1.0"])
-    parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_lora.yaml")
+    parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_dreambooth.yaml")
     parser.add_argument(
         "--task",
         type=str,
@@ -36,7 +45,7 @@ def get_parser_train():
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
-    parser.add_argument("--data_path", type=str, default="")
+    # parser.add_argument("--data_path", type=str, default="")
     parser.add_argument("--save_path", type=str, default="./runs")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
@@ -74,12 +83,111 @@ def get_parser_train():
         default="/cache/pretrain_ckpt/",
         help="ModelArts: local device path to checkpoint folder",
     )
+
+    # args for dreambooth
+    parser.add_argument(
+        "--instance_data_path",
+        type=str,
+        default=None,
+        help="Specify the folder containing the training data of instance images.",
+    )
+    parser.add_argument(
+        "--class_data_path",
+        type=str,
+        default=None,
+        help="Specify the folder containing the training data of class images.",
+    )
+    parser.add_argument(
+        "--instance_prompt",
+        type=str,
+        default=None,
+        help="Specify the prompt with an identifier that specifies the instance.",
+    )
+    parser.add_argument(
+        "--class_prompt",
+        type=str,
+        default=None,
+        help="Specify the prompt to identify images in the same class as the provided instance images.",
+    )
+    parser.add_argument(
+        "--with_prior_preservation", type=str2bool, default=True, help="Specify whether to use prior preservation loss."
+    )
+    parser.add_argument(
+        "--prior_loss_weight", type=float, default=1.0, help="Specify the weight of the prior preservation loss."
+    )
+    parser.add_argument(
+        "--num_class_images",
+        type=int,
+        default=50,
+        help=(
+            "Specify the number of class images for prior preservation loss. If there are not enough images"
+            " already present in class_data_path, additional images will be sampled using class_prompt."
+        ),
+    )
+    parser.add_argument(
+        "--sample_batch_size", type=int, default=4, help="Specify the batch size (per device) for sampling images."
+    )
+    parser.add_argument(
+        "--train_data_repeat",
+        type=int,
+        default=10,
+        help=(
+            "Repeat the instance images by N times in order to match the number of class images."
+            " We recommend setting it as [number of class images] / [number of instance images]."
+        ),
+    )
     return parser
+
+
+# TODO
+def generate_class_images(args):
+    """Generate images for the class, for dreambooth"""
+    class_images_dir = Path(args.class_data_path)
+    if not class_images_dir.exists():
+        class_images_dir.mkdir(parents=True)
+    cur_class_images = len(list(class_images_dir.iterdir()))
+    if cur_class_images >= args.num_class_images:
+        print(f"Found {cur_class_images} class images. No need to generate more class images.")
+        return None
+    print("Start generating class images. ")
+
+    config = OmegaConf.load(args.config)
+    model, _ = create_model(
+        config, checkpoints=args.weight.split(","), freeze=True, load_filter=False, amp_level=args.ms_amp_level
+    )
+    model.set_train(False)
+    for param in model.get_parameters():
+        param.requires_grad = False
+
+    if cur_class_images < args.num_class_images:
+        num_new_images = args.num_class_images - cur_class_images
+        N_prompts = num_new_images // args.sample_batch_size
+        N_prompts = N_prompts + 1 if num_new_images % args.sample_batch_size != 0 else N_prompts
+        print(f"Number of class images to sample: {N_prompts*args.sample_batch_size}.")
+    start_time = time.time()
+    for i in range(N_prompts):
+        infer_during_train(
+            model=model, prompt=args.class_prompt, save_path=class_images_dir, num_cols=args.sample_batch_size
+        )
+        print(f"{(i+1)*args.sample_batch_size}/{N_prompts*args.sample_batch_size} class image sampling done")
+
+    end_time = time.time()
+
+    print(
+        f"It took {end_time-start_time:.2f} seconds to generate {N_prompts*args.sample_batch_size} \
+            new images which are saved in: {class_images_dir}."
+    )
+    del model
 
 
 def train(args):
     # Init Env
     args = set_default(args)
+
+    if args.with_prior_preservation:
+        generate_class_images(args)
+    else:
+        print("With with_prior_preservation=False, dreambooth is not applied.")
 
     # Create model
     config = OmegaConf.load(args.config)
@@ -90,7 +198,16 @@ def train(args):
 
     # Create loader
     assert "data" in config
-    dataloader = create_loader(data_path=args.data_path, rank=args.rank, rank_size=args.rank_size, **config.data)
+    dataloader = create_loader_dreambooth(
+        instance_data_path=args.instance_data_path,
+        class_data_path=args.class_data_path,
+        instance_prompt=args.instance_prompt,
+        class_prompt=args.class_prompt,
+        rank=args.rank,
+        rank_size=args.rank_size,
+        train_data_repeat=args.train_data_repeat,
+        **config.data,
+    )
 
     # Create train step func
     assert "optim" in config
@@ -133,8 +250,11 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
     s_time = time.time()
     for i, data in enumerate(loader):
         # Data to tensor
-        data = data["samples"]
-        data = {k: (Tensor(v, dtype) if k != "txt" else v.tolist()) for k, v in data.items()}
+        instance_data = data["instance_samples"]
+        class_data = data["class_samples"]
+        instance_data = {k: (Tensor(v, dtype) if k != "txt" else v.tolist()) for k, v in instance_data.items()}
+        class_data = {k: (Tensor(v, dtype) if k != "txt" else v.tolist()) for k, v in class_data.items()}
+        data["instance_samples"], data["class_samples"] = instance_data, class_data
 
         # Train a step
         if i == 0:
@@ -182,7 +302,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
 
-def infer_during_train(model, prompt, save_path):
+def infer_during_train(model, prompt, save_path, num_cols=1):
     from gm.helpers import init_sampling, perform_save_locally
 
     version_dict = VERSION2SPECS.get(args.version)
@@ -203,7 +323,7 @@ def infer_during_train(model, prompt, save_path):
         "aesthetic_score": 6.0,
         "negative_aesthetic_score": 2.5,
     }
-    sampler, num_rows, num_cols = init_sampling(steps=40, num_cols=1)
+    sampler, num_rows, num_cols = init_sampling(steps=40, num_cols=num_cols)
 
     out = model.do_sample(
         sampler,

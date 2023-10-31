@@ -163,7 +163,7 @@ class Text2ImageDataset:
 
 
 class Text2ImageDatasetDreamBooth:
-    dataset_column_names = ["instances_samples", "class_samples"]
+    dataset_column_names = ["instance_samples", "class_samples"]
 
     def __init__(
         self,
@@ -424,10 +424,3 @@ if __name__ == "__main__":
     for i, data in enumerate(dataset):
         print(data)
         break
-        # if i > 9:
-        #     break
-        # print(
-        #     # f"{i}/{dataset_size}, image shape: {data.pop('image')}, {data}, "
-        #     # f"time cost: {(time.time()-s_time) * 1000} ms"
-        # )
-        # s_time = time.time()
