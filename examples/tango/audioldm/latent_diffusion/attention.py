@@ -164,7 +164,7 @@ class CrossAttention(nn.Cell):
         k = rearange_in(k)
         v = rearange_in(v)
 
-        if self.enable_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+        if self.enable_flash_attention and q.shape[2] % 16 == 0 and k.shape[2] % 16 == 0:
             out = self.flash_attention(q, k, v)
         else:
             out = self.attention(q, k, v, mask)
