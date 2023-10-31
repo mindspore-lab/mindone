@@ -38,7 +38,7 @@ from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params
 
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"  # large value may block the log of error info on modelarts
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,11 @@ def check_config(cfg):
     cfg.root_dir = convert_to_abspath(cfg.root_dir, __dir__)
     cfg.cfg_file = convert_to_abspath(cfg.cfg_file, __dir__)
     cfg.resume_checkpoint = convert_to_abspath(cfg.resume_checkpoint, __dir__)
+
+    # TODO: set sink_size and epochs to solve it
+    assert not (
+        cfg.step_mode and cfg.dataset_sink_mode
+    ), f"step_mode is enabled, dataset_sink_mode should be set to False, but got {cfg.dataset_sink_mode})"
 
 
 def main(cfg):
@@ -306,7 +311,7 @@ def main(cfg):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=cfg.ckpt_max_keep,
-            step_mode=False,
+            step_mode=cfg.step_mode,
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
             start_epoch=start_epoch,
@@ -325,6 +330,7 @@ def main(cfg):
                 f"Distributed mode: {cfg.use_parallel}",
                 f"Dataset sink mode: {cfg.dataset_sink_mode}",
                 f"Data path: {cfg.root_dir}",
+                f"Num batches per card: {num_batches}",
                 "Model: VideoComposer",
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",

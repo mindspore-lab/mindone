@@ -252,7 +252,7 @@ class CLIPTokenizer:
         return_batch = True
         if isinstance(text, str):
             return_batch = False
-        output = self.batch_encode_plus(
+        output_dict = self.batch_encode_plus(
             text,
             text_pair=text_pair,
             max_length=max_length,
@@ -263,7 +263,8 @@ class CLIPTokenizer:
             return_batch=return_batch,
             **kwargs,
         )
-        return output
+
+        return output_dict
 
     def truncate_sequences(self, ids, id_pairs, nums_tokens_to_remove):
         if nums_tokens_to_remove <= 0:
@@ -346,7 +347,7 @@ class CLIPTokenizer:
         # if input text is only one list, we should prepare it into a tensor with batch size 1.
         text = self._prepare_input_to_list(text)
         text_pair = self._prepare_input_to_list(text_pair)
-        return self._batch_encode_plus(
+        tokens = self._batch_encode_plus(
             text,
             text_pair=text_pair,
             max_length=max_length,
@@ -359,6 +360,8 @@ class CLIPTokenizer:
             return_batch=return_batch,
             **kwargs,
         )
+
+        return tokens
 
     def _batch_encode_plus(
         self,
@@ -488,20 +491,24 @@ class CLIPTokenizer:
                 source_ids = [source_ids]
             for i in range(len(source_ids)):
                 if max_length < len(source_ids[i]):
-                    raise ValueError(
-                        f"The length of input_ids {len(source_ids[i])} "
-                        f"exceeds the max_length {max_length}, "
-                        f"please increase the `max_length` of the tokenizer."
+                    print(
+                        f"WARNING: length of input tokens {len(source_ids[i])} "
+                        f"exceeds the max_length {max_length} and will be truncated. "
                     )
-                source_ids[i] += [pad_value] * (max_length - len(source_ids[i]))
+                    source_ids[i] = source_ids[i][:max_length]
+                    source_ids[i][-1] = self.eos_token_id
+                else:
+                    source_ids[i] += [pad_value] * (max_length - len(source_ids[i]))
             if not is_batch:
                 source_ids = source_ids[0]
 
-        _pad_batch(id_dict["input_ids"], pad_value=self.pad_token_id)
+            return source_ids
+
+        id_dict["input_ids"] = _pad_batch(id_dict["input_ids"], pad_value=self.pad_token_id)
         if "attention_mask" in id_dict:
-            _pad_batch(id_dict["attention_mask"], pad_value=0)
+            id_dict["attention_mask"] = _pad_batch(id_dict["attention_mask"], pad_value=0)
         if "token_type_ids" in id_dict:
-            _pad_batch(id_dict["token_type_ids"], pad_value=self.pad_token_type_id)
+            id_dict["token_type_ids"] = _pad_batch(id_dict["token_type_ids"], pad_value=self.pad_token_type_id)
 
         return id_dict
 

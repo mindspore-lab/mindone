@@ -11,9 +11,9 @@ from ..modules import (
     CLIPTextProcessor,
     prepare_condition_models,
     prepare_dataloader,
-    prepare_decoder_unet,
     prepare_lite_model_kwargs,
     prepare_transforms,
+    prepare_unet,
 )
 from ..schedulers import DiffusionSampler
 from ..utils import (
@@ -48,7 +48,9 @@ def inference_single_lite(cfg_update: Dict[str, Any], **kwargs: Any) -> None:
 def _inference_single_lite(cfg: Config) -> None:
     init_lite_infer(cfg)
 
-    lite_builder = MSLiteModelBuilder()
+    lite_builder = MSLiteModelBuilder(
+        device_target=cfg.device_target, device_id=cfg.device_id, lite_model_root=cfg.model_root
+    )
     transforms_list = prepare_transforms(cfg)
     misc_transforms = transforms_list[1]
     dataloader = prepare_dataloader(cfg, transforms_list)
@@ -64,12 +66,12 @@ def _inference_single_lite(cfg: Config) -> None:
     frame_sketch = read_image_if_provided(cfg.read_sketch, cfg.sketch_path, misc_transforms)
     frame_style = read_image_if_provided(cfg.read_style, cfg.style_image, None)
 
-    depth_extractor, canny_extractor, sketch_extractor = prepare_condition_models(cfg)
+    depth_extractor, canny_extractor, sketch_extractor = prepare_condition_models(lite_builder, cfg)
 
-    task_model_name = f"{'-'.join(cfg.guidances)}_{cfg.sample_scheduler}_model"
-    decoder, model = prepare_decoder_unet(task_model_name)
+    model = prepare_unet(lite_builder, cfg.guidances, sample_scheduler=cfg.sample_scheduler)
+    decoder = lite_builder("decoder")
     # diffusion
-    diffusion = DiffusionSampler(model, num_timesteps=cfg.num_timesteps)
+    diffusion = DiffusionSampler(model, cfg.sample_scheduler, num_timesteps=cfg.num_timesteps)
 
     # global variables
     batch_size = cfg.batch_size
@@ -195,8 +197,8 @@ def _inference_single_lite(cfg: Config) -> None:
                 noise,
                 model_kwargs=model_kwargs,
                 guide_scale=cfg.guidance_scale,
-                timesteps=cfg.ddim_timesteps,
-                eta=0.0,
+                timesteps=cfg.sample_steps,
+                eta=cfg.ddim_eta,
             )
             video_output = lite_predict(decoder, diffusion_output)
 

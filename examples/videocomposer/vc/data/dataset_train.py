@@ -1,6 +1,8 @@
+import json
 import logging
 import os
 import random
+import time
 
 import cv2
 import numpy as np
@@ -43,6 +45,8 @@ class VideoDatasetForTrain(object):
         mvs_visual=False,
         tokenizer=None,
         conditions_for_train=None,
+        record_data_stat=False,
+        rank_id=0,
     ):
         """
         Args:
@@ -75,8 +79,19 @@ class VideoDatasetForTrain(object):
 
         self.tokenizer = tokenizer  # bpe
 
-    def tokenize(self, text):
-        tokens = self.tokenizer(text, padding="max_length", max_length=77)["input_ids"]
+        self.record_data_stat = record_data_stat
+        if self.record_data_stat:
+            header = ",".join(["video_path", "frames", "resolution", "load_time"])
+            self.stat_fp = os.path.join(cfg.output_dir, f"data_stat_rank_{rank_id}.csv")
+            with open(self.stat_fp, "w", encoding="utf-8") as fp:
+                fp.write(header + "\n")
+
+    def tokenize(self, text, max_length=77):
+        tokens = self.tokenizer(text, padding="max_length", max_length=max_length)["input_ids"]
+        # truncate for over-long tokens
+        if len(tokens) > max_length:
+            tokens = tokens[:max_length]
+            tokens[-1] = self.tokenizer.eos_token_id
 
         return tokens
 
@@ -88,11 +103,20 @@ class VideoDatasetForTrain(object):
 
         feature_framerate = self.feature_framerate
         if os.path.exists(video_key):
-            vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
-                video_key, feature_framerate, self.mvs_visual
-            )
+            try:
+                vit_image, video_data, misc_data, mv_data = self._get_video_train_data(
+                    video_key, feature_framerate, self.mvs_visual
+                )
+            except Exception as e:
+                print("Load video {} fails, Error: {}".format(video_key, e), flush=True)
+                _logger.warning(
+                    f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data."
+                )
+                vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
         else:  # use dummy data
-            _logger.warning(f"The video: {video_key} does not exist! Please check the video path.")
+            _logger.warning(
+                f"Fail to load {video_key}, video data could be broken, which will be replaced with dummy data."
+            )
             vit_image, video_data, misc_data, mv_data = self._get_dummy_data(video_key)
 
         # inpainting mask
@@ -135,18 +159,24 @@ class VideoDatasetForTrain(object):
 
     def _get_video_train_data(self, video_key, feature_framerate, viz_mv):
         filename = video_key
+        if self.record_data_stat:
+            vstart = time.time()
+
         frame_types, frames, mvs, mvs_visual = extract_motion_vectors(
             input_video=filename, fps=feature_framerate, viz=viz_mv
         )
+
+        if self.record_data_stat:
+            _raw_frames_len = len(frames) * 4
+            _resolution = frames[0].shape[-3:-1]
+            _stat = f"{video_key},{_raw_frames_len},{_resolution},{time.time()-vstart}"
+            with open(self.stat_fp, "a", encoding="utf-8") as fp:
+                fp.write(_stat + "\n")
 
         total_frames = len(frame_types)
         start_indices = np.where(
             (np.array(frame_types) == "I") & (total_frames - np.arange(total_frames) >= self.max_frames)
         )[0]
-
-        if start_indices.size == 0:  # empty, no frames
-            _logger.warning(f"Failed to load the video: {filename}. The video may be broken.")
-            return self._get_dummy_data(filename)
 
         start_index = np.random.choice(start_indices)
         indices = np.arange(start_index, start_index + self.max_frames)
@@ -165,6 +195,7 @@ class VideoDatasetForTrain(object):
             mvs = np.stack([self.mv_transforms(mv).transpose((2, 0, 1)) for mv in mvs], axis=0)
         else:
             raise RuntimeError(f"Got no frames from {filename}!")
+            # vit_image = np.zerso(3, self.vit_image_size, self.vit_image_size)
 
         video_data = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float32)
         mv_data = np.zeros((self.max_frames, 2, self.image_resolution, self.image_resolution), dtype=np.float32)
@@ -177,26 +208,49 @@ class VideoDatasetForTrain(object):
         return vit_image, video_data, misc_data, mv_data
 
 
-def get_video_paths_captions(data_dir):
-    anno_list = sorted(
+def get_video_paths_captions(data_dir, only_use_csv_anno=False):
+    """
+    JSON files have higher priority, i.e., if both JSON and csv annotion files exist, only JSON files will be loaded.
+    To force to read CSV annotation, please parse only_use_csv_anno=True.
+    """
+    csv_anno_list = sorted(
         [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".csv"), os.listdir(data_dir)))]
     )
-    db_list = [pd.read_csv(f) for f in anno_list]
+    json_anno_list = sorted(
+        [os.path.join(data_dir, f) for f in list(filter(lambda x: x.endswith(".json"), os.listdir(data_dir)))]
+    )
+
     video_paths = []
     all_captions = []
-    for db in db_list:
-        video_paths.extend(list(db["video"]))
-        all_captions.extend(list(db["caption"]))
+    if (len(json_anno_list) == 0) or only_use_csv_anno:
+        _logger.info("Reading annotation from csv files: {}".format(csv_anno_list))
+        db_list = [pd.read_csv(f) for f in csv_anno_list]
+        for db in db_list:
+            video_paths.extend(list(db["video"]))
+            all_captions.extend(list(db["caption"]))
+        # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
+    elif len(json_anno_list) > 0:
+        _logger.info("Reading annotation from json files: {}".format(json_anno_list))
+        for json_fp in json_anno_list:
+            with open(json_fp, "r", encoding="utf-8") as fp:
+                datasets_dict = json.load(fp)
+                for dataset in datasets_dict:
+                    rel_path_caption_pair_list = datasets_dict[dataset]
+                    for rel_path_caption_pair in rel_path_caption_pair_list:
+                        video_paths.append(rel_path_caption_pair[0])
+                        all_captions.append(rel_path_caption_pair[1])
+
     assert len(video_paths) == len(all_captions)
     video_paths = [os.path.join(data_dir, f) for f in video_paths]
-    # _logger.info(f"Before filter, Total number of training samples: {len(video_paths)}")
+    # print("D--: ", video_paths, all_captions)
 
     return video_paths, all_captions
 
 
-def build_dataset(cfg, device_num, rank_id, tokenizer):
+def build_dataset(cfg, device_num, rank_id, tokenizer, record_data_stat=False):
     infer_transforms, misc_transforms, mv_transforms, vit_transforms = create_transforms(cfg)
     dataset = VideoDatasetForTrain(
+        cfg=cfg,
         root_dir=cfg.root_dir,
         max_words=cfg.max_words,
         feature_framerate=cfg.feature_framerate,
@@ -210,6 +264,8 @@ def build_dataset(cfg, device_num, rank_id, tokenizer):
         misc_size=cfg.misc_size,
         mvs_visual=cfg.mvs_visual,
         tokenizer=tokenizer,
+        record_data_stat=record_data_stat,
+        rank_id=rank_id,
     )
 
     print("Total number of samples: ", len(dataset))
@@ -230,7 +286,7 @@ def build_dataset(cfg, device_num, rank_id, tokenizer):
         shard_id=rank_id,
         python_multiprocessing=True,
         shuffle=cfg.shuffle,
-        num_parallel_workers=2,
+        num_parallel_workers=cfg.num_parallel_workers,
         max_rowsize=128,  # video data require larger rowsize
     )
 

@@ -45,7 +45,7 @@ class Config(object):
         )
         parser.add_argument(
             "--input_video",
-            default="demo_video/video_8800.mp4",
+            default="",
             help="input video for full task, or motion vector of input videos",
             type=str,
         ),
@@ -69,15 +69,16 @@ class Config(object):
         )
         parser.add_argument(
             "--input_text_desc",
-            default="A colorful and beautiful fish swimming in a small glass bowl with multicolored piece of stone",
+            default="",
             type=str,
         ),
         parser.add_argument(
             "--sample_scheduler",
             default="DDIM",
-            choices=["DDIM", "PLMS"],
+            choices=["DDIM", "DDPM", "PLMS"],
             help="Schduler method for using for inference. ",
         )
+        parser.add_argument("--sample_steps", type=int, default=50, help="Sampling Step.")
         parser.add_argument(
             "--n_iter",
             type=int,
@@ -105,6 +106,14 @@ class Config(object):
             "--dataset_sink_mode",
             type=str2bool,
             help="use dataset_sink_mode in model.train. Enable it can boost the performance but step_end callback will be disabled.",
+        )
+        parser.add_argument(
+            "--step_mode",
+            default=None,
+            type=str2bool,
+            help="If True, checkpoints will be save in every `ckpt_save_interval` steps."
+            "which is useful when the training steps in a epoch is extremely large."
+            "Otherwise, checkpoint will be save in every `ckpt_save_inteveral` epochs. Default: False",
         )
         parser.add_argument(
             "--use_recompute",

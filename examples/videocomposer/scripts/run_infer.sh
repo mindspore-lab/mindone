@@ -1,3 +1,6 @@
+# for ms2.2 0907, remove this later
+export MS_ENABLE_REF_MODE=1
+
 # Exp01, inference different conditions from a video
 python infer.py \
     --cfg configs/exp01_vidcomposer_full.yaml \
@@ -59,8 +62,8 @@ python infer.py \
 
 # Exp06, Depth to video with style
 python infer.py \
-    --cfg configs/exp06_text_depths_vs_style.yaml\
-    --seed 9999\
-    --input_video demo_video/tennis.mp4\
-    --style_image "demo_video/style/fangao_01.jpeg"\
+    --cfg configs/exp06_text_depths_vs_style.yaml \
+    --seed 9999 \
+    --input_video demo_video/tennis.mp4 \
+    --style_image "demo_video/style/fangao_01.jpeg" \
     --input_text_desc "Van Gogh played tennis under the stars"

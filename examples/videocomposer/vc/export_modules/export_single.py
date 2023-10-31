@@ -1,4 +1,4 @@
-# TODO: remove the unessary input arguments, make dummy data instead.
+# TODO: remove the unnecessary input arguments, use dummy data instead.
 import logging
 from typing import Any, Dict
 
@@ -53,7 +53,7 @@ def _export_single(cfg: Config) -> None:
     decoder, model = prepare_decoder_unet(cfg)
     # diffusion
     diffusion = DiffusionSampler(
-        model, scheduler=cfg.sample_scheduler, num_timesteps=cfg.num_timesteps, show_progress_bar=False
+        model, scheduler_name=cfg.sample_scheduler, num_timesteps=cfg.num_timesteps, show_progress_bar=False
     )
 
     # global variables
@@ -186,14 +186,14 @@ def _export_single(cfg: Config) -> None:
                 use_fps_condition=cfg.use_fps_condition,
             )
 
-            task_model_name = f"{'-'.join(partial_keys)}_{cfg.sample_scheduler}_model"
+            task_model_name = f"{'-'.join(sorted(partial_keys))}_{cfg.sample_scheduler}_model"
 
             diffusion_output = diffusion(
                 noise,
                 model_kwargs=model_kwargs,
                 guide_scale=cfg.guidance_scale,
-                timesteps=cfg.ddim_timesteps,
-                eta=0.0,
+                timesteps=cfg.sample_steps,
+                eta=cfg.ddim_eta,
                 export_only=True,
                 export_name=task_model_name,
             )

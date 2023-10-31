@@ -28,22 +28,9 @@ cfg.sketch_std = [0.229, 0.224, 0.225]
 
 # dataloader
 cfg.max_words = 1000
-cfg.frame_lens = [
-    16,
-    16,
-    16,
-    16,
-]
-cfg.feature_framerates = [
-    4,
-]
+cfg.max_frames = 16
 cfg.feature_framerate = 4
-cfg.batch_sizes = {
-    str(1): 1,
-    str(4): 1,
-    str(8): 1,
-    str(16): 1,
-}
+cfg.batch_size = 1
 cfg.chunk_size = 64
 cfg.num_workers = 8  # not used yet
 cfg.prefetch_factor = 2
@@ -54,7 +41,6 @@ cfg.num_timesteps = 1000
 cfg.mean_type = "eps"
 cfg.var_type = "fixed_small"  # NOTE: to stabilize training and avoid NaN
 cfg.loss_type = "mse"
-cfg.ddim_timesteps = 50  # official: 250
 cfg.ddim_eta = 0.0
 cfg.clamp = 1.0
 cfg.share_noise = False
