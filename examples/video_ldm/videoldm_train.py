@@ -1,16 +1,15 @@
 import logging
-import re
 import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr
 
-from mindspore import Model, Tensor, nn
+from mindspore import Model, Tensor, load_checkpoint, load_param_into_net, nn
 from mindspore.dataset.vision import CenterCrop, Resize
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
@@ -39,14 +38,16 @@ class ModelWrapper(nn.Cell):
         return self._net(batch, context)
 
 
-def filter_temporal_layers(model):
-    for param in model.trainable_params():
-        if not (
-            re.match(".*input_blocks.[124578].[1|3].*", param.name)
-            or re.match(".*output_blocks.([3-9]|1[01]).[1|3].*", param.name)
-        ):
-            param.requires_grad = False
-    return model
+def load_pretrained_model(logger, net, pretrained_ckpt, weights_map: Optional[dict] = None):
+    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
+    param_dict = load_checkpoint(pretrained_ckpt)
+    if weights_map is not None:
+        for old_name, new_name in weights_map.items():
+            assert new_name not in param_dict  # FIXME
+            param_dict[new_name] = param_dict.pop(old_name)
+
+    param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
+    return param_not_load, ckpt_not_load
 
 
 def build_transforms(tokenizer, frames_num) -> List[dict]:
@@ -80,7 +81,22 @@ def main(args, initializer):
 
     # step 2: load SD model
     ldm_with_loss = build_model_from_config(args.SD.absolute)
-    ldm_with_loss = filter_temporal_layers(ldm_with_loss)
+    temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_params(prefix="model.diffusion_model.")
+    new_weights_map = ldm_with_loss.model.diffusion_model.get_weights_map(prefix="model.diffusion_model.")
+    param_not_load, _ = load_pretrained_model(logger, ldm_with_loss, args.train.pretrained, weights_map=new_weights_map)
+
+    if param_not_load:
+        diff = set(param_not_load).difference(temporal_param_names)
+        if not diff:
+            logger.info("Temporal parameters are not loaded.")
+        else:
+            logger.warning(f"Failed to load parameters: {diff}")
+
+    if args.train.temporal_only:
+        for param in ldm_with_loss.trainable_params():
+            if param.name not in temporal_param_names:
+                param.requires_grad = False
+
     ldm_with_loss_wrap = ModelWrapper(ldm_with_loss)
 
     # step 3: prepare train dataset and dataloader
@@ -168,10 +184,12 @@ if __name__ == "__main__":
     parser.add_argument("--config", action=ActionConfigFile)
     parser.add_function_arguments(init_env, "environment", skip={"logger"})
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
+    parser.add_argument("--train.temporal_only", type=bool, default=True, help="Train temporal layers only.")
+    parser.add_argument("--train.pretrained", type=str, required=True, help="Path to pretrained model.")
     parser.add_argument(
         "--train.output_dir",
         type=str,
-        default="output/output/videoldm/",
+        default="output/videoldm/",
         help="Output directory for saving training results.",
     )
     parser.add_subclass_arguments(VideoDataset, "train.dataset")
