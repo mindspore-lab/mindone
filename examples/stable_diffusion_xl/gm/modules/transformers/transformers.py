@@ -71,7 +71,7 @@ def _in_projection(
          - v': :math:`[Vdims..., Eq]`
 
     """
-    Eq, Ek, Ev = q.size(-1), k.size(-1), v.size(-1)
+    Eq, Ek, Ev = q.shape[-1], k.shape[-1], v.shape[-1]
     assert w_q.shape == (Eq, Eq), f"expecting query weights shape of {(Eq, Eq)}, but got {w_q.shape}"
     assert w_k.shape == (Eq, Ek), f"expecting key weights shape of {(Eq, Ek)}, but got {w_k.shape}"
     assert w_v.shape == (Eq, Ev), f"expecting value weights shape of {(Eq, Ev)}, but got {w_v.shape}"
@@ -163,9 +163,9 @@ def multi_head_attention_forward(
     # batch dimension so that the output doesn't carry this temporary batch dimension.
     if not is_batched:
         # unsqueeze if the input is unbatched
-        query = query.expand_dims(1)
-        key = key.expand_dims(1)
-        value = value.expand_dims(1)
+        query = ops.expand_dims(query, 1)
+        key = ops.expand_dims(key, 1)
+        value = ops.expand_dims(value, 1)
 
     # set up shape vars
     tgt_len, bsz, embed_dim = query.shape
@@ -173,11 +173,8 @@ def multi_head_attention_forward(
     assert (
         embed_dim == embed_dim_to_check
     ), f"was expecting embedding dimension of {embed_dim_to_check}, but got {embed_dim}"
-    if isinstance(embed_dim, Tensor):
-        # embed_dim can be a tensor when JIT tracing
-        head_dim = embed_dim.div(num_heads, rounding_mode="trunc")
-    else:
-        head_dim = embed_dim // num_heads
+
+    head_dim = embed_dim // num_heads
     assert head_dim * num_heads == embed_dim, f"embed_dim {embed_dim} not divisible by num_heads {num_heads}"
     # allow MHA to have different embedding dimensions when separate projection weights are used
     assert (
@@ -192,19 +189,19 @@ def multi_head_attention_forward(
     if in_proj_bias is None:
         b_q = b_k = b_v = None
     else:
-        b_q, b_k, b_v = in_proj_bias.chunk(3)
+        b_q, b_k, b_v = ops.chunk(in_proj_bias, 3)
     q, k, v = _in_projection(query, key, value, q_proj_weight, k_proj_weight, v_proj_weight, b_q, b_k, b_v)
 
     # reshape q, k, v for multihead attention and make em batch first
-    q = q.contiguous().view(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
-    k = k.contiguous().view(k.shape[0], bsz * num_heads, head_dim).transpose(0, 1)
-    v = v.contiguous().view(v.shape[0], bsz * num_heads, head_dim).transpose(0, 1)
+    q = q.view(tgt_len, bsz * num_heads, head_dim).swapaxes(0, 1)
+    k = k.view(k.shape[0], bsz * num_heads, head_dim).swapaxes(0, 1)
+    v = v.view(v.shape[0], bsz * num_heads, head_dim).swapaxes(0, 1)
 
     # (deep breath) calculate attention and out projection
     attn_output, attn_output_weights = scaled_dot_product_attention(q, k, v)
-    attn_output = attn_output.transpose(0, 1).contiguous().view(tgt_len * bsz, embed_dim)
+    attn_output = attn_output.swapaxes(0, 1).view(tgt_len * bsz, embed_dim)
     attn_output = linear(attn_output, out_proj_weight, out_proj_bias)
-    attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
+    attn_output = attn_output.view(tgt_len, bsz, attn_output.shape[1])
 
     if not is_batched:
         # squeeze the output if input was unbatched
