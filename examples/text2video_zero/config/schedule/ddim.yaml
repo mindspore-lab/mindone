@@ -1,5 +1,5 @@
 type: ddim
-target: libs.scheduler.ddim_schedule.DDIMScheduler
+target: inference.libs.scheduler.ddim_schedule.DDIMScheduler
 params:
   num_train_timesteps: 1000
   beta_start: 0.00085

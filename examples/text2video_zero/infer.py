@@ -3,20 +3,58 @@ import logging
 import os
 import sys
 
+import numpy as np
 from conditions.utils import create_video, pre_process_canny, prepare_video
 from omegaconf import OmegaConf
 
 import mindspore as ms
+import mindspore.nn as nn
 from mindspore import ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(workspace, "../stable_diffusion_v2/")))
+from inference.libs.helper import VaeImageProcessor, load_model_from_config, set_env
+from inference.libs.sd_models import SDControlNet
 from ldm.modules.logger import set_logger
 from ldm.util import instantiate_from_config, str2bool
-from libs.helper import NoisePrepare, VaeImageProcessor, inference_text2video, load_model_from_config, set_env
-from libs.sd_models import SDControlNet
 
 logger = logging.getLogger("Text2Video-Zero Inference")
+
+
+class NoisePrepare(nn.Cell):
+    def __init__(self, frame, auto_prefix=True, flags=None):
+        super().__init__(auto_prefix, flags)
+        self.frame = frame
+
+    def construct(self, noise):
+        noise = ops.cast(noise, ms.float16)
+        noise = ops.tile(noise, (self.frame, 1, 1, 1))
+        return noise
+
+
+def inference_text2video(
+    control, inputs, noise, prompt_data, negative_prompt_data, sd_infer, img_processor, chunk_size=8
+):
+    frames_counter = 0
+    f = control.shape[0]
+    chunk_ids = np.arange(0, f, chunk_size - 1)
+    result = []
+    for i in range(len(chunk_ids)):
+        ch_start = chunk_ids[i]
+        ch_end = f if i == len(chunk_ids) - 1 else chunk_ids[i + 1]
+        frame_ids = [0] + list(range(ch_start, ch_end))
+        print(f"Processing chunk {i + 1} / {len(chunk_ids)}")
+        inputs["prompt_data"] = prompt_data[frame_ids]
+        inputs["negative_prompt_data"] = negative_prompt_data[frame_ids]
+        inputs["noise"] = noise[frame_ids]
+        inputs["control"] = control[frame_ids]
+        result_frame = sd_infer(inputs)[1:]
+        result_frame = img_processor.postprocess(result_frame, output_type="np")
+        result.append(result_frame)
+        frames_counter += len(chunk_ids) - 1
+
+    result = np.concatenate(result)
+    return result
 
 
 def main(args):
