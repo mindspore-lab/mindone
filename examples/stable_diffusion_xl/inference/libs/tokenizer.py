@@ -1,15 +1,13 @@
 from typing import List, Union
 
 import numpy as np
-from transformers import CLIPTokenizer
-
 from gm.modules.embedders.open_clip import tokenize as openclip_tokenize
+from transformers import CLIPTokenizer
 
 
 class OpenCLIPTokenizer:
-
     def __call__(self, texts: Union[str, List[str]], context_length: int = 77) -> np.ndarray:
-        return openclip_tokenize(texts, context_length).asnumpy()
+        return openclip_tokenize(texts, context_length)[0]
 
 
 class IdentityTokenizer:
