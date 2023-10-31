@@ -5,8 +5,6 @@ negative_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, ext
 H: 512  # Image height, in pixel space
 W: 512  # Image width, in pixel space
 image_resolution: 512
-low_threshold: 100
-high_threshold: 200
 strength: 1
 guess_mode: False
 condition_ckpt_path: "models/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt"
