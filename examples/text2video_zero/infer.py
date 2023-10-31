@@ -3,15 +3,14 @@ import logging
 import os
 import sys
 
+from conditions.utils import create_video, pre_process_canny, prepare_video
 from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(os.path.dirname(workspace))
-
-from conditions.utils import create_video, pre_process_canny, prepare_video
+sys.path.insert(0, os.path.abspath(os.path.join(workspace, "../stable_diffusion_v2/")))
 from ldm.modules.logger import set_logger
 from ldm.util import instantiate_from_config, str2bool
 from libs.helper import NoisePrepare, VaeImageProcessor, inference_text2video, load_model_from_config, set_env
