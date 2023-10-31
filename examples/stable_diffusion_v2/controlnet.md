@@ -79,11 +79,10 @@ Go to the directory `stable_diffusion_v2/inference` first.
 
 1. Canny edge maps:
 
-   Open the file `stable_diffusion_v2/inference/config/controlnet.yaml`. Set arguments as below:
+   Open the file `stable_diffusion_v2/inference/config/controlnet_canny.yaml`. Set arguments as below:
    ```yaml
-   image_path: "test_imgs/dog2.png" # Image to be inpaint
+   image_path: "test_imgs/dog2.png" # Image to inpaint
    prompt: "cute dog" # text prompt
-   controlnet_mode: canny # control mode
    ```
 
    Open the file `stable_diffusion_v2/inference/config/model/v1-inference-controlnet.yaml`. Set argument as below:
@@ -93,11 +92,10 @@ Go to the directory `stable_diffusion_v2/inference` first.
 
 2. Segmentation edge maps (DeeplabV3Plus):
 
-   Open the file `stable_diffusion_v2/inference/config/controlnet.yaml`. Set arguments as below:
+   Open the file `stable_diffusion_v2/inference/config/controlnet_segmentation.yaml`. Set arguments as below:
    ```yaml
-   image_path: "test_imgs/bird.png" # Image to be inpaint
+   image_path: "test_imgs/bird.png" # Image to inpaint
    prompt: "Bird" # text prompt
-   controlnet_mode: "segmentation" # control mode
    condition_ckpt_path: "models/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt" # segmentation control model
    ```
 
@@ -118,7 +116,8 @@ python sd_infer.py \
 --sampler=./config/schedule/ddim.yaml \
 --sampling_steps=20 \
 --n_iter=1 \
---n_samples=4
+--n_samples=4 \
+--controlnet_mode=canny
 ```
 
 #### Important arguments in the shell scripts
@@ -129,6 +128,7 @@ python sd_infer.py \
 - `sampling_steps`: Number of sampling steps.
 - `n_iter`: Number of iterations or trials.
 - `n_samples`: How many samples to produce for each given prompt in an iteration. A.k.a. batch size.
+- `controlnet_mode`: Control mode for controlnet, should be in [canny, segmentation]
 
 ### Results
 Generated images will be saved in `stable_diffusion_v2/inference/output/samples` by default.
