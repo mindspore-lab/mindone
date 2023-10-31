@@ -82,7 +82,7 @@ Go to the directory `stable_diffusion_v2/inference` first.
    Open the file `stable_diffusion_v2/inference/config/controlnet.yaml`. Set arguments as below:
    ```yaml
    image_path: "test_imgs/dog2.png" # Image to be inpaint
-   prompt: "cute toy" # text prompt
+   prompt: "cute dog" # text prompt
    controlnet_mode: canny # control mode
    ```
 
