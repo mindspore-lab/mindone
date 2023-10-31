@@ -195,7 +195,7 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
     else:
         print(f"Warning: Loading model from {ckpts}")
 
-    auto_mixed_precision(model, amp_level=amp_level)
+    model = auto_mixed_precision(model, amp_level=amp_level)
     model.set_train(False)
     return model
 
@@ -353,7 +353,7 @@ def get_sampler(
             )
         else:
             raise ValueError
-    if sampler_name in ("AncestralSampler"):
+    elif sampler_name in ("AncestralSampler"):
         sampler = AncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,

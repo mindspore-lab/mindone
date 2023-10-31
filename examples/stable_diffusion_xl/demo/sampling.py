@@ -220,7 +220,7 @@ def apply_refiner(
 if __name__ == "__main__":
     ms.context.set_context(mode=ms.PYNATIVE_MODE, device_target=DEVICE_TARGET)
 
-    st.title("Stable Diffusion")
+    st.title("Stable Diffusion XL")
     version = st.selectbox("Model Version", list(VERSION2SPECS.keys()), 0)
     version_dict = VERSION2SPECS[version]
     amp_level = st.selectbox("Mix Precision", ["O2", "O0"], 0)

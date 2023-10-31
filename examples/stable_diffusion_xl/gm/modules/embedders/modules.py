@@ -26,6 +26,9 @@ class AbstractEmbModel(nn.Cell):
         self._ucg_rate = None
         self._input_key = None
 
+    def tokenize(self, x):
+        raise NotImplementedError
+
     @property
     def is_trainable(self) -> bool:
         return self._is_trainable
@@ -64,9 +67,6 @@ class AbstractEmbModel(nn.Cell):
 
 
 class GeneralConditioner(nn.Cell):
-    OUTPUT_DIM2KEYS = {2: "vector", 3: "crossattn", 4: "concat", 5: "concat"}
-    KEY2CATDIM = {"vector": 1, "crossattn": 2, "concat": 1}
-
     def __init__(self, emb_models: Union[List, ListConfig]):
         super().__init__()
         embedders = []
@@ -110,28 +110,47 @@ class GeneralConditioner(nn.Cell):
                 batch[embedder.input_key][i] = val
         return batch
 
-    def __call__(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
-        output = dict()
-        if force_zero_embeddings is None:
-            force_zero_embeddings = []
+    def tokenize(self, batch: Dict):
+        tokens, lengths = [], []
         for embedder in self.embedders:
             if hasattr(embedder, "input_key") and (embedder.input_key is not None):
                 if embedder.legacy_ucg_val is not None:
                     batch = self.possibly_get_ucg_val(embedder, batch)
-                emb_out = embedder(batch[embedder.input_key])
+                emb_token, emb_length = embedder.tokenize(batch[embedder.input_key])
             elif hasattr(embedder, "input_keys"):
-                emb_out = embedder(*[batch[k] for k in embedder.input_keys])
+                emb_token, emb_length = embedder.tokenize(*[batch[k] for k in embedder.input_keys])
             else:
                 raise AttributeError("embedder does not have attribute input_key/input_keys.")
 
             assert isinstance(
-                emb_out, (Tensor, list, tuple)
-            ), f"embedders outputs must be tensors or a sequence, but got {type(emb_out)}"
+                emb_token, (Tensor, np.ndarray, list, tuple)
+            ), f"tokens must be Tensor, np.ndarray or a sequence, but got {type(emb_token)}"
+            assert isinstance(
+                emb_length, (np.ndarray, type(None))
+            ), f"length must be np.ndarray or None, but got {type(emb_token)}"
+
+            tokens.append(emb_token)
+            lengths.append(emb_length)
+        return tokens, lengths
+
+    def embedding(self, *tokens, force_zero_embeddings=None):
+        assert len(tokens) == len(self.embedders), (
+            f"tokens and self.embedders length is not equal, " f"{len(tokens)}, {len(self.embedders)}"
+        )
+
+        vector, crossattn, concat = None, None, None
+
+        if force_zero_embeddings is None:
+            force_zero_embeddings = ()
+        for i in range(len(self.embedders)):
+            embedder = self.embedders[i]
+            token = tokens[i]
+            token = token if isinstance(token, (list, tuple)) else (token,)
+            emb_out = embedder(*token)
 
             if not isinstance(emb_out, (list, tuple)):
-                emb_out = [emb_out]
+                emb_out = (emb_out,)
             for emb in emb_out:
-                out_key = self.OUTPUT_DIM2KEYS[emb.dim()]
                 if embedder.ucg_rate > 0.0 and embedder.legacy_ucg_val is None:
                     emb = (
                         expand_dims_like(
@@ -142,16 +161,51 @@ class GeneralConditioner(nn.Cell):
                     )
                 if hasattr(embedder, "input_key") and embedder.input_key in force_zero_embeddings:
                     emb = ops.zeros_like(emb)
-                if out_key in output:
-                    output[out_key] = ops.concat((output[out_key], emb), self.KEY2CATDIM[out_key])
-                else:
-                    output[out_key] = emb
-        return output
+
+                # CONCAT
+                # OUTPUT_DIM2KEYS = {2: "vector", 3: "crossattn", 4: "concat", 5: "concat"}
+                # KEY2CATDIM = {"vector": 1, "crossattn": 2, "concat": 1}
+                assert emb.dim() in (2, 3, 4, 5)
+                if emb.dim() == 2:  # vector
+                    if vector is None:
+                        vector = emb
+                    else:
+                        vector = ops.concat((vector, emb), 1)
+                elif emb.dim() == 3:  # crossattn
+                    if crossattn is None:
+                        crossattn = emb
+                    else:
+                        crossattn = ops.concat((crossattn, emb), 2)
+                else:  # concat
+                    if concat is None:
+                        concat = emb
+                    else:
+                        concat = ops.concat((concat, emb), 1)
+
+        return vector, crossattn, concat
+
+    def __call__(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
+        # tokenize
+        tokens, _ = self.tokenize(batch)
+        tokens = [Tensor(t) for t in tokens]
+
+        # embeddings
+        vector, crossattn, concat = self.embedding(*tokens, force_zero_embeddings=force_zero_embeddings)
+        embeddings_dict = {}
+        for k, v in zip(("vector", "crossattn", "concat"), (vector, crossattn, concat)):
+            if v is not None:
+                embeddings_dict[k] = v
+
+        return embeddings_dict
+
+    def construct(self, *tokens, force_zero_embeddings: Optional[List] = None):
+        vector, crossattn, concat = self.embedding(*tokens, force_zero_embeddings=force_zero_embeddings)
+        return vector, crossattn, concat
 
     def get_unconditional_conditioning(self, batch_c, batch_uc=None, force_uc_zero_embeddings=None):
         if force_uc_zero_embeddings is None:
             force_uc_zero_embeddings = []
-        ucg_rates = list()
+        ucg_rates = []
         for embedder in self.embedders:
             ucg_rates.append(embedder.ucg_rate)
             embedder.ucg_rate = 0.0
@@ -201,7 +255,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         for _, p in self.parameters_and_names():
             p.requires_grad = False
 
-    def construct(self, text):
+    def tokenize(self, text):
         batch_encoding = self.tokenizer(
             text,
             truncation=True,
@@ -210,8 +264,12 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             return_overflowing_tokens=False,
             padding="max_length",
         )
-        tokens = Tensor(np.array(batch_encoding["input_ids"]), ms.int32)
+        tokens = np.array(batch_encoding["input_ids"], np.int32)
+        length = np.array(batch_encoding["length"], np.int32)
+        return tokens, length
 
+    @ms.jit
+    def construct(self, tokens):
         (last_hidden_state, pooler_output, hidden_states, attentions) = self.embedding(
             input_ids=tokens, output_hidden_states=(self.layer == "hidden")
         )
@@ -226,7 +284,6 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             return z, pooler_output
         return z
 
-    @ms.jit
     def embedding(self, input_ids, output_hidden_states):
         return self.transformer(input_ids=input_ids, output_hidden_states=output_hidden_states)
 
@@ -275,8 +332,14 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         for _, p in self.parameters_and_names():
             p.requires_grad = False
 
-    def construct(self, text):
-        tokens = openclip_tokenize(text)
+    def tokenize(self, text):
+        tokens, lengths = openclip_tokenize(text)
+        tokens = np.array(tokens, dtype=np.int32)
+        lengths = np.array(lengths, dtype=np.int32)
+        return tokens, lengths
+
+    @ms.jit
+    def construct(self, tokens):
         z = self.encode_with_transformer(tokens)
         if not self.return_pooled and self.legacy:
             return z
@@ -285,7 +348,6 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
             return z[self.layer_idx], z[-1]  # last/penultimate, pooled
         return z[self.layer_idx]
 
-    # @ms.jit  # FIXME: dtype error when jit
     def encode_with_transformer(self, tokens):
         x = self.model.token_embedding(tokens)  # [batch_size, n_ctx, d_model]
         x = x + self.model.positional_embedding
@@ -305,7 +367,13 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
     def pool(self, x, tokens):
         # take features from the eot embedding (eot_token is the highest number in each sequence)
         _dtype = x.dtype
-        x = ops.matmul(x[ops.arange(x.shape[0]), tokens.argmax(axis=-1)], self.model.text_projection).astype(_dtype)
+
+        # x = x[ops.arange(x.shape[0]), tokens.argmax(axis=-1)]
+        indices = ops.stack((ops.arange(x.shape[0]), tokens.argmax(axis=-1)), axis=-1)
+        x = ops.gather_nd(x, indices)
+
+        x = ops.matmul(x, ops.cast(self.model.text_projection, x.dtype)).astype(_dtype)
+
         return x
 
     def text_transformer_forward(self, x: Tensor, attn_mask=None):
@@ -346,3 +414,38 @@ class ConcatTimestepEmbedderND(AbstractEmbModel):
         emb = emb.view(b, dims, self.outdim).view(b, -1)
 
         return emb
+
+    def tokenize(self, x):
+        return x, None
+
+
+if __name__ == "__main__":
+    # 1. check timestep embedder
+    cond_model = ConcatTimestepEmbedderND(outdim=256)
+    cond_input = Tensor(np.tile(np.array([1024, 1024]), [2, 1]), ms.float16)
+    emb_cond = cond_model(cond_input)
+    print(f"ConcatTimestepEmbedderND, emb.shape: {emb_cond.shape}, emb.dtype: {emb_cond.dtype}")
+
+    # 2. check clip embedder
+    clip_model = FrozenCLIPEmbedder(layer="hidden", layer_idx=11, version="openai/clip-vit-large-patch14")
+    ms.amp.auto_mixed_precision(clip_model, "O2")
+    tokens, _ = clip_model.tokenize(["a photo of a cat", "a photo of a dog"])
+    emb1 = clip_model(Tensor(tokens))
+    print(f"FrozenCLIPEmbedder, emb.shape: {emb1.shape}, emb.dtype: {emb1.dtype}")
+
+    # 3. check openclip embedder
+    open_clip_model = FrozenOpenCLIPEmbedder2(
+        arch="ViT-bigG-14-Text",
+        freeze=True,
+        layer="penultimate",
+        always_return_pooled=True,
+        legacy=False,
+        require_pretrained=False,
+    )
+    ms.amp.auto_mixed_precision(open_clip_model, "O2")
+    tokens, _ = open_clip_model.tokenize(["a photo of a cat", "a photo of a dog"])
+    emb2 = open_clip_model(Tensor(tokens))
+    if isinstance(emb2, (tuple, list)):
+        print(f"FrozenOpenCLIPEmbedder2, emb.shape: {[e.shape for e in emb2]}, emb.dtype: {[e.dtype for e in emb2]}")
+    else:
+        print(f"FrozenOpenCLIPEmbedder2, emb.shape: {emb2.shape}, emb.dtype: {emb2.dtype}")
