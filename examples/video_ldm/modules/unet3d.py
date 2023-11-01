@@ -1,6 +1,6 @@
 import numpy as np
 
-from mindspore import Parameter, Tensor, float16, nn
+from mindspore import Parameter, Tensor, nn
 
 from ...stable_diffusion_v2.ldm.modules.attention import BasicTransformerBlock
 from ...stable_diffusion_v2.ldm.modules.diffusionmodules.openaimodel import UNetModel
@@ -42,24 +42,10 @@ class Conv3DLayer(nn.Cell):
         self.conv3d = nn.SequentialCell(
             GroupNorm3D(32, in_channels),
             nn.SiLU(),
-            nn.Conv3d(
-                in_channels,
-                out_channels,
-                kernel_size=(3, 1, 1),
-                padding=(1, 1, 0, 0, 0, 0),
-                pad_mode="pad",
-                has_bias=True,
-            ),
+            nn.Conv3d(in_channels, out_channels, kernel_size=(3, 1, 1), has_bias=True),
             GroupNorm3D(32, out_channels),
             nn.SiLU(),
-            nn.Conv3d(
-                out_channels,
-                out_channels,
-                kernel_size=(3, 1, 1),
-                padding=(1, 1, 0, 0, 0, 0),
-                pad_mode="pad",
-                has_bias=True,
-            ),
+            nn.Conv3d(out_channels, out_channels, kernel_size=(3, 1, 1), has_bias=True),
         )
 
         self.alpha = Parameter(1.0)
@@ -88,6 +74,7 @@ class TemporalTransformer(nn.Cell):
     ):
         super().__init__()
         self._num_frames = num_frames
+
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
 
@@ -105,7 +92,7 @@ class TemporalTransformer(nn.Cell):
                     d_head,
                     dropout=dropout,
                     context_dim=context_dim,
-                    enable_flash_attention=enable_flash_attention,
+                    enable_flash_attention=False,  # FIXME: add FA support
                 )
                 for _ in range(depth)
             ]
@@ -143,7 +130,7 @@ class TemporalTransformer(nn.Cell):
 
 
 class VideoLDMUNetModel(UNetModel):
-    def __init__(self, num_frames=5, fp16_output: bool = True, **kwargs):
+    def __init__(self, num_frames=5, **kwargs):
         super().__init__(**kwargs)
         self._temporal_params = []  # temporal parameters names
         self._params_map = {}  # map old parameter names to new names (after injecting 3D layers): {old_name: new_name}
@@ -158,17 +145,13 @@ class VideoLDMUNetModel(UNetModel):
                     tt = TemporalTransformer(
                         out_channels,
                         num_frames,
-                        n_heads=8,
-                        d_head=out_channels // 8,
-                        dropout=1.0,
+                        n_heads=out_channels // kwargs["num_head_channels"],
+                        d_head=kwargs["num_head_channels"],
+                        dropout=self.dropout,
                         context_dim=kwargs["context_dim"],
-                        depth=2,
+                        depth=kwargs["transformer_depth"],  # TODO: verify the depth
                         enable_flash_attention=kwargs["enable_flash_attention"],
                     )
-
-                    if fp16_output:
-                        conv3d = conv3d.to_float(float16)
-                        tt = tt.to_float(float16)
 
                     blocks[b_id].insert(1, conv3d)
                     if len(blocks[b_id]) == 3:

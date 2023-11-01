@@ -1,6 +1,6 @@
 environment:
   mode: 0
-  debug: True
+  debug: False
   seed: 42
   distributed: False
   enable_modelarts: False
@@ -24,7 +24,7 @@ train:
 
   optimizer:
     name: adamw
-    lr: 1.0e-5
+    lr: 1.0e-4
     betas: [ 0.9, 0.999 ]
     weight_decay: 0.01
 
