@@ -1,0 +1,17 @@
+image_path: "path/to/test_imgs/dog2.png"
+prompt: "cute dog"  # The prompt to render
+controlnet_mode: "canny" # candidates: [segmentation, canny]
+a_prompt: "best quality, extremely detailed"
+negative_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"  # The negative prompt not to render
+H: 512  # Image height, in pixel space
+W: 512  # Image width, in pixel space
+image_resolution: 512
+low_threshold: 100
+high_threshold: 200
+strength: 1
+guess_mode: False
+data_prepare_model: data_prepare_model  # For export and  lite inference. The path of MindSpore Lite MindIR for data_prepare_model, see libs/infer_engine/export_modules.py for details.
+scheduler_preprocess: scheduler_preprocess   # For export and  lite inference. The path of MindSpore Lite MindIR for scheduler_preprocess, see libs/infer_engine/export_modules.py for details.
+predict_noise_model: predict_noise_model  # For export and  lite inference. The path of MindSpore Lite MindIR for predict_noise_model, see libs/infer_engine/export_modules.py for details.
+noisy_sample_model: noisy_sample_model  # For export and  lite inference. The path of MindSpore Lite MindIR for noisy_sample_model in export, see libs/infer_engine/export_modules.py for details.
+vae_decoder_model: vae_decoder_model  # For export and  lite inference. The path of MindSpore Lite MindIR for vae_decoder_model in export, see libs/infer_engine/export_modules.py for details.
