@@ -1,5 +1,4 @@
 model:
-  #base_learning_rate: 1.0e-05
   target: examples.stable_diffusion_v2.ldm.models.diffusion.ddpm.LatentDiffusion
   params:
     linear_start: 0.00085

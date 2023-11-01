@@ -9,7 +9,7 @@ import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr
 
-from mindspore import Model, Tensor, load_checkpoint, load_param_into_net, nn
+from mindspore import Model, Tensor, amp, load_checkpoint, load_param_into_net, nn
 from mindspore.dataset.vision import CenterCrop, Resize
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
@@ -18,6 +18,7 @@ from examples.stable_diffusion_v2.ldm.data.loader import build_dataloader
 from examples.stable_diffusion_v2.ldm.data.transforms import TokenizerWrapper
 from examples.stable_diffusion_v2.ldm.modules.logger import set_logger
 from examples.stable_diffusion_v2.ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
+from examples.stable_diffusion_v2.ldm.modules.train.lr_schedule import create_scheduler
 from examples.stable_diffusion_v2.ldm.modules.train.optim import build_optimizer
 from examples.stable_diffusion_v2.ldm.modules.train.trainer import TrainOneStepWrapper
 from examples.stable_diffusion_v2.ldm.util import count_params
@@ -70,10 +71,19 @@ def build_transforms(tokenizer, frames_num) -> List[dict]:
     ]
 
 
+def mixed_precision(network):
+    from mindspore.nn import GroupNorm, SiLU
+
+    from examples.video_ldm.modules.unet3d import GroupNorm3D
+
+    black_list = amp.get_black_list() + [SiLU, GroupNorm, GroupNorm3D]
+    return amp.custom_mixed_precision(network, black_list=black_list)
+
+
 def main(args, initializer):
     # step 1: initialize environment
     logger = logging.getLogger(__name__)
-    device_id, rank_id, device_num = init_env(logger, **args.environment)
+    device_id, rank_id, device_num = init_env(**args.environment)
 
     output_dir = Path(args.train.output_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -98,6 +108,7 @@ def main(args, initializer):
                 param.requires_grad = False
 
     ldm_with_loss_wrap = ModelWrapper(ldm_with_loss)
+    ldm_with_loss_wrap = mixed_precision(ldm_with_loss_wrap)
 
     # step 3: prepare train dataset and dataloader
     transforms = build_transforms(ldm_with_loss.cond_stage_model.tokenizer, args.train.dataset.init_args.frames)
@@ -112,7 +123,10 @@ def main(args, initializer):
     )
 
     # step 5: create optimizer and train the same way as regular SD
-    optimizer = build_optimizer(ldm_with_loss, **args.train.optimizer)
+    lr = create_scheduler(
+        steps_per_epoch=train_dataloader.get_dataset_size(), num_epochs=args.train.epochs, **args.train.scheduler
+    )
+    optimizer = build_optimizer(ldm_with_loss, lr=lr, **args.train.optimizer)
 
     loss_scaler = nn.DynamicLossScaleUpdateCell(**args.LossScale)
 
@@ -154,7 +168,7 @@ def main(args, initializer):
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision SD: {ldm_with_loss.model.diffusion_model.dtype}",
                 f"Num epochs: {args.train.epochs}",
-                f"Learning rate: {args.train.optimizer.lr}",
+                f"Learning rate: {args.train.scheduler.lr}",
                 f"Batch size: {args.train.dataloader.batch_size}",
                 f"Weight decay: {args.train.optimizer.weight_decay}",
                 f"Grad accumulation steps: {args.train.settings.gradient_accumulation_steps}",
@@ -182,7 +196,7 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_env, "environment", skip={"logger"})
+    parser.add_function_arguments(init_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--train.temporal_only", type=bool, default=True, help="Train temporal layers only.")
     parser.add_argument("--train.pretrained", type=str, required=True, help="Path to pretrained model.")
@@ -198,7 +212,8 @@ if __name__ == "__main__":
         "train.dataloader",
         skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )
-    parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model"})
+    parser.add_function_arguments(create_scheduler, "train.scheduler", skip={"steps_per_epoch", "num_epochs"})
+    parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model", "lr"})
     parser.add_class_arguments(
         TrainOneStepWrapper, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}, instantiate=False
     )

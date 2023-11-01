@@ -6,7 +6,9 @@ environment:
   enable_modelarts: False
 
 train:
-  epochs: 1
+  epochs: 2
+  temporal_only: True
+  pretrained: models/sd_v2-1_base-7c8d09ce.ckpt
   output_dir: output/videoldm_sd_v2.1/
 
   dataset:
@@ -15,17 +17,21 @@ train:
       data_dir: /data1/webvid-10m/dataset/2M_val/part0/00000
       metadata_dir: /home/rustam/projects/mindone/data/
       frames: 8
-      step: 1
+      step: 10
 
   dataloader:
-    batch_size: 2
+    batch_size: 1
     shuffle: True
     drop_remainder: True
 
+  scheduler:
+    scheduler: constant
+    lr: 1.0e-4
+    warmup_steps: 200
+
   optimizer:
     name: adamw
-    lr: 1.0e-4
-    betas: [ 0.9, 0.999 ]
+    betas: [ 0.9, 0.98 ]
     weight_decay: 0.01
 
   settings:
@@ -35,6 +41,6 @@ train:
     clip_norm: 1.0
 
 LossScale:
-  loss_scale_value: 65536
+  loss_scale_value: 1
   scale_factor: 2
-  scale_window: 1000
+  scale_window: 100
