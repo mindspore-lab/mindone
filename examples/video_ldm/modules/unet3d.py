@@ -92,7 +92,7 @@ class TemporalTransformer(nn.Cell):
                     d_head,
                     dropout=dropout,
                     context_dim=context_dim,
-                    enable_flash_attention=False,  # FIXME: add FA support
+                    enable_flash_attention=False,   # FIXME: add FA support
                 )
                 for _ in range(depth)
             ]

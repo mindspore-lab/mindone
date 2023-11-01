@@ -242,8 +242,10 @@ class FlashAttention(nn.Cell):
 
     def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
         # ALiBi, reference to https://arxiv.org/abs/2108.12409
-        B, Nq, d = q.shape
-        Nkv = k.shape[1]
+        q_shape = q.shape
+        Nq, d = q_shape[-2:]
+        Nkv = k.shape[-2]
+
         dim_mask = Tensor([1 for _ in range(d)], dtype=ms.int8)
         q = self.reshape(q, (-1, self.head_num, Nq, d))
         k = self.reshape(k, (-1, self.head_num, Nkv, d))
@@ -251,7 +253,8 @@ class FlashAttention(nn.Cell):
         q = self.scale_mul(q, self.scale)
         k = self.scale_mul(k, self.scale)
         o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
-        o = self.reshape(o, (-1, Nq, d))
+
+        o = self.reshape(o, q_shape)
         return o
 
 
