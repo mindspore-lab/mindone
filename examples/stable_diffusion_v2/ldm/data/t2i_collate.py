@@ -44,3 +44,22 @@ def t2i_collate_db(inputs, with_prior_preservation):
         train_img_feat, train_txt_tokens = map(list, unzip(inputs))
         batch = {"train_img_feat": train_img_feat, "train_txt_tokens": train_txt_tokens}
     return batch
+
+
+data_column_controlnet = ["img_feat", "txt_tokens", "controls"]
+
+
+def t2i_collate_controlnet(inputs):
+    """
+    Return:
+    :img_feat     (batch_size, height, weight, 3)
+    :txt_tokens   (n, max_txt_len)
+    :controls     (batch_size, height, weight, 3)
+    """
+    img_feat, txt_tokens, controls = map(list, unzip(inputs))
+    batch = {
+        "img_feat": img_feat,
+        "txt_tokens": txt_tokens,
+        "controls": controls,
+    }
+    return batch
