@@ -206,14 +206,14 @@ if __name__ == "__main__":
     parser.add_argument("--model_config", type=str, required=True, help="model config file (.yaml)")
     parser.add_argument("--model_ckpt", type=str, required=True, help="model checkpoint file path")
     parser.add_argument("--n_samples", type=int, default=4, choices=range(1, 13), help="num samples")
-    parser.add_argument("--image_resolution", type=int, default=256, choices=range(256, 769), help="image resolution")
+    parser.add_argument("--image_resolution", type=int, default=512, choices=range(256, 769), help="image resolution")
 
     parser.add_argument("--strength", type=float, default=1, help="strength")
     parser.add_argument("--guess_mode", type=bool, default=False, help="guess mode")
     parser.add_argument(
-        "--sampling_steps", type=int, default=50, choices=range(1, 101), help="number of ddim sampling steps"
+        "--sampling_steps", type=int, default=20, choices=range(1, 101), help="number of ddim sampling steps"
     )
-    parser.add_argument("--scale", type=float, default=27, help="scale")
+    parser.add_argument("--scale", type=float, default=9.0, help="scale")
     parser.add_argument(
         "--ddim_eta", type=float, default=0.0, help="ddim eta (eta=0.0 corresponds to deterministic sampling"
     )

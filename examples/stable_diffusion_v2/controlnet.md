@@ -30,11 +30,11 @@ pip install -r requirements.txt
 #### Trained Models
 1. Canny edge maps:
 
-   Please download the trained model [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5-3b5e0f2f.ckpt)
+   Please download the trained model [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5_static-6350d204.ckpt)
 
 2. Segmentation edge maps:
 
-   Please download the trained model [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5-6d4a264f.ckpt)
+   Please download the trained model [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt)
 
 3. Others:
 
@@ -73,49 +73,65 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
 
    Attention: As the DeeplabV3Plus is trained on VOC dataset, currently it only supports prompts related to the objects: 'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train','tvmonitor'. More is coming soon.
 
-### Image Generation
+### Parameter Setting
+
+Go to the directory `stable_diffusion_v2/inference` first.
+
 1. Canny edge maps:
 
-   Run the command below to generate images
+   Open the file `stable_diffusion_v2/inference/config/controlnet_canny.yaml`. Set arguments as below:
+   ```yaml
+   image_path: "test_imgs/dog2.png" # Image to inpaint
+   prompt: "cute dog" # text prompt
+   ```
 
-```shell
-python controlnet_image2image.py \
-    --model_config "configs/v1_inference_contorlnet.yaml" \
-    --model_ckpt "models/control_canny_sd_v1.5-3b5e0f2f.ckpt" \
-    --input_image "test_imgs/dog2.png" \
-    --prompt "cute toy" \
-    --task_name "canny2image"
-```
+   Open the file `stable_diffusion_v2/inference/config/model/v1-inference-controlnet.yaml`. Set argument as below:
+   ```yaml
+   pretrained_ckpt: "stable_diffusion_v2/models/control_canny_sd_v1.5_static-6350d204.ckpt" # pretrained controlnet model weights with canny edge
+   ```
 
 2. Segmentation edge maps (DeeplabV3Plus):
 
-   Run the command below to generate images
+   Open the file `stable_diffusion_v2/inference/config/controlnet_segmentation.yaml`. Set arguments as below:
+   ```yaml
+   image_path: "test_imgs/bird.png" # Image to inpaint
+   prompt: "Bird" # text prompt
+   condition_ckpt_path: "models/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt" # segmentation control model
+   ```
+
+   Open the file `stable_diffusion_v2/inference/config/model/v1-inference-controlnet.yaml`. Set argument as below:
+   ```yaml
+   pretrained_ckpt: "stable_diffusion_v2/models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt" # pretrained controlnet model weights with segmentation
+   ```
+
+### Image Generation
+
+   Go to the directory `stable_diffusion_v2/inference` first. Run the command below to generate images
 
 ```shell
-python controlnet_image2image.py \
-    --model_config "configs/v1_inference_contorlnet.yaml" \
-    --model_ckpt "models/control_segmentation_sd_v1.5-6d4a264f.ckpt" \
-    --input_image "test_imgs/bird.png" \
-    --scale 9.0 \
-    --prompt "Bird" \
-    --a_prompt "best quality, extremely detailed" \
-    --mode "segmentation" \
-    --image_resolution 512 \
-    --condition_ckpt_path "models/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt" \
-    --task_name "seg2image"
+python sd_infer.py \
+--device_target=Ascend \
+--task=controlnet \
+--model=./config/model/v1-inference-controlnet.yaml \
+--sampler=./config/schedule/ddim.yaml \
+--sampling_steps=20 \
+--n_iter=1 \
+--n_samples=4 \
+--controlnet_mode=canny
 ```
 
 #### Important arguments in the shell scripts
-- `model_ckpt`: The path to load trained ControlNet model. Please set differently according to different controls. (Default is `stable_diffusion_v2/models` introduced above.)
-- `input_image`: The path of image you want to add more control.
-- `prompt`: The text prompt corresponds to the input_image.
-- `n_samples`: How many samples you want to generate.
-- `low_threshold`: A parameter required by Canny edge maps control.
-- `high_threshold`: A parameter required by Segmentation edge maps control.
-- `condition_ckpt_path`: The path to load detectors requiring pretrained model. Currently, it is required by Segmentation edge maps.
+- `device_target`: Device target, should be in [Ascend, GPU, CPU]. (Default is `Ascend`)
+- `task`: Task name, should be [text2img, img2img, inpaint, controlnet], if choose a task name, use the config/[task].yaml for inputs.
+- `model`: Path to config which constructs model.
+- `sampler`: Infer sampler yaml path.
+- `sampling_steps`: Number of sampling steps.
+- `n_iter`: Number of iterations or trials.
+- `n_samples`: How many samples to produce for each given prompt in an iteration. A.k.a. batch size.
+- `controlnet_mode`: Control mode for controlnet, should be in [canny, segmentation]
 
 ### Results
-Generated images will be saved in `stable_diffusion_v2/output` by default.
+Generated images will be saved in `stable_diffusion_v2/inference/output/samples` by default.
 Here are samples generated by a bird image with DeeplabV3Plus segmentation edge maps:
 
 <div align="center">
