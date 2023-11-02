@@ -131,28 +131,33 @@ def main(args):
             scale_factor=model.scale_factor,
             num_inference_steps=args.sampling_steps,
         )
-
-        image = cv2.imread(args.inputs.image_path)
-        input_image = np.array(image, dtype=np.uint8)
-        img = resize_image(HWC3(input_image), args.inputs.image_resolution)
-        H, W, C = img.shape
-        args.inputs.H = H
-        args.inputs.W = W
-        if args.controlnet_mode == "canny":
-            apply_canny = CannyDetector()
-            detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
-            detected_map = HWC3(detected_map)
-        elif args.controlnet_mode == "segmentation":
-            if os.path.exists(args.inputs.condition_ckpt_path):
-                apply_segment = SegmentDetector(ckpt_path=args.inputs.condition_ckpt_path)
-            else:
-                logger.warning(
-                    f"!!!Warning!!!: Condition Detector checkpoint path {args.inputs.condition_ckpt_path} doesn't exist"
-                )
-            detected_map = apply_segment(img)
-            detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+        if os.path.exists(args.inputs.control_image_path):
+            # skip control image extraction, directly load the control image
+            detected_map = cv2.imread(args.inputs.control_image_path)
+            detected_map = np.array(detected_map, dtype=np.uint8)
+            detected_map = resize_image(HWC3(detected_map), args.inputs.image_resolution)
         else:
-            raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
+            image = cv2.imread(args.inputs.image_path)
+            input_image = np.array(image, dtype=np.uint8)
+            img = resize_image(HWC3(input_image), args.inputs.image_resolution)
+            H, W, C = img.shape
+            args.inputs.H = H
+            args.inputs.W = W
+            if args.inputs.controlnet_mode == "canny":
+                apply_canny = CannyDetector()
+                detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
+                detected_map = HWC3(detected_map)
+            elif args.inputs.controlnet_mode == "segmentation":
+                if os.path.exists(args.inputs.condition_ckpt_path):
+                    apply_segment = SegmentDetector(ckpt_path=args.inputs.condition_ckpt_path)
+                else:
+                    logger.warning(
+                        f"!!!Warning!!!: Condition Detector checkpoint path {args.inputs.condition_ckpt_path} doesn't exist"
+                    )
+                detected_map = apply_segment(img)
+                detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+            else:
+                raise NotImplementedError(f"mode {args.inputs.controlnet_mode} not supported")
 
         Image.fromarray(detected_map).save(os.path.join(args.sample_path, "detected_map.png"))
 

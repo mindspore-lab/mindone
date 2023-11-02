@@ -28,7 +28,6 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 import yaml
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
-SD_VERSION = os.getenv("SD_VERSION", default="2.0")
 
 logger = logging.getLogger(__name__)
 
@@ -123,14 +122,14 @@ def parse_args():
         "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
     )
     parser.add_argument("--seed", default=3407, type=int, help="data path")
-    parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
+    parser.add_argument("--warmup_steps", default=0, type=int, help="warmup steps")
+    parser.add_argument("--train_batch_size", default=4, type=int, help="batch size")
     parser.add_argument("--callback_size", default=1, type=int, help="callback size.")
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument("--scheduler", default="constant", type=str, help="Scheduler: currently support 'constant', 'cosine_decay','polynomial_decay', 'multi_step_decay'")
-    parser.add_argument("--epochs", default=10, type=int, help="epochs")
+    parser.add_argument("--epochs", default=4, type=int, help="epochs")
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
@@ -145,7 +144,7 @@ def parse_args():
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
 
-    parser.add_argument("--ckpt_save_interval", default=4, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
     parser.add_argument(
         "--step_mode",
         default=False,
@@ -228,12 +227,12 @@ def load_pretrained_model(pretrained_ckpt, net):
     logger.info(f"Loading pretrained model from {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
-        param_dict = init_controlnet_param(param_dict)
+        param_dict = init_controlnet_param(param_dict, net)
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict)
         else:
             param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
-        param_not_load = [p for p in param_not_load if not "zero_convs" in p]
+
         logger.info("Params not load: {}".format(param_not_load))
     else:
         logger.warning("Checkpoint file {pretrained_ckpt} dose not exist!!!")
@@ -244,7 +243,7 @@ def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
     logger.info(f"Loading pretrained model from {pretrained_ckpt}, {cnclip_ckpt}")
     if os.path.exists(pretrained_ckpt) and os.path.exists(cnclip_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
-        param_dict = init_controlnet_param(param_dict)
+        param_dict = init_controlnet_param(param_dict, net)
         cnclip_param_dict = load_checkpoint(pretrained_ckpt)
         for key in param_dict:
             if key.startswith("first") or key.startswith("model"):
@@ -252,24 +251,30 @@ def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
         for key in cnclip_param_dict:
             new_param_dict[key] = cnclip_param_dict[key]
         param_not_load = load_param_into_net(net, new_param_dict)
-        param_not_load = [p for p in param_not_load if not "zero_convs" in p]
+
         logger.info("Params not load: {}".format(param_not_load))
     else:
         logger.warning("Checkpoint file {pretrained_ckpt}, {cnclip_ckpt} dose not exist!!!")
 
-def init_controlnet_param(param_dict):
+def init_controlnet_param(param_dict, network):
     update_param_dict = {}
+    # copy sd input blocks, middle block, and time embed
     for param_name in param_dict:
         if "model.diffusion_model.input_blocks" in param_name:
-            update_param_dict.update({param_name.replace("model.diffusion_model.input_blocks", "model.diffusion_model.controlnet.input_blocks"), 
+            update_param_dict.update({param_name.replace("model.diffusion_model.input_blocks", "model.diffusion_model.controlnet.input_blocks"): 
                             param_dict[param_name]})
-        elif "model.diffusion_model.middle_blocks" in param_name:
-            update_param_dict.update({param_name.replace("model.diffusion_model.middle_blocks", "model.diffusion_model.controlnet.middle_blocks"), 
+        elif "model.diffusion_model.middle_block" in param_name:
+            update_param_dict.update({param_name.replace("model.diffusion_model.middle_block", "model.diffusion_model.controlnet.middle_block"): 
                             param_dict[param_name]})
         elif "model.diffusion_model.time_embed" in param_name:
-            update_param_dict.update({param_name.replace("model.diffusion_model.time_embed", "model.diffusion_model.controlnet.time_embed"), 
+            update_param_dict.update({param_name.replace("model.diffusion_model.time_embed", "model.diffusion_model.controlnet.time_embed"): 
                             param_dict[param_name]})
-        
+    # reload network's input_hint_block, middle_block_out, to avoid load warnings
+    param_dict.update(update_param_dict)
+    update_param_dict = {}
+    for param in network.get_parameters():
+        if 'model.diffusion_model.controlnet.input_hint_block' in param.name or 'model.diffusion_model.controlnet.middle_block_out' in param.name or 'model.diffusion_model.controlnet.zero_convs' in param.name:
+            update_param_dict.update({param.name: param})
     param_dict.update(update_param_dict)
     return param_dict
         
@@ -296,7 +301,7 @@ def main(args):
         args.data_path,
         args.train_batch_size,
         tokenizer,
-        control_type,
+        args.control_type,
         image_size=args.image_size,
         image_filter_size=args.image_filter_size,
         device_num=device_num,
@@ -308,21 +313,20 @@ def main(args):
     # freeze network
     for param in latent_diffusion_with_loss.get_parameters():
         param.requires_grad = False
-
+    SD_LOCKED = latent_diffusion_with_loss.model.diffusion_model.sd_locked
     logging.info(
-        f"[Controlnet] sd_locked is {latent_diffusion_with_loss.sd_locked}"
+        f"[Controlnet] sd_locked is {SD_LOCKED}"
     )  # set in args.model_config file
     for param in latent_diffusion_with_loss.get_parameters():
-        if param.name.startswith("control_model"):
+        if param.name.startswith("model.diffusion_model.controlnet."):
             param.requires_grad = True
-        elif not latent_diffusion_with_loss.sd_locked:
-            # refere to cldm.py ControlLDM:configure_optimizers()
+        elif not SD_LOCKED:
             if param.name.startswith("model.diffusion_model.output_blocks") or param.name.startswith(
                 "model.diffusion_model.out"
             ):
                 param.requires_grad = True
             else:
-                param.requires_grad = Falsel
+                param.requires_grad = False
         else:
             param.requires_grad = False
     logging.info(f"[Controlnet] Num of trainable params: {len(latent_diffusion_with_loss.trainable_params())}")
@@ -422,7 +426,8 @@ def main(args):
         num_params_unet, _ = count_params(latent_diffusion_with_loss.model.diffusion_model)
         num_params_text_encoder, _ = count_params(latent_diffusion_with_loss.cond_stage_model)
         num_params_vae, _ = count_params(latent_diffusion_with_loss.first_stage_model)
-        num_params_control, _ = count_params(latent_diffusion_with_loss.control_model)
+        num_params_control, _ = count_params(latent_diffusion_with_loss.model.diffusion_model.controlnet)
+        num_params_unet = num_params_unet - num_params_control
         num_params, num_trainable_params = count_params(latent_diffusion_with_loss)
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
@@ -430,10 +435,10 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {context.get_context('mode')}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Model: StableDiffusion v{SD_VERSION}",
+                f"Model: StableDiffusion v{args.version}",
                 f"Num params: {num_params:,} (unet: {num_params_unet:,}, controlnet:{num_params_control:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
-                f"Precision: {latent_diffusion_with_loss.control_model.dtype}",
+                f"Precision: {latent_diffusion_with_loss.model.diffusion_model.controlnet.dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Weight decay: {args.weight_decay}",
@@ -442,6 +447,7 @@ def main(args):
                 f"Grad clipping: {args.clip_grad}",
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
+                f"Init Loss Scale: {args.init_loss_scale}",
             ]
         )
         key_info += "\n" + "=" * 50

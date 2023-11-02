@@ -15,7 +15,7 @@
 
 import os
 from collections import defaultdict
-
+import json
 import numpy as np
 import pandas as pd
 from ldm.data.t2i_collate import data_column_controlnet, t2i_collate_controlnet
@@ -57,7 +57,24 @@ def list_controlnet_image_files_captions_recursively(data_path):
 
     return all_originals, all_captions, all_controls
 
+def list_controlnet_image_files_captions_original(data_path):
+    annotations = []
+    all_images, all_captions, all_controls = [], [], []
 
+    json_file = os.path.join(data_path, 'prompt.json')
+    with open(json_file, 'rt') as f:
+        for line in f:
+            annotations.append(json.loads(line))
+    for line in annotations:
+        source_img = os.path.join(data_path, line['source'])
+        target_img = os.path.join(data_path, line['target'])
+        prompt = line['prompt']
+        all_images.append(target_img)
+        all_controls.append(source_img)
+        all_captions.append(prompt)
+    return all_images, all_captions, all_controls
+        
+    
 class ControlImageDataset(ImageDataset):
     def __init__(
         self,
@@ -91,16 +108,18 @@ class ControlImageDataset(ImageDataset):
         if self.control_type == "canny":
             control = Image.open(control_path)
             if control.mode == "L":
-                control = np.array(control).astype(np.float32)/ 255 # to [0,1]
+                control = np.array(control).astype(np.uint8)
                 control = np.expand_dims(control, axis=2)  # hw1
                 control = np.concatenate([control, control, control], axis=2)  # hwc
             elif control.mode == "RGB":
-                control = np.array(control).astype(np.float32)/ 255  # to [0,1]
+                control = np.array(control).astype(np.uint8)
             else:
                 raise NotImplementedError(f"Process control image in {control.mode} is not implemented!")
 
         else:
             raise NotImplementedError(f"Control type {self.control_type} is not implemented!")
+        control = self.preprocessor(image=control)["image"]
+        control = (control / 255.0).astype(np.float32)
         return control
 
     def __getitem__(self, idx):
@@ -155,7 +174,11 @@ def load_data(
 ):
     if not os.path.exists(data_path):
         raise ValueError(f"Data directory {data_path} does not exist!")
-    all_images, all_captions, all_controls = list_controlnet_image_files_captions_recursively(data_path)
+
+    try:
+        all_images, all_captions, all_controls = list_controlnet_image_files_captions_recursively(data_path)
+    except:
+        all_images, all_captions, all_controls = list_controlnet_image_files_captions_original(data_path)
 
     _logger.debug(
         f"The first image path is {all_images[0]}, its control image path is {all_controls[0]}, and the caption is {all_captions[0]}"

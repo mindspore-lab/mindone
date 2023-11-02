@@ -3,18 +3,18 @@ mode: 0
 use_parallel: False
 
 # dataset
-data_path: dataset/fill50k_10sample
+data_path: dataset/fill50k
 random_crop: False
 image_size: 512
-train_batch_size: 1
+train_batch_size: 4
 control_type: canny
 
 # model
 version: "1.5"
 model_config: "configs/v1-train-controlnet.yaml"
 output_path: "/path/to/save/output_data"
-ckpt_save_interval: 5
-epochs: 80
+ckpt_save_interval: 1
+epochs: 4
 
 # lr scheduler
 scheduler: constant

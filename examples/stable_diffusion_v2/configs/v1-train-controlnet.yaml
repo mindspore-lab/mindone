@@ -1,5 +1,5 @@
 model:
-  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  target: cldm.cldm.ControlLDM
   params:
     linear_start: 0.00085
     linear_end: 0.0120
@@ -36,6 +36,8 @@ model:
         use_checkpoint: True
         legacy: False
         use_fp16: True
+        sd_locked: True
+        only_mid_control: False
 
         control_stage_config:
           target: cldm.cldm.ControlNet
