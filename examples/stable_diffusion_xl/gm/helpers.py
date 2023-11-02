@@ -5,7 +5,15 @@ from typing import List, Union
 import numpy as np
 import yaml
 from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
-from gm.modules.diffusionmodules.sampler import DPMPP2MSampler, EulerEDMSampler, HeunEDMSampler
+from gm.modules.diffusionmodules.sampler import (
+    AncestralSampler,
+    DPMPP2MSampler,
+    DPMPP2SAncestralSampler,
+    EulerAncestralSampler,
+    EulerEDMSampler,
+    HeunEDMSampler,
+    LinearMultistepSampler,
+)
 from gm.util import auto_mixed_precision, instantiate_from_config, seed_everything
 from omegaconf import ListConfig
 from PIL import Image
@@ -187,7 +195,7 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
     else:
         print(f"Warning: Loading model from {ckpts}")
 
-    auto_mixed_precision(model, amp_level=amp_level)
+    model = auto_mixed_precision(model, amp_level=amp_level)
     model.set_train(False)
     return model
 
@@ -345,9 +353,29 @@ def get_sampler(
             )
         else:
             raise ValueError
+    elif sampler_name in ("AncestralSampler"):
+        sampler = AncestralSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+    elif sampler_name in ("EulerAncestralSampler"):
+        sampler = EulerAncestralSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+            eta=0.001,
+        )
+    elif sampler_name in ("DPMPP2SAncestralSampler"):
+        sampler = DPMPP2SAncestralSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
 
-    elif sampler_name in ("EulerAncestralSampler", "DPMPP2SAncestralSampler"):
-        raise NotImplementedError
     elif sampler_name in ("DPMPP2MSampler",):
         sampler = DPMPP2MSampler(
             num_steps=steps,
@@ -356,7 +384,12 @@ def get_sampler(
             verbose=True,
         )
     elif sampler_name in ("LinearMultistepSampler",):
-        raise NotImplementedError
+        sampler = LinearMultistepSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
     else:
         raise ValueError(f"unknown sampler {sampler_name}!")
 
@@ -380,6 +413,7 @@ def init_sampling(
         "DPMPP2SAncestralSampler",
         "DPMPP2MSampler",
         "LinearMultistepSampler",
+        "AncestralSampler",
     ]
     assert guider in ["VanillaCFG", "IdentityGuider"]
     assert discretization in [

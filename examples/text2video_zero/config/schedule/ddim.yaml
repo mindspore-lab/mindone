@@ -1,0 +1,21 @@
+type: ddim
+target: inference.libs.scheduler.ddim_schedule.DDIMScheduler
+params:
+  num_train_timesteps: 1000
+  beta_start: 0.00085
+  beta_end: 0.0120
+  beta_schedule: "scaled_linear"
+  trained_betas: None
+  clip_sample: False
+  set_alpha_to_one: True
+  steps_offset: 1
+  prediction_type: "epsilon"
+  thresholding: False
+  dynamic_thresholding_ratio: 0.995
+  clip_sample_range: 1.0
+  sample_max_value: 1.0
+  timestep_spacing: "leading"
+  rescale_betas_zero_snr: False
+  eta: 0.0
+  use_clipped_model_output: False
+  variance_noise: None

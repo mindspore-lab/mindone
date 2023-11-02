@@ -10,9 +10,25 @@ seed: 182
 mvs_visual: False
 chunk_size: 16
 log_dir: 'outputs'
-learning_rate: 0.00001 #0.00005 in paper, but we are finetuning.
-epochs: 50
 
 # accelerate or memory reduction
-dataset_sink_mode: True
-use_recompute: False  # use_recompute being True scarifices speed for more memory. Set it to True if OOM
+dataset_sink_mode: True # to show every-step loss
+use_recompute: True  # set to True to avoid OOM
+
+optim: "adamw_fp32"
+betas: [0.9, 0.999]
+optim_eps: 1.e-8
+offload: False #
+
+max_frames: 16
+epochs: 50
+ckpt_save_interval: 50
+ckpt_max_keep: 10
+
+loss_scale: 65536
+
+batch_size: 1
+learning_rate: 5.e-5
+warmup_steps: 100
+scheduler: "cosine_decay"
+end_learning_rate: 1.e-5

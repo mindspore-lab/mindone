@@ -193,6 +193,7 @@ class CLIPEncoder(nn.Cell):
     def __init__(self, config: CLIPConfig):
         super().__init__()
         self.config = config
+        self.output_hidden_states = self.config.output_hidden_states
         self.layers = nn.CellList([CLIPEncoderLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
 
@@ -219,9 +220,7 @@ class CLIPEncoder(nn.Cell):
                 Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors
                 for more detail.
         """
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
 
         encoder_states = ()
         all_attentions = ()
@@ -284,6 +283,7 @@ class CLIPTextTransformer(nn.Cell):
     def __init__(self, config: CLIPTextConfig):
         super().__init__()
         self.config = config
+        self.output_hidden_states = self.config.output_hidden_states
         embed_dim = config.hidden_size
         self.embeddings = CLIPTextEmbeddings(config)
         self.encoder = CLIPEncoder(config)
@@ -294,9 +294,7 @@ class CLIPTextTransformer(nn.Cell):
         input_ids: Optional[Tensor] = None,
         output_hidden_states: Optional[bool] = None,
     ):
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
 
         if input_ids is None:
             raise ValueError("You have to specify input_ids")

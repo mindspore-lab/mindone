@@ -20,8 +20,10 @@ def default(val, d):
 
 
 def expand_dims_like(x, y):
-    while x.dim() != y.dim():
-        x = x.unsqueeze(-1)
+    dim_diff = y.dim() - x.dim()
+    if dim_diff > 0:
+        for _ in range(dim_diff):
+            x = x.unsqueeze(-1)
     return x
 
 

@@ -50,7 +50,7 @@ def _inference_multi(cfg: Config) -> None:
 
     decoder, model = prepare_decoder_unet(cfg)
     # diffusion
-    diffusion = DiffusionSampler(model, scheduler=cfg.sample_scheduler, num_timesteps=cfg.num_timesteps)
+    diffusion = DiffusionSampler(model, scheduler_name=cfg.sample_scheduler, num_timesteps=cfg.num_timesteps)
 
     # global variables
     batch_size = cfg.batch_size
@@ -206,8 +206,8 @@ def _infer_with_partial_keys(
         noise,
         model_kwargs=model_kwargs,
         guide_scale=cfg.guidance_scale,
-        timesteps=cfg.ddim_timesteps,
-        eta=0.0,
+        timesteps=cfg.sample_steps,
+        eta=cfg.ddim_eta,
     )
     video_output = decoder(diffusion_output)
 

@@ -257,8 +257,9 @@ def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None, attn_dtype=Non
         assert attn_kwargs is None
         return AttnBlock(in_channels, attn_dtype=attn_dtype)
     elif attn_type == "flash-attention":
-        print(f"building FlashAttention with {in_channels} in_channels...")
-        return MemoryEfficientAttnBlock(in_channels, attn_dtype=attn_dtype)
+        # print(f"building FlashAttention with {in_channels} in_channels...")
+        # return MemoryEfficientAttnBlock(in_channels, attn_dtype=attn_dtype)
+        raise NotImplementedError
     elif attn_type == "none":
         return nn.Identity()
     elif attn_type == "linear":

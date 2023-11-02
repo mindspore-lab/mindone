@@ -166,6 +166,8 @@ class EvalSaveCallback(Callback):
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
+                _logger.info("epoch: %s step: %s, loss is %s" % (cur_epoch, cur_step, loss))
+                _logger.info(f"average step time (in {self.log_interval} steps): {train_time / self.log_interval} s")
 
     def on_train_epoch_begin(self, run_context):
         """

@@ -20,22 +20,9 @@ cfg.std = [0.5, 0.5, 0.5]
 
 # dataloader
 cfg.max_words = 1000
-cfg.frame_lens = [
-    16,
-    16,
-    16,
-    16,
-]
-cfg.feature_framerates = [
-    4,
-]
+cfg.max_frames = 16
 cfg.feature_framerate = 4
-cfg.batch_sizes = {
-    str(1): 1,
-    str(4): 1,
-    str(8): 1,
-    str(16): 1,
-}
+cfg.batch_size = 1
 cfg.chunk_size = 64
 cfg.num_workers = 8  # not used yet
 cfg.prefetch_factor = 2
@@ -51,11 +38,8 @@ cfg.unet_dim_mult = [1, 2, 4, 4]
 
 # diffusion
 cfg.num_timesteps = 1000
-cfg.ddim_timesteps = 50  # official: 250
 cfg.share_noise = False
-
-# classifier-free guidance
-cfg.p_zero = 0.9
+cfg.ddim_eta = 0.0
 
 # clip vision encoder
 cfg.vit_mean = [0.48145466, 0.4578275, 0.40821073]

@@ -8,6 +8,8 @@ import mindspore as ms
 from mindspore import nn, ops
 
 try:
+    # FIXME: some error with mindspore.nn.layer.flash_attention.FlashAttention in mindspore 2.1.0
+    # from mindspore.nn.layer.flash_attention import FlashAttention
     from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
 
     FLASH_IS_AVAILABLE = True

@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict, Iterable, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -154,7 +154,7 @@ def prepare_decoder_unet(cfg: Config, version: str = "2.1") -> Tuple[Decoder, UN
 
 
 def prepare_model_kwargs(
-    partial_keys: Iterable[str], full_model_kwargs: Dict[str, Union[np.ndarray, Tensor]], use_fps_condition: bool
+    partial_keys: List[str], full_model_kwargs: Dict[str, Union[np.ndarray, Tensor]], use_fps_condition: bool
 ) -> Dict[str, Tensor]:
     allowed_keys = {
         "y",
@@ -170,6 +170,9 @@ def prepare_model_kwargs(
 
     for partial_key in partial_keys:
         assert partial_key in allowed_keys
+
+    if "y" not in partial_keys:
+        partial_keys.append("y")
 
     if use_fps_condition is True:
         partial_keys.append("fps")
