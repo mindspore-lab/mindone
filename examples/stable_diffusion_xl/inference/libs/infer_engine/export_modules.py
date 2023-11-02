@@ -137,8 +137,13 @@ class Text2ImgEmbedder(Embedder):
         super(Text2ImgEmbedder, self).__init__(text_encoder, vae, scheduler, scale_factor=scale_factor)
 
     def construct(self, clip_tokens, time_tokens, uc_clip_tokens, uc_time_tokens, noise):
-        pos_prompt_embeds = self.text_encoder(clip_tokens.split(1) + time_tokens.split(1))
-        negative_prompt_embeds = self.text_encoder(uc_clip_tokens.split(1) + uc_time_tokens.split(1))
-        crossattn = ops.concat((negative_prompt_embeds[0], pos_prompt_embeds[0]), 0)
-        vector = ops.concat((negative_prompt_embeds[1], pos_prompt_embeds[1]), 0)
+        # vector, crossattn, concat
+        pos_prompt_embeds = self.text_encoder(*clip_tokens.split(1), *time_tokens.split(1))
+        negative_prompt_embeds = self.text_encoder(*uc_clip_tokens.split(1), *uc_time_tokens.split(1))
+        vector = ops.concat((negative_prompt_embeds[0], pos_prompt_embeds[0]), 0)
+        crossattn = ops.concat((negative_prompt_embeds[1], pos_prompt_embeds[1]), 0)
+
+        vector = ops.cast(vector, ms.float32)
+        crossattn = ops.cast(crossattn, ms.float32)
+
         return crossattn, vector, noise
