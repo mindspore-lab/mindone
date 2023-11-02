@@ -193,12 +193,6 @@ class Text2ImageDatasetDreamBooth:
         self.seed = seed
         self.per_batch_size = per_batch_size
 
-        # all_images, all_captions = self.list_image_files_captions_recursively(data_path)
-        # if filter_small_size:
-        #     # print(f"Filter small images, filter size: {image_filter_size}")
-        #     all_images, all_captions = self.filter_small_image(all_images, all_captions, image_filter_size)
-        # self.local_images = all_images
-        # self.local_captions = all_captions
         instance_images = self.list_image_files_recursively(instance_data_path)
         instance_images = self.repeat_data(instance_images, train_data_repeat)
         print(
@@ -369,58 +363,55 @@ class Text2ImageDatasetDreamBooth:
         return data_list * repeats
 
 
-# if __name__ == "__main__":
-#     import argparse
-
-#     parser = argparse.ArgumentParser(description="check dataset")
-#     parser.add_argument("--data_path", type=str)
-#     args, _ = parser.parse_known_args()
-#     transforms = [
-#         {"target": "gm.data.mappers.Resize", "params": {"size": 1024, "interpolation": 3}},
-#         {"target": "gm.data.mappers.Rescaler", "params": {"isfloat": False}},
-#         {"target": "gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
-#     ]
-#     dataset = Text2ImageDataset(data_path=args.data_path, target_size=1024, transforms=transforms)
-#     dataset_size = len(dataset)
-#     print(f"dataset size: {dataset_size}")
-
-#     s_time = time.time()
-#     for i, data in enumerate(dataset):
-#         if i > 9:
-#             break
-#         print(
-#             f"{i}/{dataset_size}, image shape: {data.pop('image')}, {data}, "
-#             f"time cost: {(time.time()-s_time) * 1000} ms"
-#         )
-#         s_time = time.time()
-
-
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="check dataset")
-    parser.add_argument("--instance_data_path", type=str)
-    parser.add_argument("--class_data_path", type=str)
-    parser.add_argument("--instance_prompt", type=str)
-    parser.add_argument("--class_prompt", type=str)
+    parser.add_argument("--target", type=str, default="Text2ImageDataset")
+    # for Text2ImageDataset
+    parser.add_argument("--data_path", type=str, default="")
+    # for Text2ImageDatasetDreamBooth
+    parser.add_argument("--instance_data_path", type=str, default="")
+    parser.add_argument("--class_data_path", type=str, default="")
+    parser.add_argument("--instance_prompt", type=str, default="")
+    parser.add_argument("--class_prompt", type=str, default="")
     args, _ = parser.parse_known_args()
     transforms = [
         {"target": "gm.data.mappers.Resize", "params": {"size": 1024, "interpolation": 3}},
         {"target": "gm.data.mappers.Rescaler", "params": {"isfloat": False}},
         {"target": "gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
     ]
-    dataset = Text2ImageDatasetDreamBooth(
-        instance_data_path=args.instance_data_path,
-        class_data_path=args.class_data_path,
-        instance_prompt=args.instance_prompt,
-        class_prompt=args.class_prompt,
-        target_size=1024,
-        transforms=transforms,
-    )
-    dataset_size = len(dataset)
-    print(f"dataset size: {dataset_size}")
 
-    s_time = time.time()
-    for i, data in enumerate(dataset):
-        print(data)
-        break
+    if args.target == "Text2ImageDataset":
+        dataset = Text2ImageDataset(data_path=args.data_path, target_size=1024, transforms=transforms)
+        dataset_size = len(dataset)
+        print(f"dataset size: {dataset_size}")
+
+        s_time = time.time()
+        for i, data in enumerate(dataset):
+            if i > 9:
+                break
+            print(
+                f"{i}/{dataset_size}, image shape: {data.pop('image')}, {data}, "
+                f"time cost: {(time.time()-s_time) * 1000} ms"
+            )
+            s_time = time.time()
+
+    elif args.target == "Text2ImageDatasetDreamBooth":
+        dataset = Text2ImageDatasetDreamBooth(
+            instance_data_path=args.instance_data_path,
+            class_data_path=args.class_data_path,
+            instance_prompt=args.instance_prompt,
+            class_prompt=args.class_prompt,
+            target_size=1024,
+            transforms=transforms,
+        )
+        dataset_size = len(dataset)
+        print(f"dataset size: {dataset_size}")
+
+        for i, data in enumerate(dataset):
+            print(data)
+            break
+
+    else:
+        ValueError("dataset only support Text2ImageDataset and Text2ImageDatasetDreamBooth")

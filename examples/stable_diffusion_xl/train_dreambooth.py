@@ -33,7 +33,7 @@ def str2bool(b):
 def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
     parser.add_argument("--version", type=str, default="SDXL-base-1.0", choices=["SDXL-base-1.0", "SDXL-refiner-1.0"])
-    parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_dreambooth.yaml")
+    parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_dreambooth_lora.yaml")
     parser.add_argument(
         "--task",
         type=str,
@@ -84,7 +84,7 @@ def get_parser_train():
         help="ModelArts: local device path to checkpoint folder",
     )
 
-    # args for dreambooth
+    # args for DreamBooth
     parser.add_argument(
         "--instance_data_path",
         type=str,
@@ -109,9 +109,9 @@ def get_parser_train():
         default=None,
         help="Specify the prompt to identify images in the same class as the provided instance images.",
     )
-    parser.add_argument(
-        "--with_prior_preservation", type=str2bool, default=True, help="Specify whether to use prior preservation loss."
-    )
+    # parser.add_argument(
+    #     "--with_prior_preservation", type=str2bool, default=True, help="Specify whether to use prior preservation loss."
+    # )
     parser.add_argument(
         "--prior_loss_weight", type=float, default=1.0, help="Specify the weight of the prior preservation loss."
     )
@@ -125,7 +125,7 @@ def get_parser_train():
         ),
     )
     parser.add_argument(
-        "--sample_batch_size", type=int, default=4, help="Specify the batch size (per device) for sampling images."
+        "--sample_batch_size", type=int, default=2, help="Specify the batch size (per device) for sampling images."
     )
     parser.add_argument(
         "--train_data_repeat",
@@ -139,7 +139,6 @@ def get_parser_train():
     return parser
 
 
-# TODO
 def generate_class_images(args):
     """Generate images for the class, for dreambooth"""
     class_images_dir = Path(args.class_data_path)
@@ -184,10 +183,10 @@ def train(args):
     # Init Env
     args = set_default(args)
 
-    if args.with_prior_preservation:
-        generate_class_images(args)
-    else:
-        print("With with_prior_preservation=False, dreambooth is not applied.")
+    # if args.with_prior_preservation:
+    #     generate_class_images(args)
+    # else:
+    #     print("With with_prior_preservation=False, dreambooth is not applied.")
 
     # Create model
     config = OmegaConf.load(args.config)
@@ -272,7 +271,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
             else:
                 cur_lr = optimizer.learning_rate.asnumpy().item()
             print(
-                f"Step {i + 1}/{total_step}, size: {data['image'].shape[2:]}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
+                f"Step {i + 1}/{total_step}, size: {data['instance_samples']['image'].shape[2:]}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
                 f", time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
                 flush=True,
             )
