@@ -293,21 +293,6 @@ class Text2ImageDatasetDreamBooth:
 
         return instance_sample, class_sample
 
-    def tokenize(self, text):
-        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
-        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
-        CONTEXT_LEN = self.tokenizer.context_length
-
-        sot_token = self.tokenizer.encoder[SOT_TEXT]
-        eot_token = self.tokenizer.encoder[EOT_TEXT]
-        tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN])
-        if len(tokens) > CONTEXT_LEN:
-            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
-        result[: len(tokens)] = tokens
-
-        return result
-
     def collate_fn(self, instance_samples, class_samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
@@ -343,7 +328,6 @@ class Text2ImageDatasetDreamBooth:
     def list_image_files_recursively(image_path):
         image_path_list = sorted(os.listdir(image_path))
         all_images = [os.path.join(image_path, f) for f in image_path_list]
-
         return all_images
 
     @staticmethod
