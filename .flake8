@@ -9,3 +9,5 @@ per-file-ignores =
     examples/*,tests/*:E402
     examples/stable_diffusion_v2/ldm/models/diffusion/dpm_solver/dpm_solver.py:W605
     examples/stable_diffusion_v2/ldm/models/diffusion/uni_pc/uni_pc.py:W605
+    examples/text2video_zero/ldm/models/diffusion/dpm_solver/dpm_solver.py:W605
+    examples/text2video_zero/ldm/models/diffusion/uni_pc/uni_pc.py:W605

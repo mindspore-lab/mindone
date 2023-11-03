@@ -10,7 +10,6 @@ from omegaconf import OmegaConf
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
@@ -139,11 +138,11 @@ def main(args):
         H, W, C = img.shape
         args.inputs.H = H
         args.inputs.W = W
-        if args.inputs.controlnet_mode == "canny":
+        if args.controlnet_mode == "canny":
             apply_canny = CannyDetector()
             detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
             detected_map = HWC3(detected_map)
-        elif args.inputs.controlnet_mode == "segmentation":
+        elif args.controlnet_mode == "segmentation":
             if os.path.exists(args.inputs.condition_ckpt_path):
                 apply_segment = SegmentDetector(ckpt_path=args.inputs.condition_ckpt_path)
             else:
@@ -153,14 +152,14 @@ def main(args):
             detected_map = apply_segment(img)
             detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
         else:
-            raise NotImplementedError(f"mode {args.inputs.controlnet_mode} not supported")
+            raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
 
         Image.fromarray(detected_map).save(os.path.join(args.sample_path, "detected_map.png"))
 
-        control = ms.Tensor(detected_map.copy()).float() / 255.0
-        control = control.permute(2, 0, 1)
-        control = ops.stack([control for _ in range(batch_size)], axis=0).astype(ms.float16)
-        inputs["control"] = control
+        control = detected_map.copy().astype(np.float32) / 255.0
+        control = np.transpose(control, (2, 0, 1))
+        control = np.stack([control for _ in range(batch_size)], axis=0).astype(np.float16)
+        inputs["control"] = ms.Tensor(control, ms.float16)
 
     else:
         raise ValueError(f"Not support task: {args.task}")
@@ -173,9 +172,9 @@ def main(args):
 
     for n in range(args.n_iter):
         start_time = time.time()
-        inputs["noise"] = ops.standard_normal((args.n_samples, 4, args.inputs.H // 8, args.inputs.W // 8)).astype(
-            ms.float16
-        )
+        noise = np.random.randn(args.n_samples, 4, args.inputs.H // 8, args.inputs.W // 8)
+        inputs["noise"] = ms.Tensor(noise, ms.float16)
+
         x_samples = sd_infer(inputs)
         x_samples = img_processor.postprocess(x_samples)
 
@@ -245,6 +244,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--seed", type=int, default=42, help="the seed (for reproducible sampling)")
     parser.add_argument("--log_level", type=str, default="INFO", help="log level, options: DEBUG, INFO, WARNING, ERROR")
+    parser.add_argument(
+        "--controlnet_mode",
+        type=str,
+        default="canny",
+        help="control mode for controlnet, should be in [canny, segmentation]",
+    )
     args = parser.parse_args()
     set_logger(name="", output_dir=args.output_path, rank=0, log_level=args.log_level)
 
@@ -265,8 +270,14 @@ if __name__ == "__main__":
         inputs_config_path = "./config/inpaint.yaml"
         default_ckpt = "./models/sd_v2_inpaint-f694d5cf.ckpt"
     elif args.task == "controlnet":
-        inputs_config_path = "./config/controlnet.yaml"
-        default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
+        if args.controlnet_mode == "canny":
+            inputs_config_path = "./config/controlnet_canny.yaml"
+            default_ckpt = "./models/control_canny_sd_v1.5_static-6350d204.ckpt"
+        elif args.controlnet_mode == "segmentation":
+            inputs_config_path = "./config/controlnet_segmentation.yaml"
+            default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
+        else:
+            raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
     else:
         raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
     inputs = OmegaConf.load(inputs_config_path)

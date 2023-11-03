@@ -111,9 +111,8 @@ class Config(object):
             "--step_mode",
             default=None,
             type=str2bool,
-            help="If True, checkpoints will be save in every `ckpt_save_interval` steps."
-            "which is useful when the training steps in a epoch is extremely large."
-            "Otherwise, checkpoint will be save in every `ckpt_save_inteveral` epochs. Default: False",
+            help="If True, checkpoints will be save in every `ckpt_save_interval` steps, which is useful when the training steps in \
+                a epoch is extremely large. Otherwise, checkpoint will be save in every `ckpt_save_inteveral` epochs. Default: False",
         )
         parser.add_argument(
             "--use_recompute",

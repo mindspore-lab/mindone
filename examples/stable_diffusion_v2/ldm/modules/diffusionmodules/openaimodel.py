@@ -323,6 +323,8 @@ class UNetModel(nn.Cell):
         legacy=True,
         use_linear_in_transformer=False,
         enable_flash_attention=False,
+        cross_frame_attention=False,
+        unet_chunk_size=2,
         adm_in_channels=None,
     ):
         super().__init__()
@@ -450,6 +452,8 @@ class UNetModel(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
+                            cross_frame_attention=cross_frame_attention,
+                            unet_chunk_size=unet_chunk_size,
                         )
                     )
                 self.input_blocks.append(layers)
@@ -524,6 +528,8 @@ class UNetModel(nn.Cell):
                     dropout=self.dropout,
                     use_linear=use_linear_in_transformer,
                     enable_flash_attention=enable_flash_attention,
+                    cross_frame_attention=cross_frame_attention,
+                    unet_chunk_size=unet_chunk_size,
                 ),
                 ResBlock(
                     ch,
@@ -586,6 +592,8 @@ class UNetModel(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
+                            cross_frame_attention=cross_frame_attention,
+                            unet_chunk_size=unet_chunk_size,
                         )
                     )
                 if level and i == num_res_blocks:

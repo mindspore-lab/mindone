@@ -34,6 +34,59 @@ class LayerScale(nn.Cell):
         return x * self.gamma
 
 
+class MultiheadAttention(nn.Cell):
+    def __init__(self, d_model, n_head):
+        """
+
+        :param d_model: width of tensor/embedding dim
+        :param n_head: output of mutlithead attention/num_heads
+        """
+        super(MultiheadAttention, self).__init__()
+        self.embed_dim = d_model
+        self.num_heads = n_head
+        self.head_dim = self.embed_dim // self.num_heads
+
+        # self.in_proj = nn.Dense(self.embed_dim, 3 * self.embed_dim)
+        self.in_proj_weight = Parameter(
+            init.initializer(init.XavierUniform(), (3 * self.embed_dim, self.embed_dim), ms.float32), "in_proj_weight"
+        )
+        self.in_proj_bias = Parameter(init.initializer("zeros", (3 * self.embed_dim), ms.float32), "in_proj_bias")
+
+        self.out_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.split = ops.Split(-1, 3)
+        self.expand_dims = ops.ExpandDims()
+        self.softmax = nn.Softmax(-1)
+        self.transpose = ops.Transpose()
+        self.scaling = self.head_dim**-0.5
+
+    def construct(self, query, key, value, attn_mask):
+        tgt_len, bsz, embed_dim = query.shape
+        # qkv = self.in_proj(query).view(tgt_len, bsz, 3, embed_dim).transpose((2, 0, 1, 3))
+        # qkv = ops.matmul(query.view(-1, embed_dim), ops.swapaxes(self.in_proj_weight, 0, 1))
+        qkv = ops.MatMul(transpose_b=True)(query.view(-1, embed_dim), self.in_proj_weight)
+        qkv = ops.BiasAdd()(qkv, self.in_proj_bias)
+        qkv = qkv.view(tgt_len, bsz, 3, embed_dim).transpose((2, 0, 1, 3))
+
+        q = qkv[0:1]
+        k = qkv[1:2]
+        v = qkv[2:3]
+        q = ops.Squeeze(0)(q)
+        k = ops.Squeeze(0)(k)
+        v = ops.Squeeze(0)(v)
+        q = q * self.scaling
+        q = q.view(tgt_len, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
+        k = k.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
+        v = v.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
+        attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
+        attn_output_weights += self.expand_dims(attn_mask, 0)
+        attn_output_weights = self.softmax(attn_output_weights)  # bs x (HW + 1) x (HW + 1)
+        attn_output = ops.matmul(attn_output_weights, v)  # bs x (HW + 1) x h
+        attn_output = self.transpose(attn_output, (1, 0, 2))
+        attn_output = attn_output.view(tgt_len, bsz, embed_dim)
+        attn_output = self.out_proj(attn_output)
+        return attn_output
+
+
 class Attention(nn.Cell):
     def __init__(
         self,
@@ -124,7 +177,7 @@ class ResidualAttentionBlock(nn.Cell):
         super().__init__()
 
         self.ln_1 = norm_layer([d_model])
-        self.attn = nn.MultiheadAttention(d_model, n_head)  # .to_float(ms.float16)
+        self.attn = MultiheadAttention(d_model, n_head)
         self.ls_1 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
         self.is_cross_attention = is_cross_attention
         if is_cross_attention:
@@ -158,7 +211,7 @@ class ResidualAttentionBlock(nn.Cell):
         if attn_mask is not None:
             attn_mask = attn_mask.astype(q_x.dtype)
 
-        return self.attn(q_x, k_x, v_x, need_weights=False, attn_mask=attn_mask)[0]
+        return self.attn(q_x, k_x, v_x, attn_mask=attn_mask)
 
     def construct(
         self,
@@ -367,7 +420,8 @@ class TextTransformer(nn.Cell):
         )
         self.ln_final = norm_layer([width])
 
-        self.attn_mask = Parameter(self.build_attention_mask(), requires_grad=False)
+        _attn_mask_tensor = self.build_attention_mask()
+        self.attn_mask = Parameter(_attn_mask_tensor, requires_grad=False)
 
         self.init_parameters()
 
@@ -413,7 +467,7 @@ class TextTransformer(nn.Cell):
         return additive_mask
 
     def _repeat(self, t, N: int):
-        return t.reshape(1, 1, -1).repeat(N, 1, 1)
+        return t.reshape(1, 1, -1).tile((N, 1, 1))
 
     def construct(self, text):
         x = self.token_embedding(text)  # [batch_size, n_ctx, d_model]

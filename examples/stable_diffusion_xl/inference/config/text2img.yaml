@@ -1,0 +1,11 @@
+prompt: "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"  # The prompt to render
+negative_prompt: ""  # The negative prompt not to render
+H: 1024  # Image height, in pixel space
+W: 1024  # Image width, in pixel space
+data_prepare_model: data_prepare_model  # For export and  lite inference. The path of MindSpore Lite MindIR for data_prepare_model, see libs/infer_engine/export_modules.py for details.
+scheduler_preprocess: scheduler_preprocess   # For export and  lite inference. The path of MindSpore Lite MindIR for scheduler_preprocess, see libs/infer_engine/export_modules.py for details.
+prepare_sampling_loop: prepare_sampling_loop # For export and  lite inference. The path of MindSpore Lite MindIR for prepare_sampling_loop, see libs/infer_engine/export_modules.py for details.
+denoiser: denoiser # For export and  lite inference. The path of MindSpore Lite MindIR for denoiser, see libs/infer_engine/export_modules.py for details.
+predict_noise_model: predict_noise_model  # For export and  lite inference. The path of MindSpore Lite MindIR for predict_noise_model, see libs/infer_engine/export_modules.py for details.
+noisy_sample_model: noisy_sample_model  # For export and  lite inference. The path of MindSpore Lite MindIR for noisy_sample_model in export, see libs/infer_engine/export_modules.py for details.
+vae_decoder_model: vae_decoder_model  # For export and  lite inference. The path of MindSpore Lite MindIR for vae_decoder_model in export, see libs/infer_engine/export_modules.py for details.
