@@ -1,7 +1,7 @@
 import importlib
+import logging
 import os
 from argparse import Namespace
-from logging import Logger
 from typing import Optional, Tuple
 
 from omegaconf import OmegaConf
@@ -13,9 +13,10 @@ from examples.stable_diffusion_v2.ldm.data.dataset_dist import split_and_sync_da
 from examples.stable_diffusion_v2.ldm.modules.train.parallel_config import ParallelConfig
 from examples.stable_diffusion_v2.ldm.modules.train.tools import set_random_seed
 
+_logger = logging.getLogger(__name__)
+
 
 def init_env(
-    logger: Logger,
     mode: int = ms.GRAPH_MODE,
     debug: bool = False,
     seed: int = 42,
@@ -28,7 +29,6 @@ def init_env(
     Initialize MindSpore environment.
 
     Args:
-        logger: The logger object for logging messages.
         mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
         debug: Whether to enable debug mode (forces PyNative mode). Default is False.
         seed: The seed value for reproducibility. Default is 42.
@@ -45,7 +45,7 @@ def init_env(
     set_random_seed(seed)
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
-        logger.warning("Debug mode is on, switching execution mode to PyNative.")
+        _logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
 
     if distributed:
@@ -54,7 +54,7 @@ def init_env(
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
-        logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
+        _logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
         ms.reset_auto_parallel_context()
         ms.set_auto_parallel_context(
             parallel_mode=ms.ParallelMode.DATA_PARALLEL,
@@ -63,7 +63,7 @@ def init_env(
         )
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
         var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
+        _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:
             args = Namespace(num_workers=num_workers, json_data_path=json_data_path)

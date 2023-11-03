@@ -187,7 +187,6 @@ def main(args):
 
     # init
     device_id, rank_id, device_num = init_env(
-        logger,
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,

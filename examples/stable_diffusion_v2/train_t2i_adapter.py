@@ -44,7 +44,7 @@ def build_transforms(cond: str, tokenizer) -> List[dict]:
 def main(args, initializer):
     # step 1: initialize environment
     logger = logging.getLogger(__name__)
-    device_id, rank_id, device_num = init_env(logger, **args.environment)
+    device_id, rank_id, device_num = init_env(**args.environment)
 
     output_dir = Path(args.train.output_dir) / args.adapter.condition / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -143,7 +143,7 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_env, "environment", skip={"logger"})
+    parser.add_function_arguments(init_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument(
         "--train.output_dir",
