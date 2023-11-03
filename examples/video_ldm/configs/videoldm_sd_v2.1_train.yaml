@@ -6,10 +6,11 @@ environment:
   enable_modelarts: False
 
 train:
-  epochs: 2
+  epochs: 5
   temporal_only: True
   pretrained: models/sd_v2-1_base-7c8d09ce.ckpt
   output_dir: output/videoldm_sd_v2.1/
+  sink_size: 60
 
   dataset:
     class_path: examples.video_ldm.data.video_dataset.VideoDataset
@@ -25,9 +26,10 @@ train:
     drop_remainder: True
 
   scheduler:
-    scheduler: constant
+    scheduler: cosine_decay
     lr: 1.0e-4
-    warmup_steps: 200
+    min_lr: 1.0e-7
+    warmup_steps: 120
 
   optimizer:
     name: adamw
@@ -36,11 +38,11 @@ train:
 
   settings:
     drop_overflow_update: True
-    gradient_accumulation_steps: 1
+    gradient_accumulation_steps: 3
     clip_grad: False
     clip_norm: 1.0
 
 LossScale:
-  loss_scale_value: 1
+  loss_scale_value: 65536
   scale_factor: 2
-  scale_window: 100
+  scale_window: 1000

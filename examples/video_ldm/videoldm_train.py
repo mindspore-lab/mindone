@@ -13,6 +13,7 @@ from mindspore import Model, Tensor, amp, load_checkpoint, load_param_into_net, 
 from mindspore.dataset.vision import CenterCrop, Resize
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
+sys.path.append("examples/stable_diffusion_v2")  # FIXME: loading modules from the SD directory
 from examples.stable_diffusion_v2.common import build_model_from_config, init_env
 from examples.stable_diffusion_v2.ldm.data.loader import build_dataloader
 from examples.stable_diffusion_v2.ldm.data.transforms import TokenizerWrapper
@@ -23,8 +24,6 @@ from examples.stable_diffusion_v2.ldm.modules.train.optim import build_optimizer
 from examples.stable_diffusion_v2.ldm.modules.train.trainer import TrainOneStepWrapper
 from examples.stable_diffusion_v2.ldm.util import count_params
 from examples.video_ldm.data.video_dataset import VideoDataset
-
-sys.path.append("examples/stable_diffusion_v2")  # FIXME: loading modules from the SD directory
 
 
 class ModelWrapper(nn.Cell):
@@ -123,6 +122,10 @@ def main(args, initializer):
     )
 
     # step 5: create optimizer and train the same way as regular SD
+    # FIXME: set decay steps in the scheduler function
+    args.train.scheduler.decay_steps = (
+        args.train.epochs * train_dataloader.get_dataset_size() - args.train.scheduler.warmup_steps
+    )
     lr = create_scheduler(
         steps_per_epoch=train_dataloader.get_dataset_size(), num_epochs=args.train.epochs, **args.train.scheduler
     )
@@ -134,9 +137,20 @@ def main(args, initializer):
         ldm_with_loss_wrap, optimizer=optimizer, scale_sense=loss_scaler, **args.train.settings
     )
 
+    if not args.environment.debug and args.train.sink_size != -1:
+        if train_dataloader.get_dataset_size() % args.train.sink_size:
+            raise ValueError(
+                f"Number of batches in dataset ({train_dataloader.get_dataset_size()})"
+                f" must be divisible by sink_size ({args.train.sink_size})."
+            )
+        args.train.epochs = args.train.epochs * train_dataloader.get_dataset_size() // args.train.sink_size
+
     callbacks = [OverflowMonitor()]
 
     if rank_id == 0:
+        ckpt_save_interval = (
+            1 if args.train.sink_size == -1 else train_dataloader.get_dataset_size() // args.train.sink_size
+        )
         callbacks.extend(
             [
                 TimeMonitor(1),
@@ -146,6 +160,7 @@ def main(args, initializer):
                     model_name="videoldm",
                     rank_id=rank_id,
                     ckpt_save_dir=str(output_dir / "ckpt"),
+                    ckpt_save_interval=ckpt_save_interval,
                     ckpt_save_policy="latest_k",
                     ckpt_max_keep=10,
                 ),
@@ -167,7 +182,7 @@ def main(args, initializer):
                 f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision SD: {ldm_with_loss.model.diffusion_model.dtype}",
-                f"Num epochs: {args.train.epochs}",
+                f"Num epochs: {args.train.epochs} {f'(adjusted to sink size {args.train.sink_size})' if not args.environment.debug else ''}",
                 f"Learning rate: {args.train.scheduler.lr}",
                 f"Batch size: {args.train.dataloader.batch_size}",
                 f"Weight decay: {args.train.optimizer.weight_decay}",
@@ -190,6 +205,7 @@ def main(args, initializer):
         train_dataloader,
         callbacks=callbacks,
         dataset_sink_mode=not args.environment.debug,
+        sink_size=args.train.sink_size,
     )
 
 
@@ -198,6 +214,7 @@ if __name__ == "__main__":
     parser.add_argument("--config", action=ActionConfigFile)
     parser.add_function_arguments(init_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
+    parser.add_argument("--train.sink_size", type=int, default=-1, help="Number of steps in each data sinking.")
     parser.add_argument("--train.temporal_only", type=bool, default=True, help="Train temporal layers only.")
     parser.add_argument("--train.pretrained", type=str, required=True, help="Path to pretrained model.")
     parser.add_argument(
