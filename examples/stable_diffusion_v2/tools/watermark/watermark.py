@@ -13,7 +13,6 @@ from mindspore import Tensor, ops
 WATERMARK_MESSAGE = 0b101100111110110010010000011110111011000110011110
 # bin(x)[2:] gives bits of x as str, use int to convert them to 0/1
 WATERMARK_BITS = [int(bit) for bit in bin(WATERMARK_MESSAGE)[2:]]
-# WATERMARK_BITS='test'
 
 
 class WatermarkEmbedder:
@@ -64,7 +63,6 @@ class WatermarkEmbedder:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_path", type=str, help="Directory to images")
-    # image_path = "/disk1/mindone/songyuanwei/mindone-master/examples/stable_diffusion_v2/output/samples_nowatermark/"
     args = parser.parse_args()
     watermark = WatermarkEmbedder()
     # images = watermark.add_watermark(args.image_path)
