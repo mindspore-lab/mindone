@@ -1,6 +1,6 @@
 import numpy as np
 
-from mindspore import Parameter, Tensor, nn
+from mindspore import Parameter, Tensor, float16, nn
 
 from ...stable_diffusion_v2.ldm.modules.attention import BasicTransformerBlock
 from ...stable_diffusion_v2.ldm.modules.diffusionmodules.openaimodel import UNetModel
@@ -35,9 +35,10 @@ class GroupNorm3D(nn.GroupNorm):
 
 
 class Conv3DLayer(nn.Cell):
-    def __init__(self, in_channels: int, out_channels: int, num_frames: int):
+    def __init__(self, in_channels: int, out_channels: int, num_frames: int, fp16_output: bool = False):
         super().__init__()
         self._num_frames = num_frames
+        self._fp16 = fp16_output
 
         self.conv3d = nn.SequentialCell(
             GroupNorm3D(32, in_channels),
@@ -57,7 +58,10 @@ class Conv3DLayer(nn.Cell):
         h = h.swapaxes(1, 2).reshape(-1, x.shape[1], x.shape[2], x.shape[3])  # b c t h w -> (b t) c h w
 
         # TODO: limit alpha with no grad
-        return self.alpha * x + (1 - self.alpha) * h
+        out = self.alpha * x + (1 - self.alpha) * h
+        if self._fp16:
+            out = out.to(float16)
+        return out
 
 
 class TemporalTransformer(nn.Cell):
@@ -71,9 +75,11 @@ class TemporalTransformer(nn.Cell):
         dropout: float = 0.0,
         context_dim: int = None,
         enable_flash_attention=False,
+        fp16_output: bool = False,
     ):
         super().__init__()
         self._num_frames = num_frames
+        self._fp16 = fp16_output
 
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
@@ -92,7 +98,7 @@ class TemporalTransformer(nn.Cell):
                     d_head,
                     dropout=dropout,
                     context_dim=context_dim,
-                    enable_flash_attention=False,   # FIXME: add FA support
+                    enable_flash_attention=False,  # FIXME: add FA support
                 )
                 for _ in range(depth)
             ]
@@ -126,7 +132,10 @@ class TemporalTransformer(nn.Cell):
         x = x.reshape(-1, c, h, w)  # b t c h w -> (b t) c h w
 
         # TODO: limit alpha with no grad
-        return self.alpha * residual + (1 - self.alpha) * x
+        out = self.alpha * residual + (1 - self.alpha) * x
+        if self._fp16:
+            out = out.to(float16)
+        return out
 
 
 class VideoLDMUNetModel(UNetModel):
@@ -141,7 +150,7 @@ class VideoLDMUNetModel(UNetModel):
                 names = [block.cls_name for block in blocks[b_id]]
                 if "ResBlock" in names and "SpatialTransformer" in names:
                     out_channels = blocks[b_id][0].out_channels
-                    conv3d = Conv3DLayer(out_channels, out_channels, num_frames)
+                    conv3d = Conv3DLayer(out_channels, out_channels, num_frames, fp16_output=kwargs["use_fp16"])
                     tt = TemporalTransformer(
                         out_channels,
                         num_frames,
@@ -151,6 +160,7 @@ class VideoLDMUNetModel(UNetModel):
                         context_dim=kwargs["context_dim"],
                         depth=kwargs["transformer_depth"],  # TODO: verify the depth
                         enable_flash_attention=kwargs["enable_flash_attention"],
+                        fp16_output=kwargs["use_fp16"],
                     )
 
                     blocks[b_id].insert(1, conv3d)
