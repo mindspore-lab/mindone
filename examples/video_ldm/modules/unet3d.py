@@ -1,27 +1,36 @@
 import numpy as np
 
-from mindspore import Parameter, Tensor, float16, nn
+from mindspore import Parameter, Tensor
+from mindspore import dtype as ms_dtype
+from mindspore import nn
 
 from ...stable_diffusion_v2.ldm.modules.attention import BasicTransformerBlock
 from ...stable_diffusion_v2.ldm.modules.diffusionmodules.openaimodel import UNetModel
 
 
-def _positional_encoding(length: int, dim: int) -> np.ndarray:
+def _positional_encoding(length: int, dim: int, max_period=10000) -> np.ndarray:
     """
     Generate sinusoidal positional encodings.
 
     Args:
         length: The length of the sequence.
         dim: The dimension of the positional encodings.
+        max_period: maximum period of sinusoidal function.
 
     Returns:
         A numpy array of shape (length, dim) containing the positional encodings.
     """
-    encodings = np.zeros((length, dim))
     positions = np.arange(0, length)[:, np.newaxis]
-    div_term = np.exp(np.arange(0, dim, 2) * -(np.log(10000.0) / dim))
-    encodings[:, 0::2] = np.sin(positions * div_term)
-    encodings[:, 1::2] = np.cos(positions * div_term)
+    div_term = np.exp(np.arange(0, dim, 2) * -(np.log(max_period) / dim))
+
+    encodings = positions * div_term
+
+    # matching "Attention Is All You Need"
+    # encodings[:, 0::2] = np.sin(encodings)
+    # encodings[:, 1::2] = np.cos(encodings)
+
+    # matching tensor2tensor
+    encodings = np.concatenate((np.cos(encodings), np.sin(encodings)), axis=-1)
     return encodings
 
 
@@ -60,7 +69,7 @@ class Conv3DLayer(nn.Cell):
         # TODO: limit alpha with no grad
         out = self.alpha * x + (1 - self.alpha) * h
         if self._fp16:
-            out = out.to(float16)
+            out = out.to(ms_dtype.float16)
         return out
 
 
@@ -84,7 +93,7 @@ class TemporalTransformer(nn.Cell):
         self.in_channels = in_channels
         inner_dim = n_heads * d_head
 
-        self._pe = Tensor(_positional_encoding(num_frames, inner_dim))
+        self._pe = Tensor(_positional_encoding(num_frames, inner_dim), dtype=ms_dtype.float32)
 
         self.norm = GroupNorm3D(32, in_channels, eps=1e-6)
         self.proj_in = nn.Dense(in_channels, inner_dim)
@@ -134,7 +143,7 @@ class TemporalTransformer(nn.Cell):
         # TODO: limit alpha with no grad
         out = self.alpha * residual + (1 - self.alpha) * x
         if self._fp16:
-            out = out.to(float16)
+            out = out.to(ms_dtype.float16)
         return out
 
 
