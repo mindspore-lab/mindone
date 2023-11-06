@@ -1,10 +1,6 @@
-import pprint
-
 import cv2
 import numpy as np
 import pywt
-
-pp = pprint.PrettyPrinter(indent=2)
 
 
 class EmbedMaxDct(object):
