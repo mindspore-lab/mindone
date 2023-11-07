@@ -78,6 +78,7 @@ def init_env(
         device_target="Ascend",
         device_id=device_id,
         ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+        pynative_synchronize=debug,
     )
 
     return device_id, rank_id, device_num
