@@ -109,9 +109,6 @@ def get_parser_train():
         default=None,
         help="Specify the prompt to identify images in the same class as the provided instance images.",
     )
-    # parser.add_argument(
-    #     "--with_prior_preservation", type=str2bool, default=True, help="Specify whether to use prior preservation loss."
-    # )
     parser.add_argument(
         "--prior_loss_weight", type=float, default=1.0, help="Specify the weight of the prior preservation loss."
     )
@@ -146,8 +143,8 @@ def generate_class_images(args):
         class_images_dir.mkdir(parents=True)
     cur_class_images = len(list(class_images_dir.iterdir()))
     if cur_class_images >= args.num_class_images:
-        print(f"Found {cur_class_images} class images. No need to generate more class images.")
         return None
+
     print("Start generating class images. ")
 
     config = OmegaConf.load(args.config)
@@ -182,11 +179,6 @@ def generate_class_images(args):
 def train(args):
     # Init Env
     args = set_default(args)
-
-    # if args.with_prior_preservation:
-    #     generate_class_images(args)
-    # else:
-    #     print("With with_prior_preservation=False, dreambooth is not applied.")
 
     # Create model
     config = OmegaConf.load(args.config)
@@ -343,4 +335,16 @@ def infer_during_train(model, prompt, save_path, num_cols=1):
 if __name__ == "__main__":
     parser = get_parser_train()
     args, _ = parser.parse_known_args()
-    train(args)
+
+    class_images_dir = Path(args.class_data_path)
+    if not class_images_dir.exists():
+        class_images_dir.mkdir(parents=True)
+    cur_class_images = len(list(class_images_dir.iterdir()))
+    if cur_class_images < args.num_class_images:
+        print(f"Found {cur_class_images} class images only. The target number is {args.num_class_images}")
+        generate_class_images(args)
+        print("Finish generating class images, please rerun train command to start training.")
+
+    else:
+        print(f"Found {cur_class_images} class images. No need to generate more class images. Start training...")
+        train(args)

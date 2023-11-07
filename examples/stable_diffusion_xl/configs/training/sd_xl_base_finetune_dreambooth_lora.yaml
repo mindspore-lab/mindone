@@ -130,18 +130,10 @@ optim:
             weight_decay: 0.01
             eps: 1.0e-8
 
-#    scheduler_config:
-#        target: gm.lr_scheduler.LambdaLinearScheduler
-#        params:
-#            warm_up_steps: [ 10000 ]
-#            cycle_lengths: [ 10000000000000 ]
-#            f_start: [ 1.e-6 ]
-#            f_max: [ 1. ]
-#            f_min: [ 1. ]
 
 data:
     per_batch_size: 1
-    total_step: 15000
+    total_step: 12000
     num_parallel_workers: 6
     python_multiprocessing: False
     shuffle: True
