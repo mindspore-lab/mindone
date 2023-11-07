@@ -22,5 +22,5 @@ start_learning_rate: 1e-5
 
 # optimizer
 optim: "adamw"
-betas: [0.9, 0.999]
+betas: [0.9, 0.98]
 weight_decay: 0.01

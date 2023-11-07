@@ -1,7 +1,7 @@
 """
 Build optimizer for ms
 """
-from typing import List, Union
+from typing import List, Union, Callable
 
 from mindspore.nn import Cell
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
@@ -13,6 +13,7 @@ def build_optimizer(
     lr: Union[float, List[float]],
     betas: List[float] = None,
     weight_decay: float = 1e-6,
+    decay_filter: Callable = None,
 ) -> Optimizer:
     """
     Build and return an instance of the Optimizer class based on the specified parameters.
@@ -31,9 +32,10 @@ def build_optimizer(
     if betas is None:
         betas = [0.9, 0.999]
 
-    def decay_filter(x):
+    def decay_filter_default(x):
         return "layernorm" not in x.name.lower() and "bias" not in x.name.lower()
-
+    
+    decay_filter = decay_filter_default if decay_filter is None else decay_filter
     param_optimizer = model.trainable_params()
     decay_params = list(filter(decay_filter, param_optimizer))
     other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))

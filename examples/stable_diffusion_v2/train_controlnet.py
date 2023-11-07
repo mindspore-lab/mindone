@@ -119,7 +119,7 @@ def parse_args():
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument(
-        "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
+        "--betas", type=float, default=[0.9, 0.98], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
     )
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=0, type=int, help="warmup steps")
@@ -350,6 +350,9 @@ def main(args):
         decay_steps=args.decay_steps,
         num_epochs=args.epochs,
     )
+    # decay_filter: not apply weight decay to layernorm, bias terms, and the controlnet.input_hint_block
+    def decay_filter_controlnet(x):
+        return "layernorm" not in x.name.lower() and "bias" not in x.name.lower() and "input_hint_block" not in x.name.lower()
     
     optimizer = build_optimizer(
         model=latent_diffusion_with_loss,
@@ -357,6 +360,7 @@ def main(args):
         betas=args.betas,
         weight_decay=args.weight_decay,
         lr=lr,
+        decay_filter=decay_filter_controlnet,
     )
     
     loss_scaler = DynamicLossScaleUpdateCell(

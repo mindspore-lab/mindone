@@ -1,4 +1,5 @@
-output_path=output/train_controlnet
+export DEVICE_ID=2
+output_path=output/train_controlnet_activation_layernorm_fp32_no_wd_input_hint_block
 rm -rf $output_path
 mkdir -p ${output_path:?}
 nohup python -u train_controlnet.py  \

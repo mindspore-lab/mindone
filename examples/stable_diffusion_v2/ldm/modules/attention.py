@@ -67,9 +67,9 @@ class FeedForward(nn.Cell):
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
         project_in = (
-            nn.Sequential(nn.Dense(dim, inner_dim).to_float(dtype), nn.GELU().to_float(dtype))
+            nn.Sequential(nn.Dense(dim, inner_dim).to_float(dtype), nn.GELU().to_float(ms.float32))
             if not glu
-            else GEGLU(dim, inner_dim, dtype=dtype)
+            else GEGLU(dim, inner_dim, dtype=ms.float32)
         )
         self.net = nn.SequentialCell(
             project_in,
@@ -260,6 +260,7 @@ class Attention(nn.Cell):
         self.scale = dim_head**-0.5
 
     def construct(self, q, k, v, mask):
+        ori_dtype = q.dtype
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -273,7 +274,7 @@ class Attention(nn.Cell):
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
-        attn = self.softmax(sim)
+        attn = self.softmax(sim.to(ms.float32)).to(ori_dtype)
         out = ops.matmul(attn, v)
 
         return out
@@ -361,9 +362,9 @@ class BasicTransformerBlock(nn.Cell):
                 dtype=dtype,
                 enable_flash_attention=enable_flash_attention,
             )  # is self-attn if context is none
-        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+        self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
