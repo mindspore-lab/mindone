@@ -140,7 +140,14 @@ def polynomial_mmd(X, Y):
 
 def calucation(model, datalist):
     video = VideoPathDataset(datalist)
-    dataloader = ds.GeneratorDataset(video, ["video_frames"], shuffle=False)
+    dataloader = ds.GeneratorDataset(
+        video,
+        ["video_frames"],
+        shuffle=False,
+        num_parallel_workers=4,
+        python_multiprocessing=True,
+        max_rowsize=64,
+    )
     dataloader = dataloader.batch(1, drop_remainder=False)
     pred_arr = []
     for batch in dataloader.create_dict_iterator():
