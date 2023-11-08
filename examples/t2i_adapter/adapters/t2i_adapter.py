@@ -1,21 +1,28 @@
 from collections import OrderedDict
 from typing import List, Optional, Tuple, Union
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
+
 from mindspore import Parameter, Tensor, amp
 from mindspore import dtype as ms_dtype
 from mindspore import load_checkpoint, load_param_into_net, nn, ops
 
-from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusion
-from examples.stable_diffusion_v2.tools._common.clip.clip_modules import QuickGELU
-
 
 def get_adapter(
-    condition: str, checkpoint: Optional[str] = None, use_fp16: bool = False, train: bool = False
+    diffusion_model: Literal["sd", "sdxl"],
+    condition: str,
+    checkpoint: Optional[str] = None,
+    use_fp16: bool = False,
+    train: bool = False,
 ) -> nn.Cell:
     """
     Get condition-specific T2I-Adapter.
 
     Args:
+        diffusion_model: Stable Diffusion model version. Either "sd" or "sdxl".
         condition: Condition for adapter. Possible values are: "style", "color", "sketch", "canny", "other".
         checkpoint: Path to weights checkpoint.
         use_fp16: Use half-precision adapter.
@@ -24,20 +31,26 @@ def get_adapter(
     Returns:
         T2I-Adapter.
     """
+    if diffusion_model == "sdxl" and condition in ["style", "color"]:
+        raise ValueError(f"Condition '{condition}' is not yet supported for SDXL model.")
+
     if condition == "style":
         adapter = StyleT2IAdapter(num_token=8)
     elif condition == "color":
         adapter = T2IAdapter(
+            "sd",
             arch="light",
             in_channels=3,
             out_channels=[320, 640, 1280, 1280],
             rb_num=4,
         )
     else:
-        in_channels = 1 if condition in ["sketch", "canny"] else 3
+        # SDXL always operates on 3-channel images
+        in_channels = 1 if diffusion_model == "sd" and condition in ["sketch", "canny"] else 3
         adapter = T2IAdapter(
+            diffusion_model,
             arch="full",
-            in_channels=in_channels,
+            in_channels=in_channels,  # NOQA
             out_channels=[320, 640, 1280, 1280],
             rb_num=2,
             kernel_size=1,
@@ -97,20 +110,27 @@ class T2IAdapter(nn.Cell):
     """
 
     def __init__(
-        self, arch: str, in_channels, out_channels: Optional[List[int]] = None, rb_num: int = 2, kernel_size: int = 1
+        self,
+        diffusion_model: Literal["sd", "sdxl"],
+        arch: Literal["full", "light"],
+        in_channels: Literal[1, 3],
+        out_channels: Optional[List[int]] = None,
+        rb_num: int = 2,
+        kernel_size: int = 1,
     ):
         super().__init__()
-        assert arch in ["full", "light"], f"T2IAdapter architecture must be `full` or `light`, got {arch}"
-        assert in_channels in [1, 3], f"Input image channels to T2IAdapter must be 1 or 3, got {in_channels}"
         out_channels = out_channels or [320, 640, 1280, 1280]
-        in_channels *= 64  # PixelUnshuffle converts (C, H×8, W×8) to (C×8×8, H, W)
+        df_mult = 1 if diffusion_model == "sd" else 2  # SDXL operates at 2x scale
 
-        self.unshuffle = nn.PixelUnshuffle(downscale_factor=8)
+        in_channels *= 64 * (df_mult**2)  # PixelUnshuffle converts (C, H×df, W×df) to (C×df×df, H, W)
+        self.unshuffle = nn.PixelUnshuffle(downscale_factor=8 * df_mult)
 
         self.body = nn.CellList()
         for i in range(len(out_channels)):
             block = []
-            if i != 0:
+
+            # SD and SDXL have different downsample stages
+            if (diffusion_model == "sd" and i != 0) or (diffusion_model == "sdxl" and i == 2):
                 block.append(nn.AvgPool2d(kernel_size=2, stride=2))
 
             in_ch = in_channels if i == 0 else out_channels[i - 1]
@@ -142,8 +162,7 @@ class T2IAdapter(nn.Cell):
                 )
             )
 
-        for i in range(rb_num):
-            layers.append(ResidualBlock(out_channels, kernel_size=kernel_size, padding=padding))
+        layers.extend([ResidualBlock(out_channels, kernel_size=kernel_size, padding=padding) for _ in range(rb_num)])
         return layers
 
     @staticmethod
@@ -159,7 +178,7 @@ class T2IAdapter(nn.Cell):
         layers.append(nn.Conv2d(inter_channels, out_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True))
         return layers
 
-    def construct(self, x: Tensor) -> List[nn.Cell]:
+    def construct(self, x: Tensor) -> List[Tensor]:
         x = self.unshuffle(x)
 
         features = []
@@ -168,6 +187,16 @@ class T2IAdapter(nn.Cell):
             features.append(x)
 
         return features
+
+
+# TODO: Replace with CLIP's QuickGELU
+class QuickGELU(nn.Cell):
+    """
+    A quick approximation of the GELU activation function.
+    """
+
+    def construct(self, x: Tensor) -> Tensor:
+        return x * ops.sigmoid(1.702 * x)
 
 
 # TODO: Replace with CLIP's ResidualAttentionBlock?
@@ -273,9 +302,9 @@ class CombinedAdapter(nn.Cell):
         for i, adapter in enumerate(adapters):
             # if an adapter is with automatic mixed precision applied
             instance_type = type(adapter._backbone if hasattr(adapter, "_backbone") else adapter)
-            if isinstance(instance_type, T2IAdapter):
+            if instance_type == T2IAdapter:
                 self._regular_ids.append(i)
-            if isinstance(instance_type, StyleT2IAdapter):
+            elif instance_type == StyleT2IAdapter:
                 self._style_ids.append(i)
 
     def construct(self, conds: List[Tensor]) -> Tuple[Union[List[Tensor], None], Union[Tensor, None]]:
@@ -308,36 +337,3 @@ class CombinedAdapter(nn.Cell):
             feature_seq = ops.cat(feature_seq, axis=1).astype(self._out_cast)
 
         return feature_map, feature_seq
-
-
-class SDAdapterPipeline(nn.Cell):
-    """
-    Wrap SD and a T2I-Adapter in a single network for easier training.
-
-    Args:
-        network: Stable Diffusion network.
-        adapter: T2I adapter.
-    """
-
-    def __init__(self, network: LatentDiffusion, adapter: Union[T2IAdapter, StyleT2IAdapter]):
-        super().__init__()
-        self._network = network
-        self._adapter = adapter
-
-    def construct(self, x: Tensor, cond: Tensor, c: Tensor):
-        """
-        Args:
-            x: target image.
-            cond: condition image.
-            c: prompt.
-
-        Returns:
-            SD Loss.
-        """
-        t = self._network.uniform_int(
-            (x.shape[0],), Tensor(0, dtype=ms_dtype.int32), Tensor(self._network.num_timesteps, dtype=ms_dtype.int32)
-        )
-        x, c = self._network.get_input(x, c)
-        c = self._network.get_learned_conditioning(c)
-        adapter_features = self._adapter(cond)
-        return self._network.p_losses(x, c, t, features_adapter=adapter_features)

@@ -15,6 +15,9 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 ## What is New
 
+**Nov 20, 2023**
+1. Add [T2I-Adapters](../t2i_adapter/README.md) support for SDXL.
+
 **Sep 15, 2023**
 
 1. Support SDXL-1.0-Refiner model for image-to-image generation.
