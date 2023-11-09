@@ -450,7 +450,12 @@ if __name__ == "__main__":
         default=None,
         help="path to lora only checkpoint. Set it if use_lora is not None",
     )
-    parser.add_argument("--lora_scale", default=1.0, type=float, help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.")
+    parser.add_argument(
+        "--lora_scale",
+        default=1.0,
+        type=float,
+        help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.",
+    )
     parser.add_argument(
         "--seed",
         type=int,
