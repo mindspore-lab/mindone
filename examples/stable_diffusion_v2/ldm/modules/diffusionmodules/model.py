@@ -26,7 +26,8 @@ _logger = logging.getLogger(__name__)
 
 def nonlinearity(x):
     # swish
-    return x * ops.Sigmoid()(x)
+    ori_dtype = x.dtype
+    return x * (ops.Sigmoid()(x.astype(ms.float32))).astype(ori_dtype)
 
 
 def Normalize(in_channels, num_groups=32):
