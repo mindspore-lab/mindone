@@ -32,9 +32,16 @@ $x$ is the image of your subject ("sks dog"), and $x_{pr}$ is the image from the
 **Notes**:
 - Unlike LoRA, Dreambooth is a method that updates all the weights of the Latent Diffusion model. If needed, the text encoder of the CLIP model can also be updated. We find that finetuning text encoder and the Text-to-Image model yields better performance than finetuning the Text-to-Image model alone.
 
-## 2. Get Started
 
-**MindONE** supports DreamBooth finetuning for Stable Diffusion models based on MindSpore and Ascend platforms.
+
+**MindONE** supports DreamBooth finetuning and inference for Stable Diffusion models based on MindSpore and Ascend platforms.
+
+For finetuning experiment details, please refer to [Section 2](#2-get-started-for-finetuning).
+
+For inference with existing dreambooth models, please refer to [Section 3](#3-get-started-for-inference).
+
+## 2. Get Started for Finetuning
+
 
 ### 2.1 Preparation
 
@@ -97,7 +104,9 @@ Then, execute the script to launch finetuning:
 ```shell
 python train_dreambooth.py \
     --train_config "configs/train/train_config_dreambooth_v2.yaml" \
+    --instance_prompt "a photo of sks dog"  \
     --instance_data_dir "datasets/dog" \
+    --class_prompt "a photo of a dog"  \
     --class_data_dir "temp_class_images/dog" \
     --output_path "output/dreambooth_dog/txt2img" \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
@@ -124,6 +133,7 @@ To run Vanilla Finetuning, you can set the Experiment-Related Variables as <a hr
 ```shell
 python train_dreambooth.py \
     --train_config "configs/train/train_config_dreambooth_vanilla_v2.yaml" \
+    --instance_prompt "a photo of sks dog"  \
     --instance_data_dir "datasets/dog" \
     --output_path "output/dreambooth_vanilla_dog/txt2img" \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
@@ -138,7 +148,9 @@ Please execute the training command below to launch finetuning:
 ```shell
 python train_dreambooth.py \
     --train_config "configs/train/train_config_dreambooth_lora_v2.yaml" \
+    --instance_prompt "a photo of sks dog"  \
     --instance_data_dir "datasets/dog" \
+    --class_prompt "a photo of a dog"  \
     --class_data_dir "temp_class_images/dog" \
     --output_path "output/dreambooth_lora_dog/txt2img" \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
@@ -182,7 +194,7 @@ Some generated images with the vanilla finetuned model are shown below:
   <em> Figure 4. The generated images of the vanilla-finetuned model using three different text prompts. </em>
 </p>
 
-Figure 3. and Figure 4. look similar. However, when we use other prompts with the "dog" class name, for example, "a dog in swimming pool", the DreamBooth model preveres the various looks of different dogs, while the vanilla-finetuned model forgets many dogs' looks except for the "sks dog", which is known as the "language drift" phenonomon.
+Figure 3. and Figure 4. look similar. However, when we use other prompts with the "dog" class name, for example, "a dog in swimming pool", the DreamBooth model preserves the various looks of different dogs, while the vanilla-finetuned model forgets many dogs' looks except for the "sks dog", which is known as the "language drift" phenonomon.
 
 
 Here are the three prompts we used with class name "dog":
@@ -259,6 +271,42 @@ python tools/eval/eval_clip_i_score.py  \
     --gen_image_path_or_dir <path-to-generated-image>  \
     --real_image_path_or_dir <path-to-real-image>
 ```
+
+## 3. Get Started For Inference
+
+If you already have a pretrained DreamBooth model saved in mindspore checkpoint file format, you can easily run inference with `text_to_image.py`. For example:
+```
+SD_VERSION=1.5 # or 2.0 and 2.1 depending on the DreamBooth model version
+python text_to_image.py --prompt 'A girl, cherry blossoms, pink flowers, spring season' -v $SD_VERSION --ckpt_path "ckpt-path-to-dreambooth-ms-ckpt"
+```
+The generated images will be saved in `output/samples` by default. You can set the output path by `--output_path output/dir`.
+
+However, if you want to run inference with other existing DreamBooth models saved in Pytorch framework, you should first convert the pytorch checkpoint file into the mindspore checkpoint file, and then run inference using the command above.
+
+Taking the ToonYou (beta3) DreamBooth model as an example, you can download the checkpoint from civitai.com using:
+```
+wget https://civitai.com/api/download/models/78755 -P models/ --content-disposition --no-check-certificate
+```
+
+It will save `toonyou_beta3.safetensors` under the folder `models/`.
+
+Next, you can convert this checkpoint file into mindspore checkpoint file by using:
+
+```
+python tools/model_conversion/convert_weights.py  --source models/toonyou_beta3.safetensors   --target models/toonyou_beta3.ckpt  --model sdv1  --source_version pt
+```
+The mindspore checkpoint file will be saved as `models/toonyou_beta3.ckpt`.
+
+Now, set `--ckpt_path` as `models/toonyou_beta3.ckpt` and run `text_to_image.py`, you will get the generated images like below:
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dreambooth/toonyou_beta3_girls_images.png" width=650 />
+</p>
+<p align="center">
+  <em> Figure 8. The generated images of the ToonYou (beta3) DreamBooth model using the prompt 'A girl, cherry blossoms, pink flowers, spring season'. </em>
+</p>
+
+
 
 # References
 
