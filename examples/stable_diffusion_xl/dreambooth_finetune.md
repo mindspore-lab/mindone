@@ -4,11 +4,11 @@
 
 DreamBooth is a method for personalizing text-to-image diffusion models, with just a few images (3~5) of a subject and its name as a Unique Identifier. During fine-tuning, a class-specific prior-preservation loss is applied in parallel, which leverages the semantic prior that the model has on the class and encourages output diversity.
 
-For example, we have 5 images of a specific [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) belonging to the prompt "a sks dog" for fine-tuning, where "sks" is a Unique Identifier. In parallel, images of general dogs, which are the class images in a text prompt "a dog", are inputted, so that the models will not forget other dogs' look. 
+For example, we have 5 images of a specific [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) belonging to the prompt "a sks dog" for fine-tuning, where "sks" is a Unique Identifier. In parallel, images of general dogs, which are the class images in a text prompt "a dog", are inputted, so that the models will not forget other dogs' look.
 
-The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based on MindSpore and Ascend platforms. 
+The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based on MindSpore and Ascend platforms.
 
-**Note**: For now we only allow DreamBooth fine-tuning of SDXL UNet via [LoRA](https://arxiv.org/abs/2106.09685) . 
+**Note**: For now we only allow DreamBooth fine-tuning of SDXL UNet via [LoRA](https://arxiv.org/abs/2106.09685) .
 
 ## Preparation
 
@@ -61,7 +61,7 @@ Before running the fintune scripts `train_dreambooth.py`, please specify the arg
 
 Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora.yaml` if needed.
 
-Launch a standalone training using: 
+Launch a standalone training using:
 
 ```shell
 python train_dreambooth.py \
@@ -74,7 +74,7 @@ python train_dreambooth.py \
   --device_target Ascend
 ```
 
-Our implement is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If there are not enough images present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 45 minutes to sample 50 class images. 
+Our implement is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If there are not enough images present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 45 minutes to sample 50 class images.
 
 ## Inference
 
@@ -105,7 +105,7 @@ Examples of generated images with the DreamBooth model using prompts are shown a
 
 * "a sks dog playing on the hiil, warm color palette, muted color, detailed"
 
-  
+
 
 <p align="center">
   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/bd61f3cd-dcf5-44ec-9ba7-3920004293cb" width=700 />
@@ -120,10 +120,4 @@ Examples of generated images with the DreamBooth model using prompts are shown a
 </p>
 
 
-​    
-
-  
-
-
-
-  
+​
