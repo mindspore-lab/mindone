@@ -145,6 +145,12 @@ def parse_args():
         help="lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.",
     )
     parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
+    parser.add_argument(
+        "--lora_scale",
+        default=1.0,
+        type=float,
+        help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.",
+    )
 
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
@@ -266,6 +272,7 @@ def main(args):
                 latent_diffusion_with_loss,
                 rank=args.lora_rank,
                 use_fp16=args.lora_fp16,
+                scale=args.lora_scale,
             )
             num_injected_params += len(unet_lora_params)
         if args.lora_ft_text_encoder:
@@ -273,6 +280,7 @@ def main(args):
                 latent_diffusion_with_loss,
                 rank=args.lora_rank,
                 use_fp16=args.lora_fp16,
+                scale=args.lora_scale,
             )
             num_injected_params += len(text_encoder_lora_params)
 

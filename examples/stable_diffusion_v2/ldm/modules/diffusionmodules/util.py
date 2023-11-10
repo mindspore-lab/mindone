@@ -101,7 +101,8 @@ class SiLU(nn.Cell):
         self.sigmoid = ops.Sigmoid()
 
     def construct(self, x):
-        return x * self.sigmoid(x)
+        # force sigmoid to use fp32
+        return x * self.sigmoid(x.astype(ms.float32)).astype(x.dtype)
 
 
 class GroupNorm32(nn.GroupNorm):

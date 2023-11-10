@@ -273,7 +273,9 @@ class Attention(nn.Cell):
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
-        attn = self.softmax(sim)
+        # use fp32 for exponential inside
+        attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+
         out = ops.matmul(attn, v)
 
         return out

@@ -94,12 +94,14 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                     model,
                     rank=lora_rank,
                     use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+                    scale=args.lora_scale,
                 )
             if args.lora_ft_text_encoder:
                 injected_attns, injected_trainable_params = inject_trainable_lora_to_textencoder(
                     model,
                     rank=lora_rank,
                     use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+                    scale=args.lora_scale,
                 )
 
             # load fine-tuned lora params
@@ -447,6 +449,12 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="path to lora only checkpoint. Set it if use_lora is not None",
+    )
+    parser.add_argument(
+        "--lora_scale",
+        default=1.0,
+        type=float,
+        help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.",
     )
     parser.add_argument(
         "--seed",
