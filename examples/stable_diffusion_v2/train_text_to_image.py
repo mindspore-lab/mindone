@@ -24,14 +24,19 @@ from omegaconf import OmegaConf
 from mindspore import Model, Profiler, load_checkpoint, load_param_into_net
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
+from mindspore import nn
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
 
 
-def build_model_from_config(config):
+def build_model_from_config(config, enable_flash_attention=None):
     config = OmegaConf.load(config).model
+    if args is not None:
+        if enable_flash_attention is not None: 
+            config['params']['unet_config']['params']['enable_flash_attention']  = enable_flash_attention
+
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -162,6 +167,9 @@ def parse_args():
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
+    parser.add_argument("--enable_flash_attention", default=None, type=str2bool, help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.")
+    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
+    parser.add_argument("--loss_scaler_type", default='dynamic', type=str, help="dynamic or static")
     parser.add_argument(
         "--max_grad_norm",
         default=1.0,
@@ -221,7 +229,7 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
-    latent_diffusion_with_loss = build_model_from_config(args.model_config)
+    latent_diffusion_with_loss = build_model_from_config(args.model_config, args.enable_flash_attention)
     if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
         load_pretrained_model_vae_unet_cnclip(
             args.pretrained_model_path, args.custom_text_encoder, latent_diffusion_with_loss
@@ -303,10 +311,16 @@ def main(args):
         weight_decay=args.weight_decay,
         lr=lr,
     )
+    
+    if args.loss_scaler_type == 'dynamic':
+        loss_scaler = DynamicLossScaleUpdateCell(
+            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
+        )
+    elif args.loss_scaler_type == 'static':
+        loss_scaler= nn.FixedLossScaleUpdateCell(args.init_loss_scale)
+    else:
+        raise ValueError
 
-    loss_scaler = DynamicLossScaleUpdateCell(
-        loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
-    )
 
     # resume ckpt
     if rank_id == 0:
@@ -338,7 +352,7 @@ def main(args):
         latent_diffusion_with_loss,
         optimizer=optimizer,
         scale_sense=loss_scaler,
-        drop_overflow_update=True,  # TODO: allow config
+        drop_overflow_update=args.drop_overflow_update,  # TODO: allow config
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         clip_grad=args.clip_grad,
         clip_norm=args.max_grad_norm,

@@ -133,7 +133,7 @@ class CrossAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim).to_float(dtype),
             nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
         )
-
+        print("D-- enable flash attention: ", enable_flash_attention)
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
@@ -443,6 +443,7 @@ class SpatialTransformer(nn.Cell):
 
     def construct(self, x, emb=None, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
+        print("D--: spatial transformer input shape: ", x.shape)
         b, c, h, w = x.shape
         x_in = x
         x = self.norm(x)
