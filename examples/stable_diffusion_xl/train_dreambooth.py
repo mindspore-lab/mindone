@@ -1,5 +1,6 @@
 import argparse
 import ast
+import logging
 import os
 import time
 from functools import partial
@@ -20,6 +21,8 @@ from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Tensor
+
+logger = logging.getLogger(__name__)
 
 
 def str2bool(b):
@@ -145,7 +148,7 @@ def generate_class_images(args):
     if cur_class_images >= args.num_class_images:
         return None
 
-    print("Start generating class images. ")
+    print("Start generating class images... ")
 
     config = OmegaConf.load(args.config)
     model, _ = create_model(
@@ -341,9 +344,9 @@ if __name__ == "__main__":
         class_images_dir.mkdir(parents=True)
     cur_class_images = len(list(class_images_dir.iterdir()))
     if cur_class_images < args.num_class_images:
-        print(f"Found {cur_class_images} class images only. The target number is {args.num_class_images}")
+        logger.warning(f"Found {cur_class_images} class images only. The target number is {args.num_class_images}")
         generate_class_images(args)
-        print("Finish generating class images, please rerun train command to start training.")
+        logger.warning("Finish generating class images, please rerun train command to start training.")
 
     else:
         print(f"Found {cur_class_images} class images. No need to generate more class images. Start training...")
