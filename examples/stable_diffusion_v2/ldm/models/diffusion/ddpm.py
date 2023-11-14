@@ -123,7 +123,7 @@ class DDPM(nn.Cell):
         self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init).astype(np.float32))
         if self.learn_logvar:
             self.logvar = Parameter(self.logvar, requires_grad=True)
-        self.randn_like = ops.StandardNormal()
+        self.randn_like = ops.StandardNormal(seed=1)
         self.mse_mean = nn.MSELoss(reduction="mean")
         self.mse_none = nn.MSELoss(reduction="none")
 
@@ -286,7 +286,7 @@ class LatentDiffusion(DDPM):
         self.cond_stage_forward = cond_stage_forward
         self.clip_denoised = False
         self.bbox_tokenizer = None
-        self.uniform_int = ops.UniformInt()
+        self.uniform_int = ops.UniformInt(seed=1)
 
         self.restarted_from_ckpt = False
         if ckpt_path is not None:
@@ -502,7 +502,7 @@ class LatentDiffusionDB(DDPM):
         self.cond_stage_forward = cond_stage_forward
         self.clip_denoised = False
         self.bbox_tokenizer = None
-        self.uniform_int = ops.UniformInt()
+        self.uniform_int = ops.UniformInt(seed=1)
 
         self.restarted_from_ckpt = False
         if ckpt_path is not None:
@@ -631,7 +631,7 @@ class LatentDiffusionDreamBooth(LatentDiffusion):
 
     def shared_step(self, x, c):
         x, c = self.get_input(x, c)
-        t = ops.UniformInt()(
+        t = ops.UniformInt(seed=1)(
             (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
         )
         c = self.get_learned_conditioning_fortrain(c)

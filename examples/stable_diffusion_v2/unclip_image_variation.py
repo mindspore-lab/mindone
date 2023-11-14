@@ -238,7 +238,7 @@ def main(args):
     # infer
     start_code = None
     if args.fixed_code:
-        start_code = ops.StandardNormal()((args.n_samples, 4, args.H // 8, args.W // 8))
+        start_code = ops.StandardNormal(seed=1)((args.n_samples, 4, args.H // 8, args.W // 8))
 
     all_samples = list()
     for i, prompts in enumerate(data):

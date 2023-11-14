@@ -175,7 +175,7 @@ class DDIMSampler(object):
     ):
         b = shape[0]
         if x_T is None:
-            img = ms.ops.StandardNormal()(shape)
+            img = ms.ops.StandardNormal(seed=1)(shape)
         else:
             img = x_T
 

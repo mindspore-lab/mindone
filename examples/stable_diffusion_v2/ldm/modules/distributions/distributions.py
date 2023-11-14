@@ -21,7 +21,7 @@ class DiagonalGaussianDistribution(object):
         self.logvar = ops.clip_by_value(self.logvar, -30.0, 20.0)
         self.deterministic = deterministic
         self.std = ops.exp(0.5 * self.logvar)
-        self.stdnormal = ops.StandardNormal()
+        self.stdnormal = ops.StandardNormal(seed=1)
 
     def sample(self):
         x = self.mean + self.std * self.stdnormal(self.mean.shape)

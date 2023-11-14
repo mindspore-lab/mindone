@@ -78,7 +78,7 @@ def load_data(
         batchlen = sample_num
     metaloader = MetaLoader(dataloaders, datalen=batchlen, task_num=len(dataloaders.keys()))
 
-    dataset = GeneratorDataset(metaloader, column_names=data_column, shuffle=True)
+    dataset = GeneratorDataset(metaloader, column_names=data_column, shuffle=False)
 
     print("dataset size per shard:", dataset.get_dataset_size(), flush=True)
     return dataset

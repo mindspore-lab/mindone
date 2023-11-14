@@ -138,7 +138,7 @@ def main(args):
     # infer
     start_code = None
     if args.fixed_code:
-        stdnormal = ms.ops.StandardNormal()
+        stdnormal = ms.ops.StandardNormal(seed=1)
         start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
 
     conds, img_shape = read_images(cond_paths, min(args.H, args.W))

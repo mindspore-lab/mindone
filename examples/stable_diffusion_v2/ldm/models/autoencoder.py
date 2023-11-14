@@ -54,7 +54,7 @@ class AutoencoderKL(nn.Cell):
 
         self.split = ops.Split(axis=1, output_num=2)
         self.exp = ops.Exp()
-        self.stdnormal = ops.StandardNormal()
+        self.stdnormal = ops.StandardNormal(seed=1)
 
     def init_from_ckpt(self, path, ignore_keys=list()):
         sd = ms.load_checkpoint(path)["state_dict"]
