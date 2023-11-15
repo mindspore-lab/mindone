@@ -4,7 +4,7 @@ export DEVICE_ID=$1
 # export MS_ASCEND_CHECK_OVERFLOW_MODE=1
 export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE" # debug
 
-task_name=train_vanilla_v1_infnan_moreFp32_allFusionOff
+task_name=train_vanilla_v1_infnan_moreFp32_AdamDasFusionOff
 output_path=outputs
 output_dir=$output_path/$task_name
 

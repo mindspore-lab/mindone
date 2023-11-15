@@ -445,7 +445,6 @@ class SpatialTransformer(nn.Cell):
 
     def construct(self, x, emb=None, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
-        print("D--: spatial transformer input shape: ", x.shape)
         b, c, h, w = x.shape
         x_in = x
         x = self.norm(x)
