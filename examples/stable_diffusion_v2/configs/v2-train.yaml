@@ -33,7 +33,7 @@ model:
         #num_heads: 8  #wukong
         num_head_channels: 64  # SD_VERSION v2.0
         use_spatial_transformer: True
-        enable_flash_attention: True
+        enable_flash_attention: False
         use_linear_in_transformer: True #SD_VERSION v2.0
         transformer_depth: 1
         #context_dim: 768

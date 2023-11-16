@@ -14,7 +14,7 @@ ONE is short for "ONE for all" and "Optimal generators with No Exception" (credi
 
 - [Stable Diffusion XL](examples/stable_diffusion_xl): New state-of-the-art SD model with double text embedders and larger UNet.
 
-- [VideoComposer](examples/videocomposer): Genearte videos with prompts or reference videos via controllable video diffusion (both training and inference are supported)
+- [VideoComposer](examples/videocomposer): Generate videos with prompts or reference videos via controllable video diffusion (both training and inference are supported)
 
 
 ## Awesome List

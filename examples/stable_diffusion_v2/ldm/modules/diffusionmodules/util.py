@@ -96,12 +96,17 @@ def normalization(channels):
 
 
 class SiLU(nn.Cell):
-    def __init__(self):
+    def __init__(self, upcast=False):
         super(SiLU, self).__init__()
         self.sigmoid = ops.Sigmoid()
+        self.upcast = upcast
 
     def construct(self, x):
-        return x * self.sigmoid(x)
+        if self.upcast:
+            # force sigmoid to use fp32
+            return x * self.sigmoid(x.astype(ms.float32)).astype(x.dtype)
+        else:
+            return x * self.sigmoid(x)
 
 
 class GroupNorm32(nn.GroupNorm):
