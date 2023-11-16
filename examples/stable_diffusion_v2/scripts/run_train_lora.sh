@@ -5,7 +5,7 @@ export DEVICE_ID=$1
 export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE" # debuggin
 
 
-task_name=train_lora_ovfDropUpdate_ls65536_ema_e200_revertfp32 #rewrite
+task_name=train_lora_sdv1 #rewrite
 output_path=outputs
 output_dir=$output_path/$task_name
 
