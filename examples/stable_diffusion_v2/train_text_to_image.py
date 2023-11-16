@@ -442,7 +442,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-
     logger.debug("process id:", os.getpid())
     args = parse_args()
     main(args)

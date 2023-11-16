@@ -3,7 +3,7 @@ import os
 import time
 
 import mindspore as ms
-from mindspore.train.callback._callback import Callback, _handle_loss, set_cur_net
+from mindspore.train.callback._callback import Callback, _handle_loss
 
 from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder

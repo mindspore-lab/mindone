@@ -77,10 +77,19 @@ class Downsample(nn.Cell):
             x = ops.AvgPool(kernel_size=2, stride=2)(x)
         return x
 
+
 # used in vae
 class ResnetBlock(nn.Cell):
     def __init__(
-        self, *, in_channels, out_channels=None, conv_shortcut=False, dropout, temb_channels=512, dtype=ms.float32, upcast_sigmoid=False,
+        self,
+        *,
+        in_channels,
+        out_channels=None,
+        conv_shortcut=False,
+        dropout,
+        temb_channels=512,
+        dtype=ms.float32,
+        upcast_sigmoid=False,
     ):
         super().__init__()
         self.dtype = dtype
@@ -191,6 +200,7 @@ def make_attn(in_channels, attn_type="vanilla", dtype=ms.float32):
     if attn_type == "vanilla":
         return AttnBlock(in_channels, dtype=dtype)
 
+
 # used in vae
 class Encoder(nn.Cell):
     def __init__(
@@ -222,7 +232,7 @@ class Encoder(nn.Cell):
         self.resolution = resolution
         self.in_channels = in_channels
         self.dtype = dtype
-        self.upcast_sigmoid=upcast_sigmoid,
+        self.upcast_sigmoid = (upcast_sigmoid,)
 
         # downsampling
         self.conv_in = nn.Conv2d(
@@ -266,11 +276,21 @@ class Encoder(nn.Cell):
         # middle
         self.mid = nn.Cell()
         self.mid.block_1 = ResnetBlock(
-            in_channels=block_in, out_channels=block_in, temb_channels=self.temb_ch, dropout=dropout, dtype=self.dtype, upcast_sigmoid=upcast_sigmoid,
+            in_channels=block_in,
+            out_channels=block_in,
+            temb_channels=self.temb_ch,
+            dropout=dropout,
+            dtype=self.dtype,
+            upcast_sigmoid=upcast_sigmoid,
         )
         self.mid.attn_1 = make_attn(block_in, attn_type=attn_type, dtype=self.dtype)
         self.mid.block_2 = ResnetBlock(
-            in_channels=block_in, out_channels=block_in, temb_channels=self.temb_ch, dropout=dropout, dtype=self.dtype, upcast_sigmoid=upcast_sigmoid,
+            in_channels=block_in,
+            out_channels=block_in,
+            temb_channels=self.temb_ch,
+            dropout=dropout,
+            dtype=self.dtype,
+            upcast_sigmoid=upcast_sigmoid,
         )
 
         # end

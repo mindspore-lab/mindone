@@ -140,7 +140,7 @@ class CrossAttention(nn.Cell):
         if enable_flash_attention and not self.use_flash_attention:
             print("WARNING: flash attention is set to enable but not available.")
         if self.use_flash_attention:
-            print("INFO: flash attention will be used.") 
+            print("INFO: flash attention will be used.")
 
         self.attention = Attention(dim_head, upcast=upcast)
         self.flash_attention = FlashAttention(self.heads, dim_head) if self.use_flash_attention else None
@@ -275,7 +275,7 @@ class Attention(nn.Cell):
             mask = mask.repeat(self.heads, axis=0)
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
-        
+
         if self.upcast:
             # use fp32 for exponential inside
             attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
