@@ -21,10 +21,9 @@ from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
-from mindspore import Model, Profiler, load_checkpoint, load_param_into_net
+from mindspore import Model, Profiler, load_checkpoint, load_param_into_net, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
-from mindspore import nn
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
@@ -34,8 +33,8 @@ logger = logging.getLogger(__name__)
 def build_model_from_config(config, enable_flash_attention=None):
     config = OmegaConf.load(config).model
     if args is not None:
-        if enable_flash_attention is not None: 
-            config['params']['unet_config']['params']['enable_flash_attention']  = enable_flash_attention
+        if enable_flash_attention is not None:
+            config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
 
     if "target" not in config:
         if config == "__is_first_stage__":
@@ -173,9 +172,14 @@ def parse_args():
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
-    parser.add_argument("--enable_flash_attention", default=None, type=str2bool, help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.")
+    parser.add_argument(
+        "--enable_flash_attention",
+        default=None,
+        type=str2bool,
+        help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.",
+    )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
-    parser.add_argument("--loss_scaler_type", default='dynamic', type=str, help="dynamic or static")
+    parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
         "--max_grad_norm",
         default=1.0,
@@ -319,16 +323,15 @@ def main(args):
         weight_decay=args.weight_decay,
         lr=lr,
     )
-    
-    if args.loss_scaler_type == 'dynamic':
+
+    if args.loss_scaler_type == "dynamic":
         loss_scaler = DynamicLossScaleUpdateCell(
             loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
         )
-    elif args.loss_scaler_type == 'static':
-        loss_scaler= nn.FixedLossScaleUpdateCell(args.init_loss_scale)
+    elif args.loss_scaler_type == "static":
+        loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
     else:
         raise ValueError
-
 
     # resume ckpt
     if rank_id == 0:

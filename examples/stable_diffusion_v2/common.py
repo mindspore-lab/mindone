@@ -10,10 +10,6 @@ from ldm.modules.train.tools import set_random_seed
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
-from ldm.data.dataset_dist import split_and_sync_data
-from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.modules.train.tools import set_random_seed
-
 
 def init_env(
     logger: Logger,

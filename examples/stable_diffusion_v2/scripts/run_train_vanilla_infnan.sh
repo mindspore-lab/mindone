@@ -22,5 +22,3 @@ python train_text_to_image.py \
     --enable_flash_attention=False \
     --drop_overflow_update=True \
     > $output_dir/train.log 2>&1 &
-
-

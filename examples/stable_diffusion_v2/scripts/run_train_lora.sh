@@ -10,7 +10,7 @@ output_path=outputs
 output_dir=$output_path/$task_name
 
 rm -rf $output_dir
-mkdir -p $output_dir 
+mkdir -p $output_dir
 python train_text_to_image.py \
     --train_config "configs/train/train_config_lora_v1.yaml" \
     --data_path "datasets/chinese_art_blip/train" \
