@@ -419,9 +419,12 @@ def main(args):
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
+                f"Loss scaler: {args.loss_scaler_type}",
+                f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
+                f"Enable flash attention: {args.enable_flash_attention}",
             ]
         )
         key_info += "\n" + "=" * 50
@@ -439,6 +442,7 @@ def main(args):
 
 
 if __name__ == "__main__":
+
     logger.debug("process id:", os.getpid())
     args = parse_args()
     main(args)

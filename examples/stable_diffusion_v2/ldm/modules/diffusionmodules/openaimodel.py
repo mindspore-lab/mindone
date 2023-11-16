@@ -326,6 +326,8 @@ class UNetModel(nn.Cell):
         cross_frame_attention=False,
         unet_chunk_size=2,
         adm_in_channels=None,
+        upcast_attn=False,
+        upcast_sigmoid=False,
     ):
         super().__init__()
 
@@ -454,6 +456,7 @@ class UNetModel(nn.Cell):
                             enable_flash_attention=enable_flash_attention,
                             cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
+                            upcast_attn=upcast_attn,
                         )
                     )
                 self.input_blocks.append(layers)
@@ -530,6 +533,7 @@ class UNetModel(nn.Cell):
                     enable_flash_attention=enable_flash_attention,
                     cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
+                    upcast_attn=upcast_attn,
                 ),
                 ResBlock(
                     ch,
@@ -594,6 +598,7 @@ class UNetModel(nn.Cell):
                             enable_flash_attention=enable_flash_attention,
                             cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
+                            upcast_attn=upcast_attn,
                         )
                     )
                 if level and i == num_res_blocks:
