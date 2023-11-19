@@ -32,9 +32,11 @@ class MultiheadAttention(nn.Cell):
         self.out_proj = nn.Dense(self.embed_dim, self.embed_dim).to_float(dtype)
         self.split = ops.Split(-1, 3)
         self.expand_dims = ops.ExpandDims()
-        self.softmax = nn.Softmax(-1)
+        # self.softmax = nn.Softmax(-1).to_float(ms.float32)
+        self.softmax = nn.Softmax(-1).to_float(dtype)
         self.transpose = ops.Transpose()
         self.scaling = self.head_dim**-0.5
+        self.dtype = dtype
 
     def construct(self, query, key, value, attn_mask):
         tgt_len, bsz, embed_dim = query.shape
@@ -52,7 +54,7 @@ class MultiheadAttention(nn.Cell):
         attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
         attn_output_weights += self.expand_dims(attn_mask, 0)
         attn_output_weights = self.softmax(attn_output_weights)  # bs x (HW + 1) x (HW + 1)
-        attn_output = ops.matmul(attn_output_weights, v)  # bs x (HW + 1) x h
+        attn_output = ops.matmul(attn_output_weights.astype(self.dtype), v)  # bs x (HW + 1) x h
         attn_output = self.transpose(attn_output, (1, 0, 2))
         attn_output = attn_output.view(tgt_len, bsz, embed_dim)
         attn_output = self.out_proj(attn_output)
@@ -73,7 +75,7 @@ class ResidualAttentionBlock(nn.Cell):
     def __init__(self, d_model, n_head, attn_mask, epsilon, use_quick_gelu, dtype=ms.float32):
         super(ResidualAttentionBlock, self).__init__()
         self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
-        self.ln_1 = LayerNorm([d_model], epsilon=epsilon).to_float(dtype)
+        self.ln_1 = LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
         self.c_fc = nn.Dense(d_model, d_model * 4).to_float(dtype)
 
         # In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to:
@@ -86,7 +88,7 @@ class ResidualAttentionBlock(nn.Cell):
 
         self.c_proj = nn.Dense(d_model * 4, d_model).to_float(dtype)
         self.mlp = nn.SequentialCell([self.c_fc, self.gelu, self.c_proj])
-        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(dtype)
+        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
 
     def construct(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -188,12 +190,12 @@ class OpenCLIPResidualAttentionBlock(nn.Cell):
     ):
         super().__init__()
         self.dtype = dtype
-        self.ln_1 = LayerNorm((d_model,), epsilon=epsilon).to_float(self.dtype)
+        self.ln_1 = LayerNorm((d_model,), epsilon=epsilon).to_float(ms.float32)
         self.attn = MultiheadAttention(d_model, n_head, dtype=dtype)
         if is_cross_attention:
-            self.ln_1_kv = LayerNorm((d_model,), epsilon=epsilon).to_float(self.dtype)
+            self.ln_1_kv = LayerNorm((d_model,), epsilon=epsilon).to_float(ms.float32)
 
-        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(self.dtype)
+        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
         mlp_width = int(d_model * mlp_ratio)
         self.mlp = nn.SequentialCell(
             OrderedDict(
@@ -244,7 +246,7 @@ class OpenClipTextEncoder(nn.Cell):
         self.positional_embedding = Parameter(
             initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
         )
-        self.ln_final = nn.LayerNorm((self.width,), epsilon=epsilon).to_float(self.dtype)
+        self.ln_final = nn.LayerNorm((self.width,), epsilon=epsilon).to_float(ms.float32)
         self.attn_mask = ms.Tensor(self.build_attntion_mask(context_length), dtype=self.dtype)
 
     @staticmethod

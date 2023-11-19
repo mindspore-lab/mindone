@@ -139,7 +139,7 @@ class ResBlock(nn.Cell):
         self.split = ops.Split(1, 2)
 
         self.in_layers_norm = normalization(channels)
-        self.in_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.in_layers_silu = nn.SiLU().to_float(ms.float32)
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
@@ -154,14 +154,14 @@ class ResBlock(nn.Cell):
             self.h_upd = self.x_upd = self.identity
 
         self.emb_layers = nn.SequentialCell(
-            nn.SiLU().to_float(self.dtype),
+            nn.SiLU().to_float(ms.float32),
             linear(
                 emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels, dtype=self.dtype
             ),
         )
 
         self.out_layers_norm = normalization(self.out_channels)
-        self.out_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.out_layers_silu = nn.SiLU().to_float(ms.float32)
 
         if is_old_ms_version():
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
@@ -327,7 +327,7 @@ class UNetModel(nn.Cell):
         unet_chunk_size=2,
         adm_in_channels=None,
         upcast_attn=False,
-        upcast_sigmoid=False,
+        use_recompute=False,
     ):
         super().__init__()
 
@@ -374,7 +374,7 @@ class UNetModel(nn.Cell):
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            nn.SiLU().to_float(ms.float32),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
 
@@ -386,7 +386,7 @@ class UNetModel(nn.Cell):
                 self.label_emb = nn.SequentialCell(
                     nn.SequentialCell(
                         linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
-                        nn.SiLU().to_float(self.dtype),
+                        nn.SiLU().to_float(ms.float32),
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
@@ -624,7 +624,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             normalization(ch),
-            nn.SiLU().to_float(self.dtype),
+            nn.SiLU().to_float(ms.float32),
             zero_module(
                 conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
                     self.dtype
@@ -638,6 +638,13 @@ class UNetModel(nn.Cell):
                 conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode="pad").to_float(self.dtype),
             )
         self.cat = ops.Concat(axis=1)
+
+        # recompute to save NPU mem
+        if use_recompute:
+            for mblock in self.middle_block:
+                mblock.recompute()
+            for oblock in self.output_blocks:
+                oblock.recompute()
 
     def construct(
         self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs

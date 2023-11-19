@@ -9,7 +9,7 @@ import shutil
 
 import yaml
 from common import init_env
-from ldm.data.dataset import build_dataset
+from ldm.data.dataset_controlnet import build_dataset_controlnet
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -21,20 +21,17 @@ from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
-from mindspore import Model, Profiler, load_checkpoint, load_param_into_net, nn
+from mindspore import Model, Profiler, load_checkpoint, load_param_into_net
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-from mindspore.train.callback import TimeMonitor
-
-os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+from mindspore.train.callback import LossMonitor, TimeMonitor
 
 logger = logging.getLogger(__name__)
 
 
-def build_model_from_config(config, enable_flash_attention=None):
+def build_model_from_config(config, use_recompute=None):
     config = OmegaConf.load(config).model
-    if args is not None:
-        if enable_flash_attention is not None:
-            config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
+    if use_recompute is not None:
+        config["params"]["unet_config"]["params"]["use_recompute"] = use_recompute
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -96,12 +93,13 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--train_config",
-        default="",
+        default="configs/train/sd15_controlnet.yaml",
         type=str,
         help="train config path to load a yaml file that override the default arguments",
     )
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument("--use_recompute", default=None, type=str2bool, help="whether use recompute")
     parser.add_argument(
         "--replace_small_images",
         default=True,
@@ -117,7 +115,7 @@ def parse_args():
         help="the path of num_samples.json containing a dictionary with 64 parts. "
         "Each part is a large dictionary containing counts of samples of 533 tar packages.",
     )
-    parser.add_argument("--data_path", default="dataset", type=str, help="data path")
+    parser.add_argument("--data_path", default="datasets/fill5", type=str, help="data path")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--resume",
@@ -143,12 +141,6 @@ def parse_args():
         help="lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.",
     )
     parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
-    parser.add_argument(
-        "--lora_scale",
-        default=1.0,
-        type=float,
-        help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.",
-    )
 
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
@@ -170,24 +162,8 @@ def parse_args():
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
+    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
-    # parser.add_argument("--use_recompute", default=None, type=str2bool, help="whether use recompute")
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=None,
-        type=str2bool,
-        help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.",
-    )
-    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
-    parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=None,
-        type=str2bool,
-        help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.",
-    )
-    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
-    parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
         "--max_grad_norm",
         default=1.0,
@@ -236,6 +212,7 @@ def main(args):
 
     # init
     device_id, rank_id, device_num = init_env(
+        logger,
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
@@ -246,7 +223,7 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
-    latent_diffusion_with_loss = build_model_from_config(args.model_config, args.enable_flash_attention)
+    latent_diffusion_with_loss = build_model_from_config(args.model_config, use_recompute=args.use_recompute)
     if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
         load_pretrained_model_vae_unet_cnclip(
             args.pretrained_model_path, args.custom_text_encoder, latent_diffusion_with_loss
@@ -256,7 +233,7 @@ def main(args):
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
-    dataset = build_dataset(
+    dataset = build_dataset_controlnet(
         data_path=args.data_path,
         train_batch_size=args.train_batch_size,
         tokenizer=tokenizer,
@@ -264,10 +241,7 @@ def main(args):
         image_filter_size=args.image_filter_size,
         device_num=device_num,
         rank_id=rank_id,
-        random_crop=args.random_crop,
         filter_small_size=args.filter_small_size,
-        replace=args.replace_small_images,
-        enable_modelarts=args.enable_modelarts,
     )
 
     # lora injection
@@ -283,7 +257,6 @@ def main(args):
                 latent_diffusion_with_loss,
                 rank=args.lora_rank,
                 use_fp16=args.lora_fp16,
-                scale=args.lora_scale,
             )
             num_injected_params += len(unet_lora_params)
         if args.lora_ft_text_encoder:
@@ -291,7 +264,6 @@ def main(args):
                 latent_diffusion_with_loss,
                 rank=args.lora_rank,
                 use_fp16=args.lora_fp16,
-                scale=args.lora_scale,
             )
             num_injected_params += len(text_encoder_lora_params)
 
@@ -331,14 +303,9 @@ def main(args):
         lr=lr,
     )
 
-    if args.loss_scaler_type == "dynamic":
-        loss_scaler = DynamicLossScaleUpdateCell(
-            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
-        )
-    elif args.loss_scaler_type == "static":
-        loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
-    else:
-        raise ValueError
+    loss_scaler = DynamicLossScaleUpdateCell(
+        loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
+    )
 
     # resume ckpt
     if rank_id == 0:
@@ -380,9 +347,10 @@ def main(args):
     model = Model(net_with_grads)
 
     # callbacks
-    callback = [TimeMonitor(args.callback_size)]
-    ofm_cb = OverflowMonitor()
-    callback.append(ofm_cb)
+    callback = [TimeMonitor(args.callback_size), LossMonitor(args.callback_size)]
+    if not args.drop_overflow_update:
+        ofm_cb = OverflowMonitor()
+        callback.append(ofm_cb)
 
     if rank_id == 0:
         save_cb = EvalSaveCallback(
@@ -426,12 +394,10 @@ def main(args):
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
-                f"Loss scaler: {args.loss_scaler_type}",
-                f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
+                f"Init loss scale: {args.init_loss_scale}",
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
-                f"Enable flash attention: {args.enable_flash_attention}",
             ]
         )
         key_info += "\n" + "=" * 50
