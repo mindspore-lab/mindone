@@ -76,8 +76,7 @@ class DPMSolverSampler(object):
                     _logger.warning(f"Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
 
         # sampling
-        C, H, W = shape
-        size = (batch_size, C, H, W)
+        size = (batch_size, *shape)
         _logger.debug(
             f"Data shape for DPM-Solver sampling is {size}"
         ) if self.algorithm_type == "dpmsolver" else _logger.debug(f"Data shape for DPM-Solver++ sampling is {size}")
