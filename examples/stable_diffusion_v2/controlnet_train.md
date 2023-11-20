@@ -19,7 +19,7 @@ python tools/sd_add_control.py
 
 We will use [Fill50k dataset](https://openi.pcl.ac.cn/attachments/5208caad-1727-46cc-b34e-add9afbd0557?type=1) to let the model learn to generate images following the edge control. Download it and put it under `datasets/` folder
 
-For convenience, we take the first 1K samples as training set, which can done by keeping the first 1000 lines in `datasets/fill50k/prompt.json` and removing the rest.
+For convenience, we take the first 1K samples as training set, which can done by keeping the first 1000 lines in `prompt.json` and removing the rest.
 
 If you want to use your own dataset, please make sure the structure as belows:
 ```text
@@ -39,13 +39,13 @@ dir
 └── ...
 ```
 
-`img_txt.csv` is the annotation file in the following format
+`prompt.json` is the annotation file in the following format
 
-```text
-dir,text
-img1.jpg,a cartoon character with a potted plant on his head
-img2.jpg,a drawing of a green pokemon with red eyes
-img3.jpg,a red and white ball with an angry look on its face
+```json
+{"source": "source/0.png", "target": "target/0.png", "prompt": "pale golden rod circle with old lace background"}
+{"source": "source/1.png", "target": "target/1.png", "prompt": "light coral circle with white background"}
+{"source": "source/2.png", "target": "target/2.png", "prompt": "aqua circle with light pink background"}
+{"source": "source/3.png", "target": "target/3.png", "prompt": "cornflower blue circle with light golden rod yellow background"}
 ```
 ### 3. Training
 
