@@ -1,4 +1,4 @@
-export DEVICE_ID=$1
+export DEVICE_ID=1
 export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE" # debug
 # export MS_ASCEND_CHECK_OVERFLOW_MODE=1 # debug
 

@@ -83,7 +83,7 @@ def validate(controlnet_init_ckpt):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--model_config", default="configs/v1-train-cldm2.yaml", type=str, help="sd with controlnet model config path"
+        "--model_config", default="configs/v1-train-cldm.yaml", type=str, help="sd with controlnet model config path"
     )
     parser.add_argument(
         "--pretrained_model_path",
