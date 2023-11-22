@@ -3,7 +3,7 @@ model:
     target: gm.models.diffusion.DiffusionEngine
     params:
         scale_factor: 0.13025
-        disable_first_stage_amp: True
+        disable_first_stage_amp: False
 
         denoiser_config:
             target: gm.modules.diffusionmodules.denoiser.DiscreteDenoiser
@@ -33,8 +33,9 @@ model:
                 use_linear_in_transformer: True
                 transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
                 context_dim: 2048
-                spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
+                spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
                 legacy: False
+                use_recompute: True
 
         conditioner_config:
             target: gm.modules.GeneralConditioner
@@ -112,7 +113,7 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-4
+    base_learning_rate: 1.0e-6
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD

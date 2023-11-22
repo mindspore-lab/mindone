@@ -1,8 +1,9 @@
-# Stable Diffusion XL Inference
+# Offline Inference with SDXL
 
 ## Installation Guide
 
 ⚠️Note: MindSpore Lite applyed python3.7. Please prepare the environment for Python 3.7 before installing it.
+
 ⚠️Note: MindSpore and MindSpore Lite must be the same version.
 
 ### 1. Install MindSpore
@@ -51,7 +52,7 @@ python convert_weight.py \
   --key_ms mindspore_key_base.yaml
 ```
 
-### 2. (For Offline Infer) Export to MindSpore MindIR (`.ckpt` -> `.mindir`)
+### 2. Export to MindSpore MindIR (`.ckpt` -> `.mindir`)
 
 example as:
 
@@ -61,7 +62,7 @@ python export.py --task=text2img --model=./config/model/sd_xl_base_inference.yam
 
 Note: The MindIR file will be generated in output/[MODEL_NAME]-[TASK].
 
-### 3. (For Offline Infer) Convert to MindSpore Lite Model (`.mindir` -> `_lite.mindir`)
+### 3. Convert to MindSpore Lite Model (`.mindir` -> `_lite.mindir`)
 
 Please use converter_lite command to convert MindSpore MindIR to the MindSpore Lite model, example as:
 
@@ -74,7 +75,7 @@ converter_lite --fmk=MINDIR  --saveType=MINDIR --optimize=ascend_oriented \
 
 Note: Lite model name ends with `_lite.mindir`
 
-## Offline Inference (MSLite)
+## Offline Inference with MSLite
 
 After all model conversions, run `sd_lite_infer.py` to generate images for the prompt of your interest, example as:
 
@@ -85,15 +86,15 @@ python sd_lite_infer.py --task=text2img --model=./config/model/sd_xl_base_infere
 
 Note: n_samples must be the same as the value in export.
 
-## Online Inference
+## Debugging Script
 
 <details close>
 
-#### 1. Infer default (Recommend)
+⚠️Note: This is just a script for developing offline infer for comparison purposes.
 
-See [GATTING_STARTED](../GETTING_STARTED.md)
+⚠️Note: For Online Inference, please refer to `Online Infer` in [GETTING_STARTED](../GETTING_STARTED.md).
 
-#### 2. Infer with the same process as MSLite (For debugging)
+#### Infer with `.ckpt` (For debugging)
 
 Run `sd_infer.py` to generate images for the prompt of your interest.
 

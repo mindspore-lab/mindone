@@ -53,6 +53,7 @@ class StandardDiffusionLoss(nn.Cell):
             loss = 0.0
         return loss
 
+    # TODO: Delete it
     def bak_call(self, network, denoiser, conditioner, input, batch):
         cond = conditioner(batch)
         additional_model_inputs = {key: batch[key] for key in self.batch2model_keys.intersection(batch)}

@@ -120,7 +120,7 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-4
+    base_learning_rate: 1.0e-6
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
@@ -129,15 +129,6 @@ optim:
             beta2: 0.999
             weight_decay: 0.01
             eps: 1.0e-8
-
-#    scheduler_config:
-#        target: gm.lr_scheduler.LambdaLinearScheduler
-#        params:
-#            warm_up_steps: [ 10000 ]
-#            cycle_lengths: [ 10000000000000 ]
-#            f_start: [ 1.e-6 ]
-#            f_max: [ 1. ]
-#            f_min: [ 1. ]
 
 data:
     per_batch_size: 1

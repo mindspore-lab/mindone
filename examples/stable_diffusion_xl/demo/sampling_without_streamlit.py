@@ -233,7 +233,12 @@ def sample(args):
 
     # Init Model
     model, filter = create_model(
-        config, checkpoints=args.weight.split(","), freeze=True, load_filter=False, amp_level=args.ms_amp_level
+        config,
+        checkpoints=args.weight.split(","),
+        freeze=True,
+        load_filter=False,
+        param_fp16=False,
+        amp_level=args.ms_amp_level,
     )  # TODO: Add filter support
 
     save_path = os.path.join(args.save_path, task, version)
@@ -259,7 +264,12 @@ def sample(args):
 
         # Init Model
         model2, filter2 = create_model(
-            config2, checkpoints=weight2.split(","), freeze=True, load_filter=False, amp_level=args.ms_amp_level
+            config2,
+            checkpoints=weight2.split(","),
+            freeze=True,
+            load_filter=False,
+            param_fp16=False,
+            amp_level=args.ms_amp_level,
         )
 
         stage2strength = min(max(stage2strength, 0.0), 1.0)
@@ -296,7 +306,7 @@ def sample(args):
             return_latents=add_pipeline,
             filter=filter,
             stage2strength=stage2strength,
-            amp_level=args.amp_level,
+            amp_level=args.ms_amp_level,
         )
     else:
         raise ValueError(f"Unknown task {task}")

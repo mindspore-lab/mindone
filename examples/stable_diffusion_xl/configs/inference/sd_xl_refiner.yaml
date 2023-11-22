@@ -33,7 +33,7 @@ model:
         use_linear_in_transformer: True
         transformer_depth: 4
         context_dim: [1280, 1280, 1280, 1280]  # 1280
-        spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
+        spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
         legacy: False
 
     conditioner_config:
