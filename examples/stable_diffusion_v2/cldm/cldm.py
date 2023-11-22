@@ -45,7 +45,7 @@ class ControlnetUnetModel(UNetModel):
         )
 
         for param in self.controlnet.get_parameters():
-            print("INFO: controlnet param trainable: ", param.requires_grad)
+            logging.info(f"Controlnet param trainable: {param.requires_grad} ")
             break
 
     def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
@@ -154,7 +154,7 @@ class ControlNet(nn.Cell):
     ):
         super().__init__()
 
-        print("INFO: flash attention: ", enable_flash_attention)
+        logging.info(f"INFO: flash attention: {enable_flash_attention}")
         if use_spatial_transformer:
             assert (
                 context_dim is not None
@@ -453,9 +453,6 @@ class ControlLDM(LatentDiffusion):
         noise = msnp.randn(latent_image.shape)
         latent_image_noisy = self.q_sample(x_start=latent_image, t=t, noise=noise)
 
-        # DiffusionWrapper -> ControlnetUnetModel
-        #   construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
-        # print("D--: infer model type: ", self.model.diffusion_model.__class__.__name__)
         model_output = self.model.diffusion_model(
             x=latent_image_noisy,
             timesteps=t,
@@ -465,13 +462,11 @@ class ControlLDM(LatentDiffusion):
             **kwargs,
         )
 
-        # print("D--: parameterization ", self.parameterization)
         if self.parameterization == "x0":
             target = latent_image
         elif self.parameterization == "eps":
             target = noise
         elif self.parameterization == "velocity":
-            # target = sqrt_alpha_cum * noise - sqrt_one_minus_alpha_prod * x_start
             target = self.get_velocity(latent_image, noise, t)  # TODO: parse train step from randint
         else:
             raise NotImplementedError()
