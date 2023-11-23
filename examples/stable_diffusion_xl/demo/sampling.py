@@ -245,6 +245,7 @@ if __name__ == "__main__":
         checkpoints=version_dict["ckpt"].split(","),
         freeze=True,
         load_filter=False,
+        param_fp16=False,
         amp_level=amp_level,
     )
 
@@ -289,6 +290,7 @@ if __name__ == "__main__":
             checkpoints=version_dict2["ckpt"].split(","),
             freeze=True,
             load_filter=False,
+            param_fp16=False,
             amp_level=amp_level,
         )
 
