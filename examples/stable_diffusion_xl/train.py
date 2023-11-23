@@ -10,11 +10,12 @@ from gm.helpers import (
     VERSION2SPECS,
     create_model,
     get_grad_reducer,
+    get_learning_rate,
     get_loss_scaler,
+    get_optimizer,
     save_checkpoint,
     set_default,
 )
-from gm.util import get_obj_from_str, instantiate_from_config
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -48,12 +49,14 @@ def get_parser_train():
     # args for env
     parser.add_argument("--device_target", type=str, default="Ascend", help="device target, Ascend/GPU/CPU")
     parser.add_argument(
-        "--ms_mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
+        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
     )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
         "--ms_enable_graph_kernel", type=ast.literal_eval, default=False, help="use enable_graph_kernel or not"
     )
+    parser.add_argument("--param_fp16", type=ast.literal_eval, default=False)
+    parser.add_argument("--overflow_still_update", type=ast.literal_eval, default=True)
     parser.add_argument("--is_parallel", type=ast.literal_eval, default=False)
 
     # args for ModelArts
@@ -78,44 +81,50 @@ def get_parser_train():
 
 
 def train(args):
-    # Init Env
+    # 1. Init Env
     args = set_default(args)
 
-    # Create model
+    # 2. Create LDM Engine
     config = OmegaConf.load(args.config)
     model, _ = create_model(
-        config, checkpoints=args.weight.split(","), freeze=False, load_filter=False, amp_level=args.ms_amp_level
+        config,
+        checkpoints=args.weight,
+        freeze=False,
+        load_filter=False,
+        param_fp16=args.param_fp16,
+        amp_level=args.ms_amp_level,
     )
     model.model.set_train(True)  # only unet
 
-    # Create loader
+    # 3. Create dataloader
     assert "data" in config
     dataloader = create_loader(data_path=args.data_path, rank=args.rank, rank_size=args.rank_size, **config.data)
 
-    # Create train step func
+    # 4. Create train step func
     assert "optim" in config
-    # get scheduler and lr
-    base_lr = config.optim.get("base_learning_rate", 1.0e-4)
-    if "scheduler_config" in config.optim:
-        scheduler_config = config.optim.get("scheduler_config")
-        scheduler = instantiate_from_config(scheduler_config)
-        lr = [base_lr * scheduler(step) for step in range(config.data.total_step)]
-    else:
-        print(f"scheduler_config not exist, train with base_lr {base_lr}")
-        lr = base_lr
-    # get optimizer
-    optimizer_config = config.optim.get("optimizer_config", {"target": "mindspore.nn.SGD"})
-    optimizer = get_obj_from_str(optimizer_config["target"])(
-        model.model.trainable_params(), learning_rate=lr, **optimizer_config.get("params", dict())
-    )
-    reducer = get_grad_reducer(is_parallel=False, parameters=optimizer.parameters)
+    lr = get_learning_rate(config.optim, config.data.total_step)
+    optimizer = get_optimizer(config.optim, lr, params=model.model.trainable_params())
+    reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
-    train_step_fn = partial(
-        model.train_step,
-        grad_func=model.get_grad_func(optimizer, reducer, scaler, jit=True),
-    )
+    if args.ms_mode == 1:
+        # Pynative Mode
+        train_step_fn = partial(
+            model.train_step_pynative,
+            grad_func=model.get_grad_func(
+                optimizer, reducer, scaler, jit=True, overflow_still_update=args.overflow_still_update
+            ),
+        )
+    elif args.ms_mode == 0:
+        # Graph Mode
+        from gm.models.trainer_factory import TrainOneStepCell
 
-    # Start Training
+        train_step_fn = TrainOneStepCell(
+            model, optimizer, reducer, scaler, overflow_still_update=args.overflow_still_update
+        )
+    else:
+        raise ValueError("args.ms_mode value must in [0, 1]")
+
+    # 5. Start Training
     if args.task == "txt2img":
         train_txt2img(
             args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model  # for log lr  # for infer
@@ -123,7 +132,7 @@ def train(args):
     elif args.task == "img2img":
         raise NotImplementedError
     else:
-        raise ValueError(f"unknown mode {args.task}")
+        raise ValueError(f"Unknown task {args.task}")
 
 
 def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None):  # for print  # for infer/ckpt
@@ -132,18 +141,28 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
     loader = dataloader.create_dict_iterator(output_numpy=True, num_epochs=1)
     s_time = time.time()
     for i, data in enumerate(loader):
-        # Data to tensor
+        # Get data, to tensor
         data = data["samples"]
         data = {k: (Tensor(v, dtype) if k != "txt" else v.tolist()) for k, v in data.items()}
+
+        # Get image and tokens
+        image = data[model.input_key]
+        tokens, _ = model.conditioner.tokenize(data)
+        tokens = [Tensor(t) for t in tokens]
 
         # Train a step
         if i == 0:
             print(
                 "The first step will be compiled for the graph, which may take a long time; "
-                "You can come back later :).",
+                "You can come back later :)",
                 flush=True,
             )
-        loss = train_step_fn(data)
+        loss, overflow = train_step_fn(image, *tokens)
+        if overflow:
+            if args.overflow_still_update:
+                print(f"Step {i + 1}/{total_step}, overflow, still update.")
+            else:
+                print(f"Step {i + 1}/{total_step}, overflow, skip.")
 
         # Print meg
         if (i + 1) % args.log_interval == 0 and args.rank % 8 == 0:

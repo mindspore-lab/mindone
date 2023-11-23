@@ -1,18 +1,19 @@
 # reference to https://github.com/Stability-AI/generative-models
 
-from mindspore import ops
+from mindspore import nn, ops
 
 
-class UnitWeighting:
-    def __call__(self, sigma):
+class UnitWeighting(nn.Cell):
+    def construct(self, sigma):
         return ops.ones_like(sigma)
 
 
-class EDMWeighting:
+class EDMWeighting(nn.Cell):
     def __init__(self, sigma_data=0.5):
+        super(EDMWeighting, self).__init__()
         self.sigma_data = sigma_data
 
-    def __call__(self, sigma):
+    def construct(self, sigma):
         return (sigma**2 + self.sigma_data**2) / (sigma * self.sigma_data) ** 2
 
 
@@ -21,6 +22,6 @@ class VWeighting(EDMWeighting):
         super().__init__(sigma_data=1.0)
 
 
-class EpsWeighting:
-    def __call__(self, sigma):
+class EpsWeighting(nn.Cell):
+    def construct(self, sigma):
         return sigma**-2.0
