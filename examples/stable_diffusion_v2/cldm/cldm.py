@@ -46,7 +46,6 @@ class ControlnetUnetModel(UNetModel):
 
         for param in self.controlnet.get_parameters():
             logging.info(f"Controlnet param trainable: {param.requires_grad} ")
-            break
 
     def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
         """
