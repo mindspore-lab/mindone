@@ -1,4 +1,4 @@
-export DEVICE_ID=1
+export DEVICE_ID=$1
 
 task_name=$3
 output_dir=output/$task_name

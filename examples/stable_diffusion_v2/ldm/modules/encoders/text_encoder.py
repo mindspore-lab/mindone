@@ -32,8 +32,7 @@ class MultiheadAttention(nn.Cell):
         self.out_proj = nn.Dense(self.embed_dim, self.embed_dim).to_float(dtype)
         self.split = ops.Split(-1, 3)
         self.expand_dims = ops.ExpandDims()
-        # self.softmax = nn.Softmax(-1).to_float(ms.float32)
-        self.softmax = nn.Softmax(-1).to_float(dtype)
+        self.softmax = nn.Softmax(-1)
         self.transpose = ops.Transpose()
         self.scaling = self.head_dim**-0.5
         self.dtype = dtype
