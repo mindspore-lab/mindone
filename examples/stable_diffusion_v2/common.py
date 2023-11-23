@@ -46,8 +46,14 @@ def init_env(
         mode = ms.PYNATIVE_MODE
 
     if distributed:
-        init()
         device_id = int(os.getenv("DEVICE_ID"))
+        ms.set_context(
+            mode=mode,
+            device_target="Ascend",
+            device_id=device_id,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+        )
+        init()
         device_num = get_group_size()
         ParallelConfig.dp = device_num
         rank_id = get_rank()
@@ -69,12 +75,11 @@ def init_env(
         device_num = 1
         device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
-
-    ms.set_context(
-        mode=mode,
-        device_target="Ascend",
-        device_id=device_id,
-        ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
-    )
+        ms.set_context(
+            mode=mode,
+            device_target="Ascend",
+            device_id=device_id,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+        )
 
     return device_id, rank_id, device_num

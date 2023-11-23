@@ -1,18 +1,19 @@
+import logging
+
 import numpy as np
 from ldm.models.clip.simple_tokenizer import get_tokenizer
 from ldm.modules.diffusionmodules.openaimodel import Timestep
 from ldm.modules.diffusionmodules.upscaling import ImageConcatWithNoiseAugmentation
-from PIL import Image
 
 import mindspore as ms
-import mindspore.dataset.vision as vision
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-from mindspore.dataset.transforms import Compose
 
 from .image_encoder import ImageEncoder
 from .text_encoder import OpenClipTextEncoder, TextEncoder
+
+_logger = logging.getLogger(__name__)
 
 
 class FrozenCLIPEmbedder(nn.Cell):
@@ -126,7 +127,6 @@ class CLIPImageEmbedder(nn.Cell):
         vision_width=1024,
         vision_patch_size=14,
         vision_head_width=64,
-        ucg_rate=0.0,
     ):
         super().__init__()
         self.use_fp16 = use_fp16
@@ -142,40 +142,21 @@ class CLIPImageEmbedder(nn.Cell):
             use_quick_gelu=True,
             dtype=self.dtype,
         )
-        self.ucg_rate = ucg_rate
 
-        self.transform = self._build_transform()
+        self.mean = ms.Tensor([0.48145466, 0.4578275, 0.40821073], dtype=self.dtype)
+        self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711], dtype=self.dtype)
 
-    def _build_transform(self):
-        mean = np.array([0.48145466, 0.4578275, 0.40821073]) * 255
-        std = np.array([0.26862954, 0.26130258, 0.27577711]) * 255
-        transforms = Compose(
-            [
-                vision.Resize((224, 224), vision.Inter.BICUBIC),
-                vision.Normalize(mean.tolist(), std.tolist()),
-                vision.HWC2CHW(),
-            ]
-        )
-        return transforms
-
-    def preprocess(self, image: Image.Image) -> Tensor:
-        w, h = image.size
-        w, h = map(lambda x: x - x % 64, (w, h))
-        image = image.resize((w, h), resample=Image.LANCZOS)
-
-        image = np.array(image)
-        image = self.transform(image)
-        image = image[None, ...]
-        if self.use_fp16:
-            image = image.astype(np.float16)
-        x = ms.Tensor(image)
+    def preprocess(self, x: Tensor) -> Tensor:
+        x = ops.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
+        # normalize to [0,1]
+        x = (x + 1.0) / 2.0
+        # re-normalize according to clip
+        x = (x - self.mean[None, :, None, None]) / self.std[None, :, None, None]
         return x
 
-    def construct(self, x: Tensor, no_dropout: bool = False):
+    def construct(self, x: Tensor) -> Tensor:
+        x = self.preprocess(x)
         out = self.model.encode_image(x)
-        out = out.to(x.dtype)
-        if self.ucg_rate > 0.0 and not no_dropout:
-            out = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(out.shape[0]))[:, None] * out
         return out
 
 
@@ -189,7 +170,6 @@ class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
         vision_width=1024,
         vision_patch_size=14,
         vision_head_width=64,
-        ucg_rate=0.0,
     ):
         super(CLIPImageEmbedder, self).__init__()
         self.use_fp16 = use_fp16
@@ -205,7 +185,9 @@ class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
             use_quick_gelu=False,
             dtype=self.dtype,
         )
-        self.ucg_rate = ucg_rate
+
+        self.mean = ms.Tensor([0.48145466, 0.4578275, 0.40821073], dtype=self.dtype)
+        self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711], dtype=self.dtype)
 
 
 class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
@@ -216,6 +198,7 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
         if clip_stats_path is None:
             clip_mean, clip_std = ops.zeros(timestep_dim), ops.ones(timestep_dim)
         else:
+            _logger.info(f"Loading CLIP stats from {clip_stats_path}")
             clip = ms.load_checkpoint(clip_stats_path)
             clip_mean, clip_std = clip["mean"], clip["std"]
 
@@ -235,7 +218,7 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
 
     def construct(self, x, noise_level=None):
         if noise_level is None:
-            noise_level = ms.numpy.randint(0, self.max_noise_level, (x.shape[0],), dtype=ms.int64)
+            noise_level = ms.numpy.randint(0, self.max_noise_level, (x.shape[0],), dtype=ms.int32)
         x = self.scale(x)
         z = self.q_sample(x, noise_level)
         z = self.unscale(z)

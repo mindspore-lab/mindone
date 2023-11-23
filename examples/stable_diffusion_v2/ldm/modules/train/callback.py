@@ -18,7 +18,7 @@ class OverflowMonitor(ms.Callback):
         cur_step_in_epoch = (cb_params.cur_step_num - 1) % cb_params.batch_num + 1
         overflow = cb_params.net_outputs[1]
         if overflow:
-            print(f"overflow detected in epoch {cur_epoch_num} step {cur_step_in_epoch}")
+            _logger.warning(f"overflow detected in epoch {cur_epoch_num} step {cur_step_in_epoch}")
         return super().step_end(run_context)
 
 
@@ -168,8 +168,14 @@ class EvalSaveCallback(Callback):
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
-                _logger.info("epoch: %s step: %s, loss is %s" % (cur_epoch, cur_step, loss))
-                _logger.info(f"average step time (in {self.log_interval} steps): {train_time / self.log_interval} s")
+                _logger.info(
+                    "epoch: %d step: %d, loss is %.3f, average step time (in %d step(s)): %.3f.",
+                    cb_params.cur_epoch_num,
+                    (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                    loss.asnumpy().item(),
+                    self.log_interval,
+                    train_time / self.log_interval,
+                )
 
     def on_train_epoch_begin(self, run_context):
         """
