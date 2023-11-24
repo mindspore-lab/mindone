@@ -25,7 +25,7 @@ from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
 from utils.download import download_checkpoint
 
-logger = logging.getLogger("text_to_image")
+logger = logging.getLogger(__name__)
 
 _version_cfg = {
     "2.1-unclip-h": ("sd21-unclip-h-6a73eca5.ckpt", "v2-vpred-inference-unclip-h.yaml", 768),
@@ -33,6 +33,7 @@ _version_cfg = {
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
+_VIT_STATS_CKPT = "ViT-L-14_stats-b668e2ca.ckpt"
 
 
 def numpy_to_pil(images):
@@ -106,7 +107,7 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
     return model
 
 
-def load_image(image: Union[str, Image.Image]) -> Image.Image:
+def load_image(image: Union[str, Image.Image]) -> ms.Tensor:
     if isinstance(image, str):
         image = Image.open(image)
     elif isinstance(image, Image.Image):
@@ -116,6 +117,14 @@ def load_image(image: Union[str, Image.Image]) -> Image.Image:
 
     image = ImageOps.exif_transpose(image)
     image = image.convert("RGB")
+
+    w, h = image.size
+    w, h = map(lambda x: x - x % 64, (w, h))
+    image = image.resize((w, h), resample=Image.LANCZOS)
+    image = np.array(image).astype(np.float32) / 255.0
+    image = image[None].transpose(0, 3, 1, 2)
+    image = 2.0 * image - 1
+    image = ms.Tensor(image)
     return image
 
 
@@ -189,8 +198,7 @@ def main(args):
     )
 
     # read image
-    image = load_image(args.image_path)
-    image_tensor = model.embedder.preprocess(image)
+    image_tensor = load_image(args.image_path)
 
     # get image conditioning
     adm_cond = model.embedder(image_tensor)
@@ -471,6 +479,11 @@ if __name__ == "__main__":
 
     if args.scale is None:
         args.scale = 10.0 if args.version.startswith("2.") else 7.5
+
+    vit_stat_ckpt_path = os.path.join("models", _VIT_STATS_CKPT)
+    if not os.path.exists(vit_stat_ckpt_path):
+        logger.info(f"Start downloading VIT stats checkpoint {_VIT_STATS_CKPT} ...")
+        download_checkpoint(os.path.join(_URL_PREFIX, "unclip", _VIT_STATS_CKPT), "models/")
 
     # core task
     main(args)
