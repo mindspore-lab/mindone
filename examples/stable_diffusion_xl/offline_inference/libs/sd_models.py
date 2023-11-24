@@ -51,7 +51,7 @@ class SDInfer(ABC):
         pass
 
     def __call__(self, inputs):
-        pos_crossattn, neg_crossattn, pos_vector, neg_vector, noise = self.data_prepare(inputs)
+        context, y, noise = self.data_prepare(inputs)
         x, s_in = self.scheduler.prepare_sampling_loop(noise)
 
         for i in tqdm(range(self.num_inference_steps), desc="SDXL sampling"):
@@ -62,8 +62,8 @@ class SDInfer(ABC):
             model_output = self.unet(
                 noised_input * c_in,
                 c_noise,
-                context=ops.concat((neg_crossattn, pos_crossattn), 0),
-                y=ops.concat((neg_vector, pos_vector), 0),
+                context=context,
+                y=y,
             )
             x = self.scheduler(
                 model_output=model_output,
@@ -104,12 +104,14 @@ class SDText2Img(SDInfer):
 
     def data_prepare(self, inputs):
         clip_tokens = ms.Tensor(inputs["pos_clip_token"], dtype=ms.int32)
-        time_tokens = ms.Tensor(inputs["pos_time_token"], dtype=ms.int32)
+        time_tokens = ms.Tensor(inputs["pos_time_token"], dtype=ms.float16)
         uc_clip_tokens = ms.Tensor(inputs["neg_clip_token"], dtype=ms.int32)
-        uc_time_tokens = ms.Tensor(inputs["neg_time_token"], dtype=ms.int32)
+        uc_time_tokens = ms.Tensor(inputs["neg_time_token"], dtype=ms.float16)
         noise = ms.Tensor(inputs["noise"], ms.float32)
-        pos_prompt_embeds = self.text_encoder(clip_tokens.split(1) + time_tokens.split(1))
-        negative_prompt_embeds = self.text_encoder(uc_clip_tokens.split(1) + uc_time_tokens.split(1))
-        pos_crossattn, neg_crossattn = pos_prompt_embeds[0], negative_prompt_embeds[0]
-        pos_vector, neg_vector = pos_prompt_embeds[1], negative_prompt_embeds[1]
-        return pos_crossattn, neg_crossattn, pos_vector, neg_vector, noise
+        pos_prompt_embeds = self.text_encoder(*clip_tokens.split(1), *time_tokens.split(1))
+        negative_prompt_embeds = self.text_encoder(*uc_clip_tokens.split(1), *uc_time_tokens.split(1))
+        vector = ops.concat((negative_prompt_embeds[0], pos_prompt_embeds[0]), 0)
+        crossattn = ops.concat((negative_prompt_embeds[1], pos_prompt_embeds[1]), 0)
+        vector = ops.cast(vector, ms.float32)
+        crossattn = ops.cast(crossattn, ms.float32)
+        return crossattn, vector, noise
