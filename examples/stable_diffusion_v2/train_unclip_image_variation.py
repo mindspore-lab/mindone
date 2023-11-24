@@ -11,7 +11,7 @@ import yaml
 from common import init_env
 from ldm.data.dataset import build_dataset
 from ldm.modules.logger import set_logger
-from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
+from ldm.modules.lora import inject_trainable_lora
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
@@ -21,7 +21,7 @@ from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 
-from mindspore import Model, Profiler, load_checkpoint, load_param_into_net, nn
+from mindspore import Model, Profiler, load_checkpoint, load_param_into_net
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -30,12 +30,8 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 logger = logging.getLogger(__name__)
 
 
-def build_model_from_config(config, enable_flash_attention=None):
+def build_model_from_config(config):
     config = OmegaConf.load(config).model
-    if args is not None:
-        if enable_flash_attention is not None:
-            config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
-
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -43,7 +39,6 @@ def build_model_from_config(config, enable_flash_attention=None):
             return None
         raise KeyError("Expected key `target` to instantiate.")
     config_params = config.get("params", dict())
-    # config_params['cond_stage_trainable'] = cond_stage_trainable # TODO: easy config
     return get_obj_from_str(config["target"])(**config_params)
 
 
@@ -62,27 +57,10 @@ def load_pretrained_model(pretrained_ckpt, net):
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict)
         else:
-            param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
+            param_not_load, _ = load_param_into_net(net, param_dict)
         logger.info("Params not load: {}".format(param_not_load))
     else:
         logger.warning(f"Checkpoint file {pretrained_ckpt} dose not exist!!!")
-
-
-def load_pretrained_model_vae_unet_cnclip(pretrained_ckpt, cnclip_ckpt, net):
-    new_param_dict = {}
-    logger.info(f"Loading pretrained model from {pretrained_ckpt}, {cnclip_ckpt}")
-    if os.path.exists(pretrained_ckpt) and os.path.exists(cnclip_ckpt):
-        param_dict = load_checkpoint(pretrained_ckpt)
-        cnclip_param_dict = load_checkpoint(pretrained_ckpt)
-        for key in param_dict:
-            if key.startswith("first") or key.startswith("model"):
-                new_param_dict[key] = param_dict[key]
-        for key in cnclip_param_dict:
-            new_param_dict[key] = cnclip_param_dict[key]
-        param_not_load = load_param_into_net(net, new_param_dict)
-        logger.info("Params not load: {}".format(param_not_load))
-    else:
-        logger.warning(f"Checkpoint file {pretrained_ckpt}, {cnclip_ckpt} dose not exist!!!")
 
 
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
@@ -128,15 +106,11 @@ def parse_args():
     )
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
-    parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")
     parser.add_argument(
         "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
     )
     parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
     parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether to apply lora finetune to unet")
-    parser.add_argument(
-        "--lora_ft_text_encoder", default=False, type=str2bool, help="whether to apply lora finetune to text encoder"
-    )
     parser.add_argument(
         "--lora_rank",
         default=4,
@@ -144,18 +118,13 @@ def parse_args():
         help="lora rank. The bigger, the larger the LoRA model will be, but usually gives better generation quality.",
     )
     parser.add_argument("--lora_fp16", default=True, type=str2bool, help="Whether use fp16 for LoRA params.")
-    parser.add_argument(
-        "--lora_scale",
-        default=1.0,
-        type=float,
-        help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.",
-    )
 
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
         "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
     )
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
+    parser.add_argument("--group_strategy", default="unclip", help="Grouping strategies in weight decay.")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
@@ -169,17 +138,8 @@ def parse_args():
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
-    # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=None,
-        type=str2bool,
-        help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.",
-    )
-    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
-    parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
         "--max_grad_norm",
         default=1.0,
@@ -198,6 +158,9 @@ def parse_args():
     parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
     parser.add_argument("--image_size", default=512, type=int, help="images size")
     parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
+    parser.add_argument(
+        "--drop_text_prob", default=0.5, type=float, help="Probability of dropping text during training"
+    )
 
     parser.add_argument(
         "--log_level",
@@ -227,7 +190,7 @@ def main(args):
         args.epochs = 3
 
     # init
-    device_id, rank_id, device_num = init_env(
+    _, rank_id, device_num = init_env(
         logger,
         args.mode,
         seed=args.seed,
@@ -239,13 +202,8 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
-    latent_diffusion_with_loss = build_model_from_config(args.model_config, args.enable_flash_attention)
-    if args.custom_text_encoder is not None and os.path.exists(args.custom_text_encoder):
-        load_pretrained_model_vae_unet_cnclip(
-            args.pretrained_model_path, args.custom_text_encoder, latent_diffusion_with_loss
-        )
-    else:
-        load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
+    latent_diffusion_with_loss = build_model_from_config(args.model_config)
+    load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
@@ -261,6 +219,7 @@ def main(args):
         filter_small_size=args.filter_small_size,
         replace=args.replace_small_images,
         enable_modelarts=args.enable_modelarts,
+        drop_text_prob=args.drop_text_prob,
     )
 
     # lora injection
@@ -272,28 +231,19 @@ def main(args):
         # inject lora params
         num_injected_params = 0
         if args.lora_ft_unet:
-            unet_lora_layers, unet_lora_params = inject_trainable_lora(
+            _, unet_lora_params = inject_trainable_lora(
                 latent_diffusion_with_loss,
                 rank=args.lora_rank,
                 use_fp16=args.lora_fp16,
-                scale=args.lora_scale,
             )
             num_injected_params += len(unet_lora_params)
-        if args.lora_ft_text_encoder:
-            text_encoder_lora_layers, text_encoder_lora_params = inject_trainable_lora_to_textencoder(
-                latent_diffusion_with_loss,
-                rank=args.lora_rank,
-                use_fp16=args.lora_fp16,
-                scale=args.lora_scale,
-            )
-            num_injected_params += len(text_encoder_lora_params)
 
         assert (
             len(latent_diffusion_with_loss.trainable_params()) == num_injected_params
         ), "Only lora params {} should be trainable. but got {} trainable params".format(
             num_injected_params, len(latent_diffusion_with_loss.trainable_params())
         )
-        # print('Trainable params: ', latent_diffusion_with_loss.model.trainable_params())
+
     dataset_size = dataset.get_dataset_size()
     if not args.decay_steps:
         args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
@@ -322,16 +272,12 @@ def main(args):
         betas=args.betas,
         weight_decay=args.weight_decay,
         lr=lr,
+        group_strategy=args.group_strategy,
     )
 
-    if args.loss_scaler_type == "dynamic":
-        loss_scaler = DynamicLossScaleUpdateCell(
-            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
-        )
-    elif args.loss_scaler_type == "static":
-        loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
-    else:
-        raise ValueError
+    loss_scaler = DynamicLossScaleUpdateCell(
+        loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
+    )
 
     # resume ckpt
     if rank_id == 0:
@@ -363,7 +309,7 @@ def main(args):
         latent_diffusion_with_loss,
         optimizer=optimizer,
         scale_sense=loss_scaler,
-        drop_overflow_update=args.drop_overflow_update,  # TODO: allow config
+        drop_overflow_update=True,  # TODO: allow config
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         clip_grad=args.clip_grad,
         clip_norm=args.max_grad_norm,
@@ -385,7 +331,7 @@ def main(args):
             ckpt_save_dir=ckpt_dir,
             ema=ema,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=10,
+            ckpt_max_keep=1,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
             lora_rank=args.lora_rank,
@@ -401,6 +347,7 @@ def main(args):
         num_params_unet, _ = count_params(latent_diffusion_with_loss.model.diffusion_model)
         num_params_text_encoder, _ = count_params(latent_diffusion_with_loss.cond_stage_model)
         num_params_vae, _ = count_params(latent_diffusion_with_loss.first_stage_model)
+        num_params_embedder, _ = count_params(latent_diffusion_with_loss.embedder)
         num_params, num_trainable_params = count_params(latent_diffusion_with_loss)
 
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -409,7 +356,8 @@ def main(args):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num params: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,}, "
+                f"embedder: {num_params_embedder:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision: {latent_diffusion_with_loss.model.diffusion_model.dtype}",
                 f"Use LoRA: {args.use_lora}",
@@ -419,12 +367,9 @@ def main(args):
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
-                f"Loss scaler: {args.loss_scaler_type}",
-                f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
-                f"Enable flash attention: {args.enable_flash_attention}",
             ]
         )
         key_info += "\n" + "=" * 50

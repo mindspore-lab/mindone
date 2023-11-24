@@ -182,7 +182,7 @@ python unclip_image_variation.py \
 
 Example:
 
-Using `2.1-unclip-l` model as an example,  Please download [sd21-unclip-l-baa7c8b5.ckpt)](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)  to `models/` folder.
+Using `2.1-unclip-l` model as an example,  Please download [sd21-unclip-l-baa7c8b5.ckpt)](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt) and [ViT-L-14_stats-b668e2ca.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/unclip/ViT-L-14_stats-b668e2ca.ckpt) to `models/` folder.
 
 And download the [example image](https://huggingface.co/datasets/hf-internal-testing/diffusers-images/resolve/main/stable_unclip/tarsila_do_amaral.png) to the running path. Then execute
 
@@ -201,6 +201,8 @@ python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.
 <div align="center">
 <img src="https://github.com/zhtmike/mindone/assets/8342575/393832cf-803a-4745-9fb1-7ef1107f9c37" width="960" />
 </div>
+
+For Image-to-Image finetuning, please refer to the tutorial of [Stable Diffusion unCLIP Finetuning](unclip_finetune.md) for detailed instructions.
 
 ### Text-guided Depth-to-Image
 
