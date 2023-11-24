@@ -225,13 +225,12 @@ The resulting log will be saved in $output_dir as defined in the script, and the
 
 
 #### 4. Evaluation
-To evaluate the training result, please run the following script and indicate the path to the trained checkpoint.
+To evaluate the training result, please modify the control image path in the script and indicate the path to the trained checkpoint, and run the following script.
 
 ```
-sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH
+sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH $OUTPUT_FOLDER_NAME
 ```
-
-And modify the control image path in the script.
+The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
 
 
