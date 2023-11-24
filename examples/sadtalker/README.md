@@ -1,22 +1,33 @@
-# SadTalker :cry:
+# SadTalker :sob:
 
 A Mindspore implementation of SadTalker based on its [original github](https://github.com/OpenTalker/SadTalker).
 
 ## Introduction
-SadTalker is a novel system for a stylized audio-driven single image talking face animation using the generated realistic 3D motion coefficients.
+SadTalker is a novel system for a stylized audio-driven single image talking head videos animation using the generated realistic 3D motion coefficients (head pose, expression) of the 3DMM.
+
+![sadtalker_1](https://github.com/hqkate/sadtalker/assets/26082447/f1239f9f-f434-4b2c-8ed0-3f07287eb7f3)
+
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+```
 
 ## Data and Preparation
 
-Items to downloads:
+To execute the inference pipeline of SadTalker, please first download the [pretrained checkpoints](#pretrained-checkpoints) and setup the path in [config file](./config/sadtalker.yaml).
 
-> 1. checkpoints
-> 2. examples (audio & image)
+### Pretrained checkpoints
 
-Data Structure:
+You can download the checkpoints from this link. !!!TODO!!!
+
+After download, the checkpoint folder should be as follow:
+
 <details>
-  <summary>data tree</summary>
-    
-    ```bash 
+  <summary>data structure: </summary>
+
+    ```bash
     checkpoints/
     ├── BFM_Fitting
     │   ├── 01_MorphableModel.mat
@@ -43,62 +54,28 @@ Data Structure:
         ├── detection_Resnet50_Final.ckpt
         ├── GFPGANv1.4.ckpt
         └── parsing_parsenet.ckpt
-    examples/
-    ├── driven_audio
-    │   ├── bus_chinese.wav
-    │   ├── chinese_news.wav
-    │   ├── chinese_poem1.wav
-    │   ├── chinese_poem2.wav
-    │   ├── deyu.wav
-    │   ├── eluosi.wav
-    │   ├── fayu.wav
-    │   ├── imagine.wav
-    │   ├── itosinger1.wav
-    │   ├── japanese.wav
-    │   ├── RD_Radio31_000.wav
-    │   ├── RD_Radio34_002.wav
-    │   ├── RD_Radio36_000.wav
-    │   └── RD_Radio40_000.wav
-    ├── ref_video
-    │   ├── WDA_AlexandriaOcasioCortez_000.mp4
-    │   └── WDA_KatieHill_000.mp4
-    └── source_image
-        ├── art_0.png
-        ├── art_10.png
-        ├── art_11.png
-        ├── art_12.png
-        ├── art_13.png
-        ├── art_14.png
-        ├── art_15.png
-        ├── art_16.png
-        ├── art_17.png
-        ├── art_18.png
-        ├── art_19.png
-        ├── art_1.png
-        ├── art_20.png
-        ├── art_2.png
-        ├── art_3.png
-        ├── art_4.png
-        ├── art_5.png
-        ├── art_6.png
-        ├── art_7.png
-        ├── art_8.png
-        ├── art_9.png
-        ├── full3.png
-        ├── full4.jpeg
-        ├── full_body_1.png
-        ├── full_body_2.png
-        ├── happy1.png
-        ├── happy.png
-        ├── people_0.png
-        ├── sad1.png
-        └── sad.png
     ```
 </details>
 
+
+### Training Data
+
+We use [VoxCeleb](https://mm.kaist.ac.kr/datasets/voxceleb/) data to train SadTalker. Training codes is still under developement. We will release it when it's ready, thanks!
+
+
+### Example data for inference
+
+In the original github, there're some example audios and images under [SadTalker/examples](https://github.com/OpenTalker/SadTalker/tree/main/examples). You can download them to quickly start playing Sadtalker! :wink:
+
+
 ## Inference
+
+To generate a talker head video, you have to specify a single portrait image using the argument `--source_image` and an audio file via `--driven_audio`. If you don't specify, it will use the default values.
+
+As reference, you can run the following commands to execute inference process. There're also some arguments to customize the animation, please refer to [input arguments](./utils/arg_parser.py).
+
 ```bash
-python inference.py --source_image examples/source_image/people_0.png --driven_audio examples/driven_audio/imagine.wav
+python inference.py --config ./config/sadtalker.yaml --source_image examples/source_image/people_0.png --driven_audio examples/driven_audio/imagine.wav
 ```
 
 ## Examples
@@ -113,7 +90,7 @@ https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f80
 https://github.com/hqkate/sadtalker/assets/26082447/a2ecbf7d-cde4-4fb7-b6d4-6301b679e75b
 
 3. Singing
-   
+
 https://github.com/hqkate/sadtalker/assets/26082447/2c713067-f64e-45a7-9ce2-bc57f340bdad
 
 4. Reference (videos by Pytorch)
