@@ -14,6 +14,7 @@ import zipfile
 from copy import deepcopy
 from typing import Callable, Dict, Optional
 
+import cv2
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -297,6 +298,7 @@ def compute_torchmetric_fid(gen_imgs, gt_imgs):
     fake_images = [np.array(Image.open(path).convert("RGB")) for path in gen_imgs]
 
     def preprocess_image(image):
+        image = cv2.resize(image, (299, 299))
         image = torch.tensor(image).unsqueeze(0)
         image = image.permute(0, 3, 1, 2) / 255.0
         return image
