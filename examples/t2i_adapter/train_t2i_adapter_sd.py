@@ -146,7 +146,7 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_env, "environment", skip={"logger"})
+    parser.add_function_arguments(init_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument(
         "--train.output_dir",
