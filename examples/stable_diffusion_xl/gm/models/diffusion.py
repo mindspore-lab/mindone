@@ -102,14 +102,7 @@ class DiffusionEngine(nn.Cell):
             "y": cond.get("vector", None),
         }
 
-    # TODO: Delete it
-    def _denoise(self, sigmas, noised_input, **kwargs):
-        c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
-        model_output = self.model(ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.int32), **kwargs)
-        model_output = model_output * c_out + noised_input * c_skip
-        return model_output
-
-    def get_grad_func(self, optimizer, reducer, scaler, jit=True):
+    def get_grad_func(self, optimizer, reducer, scaler, jit=True, overflow_still_update=True):
         from mindspore.amp import all_finite
 
         loss_fn = self.loss_fn
@@ -137,8 +130,13 @@ class DiffusionEngine(nn.Cell):
             grads = reducer(grads)
             unscaled_grads = scaler.unscale(grads)
             grads_finite = all_finite(unscaled_grads)
-            loss = ops.depend(loss, optimizer(unscaled_grads))
-            return scaler.unscale(loss), unscaled_grads, grads_finite
+            if overflow_still_update:
+                loss = ops.depend(loss, optimizer(unscaled_grads))
+            else:
+                if grads_finite:
+                    loss = ops.depend(loss, optimizer(unscaled_grads))
+            overflow_tag = not grads_finite
+            return scaler.unscale(loss), unscaled_grads, overflow_tag
 
         @ms.jit
         def jit_warpper(*args, **kwargs):
@@ -146,33 +144,26 @@ class DiffusionEngine(nn.Cell):
 
         return grad_and_update_func if not jit else jit_warpper
 
-    def train_step(self, batch, grad_func):
-        # get latent and condition
-        x = batch[self.input_key]
+    def train_step_pynative(self, x, *tokens, grad_func=None):
+        # get latent
         x = self.encode_first_stage(x)
-        cond = self.conditioner(batch)
-        cond = self.openai_input_warpper(cond)
+
+        # get condition
+        vector, crossattn, concat = self.conditioner.embedding(*tokens)
+        cond = {"context": crossattn, "y": vector, "concat": concat}
+
+        # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
-        # get loss
+        # compute loss
         print("Compute Loss Starting...")
-        loss, _, _ = grad_func(x, noised_input, sigmas, w, **cond)
-        # noised_input = Tensor(np.random.randn(1, 4, 128, 128), dtype=ms.float16)
-        # loss, _, _ = grad_func(noised_input, cond['concat'], cond['context'], cond['y'])
+        loss, _, overflow = grad_func(x, noised_input, sigmas, w, **cond)
         print("Compute Loss Done...")
 
-        return loss
-
-    def on_train_start(self, *args, **kwargs):
-        if self.loss_fn is None:
-            raise ValueError("Sampler and loss function need to be set for training.")
-
-    def on_train_batch_end(self, *args, **kwargs):
-        if self.ema:
-            self.model_ema(self.model)
+        return loss, overflow
 
     @contextmanager
     def ema_scope(self, context=None):
@@ -357,14 +348,6 @@ class DiffusionEngine(nn.Cell):
             return samples, samples_z
 
         return samples
-
-    def log_conditionings(self):
-        # TODO
-        raise NotImplementedError
-
-    def log_images(self):
-        # TODO
-        raise NotImplementedError
 
 
 class DiffusionEngineDreamBooth(DiffusionEngine):

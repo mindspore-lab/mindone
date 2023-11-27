@@ -111,6 +111,7 @@ def auto_mixed_precision(network, amp_level="O0"):
             + [
                 nn.GroupNorm,
             ],
+            ms.float16,
         )
     elif amp_level == "O3":
         network.to_float(ms.float16)

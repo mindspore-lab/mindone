@@ -3,7 +3,7 @@ model:
     target: gm.models.diffusion.DiffusionEngine
     params:
         scale_factor: 0.13025
-        disable_first_stage_amp: True
+        disable_first_stage_amp: False
 
         denoiser_config:
             target: gm.modules.diffusionmodules.denoiser.DiscreteDenoiser
@@ -120,7 +120,7 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-4
+    base_learning_rate: 1.0e-6
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
@@ -130,6 +130,13 @@ optim:
             weight_decay: 0.01
             eps: 1.0e-8
 
+#    optimizer_config:
+#        target: mindspore.nn.Momentum
+#        params:
+#            momentum: 0.9
+#            weight_decay: 0.01
+#            use_nesterov: True
+
 #    scheduler_config:
 #        target: gm.lr_scheduler.LambdaLinearScheduler
 #        params:
@@ -138,7 +145,6 @@ optim:
 #            f_start: [ 1.e-6 ]
 #            f_max: [ 1. ]
 #            f_min: [ 1. ]
-
 
 data:
     per_batch_size: 1

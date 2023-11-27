@@ -4,7 +4,7 @@ This document provides a brief introduction to the usage of built-in command-lin
 
 ## Dependency
 
-- mindspore 2.1.0
+- mindspore 2.2
 - openmpi 4.0.3 (for distributed mode)
 
 To install the dependency, please run
@@ -75,6 +75,8 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 
 ## Inference
 
+### Online Infer
+
 We provide a demo for text-to-image sampling in `demo/sampling_without_streamlit.py` and `demo/sampling.py` with [streamlit](https://streamlit.io/).
 
 After obtaining the weights, place them into checkpoints/. Next, start the demo using
@@ -132,6 +134,10 @@ python demo/sampling_without_streamlit.py \
 
 </details>
 
+### Offline Infer
+
+See [offline_inference](./offline_inference/README.md).
+
 ### Invisible Watermark Detection
 
 To be supplemented
@@ -143,21 +149,34 @@ To be supplemented
 
 We are providing example training configs in `configs/training`. To launch a training, run
 
+1. Vanilla fine-tune, example as:
+
+```shell
+# sdxl-base fine-tune with 1p on Ascend
+python train.py \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --ms_amp_level O2
+```
+
+2. LoRA fine-tune, example as:
+
 ```shell
 # sdxl-base lora fine-tune with 1p on Ascend
 python train.py \
-  --config configs/training/sd_xl_base_finetune_lora.yaml \
+  --config configs/training/sd_xl_base_finetune_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --data_path /PATH TO/YOUR DATASET/ \
-  --device_target Ascend
+```
 
-# sdxl-refiner lora fine-tune with 1p on Ascend
-python train.py \
-  --config configs/training/sd_xl_refiner_finetune_lora.yaml \
-  --weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
-  --data_path /PATH TO/YOUR DATASET/ \
-  --device_target Ascend
+3. DreamBooth fine-tune
 
+For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
+
+4. Run with Multiple NPUs, example as:
+
+```shell
 # run with multiple NPU/GPUs
 mpirun --allow-run-as-root -n 8 python train.py \
   --config /PATH TO/config.yaml \

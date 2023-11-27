@@ -184,7 +184,7 @@ class GeneralConditioner(nn.Cell):
 
         return vector, crossattn, concat
 
-    def __call__(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
+    def tokenize_embedding(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
         # tokenize
         tokens, _ = self.tokenize(batch)
         tokens = [Tensor(t) for t in tokens]
@@ -209,8 +209,8 @@ class GeneralConditioner(nn.Cell):
         for embedder in self.embedders:
             ucg_rates.append(embedder.ucg_rate)
             embedder.ucg_rate = 0.0
-        c = self(batch_c)
-        uc = self(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
+        c = self.tokenize_embedding(batch_c)
+        uc = self.tokenize_embedding(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
 
         for embedder, rate in zip(self.embedders, ucg_rates):
             embedder.ucg_rate = rate

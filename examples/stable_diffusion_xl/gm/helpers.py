@@ -19,7 +19,7 @@ from gm.modules.diffusionmodules.sampler import (
     HeunEDMSampler,
     LinearMultistepSampler,
 )
-from gm.util import auto_mixed_precision, instantiate_from_config, seed_everything
+from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
 from omegaconf import DictConfig, ListConfig
 from PIL import Image
 
@@ -94,6 +94,9 @@ def set_default(args):
     else:
         args.rank, args.rank_size = 0, 1
 
+    # split weights path
+    args.weight = args.weight.split(",") if len(args.weight) > 0 else ""
+
     # Directories and Save run settings
     time = _get_broadcast_datetime(rank_size=args.rank_size)
     args.save_path = os.path.join(
@@ -127,6 +130,7 @@ def create_model(
     checkpoints: Union[str, List[str]] = "",
     freeze: bool = False,
     load_filter: bool = False,
+    param_fp16: bool = False,
     amp_level: Literal["O0", "O1", "O2", "O3"] = "O0",
 ):
     # create model
@@ -137,6 +141,14 @@ def create_model(
         model.set_grad(False)
         for _, p in model.parameters_and_names():
             p.requires_grad = False
+
+    if param_fp16:
+        for _, p in model.parameters_and_names():
+            # filter embedding table/position id param
+            if "embedding" not in p.name:
+                p.set_dtype(ms.float16)
+            else:
+                print(f"param {p.name} keep {p.dtype}")
 
     if load_filter:
         # TODO: Add DeepFloydDataFiltering
@@ -174,10 +186,31 @@ def get_loss_scaler(ms_loss_scaler="static", scale_value=1024, scale_factor=2, s
     return loss_scaler
 
 
+def get_learning_rate(optim_comfig, total_step):
+    base_lr = optim_comfig.get("base_learning_rate", 1.0e-6)
+    if "scheduler_config" in optim_comfig:
+        scheduler_config = optim_comfig.get("scheduler_config")
+        scheduler = instantiate_from_config(scheduler_config)
+        lr = [base_lr * scheduler(step) for step in range(total_step)]
+    else:
+        print(f"scheduler_config not exist, train with base_lr {base_lr}")
+        lr = base_lr
+
+    return lr
+
+
+def get_optimizer(optim_comfig, lr, params):
+    optimizer_config = optim_comfig.get("optimizer_config", {"target": "mindspore.nn.SGD"})
+    optimizer = get_obj_from_str(optimizer_config["target"])(
+        params, learning_rate=lr, **optimizer_config.get("params", dict())
+    )
+    return optimizer
+
+
 def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
     model = instantiate_from_config(model_config)
 
-    if ckpts is not None:
+    if ckpts:
         print(f"Loading model from {ckpts}")
         if isinstance(ckpts, str):
             ckpts = [ckpts]
