@@ -1,6 +1,11 @@
 from collections import OrderedDict
 
-from mindspore import nn
+from mindspore import Tensor, nn, ops
+
+
+class QuickGELU(nn.Cell):
+    def construct(self, x: Tensor) -> Tensor:
+        return x * ops.sigmoid(1.702 * x)
 
 
 class ClassInstantier(OrderedDict):
@@ -12,7 +17,7 @@ class ClassInstantier(OrderedDict):
 
 ACT2CLS = {
     "gelu": nn.GELU,
-    "quick_gelu": nn.GELU,
+    "quick_gelu": QuickGELU,
     "relu": nn.ReLU,
     "relu6": nn.ReLU6,
     "sigmoid": nn.Sigmoid,
