@@ -3,7 +3,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 
 class ZeroInitModule(nn.Cell):
@@ -63,6 +63,21 @@ def zero_module(module):
     for n, p in module.parameters_and_names():
         ops.assign(p, ops.zeros_like(p))
     return module
+
+
+class Normalization(nn.GroupNorm):
+    """
+    Convert temporal 5D tensors to 4D as MindSpore supports (N, C, H, W) input only
+    """
+
+    def __init__(self, channels, eps=1e-5):
+        super().__init__(32, channels, eps)
+
+    def construct(self, x: Tensor) -> Tensor:
+        if x.ndim == 5:
+            return super().construct(x.view(x.shape[0], x.shape[1], x.shape[2], -1)).view(x.shape)
+        else:
+            return super().construct(x)
 
 
 def normalization(channels, eps=1e-5):

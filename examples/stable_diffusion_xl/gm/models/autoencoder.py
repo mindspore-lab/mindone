@@ -1,7 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
 from typing import Any, Dict, Tuple, Union
 
-from gm.modules.diffusionmodules.model import Decoder, Encoder
 from gm.modules.distributions.distributions import DiagonalGaussianDistribution
 from gm.util import default, instantiate_from_config
 from omegaconf import ListConfig
@@ -85,47 +84,80 @@ class AutoencodingEngine(AbstractAutoencoder):
         self.optimizer_config = default(optimizer_config, {"target": "mindspore.nn.Adam"})
         self.lr_g_factor = lr_g_factor
 
+    def encode(
+        self, x: Tensor, return_reg_log: bool = False, unregularized: bool = False
+    ) -> Union[Tensor, Tuple[Tensor, dict]]:
+        z = self.encoder(x)
+        if unregularized:
+            return z, dict()
+        z, reg_log = self.regularization(z)
+        if return_reg_log:
+            return z, reg_log
+        return z
 
-class AutoencoderKL(AutoencodingEngine):
+    def decode(self, z: Tensor, **kwargs) -> Tensor:
+        x = self.decoder(z, **kwargs)
+        return x
+
+    def construct(self, x: Tensor, **additional_decode_kwargs) -> Tuple[Tensor, Tensor, dict]:
+        z, reg_log = self.encode(x, return_reg_log=True)
+        dec = self.decode(z, **additional_decode_kwargs)
+        return z, dec, reg_log
+
+
+class AutoencodingEngineLegacy(AutoencodingEngine):
     def __init__(self, embed_dim: int, **kwargs):
         ddconfig = kwargs.pop("ddconfig")
-        ckpt_path = kwargs.pop("ckpt_path", None)
-        ignore_keys = kwargs.pop("ignore_keys", ())
         super().__init__(
-            encoder_config={"target": "mindspore.nn.Identity"},
-            decoder_config={"target": "mindspore.nn.Identity"},
-            regularizer_config={"target": "mindspore.nn.Identity"},
-            loss_config=kwargs.pop("lossconfig", {"target": "mindspore.nn.Identity"}),
+            encoder_config={
+                "target": "gm.modules.diffusionmodules.model.Encoder",
+                "params": ddconfig,
+            },
+            decoder_config={
+                "target": "gm.modules.diffusionmodules.model.Decoder",
+                "params": ddconfig,
+            },
             **kwargs,
         )
-        assert ddconfig["double_z"]
-        self.encoder = Encoder(**ddconfig)
-        self.decoder = Decoder(**ddconfig)
-        self.quant_conv = nn.Conv2d(2 * ddconfig["z_channels"], 2 * embed_dim, 1, has_bias=True, pad_mode="valid")
+        self.quant_conv = nn.Conv2d(
+            (1 + ddconfig["double_z"]) * ddconfig["z_channels"],
+            (1 + ddconfig["double_z"]) * embed_dim,
+            1,
+            has_bias=True,
+            pad_mode="valid",
+        )
         self.post_quant_conv = nn.Conv2d(embed_dim, ddconfig["z_channels"], 1, has_bias=True, pad_mode="valid")
-        self.embed_dim = embed_dim
         self.posterior = DiagonalGaussianDistribution()
+        self.embed_dim = embed_dim
 
-        if ckpt_path is not None:
-            self.load_checkpoint(ckpt_path, ignore_keys=ignore_keys)
+    def encode(self, x: Tensor, return_reg_log: bool = False, **kwargs) -> Union[Tensor, Tuple[Tensor, dict]]:
+        z = self.encoder(x)
+        z = self.quant_conv(z)
+        z, reg_log = self.regularization(z)
+        if return_reg_log:
+            return z, reg_log
+        return z
 
-    @ms.jit
-    def encode(self, x):
-        # only supports inference currently
-        h = self.encoder(x)
-        moments = self.quant_conv(h)
-        return moments
-
-    @ms.jit
-    def decode(self, z, **decoder_kwargs):
-        z = self.post_quant_conv(z)
-        dec = self.decoder(z, **decoder_kwargs)
+    def decode(self, z: Tensor, **decoder_kwargs) -> Tensor:
+        dec = self.post_quant_conv(z)
+        dec = self.decoder(dec, **decoder_kwargs)
         return dec
 
 
-class AutoencoderKLInferenceWrapper(AutoencoderKL):
-    @ms.jit
-    def encode(self, x):
-        h = self.encoder(x)
-        moments = self.quant_conv(h)
-        return self.posterior.sample(moments)
+class AutoencoderKL(AutoencodingEngineLegacy):
+    def __init__(self, **kwargs):
+        super().__init__(
+            regularizer_config={"target": "gm.modules.autoencoding.regularizers.base.DiagonalGaussianRegularizer"},
+            **kwargs,
+        )
+
+
+class AutoencoderKLModeOnly(AutoencodingEngineLegacy):
+    def __init__(self, **kwargs):
+        super().__init__(
+            regularizer_config={
+                "target": "gm.modules.autoencoding.regularizers.base.DiagonalGaussianRegularizer",
+                "params": {"sample": False},
+            },
+            **kwargs,
+        )

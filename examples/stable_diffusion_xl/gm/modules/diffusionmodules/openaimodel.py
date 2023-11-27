@@ -5,10 +5,10 @@ from typing import Iterable
 
 from gm.modules.attention import SpatialTransformer
 from gm.modules.diffusionmodules.util import (
+    Normalization,
     avg_pool_nd,
     conv_nd,
     linear,
-    normalization,
     timestep_embedding,
     zero_module,
 )
@@ -154,16 +154,11 @@ class ResBlock(TimestepBlock):
         self.use_scale_shift_norm = use_scale_shift_norm
         self.exchange_temb_dims = exchange_temb_dims
 
-        if isinstance(kernel_size, Iterable):
-            padding = [k // 2 for k in kernel_size]
-        else:
-            padding = kernel_size // 2
-
         self.in_layers = nn.SequentialCell(
             [
-                normalization(channels),
+                Normalization(channels),
                 nn.SiLU(),
-                conv_nd(dims, channels, self.out_channels, kernel_size, padding=padding, pad_mode="pad"),
+                conv_nd(dims, channels, self.out_channels, kernel_size, pad_mode="same"),
             ]
         )
 
@@ -198,21 +193,17 @@ class ResBlock(TimestepBlock):
 
         self.out_layers = nn.SequentialCell(
             [
-                normalization(self.out_channels),
+                Normalization(self.out_channels),
                 nn.SiLU(),
                 nn.Dropout(p=dropout),
-                zero_module(
-                    conv_nd(dims, self.out_channels, self.out_channels, kernel_size, padding=padding, pad_mode="pad")
-                ),
+                zero_module(conv_nd(dims, self.out_channels, self.out_channels, kernel_size, pad_mode="same")),
             ]
         )
 
         if self.out_channels == channels:
             self.skip_connection = nn.Identity()
         elif use_conv:
-            self.skip_connection = conv_nd(
-                dims, channels, self.out_channels, kernel_size, padding=padding, pad_mode="pad"
-            )
+            self.skip_connection = conv_nd(dims, channels, self.out_channels, kernel_size, pad_mode="same")
         else:
             self.skip_connection = conv_nd(dims, channels, self.out_channels, 1)
 
@@ -270,7 +261,7 @@ class AttentionBlock(nn.Cell):
                 channels % num_head_channels == 0
             ), f"q,k,v channels {channels} is not divisible by num_head_channels {num_head_channels}"
             self.num_heads = channels // num_head_channels
-        self.norm = normalization(channels)
+        self.norm = Normalization(channels)
         self.qkv = conv_nd(1, channels, channels * 3, 1)
         if use_new_attention_order:
             # split qkv before split heads
@@ -376,7 +367,7 @@ class Timestep(nn.Cell):
         self.dim = dim
 
     def construct(self, t):
-        return timestep_embedding(t, self.dim, dtype=t.dtype)
+        return timestep_embedding(t, self.dim)
 
 
 class UNetModel(nn.Cell):
@@ -748,7 +739,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             [
-                normalization(ch),
+                Normalization(ch),
                 nn.SiLU(),
                 zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, pad_mode="pad")),
             ]
@@ -756,7 +747,7 @@ class UNetModel(nn.Cell):
         if self.predict_codebook_ids:
             self.id_predictor = nn.SequentialCell(
                 [
-                    normalization(ch),
+                    Normalization(ch),
                     conv_nd(dims, model_channels, n_embed, 1),
                     # nn.LogSoftmax(axis=1)  # change to cross_entropy and produce non-normalized logits
                 ]

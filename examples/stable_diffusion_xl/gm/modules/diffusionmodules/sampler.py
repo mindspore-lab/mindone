@@ -52,7 +52,7 @@ class BaseDiffusionSampler:
         cond = model.openai_input_warpper(cond)
         c_skip, c_out, c_in, c_noise = model.denoiser(sigmas, noised_input.ndim)
         model_output = model.model(
-            ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.int32), **cond, **kwargs
+            ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.float32), **cond, **kwargs
         )
         model_output = model_output.astype(ms.float32)
         denoised = model_output * c_out + noised_input * c_skip
@@ -295,7 +295,7 @@ class DPMPP2MSampler(BaseDiffusionSampler):
             return mult1, mult2
 
     def sampler_step(self, old_denoised, previous_sigma, sigma, next_sigma, model, x, cond, uc=None, **kwargs):
-        denoised = self.denoise(x, model, sigma, cond, uc)
+        denoised = self.denoise(x, model, sigma, cond, uc, **kwargs)
 
         h, r, t, t_next = self.get_variables(sigma, next_sigma, previous_sigma)
         mult = [append_dims(mult, x.ndim) for mult in self.get_mult(h, r, t, t_next, previous_sigma)]

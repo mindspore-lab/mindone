@@ -1,9 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
-
 import mindspore as ms
 from mindspore import Tensor, nn, ops
-
-OPENAIUNETWRAPPER = "gm.modules.diffusionmodules.wrappers.OpenAIWrapper"
 
 
 class IdentityWrapper(nn.Cell):

@@ -170,7 +170,14 @@ class CrossAttention(nn.Cell):
 
         self.to_out = nn.SequentialCell(nn.Dense(inner_dim, query_dim), nn.Dropout(p=dropout))
 
-    def construct(self, x, context=None, mask=None, additional_tokens=None):
+    def construct(
+        self,
+        x,
+        context=None,
+        mask=None,
+        additional_tokens=None,
+        n_times_crossframe_attn_in_self=0,
+    ):
         h = self.heads
 
         n_tokens_to_mask = 0
@@ -185,6 +192,15 @@ class CrossAttention(nn.Cell):
             context = x
         k = self.to_k(context)
         v = self.to_v(context)
+
+        if n_times_crossframe_attn_in_self:
+            # reprogramming cross-frame attention as in https://arxiv.org/abs/2303.13439
+            if x.shape[0] % n_times_crossframe_attn_in_self:
+                raise RuntimeError("x.shape[0] must be divisible by n_times_crossframe_attn_in_self")
+
+            n_cp = x.shape[0] // n_times_crossframe_attn_in_self
+            k = k[::n_times_crossframe_attn_in_self].repeat(n_cp, axis=0)  # b ... -> (b n) ...
+            v = v[::n_times_crossframe_attn_in_self].repeat(n_cp, axis=0)
 
         # b n (h d) -> b h n d
         q_b, q_n, _ = q.shape
@@ -254,11 +270,18 @@ class BasicTransformerBlock(nn.Cell):
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-5)
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-5)
 
-    def construct(self, x, context=None):
-        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
-        x = self.attn2(self.norm2(x), context=context) + x
+    def construct(self, x, context=None, additional_tokens=None, n_times_crossframe_attn_in_self=0):
+        x = (
+            self.attn1(
+                self.norm1(x),
+                context=context if self.disable_self_attn else None,
+                additional_tokens=additional_tokens,
+                n_times_crossframe_attn_in_self=n_times_crossframe_attn_in_self if not self.disable_self_attn else 0,
+            )
+            + x
+        )
+        x = self.attn2(self.norm2(x), context=context, additional_tokens=additional_tokens) + x
         x = self.ff(self.norm3(x)) + x
-
         return x
 
 

@@ -10,8 +10,6 @@ model:
             params:
                 num_idx: 1000
 
-                weighting_config:
-                    target: gm.modules.diffusionmodules.denoiser_weighting.EpsWeighting
                 scaling_config:
                     target: gm.modules.diffusionmodules.denoiser_scaling.EpsScaling
                 discretization_config:
@@ -88,7 +86,7 @@ model:
                       outdim: 256  # multiplied by two
 
         first_stage_config:
-            target: gm.models.autoencoder.AutoencoderKLInferenceWrapper
+            target: gm.models.autoencoder.AutoencoderKL
             params:
                 embed_dim: 4
                 monitor: val/rec_loss
@@ -117,6 +115,9 @@ model:
 
         loss_fn_config:
             target: gm.modules.diffusionmodules.loss.StandardDiffusionLoss
+            params:
+              loss_weighting_config:
+                target: gm.modules.diffusionmodules.loss_weighting.EpsWeighting
 
 
 optim:

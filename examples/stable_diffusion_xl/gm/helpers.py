@@ -292,8 +292,6 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
             if len(u) > 0 and verbose:
                 print("unexpected keys:")
                 print(u)
-        else:
-            print(f"Warning: Loading checkpoint from {ckpts} fail")
 
         model = auto_mixed_precision(model, amp_level=amp_level)
         model.set_train(False)

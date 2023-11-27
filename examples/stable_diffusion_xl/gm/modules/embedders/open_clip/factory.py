@@ -71,11 +71,10 @@ def load_checkpoint(network, weight):
 
 def create_model(
     model_name: str,
-    pretrained: Optional[str] = None,
+    pretrained: Optional[str] = "",
     precision: str = "fp32",
     jit: bool = False,
     cache_dir: Optional[str] = None,
-    require_pretrained: bool = True,
 ):
     model_name = model_name.replace("/", "-")  # for callers using old naming with / in ViT names
     pretrained_cfg = {}
@@ -97,17 +96,9 @@ def create_model(
         # manual mixed precision that matches original OpenAI behaviour
         model.to_float(ms.float16)
 
-    pretrained_loaded = False
     if pretrained:
         assert pretrained.endswith(".ckpt"), f"pretrained expect '*.ckpt', but got '{pretrained}'."
         load_checkpoint(model, pretrained)
-        pretrained_loaded = True
-
-    if require_pretrained and not pretrained_loaded:
-        # callers of create_model_from_pretrained always expect pretrained weights
-        raise RuntimeError(
-            f"Pretrained weights were required for (model: {model_name}, pretrained: {pretrained}) but not loaded."
-        )
 
     if model.visual is not None:
         # set image / mean metadata from pretrained_cfg if available, or use default
@@ -119,29 +110,3 @@ def create_model(
         return model(*args, **kwargs)
 
     return model if not jit else jit_func
-
-
-if __name__ == "__main__":
-    import argparse
-    import ast
-
-    from gm.modules.embedders.open_clip.tokenizer import tokenize
-
-    parser_config = argparse.ArgumentParser(description="Config", add_help=False)
-    parser_config.add_argument("--ms_jit", type=ast.literal_eval, default=False)
-    args, _ = parser_config.parse_known_args()
-
-    model = create_model(model_name="ViT-H-14-Text", pretrained=None, require_pretrained=False)  # "laion2b_s32b_b79k"
-
-    @ms.jit
-    def jit_warpper(token):
-        return model.token_embedding(token)
-
-    token = tokenize(["a photo of a cat", "a photo of a dog"])
-    if not args.ms_jit:
-        out = model.token_embedding(token)
-    else:
-        out = jit_warpper(token)
-
-    print(f"token.shape: {token.shape}")
-    print(f"out.shape: {out.shape}")
