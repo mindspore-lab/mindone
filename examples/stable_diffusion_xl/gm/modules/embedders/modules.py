@@ -235,7 +235,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         super().__init__()
         assert layer in self.LAYERS
         self.tokenizer = CLIPTokenizer.from_pretrained(version)
-        self.transformer = CLIPTextModel(config_path="openai/clip-vit-large-patch14", weight=pretrained)
+        self.transformer = CLIPTextModel(config_path=version, weight=pretrained)
 
         if freeze:
             self.freeze()

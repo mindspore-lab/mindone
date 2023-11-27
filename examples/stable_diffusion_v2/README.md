@@ -385,34 +385,12 @@ For details, please refer to the tutorial [ControlNet image generation](controln
 
 # Stable Diffusion with T2I-Adapter
 
-[T2I-Adapter](T2I-Adapter.md) is a simple and lightweight network that provides extra visual guidance for Stable
-Diffusion models without re-training them. The adapter act as plug-ins to SD models, making it easy to integrate and
-use.
+[T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
+Stable Diffusion models without re-training them. The adapter act as plug-ins to SD models, making it easy to integrate
+and use.
 
-## Inference
-
-Currently, T2I-Adapter supports inference with SD 1.x only. Support for SD 2.x will be added in the future.
-The supported scenarios include: Canny, Color, Depth, KeyPose, OpenPose, Segmentation, Sketch, and Style.
-
-The inference command is as follows:
-
-```shell
-python examples/stable_diffusion_v2/adapter_image2image.py \
---version 1.5 \
---prompt {YOUR_PROMPT} \
---adapter_ckpt_path {CHECKPONT_PATH} \
---ddim \
---adapter_condition {CONDITION} \
---condition_image {INPUT_IMAGE}
-```
-
-For more information on inference with T2I-Adapters, please refer to
-[T2I-Adapter: Inference and Examples](T2I-Adapter.md#inference-and-examples).
-
-## Training
-
-For more information on training T2I-Adapters, please refer to
-[T2I-Adapter: Training](T2I-Adapter.md#training).
+For more information on inference and training with T2I-Adapters, please refer
+to [T2I-Adapter](../t2i_adapter/README.md) page.
 
 # Dataset Preparation for Finetuning
 

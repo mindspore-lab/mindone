@@ -31,7 +31,7 @@ class COCOStuff(CondDataset):
     `COCO-Stuff <https://github.com/nightrome/cocostuff>`__ segmentation dataset. Contains 118K train and 5K validation
     with 80 thing classes, 91 stuff classes and 1 class 'unlabeled'. Each image has 5 captions.
 
-    Grayscale masks have to be colored first with `tools/data_utils/t2i_adapter/cocostuff_colorize_mask.py`.
+    Grayscale masks have to be colored first with `t2i_tools/cocostuff_colorize_mask.py`.
 
     Grayscale masks are located in `stuffthingmaps_trainval2017.zip`, and annotations are located in
     `annotations_trainval2017.zip/annotations/captions_train2017.json`

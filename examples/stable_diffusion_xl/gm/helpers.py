@@ -2,6 +2,11 @@ import os
 from datetime import datetime
 from typing import List, Union
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
+
 import numpy as np
 import yaml
 from gm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
@@ -15,7 +20,7 @@ from gm.modules.diffusionmodules.sampler import (
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
-from omegaconf import ListConfig
+from omegaconf import DictConfig, ListConfig
 from PIL import Image
 
 import mindspore as ms
@@ -120,7 +125,14 @@ def set_default(args):
     return args
 
 
-def create_model(config, checkpoints=None, freeze=False, load_filter=False, param_fp16=False, amp_level="O0"):
+def create_model(
+    config: DictConfig,
+    checkpoints: Union[str, List[str]] = "",
+    freeze: bool = False,
+    load_filter: bool = False,
+    param_fp16: bool = False,
+    amp_level: Literal["O0", "O1", "O2", "O3"] = "O0",
+):
     # create model
     model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
 
@@ -433,6 +445,7 @@ def init_sampling(
     num_cols=None,
     sampler="EulerEDMSampler",
     guider="VanillaCFG",
+    guidance_scale=5.0,
     discretization="LegacyDDPMDiscretization",
     img2img_strength=1.0,
     specify_num_samples=True,
@@ -461,7 +474,7 @@ def init_sampling(
     else:
         num_cols = num_cols if num_cols else 1
 
-    guider_config = get_guider(guider)
+    guider_config = get_guider(guider, cfg_scale=guidance_scale)
     discretization_config = get_discretization(discretization)
     sampler = get_sampler(sampler, steps, discretization_config, guider_config)
 

@@ -138,6 +138,15 @@ python demo/sampling_without_streamlit.py \
 
 See [offline_inference](./offline_inference/README.md).
 
+### Inference with T2i-Adapter
+
+[T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
+Stable Diffusion models without re-training them. The adapter act as plug-ins to SDXL models, making it easy to
+integrate and use.
+
+For more information on inference and training with T2I-Adapters, please refer
+to [T2I-Adapter](../t2i_adapter/README.md) page.
+
 ### Invisible Watermark Detection
 
 To be supplemented

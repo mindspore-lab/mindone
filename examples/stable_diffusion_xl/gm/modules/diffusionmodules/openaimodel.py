@@ -14,8 +14,7 @@ from gm.modules.diffusionmodules.util import (
 )
 from gm.util import default, exists
 
-import mindspore as ms
-from mindspore import nn, ops
+from mindspore import jit, nn, ops
 
 
 class TimestepBlock(nn.Cell):
@@ -766,7 +765,7 @@ class UNetModel(nn.Cell):
             self.output_blocks.recompute()
             print("Turn on recompute, and the unet middle/output blocks will be recomputed.")
 
-    @ms.jit
+    @jit
     def construct(self, x, timesteps=None, context=None, y=None, **kwargs):
         """
         Apply the model to an input batch.

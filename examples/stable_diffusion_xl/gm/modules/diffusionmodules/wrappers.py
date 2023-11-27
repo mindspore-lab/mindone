@@ -23,4 +23,4 @@ class OpenAIWrapper(IdentityWrapper):
     ) -> Tensor:
         if concat is not None:
             x = ops.concat((x, concat), axis=1)
-        return self.diffusion_model(x, timesteps=t, context=context, y=y)
+        return self.diffusion_model(x, timesteps=t, context=context, y=y, **kwargs)
