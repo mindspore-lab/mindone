@@ -8,6 +8,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 - [x] Infer: Image-to-image generation with SDXL-1.0-Refiner.
 - [x] Infer: Support 7 SoTA diffusion process samplers.
 - [x] Infer: Support with MSLite.
+- [x] Infer: Support T2I-Adapters for Text-to-Image generation with extra visual guidance.
 - [x] (⚠️experimental) Finetune: [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base/SDXL-1.0-Refiner.
 - [x] (⚠️experimental) Finetune: [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: Vanilla fine-tune.
