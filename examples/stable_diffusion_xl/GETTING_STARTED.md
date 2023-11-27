@@ -89,6 +89,8 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
 
+> If you have network issues on downloading clip tokenizer, please manually download `openai/clip-vit-large-patch14` from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`
+
 2. Run with other methods:
 
 <details close>
@@ -101,6 +103,7 @@ python demo/sampling_without_streamlit.py \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
   --device_target Ascend
+
 
 # run sdxl-refiner img2img without streamlit on Ascend
 python demo/sampling_without_streamlit.py \
