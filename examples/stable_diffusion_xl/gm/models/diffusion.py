@@ -1,7 +1,7 @@
 # reference to https://github.com/Stability-AI/generative-models
 
 from contextlib import contextmanager
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
@@ -202,6 +202,7 @@ class DiffusionEngine(nn.Cell):
         batch2model_input: List = None,
         return_latents=False,
         filter=None,
+        adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
     ):
         print("Sampling")
@@ -250,7 +251,7 @@ class DiffusionEngine(nn.Cell):
         randn = Tensor(np.random.randn(*shape), ms.float32)
 
         print("Sample latent Starting...")
-        samples_z = sampler(self, randn, cond=c, uc=uc)
+        samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states)
         print("Sample latent Done.")
 
         print("Decode latent Starting...")

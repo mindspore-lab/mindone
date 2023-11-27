@@ -1,28 +1,31 @@
 import logging
 import shutil
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List
 
 import numpy as np
+from adapters import get_adapter
+from data.dataset_with_cond import CondDataset
 from jsonargparse import ActionConfigFile, ArgumentParser
 from omegaconf import OmegaConf
+from pipelines.sd_pipeline import SDAdapterPipeline
 
 from mindspore import Model, nn
 from mindspore.dataset.vision import Resize, ToTensor
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
-from examples.stable_diffusion_v2.adapters import SDAdapterPipeline, get_adapter
-from examples.stable_diffusion_v2.common import init_env
-from examples.stable_diffusion_v2.ldm.data.dataset_with_cond import CondDataset
-from examples.stable_diffusion_v2.ldm.data.loader import build_dataloader
-from examples.stable_diffusion_v2.ldm.data.transforms import CannyRandomThreshold, TokenizerWrapper
-from examples.stable_diffusion_v2.ldm.modules.logger import set_logger
-from examples.stable_diffusion_v2.ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
-from examples.stable_diffusion_v2.ldm.modules.train.optim import build_optimizer
-from examples.stable_diffusion_v2.ldm.modules.train.trainer import TrainOneStepWrapper
-from examples.stable_diffusion_v2.ldm.util import count_params
-from examples.stable_diffusion_v2.text_to_image import load_model_from_config
+sys.path.append("../stable_diffusion_v2/")
+from common import init_env
+from ldm.data.loader import build_dataloader
+from ldm.data.transforms import CannyRandomThreshold, TokenizerWrapper
+from ldm.modules.logger import set_logger
+from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
+from ldm.modules.train.optim import build_optimizer
+from ldm.modules.train.trainer import TrainOneStepWrapper
+from ldm.util import count_params
+from text_to_image import load_model_from_config
 
 
 def build_transforms(cond: str, tokenizer) -> List[dict]:
@@ -44,7 +47,7 @@ def build_transforms(cond: str, tokenizer) -> List[dict]:
 def main(args, initializer):
     # step 1: initialize environment
     logger = logging.getLogger(__name__)
-    device_id, rank_id, device_num = init_env(logger, **args.environment)
+    device_id, rank_id, device_num = init_env(**args.environment)
 
     output_dir = Path(args.train.output_dir) / args.adapter.condition / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -67,7 +70,7 @@ def main(args, initializer):
     )
 
     # step 4: load Adapter
-    adapter_model = get_adapter(**args.adapter, train=True)
+    adapter_model = get_adapter("sd", **args.adapter, train=True)
     full_model = SDAdapterPipeline(sd_model, adapter_model)
 
     # step 5: create optimizer and train the same way as regular SD
@@ -143,7 +146,7 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_env, "environment", skip={"logger"})
+    parser.add_function_arguments(init_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument(
         "--train.output_dir",
@@ -163,7 +166,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--sd_config", type=str, required=True)
     parser.add_argument("--sd_ckpt", type=str, required=True)
-    parser.add_function_arguments(get_adapter, "adapter", skip={"train"})
+    parser.add_function_arguments(get_adapter, "adapter", skip={"diffusion_model", "train"})
     parser.add_class_arguments(nn.DynamicLossScaleUpdateCell, "LossScale", instantiate=False, fail_untyped=False)
 
     cfg = parser.parse_args()

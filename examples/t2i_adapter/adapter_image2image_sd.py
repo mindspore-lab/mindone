@@ -1,53 +1,25 @@
-"""
-Text to image generation
-"""
 import argparse
 import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
 
-import cv2
 import numpy as np
-from conditions.utils import resize_image
+from adapters import CombinedAdapter, get_adapter
 from omegaconf import OmegaConf
 from PIL import Image
+from t2i_utils import read_images
 
 import mindspore as ms
 
-workspace = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(workspace)
-from adapters import CombinedAdapter, get_adapter
+sys.path.append("../stable_diffusion_v2/")
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import str2bool
 from text_to_image import load_model_from_config
-
-
-def image2tensor(image: np.ndarray) -> ms.Tensor:
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) if image.ndim == 3 else np.expand_dims(image, 2)
-    image = np.expand_dims(image.transpose((2, 0, 1)) / 255.0, axis=0).astype(np.float32)
-    return ms.Tensor(image)
-
-
-def read_images(cond_paths: List[str], size: int) -> Tuple[List[ms.Tensor], Tuple[int, int]]:
-    conds = []
-    image_shape = None
-    for path in cond_paths:
-        cond = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-        cond = resize_image(cond, size)
-
-        if image_shape is None:
-            image_shape = cond.shape[:2]
-        # FIXME: padding?
-        assert image_shape == cond.shape[:2], "All condition images must be resized to the same size."
-
-        conds.append(image2tensor(cond))
-    return conds, image_shape
 
 
 def main(args):
@@ -92,7 +64,7 @@ def main(args):
     )
 
     adapters = [
-        get_adapter(a_cond, ckpt, use_fp16=not args.adapter_full_precision)
+        get_adapter("sd", a_cond, ckpt, use_fp16=not args.adapter_full_precision)
         for a_cond, ckpt in zip(args.adapter_condition, args.adapter_ckpt_path)
     ]
     adapters = CombinedAdapter(adapters, cond_weights, output_fp16=True)
@@ -343,13 +315,13 @@ if __name__ == "__main__":
     # overwrite env var by parsed arg
     os.environ["SD_VERSION"] = args.version
     if args.version == "1.5":
-        args.config = "configs/v1-inference.yaml"
+        args.config = "../stable_diffusion_v2/configs/v1-inference.yaml"
         ckpt_path = "models/sd_v1.5-d0ab7146.ckpt"
     elif args.version == "2.0":
-        args.config = "configs/v2-inference.yaml"
+        args.config = "../stable_diffusion_v2/v2-inference.yaml"
         ckpt_path = "models/sd_v2_base-57526ee4.ckpt"
     elif args.version == "2.1":
-        args.config = "configs/v2-inference.yaml"
+        args.config = "../stable_diffusion_v2/v2-inference.yaml"
         ckpt_path = "models/sd_v2-1_base-7c8d09ce.ckpt"
     else:
         raise ValueError(f"Unsupported SD version: {args.version}")

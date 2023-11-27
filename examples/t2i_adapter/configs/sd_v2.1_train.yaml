@@ -33,7 +33,7 @@ train:
     clip_grad: False
     clip_norm: 1.0
 
-sd_config: examples/stable_diffusion_v2/configs/v2-inference.yaml
+sd_config: ../stable_diffusion_v2/configs/v2-inference.yaml
 sd_ckpt: models/sd_v2-1_base-7c8d09ce.ckpt
 
 adapter:

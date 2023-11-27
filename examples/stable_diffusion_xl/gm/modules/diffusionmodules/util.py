@@ -24,7 +24,7 @@ def make_beta_schedule(
     linear_end=2e-2,
 ):
     if schedule == "linear":
-        betas = np.linspace(linear_start**0.5, linear_end**0.5, n_timestep, dtype=np.float) ** 2
+        betas = np.linspace(linear_start**0.5, linear_end**0.5, n_timestep, dtype=np.float32) ** 2
     else:
         raise NotImplementedError
 
