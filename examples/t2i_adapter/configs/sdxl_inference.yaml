@@ -7,6 +7,11 @@ environment:
 
 SDXL:
   config: ../stable_diffusion_xl/configs/inference/sd_xl_base.yaml
+  overwrite:
+    model:
+      params:
+        network_config:
+          target: modules.adapter_unet.T2IAdapterUNetXL
   amp_level: O2
   ratio: '1.0'
 

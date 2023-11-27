@@ -1,7 +1,7 @@
 # reference to https://github.com/Stability-AI/generative-models
 from abc import abstractmethod
 from functools import partial
-from typing import Iterable, List, Optional
+from typing import Iterable
 
 from gm.modules.attention import SpatialTransformer
 from gm.modules.diffusionmodules.util import (
@@ -14,7 +14,7 @@ from gm.modules.diffusionmodules.util import (
 )
 from gm.util import default, exists
 
-from mindspore import Tensor, jit, nn, ops
+from mindspore import jit, nn, ops
 
 
 class TimestepBlock(nn.Cell):
@@ -766,16 +766,13 @@ class UNetModel(nn.Cell):
             print("Turn on recompute, and the unet middle/output blocks will be recomputed.")
 
     @jit
-    def construct(
-        self, x, timesteps=None, context=None, y=None, adapter_states: Optional[List[Tensor]] = None, **kwargs
-    ):
+    def construct(self, x, timesteps=None, context=None, y=None, **kwargs):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
         :param timesteps: a 1-D batch of timesteps.
         :param context: conditioning plugged in via crossattn
         :param y: an [N] Tensor of labels, if class-conditional.
-        :param adapter_states: (optional) a list of adapter states for each down block.
         :return: an [N x C x ...] Tensor of outputs.
         """
         # assert (y is not None) == (
@@ -789,26 +786,11 @@ class UNetModel(nn.Cell):
             emb = emb + self.label_emb(y)
 
         h = x
-        adapter_idx = 0
-        for i, module in enumerate(self.input_blocks):
+        for module in self.input_blocks:
             h = module(h, emb, context)
-
-            if i in [5, 8] and adapter_states:  # include adapter features in hidden states for 2nd and 3rd blocks
-                h += adapter_states[adapter_idx]
-                adapter_idx += 1
-
             hs += (h,)
-
-            if i == 3 and adapter_states:  # do not include adapter features in hidden states after the first block
-                h += adapter_states[adapter_idx]
-                adapter_idx += 1
-
             hs_idx += 1
-
         h = self.middle_block(h, emb, context)
-        if adapter_states:
-            h += adapter_states[adapter_idx]
-
         for module in self.output_blocks:
             h = ops.concat([h, hs[hs_idx]], axis=1)
             hs_idx -= 1

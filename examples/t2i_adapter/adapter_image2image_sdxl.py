@@ -66,6 +66,10 @@ def main(args):
 
     # initialize SD and adapter models
     args.SDXL.config = OmegaConf.load(args.SDXL.config)  # NOQA
+    overwrite = args.SDXL.pop("overwrite", {})
+    if overwrite:
+        args.SDXL.config = OmegaConf.merge(args.SDXL.config, overwrite)
+
     version = args.SDXL.config.pop("version", "SDXL-base-1.0")
     model_ratio = args.SDXL.pop("ratio", "1.0")
 
@@ -157,6 +161,7 @@ if __name__ == "__main__":
     # Stable Diffusion
     parser.add_function_arguments(create_model, "SDXL", skip={"config", "freeze", "load_filter"})
     parser.add_argument("--SDXL.config", type=str, default="configs/inference/sd_xl_base.yaml")
+    parser.add_argument("--SDXL.overwrite", type=dict, help="Parameters to overwrite in SDXL config.")
     parser.add_argument("--SDXL.ratio", type=str, default="1.0")
     parser.add_function_arguments(
         init_sampling, "sampler", skip={"num_cols", "specify_num_samples", "img2img_strength", "stage2strength"}
