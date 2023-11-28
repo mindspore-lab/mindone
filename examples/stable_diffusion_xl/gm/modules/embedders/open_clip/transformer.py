@@ -176,14 +176,14 @@ class ResidualAttentionBlock(nn.Cell):
     ):
         super().__init__()
 
-        self.ln_1 = norm_layer([d_model], epsilon = 1e-5)
+        self.ln_1 = norm_layer([d_model], epsilon=1e-5)
         self.attn = MultiheadAttention(d_model, n_head)
         self.ls_1 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
         self.is_cross_attention = is_cross_attention
         if is_cross_attention:
-            self.ln_1_kv = norm_layer([d_model], epsilon = 1e-5)
+            self.ln_1_kv = norm_layer([d_model], epsilon=1e-5)
 
-        self.ln_2 = norm_layer([d_model], epsilon = 1e-5)
+        self.ln_2 = norm_layer([d_model], epsilon=1e-5)
         mlp_width = int(d_model * mlp_ratio)
         self.mlp = nn.SequentialCell(
             OrderedDict(
@@ -310,7 +310,7 @@ class VisionTransformer(nn.Cell):
         # setting a patch_dropout of 0. would mean it is disabled and this function would be the identity fn
         # self.patch_dropout = nn.Identity()
 
-        self.ln_pre = norm_layer([width], epsilon = 1e-5)
+        self.ln_pre = norm_layer([width], epsilon=1e-5)
         self.transformer = Transformer(
             width,
             layers,
@@ -324,7 +324,7 @@ class VisionTransformer(nn.Cell):
         self.global_average_pool = global_average_pool
 
         self.attn_pool = None
-        self.ln_post = norm_layer([width], epsilon = 1e-5)
+        self.ln_post = norm_layer([width], epsilon=1e-5)
         self.proj = Parameter(Tensor(scale * np.random.randn(width, output_dim), ms.float32))
 
     def _global_pool(self, x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -418,7 +418,7 @@ class TextTransformer(nn.Cell):
             act_layer=act_layer,
             norm_layer=norm_layer,
         )
-        self.ln_final = norm_layer([width], epsilon = 1e-5)
+        self.ln_final = norm_layer([width], epsilon=1e-5)
 
         _attn_mask_tensor = self.build_attention_mask()
         self.attn_mask = Parameter(_attn_mask_tensor, requires_grad=False)
