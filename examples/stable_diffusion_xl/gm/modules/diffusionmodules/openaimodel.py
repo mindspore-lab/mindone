@@ -856,8 +856,8 @@ class UNetModel_lora(UNetModel):
                 assert hasattr(cell, "to_out")
                 inner_dim, query_dim = cell.to_out[0].in_channels, cell.to_out[0].out_channels
                 cell.to_out[0] = Dense_lora(
-                    query_dim,
                     inner_dim,
+                    query_dim,
                     r=lora_dim,
                     lora_alpha=lora_alpha,
                     lora_dropout=lora_dropout,

@@ -186,7 +186,10 @@ class TrainOneStepCellDreamBooth(nn.Cell):
 
         return x, noised_input, sigmas, w, concat, context, y
 
-    def construct(self, x, reg_x, tokens, reg_tokens):
+    def construct(self, x, reg_x, *all_tokens):
+        assert len(all_tokens) % 2 == 0
+        position = len(all_tokens) // 2
+        tokens, reg_tokens = all_tokens[:position], all_tokens[position:]
         x, noised_input, sigmas, w, concat, context, y = self._get_inputs(x, *tokens)
         reg_x, reg_noised_input, reg_sigmas, reg_w, reg_concat, reg_context, reg_y = self._get_inputs(
             reg_x, *reg_tokens
