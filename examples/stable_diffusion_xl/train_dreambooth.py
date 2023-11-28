@@ -38,7 +38,7 @@ def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
     parser.add_argument("--version", type=str, default="SDXL-base-1.0", choices=["SDXL-base-1.0", "SDXL-refiner-1.0"])
     parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_dreambooth_lora.yaml")
-    parser.add_argument("--generate_class_image_config", type=str, default="configs/infer/sd_xl_base.yaml")
+    parser.add_argument("--generate_class_image_config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument(
         "--task",
         type=str,
