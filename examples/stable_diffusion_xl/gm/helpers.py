@@ -38,6 +38,7 @@ class BroadCast(nn.Cell):
 
 
 SD_XL_BASE_RATIOS = {
+    # W/H ratio: (W, H)
     "0.5": (704, 1408),
     "0.52": (704, 1344),
     "0.57": (768, 1344),

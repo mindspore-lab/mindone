@@ -204,6 +204,7 @@ class DiffusionEngine(nn.Cell):
         adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
         init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
+        control: Optional[Tensor] = None,
     ):
         print("Sampling")
 
@@ -256,7 +257,7 @@ class DiffusionEngine(nn.Cell):
             randn = Tensor(np.random.randn(*shape), ms.float32)
 
         print("Sample latent Starting...")
-        samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states)
+        samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states, control=control)
         print("Sample latent Done.")
 
         print("Decode latent Starting...")
