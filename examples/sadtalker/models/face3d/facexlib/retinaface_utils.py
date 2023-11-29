@@ -6,16 +6,14 @@ from math import ceil
 
 
 class PriorBox(object):
-
-    def __init__(self, cfg, image_size=None, phase='train'):
+    def __init__(self, cfg, image_size=None, phase="train"):
         super(PriorBox, self).__init__()
-        self.min_sizes = cfg['min_sizes']
-        self.steps = cfg['steps']
-        self.clip = cfg['clip']
+        self.min_sizes = cfg["min_sizes"]
+        self.steps = cfg["steps"]
+        self.clip = cfg["clip"]
         self.image_size = image_size
-        self.feature_maps = [
-            [ceil(self.image_size[0] / step), ceil(self.image_size[1] / step)] for step in self.steps]
-        self.name = 's'
+        self.feature_maps = [[ceil(self.image_size[0] / step), ceil(self.image_size[1] / step)] for step in self.steps]
+        self.name = "s"
 
     def construct(self):
         anchors = []
@@ -25,10 +23,8 @@ class PriorBox(object):
                 for min_size in min_sizes:
                     s_kx = min_size / self.image_size[1]
                     s_ky = min_size / self.image_size[0]
-                    dense_cx = [x * self.steps[k] / self.image_size[1]
-                                for x in [j + 0.5]]
-                    dense_cy = [y * self.steps[k] / self.image_size[0]
-                                for y in [i + 0.5]]
+                    dense_cx = [x * self.steps[k] / self.image_size[1] for x in [j + 0.5]]
+                    dense_cy = [y * self.steps[k] / self.image_size[0] for y in [i + 0.5]]
                     for cy, cx in product(dense_cy, dense_cx):
                         anchors += [cx, cy, s_kx, s_ky]
 
@@ -55,7 +51,7 @@ def py_cpu_nms(dets, thresh):
 
 
 def point_form(boxes):
-    """ Convert prior_boxes to (xmin, ymin, xmax, ymax)
+    """Convert prior_boxes to (xmin, ymin, xmax, ymax)
     representation for comparison to point form ground truth data.
     Args:
         boxes: (tensor) center-size default boxes from priorbox layers.
@@ -63,28 +59,23 @@ def point_form(boxes):
         boxes: (tensor) Converted xmin, ymin, xmax, ymax form of boxes.
     """
     return ops.cat(
-        (
-            boxes[:, :2] - boxes[:, 2:] / 2,  # xmin, ymin
-            boxes[:, :2] + boxes[:, 2:] / 2),
-        axis=1)  # xmax, ymax
+        (boxes[:, :2] - boxes[:, 2:] / 2, boxes[:, :2] + boxes[:, 2:] / 2), axis=1  # xmin, ymin
+    )  # xmax, ymax
 
 
 def center_size(boxes):
-    """ Convert prior_boxes to (cx, cy, w, h)
+    """Convert prior_boxes to (cx, cy, w, h)
     representation for comparison to center-size form ground truth data.
     Args:
         boxes: (tensor) point_form boxes
     Return:
         boxes: (tensor) Converted xmin, ymin, xmax, ymax form of boxes.
     """
-    return ops.cat(
-        (boxes[:, 2:] + boxes[:, :2]) / 2,  # cx, cy
-        boxes[:, 2:] - boxes[:, :2],
-        axis=1)  # w, h
+    return ops.cat((boxes[:, 2:] + boxes[:, :2]) / 2, boxes[:, 2:] - boxes[:, :2], axis=1)  # cx, cy  # w, h
 
 
 def intersect(box_a, box_b):
-    """ We resize both tensors to [A,B,2] without new malloc:
+    """We resize both tensors to [A,B,2] without new malloc:
     [A,2] -> [A,1,2] -> [A,B,2]
     [B,2] -> [1,B,2] -> [A,B,2]
     Then we compute the area of intersect between box_a and box_b.
@@ -96,10 +87,8 @@ def intersect(box_a, box_b):
     """
     A = box_a.shape[0]
     B = box_b.shape[0]
-    max_xy = ops.min(box_a[:, 2:].unsqueeze(1).expand(
-        A, B, 2), box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
-    min_xy = ops.max(box_a[:, :2].unsqueeze(1).expand(
-        A, B, 2), box_b[:, :2].unsqueeze(0).expand(A, B, 2))
+    max_xy = ops.min(box_a[:, 2:].unsqueeze(1).expand(A, B, 2), box_b[:, 2:].unsqueeze(0).expand(A, B, 2))
+    min_xy = ops.max(box_a[:, :2].unsqueeze(1).expand(A, B, 2), box_b[:, :2].unsqueeze(0).expand(A, B, 2))
     inter = ops.clamp((max_xy - min_xy), min=0)
     return inter[:, :, 0] * inter[:, :, 1]
 
@@ -117,10 +106,8 @@ def jaccard(box_a, box_b):
         jaccard overlap: (tensor) Shape: [box_a.shape[0], box_b.shape[0]]
     """
     inter = intersect(box_a, box_b)
-    area_a = ((box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] -
-              box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
-    area_b = ((box_b[:, 2] - box_b[:, 0]) * (box_b[:, 3] -
-              box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
+    area_a = ((box_a[:, 2] - box_a[:, 0]) * (box_a[:, 3] - box_a[:, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
+    area_b = ((box_b[:, 2] - box_b[:, 0]) * (box_b[:, 3] - box_b[:, 1])).unsqueeze(0).expand_as(inter)  # [A,B]
     union = area_a + area_b - inter
     return inter / union  # [A,B]
 
@@ -191,8 +178,7 @@ def match(threshold, truths, priors, variances, labels, landms, loc_t, conf_t, l
     best_prior_idx = best_prior_idx.squeeze(1)
     best_prior_idx_filter = best_prior_idx_filter.squeeze(1)
     best_prior_overlap = best_prior_overlap.squeeze(1)
-    best_truth_overlap.index_fill_(
-        0, best_prior_idx_filter, 2)  # ensure best prior
+    best_truth_overlap.index_fill_(0, best_prior_idx_filter, 2)  # ensure best prior
     # TODO refactor: index  best_prior_idx with long tensor
     # ensure every gt matches with its prior of max overlap
     for j in range(best_prior_idx.shape[0]):  # 判别此anchor是预测哪一个boxes
@@ -228,7 +214,7 @@ def encode(matched, priors, variances):
     # dist b/t match center and prior's center
     g_cxcy = (matched[:, :2] + matched[:, 2:]) / 2 - priors[:, :2]
     # encode variance
-    g_cxcy /= (variances[0] * priors[:, 2:])
+    g_cxcy /= variances[0] * priors[:, 2:]
     # match wh / prior wh
     g_wh = (matched[:, 2:] - matched[:, :2]) / priors[:, 2:]
     g_wh = ops.log(g_wh) / variances[1]
@@ -251,18 +237,14 @@ def encode_landm(matched, priors, variances):
 
     # dist b/t match center and prior's center
     matched = ops.reshape(matched, (matched.shape[0], 5, 2))
-    priors_cx = priors[:, 0].unsqueeze(1).expand(
-        matched.shape[0], 5).unsqueeze(2)
-    priors_cy = priors[:, 1].unsqueeze(1).expand(
-        matched.shape[0], 5).unsqueeze(2)
-    priors_w = priors[:, 2].unsqueeze(1).expand(
-        matched.shape[0], 5).unsqueeze(2)
-    priors_h = priors[:, 3].unsqueeze(1).expand(
-        matched.shape[0], 5).unsqueeze(2)
+    priors_cx = priors[:, 0].unsqueeze(1).expand(matched.shape[0], 5).unsqueeze(2)
+    priors_cy = priors[:, 1].unsqueeze(1).expand(matched.shape[0], 5).unsqueeze(2)
+    priors_w = priors[:, 2].unsqueeze(1).expand(matched.shape[0], 5).unsqueeze(2)
+    priors_h = priors[:, 3].unsqueeze(1).expand(matched.shape[0], 5).unsqueeze(2)
     priors = ops.cat([priors_cx, priors_cy, priors_w, priors_h], axis=2)
     g_cxcy = matched[:, :, :2] - priors[:, :, :2]
     # encode variance
-    g_cxcy /= (variances[0] * priors[:, :, 2:])
+    g_cxcy /= variances[0] * priors[:, :, 2:]
     # g_cxcy /= priors[:, :, 2:]
     g_cxcy = g_cxcy.reshape(g_cxcy.shape[0], -1)
     # return target for smooth_l1_loss
@@ -283,8 +265,10 @@ def decode(loc, priors, variances):
         decoded bounding box predictions
     """
 
-    boxes = ops.cat((priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:],
-                     priors[:, 2:] * ops.exp(loc[:, 2:] * variances[1])), 1)
+    boxes = ops.cat(
+        (priors[:, :2] + loc[:, :2] * variances[0] * priors[:, 2:], priors[:, 2:] * ops.exp(loc[:, 2:] * variances[1])),
+        1,
+    )
     boxes[:, :2] -= boxes[:, 2:] / 2
     boxes[:, 2:] += boxes[:, :2]
     return boxes

@@ -12,27 +12,27 @@ class NormLayer(nn.Cell):
         input_size: input shape without batch size, for layer norm.
     """
 
-    def __init__(self, channels, normalize_shape=None, norm_type='bn'):
+    def __init__(self, channels, normalize_shape=None, norm_type="bn"):
         super(NormLayer, self).__init__()
         norm_type = norm_type.lower()
         self.norm_type = norm_type
-        if norm_type == 'bn':
+        if norm_type == "bn":
             self.norm = nn.BatchNorm2d(channels, affine=True)
-        elif norm_type == 'in':
+        elif norm_type == "in":
             self.norm = nn.InstanceNorm2d(channels, affine=False)
-        elif norm_type == 'gn':
+        elif norm_type == "gn":
             self.norm = nn.GroupNorm(32, channels, affine=True)
-        elif norm_type == 'pixel':
+        elif norm_type == "pixel":
             self.norm = lambda x: F.normalize(x, p=2, dim=1)  # TODO!!
-        elif norm_type == 'layer':
+        elif norm_type == "layer":
             self.norm = nn.LayerNorm(normalize_shape)
-        elif norm_type == 'none':
+        elif norm_type == "none":
             self.norm = lambda x: x * 1.0
         else:
-            assert 1 == 0, f'Norm type {norm_type} not support.'
+            assert 1 == 0, f"Norm type {norm_type} not support."
 
     def construct(self, x, ref=None):
-        if self.norm_type == 'spade':
+        if self.norm_type == "spade":
             return self.norm(x, ref)
         else:
             return self.norm(x)
@@ -50,53 +50,52 @@ class ReluLayer(nn.Cell):
             - none: direct pass
     """
 
-    def __init__(self, channels, relu_type='relu'):
+    def __init__(self, channels, relu_type="relu"):
         super(ReluLayer, self).__init__()
         relu_type = relu_type.lower()
-        if relu_type == 'relu':
+        if relu_type == "relu":
             self.func = nn.ReLU()
-        elif relu_type == 'leakyrelu':
+        elif relu_type == "leakyrelu":
             self.func = nn.LeakyReLU(0.2)
-        elif relu_type == 'prelu':
+        elif relu_type == "prelu":
             self.func = nn.PReLU(channels)
-        elif relu_type == 'selu':
+        elif relu_type == "selu":
             self.func = nn.SELU()
-        elif relu_type == 'none':
+        elif relu_type == "none":
             self.func = lambda x: x * 1.0
         else:
-            assert 1 == 0, f'Relu type {relu_type} not support.'
+            assert 1 == 0, f"Relu type {relu_type} not support."
 
     def construct(self, x):
         return self.func(x)
 
 
 class ConvLayer(nn.Cell):
-
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size=3,
-                 scale='none',
-                 norm_type='none',
-                 relu_type='none',
-                 use_pad=True,
-                 bias=True):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        kernel_size=3,
+        scale="none",
+        norm_type="none",
+        relu_type="none",
+        use_pad=True,
+        bias=True,
+    ):
         super(ConvLayer, self).__init__()
         self.use_pad = use_pad
         self.norm_type = norm_type
-        if norm_type in ['bn']:
+        if norm_type in ["bn"]:
             bias = False
 
-        stride = 2 if scale == 'down' else 1
+        stride = 2 if scale == "down" else 1
 
         self.scale_func = lambda x: x
-        if scale == 'up':
-            self.scale_func = lambda x: ops.interpolate(
-                x, scale_factor=2.0, mode='area')
+        if scale == "up":
+            self.scale_func = lambda x: ops.interpolate(x, scale_factor=2.0, mode="area")
 
-        self.reflection_pad = nn.ReflectionPad2d(int(np.ceil((kernel_size - 1.) / 2)))
-        self.conv2d = nn.Conv2d(in_channels, out_channels,
-                                kernel_size, stride, pad_mode='valid', has_bias=bias)
+        self.reflection_pad = nn.ReflectionPad2d(int(np.ceil((kernel_size - 1.0) / 2)))
+        self.conv2d = nn.Conv2d(in_channels, out_channels, kernel_size, stride, pad_mode="valid", has_bias=bias)
 
         self.relu = ReluLayer(out_channels, relu_type)
         self.norm = NormLayer(out_channels, norm_type=norm_type)
@@ -116,22 +115,19 @@ class ResidualBlock(nn.Cell):
     Residual block recommended in: http://torch.ch/blog/2016/02/04/resnets.html
     """
 
-    def __init__(self, c_in, c_out, relu_type='prelu', norm_type='bn', scale='none'):
+    def __init__(self, c_in, c_out, relu_type="prelu", norm_type="bn", scale="none"):
         super(ResidualBlock, self).__init__()
 
-        if scale == 'none' and c_in == c_out:
+        if scale == "none" and c_in == c_out:
             self.shortcut_func = lambda x: x
         else:
             self.shortcut_func = ConvLayer(c_in, c_out, 3, scale)
 
-        scale_config_dict = {'down': ['none', 'down'], 'up': [
-            'up', 'none'], 'none': ['none', 'none']}
+        scale_config_dict = {"down": ["none", "down"], "up": ["up", "none"], "none": ["none", "none"]}
         scale_conf = scale_config_dict[scale]
 
-        self.conv1 = ConvLayer(
-            c_in, c_out, 3, scale_conf[0], norm_type=norm_type, relu_type=relu_type)
-        self.conv2 = ConvLayer(
-            c_out, c_out, 3, scale_conf[1], norm_type=norm_type, relu_type='none')
+        self.conv1 = ConvLayer(c_in, c_out, 3, scale_conf[0], norm_type=norm_type, relu_type=relu_type)
+        self.conv2 = ConvLayer(c_out, c_out, 3, scale_conf[1], norm_type=norm_type, relu_type="none")
 
     def construct(self, x):
         identity = self.shortcut_func(x)
@@ -141,23 +137,26 @@ class ResidualBlock(nn.Cell):
 
 
 class ParseNet(nn.Cell):
-
-    def __init__(self,
-                 in_size=128,
-                 out_size=128,
-                 min_feat_size=32,
-                 base_ch=64,
-                 parsing_ch=19,
-                 res_depth=10,
-                 relu_type='LeakyReLU',
-                 norm_type='bn',
-                 ch_range=[32, 256]):
+    def __init__(
+        self,
+        in_size=128,
+        out_size=128,
+        min_feat_size=32,
+        base_ch=64,
+        parsing_ch=19,
+        res_depth=10,
+        relu_type="LeakyReLU",
+        norm_type="bn",
+        ch_range=[32, 256],
+    ):
         super().__init__()
         self.res_depth = res_depth
-        act_args = {'norm_type': norm_type, 'relu_type': relu_type}
+        act_args = {"norm_type": norm_type, "relu_type": relu_type}
         min_ch, max_ch = ch_range
 
-        def ch_clip(x): return max(min_ch, min(x, max_ch))  # noqa: E731
+        def ch_clip(x):
+            return max(min_ch, min(x, max_ch))  # noqa: E731
+
         min_feat_size = min(in_size, min_feat_size)
 
         down_steps = int(np.log2(in_size // min_feat_size))
@@ -169,20 +168,17 @@ class ParseNet(nn.Cell):
         head_ch = base_ch
         for i in range(down_steps):
             cin, cout = ch_clip(head_ch), ch_clip(head_ch * 2)
-            self.encoder.append(ResidualBlock(
-                cin, cout, scale='down', **act_args))
+            self.encoder.append(ResidualBlock(cin, cout, scale="down", **act_args))
             head_ch = head_ch * 2
 
         self.body = []
         for i in range(res_depth):
-            self.body.append(ResidualBlock(
-                ch_clip(head_ch), ch_clip(head_ch), **act_args))
+            self.body.append(ResidualBlock(ch_clip(head_ch), ch_clip(head_ch), **act_args))
 
         self.decoder = []
         for i in range(up_steps):
             cin, cout = ch_clip(head_ch), ch_clip(head_ch // 2)
-            self.decoder.append(ResidualBlock(
-                cin, cout, scale='up', **act_args))
+            self.decoder.append(ResidualBlock(cin, cout, scale="up", **act_args))
             head_ch = head_ch // 2
 
         self.encoder = nn.SequentialCell(*self.encoder)

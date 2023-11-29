@@ -5,9 +5,8 @@ from numpy.linalg import norm
 
 
 class MatlabCp2tormException(Exception):
-
     def __str__(self):
-        return 'In File {}:{}'.format(__file__, super.__str__(self))
+        return "In File {}:{}".format(__file__, super.__str__(self))
 
 
 def tformfwd(trans, uv):
@@ -58,9 +57,9 @@ def tforminv(trans, uv):
 
 
 def findNonreflectiveSimilarity(uv, xy, options=None):
-    options = {'K': 2}
+    options = {"K": 2}
 
-    K = options['K']
+    K = options["K"]
     M = xy.shape[0]
     x = xy[:, 0].reshape((-1, 1))  # use reshape to keep a column vector
     y = xy[:, 1].reshape((-1, 1))  # use reshape to keep a column vector
@@ -78,7 +77,7 @@ def findNonreflectiveSimilarity(uv, xy, options=None):
         r, _, _, _ = lstsq(X, U, rcond=-1)
         r = np.squeeze(r)
     else:
-        raise Exception('cp2tform:twoUniquePointsReq')
+        raise Exception("cp2tform:twoUniquePointsReq")
     sc = r[0]
     ss = r[1]
     tx = r[2]
@@ -92,7 +91,7 @@ def findNonreflectiveSimilarity(uv, xy, options=None):
 
 
 def findSimilarity(uv, xy, options=None):
-    options = {'K': 2}
+    options = {"K": 2}
 
     #    uv = np.array(uv)
     #    xy = np.array(xy)
@@ -232,7 +231,7 @@ def get_similarity_transform_for_cv2(src_pts, dst_pts, reflective=True):
     return cv2_trans
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     """
     u = [0, 6, -2]
     v = [0, 3, 5]
@@ -279,39 +278,39 @@ if __name__ == '__main__':
     uv = np.array((u, v)).T
     xy = np.array((x, y)).T
 
-    print('\n--->uv:')
+    print("\n--->uv:")
     print(uv)
-    print('\n--->xy:')
+    print("\n--->xy:")
     print(xy)
 
     trans, trans_inv = get_similarity_transform(uv, xy)
 
-    print('\n--->trans matrix:')
+    print("\n--->trans matrix:")
     print(trans)
 
-    print('\n--->trans_inv matrix:')
+    print("\n--->trans_inv matrix:")
     print(trans_inv)
 
-    print('\n---> apply transform to uv')
-    print('\nxy_m = uv_augmented * trans')
+    print("\n---> apply transform to uv")
+    print("\nxy_m = uv_augmented * trans")
     uv_aug = np.hstack((uv, np.ones((uv.shape[0], 1))))
     xy_m = np.dot(uv_aug, trans)
     print(xy_m)
 
-    print('\nxy_m = tformfwd(trans, uv)')
+    print("\nxy_m = tformfwd(trans, uv)")
     xy_m = tformfwd(trans, uv)
     print(xy_m)
 
-    print('\n---> apply inverse transform to xy')
-    print('\nuv_m = xy_augmented * trans_inv')
+    print("\n---> apply inverse transform to xy")
+    print("\nuv_m = xy_augmented * trans_inv")
     xy_aug = np.hstack((xy, np.ones((xy.shape[0], 1))))
     uv_m = np.dot(xy_aug, trans_inv)
     print(uv_m)
 
-    print('\nuv_m = tformfwd(trans_inv, xy)')
+    print("\nuv_m = tformfwd(trans_inv, xy)")
     uv_m = tformfwd(trans_inv, xy)
     print(uv_m)
 
     uv_m = tforminv(trans, xy)
-    print('\nuv_m = tforminv(trans, xy)')
+    print("\nuv_m = tforminv(trans, xy)")
     print(uv_m)

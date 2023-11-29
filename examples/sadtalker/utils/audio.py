@@ -60,6 +60,7 @@ def melspectrogram(wav):
 
 def _lws_processor():
     import lws
+
     return lws.lws(hp.n_fft, get_hop_size(), fftsize=hp.win_size, mode="speech")
 
 
@@ -69,14 +70,14 @@ def _stft(y):
     else:
         return librosa.stft(y=y, n_fft=hp.n_fft, hop_length=get_hop_size(), win_length=hp.win_size)
 
+
 ##########################################################
 # Those are only correct when using lws!!! (This was messing with Wavenet quality for a long time!)
 
 
 def num_frames(length, fsize, fshift):
-    """Compute number of time frames of spectrogram
-    """
-    pad = (fsize - fshift)
+    """Compute number of time frames of spectrogram"""
+    pad = fsize - fshift
     if length % fshift == 0:
         M = (length + pad * 2 - fsize) // fshift + 1
     else:
@@ -85,13 +86,14 @@ def num_frames(length, fsize, fshift):
 
 
 def pad_lr(x, fsize, fshift):
-    """Compute left and right padding
-    """
+    """Compute left and right padding"""
     M = num_frames(len(x), fsize, fshift)
-    pad = (fsize - fshift)
+    pad = fsize - fshift
     T = len(x) + 2 * pad
     r = (M - 1) * fshift + fsize - T
     return pad, pad + r
+
+
 ##########################################################
 # Librosa correct padding
 
@@ -113,8 +115,7 @@ def _linear_to_mel(spectogram):
 
 def _build_mel_basis():
     assert hp.fmax <= hp.sample_rate // 2
-    return librosa.filters.mel(sr=hp.sample_rate, n_fft=hp.n_fft, n_mels=hp.num_mels,
-                               fmin=hp.fmin, fmax=hp.fmax)
+    return librosa.filters.mel(sr=hp.sample_rate, n_fft=hp.n_fft, n_mels=hp.num_mels, fmin=hp.fmin, fmax=hp.fmax)
 
 
 def _amp_to_db(x):
@@ -129,8 +130,11 @@ def _db_to_amp(x):
 def _normalize(S):
     if hp.allow_clipping_in_normalization:
         if hp.symmetric_mels:
-            return np.clip((2 * hp.max_abs_value) * ((S - hp.min_level_db) / (-hp.min_level_db)) - hp.max_abs_value,
-                           -hp.max_abs_value, hp.max_abs_value)
+            return np.clip(
+                (2 * hp.max_abs_value) * ((S - hp.min_level_db) / (-hp.min_level_db)) - hp.max_abs_value,
+                -hp.max_abs_value,
+                hp.max_abs_value,
+            )
         else:
             return np.clip(hp.max_abs_value * ((S - hp.min_level_db) / (-hp.min_level_db)), 0, hp.max_abs_value)
 
@@ -144,13 +148,15 @@ def _normalize(S):
 def _denormalize(D):
     if hp.allow_clipping_in_normalization:
         if hp.symmetric_mels:
-            return (((np.clip(D, -hp.max_abs_value,
-                              hp.max_abs_value) + hp.max_abs_value) * -hp.min_level_db / (2 * hp.max_abs_value))
-                    + hp.min_level_db)
+            return (
+                (np.clip(D, -hp.max_abs_value, hp.max_abs_value) + hp.max_abs_value)
+                * -hp.min_level_db
+                / (2 * hp.max_abs_value)
+            ) + hp.min_level_db
         else:
-            return ((np.clip(D, 0, hp.max_abs_value) * -hp.min_level_db / hp.max_abs_value) + hp.min_level_db)
+            return (np.clip(D, 0, hp.max_abs_value) * -hp.min_level_db / hp.max_abs_value) + hp.min_level_db
 
     if hp.symmetric_mels:
-        return (((D + hp.max_abs_value) * -hp.min_level_db / (2 * hp.max_abs_value)) + hp.min_level_db)
+        return ((D + hp.max_abs_value) * -hp.min_level_db / (2 * hp.max_abs_value)) + hp.min_level_db
     else:
-        return ((D * -hp.min_level_db / hp.max_abs_value) + hp.min_level_db)
+        return (D * -hp.min_level_db / hp.max_abs_value) + hp.min_level_db

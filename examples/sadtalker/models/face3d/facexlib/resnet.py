@@ -18,7 +18,7 @@ def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, d
         out_planes,
         kernel_size=3,
         stride=stride,
-        pad_mode='pad',
+        pad_mode="pad",
         padding=dilation,
         group=groups,
         has_bias=False,
@@ -49,11 +49,9 @@ class BasicBlock(nn.Cell):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
-            raise ValueError(
-                "BasicBlock only supports groups=1 and base_width=64")
+            raise ValueError("BasicBlock only supports groups=1 and base_width=64")
         if dilation > 1:
-            raise NotImplementedError(
-                "Dilation > 1 not supported in BasicBlock")
+            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
@@ -172,18 +170,14 @@ class ResNet(nn.Cell):
         self.use_last_fc = use_last_fc
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, pad_mode='pad', padding=3, has_bias=False)
+        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, pad_mode="pad", padding=3, has_bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU()
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode='pad', padding=1)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, pad_mode="pad", padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(
-            block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
-        self.layer3 = self._make_layer(
-            block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
-        self.layer4 = self._make_layer(
-            block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0])
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1])
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
 
         if self.use_last_fc:
@@ -191,7 +185,7 @@ class ResNet(nn.Cell):
 
         for m in self.cells():
             if isinstance(m, nn.Conv2d):
-                m.weight_init = Initializer(init='HeNormal', mode='fan_out', nonlinearity='relu')
+                m.weight_init = Initializer(init="HeNormal", mode="fan_out", nonlinearity="relu")
             elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
                 m.weight_init = Initializer(init=Constant(1))
                 m.bias_init = Initializer(init=Constant(0))
@@ -279,17 +273,15 @@ def _resnet(
     progress: bool,
     **kwargs: Any,
 ) -> ResNet:
-
     model = ResNet(block, layers, **kwargs)
 
     if weights is not None:
-        model.load_state_dict(weights.get_state_dict(
-            progress=progress, check_hash=True))
+        model.load_state_dict(weights.get_state_dict(progress=progress, check_hash=True))
 
     return model
 
 
-def resnet50(*, weights = None, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet50(*, weights=None, progress: bool = True, **kwargs: Any) -> ResNet:
     """ResNet-50 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
 
     .. note::
