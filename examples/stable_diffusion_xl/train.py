@@ -34,6 +34,8 @@ def get_parser_train():
             "txt2img",
         ],
     )
+
+    parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -119,7 +121,12 @@ def train(args):
         from gm.models.trainer_factory import TrainOneStepCell
 
         train_step_fn = TrainOneStepCell(
-            model, optimizer, reducer, scaler, overflow_still_update=args.overflow_still_update
+            model,
+            optimizer,
+            reducer,
+            scaler,
+            overflow_still_update=args.overflow_still_update,
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
         )
     else:
         raise ValueError("args.ms_mode value must in [0, 1]")
