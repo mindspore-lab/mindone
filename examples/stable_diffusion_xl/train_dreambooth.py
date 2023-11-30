@@ -37,7 +37,7 @@ def str2bool(b):
 def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
     parser.add_argument("--version", type=str, default="SDXL-base-1.0", choices=["SDXL-base-1.0", "SDXL-refiner-1.0"])
-    parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_dreambooth_lora.yaml")
+    parser.add_argument("--config", type=str, default="configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml")
     parser.add_argument("--generate_class_image_config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument(
         "--task",
@@ -47,6 +47,8 @@ def get_parser_train():
             "txt2img",
         ],
     )
+
+    parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -236,6 +238,7 @@ def train(args):
             scaler,
             overflow_still_update=args.overflow_still_update,
             prior_loss_weight=args.prior_loss_weight,
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
         )
     else:
         raise ValueError("args.ms_mode value must in [0, 1]")

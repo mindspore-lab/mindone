@@ -29,28 +29,10 @@ class LatentDiffusionWithLoss(nn.Cell):
         return self.scaler.scale(loss)
 
 
-class LatentDiffusionWithLossDreamBooth(nn.Cell):
+class LatentDiffusionWithLossDreamBooth(LatentDiffusionWithLoss):
     def __init__(self, model, scaler, prior_loss_weight=1.0):
-        super(LatentDiffusionWithLossDreamBooth, self).__init__()
-        self.model = model.model
-        self.denoiser = model.denoiser
-        self.loss_fn = model.loss_fn
-        self.scaler = scaler
+        super().__init__(model, scaler)
         self.prior_loss_weight = prior_loss_weight
-
-    def _shared_step(self, x, noised_input, sigmas, w, concat, context, y):
-        c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
-        model_output = self.model(
-            ops.cast(noised_input * c_in, ms.float32),
-            ops.cast(c_noise, ms.int32),
-            concat=concat,
-            context=context,
-            y=y,
-        )
-        model_output = model_output * c_out + noised_input * c_skip
-        loss = self.loss_fn(model_output, x, w)
-        loss = loss.mean()
-        return loss
 
     def construct(
         self,
@@ -69,8 +51,12 @@ class LatentDiffusionWithLossDreamBooth(nn.Cell):
         reg_context,
         reg_y,
     ):
-        loss_train = self._shared_step(x, noised_input, sigmas, w, concat, context, y)
-        loss_reg = self._shared_step(reg_x, reg_noised_input, reg_sigmas, reg_w, reg_concat, reg_context, reg_y)
+        loss_train = super(LatentDiffusionWithLossDreamBooth, self).construct(
+            x, noised_input, sigmas, w, concat, context, y
+        )
+        loss_reg = super(LatentDiffusionWithLossDreamBooth, self).construct(
+            reg_x, reg_noised_input, reg_sigmas, reg_w, reg_concat, reg_context, reg_y
+        )
         loss = loss_train + self.prior_loss_weight * loss_reg
         return self.scaler.scale(loss)
 
@@ -179,13 +165,22 @@ class TrainOneStepCell(nn.Cell):
 
 
 class TrainOneStepCellDreamBooth(nn.Cell):
-    def __init__(self, model, optimizer, reducer, scaler, overflow_still_update=True, prior_loss_weight=1.0):
+    def __init__(
+        self,
+        model,
+        optimizer,
+        reducer,
+        scaler,
+        overflow_still_update=True,
+        gradient_accumulation_steps=1,
+        prior_loss_weight=1.0,
+    ):
         super(TrainOneStepCellDreamBooth, self).__init__()
 
         # train net
         ldm_with_loss = LatentDiffusionWithLossDreamBooth(model, scaler, prior_loss_weight)
         self.ldm_with_loss_grad = LatentDiffusionWithLossGrad(
-            ldm_with_loss, optimizer, scaler, reducer, overflow_still_update
+            ldm_with_loss, optimizer, scaler, reducer, overflow_still_update, gradient_accumulation_steps
         )
 
         # first stage model
