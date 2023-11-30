@@ -8,7 +8,7 @@ For example, we have 5 images of a specific [dog](https://github.com/google/drea
 
 The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based on MindSpore and Ascend platforms.
 
-**Note**: For now we only allow DreamBooth fine-tuning of SDXL UNet via [LoRA](https://arxiv.org/abs/2106.09685) .
+**Note**: now we only allow DreamBooth fine-tuning of SDXL UNet via [LoRA](https://arxiv.org/abs/2106.09685) .
 
 ## Preparation
 
@@ -41,14 +41,22 @@ dir
 └── img5.jpg
 ```
 
-You can find images of different classes in [Google/DreamBooth](https://github.com/google/dreambooth/tree/main). Here we use the [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) example. They are shown as,
+You can find images of different classes in [Google/DreamBooth](https://github.com/google/dreambooth/tree/main). Here we use two examples, [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) and [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6). They are shown as,
 
 <p align="center">
   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/961bdff6-f565-4cf2-85ce-e59c6ed547f3" width=800 />
 </p>
 <p align="center">
-  <em> Figure 1. The five images from the subject dog for finetuning. </em>
+  <em> Figure 1. dog example: the five images from the subject dog for finetuning. </em>
 </p>
+
+<p align="center">
+  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/a5bef2fc-b613-46de-8021-3e489dd663a1" width=800 />
+</p>
+<p align="center">
+  <em> Figure 2. dog6 example: the five images from the subject dog for finetuning. </em>
+</p>
+
 
 ## Finetuning
 
@@ -59,65 +67,65 @@ Before running the fintune scripts `train_dreambooth.py`, please specify the arg
 * `--weight=/path/to/pretrained_model`
 * `--save_path=/path/to/save_models`
 
-Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora.yaml` if needed.
+Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora_910b.yaml` if needed.
 
 Launch a standalone training using:
 
 ```shell
 python train_dreambooth.py \
-  --config configs/training/sd_xl_base_finetune_dreambooth_lora.yaml \
+  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --instance_data_path /path/to/finetuning_data \
-  --instance_prompt "a photo of a sks dog" \
+  --instance_prompt "A photo of a sks dog" \
   --class_data_path /path/to/class_image \
-  --class_prompt "a photo of a dog" \
+  --class_prompt "A photo of a dog" \
+  --gradient_accumulation_steps 4 \
+  --ms_mode 0 \
+  --save_ckpt_interval 500 \
   --device_target Ascend
 ```
 
-Our implement is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If there are not enough images present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 45 minutes to sample 50 class images.
+Our implementation is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If not enough images are present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 25 minutes to sample 50 class images on Ascend 910B.
 
 ## Inference
 
-Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the path of the trained lora weight is `output/SDXL_base_1.0_12000_lora.ckpt`, an example inference command is as
+Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the path of the trained lora weight is `output/SDXL_base_1.0_1000_lora.ckpt`, an example inference command is as
 
 ```shell
+export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/training/sd_xl_base_finetune_dreambooth_lora.yaml \
-  --weight checkpoints/sd_xl_base_1.0_ms.ckpt,output/SDXL_base_1.0_12000_lora.ckpt \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt,output/SDXL_base_1.0_1000_lora.ckpt \
   --prompt "a sks dog swimming in a pool" \
   --device_target Ascend
 ```
 
 The two weights (the pre-trained weight and the finetuned lora weight) for the keyword `weight` are separated by a comma without space.
 
-Examples of generated images with the DreamBooth model using prompts are shown as below,
+Examples of generated images with the DreamBooth model using different prompts are shown below.
 
-* "a sks dog swimming in a pool"
+The [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) example finetuning results, 
 
-* "a sks dog in a bucket"
-
-* "a sks dog in Van Gogh painting style"
-
-* "a sks dog under a cherry blossom tree"
-
-* "a sks dog playing on the hiil, cold color palette, muted color, detailed"
-
-* "a sks dog playing on the hiil, warm color palette, muted color, detailed"
-
-
+* "A photo of a sks dog swimming in a pool"
 
 <p align="center">
-  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/bd61f3cd-dcf5-44ec-9ba7-3920004293cb" width=700 />
-  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/55cc0d71-7760-4368-93d3-b36a0aaa4004" width=700 />
-   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/b036a3b3-a2e0-4e22-bcce-d97ddbfc69e7" width=700 />
-  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/86a9ad6e-1cd0-4880-9308-6a5b97769cfa" width=700 />
-  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/405f0adb-bf18-4a7e-9cdf-fcf0754e10ee" width=700 />
-  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/7843ac3e-2254-45cc-998d-ee6279412052" width=700 />
-  </p>
+  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/0ddf4ce1-4177-44c0-84bd-2b15c0e2f6f4" width=700 />
+
+
+
+The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example finetuning results, 
+
+* "A photo of a sks dog in a bucket"
+
 <p align="center">
-  <em> Figure 2. Some inference examples of a "sks" dog, without refiner. </em>
-</p>
+  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/5144b904-329c-4d83-aa4b-c2f4ecd60ea0" width=700 />
 
 
-​
+
+* "A photo of a sks dog in a doghouse"
+
+<p align="center">
+  <img src="https://github.com/mindspore-lab/mindone/assets/33061146/6b2a6656-10a0-4d9d-8542-a9fa0527bc8a" width=700 />
+
+
