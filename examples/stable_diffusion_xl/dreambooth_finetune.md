@@ -105,7 +105,7 @@ The two weights (the pre-trained weight and the finetuned lora weight) for the k
 
 Examples of generated images with the DreamBooth model using different prompts are shown below.
 
-The [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) example finetuning results, 
+The [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) example finetuning results,
 
 * "A photo of a sks dog swimming in a pool"
 
@@ -114,7 +114,7 @@ The [dog](https://github.com/google/dreambooth/tree/main/dataset/dog) example fi
 
 
 
-The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example finetuning results, 
+The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example finetuning results,
 
 * "A photo of a sks dog in a bucket"
 
@@ -127,5 +127,3 @@ The [dog6](https://github.com/google/dreambooth/tree/main/dataset/dog6) example 
 
 <p align="center">
   <img src="https://github.com/mindspore-lab/mindone/assets/33061146/6b2a6656-10a0-4d9d-8542-a9fa0527bc8a" width=700 />
-
-
