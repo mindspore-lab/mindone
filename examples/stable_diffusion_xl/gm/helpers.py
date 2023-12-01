@@ -199,8 +199,26 @@ def get_learning_rate(optim_comfig, total_step):
     return lr
 
 
-def get_optimizer(optim_comfig, lr, params):
+def get_optimizer(optim_comfig, lr, params, filtering=True):
     optimizer_config = optim_comfig.get("optimizer_config", {"target": "mindspore.nn.SGD"})
+
+    def decay_filter(x):
+        return "layernorm" not in x.name.lower() and "bias" not in x.name.lower()
+
+    # filtering weight
+    if filtering:
+        weight_decay = optimizer_config.get("params", dict()).get("weight_decay", 1e-6)
+        decay_params = list(filter(decay_filter, params))
+        other_params = list(filter(lambda x: not decay_filter(x), params))
+        group_params = []
+        if len(decay_params) > 0:
+            group_params.append({"params": decay_params, "weight_decay": weight_decay})
+        if len(other_params) > 0:
+            group_params.append({"params": other_params, "weight_decay": 0.0})
+        group_params.append({"order_params": params})
+        params = group_params
+
+    # build optimizer
     optimizer = get_obj_from_str(optimizer_config["target"])(
         params, learning_rate=lr, **optimizer_config.get("params", dict())
     )

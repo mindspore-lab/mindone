@@ -352,10 +352,10 @@ class DiffusionEngine(nn.Cell):
 
 class DiffusionEngineDreamBooth(DiffusionEngine):
     def __init__(self, prior_loss_weight=1.0, *args, **kwargs):
-        super().__init__(self, *args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.prior_loss_weight = prior_loss_weight
 
-    def get_grad_func(self, optimizer, reducer, scaler, jit=True):
+    def get_grad_func(self, optimizer, reducer, scaler, jit=True, overflow_still_update=True):
         from mindspore.amp import all_finite
 
         loss_fn = self.loss_fn
@@ -434,8 +434,13 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
             grads = reducer(grads)
             unscaled_grads = scaler.unscale(grads)
             grads_finite = all_finite(unscaled_grads)
-            loss = ops.depend(loss, optimizer(unscaled_grads))
-            return scaler.unscale(loss), unscaled_grads, grads_finite
+            if overflow_still_update:
+                loss = ops.depend(loss, optimizer(unscaled_grads))
+            else:
+                if grads_finite:
+                    loss = ops.depend(loss, optimizer(unscaled_grads))
+            overflow_tag = not grads_finite
+            return scaler.unscale(loss), unscaled_grads, overflow_tag
 
         @ms.jit
         def jit_warpper(*args, **kwargs):
@@ -443,30 +448,36 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
 
         return grad_and_update_func if not jit else jit_warpper
 
-    def get_inputs(self, batch, input_column):
-        # get latent and condition
-        batch = batch[input_column]
-        x = batch[self.input_key]
+    def _get_inputs(self, x, *tokens):
+        # get latent
         x = self.encode_first_stage(x)
-        cond = self.conditioner(batch)
-        cond = self.openai_input_warpper(cond)
+
+        # get condition
+        vector, crossattn, concat = self.conditioner.embedding(*tokens)
+        cond = {"context": crossattn, "y": vector, "concat": concat}
+
+        # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
         return x, noised_input, sigmas, w, cond
 
-    def train_step(self, batch, grad_func):
+    def train_step_pynative(self, instance_image, class_image, *all_tokens, grad_func=None):
+        assert len(all_tokens) % 2 == 0
+        position = len(all_tokens) // 2
+        instance_tokens, class_tokens = all_tokens[:position], all_tokens[position:]
+
         # get latent and condition
-        x, noised_input, sigmas, w, cond = self.get_inputs(batch, "instance_samples")
-        reg_x, reg_noised_input, reg_sigmas, reg_w, reg_cond = self.get_inputs(batch, "class_samples")
+        x, noised_input, sigmas, w, cond = self._get_inputs(instance_image, *instance_tokens)
+        reg_x, reg_noised_input, reg_sigmas, reg_w, reg_cond = self._get_inputs(class_image, *class_tokens)
 
         concat, context, y = cond["concat"], cond["context"], cond["y"]
         reg_concat, reg_context, reg_y = reg_cond["concat"], reg_cond["context"], reg_cond["y"]
 
         # get loss
         print("Compute Loss Starting...")
-        loss, _, _ = grad_func(
+        loss, _, overflow = grad_func(
             x,
             noised_input,
             sigmas,
@@ -482,7 +493,6 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
             reg_context,
             reg_y,
         )
-        # loss, _, _ = grad_func(x, noised_input, sigmas, w, **cond)
         print("Compute Loss Done...")
 
-        return loss
+        return loss, overflow
