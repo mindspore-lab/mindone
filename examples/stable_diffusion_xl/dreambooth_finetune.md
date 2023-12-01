@@ -17,6 +17,7 @@ The `train_dreambooth.py` script implements DreamBooth finetune for SDXL based o
 Make sure the following frameworks are installed.
 
 - mindspore 2.1.0
+- openmpi 4.0.3 (for distributed mode)
 
 Enter the `example/stable_diffusion_xl` folder and run
 
@@ -69,6 +70,23 @@ Before running the fintune scripts `train_dreambooth.py`, please specify the arg
 
 Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora_910b.yaml` if needed.
 
+Run with multiple NPUs (for example, 8) training using :
+
+```shell
+mpirun --allow-run-as-root -n 8 python train.py \
+  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --instance_data_path /path/to/finetuning_data \
+  --instance_prompt "A photo of a sks dog" \
+  --class_data_path /path/to/class_image \
+  --class_prompt "A photo of a dog" \
+  --gradient_accumulation_steps 4 \
+  --ms_mode 0 \
+  --save_ckpt_interval 500 \
+  --is_parallel True \
+  --device_target Ascend
+```
+
 Launch a standalone training using:
 
 ```shell
@@ -85,21 +103,35 @@ python train_dreambooth.py \
   --device_target Ascend
 ```
 
-Our implementation is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If not enough images are present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 25 minutes to sample 50 class images on Ascend 910B.
+Our implementation is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If not enough images are present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 25 minutes to sample 50 class images on Ascend.
 
 ## Inference
 
-Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the path of the trained lora weight is `output/SDXL_base_1.0_1000_lora.ckpt`, an example inference command is as
+Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the pretrained ckpt path is `checkpoints/sd_xl_base_1.0_ms.ckpt` and the trained lora ckpt path is `runs/SDXL_base_1.0_1000_lora.ckpt`, examples of inference command are as below.
 
-```shell
-export MS_PYNATIVE_GE=1
-python demo/sampling_without_streamlit.py \
-  --task txt2img \
-  --config configs/training/sd_xl_base_finetune_dreambooth_lora.yaml \
-  --weight checkpoints/sd_xl_base_1.0_ms.ckpt,output/SDXL_base_1.0_1000_lora.ckpt \
-  --prompt "a sks dog swimming in a pool" \
-  --device_target Ascend
-```
+* (Recommend) Run with interactive visualization.
+
+  Replace the path of weights and yaml file at the constant `VERSION2SPECS`  in `demo/sampling.py`  , specify the prompt in `__main__` and run:
+
+  ```shell
+  # (recommend) run with streamlit
+  export MS_PYNATIVE_GE=1
+  export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+  streamlit run demo/sampling.py --server.port <your_port>
+  ```
+
+* Run with another command:
+
+  ```shell
+  # run with other commands
+  export MS_PYNATIVE_GE=1
+  python demo/sampling_without_streamlit.py \
+    --task txt2img \
+    --config configs/training/sd_xl_base_finetune_dreambooth_lora.yaml \
+    --weight checkpoints/sd_xl_base_1.0_ms.ckpt,runs/SDXL_base_1.0_1000_lora.ckpt \
+    --prompt "a sks dog swimming in a pool" \
+    --device_target Ascend
+  ```
 
 The two weights (the pre-trained weight and the finetuned lora weight) for the keyword `weight` are separated by a comma without space.
 

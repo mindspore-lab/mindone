@@ -41,7 +41,6 @@ model:
                 context_dim: 2048
                 spatial_transformer_attn_type: vanilla # flash-attention
                 legacy: False
-                # use_recompute: True
 
         conditioner_config:
             target: gm.modules.GeneralConditioner
