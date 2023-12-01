@@ -44,6 +44,7 @@ model:
         use_recompute: False
         enable_flash_attention: False
         upcast_attn: True
+        upcast_sigmoid: True
         sd_locked: True
         # only_mid_control: False # TODO: impl later
 
@@ -65,6 +66,8 @@ model:
             legacy: False
             use_fp16: True
             dropout: 0.
+            upcast_attn: True
+            upcast_sigmoid: True
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
@@ -102,3 +105,4 @@ model:
         heads: 12
         epsilon: 1e-7
         use_quick_gelu: True
+        upcast_attn: True

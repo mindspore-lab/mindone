@@ -71,10 +71,14 @@ class AttentionWithMask(nn.Cell):
 
 
 class ResidualAttentionBlock(nn.Cell):
-    def __init__(self, d_model, n_head, attn_mask, epsilon, use_quick_gelu, dtype=ms.float32):
+    def __init__(self, d_model, n_head, attn_mask, epsilon, use_quick_gelu, dtype=ms.float32, upcast_attn=False):
         super(ResidualAttentionBlock, self).__init__()
         self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
-        self.ln_1 = LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
+        self.ln_1 = (
+            LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
+            if upcast_attn
+            else LayerNorm([d_model], epsilon=epsilon)
+        )
         self.c_fc = nn.Dense(d_model, d_model * 4).to_float(dtype)
 
         # In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to:
@@ -87,7 +91,11 @@ class ResidualAttentionBlock(nn.Cell):
 
         self.c_proj = nn.Dense(d_model * 4, d_model).to_float(dtype)
         self.mlp = nn.SequentialCell([self.c_fc, self.gelu, self.c_proj])
-        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
+        self.ln_2 = (
+            LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
+            if upcast_attn
+            else LayerNorm([d_model], epsilon=epsilon)
+        )
 
     def construct(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -105,13 +113,16 @@ class Transformer(nn.Cell):
         epsilon,
         use_quick_gelu,
         dtype=ms.float32,
+        upcast_attn=False,
     ):
         super(Transformer, self).__init__()
         self.width = width
         self.layers = layers
         self.resblocks = nn.SequentialCell(
             *[
-                ResidualAttentionBlock(width, heads, attn_mask, epsilon, use_quick_gelu, dtype=dtype)
+                ResidualAttentionBlock(
+                    width, heads, attn_mask, epsilon, use_quick_gelu, dtype=dtype, upcast_attn=upcast_attn
+                )
                 for _ in range(layers)
             ]
         )
@@ -132,6 +143,7 @@ class TextEncoder(nn.Cell):
         epsilon,
         use_quick_gelu,
         dtype=ms.float32,
+        upcast_attn=False,
     ):
         super(TextEncoder, self).__init__()
         self.dtype = dtype
@@ -146,7 +158,11 @@ class TextEncoder(nn.Cell):
         self.positional_embedding = Parameter(
             initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
         )
-        self.ln_final = LayerNorm([self.width], epsilon=epsilon).to_float(self.dtype)
+        self.ln_final = (
+            LayerNorm([self.width], epsilon=epsilon).to_float(ms.float32)
+            if upcast_attn
+            else LayerNorm([self.width], epsilon=epsilon)
+        )
         self.transformer_layer = Transformer(
             width,
             layers,
@@ -155,6 +171,7 @@ class TextEncoder(nn.Cell):
             epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     @staticmethod
@@ -186,15 +203,28 @@ class OpenCLIPResidualAttentionBlock(nn.Cell):
         epsilon: float = 1e-5,
         use_quick_gelu: bool = False,
         dtype=ms.float32,
+        upcast_attn=False,
     ):
         super().__init__()
         self.dtype = dtype
-        self.ln_1 = LayerNorm((d_model,), epsilon=epsilon).to_float(ms.float32)
+        self.ln_1 = (
+            LayerNorm((d_model,), epsilon=epsilon).to_float(ms.float32)
+            if upcast_attn
+            else LayerNorm((d_model,), epsilon=epsilon)
+        )
         self.attn = MultiheadAttention(d_model, n_head, dtype=dtype)
         if is_cross_attention:
-            self.ln_1_kv = LayerNorm((d_model,), epsilon=epsilon).to_float(ms.float32)
+            self.ln_1_kv = (
+                LayerNorm((d_model,), epsilon=epsilon).to_float(ms.float32)
+                if upcast_attn
+                else LayerNorm((d_model,), epsilon=epsilon)
+            )
 
-        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
+        self.ln_2 = (
+            LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
+            if upcast_attn
+            else LayerNorm([d_model], epsilon=epsilon)
+        )
         mlp_width = int(d_model * mlp_ratio)
         self.mlp = nn.SequentialCell(
             OrderedDict(
@@ -213,14 +243,14 @@ class OpenCLIPResidualAttentionBlock(nn.Cell):
 
 
 class OpenCLIPTransformer(nn.Cell):
-    def __init__(self, width, layers, heads, epsilon, use_quick_gelu, dtype=ms.float32):
+    def __init__(self, width, layers, heads, epsilon, use_quick_gelu, dtype=ms.float32, upcast_attn=False):
         super().__init__()
         self.width = width
         self.layers = layers
         self.resblocks = SequentialCellWithMaskInput(
             *[
                 OpenCLIPResidualAttentionBlock(
-                    width, heads, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=dtype
+                    width, heads, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=dtype, upcast_attn=upcast_attn
                 )
                 for _ in range(layers)
             ]
@@ -232,16 +262,30 @@ class OpenCLIPTransformer(nn.Cell):
 
 class OpenClipTextEncoder(nn.Cell):
     def __init__(
-        self, context_length, vocab_size, output_dim, width, layers, heads, epsilon, use_quick_gelu, dtype=ms.float32
+        self,
+        context_length,
+        vocab_size,
+        output_dim,
+        width,
+        layers,
+        heads,
+        epsilon,
+        use_quick_gelu,
+        dtype=ms.float32,
+        upcast_attn=False,
     ):
         super().__init__()
         self.dtype = dtype
         self.width = width
         self.layers = layers
         self.vocab_size = vocab_size
-        self.token_embedding = nn.Embedding(vocab_size, width).to_float(self.dtype)
+        self.token_embedding = (
+            nn.Embedding(vocab_size, width).to_float(self.dtype) if upcast_attn else nn.Embedding(vocab_size, width)
+        )
 
-        self.transformer = OpenCLIPTransformer(width, layers, heads, epsilon, use_quick_gelu, dtype=self.dtype)
+        self.transformer = OpenCLIPTransformer(
+            width, layers, heads, epsilon, use_quick_gelu, dtype=self.dtype, upcast_attn=upcast_attn
+        )
         self.positional_embedding = Parameter(
             initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
         )

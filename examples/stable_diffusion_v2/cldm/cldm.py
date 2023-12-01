@@ -150,6 +150,8 @@ class ControlNet(nn.Cell):
         enable_flash_attention=False,
         cross_frame_attention=False,
         unet_chunk_size=2,
+        upcast_atten=False,
+        upcast_sigmoid=False,
     ):
         super().__init__()
 
@@ -255,6 +257,7 @@ class ControlNet(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             dtype=self.dtype,
+                            upcast_sigmoid=upcast_sigmoid,
                         )
                     ]
                 )
@@ -312,6 +315,7 @@ class ControlNet(nn.Cell):
                                 use_scale_shift_norm=use_scale_shift_norm,
                                 down=True,
                                 dtype=self.dtype,
+                                upcast_sigmoid=upcast_sigmoid,
                             )
                             if resblock_updown
                             else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
@@ -348,6 +352,7 @@ class ControlNet(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    upcast_sigmoid=upcast_sigmoid,
                 ),
                 AttentionBlock(
                     ch,
@@ -379,6 +384,7 @@ class ControlNet(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    upcast_sigmoid=upcast_sigmoid,
                 ),
             ]
         )

@@ -375,9 +375,21 @@ class BasicTransformerBlock(nn.Cell):
                 enable_flash_attention=enable_flash_attention,
                 upcast=upcast_attn,
             )  # is self-attn if context is none
-        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
-        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
-        self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+        self.norm1 = (
+            nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+            if upcast_attn
+            else nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        )
+        self.norm2 = (
+            nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+            if upcast_attn
+            else nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        )
+        self.norm3 = (
+            nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+            if upcast_attn
+            else nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        )
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
