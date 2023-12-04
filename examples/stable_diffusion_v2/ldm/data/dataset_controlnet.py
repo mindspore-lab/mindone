@@ -4,19 +4,9 @@ import os
 
 import cv2
 
-# import imagesize
 import numpy as np
 
 import mindspore as ms
-
-# from collections import defaultdict
-# from random import randint
-
-# import pandas as pd
-# from ldm.data.t2i_collate import data_column, t2i_collate
-# from PIL import Image
-
-# from mindspore.communication.management import get_local_rank, get_local_rank_size
 
 
 _logger = logging.getLogger(__name__)
