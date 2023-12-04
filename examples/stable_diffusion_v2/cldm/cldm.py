@@ -150,7 +150,7 @@ class ControlNet(nn.Cell):
         enable_flash_attention=False,
         cross_frame_attention=False,
         unet_chunk_size=2,
-        upcast_atten=False,
+        upcast_attn=False,
         upcast_sigmoid=False,
     ):
         super().__init__()

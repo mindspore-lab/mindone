@@ -3,11 +3,9 @@ import logging
 import os
 
 import cv2
-
 import numpy as np
 
 import mindspore as ms
-
 
 _logger = logging.getLogger(__name__)
 
