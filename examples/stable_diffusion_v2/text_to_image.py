@@ -26,6 +26,7 @@ from ldm.util import instantiate_from_config, str2bool
 from tools.safety_checker import SafetyChecker
 from utils import model_utils
 from utils.download import download_checkpoint
+from utils.long_prompt import get_long_prompts_text_embedding_function, get_long_prompts_tokenize_function
 
 logger = logging.getLogger("text_to_image")
 
@@ -118,6 +119,37 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
         param.requires_grad = False
 
     return model
+
+
+def get_text_embedding(model, prompts, negative_prompts=None, support_long_prompts=True):
+    if not support_long_prompts:
+        tokenized_prompts = model.tokenize(
+            prompts
+        )  # will truncate prompts to the context len if support_long_prompts=False
+        c = model.get_learned_conditioning(tokenized_prompts)
+        if negative_prompts is not None:
+            negative_tokenized_prompts = model.tokenize(negative_prompts)
+            uc = model.get_learned_conditioning(negative_tokenized_prompts)
+            assert c.shape == uc.shape, "text embeddings and negative text embeddings have different shapes!"
+        else:
+            uc = None
+    else:
+        tokenizer = model.cond_stage_model.tokenizer
+        context_length = model.cond_stage_model.context_length
+        tokenize_func = get_long_prompts_tokenize_function(tokenizer, context_length, pad_with_eos=False)
+        text_embedding_func = get_long_prompts_text_embedding_function(model.get_learned_conditioning)
+        group_token_ids = tokenize_func(prompts)
+        text_embeddings = text_embedding_func(group_token_ids)
+        # since in thsi script, the prompts are repetitive, the text embeddings are of the same shape which can be concatenated
+        c = ms.ops.concat([x.unsqueeze(0) for x in text_embeddings], axis=0)
+        if negative_prompts is not None:
+            negative_group_token_ids = tokenize_func(negative_prompts, force_n_groups=group_token_ids[0].shape[0])
+            text_embeddings = text_embedding_func(negative_group_token_ids)
+            uc = ms.ops.concat([x.unsqueeze(0) for x in text_embeddings], axis=0)
+            assert c.shape == uc.shape, "text embeddings and negative text embeddings have different shapes!"
+        else:
+            uc = None
+    return c, uc
 
 
 def main(args):
@@ -259,12 +291,11 @@ def main(args):
             if args.scale != 1.0:
                 if isinstance(negative_prompts, tuple):
                     negative_prompts = list(negative_prompts)
-                tokenized_negative_prompts = model.tokenize(negative_prompts)
-                uc = model.get_learned_conditioning(tokenized_negative_prompts)
+            else:
+                negative_prompts = None
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
-            tokenized_prompts = model.tokenize(prompts)
-            c = model.get_learned_conditioning(tokenized_prompts)
+            c, uc = get_text_embedding(model, prompts, negative_prompts, support_long_prompts=args.support_long_prompts)
             shape = [4, args.H // 8, args.W // 8]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
@@ -373,6 +404,11 @@ if __name__ == "__main__":
         type=int,
         default=4,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
+    )
+    parser.add_argument(
+        "--support_long_prompts",
+        action="store_true",
+        help="support long prompts exceeding the context length. Otherwise, it will truncate the text prompts",
     )
     parser.add_argument(
         "--H",
