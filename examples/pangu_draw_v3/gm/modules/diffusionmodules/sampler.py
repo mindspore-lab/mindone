@@ -331,3 +331,80 @@ class DPMPP2MSampler(BaseDiffusionSampler):
             )
 
         return x
+
+
+# ===========
+# PanGu Draw
+# ===========
+
+class PanGuEDMSampler(SingleStepDiffusionSampler):
+    def __init__(self, s_churn=0.0, s_tmin=0.0, s_tmax=float("inf"), s_noise=1.0, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.s_churn = s_churn
+        self.s_tmin = s_tmin
+        self.s_tmax = s_tmax
+        self.s_noise = s_noise
+
+    def denoise(self, x, model, sigma, cond, uc, other_c, **kwargs):
+        noised_input, sigmas, cond = self.guider.prepare_inputs(x, sigma, cond, uc, other_c)
+        cond = model.openai_input_warpper(cond)
+        c_skip, c_out, c_in, c_noise = model.denoiser(sigmas, noised_input.ndim)
+        model_output = model.model(
+            ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.int32), **cond, **kwargs
+        )
+        model_output = model_output.astype(ms.float32)
+        denoised = model_output * c_out + noised_input * c_skip
+        denoised = self.guider(denoised, sigma)
+        return denoised
+
+    def sampler_step(self, sigma, next_sigma, model, x, cond, uc=None, other_c=None, gamma=0.0, **kwargs):
+        if other_c is None:
+            other_c = []
+        sigma_hat = sigma * (gamma + 1.0)
+        if gamma > 0:
+            eps = Tensor(np.random.randn(*x.shape), x.dtype) * self.s_noise
+            x = x + eps * append_dims(sigma_hat**2 - sigma**2, x.ndim) ** 0.5
+
+        denoised = self.denoise(x, model, sigma_hat, cond, uc, other_c, **kwargs)
+        step_idx = model.denoiser.sigma_to_idx(sigma_hat).numpy()[0].item()
+        d = to_d(x, sigma_hat, denoised)
+        dt = append_dims(next_sigma - sigma_hat, x.ndim)
+
+        euler_step = self.euler_step(x, d, dt)
+        x = self.possible_correction_step(euler_step, x, d, dt, next_sigma, model, cond, uc, other_c)
+        return x, step_idx
+
+    def __call__(self, model, high_timestamp_model, x, cond=None, uc=None, other_c=None, num_steps=None, **kwargs):
+        x = ops.cast(x, ms.float32)
+        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
+        step_idx = 1000
+
+        for i in self.get_sigma_gen(num_sigmas):
+            if high_timestamp_model is not None and step_idx >= 500:
+                sample_model = high_timestamp_model
+                print("using high timestamp model")
+            else:
+                sample_model = model
+                print("using low timestamp model")
+            gamma = (
+                min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1) if self.s_tmin <= sigmas[i] <= self.s_tmax else 0.0
+            )
+            x, step_idx = self.sampler_step(
+                s_in * sigmas[i],
+                s_in * sigmas[i + 1],
+                sample_model,
+                x,
+                cond,
+                uc,
+                other_c,
+                gamma,
+                **kwargs
+            )
+
+        return x
+
+
+class PanGuEulerEDMSampler(PanGuEDMSampler):
+    def possible_correction_step(self, euler_step, x, d, dt, next_sigma, model, cond, uc, other_c):
+        return euler_step

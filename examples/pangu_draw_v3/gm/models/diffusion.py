@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Dict, List, Optional, Union
 
 import numpy as np
-from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
+from gm.helpers import get_batch, pangu_get_batch, get_unique_embedder_keys_from_conditioner
 from gm.modules import UNCONDITIONAL_CONFIG
 from gm.modules.diffusionmodules.wrappers import OPENAIUNETWRAPPER
 from gm.util import append_dims, default, get_obj_from_str, instantiate_from_config
@@ -71,6 +71,8 @@ class DiffusionEngine(nn.Cell):
 
     def init_freeze_first_stage(self, config):
         model = instantiate_from_config(config)
+        if model is None:
+            return model
         model.set_train(False)
         model.set_grad(False)
         for _, param in model.parameters_and_names():
@@ -496,3 +498,94 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
         print("Compute Loss Done...")
 
         return loss, overflow
+
+
+class PanGuDiffusionEngine(DiffusionEngine):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def do_sample(
+            self,
+            high_timestamp_model,
+            sampler,
+            value_dict,
+            num_samples,
+            H,
+            W,
+            C,
+            F,
+            force_uc_zero_embeddings: List = None,
+            batch2model_input: List = None,
+            return_latents=False,
+            filter=None,
+            adapter_states: Optional[List[Tensor]] = None,
+            amp_level="O0",
+    ):
+        print("Sampling")
+
+        dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
+
+        if force_uc_zero_embeddings is None:
+            force_uc_zero_embeddings = []
+        if batch2model_input is None:
+            batch2model_input = []
+
+        num_samples = [num_samples]
+        num_prompts = len(value_dict.get("prompt", []))
+        batch, batch_uc, other_batch = pangu_get_batch(
+            get_unique_embedder_keys_from_conditioner(self.conditioner), value_dict, num_samples, dtype=dtype
+        )
+        for key in batch:
+            if isinstance(batch[key], Tensor):
+                print(key, batch[key].shape)
+            elif isinstance(batch[key], list):
+                print(key, [len(i) for i in batch[key]])
+            else:
+                print(key, batch[key])
+        print("Get Condition Done.")
+
+        print("Embedding Starting...")
+        c, uc, other_c = self.conditioner.pangu_get_unconditional_conditioning(
+            batch,
+            batch_uc=batch_uc,
+            other_batch=other_batch,
+            force_uc_zero_embeddings=force_uc_zero_embeddings,
+        )
+        print("Embedding Done.")
+
+        for k in c:
+            if not k == "crossattn":
+                c[k], uc[k] = map(
+                    lambda y: y[k][: int(np.prod(num_samples) * num_prompts)],
+                    (c, uc)
+                    # lambda y: y[k][: math.prod(num_samples)], (c, uc)
+                )
+            for _c in other_c:
+                _c[k] = _c[k][:int(np.prod(num_samples) * num_prompts)]
+
+        additional_model_inputs = {}
+        for k in batch2model_input:
+            additional_model_inputs[k] = batch[k]
+
+        shape = (num_prompts * np.prod(num_samples), C, H // F, W // F)
+        randn = Tensor(np.random.randn(*shape), ms.float32)
+
+        print("Sample latent Starting...")
+        samples_z = sampler(self, high_timestamp_model, randn, cond=c, uc=uc, other_c=other_c, adapter_states=adapter_states)
+        print("Sample latent Done.")
+
+        print("Decode latent Starting...")
+        samples_x = self.decode_first_stage(samples_z)
+        samples_x = samples_x.asnumpy()
+        print("Decode latent Done.")
+
+        samples = np.clip((samples_x + 1.0) / 2.0, a_min=0.0, a_max=1.0)
+
+        if filter is not None:
+            print("Filter Starting...")
+            samples = filter(samples)
+            print("Filter Done.")
+
+        if return_latents:
+            return samples, samples_z
+        return samples

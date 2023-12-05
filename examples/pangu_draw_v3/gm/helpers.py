@@ -16,6 +16,7 @@ from gm.modules.diffusionmodules.sampler import (
     DPMPP2SAncestralSampler,
     EulerAncestralSampler,
     EulerEDMSampler,
+    PanGuEulerEDMSampler,
     HeunEDMSampler,
     LinearMultistepSampler,
 )
@@ -65,6 +66,13 @@ VERSION2SPECS = {
         "C": 4,
         "f": 8,
         "is_legacy": False,
+    },
+    "PanGu-SDXL-base-1.0": {
+        "H": 1024,
+        "W": 1024,
+        "C": 4,
+        "f": 8,
+        "is_legacy": True,
     },
     "SDXL-refiner-1.0": {
         "H": 1024,
@@ -468,9 +476,12 @@ def init_sampling(
     img2img_strength=1.0,
     specify_num_samples=True,
     stage2strength=None,
+    other_scale=None,
+    enable_pangu=False,
 ):
     assert sampler in [
         "EulerEDMSampler",
+        "PanGuEulerEDMSampler",
         "HeunEDMSampler",
         "EulerAncestralSampler",
         "DPMPP2SAncestralSampler",
@@ -478,7 +489,7 @@ def init_sampling(
         "LinearMultistepSampler",
         "AncestralSampler",
     ]
-    assert guider in ["VanillaCFG", "IdentityGuider"]
+    assert guider in ["VanillaCFG", "PanGuVanillaCFG", "IdentityGuider"]
     assert discretization in [
         "LegacyDDPMDiscretization",
         "EDMDiscretization",
@@ -492,9 +503,14 @@ def init_sampling(
     else:
         num_cols = num_cols if num_cols else 1
 
-    guider_config = get_guider(guider, cfg_scale=guidance_scale)
-    discretization_config = get_discretization(discretization)
-    sampler = get_sampler(sampler, steps, discretization_config, guider_config)
+    if enable_pangu:
+        guider_config = pangu_get_guider(guider, cfg_scale=guidance_scale, other_scale=other_scale)
+        discretization_config = get_discretization(discretization)
+        sampler = pangu_get_sampler(sampler, steps, discretization_config, guider_config)
+    else:
+        guider_config = get_guider(guider, cfg_scale=guidance_scale)
+        discretization_config = get_discretization(discretization)
+        sampler = get_sampler(sampler, steps, discretization_config, guider_config)
 
     if img2img_strength < 1.0:
         print(f"WARNING: Wrapping {sampler.__class__.__name__} with Img2ImgDiscretizationWrapper")
@@ -581,3 +597,229 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
+
+
+# =============
+# PanGu Draw
+# =============
+
+def pangu_get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
+    # Hardcoded demo setups; might undergo some changes in the future
+    aesthetic_prefix = "義 "
+    cartoon_prefix = "饅 "
+    photography_prefix = "霙 "
+    batch = {}
+    batch_uc = {}
+    other_batch = []
+
+    num_prompts = len(value_dict.get("prompt", []))
+    N_reshape = [n * num_prompts for n in N]
+
+    for key in keys:
+        if key == "txt":
+            batch["txt"] = np.repeat([value_dict["prompt"]], repeats=np.prod(N)).reshape(N_reshape).tolist()
+            batch_uc["txt"] = np.repeat([value_dict["negative_prompt"]], repeats=np.prod(N)).reshape(N_reshape).tolist()
+        elif key == "original_size_as_tuple":
+            batch["original_size_as_tuple"] = Tensor(
+                np.tile(
+                    np.array([value_dict["orig_height"], value_dict["orig_width"]]),
+                    N_reshape
+                    + [
+                        1,
+                    ],
+                ),
+                dtype,
+            )
+        elif key == "crop_coords_top_left":
+            batch["crop_coords_top_left"] = Tensor(
+                np.tile(
+                    np.array([value_dict["crop_coords_top"], value_dict["crop_coords_left"]]),
+                    N_reshape
+                    + [
+                        1,
+                    ],
+                ),
+                dtype,
+            )
+        elif key == "aesthetic_score":
+            batch["aesthetic_score"] = Tensor(
+                np.tile(
+                    np.array([value_dict["aesthetic_score"]]),
+                    N_reshape
+                    + [
+                        1,
+                    ],
+                ),
+                dtype,
+            )
+            batch_uc["aesthetic_score"] = Tensor(
+                np.tile(
+                    np.array([value_dict["negative_aesthetic_score"]]),
+                    N_reshape
+                    + [
+                        1,
+                    ],
+                ),
+                dtype,
+            )
+        elif key == "target_size_as_tuple":
+            batch["target_size_as_tuple"] = Tensor(
+                np.tile(
+                    np.array([value_dict["target_height"], value_dict["target_width"]]),
+                    N_reshape
+                    + [
+                        1,
+                    ],
+                ),
+                dtype,
+            )
+        elif key == "target_size_as_ind":
+            batch["target_size_as_ind"] = Tensor(
+                np.tile(
+                    np.array([value_dict["target_size_as_ind"]]),
+                    N_reshape
+                    + [
+                        1,
+                    ],
+                ),
+                dtype,
+            )
+        else:
+            batch[key] = value_dict[key]
+
+    for key in batch.keys():
+        if key not in batch_uc and isinstance(batch[key], Tensor):
+            batch_uc[key] = batch[key].copy()
+
+    if "aesthetic_scale" in value_dict and value_dict["aesthetic_scale"] > 0:
+        batch_aes = dict()
+        for key in batch.keys():
+            if isinstance(batch[key], Tensor):
+                batch_aes[key] = batch[key].copy()
+            batch_aes["txt"] = np.repeat(
+                [aesthetic_prefix + prompt for prompt in value_dict["prompt"]],
+                repeats=np.prod(N),
+            ).reshape(N_reshape).tolist()
+            other_batch.append(batch_aes)
+    if "anime_scale" in value_dict and value_dict["anime_scale"] > 0:
+        batch_anime = dict()
+        for key in batch.keys():
+            if isinstance(batch[key], Tensor):
+                batch_anime[key] = batch[key].copy()
+            batch_anime["txt"] = np.repeat(
+                [cartoon_prefix + prompt for prompt in value_dict["prompt"]],
+                repeats=np.prod(N),
+            ).reshape(N_reshape).tolist()
+            other_batch.append(batch_anime)
+
+    return batch, batch_uc, other_batch
+
+
+def pangu_get_guider(guider="PanGuVanillaCFG", cfg_scale=7.5, other_scale=None):
+    if guider == "IdentityGuider":
+        guider_config = {"target": "gm.modules.diffusionmodules.guiders.IdentityGuider"}
+    elif guider == "PanGuVanillaCFG":
+        scale = min(max(cfg_scale, 0.0), 100.0)
+
+        dyn_thresh_config = {"target": "gm.modules.diffusionmodules.sampling_utils.PanGuNoDynamicThresholding"}
+        guider_config = {
+            "target": "gm.modules.diffusionmodules.guiders.PanGuVanillaCFG",
+            "params": {"scale": scale, "dyn_thresh_config": dyn_thresh_config, "other_scale": other_scale},
+        }
+    else:
+        raise NotImplementedError
+    return guider_config
+
+
+def pangu_get_sampler(
+    sampler_name,
+    steps,
+    discretization_config,
+    guider_config,
+    s_churn=0.0,
+    s_tmin=0.0,
+    s_tmax=999.0,
+    s_noise=1.0,
+):
+    if sampler_name in ("AncestralSampler"):
+        sampler = AncestralSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+    elif sampler_name in ("EulerAncestralSampler"):
+        sampler = EulerAncestralSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+            eta=0.001,
+        )
+    elif sampler_name in ("DPMPP2SAncestralSampler"):
+        sampler = DPMPP2SAncestralSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+
+    elif sampler_name in ("DPMPP2MSampler",):
+        sampler = DPMPP2MSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+    elif sampler_name in ("LinearMultistepSampler",):
+        sampler = LinearMultistepSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+    elif sampler_name in ("EulerEDMSampler", "HeunEDMSampler", "PanGuEulerEDMSampler"):
+        s_churn = max(s_churn, 0.0)
+        s_tmin = max(s_tmin, 0.0)
+        s_tmax = max(s_tmax, 0.0)
+        s_noise = max(s_noise, 0.0)
+
+        if sampler_name == "EulerEDMSampler":
+            sampler = EulerEDMSampler(
+                num_steps=steps,
+                discretization_config=discretization_config,
+                guider_config=guider_config,
+                s_churn=s_churn,
+                s_tmin=s_tmin,
+                s_tmax=s_tmax,
+                s_noise=s_noise,
+                verbose=True,
+            )
+        elif sampler_name == "PanGuEulerEDMSampler":
+            sampler = PanGuEulerEDMSampler(
+                num_steps=steps,
+                discretization_config=discretization_config,
+                guider_config=guider_config,
+                s_churn=s_churn,
+                s_tmin=s_tmin,
+                s_tmax=s_tmax,
+                s_noise=s_noise,
+                verbose=True,
+            )
+        elif sampler_name == "HeunEDMSampler":
+            sampler = HeunEDMSampler(
+                num_steps=steps,
+                discretization_config=discretization_config,
+                guider_config=guider_config,
+                s_churn=s_churn,
+                s_tmin=s_tmin,
+                s_tmax=s_tmax,
+                s_noise=s_noise,
+                verbose=True,
+            )
+        else:
+            raise ValueError
+    else:
+        raise ValueError(f"unknown sampler {sampler_name}!")
+
+    return sampler

@@ -10,6 +10,14 @@ class NoDynamicThresholding:
         return uncond + scale * (cond - uncond)
 
 
+class PanGuNoDynamicThresholding:
+    def __call__(self, x_list, scale, other_scale):
+        ret = x_list[0] + scale * (x_list[1] - x_list[0])
+        for x, s in zip(x_list[2:], other_scale):
+            ret += s * (x - x_list[1])
+        return ret
+
+
 def to_d(x, sigma, denoised):
     return (x - denoised) / append_dims(sigma, x.ndim)
 
