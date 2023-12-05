@@ -102,11 +102,9 @@ class LatentDiffusionWithLossGrad(nn.Cell):
             else:
                 loss = F.depend(loss, self.optimizer(self.accumulated_grads))
             loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
-            ops.print("parameters were updated.")
         else:
             # update the learning rate, do not update the parameter
             loss = F.depend(loss, self.optimizer.get_lr())
-            ops.print("gradients were accumulated.")
         return loss
 
     def construct(self, *inputs):
