@@ -3,7 +3,10 @@
 from gm.util import append_dims
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import nn, ops
+from mindspore.boost.grad_accumulation import gradient_accumulation_op as _grad_accum_op
+from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
+from mindspore.ops import functional as F
 
 
 class LatentDiffusionWithLoss(nn.Cell):
@@ -62,7 +65,17 @@ class LatentDiffusionWithLossDreamBooth(LatentDiffusionWithLoss):
 
 
 class LatentDiffusionWithLossGrad(nn.Cell):
-    def __init__(self, network, optimizer, scaler, reducer, overflow_still_update=True, gradient_accumulation_steps=1):
+    def __init__(
+        self,
+        network,
+        optimizer,
+        scaler,
+        reducer,
+        overflow_still_update=True,
+        grad_accum_steps=1,
+        clip_grad=False,
+        clip_norm=1.0,
+    ):
         super(LatentDiffusionWithLossGrad, self).__init__()
         self.grad_fn = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
         self.optimizer = optimizer
@@ -70,21 +83,29 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         self.reducer = reducer
         self.overflow_still_update = overflow_still_update
 
-        assert gradient_accumulation_steps >= 1
-        self.grad_accu_steps = gradient_accumulation_steps
-        if gradient_accumulation_steps > 1:
-            # additionally caches network trainable parameters. overhead caused.
-            # TODO: try to store it in CPU memory instead of GPU/NPU memory.
-            self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
-            self.zeros = optimizer.parameters.clone(prefix="zeros_", init="zeros")
-            self.cur_accu_step = Parameter(Tensor(0, ms.int32), "grad_accumulate_step_", requires_grad=False)
-            self.zero = Tensor(0, ms.int32)
-            for p in self.accumulated_grads:
-                p.requires_grad = False
-            for z in self.zeros:
-                z.requires_grad = False
-        self.map = ops.Map()
-        self.partial = ops.Partial()
+        self.accum_steps = grad_accum_steps
+        self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
+        self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
+        self.hyper_map = ops.HyperMap()
+        self.clip_grad = clip_grad
+        self.clip_norm = clip_norm
+
+    def do_optim(self, loss, grads):
+        self.accum_step += 1
+        loss = F.depend(
+            loss, self.hyper_map(F.partial(_grad_accum_op, self.accum_steps), self.accumulated_grads, grads)
+        )
+        if self.accum_step % self.accum_steps == 0:
+            if self.clip_grad:
+                grads = ops.clip_by_global_norm(self.accumulated_grads, self.clip_norm)
+                loss = F.depend(loss, self.optimizer(grads))
+            else:
+                loss = F.depend(loss, self.optimizer(self.accumulated_grads))
+            loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
+        else:
+            # update the learning rate, do not update the parameter
+            loss = F.depend(loss, self.optimizer.get_lr())
+        return loss
 
     def construct(self, *inputs):
         loss, grads = self.grad_fn(*inputs)
@@ -92,40 +113,41 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         unscaled_grads = self.scaler.unscale(grads)
         grads_finite = ms.amp.all_finite(unscaled_grads)
 
-        if self.overflow_still_update or grads_finite:
-            if self.grad_accu_steps > 1:
-                # self.accumulated_grads += unscaled_grads
-                loss = ops.depend(loss, self.map(self.partial(ops.assign_add), self.accumulated_grads, unscaled_grads))
-                # self.cur_accu_step += 1
-                loss = ops.depend(loss, ops.assign_add(self.cur_accu_step, Tensor(1, ms.int32)))
-
-                if self.cur_accu_step % self.grad_accu_steps == 0:
-                    loss = ops.depend(loss, self.optimizer(self.accumulated_grads))
-
-                    # clear gradient accumulation states
-                    loss = ops.depend(
-                        loss, self.map(self.partial(ops.assign), self.accumulated_grads, self.zeros)
-                    )  # self.accumulated_grads = 0
-                    loss = ops.depend(loss, ops.assign(self.cur_accu_step, self.zero))  # self.cur_accu_step = 0
-                else:
-                    # update LR in each gradient step but not optimize net parameter to ensure the LR curve is
-                    # consistent
-                    loss = ops.depend(loss, self.optimizer.get_lr())  # .get_lr() will make lr step increased by 1
-            else:
-                loss = ops.depend(loss, self.optimizer(unscaled_grads))
+        if self.overflow_still_update:
+            loss = self.do_optim(loss, unscaled_grads)
+        else:
+            if grads_finite:
+                loss = self.do_optim(loss, unscaled_grads)
 
         overflow_tag = not grads_finite
         return self.scaler.unscale(loss), unscaled_grads, overflow_tag
 
 
 class TrainOneStepCell(nn.Cell):
-    def __init__(self, model, optimizer, reducer, scaler, overflow_still_update=True, gradient_accumulation_steps=1):
+    def __init__(
+        self,
+        model,
+        optimizer,
+        reducer,
+        scaler,
+        overflow_still_update=True,
+        gradient_accumulation_steps=1,
+        clip_grad=False,
+        clip_norm=1.0,
+    ):
         super(TrainOneStepCell, self).__init__()
 
         # train net
         ldm_with_loss = LatentDiffusionWithLoss(model, scaler)
         self.ldm_with_loss_grad = LatentDiffusionWithLossGrad(
-            ldm_with_loss, optimizer, scaler, reducer, overflow_still_update, gradient_accumulation_steps
+            ldm_with_loss,
+            optimizer,
+            scaler,
+            reducer,
+            overflow_still_update,
+            gradient_accumulation_steps,
+            clip_grad,
+            clip_norm,
         )
         # scaling_sens = Tensor([1024], dtype=ms.float32)
         # self.ldm_with_loss_grad = nn.TrainOneStepWithLossScaleCell(ldm_with_loss, optimizer, scale_sense=scaling_sens)
