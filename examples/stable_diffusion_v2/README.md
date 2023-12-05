@@ -1,10 +1,5 @@
 # Stable Diffusion
 
-This repository integrates state-of-the-art [Stable Diffusion](https://arxiv.org/abs/2112.10752) models including SD1.5, SD2.0, and SD2.1, 
-supporting various generation tasks and pipelines. Efficient training and fast inference are implemented based on MindSpore.
-
-New models and features will be continuously updated.
-
 ## Table of Contents
 - [Introduction](#introduction)
     - [Supported Models and Pipelines](#supported-models-and-pipelines) 🔥
@@ -33,15 +28,21 @@ New models and features will be continuously updated.
 
 ## Introduction
 
+This repository integrates state-of-the-art [Stable Diffusion](https://arxiv.org/abs/2112.10752) models including SD1.5, SD2.0, and SD2.1, 
+supporting various generation tasks and pipelines. Efficient training and fast inference are implemented based on MindSpore.
+
+New models and features will be continuously updated.
+
+<!--
 This repository provides "small" but popularly used diffusion models like SD1.5. Currently, we support the following tasks and models.
+-->
 
 ### Supported Models and Pipelines
 
 | **SD Model**  | **T2I**      | **Image Variation** | **Inpainting**  | **Depth2Image**  | **ControlNet**  |**T2I Adapter**|                    
 |---------------|--------------|--------------------|-----------------------|----------------|---------------|---------------|
-| 1.5           | [Infer]()+[Train]() | X            |  X                  | X              |  [Infer]()+[Train]() |    [Infer]()     |
-| 2.0 & 2.1         | [Infer]()+[Train]() | [Infer](#image-variation)+[Train](docs/en/image_variation_unclip.md)       |  [Infer]()            | [Infer]()     |  X            |  [Infer]()+[Train]()    | 
-
+| 1.5           | [Infer](#inference) \| [Train](#training) | X            |  X                  | X              |  [Infer](docs/en/controlnet.md) \| [Train]() |    [Infer](../t2i_adapter/README.md#inference-and-examples)     |
+| 2.0 & 2.1     | [Infer](#inference) \| [Train](#training) | [Infer](#image-variation) \| [Train](docs/en/image_variation_unclip.md)       |  [Infer](#inpainting)            | [Infer](#depth-to-image)     |  X            |  [Infer](../t2i_adapter/README.md#inference-and-examples)+[Train](../t2i_adapter/README.md#training)     | 
 
 > Although some combinations are not supported currently, you can use `tools/model_conversion` to convert 
 > another SD checkpoint and apply it to the implemented pipelines to enable them (e.g. inpainting based on SD1.5 architecture)
