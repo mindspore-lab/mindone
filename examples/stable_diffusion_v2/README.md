@@ -1,15 +1,11 @@
 # Stable Diffusion based on MindSpore
 
-<!--
-Pick nice generated images here
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/ca09bbfe-fac4-43b7-94a3-8fc10ee2a3b7" width="12%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/3eb9aad4-51d3-49d3-9281-de5d9f56ce27" width="12%" />
--->
 
 <p float="center">
-  <img src="https://github.com/SamitHuang/mindone/assets/8156835/46a3b7f1-240d-4933-a2c7-f49ce995ffd5" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/91c5cff0-5a35-4624-98f4-61777fd883a0" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/37f3e414-a1a4-4743-8ad1-5de7c10c3036" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/9e456f4e-8174-467c-8d0c-7a42c9f19dc7" width="25%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/46a3b7f1-240d-4933-a2c7-f49ce995ffd5" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/91c5cff0-5a35-4624-98f4-61777fd883a0" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/37f3e414-a1a4-4743-8ad1-5de7c10c3036" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/9e456f4e-8174-467c-8d0c-7a42c9f19dc7" width="25%" />
 </p>
 <p float="center">
-  <img src="https://github.com/SamitHuang/mindone/assets/8156835/86d63435-fb41-423f-8d11-d55185924fd7" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/b2dd903b-aafb-4552-a7fb-3da5f7ae8baa" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/e146e0ff-9b49-4cf6-8458-c2abea29cc6b" width="16.66%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/8994ca17-5d7c-41fe-bfe3-baece43baddc" width="16.66%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/fc9d2149-e3a3-4047-b343-fbdab354d3d0" width="16.66%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/86d63435-fb41-423f-8d11-d55185924fd7" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/b2dd903b-aafb-4552-a7fb-3da5f7ae8baa" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/e146e0ff-9b49-4cf6-8458-c2abea29cc6b" width="16.66%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/8994ca17-5d7c-41fe-bfe3-baece43baddc" width="16.66%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/fc9d2149-e3a3-4047-b343-fbdab354d3d0" width="16.66%" />
 </p>
 
 ## Table of Contents
@@ -31,7 +27,7 @@ Pick nice generated images here
 - [ControlNet](#controlnet)
 - [T2I Adapter](#t2i-adapter)
 - [Advanced Usage](#advanced-usage)
-    - [Model Conversion Guideline](#model-conversion-guideline)
+    - [Model Conversion](#model-conversion)
     - [Schedulers](#schedulers)
     - [Training with v-prediction](#training-with-v-prediction)
     - [Diffusion Model Evaluation](#diffusion-model-evaluation)
@@ -51,13 +47,14 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 
 ### Supported Models and Pipelines
 
-| **SD Model**  | **T2I**      | **Image Variation** | **Inpainting**  | **Depth2Image**  | **ControlNet**  |**T2I Adapter**|                    
-|---------------|--------------|--------------------|-----------------------|----------------|---------------|---------------|
-| 1.5           | [Infer](#inference) \| [Train](#training) | X            |  X                  | X              |  [Infer](docs/en/controlnet.md) \| [Train]() |    [Infer](../t2i_adapter/README.md#inference-and-examples)     |
-| 2.0 & 2.1     | [Infer](#inference) \| [Train](#training) | [Infer](#image-variation) \| [Train](docs/en/image_variation_unclip.md)       |  [Infer](#inpainting)            | [Infer](#depth-to-image)     |  X            |  [Infer](../t2i_adapter/README.md#inference-and-examples)+[Train](../t2i_adapter/README.md#training)     | 
 
-> Although some combinations are not supported currently, you can use `tools/model_conversion` to convert 
-> another SD checkpoint and apply it to the implemented pipelines to enable them (e.g. inpainting based on SD1.5 architecture)
+| **SD Model**  | **Text2Image**      | **Image Variation** | **Inpainting**  | **Depth2Image**  | **ControlNet**  |**T2I Adapter**|                    
+|:---------------:|:--------------:|:--------------------:|:-----------------------:|:----------------:|:---------------:|:---------------:|
+| 1.5           | [Infer](#inference) \| [Train](#training) | N.A.            |   N.A.                 |  N.A.            |  [Infer](docs/en/controlnet.md) \| [Train]() |    [Infer](../t2i_adapter/README.md#inference-and-examples)     |
+| 2.0 & 2.1     | [Infer](#inference) \| [Train](#training) | [Infer](#image-variation) \| [Train](docs/en/image_variation_unclip.md)       |  [Infer](#inpainting)            | [Infer](#depth-to-image)     |   N.A.          |  [Infer](../t2i_adapter/README.md#inference-and-examples) \| [Train](../t2i_adapter/README.md#training)     | 
+
+> Although some combinations are not supported currently, you can use the [Model Conversion](#model-conversion) tool to convert 
+> another SD checkpoint and apply it to the implemented pipelines (e.g. inpainting pipeline with SD1.5)
 
 You may click the link in the table to access the running instructions directly.
 
@@ -65,14 +62,14 @@ You may click the link in the table to access the running instructions directly.
 
 ### Supported Platforms & Versions
 
-Our code is mainly developed and tested on Ascend 910A and 910B platforms with MindSpore framework. 
+Our code is mainly developed and tested on Ascend 910 platforms with MindSpore framework. 
 The compatible framework versions that are well-tested are listed as follows.
 
 | Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |                   
-|-----------|----------------|--------|---------|------|---------|
-| 910A      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
-| 910A      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
-| 910B      |     2.2.1 (20231114)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
+|:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
+| 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
+| 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
+| 910*      |     2.2.1 (20231114)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
 
 <!---
 TODO: list more test versions
@@ -199,7 +196,7 @@ Here are some generation results.
 
 ### Training
 
-Vanilla fine-tuning refers to train the whole UNet while freezing the CLIP-TextEncoder and VAE modules in the SD model. 
+Vanilla fine-tuning refers to training the whole UNet while freezing the CLIP-TextEncoder and VAE modules in the SD model. 
 
 To run vanilla fine-tuning, we will use the `train_text_to_image.py` script following the instructions below.
 
@@ -207,7 +204,7 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
 
 2. Prepare the training dataset referring to [Dataset Preparation](#dataset-preparation). 
     
-3. Select a training configuration template from `config/train` and specifying the `--train_config` argument. The selected config file should match the pretrained weight.
+3. Select a training configuration template from `config/train` and specify the `--train_config` argument. The selected config file should match the pretrained weight.
     - For SD1.5, use `configs/train/train_config_vanilla_v1.yaml`
     - For SD2.0 or SD2.1, use `configs/train/train_config_vanilla_v2.yaml`
     - For SD2.x with v-prediction, use `configs/train/train_config_vanilla_v2_vpred.yaml`
@@ -225,7 +222,7 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
         --pretrained_model_path {path to pretrained checkpoint file}
     ```
 
-    Take fine-tuning SD1.5 on Pokemon dataset as an example:
+    Take fine-tuning SD1.5 on the Pokemon dataset as an example:
 
     ```shell
     python train_text_to_image.py \
@@ -243,7 +240,7 @@ For more argument illustration, please run `python train_text_to_image.py -h`.
 
 For parallel training on multiple Ascend NPUs, please refer to the instructions below.
 
-1. Generate the rank table file for target Ascend server.
+1. Generate the rank table file for the target Ascend server.
 
     ```shell
     python tools/hccl_tools/hccl_tools.py --device_num="[0,8)"
@@ -481,7 +478,7 @@ For detailed instructions on inference and training with T2I-Adapters, please re
 
 ## Advanced Usage
 
-### Model Conversion Guideline
+### Model Conversion
 
 We provide tools to convert SD 1.x or SD 2.x model weights from torch to MindSpore format. Please refer to [this doc](tools/model_conversion/README.md)
 
@@ -513,3 +510,35 @@ Coming soon
 ### Watermark
 
 Coming soon
+
+## What's New
+- 2023.12.01
+  - Add ControlNet v1
+  - Add unclip image variation pipeline, supporting inference and training.
+  - Add image inpainting pipeline based on SD v2
+  - Add depth-to-image pipeline based on SD v2
+  - Support more Ascend chip types.
+  - Refractor documents
+- 2023.08.30
+  - Add T2I-Adapter support for text-guided Image-to-Image translation.
+- 2023.08.24
+  - Add Stable Diffusion v2.1 and v2.1-v (768)
+  - Support checkpoint auto-download
+- 2023.08.17
+  - Add Stable Diffusion v1.5
+  - Add DreamBooth fine-tuning
+  - Add text-guided image inpainting
+  - Add CLIP score metrics (CLIP-I, CLIP-T) for evaluating visual and textual fidelity
+- 2023.07.05
+  - Add negative prompts
+  - Improve logger
+  - Fix bugs for MS 2.0.
+- 2023.06.30
+  - Add LoRA fine-tuning and FID evaluation.
+- 2023.06.12
+  - Add velocity parameterization for DDPM prediction type. Usage: set `parameterization: velocity` in
+    configs/your_train.yaml
+
+## Contributing
+We appreciate all kinds of contributions, including making **issues** or **pull requests** to make our work better.
+
