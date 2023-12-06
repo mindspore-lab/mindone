@@ -1,6 +1,5 @@
 # Stable Diffusion based on MindSpore
 
-
 <p float="center">
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/46a3b7f1-240d-4933-a2c7-f49ce995ffd5" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/91c5cff0-5a35-4624-98f4-61777fd883a0" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/37f3e414-a1a4-4743-8ad1-5de7c10c3036" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/9e456f4e-8174-467c-8d0c-7a42c9f19dc7" width="25%" />
 </p>
@@ -336,7 +335,7 @@ python unclip_image_variation.py -v 2.1-unclip-l --image_path tarsila_do_amaral.
 ```
 
 <div align="center">
-<img src="https://github.com/zhtmike/mindone/assets/8342575/393832cf-803a-4745-9fb1-7ef1107f9c37" width="960" />
+<img src="https://github.com/zhtmike/mindone/assets/8342575/393832cf-803a-4745-9fb1-7ef1107f9c37" width="760" />
 </div>
 
 
@@ -384,7 +383,7 @@ python inpaint.py \
 The output images will be saved in `output/samples` directory. Here are some generated results.
 
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/f0d6073e-fe24-4d3d-8f54-b7c4833bb206" width="960" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/f0d6073e-fe24-4d3d-8f54-b7c4833bb206" width="100%" />
 </div>
 <p align="center">
 <em> Text-guided image inpainting. From left to right: input image, mask, generated images. </em>
@@ -392,7 +391,7 @@ The output images will be saved in `output/samples` directory. Here are some gen
 
 By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to fit the context and background.
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/21158de6-b9ec-4538-83cf-2a3bbea649e7" width="960"
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/21158de6-b9ec-4538-83cf-2a3bbea649e7" width="100%"
  />
 </div>
 <p align="center">
@@ -427,7 +426,7 @@ python depth_to_image.py \
     --depth_map {path to depth map} \
 ```
 
-In case you don't have the depth map, you can input an source image instead, The pipeline will extract the depth map from the source image. 
+In case you don't have the depth map, you can input a source image instead, The pipeline will extract the depth map from the source image. 
 
 ```shell
 # depth to image conditioning on an input image and text prompt
@@ -436,7 +435,7 @@ python depth_to_image.py \
     --image {path to initial image} \
     --strength 0.7
 ```
-> `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserve more content of input image. 1 - ignore the initial image and only condition on the depth and text prompt.
+> `--strength` indicates how strong the pipeline will transform the initial image. A lower value - preserves more content of the input image. 1 - ignore the initial image and only condition on the depth and text prompt.
 
 The output images will be saved in `output/samples` directory.
 
@@ -451,7 +450,7 @@ python depth_to_image.py --image 000000039769.jpg --prompt "two tigers" --negati
 Here are some generated results.
 
 <div align="center">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa070832-d53f-4bd5-84af-ce8086f41866" width="1024"
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/fa070832-d53f-4bd5-84af-ce8086f41866" width="100%"
  />
 </div>
 <p align="center">
@@ -471,7 +470,7 @@ For detailed instructions on inference and training with ControlNet, please refe
 ## T2I Adapter
 
 [T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
-Stable Diffusion models without re-training them. The adapter act as plug-ins to SD models, making it easy to integrate
+Stable Diffusion models without re-training them. The adapter act as plug-in to SD models, making it easy to integrate
 and use.
 
 For detailed instructions on inference and training with T2I-Adapters, please refer to [T2I-Adapter](../t2i_adapter/README.md).
@@ -491,7 +490,7 @@ Currently, we support the following diffusion schedulers.
 - PLMS
 - UniPC
 
-Detailed illustration and comparison on these schedulers can be viewed in [Diffusion Process Schedulers](docs/en/schedulers.md).
+Detailed illustrations and comparison of these schedulers can be viewed in [Diffusion Process Schedulers](docs/en/schedulers.md).
 
 ### Training with v-prediction
 
@@ -500,7 +499,7 @@ To alter the objective to v-prediction, which is used in SD 2.0-v and SD 2.1-v, 
 
 ### Diffusion Model Evaluation
 
-We provide different evaluation methods including FID and CLIP score to evaluate the quality of the generated images.
+We provide different evaluation methods including FID and CLIP-score to evaluate the quality of the generated images.
 For detailed usage, please refer to [Evaluation for Diffusion Models](tools/eval/README.md)
 
 ### Safety Checker
@@ -514,10 +513,10 @@ Coming soon
 ## What's New
 - 2023.12.01
   - Add ControlNet v1
-  - Add unclip image variation pipeline, supporting inference and training.
-  - Add image inpainting pipeline based on SD v2
-  - Add depth-to-image pipeline based on SD v2
-  - Support more Ascend chip types.
+  - Add unclip image variation pipeline, supporting both inference and training.
+  - Add image inpainting pipeline
+  - Add depth-to-image pipeline
+  - Fix bugs and improve compatibility to support more Ascend chip types
   - Refractor documents
 - 2023.08.30
   - Add T2I-Adapter support for text-guided Image-to-Image translation.
