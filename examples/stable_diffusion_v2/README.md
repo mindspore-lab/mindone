@@ -2,12 +2,15 @@
 
 <!--
 Pick nice generated images here
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/ca09bbfe-fac4-43b7-94a3-8fc10ee2a3b7" width="12%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/3eb9aad4-51d3-49d3-9281-de5d9f56ce27" width="12%" />
+-->
 
 <p float="center">
-  <img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" />
+  <img src="https://github.com/SamitHuang/mindone/assets/8156835/46a3b7f1-240d-4933-a2c7-f49ce995ffd5" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/91c5cff0-5a35-4624-98f4-61777fd883a0" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/37f3e414-a1a4-4743-8ad1-5de7c10c3036" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/9e456f4e-8174-467c-8d0c-7a42c9f19dc7" width="25%" />
 </p>
-
--->
+<p float="center">
+  <img src="https://github.com/SamitHuang/mindone/assets/8156835/86d63435-fb41-423f-8d11-d55185924fd7" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/b2dd903b-aafb-4552-a7fb-3da5f7ae8baa" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/e146e0ff-9b49-4cf6-8458-c2abea29cc6b" width="16.66%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/8994ca17-5d7c-41fe-bfe3-baece43baddc" width="16.66%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/fc9d2149-e3a3-4047-b343-fbdab354d3d0" width="16.66%" />
+</p>
 
 ## Table of Contents
 - [Introduction](#introduction)
