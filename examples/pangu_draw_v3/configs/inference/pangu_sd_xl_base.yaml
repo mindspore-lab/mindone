@@ -1,6 +1,6 @@
 version: PanGu-SDXL-base-1.0
 model:
-  target: gm.models.diffusion.PanGuDiffusionEngine
+  target: gm.models.diffusion.DiffusionEngine
   params:
     scale_factor: 0.13025
     disable_first_stage_amp: False
