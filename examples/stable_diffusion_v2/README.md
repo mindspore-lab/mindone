@@ -1,4 +1,8 @@
-# Stable Diffusion
+# Stable Diffusion based on MindSpore
+
+<!--
+Pick nice generated images here
+-->
 
 ## Table of Contents
 - [Introduction](#introduction)
