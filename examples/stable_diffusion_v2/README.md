@@ -35,7 +35,7 @@
 
 ## Introduction
 
-This repository integrates state-of-the-art [Stable Diffusion](https://arxiv.org/abs/2112.10752) models including SD1.5, SD2.0, and SD2.1, 
+This repository integrates state-of-the-art [Stable Diffusion](https://arxiv.org/abs/2112.10752) models including SD1.5, SD2.0, and SD2.1,
 supporting various generation tasks and pipelines. Efficient training and fast inference are implemented based on MindSpore.
 
 New models and features will be continuously updated.
@@ -47,10 +47,10 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 ### Supported Models and Pipelines
 
 
-| **SD Model**  | **Text-to-Image**      | **Image Variation** | **Inpainting**  | **Depth-to-Image**  | **ControlNet**  |**T2I Adapter**|                    
+| **SD Model**  | **Text-to-Image**      | **Image Variation** | **Inpainting**  | **Depth-to-Image**  | **ControlNet**  |**T2I Adapter**|
 |:---------------:|:--------------:|:--------------------:|:-----------------------:|:----------------:|:---------------:|:---------------:|
 | 1.5           | [Inference](#inference) \| [Training](#training) | N.A.            |   N.A.                 |  N.A.            |  [Inference](docs/en/controlnet.md) \| [Training](docs/en/controlnet.md) |    [Inference](../t2i_adapter/README.md#inference-and-examples)     |
-| 2.0 & 2.1     | [Inference](#inference) \| [Training](#training) | [Inference](#image-variation) \| [Training](docs/en/image_variation_unclip.md)       |  [Inference](#inpainting)            | [Inference](#depth-to-image)     |   N.A.          |  [Inference](../t2i_adapter/README.md#inference-and-examples) \| [Training](../t2i_adapter/README.md#training)     | 
+| 2.0 & 2.1     | [Inference](#inference) \| [Training](#training) | [Inference](#image-variation) \| [Training](docs/en/image_variation_unclip.md)       |  [Inference](#inpainting)            | [Inference](#depth-to-image)     |   N.A.          |  [Inference](../t2i_adapter/README.md#inference-and-examples) \| [Training](../t2i_adapter/README.md#training)     |
 | wukong       | [Inference](#inference) \| [Training](#training) | N.A.            |   [Inference](#inpainting)                |  N.A.            |  N.A. |    N.A.     |
 
 > Although some combinations are not supported currently (due to the lack of checkpoints pretrained on the specific task and SD model), you can use the [Model Conversion](#model-conversion) tool to convert the checkpoint (e.g. from HF) then adapt it to the existing pipelines (e.g. image variation pipeline with SD 1.5)
@@ -61,12 +61,12 @@ You may click the link in the table to access the running instructions directly.
 
 ### Supported Platforms & Versions
 
-Our code is mainly developed and tested on Ascend 910 platforms with MindSpore framework. 
+Our code is mainly developed and tested on Ascend 910 platforms with MindSpore framework.
 The compatible framework versions that are well-tested are listed as follows.
 
 <div align="center">
 
-| Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |                   
+| Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |
 |:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
 | 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
 | 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
@@ -80,8 +80,8 @@ TODO: list more tested versions
 
 For detailed instructions to install CANN and MindSpore, please refer to the official webpage [MindSpore Installation](https://www.mindspore.cn/install).
 
-**Note:** Running on other platforms (such as GPUs) and MindSpore versions may not be reliable. 
-It's highly recommended to use the verified CANN and MindSpore versions. More compatible versions will be continuously updated. 
+**Note:** Running on other platforms (such as GPUs) and MindSpore versions may not be reliable.
+It's highly recommended to use the verified CANN and MindSpore versions. More compatible versions will be continuously updated.
 
 <details close markdown>
 
@@ -116,7 +116,7 @@ data_path
 └── img_txt.csv
 ```
 
-, where `img_txt.csv` is the image-caption file annotated in the following format. 
+, where `img_txt.csv` is the image-caption file annotated in the following format.
 
 ```text
 dir,text
@@ -144,7 +144,7 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 To generate images by providing a text prompt, please download one of the following checkpoints and put it in `models` folder:
 
 <div align="center">
- 
+
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 1.5                |   EN   | [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt)                    | [stable-diffusion-v1-5](https://huggingface.co/runwayml/stable-diffusion-v1-5)                    | 512x512        |
@@ -163,7 +163,7 @@ wget https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0a
 ```
 
 #### Text-to-Image Generation
-After preparing the pretrained weight, you can run text-to-image generation by: 
+After preparing the pretrained weight, you can run text-to-image generation by:
 
 ```shell
 python text_to_image.py --prompt {text prompt} -v {model version}
@@ -182,7 +182,7 @@ python text_to_image.py --prompt "elven forest" -v 1.5
 Take SD 2.0 as an example:
 ```shell
 # Use SD 2.0 instead and add negative prompt guidance to eliminate artifacts
-python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42 
+python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
 
 Here are some generation results.
@@ -202,20 +202,20 @@ Here are some generation results.
 
 ### Training
 
-Vanilla fine-tuning refers to training the whole UNet while freezing the CLIP-TextEncoder and VAE modules in the SD model. 
+Vanilla fine-tuning refers to training the whole UNet while freezing the CLIP-TextEncoder and VAE modules in the SD model.
 
 To run vanilla fine-tuning, we will use the `train_text_to_image.py` script following the instructions below.
 
 1. Prepare the pretrained checkpoint referring to [pretrained weights](#prepare-pretrained-weights)
 
-2. Prepare the training dataset referring to [Dataset Preparation](#dataset-preparation). 
-    
+2. Prepare the training dataset referring to [Dataset Preparation](#dataset-preparation).
+
 3. Select a training configuration template from `config/train` and specify the `--train_config` argument. The selected config file should match the pretrained weight.
     - For SD1.5, use `configs/train/train_config_vanilla_v1.yaml`
     - For SD2.0 or SD2.1, use `configs/train/train_config_vanilla_v2.yaml`
     - For SD2.x with v-prediction, use `configs/train/train_config_vanilla_v2_vpred.yaml`
-    
-    Note that the model architecture (defined via `model_config`) and training recipes are preset in the yaml file. You may edit the file 
+
+    Note that the model architecture (defined via `model_config`) and training recipes are preset in the yaml file. You may edit the file
      to adjust hyper-parameters like learning rate, training epochs, and batch size for your task.
 
 4. Launch the training script after specifying the `data_path`, `pretrained_model_path`, and `train_config` arguments.
@@ -264,12 +264,12 @@ For parallel training on multiple Ascend NPUs, please refer to the instructions 
     ```shell
     bash scripts/run_train_distributed.sh
     ```
-    
+
     After launched, the training process can be traced by running `tail -f ouputs/train_txt2img/rank_0/train.log`.
-    
+
     The trained checkpoints will be saved in `ouputs/train_txt2img`.
 
-**Note:** For distributed training on large-scale datasets such as LAION, please refer to [LAION Dataset Preparation](tools/data_utils/README.md). 
+**Note:** For distributed training on large-scale datasets such as LAION, please refer to [LAION Dataset Preparation](tools/data_utils/README.md).
 
 
 ### LoRA Fine-tuning
@@ -294,17 +294,17 @@ Coming soon
 
 ### Image Variation
 
-This pipeline uses a fine-tuned version of Stable Diffusion 2.1, which can be used to create image variations (image-to-image). 
-The pipeline comes with two pre-trained models, `2.1-unclip-l` and `2.1-unclip-h`, which use the pretrained CLIP Image embedder and OpenCLIP Image embedder separately. 
-You can use the `-v` argument to decide which model to use. 
-The amount of image variation can be controlled by the noise injected to the image embedding, which can be input by the `--noise_level` argument. 
+This pipeline uses a fine-tuned version of Stable Diffusion 2.1, which can be used to create image variations (image-to-image).
+The pipeline comes with two pre-trained models, `2.1-unclip-l` and `2.1-unclip-h`, which use the pretrained CLIP Image embedder and OpenCLIP Image embedder separately.
+You can use the `-v` argument to decide which model to use.
+The amount of image variation can be controlled by the noise injected to the image embedding, which can be input by the `--noise_level` argument.
 A value of 0 means no noise, while a value of 1000 means full noise.
 
 #### Preparing Pretrained Weights
 To generate variant images by providing a source image, please download one of the following checkpoints and put it in `models` folder:
 
 <div align="center">
- 
+
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.1-unclip-l       |   EN    | [sd21-unclip-l-baa7c8b5.ckpt)](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)      | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)       | 768x768        |
@@ -316,7 +316,7 @@ And download the image encoder checkpoint [ViT-L-14_stats-b668e2ca.ckpt](https:/
 
 #### Generating Image Variation
 
-After preparing the pretrained weights, you can run image variation generation by: 
+After preparing the pretrained weights, you can run image variation generation by:
 
 ```shell
 python unclip_image_variation.py \
@@ -354,14 +354,14 @@ For image-to-image fine-tuning, please refer to the tutorial of [Stable Diffusio
 
 ### Inpainting
 
-Text-guided image inpainting allows users to edit specific regions of an image by providing a mask and a text prompt, which is an interesting erase-and-replace editing operation. 
+Text-guided image inpainting allows users to edit specific regions of an image by providing a mask and a text prompt, which is an interesting erase-and-replace editing operation.
 When the prompt is set to empty, it can be applied to auto-fill the masked regions to fit the image context (which is similar to the AI fill and extend operations in PhotoShop-beta).
 
 #### Preparing Pretrained Weights
 To perform inpainting on an input image, please download one of the following checkpoints and put it in `models` folder:
 
 <div align="center">
- 
+
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.0-inpaint        |  EN      | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
@@ -370,7 +370,7 @@ To perform inpainting on an input image, please download one of the following ch
 
 #### Running Image Inpainting
 
-After preparing the pretrained weight, you can run image inpainting by: 
+After preparing the pretrained weight, you can run image inpainting by:
 
 ```shell
 python inpaint.py \
@@ -415,8 +415,8 @@ By setting empty prompt (`--prompt=""`), the masked part will be auto-filled to 
 
 ### Depth-to-Image
 
-This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt. 
-If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model) 
+This pipeline allows you to generate new images conditioning on a depth map (preserving image structure) and a text prompt.
+If you pass an initial image instead of a depth map, the pipeline will automatically extract the depth from it (using Midas depth estimation model)
 and generate new images conditioning on the image depth, the image, and the text prompt.
 
 
@@ -434,7 +434,7 @@ And download the depth estimation checkpoint [midas_v3_dpt_large-c8fd1049.ckpt](
 
 #### Depth-to-Image Generation
 
-After preparing the pretrained weight, you can run depth-to-image by: 
+After preparing the pretrained weight, you can run depth-to-image by:
 
 ```shell
 # depth to image given a depth map and text prompt
@@ -443,7 +443,7 @@ python depth_to_image.py \
     --depth_map {path to depth map} \
 ```
 
-In case you don't have the depth map, you can input a source image instead, The pipeline will extract the depth map from the source image. 
+In case you don't have the depth map, you can input a source image instead, The pipeline will extract the depth map from the source image.
 
 ```shell
 # depth to image conditioning on an input image and text prompt
@@ -511,7 +511,7 @@ Detailed illustrations and comparison of these schedulers can be viewed in [Diff
 
 ### Training with v-prediction
 
-The default objective function in SD training is to minimize the noise prediction error (noise-prediction). 
+The default objective function in SD training is to minimize the noise prediction error (noise-prediction).
 To alter the objective to v-prediction, which is used in SD 2.0-v and SD 2.1-v, please refer to [v-prediction.md](docs/en/v_prediction.md)
 
 ### Diffusion Model Evaluation
@@ -557,4 +557,3 @@ Coming soon
 
 ## Contributing
 We appreciate all kinds of contributions, including making **issues** or **pull requests** to make our work better.
-

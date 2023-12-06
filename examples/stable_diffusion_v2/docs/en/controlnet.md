@@ -30,7 +30,7 @@ To perform controllable image generation with existing ControlNet checkpoints, p
 
 ### Preparing Control Signals
 
-Please prepare the source images that you want to extract the control signals from (e.g. canny edge, segmentation map). 
+Please prepare the source images that you want to extract the control signals from (e.g. canny edge, segmentation map).
 
 Here are two examples:
 
@@ -44,7 +44,7 @@ Here are two examples:
 
 You may download and save them in `test_images/.`.
 
-- For edge control, the canny edge is extracted using opencv Canny API in the inference script. There is no need to extract it manually. 
+- For edge control, the canny edge is extracted using opencv Canny API in the inference script. There is no need to extract it manually.
 
 - For segmentation map control, you can download the follow segmentation map extracted using [DeeplabV3Plus](https://arxiv.org/abs/1802.02611).
 
@@ -92,7 +92,7 @@ Before running the inference script, please set up the arguments as follows.
 ### Generating Images with ControlNet
 
 After preparing the checkpoints and setting up the arguments, you run ControlNet inference as follows.
-    
+
 ```shell
 cd stable_diffusion_v2/inference
 

@@ -57,7 +57,7 @@ python train_text_to_image.py \
 > `--train_config` points to a preset training configuration file, which defines the model architecture via `model_config` and the training hyper-parameters such as `lora_rank`.
 
 Key arguments, which can be specified in `train_config` or command line, are as follows:
-- `use_lora`: whether fine-tune with LoRA 
+- `use_lora`: whether fine-tune with LoRA
 - `lora_rank`: the rank of the low-rank matrices in lora params, default: 4.
 - `lora_ft_text_encoder`: whether fine-tune the text encoder with LoRA, default: False.
 - `lora_fp16`:  whether compute LoRA in float16, default: True
