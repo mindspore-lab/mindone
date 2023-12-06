@@ -2,6 +2,11 @@
 
 <!--
 Pick nice generated images here
+
+<p float="center">
+  <img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" /><img src="https://github.com/SamitHuang/mindone/assets/8156835/dfb1bbe2-185e-4367-a1a8-1c1716a693d4" width="25%" />
+</p>
+
 -->
 
 ## Table of Contents
@@ -57,13 +62,14 @@ You may click the link in the table to access the running instructions directly.
 
 ### Supported Platforms & Versions
 
-Our code are mainly developed and tested on Ascend 910A and 910B platforms with MindSpore framework. 
-The compatible framework versions that are well tested are listed as follows.
+Our code is mainly developed and tested on Ascend 910A and 910B platforms with MindSpore framework. 
+The compatible framework versions that are well-tested are listed as follows.
 
-| Ascend    |  MindSpore   | CANN   | Python | MindONE |                   
-|-----------|----------------|--------|---------|---------------|
-| 910A      |     2.0         |   6.3 RC1   |  3.7  | master (4c33849)  |
-| 910B      |     2.2.1 (20231114)    |   7.1      |  3.7  | master (4c33849)  |
+| Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |                   
+|-----------|----------------|--------|---------|------|---------|
+| 910A      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
+| 910A      |     2.1         |   6.3 RC2   |  23.0.rc1 | 3.9.18  | master (4c33849)  |
+| 910B      |     2.2.1 (20231114)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
 
 <!---
 TODO: list more test versions
