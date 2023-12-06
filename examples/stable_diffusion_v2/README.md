@@ -47,13 +47,13 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 ### Supported Models and Pipelines
 
 
-| **SD Model**  | **Text2Image**      | **Image Variation** | **Inpainting**  | **Depth2Image**  | **ControlNet**  |**T2I Adapter**|                    
+| **SD Model**  | **Text-to-Image**      | **Image Variation** | **Inpainting**  | **Depth-to-Image**  | **ControlNet**  |**T2I Adapter**|                    
 |:---------------:|:--------------:|:--------------------:|:-----------------------:|:----------------:|:---------------:|:---------------:|
-| 1.5           | [Infer](#inference) \| [Train](#training) | N.A.            |   N.A.                 |  N.A.            |  [Infer](docs/en/controlnet.md) \| [Train]() |    [Infer](../t2i_adapter/README.md#inference-and-examples)     |
-| 2.0 & 2.1     | [Infer](#inference) \| [Train](#training) | [Infer](#image-variation) \| [Train](docs/en/image_variation_unclip.md)       |  [Infer](#inpainting)            | [Infer](#depth-to-image)     |   N.A.          |  [Infer](../t2i_adapter/README.md#inference-and-examples) \| [Train](../t2i_adapter/README.md#training)     | 
+| 1.5           | [Inference](#inference) \| [Training](#training) | N.A.            |   N.A.                 |  N.A.            |  [Inference](docs/en/controlnet.md) \| [Training](docs/en/controlnet.md) |    [Inference](../t2i_adapter/README.md#inference-and-examples)     |
+| 2.0 & 2.1     | [Inference](#inference) \| [Training](#training) | [Inference](#image-variation) \| [Training](docs/en/image_variation_unclip.md)       |  [Inference](#inpainting)            | [Inference](#depth-to-image)     |   N.A.          |  [Inference](../t2i_adapter/README.md#inference-and-examples) \| [Training](../t2i_adapter/README.md#training)     | 
+| wukong       | [Inference](#inference) \| [Training](#training) | N.A.            |   [Inference](#inpainting)                |  N.A.            |  N.A. |    N.A.     |
 
-> Although some combinations are not supported currently, you can use the [Model Conversion](#model-conversion) tool to convert 
-> another SD checkpoint and apply it to the implemented pipelines (e.g. inpainting pipeline with SD1.5)
+> Although some combinations are not supported currently (due to the lack of checkpoints pretrained on the specific task and SD model), you can use the [Model Conversion](#model-conversion) tool to convert the checkpoint (e.g. from HF) then adapt it to the existing pipelines (e.g. image variation pipeline with SD 1.5)
 
 You may click the link in the table to access the running instructions directly.
 
@@ -64,14 +64,18 @@ You may click the link in the table to access the running instructions directly.
 Our code is mainly developed and tested on Ascend 910 platforms with MindSpore framework. 
 The compatible framework versions that are well-tested are listed as follows.
 
+<div align="center">
+
 | Ascend    |  MindSpore   | CANN   | driver | Python | MindONE |                   
 |:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
 | 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
 | 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
 | 910*      |     2.2.1 (20231114)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
 
+</div>
+
 <!---
-TODO: list more test versions
+TODO: list more tested versions
 -->
 
 For detailed instructions to install CANN and MindSpore, please refer to the official webpage [MindSpore Installation](https://www.mindspore.cn/install).
@@ -138,6 +142,8 @@ To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from 
 
 #### Preparing Pretrained Weights
 To generate images by providing a text prompt, please download one of the following checkpoints and put it in `models` folder:
+
+<div align="center">
  
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                           | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
@@ -148,6 +154,7 @@ To generate images by providing a text prompt, please download one of the follow
 | 2.1                |   EN   | [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt)          | [stable-diffusion-2-1-base](https://huggingface.co/stabilityai/stable-diffusion-2-1-base)         | 512x512        |
 | 2.1-v              |   EN   | [sd_v2-1_768_v-061732d1.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_768_v-061732d1.ckpt)        | [stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1)                   | 768x768        |
 
+</div>
 
 Take SD 1.5 for example:
 ```
@@ -295,11 +302,15 @@ A value of 0 means no noise, while a value of 1000 means full noise.
 
 #### Preparing Pretrained Weights
 To generate variant images by providing a source image, please download one of the following checkpoints and put it in `models` folder:
+
+<div align="center">
  
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.1-unclip-l       |   EN    | [sd21-unclip-l-baa7c8b5.ckpt)](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-l-baa7c8b5.ckpt)      | [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)       | 768x768        |
 | 2.1-unclip-h       |   EN    | [sd21-unclip-h-6a73eca5.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd21-unclip-h-6a73eca5.ckpt)       |   [stable-diffusion-2-1-unclip](https://huggingface.co/stabilityai/stable-diffusion-2-1-unclip)     | 768x768        |
+
+</div>
 
 And download the image encoder checkpoint [ViT-L-14_stats-b668e2ca.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/unclip/ViT-L-14_stats-b668e2ca.ckpt) to `models` folder.
 
@@ -348,12 +359,14 @@ When the prompt is set to empty, it can be applied to auto-fill the masked regio
 
 #### Preparing Pretrained Weights
 To perform inpainting on an input image, please download one of the following checkpoints and put it in `models` folder:
+
+<div align="center">
  
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.0-inpaint        |  EN      | [sd_v2_inpaint-f694d5cf.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_inpaint-f694d5cf.ckpt)        | [stable-diffusion-2-inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) | 512x512        |
 | 1.5-wukong-inpaint |  CN      | [wukong-huahua-inpaint-ms.ckpt](https://download.mindspore.cn/toolkits/minddiffusion/wukong-huahua/wukong-huahua-inpaint-ms.ckpt) |                                             N.A.                                                      | 512x512        |
-
+</div>
 
 #### Running Image Inpainting
 
@@ -409,9 +422,13 @@ and generate new images conditioning on the image depth, the image, and the text
 
 #### Preparing Pretrained Weights
 
+<div align="center">
+
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 | 2.0               |  EN       | [sd_v2_depth-186e18a0.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/sd_v2_depth-186e18a0.ckpt)        | [stable-diffusion-2-depth](https://huggingface.co/stabilityai/stable-diffusion-2-depth) | 512x512        |
+
+</div>
 
 And download the depth estimation checkpoint [midas_v3_dpt_large-c8fd1049.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/depth_estimator/midas_v3_dpt_large-c8fd1049.ckpt) to the `models/depth_estimator` directory.
 
