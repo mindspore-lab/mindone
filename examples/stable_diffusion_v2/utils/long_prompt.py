@@ -31,7 +31,14 @@ def get_tokenize_functions(tokenizer, context_length, pad_with_eos=False):
         Returns:
             token_ids, ms.Tensor, shape is (n_chunks, context_length)
         """
-        token_ids = tokenizer.encode(prompt)
+        if len(prompt) > 0:
+            token_ids = tokenizer.encode(prompt)
+        else:
+            token_ids = [bos, eos]  # simple tokenizer cannot handle empty string
+        if token_ids[0] == bos:
+            token_ids.pop(0)
+        if token_ids[-1] == eos:
+            token_ids.pop(-1)
         new_token_ids = []
         while len(token_ids) >= context_length - 2:
             temp_token_ids = [bos] + [token_ids.pop(0) for _ in range(75)] + [eos]
@@ -138,6 +145,7 @@ def get_text_embeddings(
     negative_prompts: Optional[Union[str, List[str]]] = None,
     support_long_prompts: Optional[bool] = True,
     return_tensor: Optional[bool] = True,
+    max_n_chunks: Optional[int] = None,
 ):
     """
     Handling long text prompts and extracting text embeddings.
@@ -154,6 +162,9 @@ def get_text_embeddings(
             If False, it will tolerate the case where each prompt in the batch may have different lengths. If
             True, it will always pad the token ids or the text embeddings to the longest length in the batch.
             It only applies when support_long_prompts is True.
+        max_n_chunks: Optional[int]. If not None, the `max_n_chunks` specifies the maximum number of chunks being
+            divided from the long prompt. If None, it puts no constraints on the prompt length. It only applies
+            when support_long_prompts is True.
     """
     if not isinstance(prompts, (list, tuple)):
         prompts = [prompts]
@@ -185,9 +196,9 @@ def get_text_embeddings(
             negative_group_token_ids = tokenize_func_batch(negative_prompts, return_tensor=return_tensor)
             # ensure that token ids of the prompts and negative prompts have the same shape
             new_group_token_ids, new_negative_group_token_ids = [], []
-            for token_ids, negative_token_ids in zip(group_token_ids, negative_group_token_ids):
+            for i in range(len(group_token_ids)):
+                token_ids, negative_token_ids = group_token_ids[i], negative_group_token_ids[i]
                 if token_ids.shape[0] > negative_token_ids.shape[0]:
-                    # padding with zeros
                     num = token_ids.shape[0] - negative_token_ids.shape[0]
                     negative_token_ids = ms.ops.concat([negative_token_ids] + [pad_token_ids] * num, axis=0)
                 elif token_ids.shape[0] < negative_token_ids.shape[0]:
@@ -201,6 +212,22 @@ def get_text_embeddings(
             if return_tensor:
                 group_token_ids = ms.ops.stack(group_token_ids, axis=0)
                 negative_group_token_ids = ms.ops.stack(negative_group_token_ids, axis=0)
+
+        if max_n_chunks is not None:
+            assert max_n_chunks >= 1, "Expect that max_n_chunks should be at least one."
+            print(
+                f"The token length of long text prompts should be no longer than {max_n_chunks*group_token_ids.shape[-1]}. "
+                "Longer tokens will be truncated to this length."
+            )
+            assert max_n_chunks >= 1, "Expect that max_n_chunks should be at least one."
+            if return_tensor:
+                group_token_ids = group_token_ids[:, :max_n_chunks, :]
+                if negative_prompts is not None:
+                    negative_group_token_ids = negative_group_token_ids[:, :max_n_chunks, :]
+            else:
+                group_token_ids = [ids[:max_n_chunks] for ids in group_token_ids]
+                if negative_prompts is not None:
+                    negative_group_token_ids = [ids[:max_n_chunks] for ids in negative_group_token_ids]
 
         c = text_embedding_func_batch(group_token_ids, return_tensor=return_tensor)
         if negative_prompts is not None:

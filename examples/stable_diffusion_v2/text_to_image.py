@@ -378,8 +378,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--support_long_prompts",
-        action="store_true",
-        help="support long prompts exceeding the context length. Otherwise, it will truncate the text prompts",
+        default=False,
+        type=str2bool,
+        help="Whether to support long prompts exceeding the context length. If False, it will truncate the text prompts",
     )
     parser.add_argument(
         "--H",
