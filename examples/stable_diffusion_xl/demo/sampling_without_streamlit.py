@@ -4,6 +4,7 @@ import ast
 import os
 import sys
 import time
+from functools import partial
 
 sys.path.append(".")
 if os.environ.get("MS_PYNATIVE_GE") != "1":
@@ -11,6 +12,7 @@ if os.environ.get("MS_PYNATIVE_GE") != "1":
 
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
 from gm.util import seed_everything
+from gm.util.long_prompt import do_sample as do_sample_long_prompts
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -47,6 +49,7 @@ def get_parser_sample():
     )
 
     parser.add_argument("--negative_prompt", type=str, default="")
+    parser.add_argument("--support_long_prompts", type=ast.literal_eval, default=False)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     parser.add_argument("--orig_width", type=int, default=None)
     parser.add_argument("--orig_height", type=int, default=None)
@@ -168,7 +171,8 @@ def run_txt2img(
         print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
         value_dict["prompt"] = prompt
         s_time = time.time()
-        out = model.do_sample(
+        sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
+        out = sampling_func(
             sampler,
             value_dict,
             num_samples,
@@ -180,7 +184,6 @@ def run_txt2img(
             return_latents=return_latents,
             filter=filter,
             amp_level=amp_level,
-            init_latent_path=args.init_latent_path,
         )
         print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
