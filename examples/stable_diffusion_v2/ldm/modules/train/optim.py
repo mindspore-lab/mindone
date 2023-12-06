@@ -41,7 +41,7 @@ def build_optimizer(
         _logger.info("Applying `%s` strategy for weight decay.", group_strategy)
 
     def decay_filter(param):
-        if group_strategy.lower() == "unclip":
+        if group_strategy is not None and group_strategy.lower() == "unclip":
             # set decay of embedding to 0 should be beneficial for most of the cases
             filter_list = ["layernorm", "bias", "label_emb", "time_embed", "emb_layers"]
         else:
