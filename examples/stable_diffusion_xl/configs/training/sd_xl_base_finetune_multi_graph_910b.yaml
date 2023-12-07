@@ -1,9 +1,9 @@
 version: SDXL-base-1.0
 model:
-    target: gm.models.diffusion.DiffusionEngine
+    target: gm.models.diffusion.DiffusionEngineMultiGraph
     params:
         scale_factor: 0.13025
-        disable_first_stage_amp: False
+        disable_first_stage_amp: True
 
         denoiser_config:
             target: gm.modules.diffusionmodules.denoiser.DiscreteDenoiser
@@ -113,7 +113,7 @@ model:
 
 
 optim:
-    base_learning_rate: 5.0e-6
+    base_learning_rate: 1.0e-5
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
@@ -122,10 +122,9 @@ optim:
             beta2: 0.98
             weight_decay: 0.01
 
-
 data:
     per_batch_size: 1
-    total_step: 10000
+    total_step: 100000
     num_parallel_workers: 2
     python_multiprocessing: False
     shuffle: True
