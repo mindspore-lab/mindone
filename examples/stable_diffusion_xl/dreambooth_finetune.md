@@ -68,13 +68,13 @@ Before running the fintune scripts `train_dreambooth.py`, please specify the arg
 * `--weight=/path/to/pretrained_model`
 * `--save_path=/path/to/save_models`
 
-Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora_910.yaml` for Ascend 910 or `sd_xl_base_finetune_dreambooth_lora_910*.yaml` for Ascend 910* if needed. In our examples, we experiment on Ascend 910*.
+Modify other arguments in the shell when running the command or the hyper-parameters in the config file `sd_xl_base_finetune_dreambooth_lora_910*.yaml` if needed.
 
-Run with multiple NPUs (for example, 4) training using  :
+Run with multiple NPUs (for example, 4) training using :
 
 ```shell
 mpirun --allow-run-as-root -n 4 python train_dreambooth.py \
-  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910*.yaml \
+  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --instance_data_path /path/to/finetuning_data \
   --instance_prompt "A photo of a sks dog" \
@@ -90,7 +90,7 @@ Launch a standalone training using:
 
 ```shell
 python train_dreambooth.py \
-  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910*.yaml \
+  --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --instance_data_path /path/to/finetuning_data \
   --instance_prompt "A photo of a sks dog" \
@@ -126,7 +126,7 @@ Notice that the training command above gets finetuned lora weights in the specif
   export MS_PYNATIVE_GE=1
   python demo/sampling_without_streamlit.py \
     --task txt2img \
-    --config configs/training/sd_xl_base_finetune_dreambooth_lora_910*.yaml \
+    --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \
     --weight checkpoints/sd_xl_base_1.0_ms.ckpt,runs/SDXL_base_1.0_1000_lora.ckpt \
     --prompt "a sks dog swimming in a pool" \
     --device_target Ascend
