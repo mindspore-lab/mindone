@@ -1,22 +1,19 @@
-import sys
 import os
+import sys
 
-from common import RunAscendLog
-from common import RankTableEnv
-
+from common import RankTableEnv, RunAscendLog
+from manager import FMKManager
 from rank_table import RankTable, RankTableTemplate1, RankTableTemplate2
 
-from manager import FMKManager
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     log = RunAscendLog.setup_run_ascend_logger()
 
     if len(sys.argv) <= 1:
-        log.error('there are not enough args')
+        log.error("there are not enough args")
         sys.exit(1)
 
     train_command = sys.argv[1:]
-    log.info('training command')
+    log.info("training command")
     log.info(train_command)
 
     if os.environ.get(RankTableEnv.RANK_TABLE_FILE_V1) is not None:
@@ -31,10 +28,10 @@ if __name__ == '__main__':
         rank_table = RankTableTemplate2(rank_table_path_origin)
 
     if rank_table.get_device_num() >= 1:
-        log.info('set rank table %s env to %s' % (RankTableEnv.RANK_TABLE_FILE, rank_table.get_rank_table_path()))
+        log.info("set rank table %s env to %s" % (RankTableEnv.RANK_TABLE_FILE, rank_table.get_rank_table_path()))
         RankTableEnv.set_rank_table_env(rank_table.get_rank_table_path())
     else:
-        log.info('device num < 1, unset rank table %s env' % RankTableEnv.RANK_TABLE_FILE)
+        log.info("device num < 1, unset rank table %s env" % RankTableEnv.RANK_TABLE_FILE)
         RankTableEnv.unset_rank_table_env()
 
     instance = rank_table.get_current_instance()
@@ -48,4 +45,3 @@ if __name__ == '__main__':
     fmk_manager.destroy()
 
     sys.exit(return_code)
-

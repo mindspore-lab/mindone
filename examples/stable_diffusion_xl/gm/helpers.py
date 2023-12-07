@@ -27,6 +27,7 @@ import mindspore as ms
 from mindspore import Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
+
 class BroadCast(nn.Cell):
     def __init__(self, root_rank):
         super().__init__()
@@ -34,6 +35,7 @@ class BroadCast(nn.Cell):
 
     def construct(self, x):
         return (self.broadcast((x,)))[0]
+
 
 SD_XL_BASE_RATIOS = {
     "0.5": (704, 1408),
