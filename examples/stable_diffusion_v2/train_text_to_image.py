@@ -181,14 +181,6 @@ def parse_args():
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(
-        "--enable_flash_attention",
-        default=None,
-        type=str2bool,
-        help="whether enable flash attention. If not None, it will overwrite the value in model config yaml.",
-    )
-    parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
-    parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
-    parser.add_argument(
         "--max_grad_norm",
         default=1.0,
         type=float,
