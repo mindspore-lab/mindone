@@ -1,26 +1,26 @@
 import logging
 import os
 
-logo = 'Training'
+logo = "Training"
 
 
 # Rank Table Constants
 class RankTableEnv:
-    RANK_TABLE_FILE = 'RANK_TABLE_FILE'
+    RANK_TABLE_FILE = "RANK_TABLE_FILE"
 
-    RANK_TABLE_FILE_V1 = 'RANK_TABLE_FILE_V_1_0'
+    RANK_TABLE_FILE_V1 = "RANK_TABLE_FILE_V_1_0"
 
-    HCCL_CONNECT_TIMEOUT = 'HCCL_CONNECT_TIMEOUT'
+    HCCL_CONNECT_TIMEOUT = "HCCL_CONNECT_TIMEOUT"
 
     # jobstart_hccl.json is provided by the volcano controller of Cloud-Container-Engine(CCE)
-    HCCL_JSON_FILE_NAME = 'jobstart_hccl.json'
+    HCCL_JSON_FILE_NAME = "jobstart_hccl.json"
 
-    RANK_TABLE_FILE_DEFAULT_VALUE = '/user/config/%s' % HCCL_JSON_FILE_NAME
+    RANK_TABLE_FILE_DEFAULT_VALUE = "/user/config/%s" % HCCL_JSON_FILE_NAME
 
     @staticmethod
     def get_rank_table_template1_file_dir():
         parent_dir = os.environ[ModelArts.MA_MOUNT_PATH_ENV]
-        return os.path.join(parent_dir, 'rank_table')
+        return os.path.join(parent_dir, "rank_table")
 
     @staticmethod
     def get_rank_table_template2_file_path():
@@ -40,17 +40,17 @@ class RankTableEnv:
 
 
 class ModelArts:
-    MA_MOUNT_PATH_ENV = 'MA_MOUNT_PATH'
-    MA_CURRENT_INSTANCE_NAME_ENV = 'MA_CURRENT_INSTANCE_NAME'
-    MA_VJ_NAME = 'MA_VJ_NAME'
+    MA_MOUNT_PATH_ENV = "MA_MOUNT_PATH"
+    MA_CURRENT_INSTANCE_NAME_ENV = "MA_CURRENT_INSTANCE_NAME"
+    MA_VJ_NAME = "MA_VJ_NAME"
 
-    MA_CURRENT_HOST_IP = 'MA_CURRENT_HOST_IP'
+    MA_CURRENT_HOST_IP = "MA_CURRENT_HOST_IP"
 
-    CACHE_DIR = '/cache'
+    CACHE_DIR = "/cache"
 
-    TMP_LOG_DIR = '/tmp/log/'
+    TMP_LOG_DIR = "/tmp/log/"
 
-    FMK_WORKSPACE = 'workspace'
+    FMK_WORKSPACE = "workspace"
 
     @staticmethod
     def get_current_instance_name():
@@ -63,7 +63,7 @@ class ModelArts:
     @staticmethod
     def get_job_id():
         ma_vj_name = os.environ[ModelArts.MA_VJ_NAME]
-        return ma_vj_name.replace('ma-job', 'modelarts-job', 1)
+        return ma_vj_name.replace("ma-job", "modelarts-job", 1)
 
     @staticmethod
     def get_parent_working_dir():
@@ -74,11 +74,10 @@ class ModelArts:
 
 
 class RunAscendLog:
-
     @staticmethod
     def setup_run_ascend_logger():
         name = logo
-        formatter = logging.Formatter(fmt='[run ascend] %(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter(fmt="[run ascend] %(asctime)s - %(levelname)s - %(message)s")
 
         handler = logging.StreamHandler()
         handler.setFormatter(formatter)
@@ -92,4 +91,3 @@ class RunAscendLog:
     @staticmethod
     def get_run_ascend_logger():
         return logging.getLogger(logo)
-
