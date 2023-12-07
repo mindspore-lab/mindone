@@ -305,7 +305,7 @@ def get_grad_reducer(is_parallel, parameters):
         degree = ms.context.get_auto_parallel_context("device_num")
         grad_reducer = nn.DistributedGradReducer(parameters, mean, degree)
     else:
-        grad_reducer = ops.functional.identity
+        grad_reducer = nn.Identity()
     return grad_reducer
 
 
