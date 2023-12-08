@@ -34,5 +34,3 @@ python sd_infer.py \
 echo "All results will be saved under ./inference/${output_dir}"
 #--pretrained_ckpt=../output/train_cldm_canny_fill50k/ckpt/sd-16.ckpt \
 #--pretrained_ckpt="../models/control_sd15_canny_ms_static.ckpt" \
-
-
