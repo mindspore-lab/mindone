@@ -153,24 +153,22 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         self.clip_grad = clip_grad
         self.clip_norm = clip_norm
 
-        self.enable_accum_grad = False
-        if grad_accum_steps > 1:
-            self.enable_accum_grad = True
-            self.accum_steps = grad_accum_steps
-            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
+        self.accum_steps = grad_accum_steps
+        if self.accum_steps > 1:
+            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step", requires_grad=False)
             self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
             self.hyper_map = ops.HyperMap()
 
     def do_optim(self, loss, grads):
-        if not self.enable_accum_grad:
+        if not self.accum_steps > 1:
             if self.clip_grad:
                 grads = ops.clip_by_global_norm(grads, self.clip_norm)
             loss = F.depend(loss, self.optimizer(grads))
         else:
-            self.accum_step += 1
             loss = F.depend(
                 loss, self.hyper_map(F.partial(_grad_accum_op, self.accum_steps), self.accumulated_grads, grads)
             )
+            loss = F.depend(loss, ops.assign_add(self.accum_step, ms.Tensor(1, ms.int32)))
             if self.accum_step % self.accum_steps == 0:
                 if self.clip_grad:
                     grads = ops.clip_by_global_norm(self.accumulated_grads, self.clip_norm)
@@ -178,6 +176,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
                 else:
                     loss = F.depend(loss, self.optimizer(self.accumulated_grads))
                 loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
+                loss = F.depend(loss, ops.assign(self.accum_step, ms.Tensor(0, ms.int32)))
             else:
                 # update the learning rate, do not update the parameter
                 loss = F.depend(loss, self.optimizer.get_lr())

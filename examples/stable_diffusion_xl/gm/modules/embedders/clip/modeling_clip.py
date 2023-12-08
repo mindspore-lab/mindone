@@ -334,6 +334,7 @@ class CLIPTextModel(nn.Cell):
     def __init__(self, config_path, weight=None):
         config = self.from_pretrained(config_path)  # CLIPTextConfig
         super().__init__(config)
+        self.config = config
         self.text_model = CLIPTextTransformer(config)
         self.load_checkpoint(weight)
 
@@ -342,6 +343,81 @@ class CLIPTextModel(nn.Cell):
 
     def set_input_embeddings(self, value):
         self.text_model.embeddings.token_embedding = value
+
+    def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> nn.Embedding:
+        """
+        Resizes input token embeddings matrix of the `CLIPTextTransformer` if `new_num_tokens != config.vocab_size`.
+
+        Arguments:
+            new_num_tokens (`int`, *optional*):
+                The number of new tokens in the embedding matrix. Increasing the size will add newly initialized
+                vectors at the end. Reducing the size will remove vectors from the end. If not provided or `None`, just
+                returns a pointer to the input tokens `torch.nn.Embedding` module of the model without doing anything.
+
+        Return:
+            `torch.nn.Embedding`: Pointer to the input tokens Embeddings Module of the model.
+        """
+        model_embeds = self._resize_token_embeddings(new_num_tokens)
+        if new_num_tokens is None:
+            return model_embeds
+
+        # Update base model and current model config
+        self.config.vocab_size = model_embeds.embedding_table.shape[0]
+        self.vocab_size = model_embeds.embedding_table.shape[0]
+
+        return model_embeds
+
+    def _resize_token_embeddings(self, new_num_tokens) -> nn.Embedding:
+        old_embeddings = self.get_input_embeddings()
+        new_embeddings = self._get_resized_embeddings(old_embeddings, new_num_tokens)
+        self.set_input_embeddings(new_embeddings)
+
+        return self.get_input_embeddings()
+
+    def _get_resized_embeddings(
+        self,
+        old_embeddings,
+        new_num_tokens: Optional[int] = None,
+    ) -> nn.Embedding:
+        """Build a resized Embedding Module from a provided token Embedding Module.
+            Increasing the size will add newly initialized vectors at the end
+            Reducing the size will remove vectors from the end
+
+        Args:
+            new_num_tokens: (`optional`) int
+                New number of tokens in the embedding matrix.
+                Increasing the size will add newly initialized vectors at the end
+                Reducing the size will remove vectors from the end
+                If not provided or None: return the provided token Embedding Module.
+        Return: ``mindspore.nn.Embeddings``
+            Pointer to the resized Embedding Module or the old Embedding Module if new_num_tokens is None
+        """
+        if new_num_tokens is None:
+            return old_embeddings
+
+        old_num_tokens, old_embedding_dim = old_embeddings.embedding_table.shape
+        if old_num_tokens == new_num_tokens:
+            return old_embeddings
+
+        old_dtype = old_embeddings.embedding_table.dtype
+        # Build new embeddings
+        new_embeddings = nn.Embedding(new_num_tokens, old_embedding_dim, dtype=old_dtype)
+
+        # # initialize all new embeddings (in particular added tokens)
+        # self._init_weights(new_embeddings)
+
+        # Copy word embeddings from the previous weights
+        num_tokens_to_copy = min(old_num_tokens, new_num_tokens)
+        new_embeddings.embedding_table.data[:num_tokens_to_copy, :] = old_embeddings.embedding_table.data[
+            :num_tokens_to_copy, :
+        ]
+
+        # align the parameter status
+        old_name = old_embeddings.embedding_table.name
+        old_requires_grad = old_embeddings.embedding_table.requires_grad
+        new_embeddings.embedding_table.name = old_name
+        new_embeddings.embedding_table.requires_grad = old_requires_grad
+        return new_embeddings
 
     def load_checkpoint(self, checkpoint_path=None):
         if checkpoint_path is not None:
