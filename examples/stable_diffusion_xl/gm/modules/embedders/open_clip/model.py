@@ -1,8 +1,8 @@
 # Reference to https://github.com/mlfoundations/open_clip
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
 from functools import partial
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from gm.modules.util import normalize as normalize_func
