@@ -42,10 +42,11 @@ model:
             params:
                 emb_models:
                   # crossattn cond
-                  - is_trainable: False
+                  - is_trainable: True
                     input_key: txt
                     target: gm.modules.embedders.modules.FrozenCLIPEmbedder
                     params:
+                      freeze: False
                       layer: hidden
                       layer_idx: 11
                       version: openai/clip-vit-large-patch14
@@ -113,7 +114,7 @@ model:
 
 
 optim:
-    base_learning_rate: 5.0e-6
+    base_learning_rate: 1.0e-5
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD

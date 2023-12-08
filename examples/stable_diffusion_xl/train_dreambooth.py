@@ -54,8 +54,10 @@ def get_parser_train():
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     # parser.add_argument("--data_path", type=str, default="")
     parser.add_argument("--save_path", type=str, default="./runs")
+    parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
+    parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
 
     # args for infer
     parser.add_argument("--infer_during_train", type=ast.literal_eval, default=False)
@@ -72,6 +74,7 @@ def get_parser_train():
     )
     parser.add_argument("--param_fp16", type=ast.literal_eval, default=False)
     parser.add_argument("--overflow_still_update", type=ast.literal_eval, default=True)
+    parser.add_argument("--max_device_memory", type=str, default=None)
     parser.add_argument("--is_parallel", type=ast.literal_eval, default=False)
 
     # args for ModelArts
