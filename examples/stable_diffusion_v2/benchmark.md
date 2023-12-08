@@ -4,15 +4,17 @@
 
 ### Inference
 
-| SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size     |  FPS (img/s)     |
-|---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|
-| 1.5           |     D910x1-MS2.0    |  DPM++       |   20               |    512x512         |       4          |      |
-| 2.0           |     D910x1-MS2.0    |  DPM++       |   20               |    512x512         |       4          |      |
-| 2.1-v         |     D910x1-MS2.0    |  DPM++       |   20               |    768x768         |       4          |      |
-| 1.5           |     D910*x1-MS2.2   |  DPM++       |   20               |    512x512         |       4          |      |
-| 2.0           |     D910*x1-MS2.2   |  DPM++       |   20               |    512x512         |       4          |      |
-| 2.1-v         |     D910*x1-MS2.2   |  DPM++       |   20               |    768x768         |       4          |      |
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}
+| SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size     |  Speed (step/s)     | FPS (img/s)     |
+|---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| 1.5           |     D910x1-MS2.0    |  DPM++       |   20       |    512x512         |       4          |             |              |
+| 2.0           |     D910x1-MS2.0    |  DPM++       |   20       |    512x512         |       4          |             |               |
+| 2.1-v         |     D910x1-MS2.0    |  DPM++       |   20       |    768x768         |       4          |             |               |
+| 1.5           |     D910*x1-MS2.2   |  DPM++       |   20       |    512x512         |       4          |             |               |
+| 2.0           |     D910*x1-MS2.2   |  DPM++       |   20       |    512x512         |       4          |             |               |
+| 2.1-v         |     D910*x1-MS2.2   |  DPM++       |   20       |    768x768         |       4          |             |               |
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+> Speed (ste/s): sampling speed measured in the number of sampling steps per second.
+> FPS (img/s): image generation throughput measured in the number of image generated per second.
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
 
@@ -45,8 +47,7 @@ Mixed precision belongs to configuration
 | 2.1-v           |    D910*x1-MS2.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16,  |                 |
 | 2.1-v           |    D910*x1-MS2.0       |    Dreambooth      |      4x1             |     768x768         | Graph, DS, FP16,  |                 |
 
-> DS: data sink mode, FP16: float16 computation.
->
+> DS: data sink mode, FP16: float16 computation. 
 > FPS: images per second during training. average training time (s/step) = batch_size / FPS
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
