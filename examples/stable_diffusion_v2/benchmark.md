@@ -34,7 +34,7 @@ Mixed precision belongs to configuration
 | 1.5           |    D910x1-MS2.0      |    ControlNet      |      4x1             |     512x512         | Graph, DS, FP16,  |                 |
 | 2.0           |    D910x1-MS2.0       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |                 |
 | 2.0           |    D910x1-MS2.0       |    Dreambooth      |      4x1             |     768x768         | Graph, DS, FP16,  |                 |
-| 2.1-v           |    D910x1-MS2.0       |    Vanilla      |      4x1             |     768x768         | Graph, DS, FP16,  |                 |
+| 2.1-v           |    D910x1-MS2.0       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16,  |                 |
 | 2.1-v           |    D910x1-MS2.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16,  |                 |
 | 2.1-v           |    D910x1-MS2.0       |    Dreambooth      |      4x1             |     768x768         | Graph, DS, FP16,  |                 |
 | 1.5           |    D910*x1-MS2.2      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |                 |
@@ -43,11 +43,13 @@ Mixed precision belongs to configuration
 | 1.5           |    D910*x1-MS2.2      |    ControlNet      |      4x1             |     512x512         | Graph, DS, FP16,  |                 |
 | 2.0           |    D910*x1-MS2.2       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |                 |
 | 2.0           |    D910*x1-MS2.2       |    Dreambooth      |      4x1             |     512x512         | Graph, DS, FP16,  |                 |
-| 2.1-v           |    D910*x1-MS2.0       |    Vanilla      |      4x1             |     768x768         | Graph, DS, FP16,  |                 |
+| 2.1-v           |    D910*x1-MS2.0       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16,  |                 |
 | 2.1-v           |    D910*x1-MS2.0       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16,  |                 |
 | 2.1-v           |    D910*x1-MS2.0       |    Dreambooth      |      4x1             |     768x768         | Graph, DS, FP16,  |                 |
 
-> DS: data sink mode, FP16: float16 computation. 
+> DS: data sink mode, FP16: float16 computation.
+> Flash attention is not used in the test currently.
+>
 > FPS: images per second during training. average training time (s/step) = batch_size / FPS
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
