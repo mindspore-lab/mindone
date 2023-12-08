@@ -82,6 +82,9 @@ class GeneralConditioner(nn.Cell):
                 embedder.set_grad(False)
                 for _, param in embedder.parameters_and_names():
                     param.requires_grad = False
+            else:
+                if hasattr(embedder, "set_recompute"):
+                    embedder.set_recompute()
             print(
                 f"Initialized embedder #{n}: {embedder.__class__.__name__} "
                 f"with {count_params(embedder, False)} params. Trainable: {embedder.is_trainable}"
@@ -161,6 +164,9 @@ class GeneralConditioner(nn.Cell):
                     )
                 if hasattr(embedder, "input_key") and embedder.input_key in force_zero_embeddings:
                     emb = ops.zeros_like(emb)
+
+                if not embedder.is_trainable:
+                    emb = ops.stop_gradient(emb)
 
                 # CONCAT
                 # OUTPUT_DIM2KEYS = {2: "vector", 3: "crossattn", 4: "concat", 5: "concat"}
@@ -289,6 +295,13 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
 
     def encode(self, text):
         return self(text)
+
+    def set_recompute(self):
+        self.transformer.text_model.embeddings.recompute()
+        for i in range(len(self.transformer.text_model.encoder.layers)):
+            if i != 7:
+                self.transformer.text_model.encoder.layers[i].recompute()
+        # self.transformer.text_model.final_layer_norm.recompute()
 
 
 class FrozenOpenCLIPEmbedder2(AbstractEmbModel):

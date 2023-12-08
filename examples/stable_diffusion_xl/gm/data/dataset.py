@@ -10,8 +10,6 @@ from PIL import Image
 
 
 class Text2ImageDataset:
-    dataset_column_names = ["samples"]
-
     def __init__(
         self,
         data_path,
@@ -19,6 +17,7 @@ class Text2ImageDataset:
         transforms=None,
         batched_transforms=None,
         tokenizer=None,
+        token_nums=None,
         image_filter_size=0,
         random_crop=False,
         filter_small_size=False,
@@ -28,6 +27,16 @@ class Text2ImageDataset:
     ):
         super().__init__()
         self.tokenizer = tokenizer
+        self.token_nums = token_nums
+        self.dataset_column_names = ["samples"]
+        if self.tokenizer is None:
+            self.dataset_output_column_names = self.dataset_column_names
+        else:
+            assert token_nums is not None and token_nums > 0
+            self.dataset_output_column_names = [
+                "image",
+            ] + [f"token{i}" for i in range(token_nums)]
+
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
@@ -61,9 +70,6 @@ class Text2ImageDataset:
                     f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
-        if self.tokenizer:
-            raise NotImplementedError
-
     def __getitem__(self, idx):
         # images preprocess
         image_path = self.local_images[idx]
@@ -74,7 +80,6 @@ class Text2ImageDataset:
 
         # caption preprocess
         caption = self.local_captions[idx]
-        caption = caption if self.tokenizer is None else np.array(self.tokenize(caption), dtype=np.int32)
         caption = np.array(caption)
 
         sample = {
@@ -95,21 +100,6 @@ class Text2ImageDataset:
 
         return sample
 
-    def tokenize(self, text):
-        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
-        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
-        CONTEXT_LEN = self.tokenizer.context_length
-
-        sot_token = self.tokenizer.encoder[SOT_TEXT]
-        eot_token = self.tokenizer.encoder[EOT_TEXT]
-        tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN])
-        if len(tokens) > CONTEXT_LEN:
-            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
-        result[: len(tokens)] = tokens
-
-        return result
-
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
@@ -125,7 +115,17 @@ class Text2ImageDataset:
         for s in samples:
             for k in s:
                 batch_samples[k].append(s[k])
-        return {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
+
+        data = {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
+
+        if self.tokenizer:
+            data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
+            tokens, _ = self.tokenizer(data)
+            outs = (data["image"],) + tuple(tokens)
+        else:
+            outs = data
+
+        return outs
 
     def __len__(self):
         return len(self.local_images)
