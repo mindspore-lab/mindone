@@ -53,7 +53,7 @@ model:
                     params:
                       layer: hidden
                       layer_idx: 11
-                      version: models/openai-clip-vit-large-patch14
+                      version: openai/clip-vit-large-patch14
                       # pretrained: ''
                   # crossattn and vector cond
                   - is_trainable: False
