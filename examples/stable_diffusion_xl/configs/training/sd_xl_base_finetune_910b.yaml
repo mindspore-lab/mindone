@@ -113,30 +113,20 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-6
+    base_learning_rate: 5.0e-6
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
         params:
             beta1: 0.9
-            beta2: 0.999
+            beta2: 0.98
             weight_decay: 0.01
-            eps: 1.0e-8
-
-    scheduler_config:
-        target: gm.lr_scheduler.LambdaLinearScheduler
-        params:
-            warm_up_steps: [ 1e4 ]
-            cycle_lengths: [ 1e13 ]
-            f_start: [ 1.e-6 ]
-            f_max: [ 1. ]
-            f_min: [ 1. ]
 
 
 data:
     per_batch_size: 1
-    total_step: 15000
-    num_parallel_workers: 6
+    total_step: 10000
+    num_parallel_workers: 2
     python_multiprocessing: False
     shuffle: True
 

@@ -141,11 +141,11 @@ data:
     dataset_config:
         target: gm.data.dataset.Text2ImageDatasetDreamBooth
         params:
-            target_size: 1024
+            target_size: 512
             transforms:
                 - target: gm.data.mappers.Resize
                   params:
-                    size: 1024
+                    size: 512
                     interpolation: 3
                 - target: gm.data.mappers.Rescaler
                   params:
