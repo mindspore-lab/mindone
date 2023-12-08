@@ -13,12 +13,13 @@ class Embedder(nn.Cell):
         scale_factor(float): scale_factor for vae
     """
 
-    def __init__(self, text_encoder, vae, scheduler, scale_factor=1.0):
+    def __init__(self, text_encoder, vae, scheduler, scale_factor=1.0, is_legacy=False):
         super(Embedder, self).__init__()
         self.text_encoder = text_encoder
         self.vae = vae
         self.scheduler = scheduler
         self.scale_factor = scale_factor
+        self.is_legacy = is_legacy
 
 
 class Discretization(nn.Cell):
@@ -133,13 +134,19 @@ class Text2ImgEmbedder(Embedder):
     Some data prepare process for text2img task.
     """
 
-    def __init__(self, text_encoder, vae, scheduler, scale_factor=1.0):
-        super(Text2ImgEmbedder, self).__init__(text_encoder, vae, scheduler, scale_factor=scale_factor)
+    def __init__(self, text_encoder, vae, scheduler, scale_factor=1.0, is_legacy=False):
+        super(Text2ImgEmbedder, self).__init__(
+            text_encoder, vae, scheduler, scale_factor=scale_factor, is_legacy=is_legacy
+        )
 
     def construct(self, clip_tokens, time_tokens, uc_clip_tokens, uc_time_tokens, noise):
         # vector, crossattn, concat
         pos_prompt_embeds = self.text_encoder(*clip_tokens.split(1), *time_tokens.split(1))
-        negative_prompt_embeds = self.text_encoder(*uc_clip_tokens.split(1), *uc_time_tokens.split(1))
+        negative_prompt_embeds = self.text_encoder(
+            *uc_clip_tokens.split(1),
+            *uc_time_tokens.split(1),
+            force_zero_embeddings=["txt"] if not self.is_legacy else []
+        )
         vector = ops.concat((negative_prompt_embeds[0], pos_prompt_embeds[0]), 0)
         crossattn = ops.concat((negative_prompt_embeds[1], pos_prompt_embeds[1]), 0)
 

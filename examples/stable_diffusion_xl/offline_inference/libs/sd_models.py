@@ -30,6 +30,7 @@ class SDInfer(ABC):
         scale_factor=1.0,
         guidance_rescale=0.0,
         num_inference_steps=40,
+        is_legacy=False,
     ):
         super().__init__()
         self.text_encoder = text_encoder
@@ -40,6 +41,7 @@ class SDInfer(ABC):
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
         self.num_inference_steps = ms.Tensor(num_inference_steps, ms.int32)
+        self.is_legacy = is_legacy
 
     def vae_decode(self, x):
         y = self.vae.decode(x / self.scale_factor)
@@ -90,6 +92,7 @@ class SDText2Img(SDInfer):
         scale_factor=1.0,
         guidance_rescale=0.0,
         num_inference_steps=40,
+        is_legacy=False,
     ):
         super(SDText2Img, self).__init__(
             text_encoder,
@@ -100,6 +103,7 @@ class SDText2Img(SDInfer):
             scale_factor=scale_factor,
             guidance_rescale=guidance_rescale,
             num_inference_steps=num_inference_steps,
+            is_legacy=is_legacy,
         )
 
     def data_prepare(self, inputs):
@@ -109,7 +113,11 @@ class SDText2Img(SDInfer):
         uc_time_tokens = ms.Tensor(inputs["neg_time_token"], dtype=ms.float16)
         noise = ms.Tensor(inputs["noise"], ms.float32)
         pos_prompt_embeds = self.text_encoder(*clip_tokens.split(1), *time_tokens.split(1))
-        negative_prompt_embeds = self.text_encoder(*uc_clip_tokens.split(1), *uc_time_tokens.split(1))
+        negative_prompt_embeds = self.text_encoder(
+            *uc_clip_tokens.split(1),
+            *uc_time_tokens.split(1),
+            force_zero_embeddings=["txt"] if not self.is_legacy else []
+        )
         vector = ops.concat((negative_prompt_embeds[0], pos_prompt_embeds[0]), 0)
         crossattn = ops.concat((negative_prompt_embeds[1], pos_prompt_embeds[1]), 0)
         vector = ops.cast(vector, ms.float32)
