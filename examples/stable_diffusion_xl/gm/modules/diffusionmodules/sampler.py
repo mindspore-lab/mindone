@@ -295,7 +295,7 @@ class DPMPP2MSampler(BaseDiffusionSampler):
             return mult1, mult2
 
     def sampler_step(self, old_denoised, previous_sigma, sigma, next_sigma, model, x, cond, uc=None, **kwargs):
-        denoised = self.denoise(x, model, sigma, cond, uc, **kwargs)
+        denoised = self.denoise(x, model, sigma, cond, uc)
 
         h, r, t, t_next = self.get_variables(sigma, next_sigma, previous_sigma)
         mult = [append_dims(mult, x.ndim) for mult in self.get_mult(h, r, t, t_next, previous_sigma)]
