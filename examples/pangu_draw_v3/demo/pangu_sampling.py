@@ -23,9 +23,11 @@ def get_parser_sample():
     parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img"])
     parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument("--weight", type=str, default="")
+    parser.add_argument("--high_timestamp_weight", type=str, default="")
     parser.add_argument(
         "--prompt", type=str, default="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
     )
+    parser.add_argument("--prompts_file", type=str, default="")
 
     parser.add_argument("--negative_prompt", type=str, default="")
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -37,8 +39,11 @@ def get_parser_sample():
     parser.add_argument("--crop_coords_left", type=int, default=None)
     parser.add_argument("--aesthetic_score", type=float, default=None)
     parser.add_argument("--negative_aesthetic_score", type=float, default=None)
+    parser.add_argument("--aesthetic_scale", type=float, default=None)
+    parser.add_argument("--anime_scale", type=float, default=None)
     parser.add_argument("--sampler", type=str, default="PanGuEulerEDMSampler")
     parser.add_argument("--guider", type=str, default="PanGuVanillaCFG")
+    parser.add_argument("--guidance_scale", type=float, default=7.5)
     parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_cols", type=int, default=1)
@@ -84,14 +89,7 @@ def get_parser_sample():
         default="/cache/pretrain_ckpt/",
         help="ModelArts: local device path to checkpoint folder",
     )
-    parser.add_argument("--use_high_timestamp_model", action="store_true")
-    parser.add_argument("--high_timestamp_weight", type=str, default="")
-    parser.add_argument("--aesthetic_scale", type=float, default=None)
-    parser.add_argument("--anime_scale", type=float, default=None)
-    parser.add_argument("--target_size_as_ind", type=float, default=None)
-    parser.add_argument("--prompts_file", type=str, default="")
     parser.add_argument("--high_solution", action="store_true")
-    parser.add_argument("--guidance_scale", type=float, default=7.5)
     return parser
 
 
@@ -158,7 +156,7 @@ def run_txt2img(
 
     print("Txt2Img Sampling")
     s_time = time.time()
-    out = model.do_sample(
+    out = model.pangu_do_sample(
         high_timestamp_model,
         sampler,
         value_dict,
@@ -184,6 +182,10 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
     assert img is not None
     H, W = img.shape[2], img.shape[3]
 
+    size_list = HIGH_SOLUTION_BASE_SIZE_LIST if args.high_solution else BASE_SIZE_LIST
+    assert (W, H) in size_list, f"(W, H)=({W}, {H}) is not in SIZE_LIST:{str(size_list)}"
+    target_size_as_ind = size_list.index((W, H))
+
     value_dict = {
         "prompt": args.prompt,
         "negative_prompt": args.negative_prompt,
@@ -197,7 +199,7 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
         "aesthetic_scale": args.aesthetic_scale if args.aesthetic_scale else 0.0,
         "anime_scale": args.anime_scale if args.anime_scale else 0.0,
-        "target_size_as_ind": args.target_size_as_ind if args.target_size_as_ind else 5.0,
+        "target_size_as_ind": target_size_as_ind,
     }
     strength = min(max(args.strength, 0.0), 1.0)
     print("**Img2Img Strength**: strength")
@@ -293,22 +295,19 @@ def sample(args):
         amp_level=args.ms_amp_level,
     )  # TODO: Add filter support
 
-    if args.use_high_timestamp_model:
-        config.model.params.first_stage_config = "__is_unconditional__"
-        config.model.params.conditioner_config = "__is_unconditional__"
-        high_timestamp_model, _ = create_model(
-            config,
-            checkpoints=args.high_timestamp_weight.split(",") if args.high_timestamp_weight else None,
-            freeze=True,
-            load_filter=False,
-            param_fp16=False,
-            amp_level=args.ms_amp_level,
-        )
-        high_timestamp_model.first_stage_model = None
-        high_timestamp_model.conditioner = None
-        model.first_stage_model.encoder = None
-    else:
-        high_timestamp_model = None
+    config.model.params.first_stage_config = "__is_unconditional__"
+    config.model.params.conditioner_config = "__is_unconditional__"
+    high_timestamp_model, _ = create_model(
+        config,
+        checkpoints=args.high_timestamp_weight.split(",") if args.high_timestamp_weight else None,
+        freeze=True,
+        load_filter=False,
+        param_fp16=False,
+        amp_level=args.ms_amp_level,
+    )
+    high_timestamp_model.first_stage_model = None
+    high_timestamp_model.conditioner = None
+    model.first_stage_model.encoder = None
 
     save_path = os.path.join(args.save_path, task, version)
     is_legacy = version_dict["is_legacy"]
