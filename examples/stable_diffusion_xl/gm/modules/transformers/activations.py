@@ -16,7 +16,7 @@ class ClassInstantier(OrderedDict):
 
 
 ACT2CLS = {
-    "gelu": nn.GELU,
+    "gelu": (nn.GELU, {"approximate": False}),
     "quick_gelu": QuickGELU,
     "relu": nn.ReLU,
     "relu6": nn.ReLU6,

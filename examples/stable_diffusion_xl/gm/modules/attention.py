@@ -36,7 +36,7 @@ class FeedForward(nn.Cell):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
-        project_in = nn.SequentialCell([nn.Dense(dim, inner_dim), nn.GELU()]) if not glu else GEGLU(dim, inner_dim)
+        project_in = nn.SequentialCell([nn.Dense(dim, inner_dim), nn.GELU(False)]) if not glu else GEGLU(dim, inner_dim)
 
         self.net = nn.SequentialCell([project_in, nn.Dropout(p=dropout), nn.Dense(inner_dim, dim_out)])
 
