@@ -68,9 +68,9 @@ python demo/pangu/pangu_sampling.py \
 Note: sampled 40 steps by PanGu Draw 3.0 on Ascend 910*.
 
 <div align="center">
-<img src="https://github.com/Stability-AI/generative-models/assets/143256262/0a8b0b1a-3b54-4a35-beec-4163be61fa88" width="240" />
-<img src="https://github.com/Stability-AI/generative-models/assets/143256262/d14a3761-47ad-4671-adcd-866d9d6e6def" width="240" />
-<img src="https://github.com/Stability-AI/generative-models/assets/143256262/42e18b39-5c62-4d0f-aa3b-8c0c6e0715f2" width="240" />
+<img src="https://github.com/Stability-AI/generative-models/assets/143256262/0a8b0b1a-3b54-4a35-beec-4163be61fa88" width="320" />
+<img src="https://github.com/Stability-AI/generative-models/assets/143256262/d14a3761-47ad-4671-adcd-866d9d6e6def" width="320" />
+<img src="https://github.com/Stability-AI/generative-models/assets/143256262/42e18b39-5c62-4d0f-aa3b-8c0c6e0715f2" width="320" />
 </div>
 <p align="center">
 <font size=3>
