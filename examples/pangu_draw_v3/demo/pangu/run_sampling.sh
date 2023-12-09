@@ -11,5 +11,5 @@ python demo/pangu/pangu_sampling.py \
 --config "configs/inference/pangu_sd_xl_base.yaml" \
 --high_solution \
 --weight "path/to/low_timestamp_model.ckpt" \
---high_timestamp_weight "path/to/low_timestamp_model.ckpt" \
+--high_timestamp_weight "path/to/high_timestamp_model.ckpt" \
 --prompts_file "demo/pangu/prompts.txt"
