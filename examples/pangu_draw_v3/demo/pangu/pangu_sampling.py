@@ -61,6 +61,7 @@ def get_parser_sample():
     parser.add_argument("--negative_aesthetic_score", type=float, default=None)
     parser.add_argument("--aesthetic_scale", type=float, default=None)
     parser.add_argument("--anime_scale", type=float, default=None)
+    parser.add_argument("--photography_scale", type=float, default=None)
     parser.add_argument("--sampler", type=str, default="PanGuEulerEDMSampler")
     parser.add_argument("--guider", type=str, default="PanGuVanillaCFG")
     parser.add_argument("--guidance_scale", type=float, default=7.5)
@@ -119,6 +120,8 @@ def get_other_scale(value_dict):
         other_scale.append(value_dict["aesthetic_scale"])
     if "anime_scale" in value_dict and value_dict["anime_scale"] > 0:
         other_scale.append(value_dict["anime_scale"])
+    if "photography_scale" in value_dict and value_dict["photography_scale"] > 0:
+        other_scale.append(value_dict["photography_scale"])
     return other_scale
 
 
@@ -166,6 +169,7 @@ def run_txt2img(
         "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
         "aesthetic_scale": args.aesthetic_scale if args.aesthetic_scale else 0.0,
         "anime_scale": args.anime_scale if args.anime_scale else 0.0,
+        "photography_scale": args.photography_scale if args.photography_scale else 0.0,
         "target_size_as_ind": target_size_as_ind,
     }
     sampler, num_rows, num_cols = init_sampling(
@@ -226,6 +230,7 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
         "aesthetic_scale": args.aesthetic_scale if args.aesthetic_scale else 0.0,
         "anime_scale": args.anime_scale if args.anime_scale else 0.0,
+        "photography_scale": args.photography_scale if args.photography_scale else 0.0,
         "target_size_as_ind": target_size_as_ind,
     }
     strength = min(max(args.strength, 0.0), 1.0)
