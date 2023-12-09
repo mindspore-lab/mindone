@@ -16,9 +16,9 @@ from gm.modules.diffusionmodules.sampler import (
     DPMPP2SAncestralSampler,
     EulerAncestralSampler,
     EulerEDMSampler,
-    PanGuEulerEDMSampler,
     HeunEDMSampler,
     LinearMultistepSampler,
+    PanGuEulerEDMSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
 from omegaconf import DictConfig, ListConfig
@@ -603,11 +603,12 @@ def load_img(image):
 # PanGu Draw
 # =============
 
+
 def pangu_get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
     # Hardcoded demo setups; might undergo some changes in the future
+    # photography_prefix = "霙 "
     aesthetic_prefix = "義 "
     cartoon_prefix = "饅 "
-    photography_prefix = "霙 "
     batch = {}
     batch_uc = {}
     other_batch = []
@@ -696,20 +697,28 @@ def pangu_get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float
         for key in batch.keys():
             if isinstance(batch[key], Tensor):
                 batch_aes[key] = batch[key].copy()
-            batch_aes["txt"] = np.repeat(
-                [aesthetic_prefix + prompt for prompt in value_dict["prompt"]],
-                repeats=np.prod(N),
-            ).reshape(N_reshape).tolist()
+            batch_aes["txt"] = (
+                np.repeat(
+                    [aesthetic_prefix + prompt for prompt in value_dict["prompt"]],
+                    repeats=np.prod(N),
+                )
+                .reshape(N_reshape)
+                .tolist()
+            )
             other_batch.append(batch_aes)
     if "anime_scale" in value_dict and value_dict["anime_scale"] > 0:
         batch_anime = dict()
         for key in batch.keys():
             if isinstance(batch[key], Tensor):
                 batch_anime[key] = batch[key].copy()
-            batch_anime["txt"] = np.repeat(
-                [cartoon_prefix + prompt for prompt in value_dict["prompt"]],
-                repeats=np.prod(N),
-            ).reshape(N_reshape).tolist()
+            batch_anime["txt"] = (
+                np.repeat(
+                    [cartoon_prefix + prompt for prompt in value_dict["prompt"]],
+                    repeats=np.prod(N),
+                )
+                .reshape(N_reshape)
+                .tolist()
+            )
             other_batch.append(batch_anime)
 
     return batch, batch_uc, other_batch

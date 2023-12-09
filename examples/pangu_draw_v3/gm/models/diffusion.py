@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Dict, List, Optional, Union
 
 import numpy as np
-from gm.helpers import get_batch, pangu_get_batch, get_unique_embedder_keys_from_conditioner
+from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner, pangu_get_batch
 from gm.modules import UNCONDITIONAL_CONFIG
 from gm.modules.diffusionmodules.wrappers import OPENAIUNETWRAPPER
 from gm.util import append_dims, default, get_obj_from_str, instantiate_from_config
@@ -271,7 +271,7 @@ class DiffusionEngine(nn.Cell):
         if return_latents:
             return samples, samples_z
         return samples
-    
+
     def pangu_do_sample(
         self,
         high_timestamp_model,
@@ -329,7 +329,7 @@ class DiffusionEngine(nn.Cell):
                     # lambda y: y[k][: math.prod(num_samples)], (c, uc)
                 )
             for _c in other_c:
-                _c[k] = _c[k][:int(np.prod(num_samples) * num_prompts)]
+                _c[k] = _c[k][: int(np.prod(num_samples) * num_prompts)]
 
         additional_model_inputs = {}
         for k in batch2model_input:
@@ -339,7 +339,9 @@ class DiffusionEngine(nn.Cell):
         randn = Tensor(np.random.randn(*shape), ms.float32)
 
         print("Sample latent Starting...")
-        samples_z = sampler(self, high_timestamp_model, randn, cond=c, uc=uc, other_c=other_c, adapter_states=adapter_states)
+        samples_z = sampler(
+            self, high_timestamp_model, randn, cond=c, uc=uc, other_c=other_c, adapter_states=adapter_states
+        )
         print("Sample latent Done.")
 
         print("Decode latent Starting...")

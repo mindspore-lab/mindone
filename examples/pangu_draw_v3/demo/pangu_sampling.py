@@ -11,11 +11,31 @@ from omegaconf import OmegaConf
 import mindspore as ms
 from mindspore import Tensor, ops
 
-
-BASE_SIZE_LIST = [(256, 1024), (256, 960), (320, 768), (384, 640), (448, 576), (512, 512),
-                  (576, 448), (640, 384), (768, 320), (960, 256), (1024, 256)]
-HIGH_SOLUTION_BASE_SIZE_LIST = [(512, 2048), (512, 1920), (768, 1536), (864, 1536), (960, 1280),
-                                (1024, 1024), (1280, 960), (1536, 768), (1920, 512), (2048, 512)]
+BASE_SIZE_LIST = [
+    (256, 1024),
+    (256, 960),
+    (320, 768),
+    (384, 640),
+    (448, 576),
+    (512, 512),
+    (576, 448),
+    (640, 384),
+    (768, 320),
+    (960, 256),
+    (1024, 256),
+]
+HIGH_SOLUTION_BASE_SIZE_LIST = [
+    (512, 2048),
+    (512, 1920),
+    (768, 1536),
+    (864, 1536),
+    (960, 1280),
+    (1024, 1024),
+    (1280, 960),
+    (1536, 768),
+    (1920, 512),
+    (2048, 512),
+]
 
 
 def get_parser_sample():
@@ -103,8 +123,15 @@ def get_other_scale(value_dict):
 
 
 def run_txt2img(
-    args, model, high_timestamp_model, version_dict, is_legacy=False,
-    return_latents=False, filter=None, stage2strength=None, amp_level="O0",
+    args,
+    model,
+    high_timestamp_model,
+    version_dict,
+    is_legacy=False,
+    return_latents=False,
+    filter=None,
+    stage2strength=None,
+    amp_level="O0",
 ):
     assert args.sd_xl_base_ratios in SD_XL_BASE_RATIOS
     W, H = SD_XL_BASE_RATIOS[args.sd_xl_base_ratios]

@@ -1,15 +1,14 @@
 # reference to https://github.com/Stability-AI/generative-models
-import os.path
 from typing import Dict, List, Optional, Union
 
 import numpy as np
 from gm.modules.diffusionmodules.openaimodel import Timestep
 from gm.modules.embedders.clip import CLIPTextModel
-from gm.modules.embedders.tokenizer.simple_tokenizer import WordpieceTokenizer
 
 # OpenCLIP model
 from gm.modules.embedders.open_clip import create_model as openclip_create_model
 from gm.modules.embedders.open_clip import tokenize as openclip_tokenize
+from gm.modules.embedders.tokenizer.simple_tokenizer import WordpieceTokenizer
 from gm.util import count_params, expand_dims_like, instantiate_from_config
 from omegaconf import ListConfig
 
@@ -218,11 +217,7 @@ class GeneralConditioner(nn.Cell):
         return c, uc
 
     def pangu_get_unconditional_conditioning(
-            self,
-            batch_c,
-            batch_uc=None,
-            force_uc_zero_embeddings=None,
-            other_batch=None
+        self, batch_c, batch_uc=None, force_uc_zero_embeddings=None, other_batch=None
     ):
         if force_uc_zero_embeddings is None:
             force_uc_zero_embeddings = []
@@ -369,8 +364,8 @@ class FrozenCnCLIPEmbedder(AbstractEmbModel):
 
         for i, tokens in enumerate(all_tokens):
             if len(tokens) > CONTEXT_LEN:
-                tokens = tokens[:CONTEXT_LEN-1] + [eot_token]
-            result[i, :len(tokens)] = tokens
+                tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
+            result[i, : len(tokens)] = tokens
 
         result = np.array(result, dtype=np.int32)
         return result, None  # inplace for length

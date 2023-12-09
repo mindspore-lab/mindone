@@ -337,6 +337,7 @@ class DPMPP2MSampler(BaseDiffusionSampler):
 # PanGu Draw
 # ===========
 
+
 class PanGuEDMSampler(SingleStepDiffusionSampler):
     def __init__(self, s_churn=0.0, s_tmin=0.0, s_tmax=float("inf"), s_noise=1.0, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -391,15 +392,7 @@ class PanGuEDMSampler(SingleStepDiffusionSampler):
                 min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1) if self.s_tmin <= sigmas[i] <= self.s_tmax else 0.0
             )
             x, step_idx = self.sampler_step(
-                s_in * sigmas[i],
-                s_in * sigmas[i + 1],
-                sample_model,
-                x,
-                cond,
-                uc,
-                other_c,
-                gamma,
-                **kwargs
+                s_in * sigmas[i], s_in * sigmas[i + 1], sample_model, x, cond, uc, other_c, gamma, **kwargs
             )
 
         return x
