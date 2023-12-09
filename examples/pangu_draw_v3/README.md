@@ -1,6 +1,6 @@
 # PanGu Draw 3.0
 
-This folder contains **PanGu Draw 3.0** models implemented with MindSpore. It targets at full support for inference, finetuning, and training from scratch. New models and features will be continuously updated.
+This folder contains **PanGu Draw 3.0** models implemented with MindSpore.
 
 
 ## Features
