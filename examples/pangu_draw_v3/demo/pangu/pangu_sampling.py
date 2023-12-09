@@ -39,9 +39,9 @@ HIGH_SOLUTION_BASE_SIZE_LIST = [
 
 
 def get_parser_sample():
-    parser = argparse.ArgumentParser(description="sampling with sd-xl")
+    parser = argparse.ArgumentParser(description="sampling with PanGu-Draw-v3")
     parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img"])
-    parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
+    parser.add_argument("--config", type=str, default="configs/inference/pangu_sd_xl_base.yaml")
     parser.add_argument("--weight", type=str, default="")
     parser.add_argument("--high_timestamp_weight", type=str, default="")
     parser.add_argument(
