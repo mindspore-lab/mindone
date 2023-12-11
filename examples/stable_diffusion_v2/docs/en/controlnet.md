@@ -234,17 +234,18 @@ The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
 Here are some inference results lr=5e-4, bs=2, epoch=4 for after training Fill50k dataset:
 
-![Controlnet Train Validate Result](controlnet_train_validate.png)
-![Alt text](image.png)
-Comparing to the results with ground truth:
+![controlnet_train_validate](https://github.com/congw729/mindone/assets/115451386/96014226-027e-4dcf-a87d-1af6ac5e4abe)
 
-![Controlnet Train Validate Ground Truth](controlnet_train_gt.png)
+Comparing the results with ground truth:
+![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/644e436c-4ac9-4b23-81ff-6c0f0dbef9f8)
+
 
 Control:
-![Controlnet Train Control](controlnet_train_control.png)
+![controlnet_train_control](https://github.com/congw729/mindone/assets/115451386/8b695f01-4220-4d4f-afff-01ae604169e0)
 
 Prompt:
-![Controlnet Train Prompt](controlnet_train_prompt.png)
+![controlnet_train_prompt](https://github.com/congw729/mindone/assets/115451386/7adb909a-a4b3-4ca3-856a-b996233b7b33)
+
 
 ## Reference
 [1] [ControlNet: Adding Conditional Control to Text-to-Image Diffusion Models](https://arxiv.org/pdf/2302.05543.pdf)
