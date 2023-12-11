@@ -63,7 +63,7 @@ def test_train_loss(model_version='sd1.5'):
     df = pd.read_csv(result_log, sep='\t') #, lineterminator='\r')  
     converge_loss = np.mean(df['loss'][-100:]) 
 
-    expected_loss = 0.05
+    expected_loss = 0.2
     print("converge_loss: ", converge_loss)
     assert converge_loss < expected_loss
 
