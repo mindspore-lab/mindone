@@ -83,7 +83,9 @@ def read_video_frames(video_path, sample_interval=None, image_size=None, sample_
     return video
 
 
-def load_model_from_config(config, ckpt, **kwargs):
+def load_model_from_config(config, controller, ckpt, **kwargs):
+    controller = OmegaConf.create(controller)
+    OmegaConf.merge(config.model.params.unet_config.params, controller)
     model = instantiate_from_config(config.model)
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
@@ -310,13 +312,14 @@ def main(args):
     if not os.path.isabs(args.config):
         args.config = os.path.join(work_dir, args.config)
     config = OmegaConf.load(f"{args.config}")
-    model = load_model_from_config(
-        config,
-        ckpt=args.ckpt_path,
-    )
-    model.controller = {
+    controller = {
         "num_self_replace": (10, 20)
     }
+    model = load_model_from_config(
+        config,
+        controller,
+        ckpt=args.ckpt_path,
+    )
 
     prediction_type = getattr(config.model, "prediction_type", "noise")
     logger.info(f"Prediction type: {prediction_type}")

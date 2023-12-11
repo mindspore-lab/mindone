@@ -14,16 +14,15 @@ from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusi
 from examples.stable_diffusion_v2.ldm.modules.attention import exists
 
 _logger = logging.getLogger(__name__)
-# try:
-#     from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
-#
-#     FLASH_IS_AVAILABLE = True
-#     # print("flash attention is available.")
-# except ImportError:
-#     FLASH_IS_AVAILABLE = False
-# print("flash attention is unavailable.")
+try:
+    from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
 
-FLASH_IS_AVAILABLE = True
+    FLASH_IS_AVAILABLE = True
+    # print("flash attention is available.")
+except ImportError:
+    FLASH_IS_AVAILABLE = False
+print("flash attention is unavailable.")
+
 
 
 class GroupNorm(nn.GroupNorm):
@@ -60,9 +59,7 @@ def replace_self_attention(attn, step, num_self_replace=(0, 50)):
     if num_self_replace[0] < step and step < num_self_replace[1]:
         if attn.shape[2] <= 256:
             base_attn, _ = split_attention(attn)
-            r = base_attn.tile((2, 1, 1))
-            print("replace self attention:", base_attn.shape, r.shape)
-            return r
+            return base_attn.tile((2, 1, 1))
     return attn
 
 
@@ -808,6 +805,7 @@ class UNetModel3D(nn.Cell):
             enable_flash_attention=False,
             adm_in_channels=None,
             use_recompute=False,
+            controller=None,
     ):
         super().__init__()
 
@@ -1118,7 +1116,7 @@ class UNetModel3D(nn.Cell):
                 oblock.recompute(parallel_optimizer_comm_recompute=True)
 
         self.step = Parameter(ms.Tensor(0, ms.float32), requires_grad=False)
-        self.controller = None
+        self.controller = controller
 
     @staticmethod
     def is_attention_layer(c):
@@ -1141,7 +1139,7 @@ class UNetModel3D(nn.Cell):
         :return: an [N x C x ...] Tensor of outputs.
         """
         self.step = self.step + 1
-        print(self.controller)
+        print('controller:', self.controller)
 
         assert (y is not None) == (
                 self.num_classes is not None
