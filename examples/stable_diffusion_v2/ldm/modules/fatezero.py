@@ -24,7 +24,6 @@ except ImportError:
 print("flash attention is unavailable.")
 
 
-
 class GroupNorm(nn.GroupNorm):
     def construct(self, x):
         if len(x.shape) == 5:
@@ -69,7 +68,7 @@ def replace_cross_attention(type='replace'):
 
 
 class Attention(LdmAttention):
-    def construct(self, q, k, v, mask, is_cross_attention, step=None):
+    def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -92,7 +91,7 @@ class Attention(LdmAttention):
 
         if not is_cross_attention:
             # self-attention
-            attn = replace_self_attention(attn, step)
+            attn = replace_self_attention(attn, step, controller.num_self_replace)
         else:
             # cross-attention
             pass
@@ -154,7 +153,7 @@ class CrossAttention(nn.Cell):
         self.attention = Attention(dim_head, upcast=upcast)
         self.flash_attention = FlashAttention(self.heads, dim_head) if self.use_flash_attention else None
 
-    def construct(self, x, context=None, mask=None, step=None):
+    def construct(self, x, context=None, mask=None, step=None, controller=None):
         is_cross = context is not None
         q = self.to_q(x)
         context = default(context, x)
@@ -177,9 +176,9 @@ class CrossAttention(nn.Cell):
         v = rearange_in(v)
 
         if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
-            out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step)
+            out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
         else:
-            out = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step)
+            out = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -213,7 +212,7 @@ class SparseCausalAttention(CrossAttention):
         x = x.reshape((bf, 2 * hw, c))
         return x
 
-    def construct(self, x, context=None, mask=None, video_length=None, step=None):
+    def construct(self, x, context=None, mask=None, video_length=None, step=None, controller=None):
         is_cross = context is not None
         q = self.to_q(x)
         context = default(context, x)
@@ -251,9 +250,9 @@ class SparseCausalAttention(CrossAttention):
         # print(f"q shape {q.shape}, k shape {k.shape}, v shape {v.shape}")
 
         if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
-            out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step)
+            out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
         else:
-            out = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step)
+            out = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -405,7 +404,7 @@ class SpatialTransformer3D(nn.Cell):
         self.reshape = ops.Reshape()
         self.transpose = ops.Transpose()
 
-    def construct(self, x, emb=None, context=None, step=None):
+    def construct(self, x, emb=None, context=None, step=None, controller=None):
         # note: if no context is given, cross-attention defaults to self-attention
         assert len(x.shape) == 5, f"Expect to have five dimensions input, but got {len(x.shape)} dims"
         b, c, f, h, w = x.shape
@@ -428,7 +427,7 @@ class SpatialTransformer3D(nn.Cell):
             )  # (b*f, ch, h, w) -> (b*f, h, w, ch) -> (b*f, h*w, ch)
             x = self.proj_in(x)
         for block in self.transformer_blocks:
-            x = block(x, context=context, video_length=f, step=step)
+            x = block(x, context=context, video_length=f, step=step, controller=controller)
         if self.use_linear:
             x = self.proj_out(x)
             ch = x.shape[-1]
@@ -1161,7 +1160,7 @@ class UNetModel3D(nn.Cell):
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 if self.is_attention_layer(cell):
-                    h = cell(h, emb, context, self.step)
+                    h = cell(h, emb, context, self.step, self.controller)
                 else:
                     h = cell(h, emb, context)
 
@@ -1176,7 +1175,7 @@ class UNetModel3D(nn.Cell):
 
         for module in self.middle_block:
             if self.is_attention_layer(module):
-                h = module(h, emb, context, self.step)
+                h = module(h, emb, context, self.step, self.controller)
             else:
                 h = module(h, emb, context)
 
@@ -1185,7 +1184,7 @@ class UNetModel3D(nn.Cell):
             h = self.cat((h, hs[hs_index]))
             for cell in celllist:
                 if self.is_attention_layer(cell):
-                    h = cell(h, emb, context, self.step)
+                    h = cell(h, emb, context, self.step, self.controller)
                 else:
                     h = cell(h, emb, context)
             hs_index -= 1

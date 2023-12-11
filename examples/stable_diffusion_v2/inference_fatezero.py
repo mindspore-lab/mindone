@@ -84,8 +84,8 @@ def read_video_frames(video_path, sample_interval=None, image_size=None, sample_
 
 
 def load_model_from_config(config, controller, ckpt, **kwargs):
-    controller = OmegaConf.create(controller)
-    OmegaConf.merge(config.model.params.unet_config.params, controller)
+    controller = OmegaConf.create({"controller": controller})
+    config.model.params.unet_config.params = OmegaConf.merge(config.model.params.unet_config.params, controller)
     model = instantiate_from_config(config.model)
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
