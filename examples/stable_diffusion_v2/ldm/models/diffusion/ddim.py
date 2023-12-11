@@ -118,8 +118,7 @@ class DDIMSampler(object):
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
 
         # sampling
-        C, H, W = shape
-        size = (batch_size, C, H, W)
+        size = (batch_size, *shape)
         print(f"Data shape for DDIM sampling is {size}, eta {eta}")
         samples, intermediates = self.ddim_sampling(
             conditioning,
@@ -356,11 +355,15 @@ class DDIMSampler(object):
             alphas_next = self.ddim_alphas[:num_steps]
             alphas = self.ddim_alphas_prev[:num_steps]
 
+        timesteps = np.arange(self.ddpm_num_timesteps) if use_original_steps else self.ddim_timesteps
+        timesteps = timesteps[:num_steps]
+        iterator = tqdm(timesteps, desc="Encoding image", total=timesteps.shape[0])
+
         x_next = x0
         intermediates = []
         inter_steps = []
-        for i in tqdm(range(num_steps), desc="Encoding Image"):
-            t = ms.numpy.full((x0.shape[0],), i, dtype=ms.int64)
+        for i, step in enumerate(iterator):
+            t = ms.numpy.full((x0.shape[0],), step, dtype=ms.int64)
             if unconditional_guidance_scale == 1.0:
                 noise_pred = self.model.apply_model(x_next, t, c)
             else:
