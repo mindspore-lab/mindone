@@ -232,7 +232,19 @@ sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH $OUTPUT_FOLDER_NAME
 ```
 The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
+Here are some inference results lr=5e-4, bs=2, epoch=4 for after training Fill50k dataset:
 
+![Controlnet Train Validate Result](controlnet_train_validate.png)
+![Alt text](image.png)
+Comparing to the results with ground truth:
+
+![Controlnet Train Validate Ground Truth](controlnet_train_gt.png)
+
+Control:
+![Controlnet Train Control](controlnet_train_control.png)
+
+Prompt:
+![Controlnet Train Prompt](controlnet_train_prompt.png)
 
 ## Reference
 [1] [ControlNet: Adding Conditional Control to Text-to-Image Diffusion Models](https://arxiv.org/pdf/2302.05543.pdf)
