@@ -20,6 +20,7 @@ class TrainOneStepCell(nn.Cell):
         gradient_accumulation_steps=1,
         clip_grad=False,
         clip_norm=1.0,
+        ema=None,
     ):
         super(TrainOneStepCell, self).__init__()
 
@@ -46,6 +47,7 @@ class TrainOneStepCell(nn.Cell):
             gradient_accumulation_steps,
             clip_grad,
             clip_norm,
+            ema,
         )
 
         # first stage model
@@ -145,6 +147,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         grad_accum_steps=1,
         clip_grad=False,
         clip_norm=1.0,
+        ema=None,
     ):
         super(LatentDiffusionWithLossGrad, self).__init__()
         self.grad_fn = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
@@ -155,6 +158,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
 
         self.clip_grad = clip_grad
         self.clip_norm = clip_norm
+        self.ema = ema
 
         self.enable_accum_grad = False
         if grad_accum_steps > 1:
@@ -169,6 +173,8 @@ class LatentDiffusionWithLossGrad(nn.Cell):
             if self.clip_grad:
                 grads = ops.clip_by_global_norm(grads, self.clip_norm)
             loss = F.depend(loss, self.optimizer(grads))
+            if self.ema is not None:
+                self.ema.ema_update()
         else:
             self.accum_step += 1
             loss = F.depend(
@@ -181,6 +187,8 @@ class LatentDiffusionWithLossGrad(nn.Cell):
                 else:
                     loss = F.depend(loss, self.optimizer(self.accumulated_grads))
                 loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
+                if self.ema is not None:
+                    self.ema.ema_update()
             else:
                 # update the learning rate, do not update the parameter
                 loss = F.depend(loss, self.optimizer.get_lr())

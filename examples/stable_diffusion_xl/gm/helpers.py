@@ -24,7 +24,7 @@ from omegaconf import DictConfig, ListConfig
 from PIL import Image
 
 import mindspore as ms
-from mindspore import Tensor, context, nn, ops
+from mindspore import Parameter, Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
 SD_XL_BASE_RATIOS = {
@@ -74,6 +74,14 @@ VERSION2SPECS = {
         "is_legacy": True,
     },
 }
+
+
+_ema_op = ops.MultitypeFuncGraph("grad_ema_op")
+
+
+@_ema_op.register("Tensor", "Tensor", "Tensor")
+def _ema_weights(factor, ema_weight, weight):
+    return ops.assign(ema_weight, ema_weight * factor + weight * (1 - factor))
 
 
 def set_default(args):
@@ -622,3 +630,51 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
+
+
+class EMA(nn.Cell):
+    """
+    Args:
+        updates: number of ema updates, which can be restored from resumed training.
+        offloading: if True, offload the assign computation to CPU to avoid OOM issue.
+    """
+
+    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True, offloading=True):
+        super().__init__()
+        # TODO: net.trainable_params() is more reasonable?
+        if trainable_only:
+            self.net_weight = ms.ParameterTuple(network.trainable_params())
+        else:
+            self.net_weight = ms.ParameterTuple(network.get_parameters())
+        self.ema_weight = self.net_weight.clone(prefix="ema", init="same")
+        self.swap_cache = self.net_weight.clone(prefix="swap", init="zeros")
+
+        self.ema_decay = ema_decay
+        self.updates = Parameter(Tensor(updates, ms.float32), requires_grad=False)
+
+        self.hyper_map = ops.HyperMap()
+        if offloading:
+            self.assign = ops.Assign().add_prim_attr("primitive_target", "CPU")
+        else:
+            self.assign = ops.Assign()
+
+    def ema_update(self):
+        """Update EMA parameters."""
+        self.updates += 1
+        d = self.ema_decay * (1 - ops.exp(-self.updates / 2000))
+        # update trainable parameters
+        success = self.hyper_map(ops.partial(_ema_op, d), self.ema_weight, self.net_weight)
+        self.updates = ops.depend(self.updates, success)
+        return self.updates
+
+    def swap_before_eval(self):
+        # net -> swap
+        success = self.hyper_map(self.assign, self.swap_cache, self.net_weight)
+        # ema -> net
+        success = ops.depend(success, self.hyper_map(self.assign, self.net_weight, self.ema_weight))
+        return success
+
+    def swap_after_eval(self):
+        # swap -> net
+        success = self.hyper_map(self.assign, self.net_weight, self.swap_cache)
+        return success

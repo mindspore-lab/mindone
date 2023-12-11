@@ -6,6 +6,7 @@ from functools import partial
 
 from gm.data.loader import create_loader
 from gm.helpers import (
+    EMA,
     SD_XL_BASE_RATIOS,
     VERSION2SPECS,
     create_model,
@@ -43,6 +44,7 @@ def get_parser_train():
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
+    parser.add_argument("--use_ema", default=False, type=ast.literal_eval, help="whether use ema")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -136,6 +138,11 @@ def train(args):
     else:
         optimizer, reducer = None, None
 
+    if args.use_ema:
+        ema = EMA(model, ema_decay=0.9999)
+    else:
+        ema = None
+
     if args.ms_mode == 1:
         # Pynative Mode
         assert isinstance(model.model, nn.Cell)
@@ -159,6 +166,7 @@ def train(args):
                 gradient_accumulation_steps=args.gradient_accumulation_steps,
                 clip_grad=args.clip_grad,
                 clip_norm=args.max_grad_norm,
+                ema=ema,
             )
         else:
             from gm.models.trainer_factory import TrainerMultiGraphTwoStage
@@ -188,14 +196,14 @@ def train(args):
     # 5. Start Training
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
-        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model)
+        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, ema=ema)
     elif args.task == "img2img":
         raise NotImplementedError
     else:
         raise ValueError(f"Unknown task {args.task}")
 
 
-def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None):  # for print  # for infer/ckpt
+def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, ema=None):  # for print  # for infer/ckpt
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -242,6 +250,9 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
 
         # Save checkpoint
         if (i + 1) % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
+            if ema is not None:
+                # swap ema weight and network weight
+                ema.swap_before_eval()
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{(i + 1)}.ckpt")
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
@@ -256,18 +267,30 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
             else:
                 model.save_checkpoint(save_ckpt_dir)
 
+            if ema is not None:
+                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
+                ema.swap_after_eval()
+
         # Infer during train
         if (i + 1) % args.infer_interval == 0 and args.infer_during_train:
             print(f"Step {i + 1}/{total_step}, infer starting...")
+            if ema is not None:
+                # swap ema weight and network weight
+                ema.swap_before_eval()
             infer_during_train(
                 model=model,
                 prompt="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
                 save_path=os.path.join(args.save_path, "txt2img/", f"step_{i+1}_rank_{args.rank}"),
             )
+            if ema is not None:
+                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
+                ema.swap_after_eval()
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
 
-def train_txt2img_datasink(args, train_step_fn, dataloader, optimizer=None, model=None):  # for print  # for infer/ckpt
+def train_txt2img_datasink(
+    args, train_step_fn, dataloader, optimizer=None, model=None, ema=None
+):  # for print  # for infer/ckpt
     total_step = dataloader.get_dataset_size()
     epochs = total_step // args.sink_size
     assert args.dataset_load_tokenizer
@@ -304,6 +327,9 @@ def train_txt2img_datasink(args, train_step_fn, dataloader, optimizer=None, mode
 
         # Save checkpoint
         if cur_step % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
+            if ema is not None:
+                # swap ema weight and network weight
+                ema.swap_before_eval()
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{cur_step}.ckpt")
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
@@ -318,14 +344,24 @@ def train_txt2img_datasink(args, train_step_fn, dataloader, optimizer=None, mode
             else:
                 model.save_checkpoint(save_ckpt_dir)
 
+            if ema is not None:
+                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
+                ema.swap_after_eval()
+
         # Infer during train
         if cur_step % args.infer_interval == 0 and args.infer_during_train:
             print(f"Step {cur_step}/{total_step}, infer starting...")
+            if ema is not None:
+                # swap ema weight and network weight
+                ema.swap_before_eval()
             infer_during_train(
                 model=model,
                 prompt="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
                 save_path=os.path.join(args.save_path, "txt2img/", f"step_{cur_step}_rank_{args.rank}"),
             )
+            if ema is not None:
+                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
+                ema.swap_after_eval()
             print(f"Step {cur_step}/{total_step}, infer done.", flush=True)
 
 
