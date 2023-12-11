@@ -57,7 +57,7 @@ This repository provides "small" but popularly used diffusion models like SD1.5.
 
 You may click the link in the table to access the running instructions directly.
 
-For model performance, please refer to [benchmark](benchmark.md). 
+For model performance, please refer to [benchmark](benchmark.md).
 
 ## Installation
 

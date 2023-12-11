@@ -25,7 +25,7 @@
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
 > Acceleration: DS: data sink mode, FP16: float16 computation. Flash attention is not used in the test currently.
-> 
+>
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
