@@ -126,8 +126,8 @@ class GeneralConditioner(nn.Cell):
                 raise AttributeError("embedder does not have attribute input_key/input_keys.")
 
             assert isinstance(
-                emb_token, (Tensor, np.ndarray, list, tuple)
-            ), f"tokens must be Tensor, np.ndarray or a sequence, but got {type(emb_token)}"
+                emb_token, (Tensor, np.ndarray, list, tuple, type(None))
+            ), f"tokens must be Tensor, np.ndarray, a sequence or None, but got {type(emb_token)}"
             assert isinstance(
                 emb_length, (np.ndarray, type(None))
             ), f"length must be np.ndarray or None, but got {type(emb_token)}"
@@ -181,7 +181,13 @@ class GeneralConditioner(nn.Cell):
                     if crossattn is None:
                         crossattn = emb
                     else:
-                        crossattn = ops.concat((crossattn, emb), 2)
+                        if crossattn.shape[1] == emb.shape[1]:
+                            crossattn = ops.concat((crossattn, emb), 2)
+                        else:
+                            # for image/text emb fusion
+                            if emb.shape[0] == 1:
+                                emb = ops.tile(emb, (crossattn.shape[0], 1, 1))
+                            crossattn = ops.concat((crossattn, emb), 1)
                 else:  # concat
                     if concat is None:
                         concat = emb
@@ -193,7 +199,7 @@ class GeneralConditioner(nn.Cell):
     def tokenize_embedding(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
         # tokenize
         tokens, _ = self.tokenize(batch)
-        tokens = [Tensor(t) for t in tokens]
+        tokens = [Tensor(t) if t is not None else t for t in tokens]
 
         # embeddings
         vector, crossattn, concat = self.embedding(*tokens, force_zero_embeddings=force_zero_embeddings)
