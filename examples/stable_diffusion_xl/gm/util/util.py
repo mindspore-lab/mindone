@@ -3,6 +3,7 @@ import random
 from inspect import isfunction
 
 import numpy as np
+from packaging import version
 
 import mindspore as ms
 from mindspore import nn
@@ -105,14 +106,23 @@ def auto_mixed_precision(network, amp_level="O0"):
     elif amp_level == "O1":
         return _auto_white_list(network, AMP_WHITE_LIST)
     elif amp_level == "O2":
-        network = _auto_black_list(
-            network,
-            AMP_BLACK_LIST
-            + [
-                nn.GroupNorm,
-            ],
-            ms.float16,
-        )
+        if version.parse(ms.__version__) >= version.parse("2.2"):
+            network = _auto_black_list(
+                network,
+                AMP_BLACK_LIST
+                + [
+                    nn.GroupNorm,
+                ],
+                ms.float16,
+            )
+        else:
+            _auto_black_list(
+                network,
+                AMP_BLACK_LIST
+                + [
+                    nn.GroupNorm,
+                ],
+            )
     elif amp_level == "O3":
         network.to_float(ms.float16)
     else:

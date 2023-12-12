@@ -157,10 +157,10 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         self.clip_norm = clip_norm
 
         self.enable_accum_grad = False
+        self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
         if grad_accum_steps > 1:
             self.enable_accum_grad = True
             self.accum_steps = grad_accum_steps
-            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
             self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
             self.hyper_map = ops.HyperMap()
 
