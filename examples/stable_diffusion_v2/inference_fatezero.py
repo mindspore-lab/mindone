@@ -1,6 +1,5 @@
 """
-Text to video generation: Tune-A-Video
-"""
+python inference_fatezero.py --config configs/v2-interface-fatezero-model.yaml --version 2.0 --video_path videos/jeep.mp4 --ckpt_path sd-500.ckpt --num_frames 8 --output_path output/ --source_prompt a silver jeep driving down a curvy road in the countryside --target_prompt a Porsche car driving down a curvy road in the countryside """
 import argparse
 import logging
 import os
@@ -14,6 +13,8 @@ from omegaconf import OmegaConf
 from PIL import Image
 
 import mindspore as ms
+
+from examples.stable_diffusion_v2.ldm.modules.fatezero import init_controller_config
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
@@ -84,7 +85,7 @@ def read_video_frames(video_path, sample_interval=None, image_size=None, sample_
 
 
 def load_model_from_config(config, controller, ckpt, **kwargs):
-    controller = OmegaConf.create({"controller": controller})
+    controller = OmegaConf.create({"controller": init_controller_config(controller)})
     config.model.params.unet_config.params = OmegaConf.merge(config.model.params.unet_config.params, controller)
     model = instantiate_from_config(config.model)
 

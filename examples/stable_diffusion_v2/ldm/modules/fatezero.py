@@ -24,6 +24,50 @@ except ImportError:
 print("flash attention is unavailable.")
 
 
+def refine_replace(attn_base, attn_replace, ):
+    # replace_attn 1,b/2,-1,-1,77
+    # mapper 1,77 哪个位置上的词需要替换？对
+    # alphas 替换力度
+    alphas = 1
+    mapper = np.ones((1, 77))
+    # 8,8,1024,1,77 -> 1,8,8,1024,77
+    attn_base_replace = attn_base[:, :, :, mapper].permute(3, 0, 1, 2, 4)
+    attn_replace = attn_base_replace * alphas + attn_replace * (1 - alphas)
+    return attn_replace
+
+
+def reweight_replace(attn_base, attn_replace):
+    attn_base = refine_replace(attn_base, attn_replace)
+    # equalizer 文本权重列表，默认1
+    equalizer = np.ones((1, 77))
+    attn_replace = attn_base[None, :, :, :] * equalizer[:, None, None, :]
+    return attn_replace
+    pass
+
+
+def replace_replace(attn_base, attn_replace):
+    'thpw,bwn->bthpn'
+    pass
+
+
+def init_controller_config(controller):
+    CONTROLLER_KEYS = ['num_self_replace', ]
+    c = [False] * len(CONTROLLER_KEYS)
+    for k, v in controller.items():
+        c[CONTROLLER_KEYS.index(k)] = v
+    return tuple(c)
+
+
+def get_controller_num_self_replace(controller):
+    # _logger.info(controller)
+    return [0, 30]
+
+
+# def get_controller_config(controller, key):
+#     CONTROLLER_KEYS = ['num_self_replace', ]
+#     return controller[CONTROLLER_KEYS.index(key)]
+
+
 class GroupNorm(nn.GroupNorm):
     def construct(self, x):
         if len(x.shape) == 5:
@@ -69,6 +113,8 @@ def replace_cross_attention(type='replace'):
 
 class Attention(LdmAttention):
     def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
+        _logger.info(q.shape)
+        _logger.info(k.shape)
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -91,9 +137,13 @@ class Attention(LdmAttention):
 
         if not is_cross_attention:
             # self-attention
-            attn = replace_self_attention(attn, step, controller.num_self_replace)
+            attn = replace_self_attention(attn, step, get_controller_num_self_replace(controller))
+            # attn = replace_self_attention(attn, step, controller.num_self_replace)
         else:
             # cross-attention
+            _logger.info('cross-attention shape')
+            _logger.info(attn.shape)
+
             pass
             # index = attn.shape[0] // 2
             # attn[index:] = attn[:index]
@@ -106,7 +156,7 @@ class Attention(LdmAttention):
 class FlashAttention(LdmFlashAttention):
 
     def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None, is_cross_attention=False,
-                  step=None):
+                  step=None, controller=None):
         # ALiBi, reference to https://arxiv.org/abs/2108.12409
         return super().construct(q, k, v, attention_mask, dropout_mask, alibi_mask)
 
@@ -323,9 +373,9 @@ class BasicTransformerBlock_ST(nn.Cell):
         self.attn_temp.to_out[0].weight = Parameter(ms.Tensor(np.zeros(self.attn_temp.to_out[0].weight.shape), dtype))
         self.norm_temp = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
-    def construct(self, x, context=None, video_length=None, step=None):
-        x = self.attn1(self.norm1(x), video_length=video_length, step=step) + x
-        x = self.attn2(self.norm2(x), context=context, step=step) + x
+    def construct(self, x, context=None, video_length=None, step=None, controller=None):
+        x = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller) + x
+        x = self.attn2(self.norm2(x), context=context, step=step, controller=controller) + x
         x = self.ff(self.norm3(x)) + x
 
         # temporal attention
@@ -333,7 +383,7 @@ class BasicTransformerBlock_ST(nn.Cell):
         bf, hw, c = x.shape
         x = x.reshape((bf // video_length, video_length, hw, c))
         x = x.transpose((0, 2, 1, 3)).reshape(((bf // video_length) * hw, video_length, c))
-        x = self.attn_temp(self.norm_temp(x), step=step) + x
+        x = self.attn_temp(self.norm_temp(x), step=step, controller=controller) + x
         # (b h w) f c -> (b f) (hw) c
         x = x.reshape((bf // video_length, hw, video_length, c))
         x = x.transpose((0, 2, 1, 3)).reshape((bf, hw, c))
@@ -1116,6 +1166,7 @@ class UNetModel3D(nn.Cell):
 
         self.step = Parameter(ms.Tensor(0, ms.float32), requires_grad=False)
         self.controller = controller
+        print('init controller', controller)
 
     @staticmethod
     def is_attention_layer(c):
@@ -1138,7 +1189,6 @@ class UNetModel3D(nn.Cell):
         :return: an [N x C x ...] Tensor of outputs.
         """
         self.step = self.step + 1
-        print('controller:', self.controller)
 
         assert (y is not None) == (
                 self.num_classes is not None
