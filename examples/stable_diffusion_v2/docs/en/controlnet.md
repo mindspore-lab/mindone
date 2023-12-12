@@ -4,7 +4,7 @@
 # Table of Content
 
 1. [Introduction](#introduction)
-2. [Get Started](#get-started)
+2. [Inference](#inference)
 3. [Fine-tuning using ControlNet](#fine-tuning-using-controlnet)
 
 ## Introduction
