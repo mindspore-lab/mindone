@@ -146,7 +146,7 @@ Now only support training based on SD1.5.ControlNet
 ### Environment
 
 - Hardware: 910B
-- MindSpore: 2.2 20231114
+- MindSpore: 2.2 20231124
 
 ### Train a ControlNet from SD1.5
 
