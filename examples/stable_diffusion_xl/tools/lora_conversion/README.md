@@ -1,5 +1,5 @@
 
-# Usgae
+# Usage
 
 ## Convert MS checkpoint to PT
 
