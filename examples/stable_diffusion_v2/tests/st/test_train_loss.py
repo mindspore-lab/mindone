@@ -29,7 +29,7 @@ def create_dataset(n=1):
 
     return data_dir 
 
-@pytest.mark.parametrize("use_lora", [True, False])
+@pytest.mark.parametrize("use_lora", [True, False]) # 'db'
 def test_train_loss(use_lora):
     model_version='sd1.5'
 
@@ -80,7 +80,7 @@ def test_train_loss(use_lora):
 
 
 if __name__ == '__main__':
-    test_train_loss(True)
+    test_train_loss(False)
 
     '''
     result_log = __dir__ + "/../../outputs/train_lora_ovfDropUpdate_ls65536_ema_e200_revertfp32/ckpt/result.log" 
