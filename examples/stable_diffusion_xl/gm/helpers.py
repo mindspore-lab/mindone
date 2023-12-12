@@ -394,6 +394,10 @@ def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0)
                 "rho": rho,
             },
         }
+    elif discretization == "DiffusersDDPMDiscretization":
+        discretization_config = {
+            "target": "gm.modules.diffusionmodules.discretizer.DiffusersDDPMDiscretization",
+        }
     else:
         raise NotImplementedError
 
@@ -523,6 +527,7 @@ def init_sampling(
     assert discretization in [
         "LegacyDDPMDiscretization",
         "EDMDiscretization",
+        "DiffusersDDPMDiscretization",
     ]
 
     steps = min(max(steps, 1), 1000)
