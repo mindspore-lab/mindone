@@ -29,13 +29,11 @@ class SDLite(ModelBase):
         self.vae_decoder = self._init_model(vae_decoder)
         self.denoiser = self._init_model(denoiser)
         self.scheduler_prepare_sampling_loop = self._init_model(scheduler_prepare_sampling_loop)
-
         n_infer_steps = mslite.Tensor()
         n_infer_steps.shape = []
         n_infer_steps.dtype = mslite.DataType.INT32
         n_infer_steps.set_data_from_numpy(np.array(num_inference_steps, np.int32))
         self.num_inference_steps = n_infer_steps
-
         # get input
         self.data_prepare_input = self.data_prepare.get_inputs()
         self.scheduler_preprocess_input = self.scheduler_preprocess.get_inputs()

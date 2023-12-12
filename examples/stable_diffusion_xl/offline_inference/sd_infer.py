@@ -5,6 +5,7 @@ import sys
 import time
 
 import numpy as np
+from gm.helpers import VERSION2SPECS
 from libs.tokenizer import get_tokenizer
 from omegaconf import OmegaConf
 
@@ -54,6 +55,9 @@ def main(args):
 
     # create model
     model_config = OmegaConf.load(f"{args.model}")
+    version = model_config.pop("version", "SDXL-base-1.0")
+    version_dict = VERSION2SPECS.get(version)
+    is_legacy = version_dict["is_legacy"]
     model = load_model_from_config(
         model_config.model,
         ckpt=model_config.model.pretrained_ckpt,
@@ -121,12 +125,13 @@ def main(args):
     if args.task == "text2img":
         sd_infer = SDText2Img(
             model.conditioner,
-            model.model,
-            model.first_stage_model,
+            model.model.to_float(ms.float32),
+            model.first_stage_model.to_float(ms.float32),
             scheduler,
             model.denoiser,
             scale_factor=model.scale_factor,
             num_inference_steps=args.sampling_steps,
+            is_legacy=is_legacy,
         )
     else:
         raise ValueError(f"Not support task: {args.task}")

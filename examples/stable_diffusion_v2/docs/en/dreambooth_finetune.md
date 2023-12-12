@@ -32,31 +32,21 @@ $x$ is the image of your subject ("sks dog"), and $x_{pr}$ is the image from the
 **Notes**:
 - Unlike LoRA, Dreambooth is a method that updates all the weights of the Latent Diffusion model. If needed, the text encoder of the CLIP model can also be updated. We find that finetuning text encoder and the Text-to-Image model yields better performance than finetuning the Text-to-Image model alone.
 
-
-
 **MindONE** supports DreamBooth finetuning and inference for Stable Diffusion models based on MindSpore and Ascend platforms.
 
 For finetuning experiment details, please refer to [Section 2](#2-get-started-for-finetuning).
 
 For inference with existing dreambooth models, please refer to [Section 3](#3-get-started-for-inference).
 
-## 2. Get Started for Finetuning
+## 2. Get Started
 
 
 ### 2.1 Preparation
 
 #### 2.1.1 Dependency
 
-Please make sure the following frameworks are installed.
+Please refer to the [Installation](../../README.md#installation) section.
 
-- mindspore >= 1.9  [[install](https://www.mindspore.cn/install)] (2.0 is recommended for the best performance.)
-- python >= 3.7
-- openmpi 4.0.3 (for distributed training/evaluation)  [[install](https://www.open-mpi.org/software/ompi/v4.0/)]
-
-Install the dependent packages by running:
-```shell
-pip install -r requirements.txt
-```
 
 #### 2.1.2 Pretrained Models
 
@@ -85,11 +75,11 @@ In [Google/DreamBooth](https://github.com/google/dreambooth), there are many ima
   <em> Figure 2. The five images from the subject dog for finetuning. </em>
 </p>
 
-### 2.2 Finetuning
+### 2.2 Fine-tuning
 
-#### 2.2.1 Experiment-Related Variables
+#### 2.2.1 Experiment-Related Arguments
 
-Before starting to run the finetuning program, please modify the following experiment-related variables in the shell or
+Before starting to run the fine-tuning program, please modify the following experiment-related variables in the shell or
 in the config file `train_config_dreambooth_v2.yaml` that may vary for different users:
 
 * `--instance_data_dir=/path/to/data`

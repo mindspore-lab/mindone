@@ -11,39 +11,28 @@ ControlNet controls pretrained large diffusion models to support additional inpu
   <em> Figure 1. Illustration of a ControlNet [<a href="#references">1</a>] </em>
 </p>
 
+## Dependency
+
+Please refer to the [Installation](../../README.md#installation) section.
 
 
-## Get Started
-**MindONE** supports ControlNet generation for Stable Diffusion models based on MindSpore and Ascend platforms.
+## Inference
 
-### Preparation
+### Preparing Pretrained Weights
 
-#### Dependency
-- mindspore >= 2.0  [[install](https://www.mindspore.cn/install)]
-- python >= 3.7
+To perform controllable image generation with existing ControlNet checkpoints, please download one of the following checkpoints and put it in `models` folder:
 
-Install the dependent packages by running:
-```shell
-pip install -r requirements.txt
-```
+| **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
+|--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
+|   SD1.5            |  EN      | [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5_static-6350d204.ckpt)        | [control_sd15_canny.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models) | 512x512        |
+|   SD1.5            |  EN      | [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt) |       [control_sd15_seg.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models)                                    N.A.                                                      | 512x512        |
 
-#### Trained Models
-1. Canny edge maps:
 
-   Please download the trained model [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5_static-6350d204.ckpt)
+### Preparing Control Signals
 
-2. Segmentation edge maps:
+Please prepare the source images that you want to extract the control signals from (e.g. canny edge, segmentation map).
 
-   Please download the trained model [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt)
-
-3. Others:
-
-   Coming soon.
-
-Put them under `stable_diffusion_v2/models` folder.
-
-#### Testing images preparation
-Please prepare the images that you want to add extra conditions. There are some examples:
+Here are two examples:
 
 <div align="center">
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/24953d5f-dc20-45d4-ba45-ea602466eaa7" width="160" height="240" />
@@ -53,16 +42,11 @@ Please prepare the images that you want to add extra conditions. There are some 
   <em> Images prepared to add extra controls </em>
 </p>
 
-Put them in an arbitrary directory on your machine. For example, `path/to/test_imgs`.
+You may download and save them in `test_images/.`.
 
-#### Load controls
-1. Canny edge maps:
-   It is implemented with opencv Canny API directly, you don't need to take more actions.
+- For edge control, the canny edge is extracted using opencv Canny API in the inference script. There is no need to extract it manually.
 
-2. Segmentation edge maps (DeeplabV3Plus):
-   The Segmentation Detector is implemented with [DeeplabV3Plus](https://arxiv.org/abs/1802.02611) [<a href="#references">2</a>]. Please download the pretrained model from [DeeplabV3Plus checkpoint](https://download.mindspore.cn/models/r1.9/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt)
-
-   There is an example of segmentation edge map with an image of bird.
+- For segmentation map control, you can download the follow segmentation map extracted using [DeeplabV3Plus](https://arxiv.org/abs/1802.02611).
 
    <div align="center">
    <img src="https://github.com/Gaohan123/mindone/assets/20148503/dd4769f3-caaf-4dad-80df-5905ab6260d9" width="160" height="240" />
@@ -73,9 +57,10 @@ Put them in an arbitrary directory on your machine. For example, `path/to/test_i
 
    Attention: As the DeeplabV3Plus is trained on VOC dataset, currently it only supports prompts related to the objects: 'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train','tvmonitor'. More is coming soon.
 
-### Parameter Setting
 
-Go to the directory `stable_diffusion_v2/inference` first.
+### Setting Arguments
+
+Before running the inference script, please set up the arguments as follows.
 
 1. Canny edge maps:
 
@@ -104,11 +89,13 @@ Go to the directory `stable_diffusion_v2/inference` first.
    pretrained_ckpt: "stable_diffusion_v2/models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt" # pretrained controlnet model weights with segmentation
    ```
 
-### Image Generation
+### Generating Images with ControlNet
 
-   Go to the directory `stable_diffusion_v2/inference` first. Run the command below to generate images
+After preparing the checkpoints and setting up the arguments, you run ControlNet inference as follows.
 
 ```shell
+cd stable_diffusion_v2/inference
+
 python sd_infer.py \
 --device_target=Ascend \
 --task=controlnet \
@@ -119,8 +106,9 @@ python sd_infer.py \
 --n_samples=4 \
 --controlnet_mode=canny
 ```
+> For segmentation control, please set `--controlnet_mode` with "segmentation".
 
-#### Important arguments in the shell scripts
+Key arguments:
 - `device_target`: Device target, should be in [Ascend, GPU, CPU]. (Default is `Ascend`)
 - `task`: Task name, should be [text2img, img2img, inpaint, controlnet], if choose a task name, use the config/[task].yaml for inputs.
 - `model`: Path to config which constructs model.

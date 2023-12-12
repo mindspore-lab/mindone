@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 
+from gm.helpers import VERSION2SPECS
 from libs.helper import load_model_from_config, set_env
 from libs.logger import set_logger
 from libs.util import instantiate_from_config, str2bool
@@ -42,6 +43,9 @@ def main(args):
     ms.set_context(device_target="CPU")
 
     config = OmegaConf.load(f"{args.model}")
+    version = config.pop("version", "SDXL-base-1.0")
+    version_dict = VERSION2SPECS.get(version)
+    is_legacy = version_dict["is_legacy"]
     # create sampler
     sampler_config = OmegaConf.load(args.sampler)
     scheduler = instantiate_from_config(sampler_config)
@@ -51,7 +55,7 @@ def main(args):
     model_save_path = os.path.join(args.output_path, args.model_save_path)
     os.makedirs(model_save_path, exist_ok=True)
     logger.info(f"model_save_path: {model_save_path}")
-    converter = None
+
     if args.converte_lite:
         import mindspore_lite as mslite
 
@@ -71,7 +75,6 @@ def main(args):
         batch_size = args.n_samples
         clip_tokens = ops.ones((batch_size * 2, 77), ms.int32)
         time_tokens = ops.ones((batch_size * 3, 2), dtype=ms.float16)
-
         output_dim = 1024
         noise = ops.ones((batch_size, 4, args.inputs.H // 8, args.inputs.W // 8), ms.float32)
         ts = ops.ones((), ms.int32)
@@ -95,6 +98,7 @@ def main(args):
         unet = model.model
         unet = unet.to_float(ms.float32)
         vae = model.first_stage_model
+        vae = vae.to_float(ms.float32)
         model_denoiser = model.denoiser
 
         scheduler_prepare_sampling_loop, scheduler_preprocess, denoiser, predict_noise, noisy_sample, vae_decoder = (
@@ -106,7 +110,7 @@ def main(args):
             None,
         )
         if args.task == "text2img":
-            data_prepare = Text2ImgEmbedder(text_encoder, vae, scheduler, model.scale_factor)
+            data_prepare = Text2ImgEmbedder(text_encoder, vae, scheduler, model.scale_factor, is_legacy)
             model_export(
                 net=data_prepare,
                 inputs=(clip_tokens, time_tokens, clip_tokens, time_tokens, noise),
