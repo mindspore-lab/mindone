@@ -9,6 +9,7 @@ from gm.modules.embedders.clip import CLIPTextModel
 # OpenCLIP model
 from gm.modules.embedders.open_clip import create_model as openclip_create_model
 from gm.modules.embedders.open_clip import tokenize as openclip_tokenize
+from gm.modules.embedders.tokenizer.simple_tokenizer import WordpieceTokenizer
 from gm.util import count_params, expand_dims_like, instantiate_from_config
 from omegaconf import ListConfig
 
@@ -222,6 +223,27 @@ class GeneralConditioner(nn.Cell):
             embedder.ucg_rate = rate
         return c, uc
 
+    def pangu_get_unconditional_conditioning(
+        self, batch_c, batch_uc=None, force_uc_zero_embeddings=None, other_batch=None
+    ):
+        if force_uc_zero_embeddings is None:
+            force_uc_zero_embeddings = []
+        ucg_rates = []
+        for embedder in self.embedders:
+            ucg_rates.append(embedder.ucg_rate)
+            embedder.ucg_rate = 0.0
+        c = self.tokenize_embedding(batch_c)
+        uc = self.tokenize_embedding(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
+        other_c = []
+        if other_batch is None:
+            other_batch = []
+        for batch in other_batch:
+            other_c.append(self.tokenize_embedding(batch))
+
+        for embedder, rate in zip(self.embedders, ucg_rates):
+            embedder.ucg_rate = rate
+        return c, uc, other_c
+
 
 class FrozenCLIPEmbedder(AbstractEmbModel):
     """Uses the CLIP transformer encoder for text (from huggingface)"""
@@ -277,6 +299,94 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
     @ms.jit
     def construct(self, tokens):
         (last_hidden_state, pooler_output, hidden_states, attentions) = self.embedding(
+            input_ids=tokens, output_hidden_states=(self.layer == "hidden")
+        )
+
+        if self.layer == "last":
+            z = last_hidden_state
+        elif self.layer == "pooled":
+            z = pooler_output[:, None, :]
+        else:
+            z = hidden_states[self.layer_idx]
+        if self.return_pooled:
+            return z, pooler_output
+        return z
+
+    def embedding(self, input_ids, output_hidden_states):
+        return self.transformer(input_ids=input_ids, output_hidden_states=output_hidden_states)
+
+    def encode(self, text):
+        return self(text)
+
+    def set_recompute(self):
+        self.transformer.text_model.embeddings.recompute()
+        for i in range(len(self.transformer.text_model.encoder.layers)):
+            if i != 7:
+                self.transformer.text_model.encoder.layers[i].recompute()
+        # self.transformer.text_model.final_layer_norm.recompute()
+
+
+class FrozenCnCLIPEmbedder(AbstractEmbModel):
+    """Uses the CLIP transformer encoder for text (from huggingface)"""
+
+    LAYERS = ["last", "pooled", "hidden"]
+
+    def __init__(
+        self,
+        version="configs/clip-vit-large-patch14-minus1",
+        pretrained=None,
+        max_length=77,
+        freeze=True,
+        layer="last",
+        layer_idx=None,
+        always_return_pooled=False,
+    ):  # clip-vit-base-patch32
+        super().__init__()
+        assert layer in self.LAYERS
+        self.tokenizer = WordpieceTokenizer()
+        self.transformer = CLIPTextModel(config_path=version, weight=pretrained)
+
+        if freeze:
+            self.freeze()
+
+        self.layer = layer
+        self.layer_idx = layer_idx
+        self.max_length = max_length
+        self.return_pooled = always_return_pooled
+        if layer == "hidden":
+            assert layer_idx is not None
+            assert 0 <= abs(layer_idx) <= 12
+
+    def freeze(self):
+        self.transformer.set_train(False)
+        self.transformer.set_grad(False)
+
+        for _, p in self.parameters_and_names():
+            p.requires_grad = False
+
+    def tokenize(self, texts):
+        SOT_TEXT = "[CLS]"
+        EOT_TEXT = "[SEP]"
+        CONTEXT_LEN = self.max_length
+
+        if isinstance(texts, str):
+            texts = [texts]
+        sot_token = self.tokenizer.encoder[SOT_TEXT]
+        eot_token = self.tokenizer.encoder[EOT_TEXT]
+        all_tokens = [[sot_token] + self.tokenizer.encode(text) + [eot_token] for text in texts]
+        result = np.zeros((len(all_tokens), CONTEXT_LEN))
+
+        for i, tokens in enumerate(all_tokens):
+            if len(tokens) > CONTEXT_LEN:
+                tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
+            result[i, : len(tokens)] = tokens
+
+        result = np.array(result, dtype=np.int32)
+        return result, None  # inplace for length
+
+    @ms.jit
+    def construct(self, tokens):
+        (last_hidden_state, pooler_output, hidden_states, _) = self.embedding(
             input_ids=tokens, output_hidden_states=(self.layer == "hidden")
         )
 
