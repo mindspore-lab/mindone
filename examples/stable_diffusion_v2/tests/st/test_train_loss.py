@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import subprocess
 import shutil
+import pytest
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 
@@ -28,7 +29,10 @@ def create_dataset(n=1):
 
     return data_dir 
 
-def test_train_loss(model_version='sd1.5'):
+@pytest.mark.parametrize("use_lora", [True, False])
+def test_train_loss(use_lora):
+    model_version='sd1.5'
+
     # 1. create dummpy data
     data_dir = create_dataset(1)
      
@@ -40,8 +44,15 @@ def test_train_loss(model_version='sd1.5'):
     model_config = __dir__ + '/../../configs/v1-train.yaml'
     pretrained_model_path = __dir__ + '/../../models/sd_v1.5-d0ab7146.ckpt' 
 
-    use_lora = False
     output_path = __dir__
+    if use_lora:
+        output_path = output_path + '/lora'
+        unet_initialize_random = False
+    else:
+        output_path = output_path + '/vanilla'
+        unet_initialize_random = True
+
+    os.makedirs(output_path, exist_ok=True)
     
     # export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE" 
@@ -49,8 +60,8 @@ def test_train_loss(model_version='sd1.5'):
     cmd = (
         f"python train_text_to_image.py --data_path={data_dir} --model_config={model_config} "
         f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=512 "
-        f"--epochs=600 --ckpt_save_interval=600 --start_learning_rate=0.00002 --train_batch_size=1 --init_loss_scale=1024 "
-        f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --unet_initialize_random=True "
+        f"--epochs=1000 --ckpt_save_interval=600 --start_learning_rate=0.00001 --train_batch_size=1 --init_loss_scale=65536 "
+        f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True --unet_initialize_random={unet_initialize_random} "
     )
 
     print(f"Running command: \n{cmd}")
@@ -63,13 +74,13 @@ def test_train_loss(model_version='sd1.5'):
     df = pd.read_csv(result_log, sep='\t') #, lineterminator='\r')  
     converge_loss = np.mean(df['loss'][-100:]) 
 
-    expected_loss = 0.2
+    expected_loss = 0.1 if not use_lora else 0.3
     print("converge_loss: ", converge_loss)
     assert converge_loss < expected_loss
 
 
 if __name__ == '__main__':
-    test_train_loss()
+    test_train_loss(True)
 
     '''
     result_log = __dir__ + "/../../outputs/train_lora_ovfDropUpdate_ls65536_ema_e200_revertfp32/ckpt/result.log" 
