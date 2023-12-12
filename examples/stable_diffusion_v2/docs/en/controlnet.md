@@ -232,9 +232,9 @@ sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH $OUTPUT_FOLDER_NAME
 ```
 The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
-Here are some inference results lr=5e-4, bs=2, epoch=4 for after training Fill50k dataset:
+Here are some inference results after training Fill50k dataset (lr=5e-4, bs=2, epoch=4):
 
-![controlnet_train_validate](https://github.com/congw729/mindone/assets/115451386/96014226-027e-4dcf-a87d-1af6ac5e4abe)
+![controlnet_train_validate](https://github.com/congw729/mindone/assets/115451386/62ad40a3-0510-4606-84cb-780c72989b36)
 
 Comparing the results with ground truth:
 ![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/644e436c-4ac9-4b23-81ff-6c0f0dbef9f8)
