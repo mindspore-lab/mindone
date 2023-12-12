@@ -254,7 +254,9 @@ def main(args):
             args.pretrained_model_path, args.custom_text_encoder, latent_diffusion_with_loss
         )
     else:
-        load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random)
+        load_pretrained_model(
+            args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random
+        )
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
