@@ -29,6 +29,7 @@ class FrozenCLIPEmbedder(nn.Cell):
         heads=12,
         epsilon=1e-5,
         use_quick_gelu=False,
+        upcast_attn=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
@@ -46,6 +47,7 @@ class FrozenCLIPEmbedder(nn.Cell):
             epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     def tokenize(self, texts):
@@ -89,6 +91,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
         width=768,
         layers=12,
         heads=12,
+        upcast_attn=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
@@ -106,6 +109,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
             epsilon=1e-5,
             use_quick_gelu=False,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     def encode(self, tokenized_text):
