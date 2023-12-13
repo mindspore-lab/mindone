@@ -3,7 +3,7 @@ model:
     target: gm.models.diffusion.DiffusionEngine
     params:
         scale_factor: 0.13025
-        disable_first_stage_amp: True
+        disable_first_stage_amp: False
 
         denoiser_config:
             target: gm.modules.diffusionmodules.denoiser.DiscreteDenoiser
@@ -104,6 +104,7 @@ model:
                     num_res_blocks: 2
                     attn_resolutions: []
                     dropout: 0.0
+                    decoder_attn_dtype: fp16
                 lossconfig:
                     target: mindspore.nn.Identity
 
