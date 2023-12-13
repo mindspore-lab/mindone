@@ -317,6 +317,9 @@ def get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
         if key == "txt":
             batch["txt"] = np.repeat([value_dict["prompt"]], repeats=np.prod(N)).reshape(N).tolist()
             batch_uc["txt"] = np.repeat([value_dict["negative_prompt"]], repeats=np.prod(N)).reshape(N).tolist()
+        elif key == "clip_img":
+            batch["clip_img"] = value_dict["clip_img"]
+            batch_uc["clip_img"] = None
         elif key == "original_size_as_tuple":
             batch["original_size_as_tuple"] = Tensor(
                 np.tile(

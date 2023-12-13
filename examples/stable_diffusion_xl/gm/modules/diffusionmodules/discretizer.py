@@ -63,6 +63,54 @@ class LegacyDDPMDiscretization(Discretization):
         return np.flip(sigmas, (0,))
 
 
+class DiffusersDDPMDiscretization(Discretization):
+    """Get the sigmas which strictly follows Diffusers's scheduler pipeline"""
+
+    def __init__(
+        self,
+        linear_start=0.00085,
+        linear_end=0.0120,
+        num_timesteps=1000,
+        interpolation_type="linear",
+        timestep_spacing="leading",
+        steps_offset=1,
+    ):
+        super().__init__()
+        self.num_timesteps = num_timesteps
+        self.interpolation_type = interpolation_type
+        self.timestep_spacing = timestep_spacing
+        self.steps_offset = steps_offset
+        betas = make_beta_schedule("linear", num_timesteps, linear_start=linear_start, linear_end=linear_end)
+        alphas = 1.0 - betas
+        alphas_cumprod = np.cumprod(alphas, axis=0)
+        self.sigmas = ((1 - alphas_cumprod) / alphas_cumprod) ** 0.5
+
+    def get_sigmas(self, n):
+        if self.timestep_spacing == "linspace":
+            timesteps = np.linspace(0, self.num_timesteps - 1, n, dtype=np.float32)[::-1]
+        elif self.timestep_spacing == "leading":
+            step_ratio = self.num_timesteps // n
+            timesteps = (np.arange(0, n) * step_ratio).round()[::-1].astype(np.float32)
+            timesteps += self.steps_offset
+        else:
+            raise NotImplementedError(f"Unsupported type `{self.timestep_spacing}`")
+
+        if n < self.num_timesteps:
+            if self.interpolation_type == "linear":
+                sigmas = np.interp(timesteps, np.arange(0, len(self.sigmas)), self.sigmas)
+            elif self.interpolation_type == "log_linear":
+                sigmas = np.linspace(np.log(self.sigmas[-1]), np.log(self.sigmas[0]), n + 1)
+                sigmas = np.exp(sigmas)
+            else:
+                raise NotImplementedError(f"Unsupported type `{self.interpolation_type}`")
+        elif n == self.num_timesteps:
+            sigmas = np.flip(self.sigmas, (0,))
+        else:
+            raise ValueError
+
+        return sigmas
+
+
 class Img2ImgDiscretizationWrapper:
     """
     wraps a discretizer, and prunes the sigmas

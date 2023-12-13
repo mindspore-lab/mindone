@@ -1,34 +1,34 @@
+# almost same with v1-train.yaml
 model:
-  target: ldm.models.diffusion.ddpm.LatentDiffusion
-  version: "1.5"
-  pretrained_ckpt: "models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt" # change it to ckpt corresponding to certain control mode
-  prediction_type: "noise" # Note: set to "v" if trained with v objective
+  base_learning_rate: 1.0e-05
+  target: cldm.cldm.ControlLDM
   params:
     linear_start: 0.00085
     linear_end: 0.0120
     num_timesteps_cond: 1
     log_every_t: 200
     timesteps: 1000
-    first_stage_key: "jpg"
-    cond_stage_key: "txt"
+    first_stage_key: "jpg" # "image" in v1-train.yaml, “jpg" in controlnet
+    cond_stage_key: "txt" # "caption" in v1-train.yaml, "txt" in controlnet
+    control_key: "hint" # actually these three keys are not used due to the pass of list, not dict
     image_size: 64
     channels: 4
-    cond_stage_trainable: False
+    cond_stage_trainable: false
     conditioning_key: crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
     use_ema: False
+    only_mid_control: False
     use_fp16: True
+    sd_locked: True # if unlock, the decoder part of unet would be trained.
 
-    unet_config:
-      target: cldm.cldm.ControlnetUnetModel
+    control_stage_config:
+      target: cldm.cldm.ControlNet
       params:
         image_size: 32 # unused
         in_channels: 4
-        out_channels: 4
+        hint_channels: 3
         model_channels: 320
-        guess_mode: False
-        strength: 1.0
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4, 4 ]
@@ -39,32 +39,31 @@ model:
         use_checkpoint: True
         legacy: False
         use_fp16: True
-        upcast_attn: True
 
-        control_stage_config:
-          target: cldm.cldm.ControlNet
-          params:
-            image_size: 32 # unused
-            in_channels: 4
-            hint_channels: 3
-            model_channels: 320
-            attention_resolutions: [ 4, 2, 1 ]
-            num_res_blocks: 2
-            channel_mult: [ 1, 2, 4, 4 ]
-            num_heads: 8
-            use_spatial_transformer: True
-            transformer_depth: 1
-            context_dim: 768
-            use_checkpoint: True
-            legacy: False
-            use_fp16: True
+    unet_config:
+      target: cldm.cldm.ControlledUnetModel
+      params:
+        image_size: 32 # unused
+        in_channels: 4
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions: [ 4, 2, 1 ]
+        num_res_blocks: 2
+        channel_mult: [ 1, 2, 4, 4 ]
+        num_heads: 8
+        use_spatial_transformer: True
+        transformer_depth: 1
+        context_dim: 768
+        use_checkpoint: True
+        legacy: False
+        use_fp16: True
+        dropout: 0.1 # added from v1-train.yaml
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
       params:
         embed_dim: 4
         monitor: val/rec_loss
-        upcast_sigmoid: True
         ddconfig:
           double_z: true
           z_channels: 4
@@ -79,7 +78,7 @@ model:
           - 4
           num_res_blocks: 2
           attn_resolutions: []
-          dropout: 0.0
+          dropout: 0.0 # not set in v1_train.yaml
         use_fp16: True
 
     cond_stage_config:
@@ -93,5 +92,3 @@ model:
         width: 768
         layers: 12
         heads: 12
-        epsilon: 1e-5
-        use_quick_gelu: True
