@@ -100,7 +100,7 @@ def list_image_files(data_path):
     for file_name in os.listdir(data_path):
         if (not file_name.endswith('.csv')) and (not file_name.endswith('.json')):
             imges_path = os.path.join(data_path, file_name)
-        all_images.append(imges_path)
+            all_images.append(imges_path)
     return all_images
 
 
