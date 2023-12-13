@@ -1,0 +1,63 @@
+base: ../stable_diffusion_xl/configs/inference/sd_xl_base.yaml
+model:
+  params:
+    conditioner_config:
+      params:
+        emb_models:
+          # crossattn cond
+          - is_trainable: False
+            input_key: txt
+            target: gm.modules.embedders.modules.FrozenCLIPEmbedder
+            params:
+              layer: hidden
+              layer_idx: 11
+              version: openai/clip-vit-large-patch14
+          # crossattn and vector cond
+          - is_trainable: False
+            input_key: txt
+            target: gm.modules.embedders.modules.FrozenOpenCLIPEmbedder2
+            params:
+              arch: ViT-bigG-14-Text
+              freeze: True
+              layer: penultimate
+              always_return_pooled: True
+              legacy: False
+              require_pretrained: False
+          # crossattn cond
+          - is_trainable: False
+            input_key: clip_img
+            target: adapter.common.modules.embedders.modules.IPAdapterImageEmbedder
+            params:
+              embed_dim: 1280
+              image_resolution: 224
+              vision_layers: 48
+              vision_width: 1664
+              vision_patch_size: 14
+              vision_head_width: 104
+              unet_cross_attention_dim: 2048
+              num_tokens: 4
+              mlp_ratio: 4.9231
+              use_fp16: True
+          # vector cond
+          - is_trainable: False
+            input_key: original_size_as_tuple
+            target: gm.modules.embedders.modules.ConcatTimestepEmbedderND
+            params:
+              outdim: 256  # multiplied by two
+          # vector cond
+          - is_trainable: False
+            input_key: crop_coords_top_left
+            target: gm.modules.embedders.modules.ConcatTimestepEmbedderND
+            params:
+              outdim: 256  # multiplied by two
+          # vector cond
+          - is_trainable: False
+            input_key: target_size_as_tuple
+            target: gm.modules.embedders.modules.ConcatTimestepEmbedderND
+            params:
+              outdim: 256  # multiplied by two
+
+    network_config:
+      target: adapter.sdxl.modules.diffusionmodules.openaimodel.IPAdatperUNetModel
+      params:
+        ip_scale: 1.0
