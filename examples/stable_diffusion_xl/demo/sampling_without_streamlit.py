@@ -250,7 +250,7 @@ def sample(args):
     if add_pipeline:
         # Init for pipeline
         version2 = "SDXL-refiner-1.0"
-        config2 = args.pipeline_config
+        config2 = OmegaConf.load(args.pipeline_config)
         weight2 = args.pipeline_weight
         stage2strength = args.stage2strength
         print(f"WARNING: Running with {version2} as the second stage model. Make sure to provide (V)RAM :) ")
