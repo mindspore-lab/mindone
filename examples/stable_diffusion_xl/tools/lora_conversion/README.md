@@ -2,6 +2,8 @@
 
 ## 1. Convert MS checkpoint to PT
 
+To convert the fine-tuned LoRA checkpoint, which is ~24MB for rank=4, please run as follows.
+
 ```
 python convert_lora_ms2pt.py {path to ms_ckpt}
 ```
@@ -10,7 +12,7 @@ The converted checkpoint will be saved in the same folder of {path to ms_ckpt}.
 
 ## 2. Run inference in diffusers
 
-Please specify the file path of the converted checkpoint in torch sdxl inference script.
+To use the converted LoRA checkpoint in Torch, please specify the LoRA model path in your torch inference script with the converted one.
 
 For demonstration, we provide an example sdxl lora inference script `diffusers_scripts/infer_lora.py` based on diffusers.
 
