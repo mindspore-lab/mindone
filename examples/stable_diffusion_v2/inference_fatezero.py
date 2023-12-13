@@ -14,8 +14,6 @@ from PIL import Image
 
 import mindspore as ms
 
-from examples.stable_diffusion_v2.ldm.modules.fatezero import init_controller_config
-
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
 from ldm.models.diffusion.ddim import DDIMSampler
@@ -84,10 +82,11 @@ def read_video_frames(video_path, sample_interval=None, image_size=None, sample_
     return video
 
 
-def load_model_from_config(config, controller, ckpt, **kwargs):
-    controller = OmegaConf.create({"controller": init_controller_config(controller)})
-    config.model.params.unet_config.params = OmegaConf.merge(config.model.params.unet_config.params, controller)
-    model = instantiate_from_config(config.model)
+def load_model_from_config(config, ckpt, **kwargs):
+    # controller = OmegaConf.create({"controller": init_controller_config(controller)})
+    config = OmegaConf.to_container(config, resolve=True)
+
+    model = instantiate_from_config(config["model"])
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
         if os.path.exists(ckpt_fp):
@@ -314,11 +313,17 @@ def main(args):
         args.config = os.path.join(work_dir, args.config)
     config = OmegaConf.load(f"{args.config}")
     controller = {
-        "num_self_replace": (10, 20)
+        "num_self_replace": (0, 20),
+        "num_cross_replace": (0, 20),
+        "type": 'replace',
+        "mapper": False
+
     }
+
+    OmegaConf.update(config, 'model.params.unet_config.params.controller', controller)
+
     model = load_model_from_config(
         config,
-        controller,
         ckpt=args.ckpt_path,
     )
 

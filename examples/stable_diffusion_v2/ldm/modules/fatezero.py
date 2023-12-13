@@ -45,27 +45,11 @@ def reweight_replace(attn_base, attn_replace):
     pass
 
 
-def replace_replace(attn_base, attn_replace):
+def replace_replace(attn_base):
+    mapper = ms.Tensor(np.eye(77).reshape(1, 77, 77))
     'thpw,bwn->bthpn'
-    pass
-
-
-def init_controller_config(controller):
-    CONTROLLER_KEYS = ['num_self_replace', ]
-    c = [False] * len(CONTROLLER_KEYS)
-    for k, v in controller.items():
-        c[CONTROLLER_KEYS.index(k)] = v
-    return tuple(c)
-
-
-def get_controller_num_self_replace(controller):
-    # _logger.info(controller)
-    return [0, 30]
-
-
-# def get_controller_config(controller, key):
-#     CONTROLLER_KEYS = ['num_self_replace', ]
-#     return controller[CONTROLLER_KEYS.index(key)]
+    attn = ms.ops.einsum('thpw,bwn->bthpn', attn_base, mapper)
+    return attn
 
 
 class GroupNorm(nn.GroupNorm):
@@ -95,26 +79,31 @@ def split_attention(attn, batch_size=2):
     return attn[:index], attn[:index]
 
 
-def replace_self_attention(attn, step, num_self_replace=(0, 50)):
-    if step is None:
-        print('step is None')
-        return attn
+def replace_self_attention(attn, step, controller):
+    num_self_replace = controller["num_self_replace"]
+    assert step is not None, 'step is None'
     if num_self_replace[0] < step and step < num_self_replace[1]:
         if attn.shape[2] <= 256:
-            base_attn, _ = split_attention(attn)
-            return base_attn.tile((2, 1, 1))
+            attn_base, _ = split_attention(attn)
+            return attn_base.tile((2, 1, 1))
     return attn
 
 
-def replace_cross_attention(type='replace'):
-    if type == 'replace':
-        pass
+def replace_cross_attention(attn, step, controller):
+    num_cross_replace = controller["num_self_replace"]
+    type = controller["type"]
+    if num_cross_replace[0] < step and step < num_cross_replace[1]:
+
+        if type == 'replace':
+            attn_base, _ = split_attention(attn)
+            attn_new = replace_replace(attn_base)
+            return ms.ops.cat([attn_base, attn_new], axis=0)
+            # attn_new.tile((2, 1, 1))
+    return attn
 
 
 class Attention(LdmAttention):
     def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
-        _logger.info(q.shape)
-        _logger.info(k.shape)
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -137,14 +126,16 @@ class Attention(LdmAttention):
 
         if not is_cross_attention:
             # self-attention
-            attn = replace_self_attention(attn, step, get_controller_num_self_replace(controller))
-            # attn = replace_self_attention(attn, step, controller.num_self_replace)
+            # print(controller)
+            if controller:
+                attn = replace_self_attention(attn, step, controller)
+
         else:
             # cross-attention
-            _logger.info('cross-attention shape')
-            _logger.info(attn.shape)
-
-            pass
+            # _logger.info('cross-attention shape')
+            # _logger.info(attn.shape)
+            if controller:
+                attn = replace_cross_attention(attn, step, controller)
             # index = attn.shape[0] // 2
             # attn[index:] = attn[:index]
 
@@ -383,7 +374,7 @@ class BasicTransformerBlock_ST(nn.Cell):
         bf, hw, c = x.shape
         x = x.reshape((bf // video_length, video_length, hw, c))
         x = x.transpose((0, 2, 1, 3)).reshape(((bf // video_length) * hw, video_length, c))
-        x = self.attn_temp(self.norm_temp(x), step=step, controller=controller) + x
+        x = self.attn_temp(self.norm_temp(x), step=step) + x
         # (b h w) f c -> (b f) (hw) c
         x = x.reshape((bf // video_length, hw, video_length, c))
         x = x.transpose((0, 2, 1, 3)).reshape((bf, hw, c))
@@ -1166,7 +1157,6 @@ class UNetModel3D(nn.Cell):
 
         self.step = Parameter(ms.Tensor(0, ms.float32), requires_grad=False)
         self.controller = controller
-        print('init controller', controller)
 
     @staticmethod
     def is_attention_layer(c):
@@ -1189,7 +1179,7 @@ class UNetModel3D(nn.Cell):
         :return: an [N x C x ...] Tensor of outputs.
         """
         self.step = self.step + 1
-
+        # print(self.controller)
         assert (y is not None) == (
                 self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"
