@@ -2,10 +2,10 @@
 import argparse
 import ast
 import os
-import time
 import sys
+import time
 
-sys.path.append('.')
+sys.path.append(".")
 
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
 from gm.util import seed_everything
@@ -40,7 +40,12 @@ def get_parser_sample():
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--init_latent_path", type=str, default=None, help='path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.')
+    parser.add_argument(
+        "--init_latent_path",
+        type=str,
+        default=None,
+        help="path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.",
+    )
     parser.add_argument("--precision_keep_origin_dtype", type=ast.literal_eval, default=False)
     parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
 
@@ -87,20 +92,28 @@ def get_parser_sample():
 
 
 def run_txt2img(
-    args, model, version_dict, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0", save_path='./',
+    args,
+    model,
+    version_dict,
+    is_legacy=False,
+    return_latents=False,
+    filter=None,
+    stage2strength=None,
+    amp_level="O0",
+    save_path="./",
 ):
     assert args.sd_xl_base_ratios in SD_XL_BASE_RATIOS
     W, H = SD_XL_BASE_RATIOS[args.sd_xl_base_ratios]
     C = version_dict["C"]
     F = version_dict["f"]
-    
+
     prompts = []
     if os.path.exists(args.prompt):
         with open(args.prompt, "r") as f:
             prompts = f.read().splitlines()
     else:
         prompts = [args.prompt]
-     
+
     value_dict = {
         "prompt": prompts[0],
         "negative_prompt": args.negative_prompt,
@@ -127,32 +140,32 @@ def run_txt2img(
     outs = []
     n_trials = 2
     for i, prompt in enumerate(prompts):
-        print(f"[{i+1}/{len(prompts)}]: sampling prompt: ",value_dict['prompt'])
-        value_dict['prompt'] = prompt
+        print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
+        value_dict["prompt"] = prompt
         for j in range(n_trials):
-                s_time = time.time()
-                out = model.do_sample(
-                    sampler,
-                    value_dict,
-                    num_samples,
-                    H,
-                    W,
-                    C,
-                    F,
-                    force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-                    return_latents=return_latents,
-                    filter=filter,
-                    amp_level=amp_level,
-                    init_latent_noise=init_latent_noise,
-                )
-                print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+            s_time = time.time()
+            out = model.do_sample(
+                sampler,
+                value_dict,
+                num_samples,
+                H,
+                W,
+                C,
+                F,
+                force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+                return_latents=return_latents,
+                filter=filter,
+                amp_level=amp_level,
+                init_latent_path=args.init_latent_path,
+            )
+            print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
-                out = out if isinstance(out, (tuple, list)) else [out, None]
-                (samples, samples_z) = out
+            out = out if isinstance(out, (tuple, list)) else [out, None]
+            (samples, samples_z) = out
 
-                perform_save_locally(save_path, samples)
+            perform_save_locally(save_path, samples)
 
-                outs.append(out)
+            outs.append(out)
 
     return outs
 
@@ -337,8 +350,8 @@ def sample(args):
         )
     else:
         raise ValueError(f"Unknown task {task}")
-    
-    if task != 'txt2img':
+
+    if task != "txt2img":
         out = out if isinstance(out, (tuple, list)) else [out, None]
         (samples, samples_z) = out
 
@@ -366,7 +379,11 @@ if __name__ == "__main__":
     parser = get_parser_sample()
     args, _ = parser.parse_known_args()
     if args.precision_keep_origin_dtype:
-        ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, ascend_config=dict(precision_mode="must_keep_origin_dtype")) # NOTE: Needed for aligning with diffusers
+        ms.context.set_context(
+            mode=args.ms_mode,
+            device_target=args.device_target,
+            ascend_config=dict(precision_mode="must_keep_origin_dtype"),
+        )  # NOTE: Needed for aligning with diffusers
     else:
         ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
 

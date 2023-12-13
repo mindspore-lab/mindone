@@ -10,7 +10,7 @@ The converted checkpoint will be saved in the same folder of {path to ms_ckpt}.
 
 ## Run inference in diffusers
 
-Please specify the file path of the converted checkpoint in torch sdxl inference script. 
+Please specify the file path of the converted checkpoint in torch sdxl inference script.
 
 For demonstration, we provide an example sdxl lora inference script `diffusers_scripts/infer_lora.py` based on diffusers.
 
@@ -21,11 +21,11 @@ python diffusers_scripts/infer_lora.py --model_path {path to converted ckpt}
 Images will be generated in the folder of "{model_path)-gen-images".
 
 ## Check consistency between PT and MS inference results (optional)
- 
-To check inference consistency quantitatively, you should make sure MS ant PT use the same initial latent noise and text prompt for diffusion sampling. Here are reference instructions to achieve it. 
+
+To check inference consistency quantitatively, you should make sure MS ant PT use the same initial latent noise and text prompt for diffusion sampling. Here are reference instructions to achieve it.
 
 1. Save the initial latent noise used in diffusers
-    In `path/to/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py`,  modify the `prepare_latents` function to save the init noise as numpy as follows. 
+    In `path/to/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py`,  modify the `prepare_latents` function to save the init noise as numpy as follows.
 
     ```python
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None, save_noise=False):
@@ -51,12 +51,12 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
         return latents
     ```
 
-	The initial latent noise will be saved in /tmp/sdxl_init_latents.npy 
+	The initial latent noise will be saved in /tmp/sdxl_init_latents.npy
 
 2. Use the same latent noise in MS inference
 
-    Please set `init_latent_path` and `prompt` in MS inference script referring the following script. 
-    
+    Please set `init_latent_path` and `prompt` in MS inference script referring the following script.
+
     ```shell
     base_ckpt_path='models/sd_xl_base_1.0_ms.ckpt'
     ckpt_path="lora_ft_pokemon/SDXL-base-1.0_40000_lora.ckpt"
@@ -74,4 +74,4 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
       --precision_keep_origin_dtype True \
     ```
 
-    Note that if you use diffusers for comparison, you should set discretization and precision mode as above to minimize the computational difference. 
+    Note that if you use diffusers for comparison, you should set discretization and precision mode as above to minimize the computational difference.
