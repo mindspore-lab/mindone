@@ -106,7 +106,7 @@ def test_db():
         f"--output_path  {output_path} "
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
-        f"--epochs=4  --num_class_images=200 --clip_grad=True --start_learning_rate=1e-5 " # 800 steps
+        f"--epochs=4 --ckpt_save_interval=4 --num_class_images=200 --clip_grad=True --start_learning_rate=1e-5 --dataset_sink_mode=True " # 800 steps
     )
 
     print(f"Running command: \n{cmd}")

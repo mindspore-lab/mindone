@@ -510,7 +510,7 @@ def main(args):
         logger.info("Start training...")
 
     # train
-    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch)
+    model.train(args.epochs, train_dataloader, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch)
 
 
 if __name__ == "__main__":
