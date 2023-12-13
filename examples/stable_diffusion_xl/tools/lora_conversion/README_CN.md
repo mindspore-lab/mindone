@@ -85,7 +85,7 @@ python diffusers_scripts/infer_lora.py --model_path {path to converted lora ckpt
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/0ef7b3e2-0582-4856-bff5-51b95b9503ee" width="30%" />
 </div>
 <p align="center">
-  <em> MindSpore generation results using the LoRA checkpoint fine-tuned on Pokemon dataset </em>
+  <em> MindSpore生成结果（在Pokemon数据集微调后推理） </em>
 </p>
 
 <div align="center">
@@ -94,7 +94,7 @@ python diffusers_scripts/infer_lora.py --model_path {path to converted lora ckpt
 <img src="https://github.com/SamitHuang/mindone/assets/8156835/02654e25-ed6b-41dd-830a-bd2b63d04d84" width="30%" />
 </div>
 <p align="center">
-  <em> Torch(diffusers) generation results using the same LoRA checkpoint </em>
+  <em> Torch(diffusers)生成结果(使用相同权重，转换后推理) </em>
 </p>
 
 从生成的图像中可以看出，MS 和 PT 生成的图像高度一致。通过定量分析，MS 和 PT 生成的图像之间的平均绝对像素误差小于5。
