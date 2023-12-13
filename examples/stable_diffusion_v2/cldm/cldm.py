@@ -14,7 +14,6 @@
 # ============================================================================
 import logging
 
-from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.ddpm import LatentDiffusion
 from ldm.modules.attention import SpatialTransformer
 from ldm.modules.diffusionmodules.openaimodel import AttentionBlock, Downsample, ResBlock, UNetModel
@@ -24,60 +23,46 @@ from ldm.util import exists, instantiate_from_config
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
+from mindspore import Tensor
+from mindspore import dtype as mstype
+from mindspore import numpy as msnp
 
 _logger = logging.getLogger(__name__)
 
 
-class ControlledUnetModel(UNetModel):
-    def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
-        hs = []
-
-        # self.set_train(False)
-
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-        emb = self.time_embed(t_emb)
-        h = x
-        for celllist in self.input_blocks:
-            for cell in celllist:
-                h = cell(h, emb, context)
-            hs.append(h)
-        for module in self.middle_block:
-            h = module(h, emb, context)
-
-        # TODO: only upper part was in do not need update gradients, not sure if set_train(True) needed here
-        if control is not None:
-            h += control.pop()
-
-        for celllist in self.output_blocks:
-            if only_mid_control or control is None:
-                h = self.cat((h, hs.pop()))
-            else:
-                h = self.cat([h, hs.pop() + control.pop()])
-
-            for cell in celllist:
-                h = cell(h, emb, context)
-
-        return self.out(h)
-
-
 class ControlnetUnetModel(UNetModel):
-    def __init__(self, control_stage_config, guess_mode=False, strength=1.0, *args, **kwargs):
+    def __init__(self, control_stage_config, guess_mode=False, strength=1.0, sd_locked=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if sd_locked:
+            for param in self.get_parameters():
+                param.requires_grad = False
+
+        # add controlnet init
         self.controlnet = instantiate_from_config(control_stage_config)
         self.control_scales = (
             [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
         )
 
-    def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
-        hs = []
+        for param in self.controlnet.get_parameters():
+            logging.debug(f"Controlnet param trainable: {param.requires_grad} ")
 
+    def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
+        """
+        x: latent image in shape [bs, z, H//4, W//4]
+        timesteps: in shape [bs]
+        context: text embedding [bs, seq_len, f] f=768 for sd1.5, 1024 for sd 2.x
+        control: control signal [bs, 3, H, W]
+        """
+
+        hs = []
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
         emb_c = self.controlnet.time_embed(t_emb)
 
         if control is not None:
             guided_hint = control
+            # hint: [bs 3 H W] -> [bs Z H//4 W//4]
             for cell in self.controlnet.input_hint_block:
                 guided_hint = cell(guided_hint)
         else:
@@ -94,6 +79,7 @@ class ControlnetUnetModel(UNetModel):
             if control is not None:
                 for cell in c_celllist:
                     h_c = cell(h_c, emb_c, context)
+                # add encoded hint with latent image encoded projected with conv2d
                 if guided_hint is not None:
                     h_c += guided_hint
                     guided_hint = None
@@ -164,9 +150,12 @@ class ControlNet(nn.Cell):
         enable_flash_attention=False,
         cross_frame_attention=False,
         unet_chunk_size=2,
+        upcast_attn=False,
+        upcast_sigmoid=False,
     ):
         super().__init__()
 
+        logging.info(f"INFO: flash attention: {enable_flash_attention}")
         if use_spatial_transformer:
             assert (
                 context_dim is not None
@@ -227,6 +216,7 @@ class ControlNet(nn.Cell):
 
         self.zero_convs = nn.CellList([self.make_zero_conv(model_channels)])
 
+        # TODO: use SiLU fp32
         self.input_hint_block = nn.CellList(
             [
                 conv_nd(dims, hint_channels, 16, 3, padding=1, has_bias=True, pad_mode="pad").to_float(self.dtype),
@@ -267,6 +257,7 @@ class ControlNet(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             dtype=self.dtype,
+                            upcast_sigmoid=upcast_sigmoid,
                         )
                     ]
                 )
@@ -324,6 +315,7 @@ class ControlNet(nn.Cell):
                                 use_scale_shift_norm=use_scale_shift_norm,
                                 down=True,
                                 dtype=self.dtype,
+                                upcast_sigmoid=upcast_sigmoid,
                             )
                             if resblock_updown
                             else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
@@ -360,6 +352,7 @@ class ControlNet(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    upcast_sigmoid=upcast_sigmoid,
                 ),
                 AttentionBlock(
                     ch,
@@ -391,6 +384,7 @@ class ControlNet(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    upcast_sigmoid=upcast_sigmoid,
                 ),
             ]
         )
@@ -428,53 +422,64 @@ class ControlNet(nn.Cell):
 
 
 class ControlLDM(LatentDiffusion):
-    def __init__(self, control_stage_config, control_key, only_mid_control, *args, **kwargs):
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
-        self.control_model = instantiate_from_config(control_stage_config)
-        self.control_key = control_key
-        self.only_mid_control = only_mid_control
-        self.control_scales = [1.0] * 13
 
-    def get_input(self, batch, k, bs=None, *args, **kwargs):
-        self.set_train(False)
-        x, c = super().get_input(batch, self.first_stage_key, *args, **kwargs)
-        control = batch[self.control_key]
-        if bs is not None:
-            control = control[:bs]
-        control = ops.transpose(control, (0, 3, 1, 2))  # 'b h w c -> b c h w'
-        control.to_float(self.dtype)
-        return x, dict(c_crossattn=[c], c_concat=[control])
+        # self.unet_with_control = self.model.diffusion_model
 
-    def apply_model(self, x_noisy, t, cond, *args, **kwargs):
-        diffusion_model = self.model.diffusion_model
-        cond_txt = ops.concat(cond["c_crossattn"], 1)
-        if isinstance(cond, list) or (isinstance(cond, dict) and cond["c_concat"] is None):
-            eps = diffusion_model(
-                x=x_noisy, timesteps=t, context=cond_txt, control=None, only_mid_control=self.only_mid_control
-            )
+    def construct(self, x, c, control=None):
+        """
+        Diffusion forward and compute loss
+        args:
+            x: preprocessed gt image, (bs H W 3)
+            c: text condition
+            control: normlaized control image, e.g. canny, (bs H W 3)
+
+        return:
+            loss
+        """
+
+        t = self.uniform_int(
+            (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
+        )
+        latent_image, c = self.get_input(x, c)
+        text_emb = self.get_learned_conditioning_fortrain(c)
+
+        if control is not None:
+            control = ops.transpose(control, (0, 3, 1, 2))
+
+        return self.p_losses(latent_image, text_emb, t, control=control)
+
+    def p_losses(self, latent_image, text_emb, t, control=None, **kwargs):
+        noise = msnp.randn(latent_image.shape)
+        latent_image_noisy = self.q_sample(x_start=latent_image, t=t, noise=noise)
+
+        model_output = self.model.diffusion_model(
+            x=latent_image_noisy,
+            timesteps=t,
+            context=text_emb,
+            control=control,
+            only_mid_control=False,
+            **kwargs,
+        )
+
+        if self.parameterization == "x0":
+            target = latent_image
+        elif self.parameterization == "eps":
+            target = noise
+        elif self.parameterization == "velocity":
+            target = self.get_velocity(latent_image, noise, t)  # TODO: parse train step from randint
         else:
-            control = self.control_model(x=x_noisy, hint=ops.concat(cond["c_concat"], 1), timesteps=t, context=cond_txt)
-            control = [c * scale for c, scale in zip(control, self.control_scales)]
-            eps = diffusion_model(
-                x=x_noisy, timesteps=t, context=cond_txt, control=control, only_mid_control=self.only_mid_control
-            )
-        return eps
+            raise NotImplementedError()
 
-    def get_unconditional_conditioning(self, N):
-        return self.get_learned_conditioning([""] * N)
+        loss_simple = self.get_loss(model_output, target, mean=False).mean([1, 2, 3])
 
-    def sample_log(self, cond, batch_size, ddim, ddim_steps, **kwargs):
-        ddim_sampler = DDIMSampler(self)
-        b, c, h, w = cond["c_concat"][0].shape
-        shape = (self.channels, h // 8, w // 8)
-        samples, intermediates = ddim_sampler.sample(ddim_steps, batch_size, shape, cond, verbose=False, **kwargs)
-        return samples, intermediates
+        logvar_t = self.logvar[t]
+        loss = loss_simple / ops.exp(logvar_t) + logvar_t
+        loss = self.l_simple_weight * loss.mean()
 
-    def configure_optimizers(self):
-        lr = self.learning_rate
-        params = list(self.control_model.trainable_params())
-        if not self.sd_locked:
-            params += list(self.model.diffusion_model.output_blocks.get_parameters())
-            params += list(self.model.diffusion_model.out.get_parameters())
-        opt = nn.optim.adam.AdamWeightDecay(params, learning_rate=lr)
-        return opt
+        return loss
