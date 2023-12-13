@@ -5,11 +5,10 @@
 为了将MindSpore LoRA微调的权重转换成Torch推理可用的权重，可运行如下脚本。
 
 ```
-python convert_lora_ms2pt.py {path to ms_ckpt}
+python convert_lora_ms2pt.py --ms_ckpt {path to mindspore lora ckpt}
 ```
 
-转换后的 checkpoint 将保存在与 {path to ms_ckpt} 相同的文件夹中。转换后的权重只有LoRA的参数，因此很小，
-在rank=4的情况下，约占24MB。
+转换后的 checkpoint 默认保存路径为"{ms_ckpt}_pt.ckpt"。转换后的权重只有LoRA的参数，因此很小，在rank=4的情况下，约占24MB。
 
 ## 2. 加载权重推理
 
@@ -17,7 +16,7 @@ python convert_lora_ms2pt.py {path to ms_ckpt}
 作为示例，我们提供了一个基于 diffusers实现的sdxl lora推理脚本`diffusers_scripts/infer_lora.py`，在该脚本中对加载MS转Torch后的LoRA权重，运行命令如下。
 
 ```
-python diffusers_scripts/infer_lora.py --model_path {path to converted ckpt}
+python diffusers_scripts/infer_lora.py --model_path {path to converted lora ckpt} --prompt {prompt}
 ```
 
 生成的图像将保存在文件夹 "{model_path)-gen-images" 中。

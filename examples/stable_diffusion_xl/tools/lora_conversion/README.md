@@ -5,19 +5,19 @@
 To convert the fine-tuned LoRA checkpoint, which is ~24MB for rank=4, please run as follows.
 
 ```
-python convert_lora_ms2pt.py {path to ms_ckpt}
+python convert_lora_ms2pt.py --ms_ckpt {path to mindspore lora ckpt}
 ```
 
-The converted checkpoint will be saved in the same folder of {path to ms_ckpt}.
+The converted checkpoint will be saved in "{ms_ckpt}_pt.ckpt".
 
 ## 2. Run inference in diffusers
 
-To use the converted LoRA checkpoint in Torch, please specify the LoRA model path in your torch inference script with the converted one.
+For Torch inference, you can load the converted LoRA checkpoint in your inference code without further adjustment.
 
 For demonstration, we provide an example sdxl lora inference script `diffusers_scripts/infer_lora.py` based on diffusers.
 
 ```
-python diffusers_scripts/infer_lora.py --model_path {path to converted ckpt}
+python diffusers_scripts/infer_lora.py --model_path {path to converted lora ckpt} --prompt {prompt}
 ```
 
 Images will be generated in the folder of "{model_path)-gen-images".
