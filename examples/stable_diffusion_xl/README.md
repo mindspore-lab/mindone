@@ -12,6 +12,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 - [x] (⚠️experimental) Finetune: [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: Vanilla fine-tune with SDXL-1.0-Base.
+- [x] LoRA model conversion for Torch inference, refer to [tutorial](tools/lora_conversion/README_CN.md)
 - [x] Memory Efficient Sampling and Tuning: [Flash-Attention](https://arxiv.org/abs/2205.14135), Auto-Mix-Precision, Recompute, etc. (under continuous update)
 
 ## Documentation
