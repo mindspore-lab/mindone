@@ -376,13 +376,12 @@ def sample(args):
 if __name__ == "__main__":
     parser = get_parser_sample()
     args, _ = parser.parse_known_args()
+
+    ms.context.set_context(
+        mode=args.ms_mode,
+        device_target=args.device_target,
+        )
     if args.precision_keep_origin_dtype:
-        ms.context.set_context(
-            mode=args.ms_mode,
-            device_target=args.device_target,
-            ascend_config=dict(precision_mode="must_keep_origin_dtype"),
-        )  # NOTE: Needed for aligning with diffusers
-    else:
-        ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
+        ms.context.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
 
     sample(args)
