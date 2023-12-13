@@ -1,4 +1,4 @@
-# Apply LoRA Checkpoints trained with MindSpore to Torch Inference
+# Use MindSpore LoRA Checkpoints for Torch Inference
 
 ## Convert MS checkpoint to PT
 
@@ -75,3 +75,33 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
     ```
 
     Note that if you use diffusers for comparison, you should set discretization and precision mode as above to minimize the computational difference.
+
+## Results
+
+Here are some generation results for comparison between MS and PT LoRA inference, where the LoRA checkpoint is derived by fine-tuning on the Pokemon dataset using MindONE.
+
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/3b664498-f82d-49a9-ad06-876647579d15" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/e761ba93-bf97-4bc3-a6d1-4caccdd1614d" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/0ef7b3e2-0582-4856-bff5-51b95b9503ee" width="30%" />
+</div>
+<p align="center">
+  <em> MindSpore generation results using the LoRA checkpoint fine-tuned on Pokemon dataset </em>
+</p>
+
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/040c455b-21bd-4bf0-8818-d7378e55d67c" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/c72272e7-9757-4667-ae9d-7e1115ddc56d" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/02654e25-ed6b-41dd-830a-bd2b63d04d84" width="30%" />
+</div>
+<p align="center">
+  <em> Torch(diffusers) generation results using the same LoRA checkpoint </em>
+</p>
+
+The generated images for MS and PT are highly consistent as we can see. Quantitatively, the average absolute pixel error between MS and PT-generated images is below 5.
+
+
+
+
+
+
