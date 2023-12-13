@@ -86,19 +86,20 @@ def test_db():
     model_version = "sd1.5"
 
     # 1. create dummpy data
-    data_dir = create_dataset(1)
+    # data_dir = create_dataset(1)
+    data_dir = __dir__ + '/../../datasets/dog' 
     seed = 42
     
     train_config = __dir__ + "/config/train_config_dreambooth_v1.yaml"
     pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
-    instance_prompt = "a photo of sks sunflow"
-    class_prompt = "a photo of a sunflow"
-    class_data_dir = "temp_class_images/sunflow" 
+    # instance_prompt = "a photo of sks sunflow"
+    # class_prompt = "a photo of a sunflow"
+    class_data_dir = "temp_class_images/dog" 
 
     output_path = __dir__ + "/db"
     os.makedirs(output_path, exist_ok=True)
     
-    epochs = 20
+    epochs = 4
     cmd = (
         f"python train_dreambooth.py "
         f"--train_config {train_config} "
@@ -107,7 +108,7 @@ def test_db():
         f"--output_path  {output_path} "
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
-        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 --clip_grad=True --start_learning_rate=5e-6 --dataset_sink_mode=True " # 800 steps
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 --dataset_sink_mode=True " # 800 steps
     )
 
     print(f"Running command: \n{cmd}")
@@ -126,13 +127,3 @@ def test_db():
 if __name__ == '__main__':
     #test_vanilla_lora(False)
     test_db()
-
-    """
-    result_log = __dir__ + "/../../outputs/train_lora_ovfDropUpdate_ls65536_ema_e200_revertfp32/ckpt/result.log"
-    df = pd.read_csv(result_log, sep='\t') #, lineterminator='\r')
-    end_loss = df['loss'][-100:]
-    converge_loss = np.mean(end_loss)
-    expected_loss = 0.05
-    print("converge_loss: ", converge_loss)
-    assert converge_loss < expected_loss
-    """
