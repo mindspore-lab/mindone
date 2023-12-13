@@ -138,34 +138,32 @@ def run_txt2img(
 
     print("Txt2Img Sampling")
     outs = []
-    n_trials = 2
     for i, prompt in enumerate(prompts):
         print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
         value_dict["prompt"] = prompt
-        for j in range(n_trials):
-            s_time = time.time()
-            out = model.do_sample(
-                sampler,
-                value_dict,
-                num_samples,
-                H,
-                W,
-                C,
-                F,
-                force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-                return_latents=return_latents,
-                filter=filter,
-                amp_level=amp_level,
-                init_latent_path=args.init_latent_path,
-            )
-            print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+        s_time = time.time()
+        out = model.do_sample(
+            sampler,
+            value_dict,
+            num_samples,
+            H,
+            W,
+            C,
+            F,
+            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+            return_latents=return_latents,
+            filter=filter,
+            amp_level=amp_level,
+            init_latent_path=args.init_latent_path,
+        )
+        print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
-            out = out if isinstance(out, (tuple, list)) else [out, None]
-            (samples, samples_z) = out
+        out = out if isinstance(out, (tuple, list)) else [out, None]
+        (samples, samples_z) = out
 
-            perform_save_locally(save_path, samples)
+        perform_save_locally(save_path, samples)
 
-            outs.append(out)
+        outs.append(out)
 
     return outs
 
