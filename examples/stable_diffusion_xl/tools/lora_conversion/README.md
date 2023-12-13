@@ -57,7 +57,7 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
 
 - Use the same latent noise in MS inference
 
-    Please set `init_latent_path` and `prompt` in MS inference script referring the following script.
+    Please set `init_latent_path` and `prompt` in MS inference script referring to the following script.
 
     ```shell
     base_ckpt_path='models/sd_xl_base_1.0_ms.ckpt'
