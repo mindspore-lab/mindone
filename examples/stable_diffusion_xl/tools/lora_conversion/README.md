@@ -1,6 +1,8 @@
-# Apply LoRA Checkpoints trained with MindSpore to Torch Inference
+# Use MindSpore LoRA Checkpoints for Torch Inference
 
-## Convert MS checkpoint to PT
+## 1. Convert MS checkpoint to PT
+
+To convert the fine-tuned LoRA checkpoint, which is ~24MB for rank=4, please run as follows.
 
 ```
 python convert_lora_ms2pt.py {path to ms_ckpt}
@@ -8,9 +10,9 @@ python convert_lora_ms2pt.py {path to ms_ckpt}
 
 The converted checkpoint will be saved in the same folder of {path to ms_ckpt}.
 
-## Run inference in diffusers
+## 2. Run inference in diffusers
 
-Please specify the file path of the converted checkpoint in torch sdxl inference script.
+To use the converted LoRA checkpoint in Torch, please specify the LoRA model path in your torch inference script with the converted one.
 
 For demonstration, we provide an example sdxl lora inference script `diffusers_scripts/infer_lora.py` based on diffusers.
 
@@ -20,11 +22,11 @@ python diffusers_scripts/infer_lora.py --model_path {path to converted ckpt}
 
 Images will be generated in the folder of "{model_path)-gen-images".
 
-## Check consistency between PT and MS inference results (optional)
+## 3. Check consistency between PT and MS inference results (optional)
 
 To check inference consistency quantitatively, you should make sure MS ant PT use the same initial latent noise and text prompt for diffusion sampling. Here are reference instructions to achieve it.
 
-1. Save the initial latent noise used in diffusers
+- Save the initial latent noise used in diffusers
     In `path/to/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py`,  modify the `prepare_latents` function to save the init noise as numpy as follows.
 
     ```python
@@ -53,7 +55,7 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
 
 	The initial latent noise will be saved in /tmp/sdxl_init_latents.npy
 
-2. Use the same latent noise in MS inference
+- Use the same latent noise in MS inference
 
     Please set `init_latent_path` and `prompt` in MS inference script referring the following script.
 
@@ -76,6 +78,26 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
 
     Note that if you use diffusers for comparison, you should set discretization and precision mode as above to minimize the computational difference.
 
-### Example Results
+## Results
 
+Here are some generation results for comparison between MS and PT LoRA inference, where the LoRA checkpoint is derived by fine-tuning on the Pokemon dataset using MindONE.
 
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/3b664498-f82d-49a9-ad06-876647579d15" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/e761ba93-bf97-4bc3-a6d1-4caccdd1614d" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/0ef7b3e2-0582-4856-bff5-51b95b9503ee" width="30%" />
+</div>
+<p align="center">
+  <em> MindSpore generation results using the LoRA checkpoint fine-tuned on Pokemon dataset </em>
+</p>
+
+<div align="center">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/040c455b-21bd-4bf0-8818-d7378e55d67c" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/c72272e7-9757-4667-ae9d-7e1115ddc56d" width="30%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/02654e25-ed6b-41dd-830a-bd2b63d04d84" width="30%" />
+</div>
+<p align="center">
+  <em> Torch(diffusers) generation results using the same LoRA checkpoint </em>
+</p>
+
+The generated images for MS and PT are highly consistent as we can see. Quantitatively, the average absolute pixel error between MS and PT-generated images is below 5.
