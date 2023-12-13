@@ -95,9 +95,10 @@ def test_db():
     class_prompt = "a photo of a sunflow"
     class_data_dir = "temp_class_images/sunflow" 
 
-    output_path = __dir__ + "db"
+    output_path = __dir__ + "/db"
     os.makedirs(output_path, exist_ok=True)
-
+    
+    epochs = 20
     cmd = (
         f"python train_dreambooth.py "
         f"--train_config {train_config} "
@@ -106,7 +107,7 @@ def test_db():
         f"--output_path  {output_path} "
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
-        f"--epochs=4 --ckpt_save_interval=4 --num_class_images=200 --clip_grad=True --start_learning_rate=1e-5 --dataset_sink_mode=True " # 800 steps
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 --clip_grad=True --start_learning_rate=5e-6 --dataset_sink_mode=True " # 800 steps
     )
 
     print(f"Running command: \n{cmd}")
@@ -114,7 +115,7 @@ def test_db():
     assert ret == 0, "Training fails"
 
     # check ending loss
-    result_log = os.path.join(output_path, "ckpt/rank_0/result.log")
+    result_log = os.path.join(output_path, "/ckpt/rank_0/result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
     converge_loss = np.mean(df["loss"][-20:])
 
