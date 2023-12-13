@@ -10,6 +10,7 @@ from gm.util import count_params, expand_dims_like, instantiate_from_config
 from omegaconf import ListConfig
 from transformers import CLIPTokenizer
 
+import mindspore as ms
 from mindspore import Tensor, nn, ops
 
 

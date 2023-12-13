@@ -1,7 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
 from abc import abstractmethod
 from functools import partial
-from typing import Iterable
 
 from gm.modules.attention import SpatialTransformer
 from gm.modules.diffusionmodules.util import (
@@ -1448,7 +1447,7 @@ class UNetModelStage2(nn.Cell):
 
         self.out = nn.SequentialCell(
             [
-                normalization(ch),
+                Normalization(ch),
                 nn.SiLU(),
                 zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, pad_mode="pad")),
             ]
@@ -1456,7 +1455,7 @@ class UNetModelStage2(nn.Cell):
         if self.predict_codebook_ids:
             self.id_predictor = nn.SequentialCell(
                 [
-                    normalization(ch),
+                    Normalization(ch),
                     conv_nd(dims, model_channels, n_embed, 1),
                     # nn.LogSoftmax(axis=1)  # change to cross_entropy and produce non-normalized logits
                 ]
