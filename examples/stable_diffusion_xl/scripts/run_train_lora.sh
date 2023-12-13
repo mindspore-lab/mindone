@@ -1,8 +1,4 @@
 export DEVICE_ID=$1
-export MS_PYNATIVE_GE=1
-# export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
-# export MS_ASCEND_CHECK_OVERFLOW_MODE=1 # "INFNAN_MODE"
-export PYTHONPATH=$(pwd):$PYTHONPATH
 
 #data_path=datasets/chinese_art_blip/train
 data_path=datasets/pokemon_blip/train
