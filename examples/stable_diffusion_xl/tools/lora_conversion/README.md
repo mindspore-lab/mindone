@@ -1,6 +1,6 @@
 # Use MindSpore LoRA Checkpoints for Torch Inference
 
-## Convert MS checkpoint to PT
+## 1. Convert MS checkpoint to PT
 
 ```
 python convert_lora_ms2pt.py {path to ms_ckpt}
@@ -8,7 +8,7 @@ python convert_lora_ms2pt.py {path to ms_ckpt}
 
 The converted checkpoint will be saved in the same folder of {path to ms_ckpt}.
 
-## Run inference in diffusers
+## 2. Run inference in diffusers
 
 Please specify the file path of the converted checkpoint in torch sdxl inference script.
 
@@ -20,11 +20,11 @@ python diffusers_scripts/infer_lora.py --model_path {path to converted ckpt}
 
 Images will be generated in the folder of "{model_path)-gen-images".
 
-## Check consistency between PT and MS inference results (optional)
+## 3. Check consistency between PT and MS inference results (optional)
 
 To check inference consistency quantitatively, you should make sure MS ant PT use the same initial latent noise and text prompt for diffusion sampling. Here are reference instructions to achieve it.
 
-1. Save the initial latent noise used in diffusers
+- Save the initial latent noise used in diffusers
     In `path/to/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py`,  modify the `prepare_latents` function to save the init noise as numpy as follows.
 
     ```python
@@ -53,7 +53,7 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
 
 	The initial latent noise will be saved in /tmp/sdxl_init_latents.npy
 
-2. Use the same latent noise in MS inference
+- Use the same latent noise in MS inference
 
     Please set `init_latent_path` and `prompt` in MS inference script referring the following script.
 
