@@ -40,6 +40,8 @@ def get_parser_sample():
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--init_latent_path", type=str, default=None, help='path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.')
+    parser.add_argument("--precision_keep_origin_dtype", type=ast.literal_eval, default=False)
     parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
 
     # for img2img
@@ -141,6 +143,7 @@ def run_txt2img(
                     return_latents=return_latents,
                     filter=filter,
                     amp_level=amp_level,
+                    init_latent_noise=init_latent_noise,
                 )
                 print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
@@ -362,7 +365,9 @@ def sample(args):
 if __name__ == "__main__":
     parser = get_parser_sample()
     args, _ = parser.parse_known_args()
-    # ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
-    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, ascend_config=dict(precision_mode="must_keep_origin_dtype")) # NOTE: Needed for aligning with diffusers
+    if args.precision_keep_origin_dtype:
+        ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, ascend_config=dict(precision_mode="must_keep_origin_dtype")) # NOTE: Needed for aligning with diffusers
+    else:
+        ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
 
     sample(args)

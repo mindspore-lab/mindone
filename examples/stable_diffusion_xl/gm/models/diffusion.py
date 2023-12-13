@@ -203,8 +203,7 @@ class DiffusionEngine(nn.Cell):
         filter=None,
         adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
-        load_noise=True,
-        noise_fp='/home/hyx/diffusers_sdxl_noise.npy'
+        init_latent_noise=None, #'/path/to/sdxl_init_latent.npy'
     ):
         print("Sampling")
 
@@ -249,8 +248,8 @@ class DiffusionEngine(nn.Cell):
             additional_model_inputs[k] = batch[k]
 
         shape = (np.prod(num_samples), C, H // F, W // F)
-        if load_noise:
-            print('Loading noise from ', noise_fp)
+        if init_latent_noise is not None:
+            print('Loading latent noise from ', init_latent_noise)
             randn = Tensor(np.load(noise_fp), ms.float32)
             # assert randn.shape==shape, 'unmatch shape due to loaded noise'
         else:
