@@ -1,7 +1,7 @@
 # Stable Video Diffusion (VideoLDM)
 
 <p align="center"><img width="600" alt="VideoLDM U-Net Block Architecture"
-src="https://github.com/mindspore-lab/mindone/assets/16683750/9a1aca58-535d-4737-8fcd-bfcea7c4afdb"/></p>
+src="https://github.com/mindspore-lab/mindone/assets/16683750/0ac4c83e-f91d-4024-a8e5-e4fdad3f251a"/></p>
 
 ## Introduction
 
