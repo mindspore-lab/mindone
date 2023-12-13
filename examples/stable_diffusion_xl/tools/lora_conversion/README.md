@@ -28,7 +28,7 @@ To check inference consistency quantitatively, you should make sure MS ant PT us
     In `path/to/diffusers/pipelines/stable_diffusion_xl/pipeline_stable_diffusion_xl.py`,  modify the `prepare_latents` function to save the init noise as numpy as follows. 
 
     ```python
-    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None, save_noise=False):
+    def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, device, generator, latents=None, save_noise=True):
         shape = (batch_size, num_channels_latents, height // self.vae_scale_factor, width // self.vae_scale_factor)
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(

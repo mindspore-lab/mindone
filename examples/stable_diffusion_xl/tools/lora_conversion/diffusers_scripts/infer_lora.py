@@ -2,7 +2,6 @@ import os
 from diffusers import AutoPipelineForText2Image
 import torch
 from fire import Fire
-import pdb
 
 def infer(model_path="sd-cnart-model-lora-sdxl", prompt="a black and white photo of a butterfly", seed=43, images_per_prompt = 1, num_inference_steps=40, guidance_scale=5.0):
 
@@ -31,7 +30,6 @@ def infer(model_path="sd-cnart-model-lora-sdxl", prompt="a black and white photo
         print(f'{pr_i+1}/{len(prompts)} prompt: ', prompt)
 
         generator = [torch.Generator(device="cuda").manual_seed(seed+i) for i in range(images_per_prompt)]
-        pdb.set_trace()
         images = pipeline_text2image(prompt=prompt, generator=generator, num_inference_steps=num_inference_steps, height=1024, width=1024, num_images_per_prompt=images_per_prompt, guidance_scale=guidance_scale).images
 
         for i in range(images_per_prompt):
