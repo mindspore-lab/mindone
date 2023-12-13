@@ -161,6 +161,7 @@ def parse_args():
     )
 
     parser.add_argument("--unet_initialize_random", default=False, type=str2bool, help="initialize unet randomly")
+    parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
         "--betas", type=float, default=[0.9, 0.999], help="Specify the [beta1, beta2] parameter for the Adam optimizer."
@@ -254,7 +255,9 @@ def main(args):
             args.pretrained_model_path, args.custom_text_encoder, latent_diffusion_with_loss
         )
     else:
-        load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random)
+        load_pretrained_model(
+            args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random
+        )
 
     # build dataset
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenizer
@@ -444,7 +447,7 @@ def main(args):
         shutil.copyfile(args.model_config, os.path.join(args.output_path, "model_config.yaml"))
 
     # train
-    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
+    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch)
 
     if args.profile:
         profiler.analyse()
