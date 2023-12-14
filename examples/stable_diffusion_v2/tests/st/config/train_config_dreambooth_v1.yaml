@@ -4,9 +4,9 @@ use_parallel: False
 
 # dataset
 instance_data_dir: "/path/to/data"
-instance_prompt: "a photo of sks dog"
+instance_prompt: "a photo of sks sunflower"
 class_data_dir: "/path/to/class_image"
-class_prompt: "a photo of a dog"
+class_prompt: "a photo of a sunflower"
 num_class_images: 200
 scale: 9.0
 random_crop: True

@@ -91,15 +91,19 @@ def test_db():
     seed = 42
     
     train_config = __dir__ + "/config/train_config_dreambooth_v1.yaml"
+    # train_config = __dir__ + "/../../configs/train/train_config_dreambooth_v1.yaml"
     pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
-    # instance_prompt = "a photo of sks sunflow"
-    # class_prompt = "a photo of a sunflow"
-    class_data_dir = "temp_class_images/dog" 
+    # instance_prompt = "a photo of sks sunflower"
+    # class_prompt = "a photo of a sunflower"
+    # class_data_dir = "temp_class_images/dog" 
+    class_data_dir = "temp_class_images/sunflower" 
 
     output_path = __dir__ + "/db"
     os.makedirs(output_path, exist_ok=True)
     
-    epochs = 4
+    os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
+
+    epochs = 20 
     cmd = (
         f"python train_dreambooth.py "
         f"--train_config {train_config} "
@@ -116,9 +120,10 @@ def test_db():
     assert ret == 0, "Training fails"
 
     # check ending loss
-    result_log = os.path.join(output_path, "/ckpt/rank_0/result.log")
+    result_log = os.path.join(output_path, "ckpt/rank_0/result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
-    converge_loss = np.mean(df["loss"][-20:])
+    ending = min(1, epochs//5)
+    converge_loss = np.mean(df["loss"][-ending:]) # 200 steps
 
     expected_loss = 1.0
     print("converge_loss: ", converge_loss)
