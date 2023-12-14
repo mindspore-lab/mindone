@@ -61,8 +61,8 @@ class AbstractEmbModel(nn.Cell):
         del self._input_key
 
     def freeze(self):
-        self.model.set_train(False)
-        self.model.set_grad(False)
+        self.set_train(False)
+        self.set_grad(False)
         for _, p in self.parameters_and_names():
             p.requires_grad = False
 
@@ -146,7 +146,9 @@ class GeneralConditioner(nn.Cell):
 
         if force_zero_embeddings is None:
             force_zero_embeddings = ()
-        for embedder, token in zip(self.embedders, tokens):
+        for i in range(len(self.embedders)):
+            embedder = self.embedders[i]
+            token = tokens[i]
             token = token if isinstance(token, (list, tuple)) else (token,)
             emb_out = embedder(*token)
 
@@ -230,8 +232,8 @@ class GeneralConditioner(nn.Cell):
         c = self.tokenize_embedding(batch_c, force_cond_zero_embeddings)
         uc = self.tokenize_embedding(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
 
-        for embedder, rate in zip(self.embedders, ucg_rates):
-            embedder.ucg_rate = rate
+        for i in range(len(self.embedders)):
+            self.embedders[i].ucg_rate = ucg_rates[i]
         return c, uc
 
 

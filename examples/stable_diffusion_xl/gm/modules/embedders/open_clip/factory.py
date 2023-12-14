@@ -71,7 +71,7 @@ def load_checkpoint(network, weight):
 
 def create_model(
     model_name: str,
-    pretrained: Optional[str] = "",
+    pretrained: str = "",
     precision: str = "fp32",
     jit: bool = False,
     cache_dir: Optional[str] = None,

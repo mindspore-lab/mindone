@@ -464,8 +464,7 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
-        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
-        w = append_dims(self.denoiser.w(sigmas), x.ndim)
+        noised_input, w = self.loss_fn.get_noise_input(x, noise, sigmas)
         return x, noised_input, sigmas, w, cond
 
     def train_step_pynative(self, instance_image, class_image, *all_tokens, grad_func=None):
