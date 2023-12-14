@@ -1,4 +1,5 @@
 # reference to https://github.com/Stability-AI/generative-models
+
 from gm.util import append_dims, instantiate_from_config
 
 import mindspore as ms
@@ -6,8 +7,9 @@ from mindspore import Tensor, nn, ops
 
 
 class Denoiser(nn.Cell):
-    def __init__(self, scaling_config):
+    def __init__(self, weighting_config, scaling_config):
         super(Denoiser, self).__init__()
+        self.weighting = instantiate_from_config(weighting_config) if weighting_config is not None else None
         self.scaling = instantiate_from_config(scaling_config)
 
     def possibly_quantize_sigma(self, sigma):
@@ -15,6 +17,9 @@ class Denoiser(nn.Cell):
 
     def possibly_quantize_c_noise(self, c_noise):
         return c_noise
+
+    def w(self, sigma):
+        return self.weighting(sigma)
 
     def construct(self, sigma, input_dim):
         sigma = ops.cast(sigma, ms.float32)
@@ -30,6 +35,7 @@ class Denoiser(nn.Cell):
 class DiscreteDenoiser(Denoiser):
     def __init__(
         self,
+        weighting_config,
         scaling_config,
         num_idx,
         discretization_config,
@@ -37,7 +43,7 @@ class DiscreteDenoiser(Denoiser):
         quantize_c_noise=True,
         flip=True,
     ):
-        super().__init__(scaling_config)
+        super().__init__(weighting_config, scaling_config)
         sigmas = instantiate_from_config(discretization_config)(num_idx, do_append_zero=do_append_zero, flip=flip)
         self.sigmas = Tensor(sigmas, ms.float32)
         self.quantize_c_noise = quantize_c_noise

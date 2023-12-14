@@ -68,7 +68,8 @@ class TrainOneStepCell(nn.Cell):
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
-        noised_input, w = self.loss_fn.get_noise_input(x, noise, sigmas)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         # compute loss
         if self.conditioner:
@@ -278,7 +279,8 @@ class TrainOneStepCellDreamBooth(nn.Cell):
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
-        noised_input, w = self.loss_fn.get_noise_input(x, noise, sigmas)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         return x, noised_input, sigmas, w, concat, context, y
 
@@ -404,7 +406,8 @@ class PreProcessModel(nn.Cell):
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
-        noised_input, w = self.loss_fn.get_noise_input(x, noise, sigmas)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         return x, noised_input, sigmas, w, context, y
 
@@ -433,7 +436,8 @@ class PreProcessModelWithoutConditioner(nn.Cell):
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
-        noised_input, w = self.loss_fn.get_noise_input(x, noise, sigmas)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         return x, noised_input, sigmas, w
 

@@ -1,4 +1,5 @@
 # reference to https://github.com/Stability-AI/generative-models
+
 from mindspore import nn, ops
 
 
@@ -9,7 +10,7 @@ class UnitWeighting(nn.Cell):
 
 class EDMWeighting(nn.Cell):
     def __init__(self, sigma_data=0.5):
-        super().__init__()
+        super(EDMWeighting, self).__init__()
         self.sigma_data = sigma_data
 
     def construct(self, sigma):

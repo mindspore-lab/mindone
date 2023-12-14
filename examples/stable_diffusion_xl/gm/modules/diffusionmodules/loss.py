@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
 
-from gm.util import append_dims, instantiate_from_config
+from gm.util import append_dims
 from omegaconf import ListConfig
 
 import mindspore as ms
@@ -10,7 +10,6 @@ from mindspore import nn, ops
 class StandardDiffusionLoss(nn.Cell):
     def __init__(
         self,
-        loss_weighting_config: dict,
         type="l2",
         offset_noise_level=0.0,
         batch2model_keys: Optional[Union[str, List[str], ListConfig]] = None,
@@ -20,7 +19,6 @@ class StandardDiffusionLoss(nn.Cell):
 
         assert type in ["l2", "l1"]
         self.type = type
-        self.loss_weighting = instantiate_from_config(loss_weighting_config)
         self.offset_noise_level = offset_noise_level
         self.keep_loss_fp32 = keep_loss_fp32
 
@@ -39,8 +37,7 @@ class StandardDiffusionLoss(nn.Cell):
                 ops.randn(input.shape[0], dtype=input.dtype), input.ndim
             )
         noised_input = input + noise * append_dims(sigmas, input.ndim)
-        w = append_dims(self.loss_weighting(sigmas), input.ndim)
-        return noised_input, w
+        return noised_input
 
     def construct(self, pred, target, w):
         dtype = pred.dtype

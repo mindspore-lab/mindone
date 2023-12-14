@@ -7,6 +7,7 @@ model:
     denoiser_config:
       target: gm.modules.diffusionmodules.denoiser.Denoiser
       params:
+        weighting_config: # FIXME: legacy
         scaling_config:
           target: gm.modules.diffusionmodules.denoiser_scaling.VScalingWithEDMcNoise
 
@@ -82,8 +83,6 @@ model:
                     num_res_blocks: 2
                     attn_resolutions: [ ]
                     dropout: 0.0
-                  loss_config:
-                    target: mindspore.nn.Identity
 
           - input_key: cond_aug
             is_trainable: False
