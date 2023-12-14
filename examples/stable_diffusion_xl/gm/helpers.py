@@ -325,6 +325,9 @@ def get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
         if key == "txt":
             batch["txt"] = np.repeat([value_dict["prompt"]], repeats=np.prod(N)).reshape(N).tolist()
             batch_uc["txt"] = np.repeat([value_dict["negative_prompt"]], repeats=np.prod(N)).reshape(N).tolist()
+        elif key == "clip_img":
+            batch["clip_img"] = value_dict["clip_img"]
+            batch_uc["clip_img"] = None
         elif key == "original_size_as_tuple":
             batch["original_size_as_tuple"] = Tensor(
                 np.tile(
@@ -401,6 +404,10 @@ def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0)
                 "sigma_max": sigma_max,
                 "rho": rho,
             },
+        }
+    elif discretization == "DiffusersDDPMDiscretization":
+        discretization_config = {
+            "target": "gm.modules.diffusionmodules.discretizer.DiffusersDDPMDiscretization",
         }
     else:
         raise NotImplementedError
@@ -531,6 +538,7 @@ def init_sampling(
     assert discretization in [
         "LegacyDDPMDiscretization",
         "EDMDiscretization",
+        "DiffusersDDPMDiscretization",
     ]
 
     steps = min(max(steps, 1), 1000)
