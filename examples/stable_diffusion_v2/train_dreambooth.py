@@ -362,7 +362,9 @@ def main(args):
         model_config["params"]["cond_stage_trainable"] = False  # only lora params are trainable
     model_config["params"]["prior_loss_weight"] = args.prior_loss_weight if args.with_prior_preservation else 0.0
     latent_diffusion_with_loss = instantiate_from_config(model_config)
-    load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random)
+    load_pretrained_model(
+        args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random
+    )
 
     # lora injection
     if args.use_lora:
@@ -510,7 +512,13 @@ def main(args):
         logger.info("Start training...")
 
     # train
-    model.train(args.epochs, train_dataloader, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch)
+    model.train(
+        args.epochs,
+        train_dataloader,
+        callbacks=callback,
+        dataset_sink_mode=args.dataset_sink_mode,
+        initial_epoch=start_epoch,
+    )
 
 
 if __name__ == "__main__":

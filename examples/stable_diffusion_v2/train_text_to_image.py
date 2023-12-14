@@ -447,7 +447,9 @@ def main(args):
         shutil.copyfile(args.model_config, os.path.join(args.output_path, "model_config.yaml"))
 
     # train
-    model.train(args.epochs, dataset, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch)
+    model.train(
+        args.epochs, dataset, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch
+    )
 
     if args.profile:
         profiler.analyse()

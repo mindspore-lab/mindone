@@ -123,7 +123,6 @@ def load_pretrained_model(pretrained_ckpt, net, unet_initialize_random=False):
                     param_dict.pop(pname)
             print("UNet will be initialized randomly")
 
-
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict)
         else:

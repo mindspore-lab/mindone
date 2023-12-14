@@ -32,9 +32,10 @@ def create_dataset(n=1):
     return data_dir
 
 
-@pytest.mark.parametrize("use_lora", [True, False]) # 'db'
+@pytest.mark.parametrize("use_lora", [True, False])  # 'db'
 def test_vanilla_lora(use_lora):
-    model_version = "sd1.5"
+    # model_version = "sd1.5"
+    # seed = 42
 
     # 1. create dummpy data
     data_dir = create_dataset(1)
@@ -42,8 +43,6 @@ def test_vanilla_lora(use_lora):
     # 2. init vae clip with pretrained weight, init UNet randomly
     # by pop out the unet parameter from sd checkpoint
 
-    seed = 42
-    
     model_config = __dir__ + "/../../configs/v1-train.yaml"
     pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
 
@@ -64,7 +63,8 @@ def test_vanilla_lora(use_lora):
         f"python train_text_to_image.py --data_path={data_dir} --model_config={model_config} "
         f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=512 --dataset_sink_mode=True "
         f"--epochs=1000 --ckpt_save_interval=1000 --start_learning_rate=0.00001 --train_batch_size=1 --init_loss_scale=65536 "
-        f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True --unet_initialize_random={unet_initialize_random} "
+        f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True "
+        f"--unet_initialize_random={unet_initialize_random} "
     )
 
     print(f"Running command: \n{cmd}")
@@ -83,27 +83,27 @@ def test_vanilla_lora(use_lora):
 
 
 def test_db():
-    model_version = "sd1.5"
+    # model_version = "sd1.5"
+    # seed = 42
 
     # 1. create dummpy data
-    # data_dir = create_dataset(1)
-    data_dir = __dir__ + '/../../datasets/dog' 
-    seed = 42
-    
+    data_dir = create_dataset(1)
+    # data_dir = __dir__ + "/../../datasets/dog"
+
     train_config = __dir__ + "/config/train_config_dreambooth_v1.yaml"
     # train_config = __dir__ + "/../../configs/train/train_config_dreambooth_v1.yaml"
     pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
     # instance_prompt = "a photo of sks sunflower"
     # class_prompt = "a photo of a sunflower"
-    # class_data_dir = "temp_class_images/dog" 
-    class_data_dir = "temp_class_images/sunflower" 
+    # class_data_dir = "temp_class_images/dog"
+    class_data_dir = "temp_class_images/sunflower"
 
     output_path = __dir__ + "/db"
     os.makedirs(output_path, exist_ok=True)
-    
+
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
-    epochs = 20 
+    epochs = 20
     cmd = (
         f"python train_dreambooth.py "
         f"--train_config {train_config} "
@@ -112,7 +112,7 @@ def test_db():
         f"--output_path  {output_path} "
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
-        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 --dataset_sink_mode=True " # 800 steps
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 --dataset_sink_mode=True "  # 800 steps
     )
 
     print(f"Running command: \n{cmd}")
@@ -122,13 +122,29 @@ def test_db():
     # check ending loss
     result_log = os.path.join(output_path, "ckpt/rank_0/result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
-    ending = min(1, epochs//5)
-    converge_loss = np.mean(df["loss"][-ending:]) # 200 steps
+    ending = min(1, epochs // 5)
+    converge_loss = np.mean(df["loss"][-ending:])  # 200 steps
 
     expected_loss = 1.0
-    print("converge_loss: ", converge_loss)
+    print("converge_loss: ", converge_loss)  #
     assert converge_loss < expected_loss
 
-if __name__ == '__main__':
-    #test_vanilla_lora(False)
-    test_db()
+
+def run_task(task="vanilla"):
+    if task == "vanilla":
+        test_vanilla_lora(use_lora=False)
+    elif task == "lora":
+        test_vanilla_lora(use_lora=True)
+    elif task == "db":
+        test_db()
+    else:
+        raise ValueError
+
+
+if __name__ == "__main__":
+    from fire import Fire
+
+    Fire(run_task)
+
+    # test_vanilla_lora(False)
+    # test_db()
