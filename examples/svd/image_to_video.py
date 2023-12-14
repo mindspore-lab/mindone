@@ -53,7 +53,7 @@ class SVDInferPipeline(nn.Cell):
         config: Path_fr,
         checkpoint: Path_fr,
         num_frames: int,
-        fps: int = 7,
+        fps: int,
         motion_bucket_id: int = 127,
         noise_aug_strength: float = 0.02,
         decode_chunk_size: int = 0,

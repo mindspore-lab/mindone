@@ -46,6 +46,7 @@ python image_to_video.py --mode=1 \
 --SVD.config=configs/svd.yaml \
 --SVD.checkpoint=PATH_TO_YOUR_SVD_CHECKPOINT \
 --SVD.num_frames=NUM_FRAMES_TO_GENERATE \
+--SVD.fps=FPS \
 --image=PATH_TO_INPUT_IMAGE
 ```
 
