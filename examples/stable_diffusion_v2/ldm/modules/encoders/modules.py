@@ -29,6 +29,7 @@ class FrozenCLIPEmbedder(nn.Cell):
         heads=12,
         epsilon=1e-5,
         use_quick_gelu=False,
+        upcast_attn=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
@@ -46,6 +47,7 @@ class FrozenCLIPEmbedder(nn.Cell):
             epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     def tokenize(self, texts):
@@ -89,6 +91,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
         width=768,
         layers=12,
         heads=12,
+        upcast_attn=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
@@ -106,6 +109,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
             epsilon=1e-5,
             use_quick_gelu=False,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     def encode(self, tokenized_text):
@@ -127,6 +131,7 @@ class CLIPImageEmbedder(nn.Cell):
         vision_width=1024,
         vision_patch_size=14,
         vision_head_width=64,
+        mlp_ratio=4.0,
     ):
         super().__init__()
         self.use_fp16 = use_fp16
@@ -140,6 +145,7 @@ class CLIPImageEmbedder(nn.Cell):
             vision_head_width=vision_head_width,
             epsilon=1e-5,
             use_quick_gelu=True,
+            mlp_ratio=mlp_ratio,
             dtype=self.dtype,
         )
 
@@ -154,7 +160,12 @@ class CLIPImageEmbedder(nn.Cell):
         x = (x - self.mean[None, :, None, None]) / self.std[None, :, None, None]
         return x
 
+    def encode(self, x: Tensor) -> Tensor:
+        # x should be a CLIP preproceesed tensor
+        return self.model.encode_image(x)
+
     def construct(self, x: Tensor) -> Tensor:
+        # x should be a normalzized tensor with range (-1, 1)
         x = self.preprocess(x)
         out = self.model.encode_image(x)
         return out
@@ -170,6 +181,7 @@ class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
         vision_width=1024,
         vision_patch_size=14,
         vision_head_width=64,
+        mlp_ratio=4.0,
     ):
         super(CLIPImageEmbedder, self).__init__()
         self.use_fp16 = use_fp16
@@ -183,6 +195,7 @@ class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
             vision_head_width=vision_head_width,
             epsilon=1e-5,
             use_quick_gelu=False,
+            mlp_ratio=mlp_ratio,
             dtype=self.dtype,
         )
 

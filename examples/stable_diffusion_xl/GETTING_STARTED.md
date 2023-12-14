@@ -85,6 +85,7 @@ After obtaining the weights, place them into checkpoints/. Next, start the demo 
 
 ```shell
 # (recommend) run with streamlit
+export MS_PYNATIVE_GE=1
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
@@ -97,6 +98,7 @@ streamlit run demo/sampling.py --server.port <your_port>
 
 ```shell
 # run sdxl-base txt2img without streamlit on Ascend
+export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
@@ -104,8 +106,8 @@ python demo/sampling_without_streamlit.py \
   --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
   --device_target Ascend
 
-
 # run sdxl-refiner img2img without streamlit on Ascend
+export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task img2img \
   --config configs/inference/sd_xl_refiner.yaml \
@@ -115,6 +117,7 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run pipeline without streamlit on Ascend
+export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
@@ -127,6 +130,7 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run lora(unmerge weight) without streamlit on Ascend
+export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/training/sd_xl_base_finetune_lora.yaml \
@@ -169,7 +173,19 @@ python train.py \
   --config configs/training/sd_xl_base_finetune_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --data_path /PATH TO/YOUR DATASET/ \
-  --ms_amp_level O2
+
+# sdxl-base fine-tune with 8p on Ascend
+mpirun --allow-run-as-root -n 8 python train.py \
+  --config configs/training/sd_xl_base_finetune_multi_graph_910b.yaml \
+  --weight "" \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --max_device_memory "59GB" \
+  --param_fp16 True \
+  --is_parallel True
+
+# sdxl-base fine-tune with 16p on Ascend
+bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
+bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
 ```
 
 2. LoRA fine-tune, example as:
@@ -180,6 +196,7 @@ python train.py \
   --config configs/training/sd_xl_base_finetune_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --data_path /PATH TO/YOUR DATASET/ \
+  --gradient_accumulation_steps 4 \
 ```
 
 3. DreamBooth fine-tune

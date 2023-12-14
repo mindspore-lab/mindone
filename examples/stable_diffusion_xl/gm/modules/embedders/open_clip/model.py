@@ -1,6 +1,7 @@
 # Reference to https://github.com/mlfoundations/open_clip
 
 from dataclasses import dataclass
+from functools import partial
 from typing import Optional, Tuple, Union
 
 import numpy as np
@@ -52,7 +53,7 @@ def _build_vision_tower(embed_dim: int, vision_cfg: CLIPVisionCfg, cast_dtype=No
     if isinstance(vision_cfg, dict):
         vision_cfg = CLIPVisionCfg(**vision_cfg)
 
-    act_layer = nn.GELU
+    act_layer = partial(nn.GELU, False)
 
     if isinstance(vision_cfg.layers, (tuple, list)):
         vision_heads = vision_cfg.width * 32 // vision_cfg.head_width
@@ -92,7 +93,7 @@ def _build_text_tower(
     if isinstance(text_cfg, dict):
         text_cfg = CLIPTextCfg(**text_cfg)
 
-    act_layer = nn.GELU
+    act_layer = partial(nn.GELU, False)
     norm_layer = LayerNormFp32 if cast_dtype in (ms.float16,) else nn.LayerNorm
 
     text = TextTransformer(
