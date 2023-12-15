@@ -19,8 +19,8 @@ src="https://github.com/mindspore-lab/mindone/assets/16683750/e291f64d-fb49-4983
 
 | SD Base Version | SVD version | Trained for          | Config                      | Checkpoint                                                                                |
 |-----------------|-------------|----------------------|-----------------------------|-------------------------------------------------------------------------------------------|
-| v2.0 & v2.1     | SVD         | 14 frames generation | [yaml](configs/svd.yaml)    | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_d19a808f.ckpt)    |
-|                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt_d60bb7b8.ckpt) |
+| v2.0 & v2.1     | SVD         | 14 frames generation | [yaml](configs/svd.yaml)    | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd-d19a808f.ckpt)    |
+|                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt-d60bb7b8.ckpt) |
 
 </div>
 
