@@ -103,7 +103,7 @@ def test_db():
 
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
-    epochs = 20
+    epochs = 100
     cmd = (
         f"python train_dreambooth.py "
         f"--train_config {train_config} "
@@ -122,7 +122,7 @@ def test_db():
     # check ending loss
     result_log = os.path.join(output_path, "ckpt/rank_0/result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
-    ending = min(1, epochs // 5)
+    ending = max(1, epochs // 10)
     converge_loss = np.mean(df["loss"][-ending:])  # 200 steps
 
     expected_loss = 1.0
