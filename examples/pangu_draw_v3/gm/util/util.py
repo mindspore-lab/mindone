@@ -76,6 +76,10 @@ def seed_everything(seed):
     ms.set_seed(seed)
 
 
+def new_version():
+    return version.parse(ms.__version__) >= version.parse("2.2")
+
+
 def auto_mixed_precision(network, amp_level="O0"):
     """
     auto mixed precision function.
@@ -107,11 +111,7 @@ def auto_mixed_precision(network, amp_level="O0"):
     elif amp_level == "O1":
         return _auto_white_list(network, AMP_WHITE_LIST)
     elif amp_level == "O2":
-        _auto_black_list_wrapper = (
-            partial(_auto_black_list, dtype=ms.float16)
-            if version.parse(ms.__version__) >= version.parse("2.2")
-            else _auto_black_list
-        )
+        _auto_black_list_wrapper = partial(_auto_black_list, dtype=ms.float16) if new_version() else _auto_black_list
 
         _auto_black_list_wrapper(
             network,

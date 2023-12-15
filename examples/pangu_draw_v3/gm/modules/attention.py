@@ -2,19 +2,39 @@
 
 from gm.modules.diffusionmodules.util import normalization, zero_module
 from gm.modules.transformers import scaled_dot_product_attention
-from gm.util import default, exists
+from gm.util import default, exists, new_version
 
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.ops._tracefunc import trace
 
 try:
-    from mindspore.nn.layer.flash_attention import FlashAttention
+    if new_version():
+        from mindspore.nn.layer.flash_attention import FlashAttention
 
-    # from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
+        FLASH_IS_AVAILABLE = True
+        print("flash attention is available.")
+    else:
+        from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
 
-    FLASH_IS_AVAILABLE = True
-    print("flash attention is available.")
+        # reference to https://arxiv.org/abs/2205.14135
+        class FlashAttention(nn.Cell):
+            def __init__(self):
+                super(FlashAttention, self).__init__()
+                self.flash_attention = get_flash_attention(tiling_stgy_name="sparse")
+
+            def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
+                # ALiBi, reference to https://arxiv.org/abs/2108.12409
+                _, h, Nq, d = q.shape
+                dim_mask = ops.ones((d,), dtype=ms.int8)
+                scale = d**-0.25
+                q = q * scale
+                k = k * scale
+                o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
+                return o  # (b, h, n, d)
+
+        FLASH_IS_AVAILABLE = True
+        print("flash attention is available.")
 except ImportError:
     FLASH_IS_AVAILABLE = False
     print("flash attention is unavailable.")
@@ -103,7 +123,12 @@ class MemoryEfficientCrossAttention(nn.Cell):
 
         self.to_out = nn.SequentialCell(nn.Dense(inner_dim, query_dim), nn.Dropout(p=dropout))
 
-        self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, next_block_num=0, high_precision=False)
+        if new_version():
+            self.flash_attention = FlashAttention(
+                head_dim=dim_head, head_num=heads, next_block_num=0, high_precision=False
+            )
+        else:
+            self.flash_attention = FlashAttention()
 
     def construct(self, x, context=None, mask=None, additional_tokens=None):
         h = self.heads

@@ -323,12 +323,12 @@ class DiffusionEngine(nn.Cell):
         for k in c:
             if not k == "crossattn":
                 c[k], uc[k] = map(
-                    lambda y: y[k][: int(np.prod(num_samples) * num_prompts)],
+                    lambda y: y[k][:int(np.prod(num_samples) * num_prompts), ...],
                     (c, uc)
                     # lambda y: y[k][: math.prod(num_samples)], (c, uc)
                 )
             for _c in other_c:
-                _c[k] = _c[k][: int(np.prod(num_samples) * num_prompts)]
+                _c[k] = _c[k][:int(np.prod(num_samples) * num_prompts), ...]
 
         additional_model_inputs = {}
         for k in batch2model_input:
