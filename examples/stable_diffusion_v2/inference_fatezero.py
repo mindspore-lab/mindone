@@ -395,7 +395,7 @@ def main(args):
     shape = [4, len(frames), args.H // 8, args.W // 8]
     inv_sampler = DDIMSampler(model)
     inv_sampler.make_schedule(args.inv_sampling_steps, verbose=False)
-    if not os.path.exists(args.latent_path):
+    if True or not os.path.exists(args.latent_path):
         c = model.get_learned_conditioning(model.tokenize([source_prompt]))
         frames = ms.Tensor(frames[None, ...])
         latents, _ = model.get_input(frames, c)

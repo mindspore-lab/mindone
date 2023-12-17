@@ -47,9 +47,13 @@ def reweight_replace(attn_base, attn_replace):
 
 def replace_replace(attn_base):
     mapper = ms.Tensor(np.eye(77).reshape(1, 77, 77))
-    'thpw,bwn->bthpn'
-    attn = ms.ops.einsum('thpw,bwn->bthpn', attn_base, mapper)
-    return attn
+    # shape = attn_base.shape
+    # attn_base = attn_base.reshape((shape[0] // 8, 8, shape[1], shape[2]))
+    # attn = ms.ops.einsum('thpw,bwn->bthpn', attn_base, mapper)
+    # attn = ms.ops.einsum('hpw,bwn->bhpn', attn_base, mapper)
+    # shape = attn.shape
+    # attn = attn.reshape((shape[0] * shape[1], shape[2], shape[3]))
+    return attn_base
 
 
 class GroupNorm(nn.GroupNorm):
@@ -77,6 +81,11 @@ def normalization(channels, eps: float = 1e-5):
 def split_attention(attn, batch_size=2):
     index = attn.shape[0] // batch_size
     return attn[:index], attn[:index]
+
+
+def reshape_attention(attn):
+    b, h, s, t = attn.shape
+    return ms.ops.reshape(attn, (b * h, s, t))
 
 
 def replace_self_attention(attn, step, controller):
@@ -126,18 +135,13 @@ class Attention(LdmAttention):
 
         if not is_cross_attention:
             # self-attention
-            # print(controller)
             if controller:
                 attn = replace_self_attention(attn, step, controller)
 
         else:
             # cross-attention
-            # _logger.info('cross-attention shape')
-            # _logger.info(attn.shape)
             if controller:
                 attn = replace_cross_attention(attn, step, controller)
-            # index = attn.shape[0] // 2
-            # attn[index:] = attn[:index]
 
         out = ops.matmul(attn, v)
 
