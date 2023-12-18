@@ -84,9 +84,10 @@ class SVDInferPipeline(nn.Cell):
         self._num_frames = num_frames
         self._f = 2 ** (model.first_stage_model.encoder.num_resolutions - 1)
 
-        self._fps_id = Tensor(fps - 1)
-        self._motion_bucket_id = Tensor(motion_bucket_id)
-        self._noise_aug_strength = Tensor(noise_aug_strength)
+        # dtype = ms.float16 if amp_level in ["O2", "O3"] else ms.float32
+        self._fps_id = Tensor(fps - 1, dtype=ms.float32)
+        self._motion_bucket_id = Tensor(motion_bucket_id, dtype=ms.float32)
+        self._noise_aug_strength = Tensor(noise_aug_strength, dtype=ms.float32)
         self._decode_chunk_size = decode_chunk_size or num_frames
 
     def _get_batch(self, cond_frames: Tensor, cond_frames_without_noise: Tensor, **kwargs):

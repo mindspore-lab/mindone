@@ -366,7 +366,8 @@ class Timestep(nn.Cell):
         self.dim = dim
 
     def construct(self, t):
-        return timestep_embedding(t, self.dim)
+        # TODO: Allow different return type, e.g. int32 -> float32
+        return timestep_embedding(t, self.dim, dtype=t.dtype)
 
 
 class UNetModel(nn.Cell):

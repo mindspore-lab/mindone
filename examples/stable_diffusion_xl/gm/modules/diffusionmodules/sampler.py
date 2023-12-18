@@ -51,9 +51,7 @@ class BaseDiffusionSampler:
         noised_input, sigmas, cond = self.guider.prepare_inputs(x, sigma, cond, uc)
         cond = model.openai_input_warpper(cond)
         c_skip, c_out, c_in, c_noise = model.denoiser(sigmas, noised_input.ndim)
-        model_output = model.model(
-            ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.float32), **cond, **kwargs
-        )
+        model_output = model.model(noised_input * c_in, c_noise, **cond, **kwargs)
         model_output = model_output.astype(ms.float32)
         denoised = model_output * c_out + noised_input * c_skip
         denoised = self.guider(denoised, sigma)
