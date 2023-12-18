@@ -8,6 +8,7 @@ import os
 import shutil
 
 import yaml
+from common import init_env
 from ldm.data.dataset_tuneavideo import load_data
 from ldm.modules.logger import set_logger
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -15,16 +16,12 @@ from ldm.modules.train.checkpoint import resume_train_network
 from ldm.modules.train.ema import EMA
 from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
-from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.modules.train.tools import set_random_seed
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params, is_old_ms_version, str2bool
 from omegaconf import OmegaConf
 from utils.download import download_checkpoint
 
-import mindspore as ms
 from mindspore import Model, context, load_checkpoint, load_param_into_net
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
@@ -42,41 +39,6 @@ _version_cfg = {
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
 _MIN_CKPT_SIZE = 4.0 * 1e9
-
-
-def init_env(args):
-    set_random_seed(args.seed)
-    ms.set_context(mode=args.mode)  # needed for MS2.0
-    if args.use_parallel:
-        init()
-        device_id = int(os.getenv("DEVICE_ID"))
-        device_num = get_group_size()
-        ParallelConfig.dp = device_num
-        rank_id = get_rank()
-        args.rank = rank_id
-        logger.debug("Device_id: {}, rank_id: {}, device_num: {}".format(device_id, rank_id, device_num))
-        context.reset_auto_parallel_context()
-        context.set_auto_parallel_context(
-            parallel_mode=context.ParallelMode.DATA_PARALLEL,
-            # parallel_mode=context.ParallelMode.AUTO_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        args.rank = rank_id
-
-    context.set_context(
-        mode=args.mode,
-        device_target="Ascend",
-        device_id=device_id,
-        max_device_memory="30GB",  # TODO: why limit?
-        pynative_synchronize=False,  # for debug in pynative mode
-    )
-
-    return rank_id, device_id, device_num
 
 
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
@@ -123,6 +85,15 @@ def parse_args():
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
+    parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
+    parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
+    parser.add_argument(
+        "--json_data_path",
+        default="mindone/examples/stable_diffusion_v2/ldm/data/num_samples_64_part.json",
+        type=str,
+        help="the path of num_samples.json containing a dictionary with 64 parts. "
+        "Each part is a large dictionary containing counts of samples of 533 tar packages.",
+    )
     parser.add_argument("--custom_text_encoder", default="", type=str, help="use this to plug in custom clip model")
     parser.add_argument("--pretrained_model_path", default=None, type=str, help="pretrained model directory")
     parser.add_argument("--pretrained_model_file", default=None, type=str, help="pretrained model file name")
@@ -291,7 +262,14 @@ def init_temporal_params(param_dict, network):
 
 def main(args):
     # init
-    rank_id, device_id, device_num = init_env(args)
+    _, rank_id, device_num = init_env(
+        args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        enable_modelarts=args.enable_modelarts,
+        num_workers=args.num_workers,
+        json_data_path=args.json_data_path,
+    )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
