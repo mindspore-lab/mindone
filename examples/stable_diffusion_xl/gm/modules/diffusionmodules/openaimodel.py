@@ -4,10 +4,10 @@ from functools import partial
 
 from gm.modules.attention import SpatialTransformer
 from gm.modules.diffusionmodules.util import (
-    Normalization,
     avg_pool_nd,
     conv_nd,
     linear,
+    normalization,
     timestep_embedding,
     zero_module,
 )
@@ -155,7 +155,7 @@ class ResBlock(TimestepBlock):
 
         self.in_layers = nn.SequentialCell(
             [
-                Normalization(channels),
+                normalization(channels),
                 nn.SiLU(),
                 conv_nd(dims, channels, self.out_channels, kernel_size, pad_mode="same"),
             ]
@@ -192,7 +192,7 @@ class ResBlock(TimestepBlock):
 
         self.out_layers = nn.SequentialCell(
             [
-                Normalization(self.out_channels),
+                normalization(self.out_channels),
                 nn.SiLU(),
                 nn.Dropout(p=dropout),
                 zero_module(conv_nd(dims, self.out_channels, self.out_channels, kernel_size, pad_mode="same")),
@@ -260,7 +260,7 @@ class AttentionBlock(nn.Cell):
                 channels % num_head_channels == 0
             ), f"q,k,v channels {channels} is not divisible by num_head_channels {num_head_channels}"
             self.num_heads = channels // num_head_channels
-        self.norm = Normalization(channels)
+        self.norm = normalization(channels)
         self.qkv = conv_nd(1, channels, channels * 3, 1)
         if use_new_attention_order:
             # split qkv before split heads
@@ -738,7 +738,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             [
-                Normalization(ch),
+                normalization(ch),
                 nn.SiLU(),
                 zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, pad_mode="pad")),
             ]
@@ -746,7 +746,7 @@ class UNetModel(nn.Cell):
         if self.predict_codebook_ids:
             self.id_predictor = nn.SequentialCell(
                 [
-                    Normalization(ch),
+                    normalization(ch),
                     conv_nd(dims, model_channels, n_embed, 1),
                     # nn.LogSoftmax(axis=1)  # change to cross_entropy and produce non-normalized logits
                 ]
@@ -1447,7 +1447,7 @@ class UNetModelStage2(nn.Cell):
 
         self.out = nn.SequentialCell(
             [
-                Normalization(ch),
+                normalization(ch),
                 nn.SiLU(),
                 zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, pad_mode="pad")),
             ]
@@ -1455,7 +1455,7 @@ class UNetModelStage2(nn.Cell):
         if self.predict_codebook_ids:
             self.id_predictor = nn.SequentialCell(
                 [
-                    Normalization(ch),
+                    normalization(ch),
                     conv_nd(dims, model_channels, n_embed, 1),
                     # nn.LogSoftmax(axis=1)  # change to cross_entropy and produce non-normalized logits
                 ]

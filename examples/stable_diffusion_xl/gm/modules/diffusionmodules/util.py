@@ -65,13 +65,10 @@ def zero_module(module):
     return module
 
 
-class Normalization(nn.GroupNorm):
+class GroupNorm(nn.GroupNorm):
     """
     Convert temporal 5D tensors to 4D as MindSpore supports (N, C, H, W) input only
     """
-
-    def __init__(self, channels, eps=1e-5):
-        super().__init__(32, channels, eps)
 
     def construct(self, x: Tensor) -> Tensor:
         if x.ndim == 5:
@@ -86,7 +83,7 @@ def normalization(channels, eps=1e-5):
     :param channels: number of input channels.
     :return: an nn.Module for normalization.
     """
-    return nn.GroupNorm(32, channels, eps)
+    return GroupNorm(32, channels, eps)
 
 
 def conv_nd(dims, *args, **kwargs):
