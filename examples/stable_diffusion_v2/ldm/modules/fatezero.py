@@ -18,10 +18,10 @@ try:
     from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
 
     FLASH_IS_AVAILABLE = True
-    # print("flash attention is available.")
+    print("flash attention is available.")
 except ImportError:
     FLASH_IS_AVAILABLE = False
-print("flash attention is unavailable.")
+    print("flash attention is unavailable.")
 
 
 def refine_replace(attn_base, attn_replace, ):
@@ -113,6 +113,7 @@ def replace_cross_attention(attn, step, controller):
 
 class Attention(LdmAttention):
     def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
+        self.attn_store_tmp += 1
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -131,21 +132,47 @@ class Attention(LdmAttention):
             attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
         else:
             attn = self.softmax(sim)
+
+        if self.name != 'temp':
+            print(self.name, is_cross_attention, q.shape, k.shape, attn.shape)
+            # print(is_cross_attention)
+            # print('q:', q.shape)
+            # print('k:', k.shape)
+            # print('attn:', attn.shape)
         # todo 设置比例
-
-        if not is_cross_attention:
-            # self-attention
-            if controller:
-                attn = replace_self_attention(attn, step, controller)
-
-        else:
-            # cross-attention
-            if controller:
-                attn = replace_cross_attention(attn, step, controller)
+        # self.attn_store = attn
+        # print(self.attn_store.shape)
+        # if not is_cross_attention:
+        #     # self-attention
+        #     if controller:
+        #         attn = replace_self_attention(attn, step, controller)
+        #
+        # else:
+        #     # cross-attention
+        #     if controller:
+        #         attn = replace_cross_attention(attn, step, controller)
 
         out = ops.matmul(attn, v)
 
         return out
+
+    def __init__(self, *args, **kwargs):
+        self.name = kwargs["name"]
+        # print(self.name)
+        self.head = kwargs["head"]
+        del kwargs["name"]
+        del kwargs["head"]
+        super().__init__(*args, **kwargs)
+        self.attn_store_tmp = Parameter(0, requires_grad=False)
+
+        shape_cross = (self.head * 8, 4096 * 25 // (self.head * self.head), 77)
+        shape_self = (self.head * 8, 4096 * 25 // (self.head * self.head), 4096 * 25 * 2 // (self.head * self.head))
+        # shape_cross = shape_cross if shape_cross[1] <= 1024 else (1,)
+        # shape_self = shape_self if shape_self[1] <= 1024 else (1,)
+        # todo 判断是否为cross
+
+        #self.attn_store_cross = Parameter(ms.ops.zeros((50,) + shape_cross, ms.float16), requires_grad=False)
+        self.attn_store_self = Parameter(ms.ops.zeros((50,) + shape_self, ms.float16), requires_grad=False)
 
 
 class FlashAttention(LdmFlashAttention):
@@ -167,7 +194,9 @@ class CrossAttention(nn.Cell):
             dtype=ms.float32,
             enable_flash_attention=False,
             upcast=False,
+            name='CrossAttention',
     ):
+        # print(name, enable_flash_attention)
         super().__init__()
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
@@ -192,15 +221,19 @@ class CrossAttention(nn.Cell):
             print("WARNING: flash attention is set to enable but not available.")
         if self.use_flash_attention:
             print("INFO: flash attention will be used.")
-
+        # print('to_q:', query_dim, dim_head, heads)
+        # print('to_k:', context_dim, inner_dim)
         # ar = AReplace()
         # ar.num_att_layers += 1
-        self.attention = Attention(dim_head, upcast=upcast)
+        self.attention = Attention(dim_head, upcast=upcast, name=name, head=heads)
         self.flash_attention = FlashAttention(self.heads, dim_head) if self.use_flash_attention else None
 
     def construct(self, x, context=None, mask=None, step=None, controller=None):
         is_cross = context is not None
+        # print("test_0: x", x.shape)
         q = self.to_q(x)
+        # print("test_1: q", q.shape)
+
         context = default(context, x)
         k = self.to_k(context)
         v = self.to_v(context)
@@ -339,6 +372,7 @@ class BasicTransformerBlock_ST(nn.Cell):
             dropout=dropout,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
+            name='SparseCausalAttention',
         )  # is a self-attention
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
 
@@ -350,6 +384,8 @@ class BasicTransformerBlock_ST(nn.Cell):
             dropout=dropout,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
+            name='attn2',
+
         )  # is self-attn if context is none
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
@@ -363,7 +399,9 @@ class BasicTransformerBlock_ST(nn.Cell):
             dim_head=d_head,
             dropout=dropout,
             dtype=dtype,
-            enable_flash_attention=enable_flash_attention,
+            enable_flash_attention=True,
+            # enable_flash_attention=enable_flash_attention,
+            name='temp',
         )
         self.attn_temp.to_out[0].weight = Parameter(ms.Tensor(np.zeros(self.attn_temp.to_out[0].weight.shape), dtype))
         self.norm_temp = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
@@ -1250,7 +1288,7 @@ if __name__ == "__main__":
         channel_mult=[1, 2, 4, 4],
         num_head_channels=64,  # SD_VERSION v2.0
         use_spatial_transformer=True,
-        enable_flash_attention=True,
+        enable_flash_attention=False,
         use_linear_in_transformer=True,  # SD_VERSION v2.0
         transformer_depth=1,
         context_dim=1024,
