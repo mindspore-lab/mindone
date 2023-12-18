@@ -1,6 +1,6 @@
 # Model Conversion between Mindspore and Torch Inference
 
-We provide scripts of the checkpoint conversion between `.safetensors` and `.ckpt` format. For training or inference in Mindspore, we use the pre-trained weights from hugging face and convert them to `.ckpt` format. Please refer to [the preparation part of GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/GETTING_STARTED.md#convert-pretrained-checkpoint) for details. After finetuning in Mindspore, we can convert the checkpoints back for torch inference as well.
+We provide scripts of the checkpoint conversion between `.safetensors`  from Torch and `.ckpt` format from MindSpore. For training or inference in Mindspore, we use the pre-trained weights from hugging face and convert them to `.ckpt` format. Please refer to [the preparation part of GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/GETTING_STARTED.md#convert-pretrained-checkpoint) for details. After finetuning in Mindspore, we can convert the checkpoints back for Torch inference as well.
 
 The tutorial shows how to run inference in the official SDXL repo, [generative-models](https://github.com/Stability-AI/generative-models), with Mindspore checkpoints. Please refer to this [tutorial](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/tools/lora_conversion/README.md) if running in diffusers.
 
@@ -14,9 +14,9 @@ According to LoRA, $W_{finetuned} = W_{pretrained}+B\times A\times scale$. We ca
 
 ```shell
 python merge_lora_to_base.py \
-	--weight_lora {path to mindspore lora ckpt} \
-	--weight_pretrained ./checkpoints/sd_xl_base_1.0_ms.ckpt \
-	--weight_merged ./checkpoints/sd_xl_base_finetuned_ms.ckpt
+  --weight_lora {path to mindspore lora ckpt} \
+  --weight_pretrained ./checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --weight_merged ./checkpoints/sd_xl_base_finetuned_ms.ckpt
 ```
 
 The default path of the merged checkpoint is `./checkpoints/sd_xl_base_finetuned_ms.ckpt`.
@@ -27,7 +27,7 @@ To convert the finetuned mindspore checkpoints, run as follows.
 
 ```shell
 python convert_weight.py \
-	--task ms_to_pt
+  --task ms_to_pt \
   --weight_safetensors ./checkpoints/sd_xl_base_finetuned_pt.safetensors \
   --weight_ms ./checkpoints/sd_xl_base_finetuned_ms.ckpt  \
   --key_torch torch_key_base.yaml \
@@ -54,13 +54,13 @@ To check inference consistency quantitatively, you should ensure MS and PT use t
   In `scripts/demo/streamlit_helpers.py` , add 2 lines to the `do_sample` function to save init noise as numpy as follows.
 
   ```python
-  def do_sample()
-  	...
-  	randn = torch.randn(shape).to("cuda")
-    # save the init noise as numpy
-    import numpy as np
-    np.save("/tmp/rand_init_noise.npy", randn.cpu().numpy())
-    ...
+  def do_sample():
+     ...
+     randn = torch.randn(shape).to("cuda")
+     # save the init noise as numpy
+     import numpy as np
+     np.save("/tmp/rand_init_noise.npy", randn.cpu().numpy())
+     ...
   ```
 
   The initial noise will be saved in `/tmp/rand_init_noise.npy`.
