@@ -113,7 +113,6 @@ def replace_cross_attention(attn, step, controller):
 
 class Attention(LdmAttention):
     def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
-        self.attn_store_tmp += 1
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -133,28 +132,9 @@ class Attention(LdmAttention):
         else:
             attn = self.softmax(sim)
 
-        if self.name != 'temp':
-            print(self.name, is_cross_attention, q.shape, k.shape, attn.shape)
-            # print(is_cross_attention)
-            # print('q:', q.shape)
-            # print('k:', k.shape)
-            # print('attn:', attn.shape)
-        # todo 设置比例
-        # self.attn_store = attn
-        # print(self.attn_store.shape)
-        # if not is_cross_attention:
-        #     # self-attention
-        #     if controller:
-        #         attn = replace_self_attention(attn, step, controller)
-        #
-        # else:
-        #     # cross-attention
-        #     if controller:
-        #         attn = replace_cross_attention(attn, step, controller)
-
         out = ops.matmul(attn, v)
 
-        return out
+        return out, attn
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs["name"]
@@ -163,16 +143,6 @@ class Attention(LdmAttention):
         del kwargs["name"]
         del kwargs["head"]
         super().__init__(*args, **kwargs)
-        self.attn_store_tmp = Parameter(0, requires_grad=False)
-
-        shape_cross = (self.head * 8, 4096 * 25 // (self.head * self.head), 77)
-        shape_self = (self.head * 8, 4096 * 25 // (self.head * self.head), 4096 * 25 * 2 // (self.head * self.head))
-        # shape_cross = shape_cross if shape_cross[1] <= 1024 else (1,)
-        # shape_self = shape_self if shape_self[1] <= 1024 else (1,)
-        # todo 判断是否为cross
-
-        #self.attn_store_cross = Parameter(ms.ops.zeros((50,) + shape_cross, ms.float16), requires_grad=False)
-        self.attn_store_self = Parameter(ms.ops.zeros((50,) + shape_self, ms.float16), requires_grad=False)
 
 
 class FlashAttention(LdmFlashAttention):
@@ -200,6 +170,7 @@ class CrossAttention(nn.Cell):
         super().__init__()
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
+        self.name = name
 
         self.scale = dim_head ** -0.5
         self.heads = heads
@@ -253,10 +224,11 @@ class CrossAttention(nn.Cell):
         k = rearange_in(k)
         v = rearange_in(v)
 
-        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0 and q.shape[1] > 1024:
+            attn = None
             out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
         else:
-            out = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
+            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -270,7 +242,7 @@ class CrossAttention(nn.Cell):
             return x
 
         out = rearange_out(out)
-        return self.to_out(out)
+        return self.to_out(out), attn
 
 
 # Spatial Transformer and Attention Layer Modification based on SD
@@ -325,12 +297,13 @@ class SparseCausalAttention(CrossAttention):
                 paddings = [[0, 0] for i in range(ndim - 1)] + [0, target_length]
                 mask = nn.Pad(paddings)(mask)
                 mask = mask.repeat_interleave(self.heads, axis=0)
-        # print(f"q shape {q.shape}, k shape {k.shape}, v shape {v.shape}")
 
-        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0 and q.shape[1] > 1024:
+            attn = None
             out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
         else:
-            out = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
+            # print(self.use_flash_attention, 'sp', q.shape, k.shape)
+            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -344,7 +317,7 @@ class SparseCausalAttention(CrossAttention):
             return x
 
         out = rearange_out(out)
-        return self.to_out(out)
+        return self.to_out(out), attn
 
 
 class BasicTransformerBlock_ST(nn.Cell):
@@ -364,6 +337,16 @@ class BasicTransformerBlock_ST(nn.Cell):
     ):
         super().__init__()
         assert not cross_frame_attention, "expect to have cross_frame_attention to be False"
+        self.replace_step = 8
+        attn_map_shape_cross = (n_heads * 8, 4096 * 25 // (n_heads * n_heads), 77)
+        attn_map_shape_self = (n_heads * 8, 4096 * 25 // (n_heads * n_heads), 4096 * 25 * 2 // (n_heads * n_heads))
+        self.store_cross_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_cross, ms.float16),
+                                          requires_grad=False)
+        if attn_map_shape_self[1] <= 1024:
+            self.store_self_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_self, ms.float16),
+                                             requires_grad=False)
+        else:
+            self.store_self_attn = Parameter([], requires_grad=False)
 
         self.attn1 = SparseCausalAttention(
             query_dim=dim,
@@ -406,17 +389,28 @@ class BasicTransformerBlock_ST(nn.Cell):
         self.attn_temp.to_out[0].weight = Parameter(ms.Tensor(np.zeros(self.attn_temp.to_out[0].weight.shape), dtype))
         self.norm_temp = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
-    def construct(self, x, context=None, video_length=None, step=None, controller=None):
-        x = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller) + x
-        x = self.attn2(self.norm2(x), context=context, step=step, controller=controller) + x
+    def construct(self, x, context=None, video_length=None, step=None, controller=None, is_invert=False):
+        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller)
+        x1 += x
+        x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller)
+        x = x2 + x1
         x = self.ff(self.norm3(x)) + x
+
+        if is_invert > 0 and step < 8:
+            #if self.store_self_attn.shape[0] > 0:
+            print(self.store_self_attn[step].shape, attn1.shape)
+                #self.store_self_attn[step] = attn1
+            print(self.store_cross_attn[step].shape, attn2.shape)
+
+            #self.store_cross_attn[step] = attn2
 
         # temporal attention
         # (b f) (hw) c -> (b h w) f c
         bf, hw, c = x.shape
         x = x.reshape((bf // video_length, video_length, hw, c))
         x = x.transpose((0, 2, 1, 3)).reshape(((bf // video_length) * hw, video_length, c))
-        x = self.attn_temp(self.norm_temp(x), step=step) + x
+        x1, _ = self.attn_temp(self.norm_temp(x), step=step)
+        x1 += x
         # (b h w) f c -> (b f) (hw) c
         x = x.reshape((bf // video_length, hw, video_length, c))
         x = x.transpose((0, 2, 1, 3)).reshape((bf, hw, c))
@@ -487,7 +481,7 @@ class SpatialTransformer3D(nn.Cell):
         self.reshape = ops.Reshape()
         self.transpose = ops.Transpose()
 
-    def construct(self, x, emb=None, context=None, step=None, controller=None):
+    def construct(self, x, emb=None, context=None, step=None, controller=None, is_invert=False):
         # note: if no context is given, cross-attention defaults to self-attention
         assert len(x.shape) == 5, f"Expect to have five dimensions input, but got {len(x.shape)} dims"
         b, c, f, h, w = x.shape
@@ -510,7 +504,7 @@ class SpatialTransformer3D(nn.Cell):
             )  # (b*f, ch, h, w) -> (b*f, h, w, ch) -> (b*f, h*w, ch)
             x = self.proj_in(x)
         for block in self.transformer_blocks:
-            x = block(x, context=context, video_length=f, step=step, controller=controller)
+            x = block(x, context=context, video_length=f, step=step, controller=controller, is_invert=is_invert)
         if self.use_linear:
             x = self.proj_out(x)
             ch = x.shape[-1]
@@ -1197,7 +1191,8 @@ class UNetModel3D(nn.Cell):
             for oblock in self.output_blocks:
                 oblock.recompute(parallel_optimizer_comm_recompute=True)
 
-        self.step = Parameter(ms.Tensor(0, ms.float32), requires_grad=False)
+        self.step = Parameter(ms.Tensor(0, ms.int32), requires_grad=False)
+        self.is_invert = Parameter(ms.Tensor(-1, ms.int32), requires_grad=False)
         self.controller = controller
 
     @staticmethod
@@ -1242,7 +1237,7 @@ class UNetModel3D(nn.Cell):
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 if self.is_attention_layer(cell):
-                    h = cell(h, emb, context, self.step, self.controller)
+                    h = cell(h, emb, context, self.step, self.controller, self.is_invert)
                 else:
                     h = cell(h, emb, context)
 
@@ -1257,7 +1252,7 @@ class UNetModel3D(nn.Cell):
 
         for module in self.middle_block:
             if self.is_attention_layer(module):
-                h = module(h, emb, context, self.step, self.controller)
+                h = module(h, emb, context, self.step, self.controller, self.is_invert)
             else:
                 h = module(h, emb, context)
 
@@ -1266,7 +1261,7 @@ class UNetModel3D(nn.Cell):
             h = self.cat((h, hs[hs_index]))
             for cell in celllist:
                 if self.is_attention_layer(cell):
-                    h = cell(h, emb, context, self.step, self.controller)
+                    h = cell(h, emb, context, self.step, self.controller, self.is_invert)
                 else:
                     h = cell(h, emb, context)
             hs_index -= 1

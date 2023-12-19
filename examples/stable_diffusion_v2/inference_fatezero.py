@@ -292,7 +292,7 @@ def main(args):
     logger.debug(f"WORK DIR:{work_dir}")
     os.makedirs(args.output_path, exist_ok=True)
     outpath = args.output_path
-    batch_size = args.n_samples + 1
+    batch_size = args.n_samples
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
@@ -398,8 +398,10 @@ def main(args):
     if True or not os.path.exists(args.latent_path):
         c = model.get_learned_conditioning(model.tokenize([source_prompt]))
         frames = ms.Tensor(frames[None, ...])
+        model.is_invert = 1
         latents, _ = model.get_input(frames, c)
         ddim_inv, _ = inv_sampler.encode(latents, c, args.inv_sampling_steps)
+        model.is_invert = -1
         start_code = ddim_inv
         ms.save_checkpoint([{"name": "start_code", "data": start_code}], args.latent_path)
     else:
@@ -408,7 +410,7 @@ def main(args):
     start_code = start_code.broadcast_to((batch_size, *shape))
 
     negative_prompts = [""] * batch_size
-    prompts = [source_prompt, target_prompt]
+    prompts = [target_prompt]
 
     for n in range(args.n_iter):
         start_time = time.time()
