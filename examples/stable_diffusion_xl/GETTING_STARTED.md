@@ -196,6 +196,7 @@ python train.py \
   --config configs/training/sd_xl_base_finetune_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --data_path /PATH TO/YOUR DATASET/ \
+  --gradient_accumulation_steps 4 \
 ```
 
 3. DreamBooth fine-tune

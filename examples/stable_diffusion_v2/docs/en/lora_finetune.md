@@ -1,4 +1,4 @@
-# LoRA for Stable Diffusion Finetuning
+# LoRA for Stable Diffusion Fine-tuning
 > [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/abs/2106.09685)
 
 ## Introduction
@@ -22,7 +22,6 @@ LoRA was extended to finetune diffusion models by [cloneofsimo](https://github.c
 For latent diffusion models, LoRA is usually applied to the CrossAttention layers in UNet, and can also be applied to the Attention layers in the text encoder.
 
 
-
 ## Get Started
 
 **MindONE** supports LoRA finetuning for Stable Diffusion models based on MindSpore and Ascend platforms.
@@ -31,99 +30,80 @@ For latent diffusion models, LoRA is usually applied to the CrossAttention layer
 
 #### Dependency
 
-Please make sure the following frameworks are installed.
+Please refer to the [Installation](../../README.md#installation) section.
 
-- mindspore >= 1.9  [[install](https://www.mindspore.cn/install)] (2.0 is recommended for the best performance.)
-- python >= 3.7
-- openmpi 4.0.3 (for distributed training/evaluation)  [[install](https://www.open-mpi.org/software/ompi/v4.0/)]
+#### Pretrained Weights
 
-Install the dependent packages by running:
-```shell
-pip install -r requirements.txt
-```
-
-#### Pretrained Models
-
-Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `models/` folder.
-
+We support LoRA fine-tuning on pretrained text-to-image models as listed in [Pretrained Text-to-Image Models](../../README.md#preparing-pretrained-weights).
+Please download one of the pretrained checkpoint from the table and put it in `models` folder.
 
 #### Text-image Dataset Preparation
 
-The text-image pair dataset for finetuning should follow the file structure below
+Please refer to the [Dataset Preparation](../../README.md#dataset-preparation) section.
 
-```text
-dir
-├── img1.jpg
-├── img2.jpg
-├── img3.jpg
-└── img_txt.csv
-```
+### LoRA Fine-tuning
 
-img_txt.csv is the annotation file in the following format
-```text
-dir,text
-img1.jpg,a cartoon character with a potted plant on his head
-img2.jpg,a drawing of a green pokemon with red eyes
-img3.jpg,a red and white ball with an angry look on its face
-```
+After preparing the pretrained weight and fine-tuning dataset, you can use the `train_text_to_image.py` script and set argument `use_lora=True` for LoRA fine-tuning.
 
-For convenience, we have prepared two public text-image datasets obeying the above format.
-
-- [pokemon-blip-caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 833 pokemon-style images with BLIP-generated captions.
-- [Chinese-art blip caption dataset](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets), containing 100 chinese art-style images with BLIP-generated captions.
-
-To use them, please download `pokemon_blip.zip` and `chinese_art_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
-
-### LoRA Finetune
-
-We will use the `train_text_to_image.py` script and set argument `use_lora=True` for LoRA finetuning.
-Before running, please modify the following arguments to your local path in the shell or in the config file `train_config_lora_v2.yaml`:
-
-* `--data_path=/path/to/data`
-* `--output_path=/path/to/save/output_data`
-* `--pretrained_model_path=/path/to/pretrained_model`
-
-Then, execute the script to launch finetuning:
+To run LoRA fine-tuning, please specify the `train_config`, `data_path`, and `pretrained_model_path` arguments according to the model and data you want to fine-tune with, then execute
 
 ```shell
 python train_text_to_image.py \
-    --train_config "configs/train/train_config_lora_v2.yaml" \
-    --data_path "datasets/pokemon_blip/train" \
-    --output_path "output/lora_pokemon/txt2img" \
-    --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
+    --train_config {path to a pre-defined training config yaml} \
+    --data_path {path to training data directory} \
+    --output_path {path to output directory} \
+    --pretrained_model_path {path to pretrained checkpoint file}
 ```
+> `--train_config` points to a preset training configuration file, which defines the model architecture via `model_config` and the training hyper-parameters such as `lora_rank`.
 
-> Note: to modify other important hyper-parameters, please refer to training config file `train_config_lora_v2.yaml`.
-
-After training, the lora checkpoint will be saved in `{output_path}/ckpt/txt2img/ckpt/rank_0/sd-72.ckpt` by default, which only contains the LoRA parameters and is small.
-
-Below are some arguments that you may want to tune for a better performance on your dataset:
-
-
-- `lora_rank`: the rank of the low-rank matrices in lora params.
-- `train_batch_size`: the number of batch size for training.
-- `start_learning_rate` and `end_learning_rate`: the initial and end learning rates for training.
-- `epochs`: the number of epochs for training.
-- `use_ema`: whether use EMA for model smoothing
-> Note that the default learning rate for LoRA is 1e-4, whichis larger that vanilla finetuning (~1e-5).
+Key arguments, which can be specified in `train_config` or command line, are as follows:
+- `use_lora`: whether fine-tune with LoRA
+- `lora_rank`: the rank of the low-rank matrices in lora params, default: 4.
+- `lora_ft_text_encoder`: whether fine-tune the text encoder with LoRA, default: False.
+- `lora_fp16`:  whether compute LoRA in float16, default: True
+- `model_config`: path to the model architecture configuration file.
+- `pretrained_model_path`: path to the pretrained model weight
 
 For more argument illustration, please run `python train_text_to_image.py -h`.
 
+The trained LoRA checkpoints will be saved in `{output_path}/ckpt`, which are small since only LoRA parameters are saved .
 
-#### Config for v-prediction (Experimental)
+#### Example 1: Fine-tuning SD1.5 with LoRA on Pokemon Dataset
 
-By default, the target of LDM model is to predict the noise of the diffusion process (called `eps-prediction`). `v-prediction` is another prediction type where the `v-parameterization` is involved (see section 2.4 in [this paper](https://imagen.research.google/video/paper.pdf)) and is claimed to have better convergence and numerical stability.
+After downloading [sd_v1.5-d0ab7146.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt) to `models` folder, please run
 
-To switch from `eps-prediction` to `v-prediction`, please modify `configs/v2-train.yaml` as follows.
-
-```yaml
-#parameterization: "eps"
-parameterization: "velocity"
+```shell
+python train_text_to_image.py \
+    --train_config configs/train/train_config_lora_v1.yaml \
+    --data_path datasets/pokemon_blip/train \
+    --output_path output/lora_pokemon \
+    --pretrained_model_path models/sd_v1.5-d0ab7146.ckpt
 ```
+
+The trained LoRA checkpoints will be saved in `output/lora_pokemon/ckpt`.
+
+For fine-tuning other SD1.x checkpoints, please change `pretrained_model_path` accordingly.
+
+#### Example 2: Fine-tuning SD2.1 with LoRA on Chinese Dataset
+
+After downloading [sd_v2-1_base-7c8d09ce.ckpt](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2-1_base-7c8d09ce.ckpt) to `models` folder, please run
+
+```shell
+python train_text_to_image.py \
+    --train_config configs/train/train_config_lora_v2.yaml \
+    --data_path datasets/chinese_art_blip/train \
+    --output_path output/lora_chinese_art \
+    --pretrained_model_path models/sd_v2-1_base-7c8d09ce.ckpt
+```
+
+The trained LoRA checkpoints will be saved in `output/lora_chinese_art/ckpt`.
+
+For fine-tuning other SD2.x checkpoints, please change `pretrained_model_path` accordingly.
+
 
 ### Inference
 
-To perform text-to-image generation with the finetuned lora checkpoint, please run
+To perform text-to-image generation with the fine-tuned lora checkpoint, please run
 
 ```shell
 python text_to_image.py \
@@ -132,7 +112,7 @@ python text_to_image.py \
         --lora_ckpt_path {path/to/lora_checkpoint_after_finetune}
 ```
 
-Please update `lora_ckpt_path` according to your finetune settings.
+Please update `lora_ckpt_path` according to your fine-tuning settings.
 
 Here are the example results.
 
