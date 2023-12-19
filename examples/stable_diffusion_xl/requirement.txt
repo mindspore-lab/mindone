@@ -3,3 +3,5 @@ omegaconf
 ftfy
 transformers
 imagesize
+pandas
+opencv-python
