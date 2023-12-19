@@ -139,7 +139,7 @@ data:
     shuffle: True
 
     dataset_config:
-        target: gm.data.dataset.Text2ImageDataset
+        target: gm.data.dataset_wds.T2I_RandWebdataset
         params:
             target_size: 1024
             transforms:
