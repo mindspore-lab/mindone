@@ -247,6 +247,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         with open(shardlist_desc, 'r') as fp:
             shardlist = json.load(fp)['shardlist']
         self.dataset = wids.ShardListDataset(shardlist)
+        self._datalen = len(self.dataset)
 
     def parse_raw_data(self, raw_data):
         # parse webdataset reading result
@@ -266,25 +267,27 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         return image, caption
 
     def __getitem__(self, idx):
-        # get data sample recursively until we get a non-corrupted one
         try:
             raw = self.dataset[idx]
             image, caption = self.parse_raw_data(raw)
             sample = self.preprocess(image, caption)
-
             if (self.prev_ok_sample is None) or (self.require_update_prev):
                 self.prev_ok_sample = copy.deepcopy(sample)
                 self.require_update_prev = False
-
         except Exception as e:
-            print("=> WARNING: Fail to get sample {}, which can be corrupted. Sample will be replaced by previous ok sample.\n\tError: {}".format(idx, e), flush=True)
+            print(f"=> WARNING: Fail to get sample {idx}. The sample can be corrupted and will be replaced by previous normal sample.")
+            print("\tError type: ", type(e).__name__)
+            print("\tError mg: {}".format(e), flush=True)
             sample = self.prev_ok_sample # unless the first sample is already not ok
             self.require_update_prev = True
+
+            if idx >= self._datalen:
+                raise IndexError # needed for checking the end of dataset iteration
 
         return sample
 
     def __len__(self):
-        return len(self.dataset)
+        return self._datalen
 
 
 if __name__ == "__main__":
