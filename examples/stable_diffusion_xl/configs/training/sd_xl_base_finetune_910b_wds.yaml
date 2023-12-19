@@ -125,7 +125,7 @@ optim:
 
 data:
     per_batch_size: 1
-    total_step: 10000
+    total_step: 500
     num_parallel_workers: 2
     python_multiprocessing: False
     shuffle: True

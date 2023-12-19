@@ -12,6 +12,7 @@ import wids
 from itertools import islice
 import io
 import json
+import copy
 
 from gm.util import instantiate_from_config
 
@@ -93,6 +94,8 @@ class T2I_BaseDataset:
         self.per_batch_size = per_batch_size
 
         self.caption_key = caption_key
+        self.prev_ok_sample = None
+        self.require_update_prev = True
 
         # ds = ds.shuffle(1000) # uncomment for local shuffle. no needed if shuffle in generator dataset
         # ds = ds.decode("rgb8").to_tuple("jpg;png", "json") # will do in getitem to save time
@@ -207,8 +210,10 @@ class T2I_Webdataset(T2I_BaseDataset):
             image = Image.open(io.BytesIO(raw_data['png']))
 
         annot = json.load(io.BytesIO(raw_data['json']))
-
-        caption = annot[caption_key]
+        if self.caption_key in annot:
+            caption = annot[self.caption_key]
+        else:
+            raise ValueError("No caption found. Expecting caption key: {}".self.caption_key)
 
         return image, caption
 
@@ -252,16 +257,29 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         else:
             raise ValueError('Missing jpg/png image, only get keys: {}'.format(raw_data.keys()))
 
-        caption = raw_data['.json'][self.caption_key]
+        annot = raw_data['.json']
+        if self.caption_key in annot:
+            caption = annot[self.caption_key]
+        else:
+            raise ValueError("No caption found. Expecting caption key: {}".format(self.caption_key))
 
         return image, caption
 
     def __getitem__(self, idx):
-        # images preprocess
-        # raw = next(islice(self.wds_iterator, idx, idx+1))
-        raw = self.dataset[idx]
-        image, caption = self.parse_raw_data(raw)
-        sample = self.preprocess(image, caption)
+        # get data sample recursively until we get a non-corrupted one
+        try:
+            raw = self.dataset[idx]
+            image, caption = self.parse_raw_data(raw)
+            sample = self.preprocess(image, caption)
+
+            if (self.prev_ok_sample is None) or (self.require_update_prev):
+                self.prev_ok_sample = copy.deepcopy(sample)
+                self.require_update_prev = False
+
+        except Exception as e:
+            print("=> WARNING: Fail to get sample {}, which can be corrupted. Sample will be replaced by previous ok sample.\n\tError: {}".format(idx, e), flush=True)
+            sample = self.prev_ok_sample # unless the first sample is already not ok
+            self.require_update_prev = True
 
         return sample
 
