@@ -44,7 +44,7 @@ def get_parser_train():
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
-    parser.add_argument("--use_ema", default=False, type=ast.literal_eval, help="whether use ema")
+    parser.add_argument("--use_ema", action="store_true", help="whether use ema")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
