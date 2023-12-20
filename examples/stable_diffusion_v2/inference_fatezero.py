@@ -316,7 +316,8 @@ def main(args):
         "num_self_replace": (0, 20),
         "num_cross_replace": (0, 20),
         "type": 'replace',
-        "mapper": False
+        "mapper": False,
+        # "alpha_layers":
 
     }
 
@@ -398,10 +399,10 @@ def main(args):
     if True or not os.path.exists(args.latent_path):
         c = model.get_learned_conditioning(model.tokenize([source_prompt]))
         frames = ms.Tensor(frames[None, ...])
-        model.is_invert = 1
+        model.model.diffusion_model.is_invert = ms.Tensor(1, ms.int32)
         latents, _ = model.get_input(frames, c)
         ddim_inv, _ = inv_sampler.encode(latents, c, args.inv_sampling_steps)
-        model.is_invert = -1
+        model.model.diffusion_model.is_invert = ms.Tensor(-1, ms.int32)
         start_code = ddim_inv
         ms.save_checkpoint([{"name": "start_code", "data": start_code}], args.latent_path)
     else:
