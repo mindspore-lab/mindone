@@ -1,6 +1,7 @@
 # reference to https://github.com/Stability-AI/generative-models
 from abc import abstractmethod
 from functools import partial
+from typing import Iterable
 
 from gm.modules.attention import SpatialTransformer
 from gm.modules.diffusionmodules.util import (
@@ -153,11 +154,16 @@ class ResBlock(TimestepBlock):
         self.use_scale_shift_norm = use_scale_shift_norm
         self.exchange_temb_dims = exchange_temb_dims
 
+        if isinstance(kernel_size, Iterable):
+            padding = [k // 2 for k in kernel_size]
+        else:
+            padding = kernel_size // 2
+
         self.in_layers = nn.SequentialCell(
             [
                 normalization(channels),
                 nn.SiLU(),
-                conv_nd(dims, channels, self.out_channels, kernel_size, pad_mode="same"),
+                conv_nd(dims, channels, self.out_channels, kernel_size, padding=padding, pad_mode="pad"),
             ]
         )
 
@@ -195,14 +201,18 @@ class ResBlock(TimestepBlock):
                 normalization(self.out_channels),
                 nn.SiLU(),
                 nn.Dropout(p=dropout),
-                zero_module(conv_nd(dims, self.out_channels, self.out_channels, kernel_size, pad_mode="same")),
+                zero_module(
+                    conv_nd(dims, self.out_channels, self.out_channels, kernel_size, padding=padding, pad_mode="pad")
+                ),
             ]
         )
 
         if self.out_channels == channels:
             self.skip_connection = nn.Identity()
         elif use_conv:
-            self.skip_connection = conv_nd(dims, channels, self.out_channels, kernel_size, pad_mode="same")
+            self.skip_connection = conv_nd(
+                dims, channels, self.out_channels, kernel_size, padding=padding, pad_mode="pad"
+            )
         else:
             self.skip_connection = conv_nd(dims, channels, self.out_channels, 1)
 
