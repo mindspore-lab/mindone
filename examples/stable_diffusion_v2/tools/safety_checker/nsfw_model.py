@@ -1,7 +1,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn
+from mindspore import Parameter, Tensor, nn, ops
 
 
 class Normalization(nn.Cell):
@@ -11,7 +11,7 @@ class Normalization(nn.Cell):
         self.variance = Parameter(Tensor(np.ones(shape), ms.float32))
 
     def construct(self, x):
-        return (x - self.mean) / ms.ops.Sqrt()(self.variance)
+        return (x - self.mean) / ops.sqrt(self.variance)
 
 
 class NSFWModel(nn.Cell):

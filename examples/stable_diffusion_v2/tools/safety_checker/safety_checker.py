@@ -6,7 +6,9 @@ import argparse
 import os
 import sys
 
+import numpy as np
 import yaml
+from PIL import Image
 
 # equivalent to no-check-certificate flag in wget
 os.environ["CURL_CA_BUNDLE"] = ""
@@ -14,11 +16,28 @@ os.environ["CURL_CA_BUNDLE"] = ""
 sys.path.insert(0, os.getcwd())
 
 from tools._common import L2_norm_ops, load_images
-from tools._common.clip import CLIPImageProcessor, CLIPTokenizer, parse
+from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+from tools.safety_checker.nsfw_model import NSFWModel
 from tools.safety_checker.utils import locate_model
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import load_checkpoint, load_param_into_net, ops
+
+try:
+    import torch
+    from tools.safety_checker.nsfw_model_pt import NSFWModelPT
+
+    is_torch_available = True
+except ImportError:
+    is_torch_available = False
+
+try:
+    from transformers import CLIPModel as CLIPModelPT
+    from transformers import CLIPProcessor
+
+    is_transformers_available = True
+except ImportError:
+    is_transformers_available = False
 
 
 class SafetyChecker:
@@ -37,18 +56,16 @@ class SafetyChecker:
         assert safety_version in [1, 2]
 
         if backend == "pt":
-            from transformers import CLIPModel, CLIPProcessor
+            assert is_torch_available is True, "torch is not installed, please install torch."
+            assert is_transformers_available is True, "transformers is not installed, please install transformers."
 
-            model = CLIPModel.from_pretrained(model_name)
+            model = CLIPModelPT.from_pretrained(model_name)
             processor = CLIPProcessor.from_pretrained(model_name)
 
             def process_text(text):
                 return processor(text=text, return_tensors="pt", padding=True).input_ids
 
             if safety_version == 2:
-                import torch
-                from tools.safety_checker.nsfw_model_pt import NSFWModelPT
-
                 nsfw_model = NSFWModelPT()
                 model_path = locate_model(backend="pt")
                 assert model_path is not None
@@ -56,8 +73,6 @@ class SafetyChecker:
 
         elif backend == "ms":
             # parse config file
-            from tools._common.clip import CLIPModel
-
             config = parse(config, ckpt_path)
             self.image_size = config.vision_config.image_size
             self.dtype = ms.float32 if config.dtype == "float32" else ms.float16
@@ -69,10 +84,6 @@ class SafetyChecker:
                 return ms.Tensor(tokenizer(text, padding="max_length", max_length=77)["input_ids"])
 
             if safety_version == 2:
-                from tools.safety_checker.nsfw_model import NSFWModel
-
-                from mindspore import load_checkpoint, load_param_into_net
-
                 nsfw_model = NSFWModel()
                 model_path = locate_model(backend="ms")
                 assert model_path is not None
@@ -142,8 +153,6 @@ class SafetyChecker:
             w /= L2_norm_ops(w)
             return ops.matmul(v, w.T)
         else:
-            import torch
-
             v /= v.norm(p=2, dim=-1, keepdim=True)
             w /= w.norm(p=2, dim=-1, keepdim=True)
             return torch.mm(v, w.T)
@@ -163,9 +172,6 @@ class SafetyChecker:
         original_images = images
 
         if self.backend == "ms" and (images.shape[-1] != self.image_size or images.shape[-2] != self.image_size):
-            import numpy as np
-            from PIL import Image
-
             images_ = []
             for i in range(images.shape[0]):
                 im = Image.fromarray((255.0 * images[i].transpose((1, 2, 0))).astype(np.uint8).asnumpy())
@@ -190,8 +196,6 @@ class SafetyChecker:
             scores = self.nsfw_model(image_features)
             has_nsfw_concepts = [score if score > self.threshold else 0 for score in scores]
 
-        if self.backend == "pt":
-            import torch
         for idx, has_nsfw_concept in enumerate(has_nsfw_concepts):
             if has_nsfw_concept:
                 if self.backend == "pt":

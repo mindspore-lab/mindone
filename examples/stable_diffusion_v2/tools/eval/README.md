@@ -9,7 +9,7 @@ This folder contains code and scripts for diffusion model evaluation, e.g.,
 
 Note that all the above metrics are computed based on neural network models.
 
-> A convincing evaluation for diffusion models requires both visually qualitative comparision and quantitative measure. A lower FID score (or a higher CLIP score) does not nessarily show one model is better than another.
+> A convincing evaluation for diffusion models requires both visually qualitative comparision and quantitative measure. A lower FID score (or a higher CLIP score) does not necessarily show one model is better than another.
 
 ## Usage
 
