@@ -14,6 +14,7 @@ import mindspore as ms
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
 from conditions.canny.canny_detector import CannyDetector
+from conditions.openpose.openpose_detector import OpenposeDetector
 from conditions.segmentation.segment_detector import SegmentDetector
 from conditions.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
@@ -168,6 +169,18 @@ def main(args):
                 )
             detected_map = apply_segment(img)
             detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+        elif args.controlnet_mode == "openpose":
+            if args.control_path is not None:
+                detected_map = cv2.imread(args.control_path)
+                print("D---: use input openpose image: ", args.control_path)
+            else:
+                apply_openpose = OpenposeDetector()
+                # cong TODO: make sure the resolution is correct
+                # resize_image(input_image, detect_resolution)
+                detected_map, _ = apply_openpose(img)
+                detected_map = HWC3(detected_map)
+            print("D--: sum openpose: ", (detected_map / 255.0).sum())
+
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
 
@@ -328,6 +341,9 @@ if __name__ == "__main__":
         elif args.controlnet_mode == "segmentation":
             inputs_config_path = "./config/controlnet_segmentation.yaml"
             default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
+        elif args.controlnet_mode == "openpose":
+            inputs_config_path = "./config/controlnet_segmentation.yaml"
+            default_ckpt = "./models/ms_control_sd15_openpose.ckpt"
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
     else:
