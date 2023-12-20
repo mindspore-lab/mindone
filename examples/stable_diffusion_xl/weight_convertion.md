@@ -19,6 +19,7 @@ python convert_weight.py \
 
 # convert sdxl-refiner-1.0 model
 python convert_weight.py \
+  --task pt_to_ms \
   --weight_safetensors /PATH TO/sd_xl_refiner_1.0.safetensors \
   --weight_ms /PATH TO/sd_xl_refiner_1.0_ms.ckpt \
   --key_torch torch_key_refiner.yaml \
