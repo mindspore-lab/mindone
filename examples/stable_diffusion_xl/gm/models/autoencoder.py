@@ -122,8 +122,8 @@ class AutoencoderKL(AutoencodingEngine):
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
         self.quant_conv = nn.Conv2d(
-            (1 + ddconfig["double_z"]) * ddconfig["z_channels"],
-            (1 + ddconfig["double_z"]) * embed_dim,
+            (1 + int(ddconfig["double_z"])) * ddconfig["z_channels"],
+            (1 + int(ddconfig["double_z"])) * embed_dim,
             1,
             has_bias=True,
             pad_mode="valid",
