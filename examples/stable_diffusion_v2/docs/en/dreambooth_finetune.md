@@ -101,6 +101,7 @@ python train_dreambooth.py \
     --output_path "output/dreambooth_dog/txt2img" \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
+> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 To modify other important hyper-parameters, please refer to training config file `train_config_dreambooth_v2.yaml`.
 
@@ -128,6 +129,7 @@ python train_dreambooth.py \
     --output_path "output/dreambooth_vanilla_dog/txt2img" \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
+> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 #### 2.2.5 Training Command for DreamBooth with LoRA
 
@@ -145,6 +147,8 @@ python train_dreambooth.py \
     --output_path "output/dreambooth_lora_dog/txt2img" \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
+> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
+> 
 Note that we train the LoRA parameters with a constant learning rate `5e-5`, a weight decay `1e-4 ` for 4 epochs (800 steps). The rank of the LoRA parameter is 64.
 
 
