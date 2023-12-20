@@ -57,7 +57,7 @@ Please download a video file from [here](https://github.com/showlab/Tune-A-Video
 
 #### 2.2.1 Experiment-Related Variables
 
-Given the different versions of pretrained Stable Diffusion model, we recommend you to refer to `configs/train/train_config_tuneavideo_v1.yaml` for SD v1.5, and `configs/train/train_config_tuneavideo_v2.yaml` for SD v2.0 and SD v2.1. To align with the original paper, we use SD V1.5 for this finetuning experiment.
+Given the different versions of pretrained Stable Diffusion model, we recommend you to refer to `configs/train/train_config_tuneavideo_v1.yaml` for SD v1.5, and `configs/train/train_config_tuneavideo_v2.yaml` for SD v2.0 and SD v2.1. Since SD V1.5 has not been supported with Flash-Attention yet, which affect its maximum number of frames for finetuning, we mainly use SD V2(2.1) as examples in this tutorial.
 
 Please change the three items according to your data path and the memory budget.
 ```yaml
@@ -68,7 +68,8 @@ num_frames: 12  # use 24 (910B) or 12 (910A)
 
 **Notes**:
 1. Lower number of frames leads to less memory consumption.
-2. Changing `version: "2.0"` to `version: "2.1"` in `train_config_tuneavideo_v2.yaml` allows fintuning based on SD v2.1 model.
+2. Finetuning SD V1.5 with vanilla attention instead of Flash-Attention is feasible now, as long as the user reduces the number of frames to no greater than 12 frames on 910B and 4 frames on 910A.
+3. Changing `version: "2.0"` to `version: "2.1"` in `train_config_tuneavideo_v2.yaml` allows fintuning based on SD v2.1 model.
 
 
 #### 2.2.2 Training Command for Tune-A-Video
@@ -87,7 +88,7 @@ python inference_tuneavideo.py  \
   --config configs/v2-train-tuneavideo.yaml  \
   --version "2.0"  \
   --video_path "videos/man-skiing.mp4"  \
-  --num_frames 12  \
+  --num_frames 12  \  # change to 24 if finetuned with 24 frames on 910B
   --prompt "Wonderwoman is skiing"  \
   --ckpt_path output_path/ckpt/sd-500.ckpt   \
   --output_path output/
@@ -105,4 +106,4 @@ We show the generated video in GIF format:
 
 ## 3. TODO
 
-- [ ] support flash-attention in SD v1.5.
+- [ ] support Flash-Attention with SD v1.5.

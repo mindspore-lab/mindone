@@ -392,7 +392,11 @@ def main(args):
                 for x_sample in x_samples_ddim_numpy:
                     x_sample = 255.0 * x_sample.transpose((0, 2, 3, 1))  # (f, h, w, c)
                     imgs = [x.astype(np.uint8) for x in x_sample]
-                    imageio.mimsave(os.path.join(sample_path, f"{base_count:05}.gif"), imgs, fps=args.fps)
+                    try:
+                        imageio.mimsave(os.path.join(sample_path, f"{base_count:05}.gif"), imgs, fps=args.fps)
+                    except Exception:
+                        duration = int(1000 / args.fps)
+                        imageio.mimsave(os.path.join(sample_path, f"{base_count:05}.gif"), imgs, duration=duration)
                     # save images to subfolders
                     i_frame = 0
                     for img in imgs:
