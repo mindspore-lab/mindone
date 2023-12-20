@@ -153,5 +153,7 @@ class AutoencoderKLInferenceWrapper(AutoencoderKL):
 
 class AutoencoderKLModeOnly(AutoencoderKL):
     def encode(self, x, **kwargs):
-        moments = super().encode(x)
+        # super().encode(x) doesn't work correctly when wrapped with jit
+        h = self.encoder(x)
+        moments = self.quant_conv(h)
         return self.posterior.mode(moments)
