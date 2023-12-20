@@ -273,7 +273,6 @@ class SparseCausalAttention(CrossAttention):
 
     def concat_first_previous_features(self, x, video_length, former_frame_index):
         bf, hw, c = x.shape
-        print(x.shape)
         # (b f) (hw) c -> b f (hw) c
         x = x.reshape((bf // video_length, video_length, hw, c))
         x = ops.cat([x[:, [0] * video_length], x[:, former_frame_index]], axis=2)
@@ -425,18 +424,24 @@ class BasicTransformerBlock_ST(nn.Cell):
         # else:
         #     self_attn = none()
         #     cross_attn = none()
-        self_attn = none()
-        cross_attn = none()
-        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller,
-                               self_attn=self_attn)
+
+        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller
+                               )
         x1 += x
-        x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller, cross_attn=cross_attn)
+        x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller)
         x = x2 + x1
         x = self.ff(self.norm3(x)) + x
-        if is_invert > 0 and step < 8:
+
+        # print(self_attn.shape, attn1.shape)
+        # print(cross_attn.shape, attn2.shape)
+        print(step)
+        #if is_invert > 0 and step < 8:
+        if step < 8:
             if not_none(attn1):
-                self.store_self_attn[step] = attn1
-            self.store_cross_attn[step] = attn2
+                print(self.store_self_attn[step].shape, attn1.shape)
+                #self.store_self_attn[step] = attn1
+            print(self.store_cross_attn[step].shape,attn2.shape)
+            # self.store_cross_attn[step] = attn2
 
         # temporal attention
         # (b f) (hw) c -> (b h w) f c
@@ -1255,7 +1260,7 @@ class UNetModel3D(nn.Cell):
         :return: an [N x C x ...] Tensor of outputs.
         """
 
-        # print(self.controller)
+        print(self.is_invert)
         assert (y is not None) == (
                 self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"

@@ -1,5 +1,25 @@
 """
-python inference_fatezero.py --config configs/v2-interface-fatezero-model.yaml --version 2.0 --video_path videos/jeep.mp4 --ckpt_path sd-500.ckpt --num_frames 8 --output_path output/ --source_prompt a silver jeep driving down a curvy road in the countryside --target_prompt a Porsche car driving down a curvy road in the countryside """
+python inference_fatezero.py
+--ddim
+--config
+configs/v2-interface-fatezero-model.yaml
+--version
+"2.0"
+--video_path
+"videos/jeep.mp4"
+--sampling_steps 20
+--ckpt_path
+sd-500.ckpt
+--num_frames
+8
+--output_path
+output/
+--source_prompt
+"a silver jeep driving down a curvy road in the countryside"
+--target_prompt
+"a Porsche car driving down a curvy road in the countryside"
+
+"""
 import argparse
 import logging
 import os
