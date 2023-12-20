@@ -1,11 +1,10 @@
-import time
 import os
 import os.path
 import signal
+import time
 
 from common import RunAscendLog
 from fmk import FMK
-
 
 log = RunAscendLog.get_run_ascend_logger()
 
@@ -25,8 +24,8 @@ class FMKManager:
     # break the monitor and destroy processes when get terminate signal
     def term_handle(func):
         def receive_term(signum, stack):
-            log.info('Received terminate signal %d, try to destroyed all processes' % signum)
-            stack.f_locals['self'].get_sigterm = True
+            log.info("Received terminate signal %d, try to destroyed all processes" % signum)
+            stack.f_locals["self"].get_sigterm = True
 
         def handle_func(self, *args, **kwargs):
             origin_handle = signal.getsignal(signal.SIGTERM)
@@ -58,8 +57,10 @@ class FMKManager:
                 fmk_process = self.fmk_processes[index]
                 if fmk_process.poll() is not None:
                     if fmk_process.returncode != 0:
-                        log.error('proc-rank-%s-device-%s (pid: %d) has exited with non-zero code: %d'
-                                  % (fmk.rank_id, fmk.device_id, fmk_process.pid, fmk_process.returncode))
+                        log.error(
+                            "proc-rank-%s-device-%s (pid: %d) has exited with non-zero code: %d"
+                            % (fmk.rank_id, fmk.device_id, fmk_process.pid, fmk_process.returncode)
+                        )
                         return fmk_process.returncode
 
                     zero_ret_cnt += 1
@@ -70,10 +71,10 @@ class FMKManager:
         return 0
 
     def destroy(self, base_period=1):
-        log.info('Begin destroy training processes')
+        log.info("Begin destroy training processes")
         self.send_sigterm_to_fmk_process()
         self.wait_fmk_process_end(base_period)
-        log.info('End destroy training processes')
+        log.info("End destroy training processes")
 
     def send_sigterm_to_fmk_process(self):
         # send SIGTERM to fmk processes (and process group)
@@ -81,8 +82,12 @@ class FMKManager:
             fmk = self.fmk[r_index]
             fmk_process = self.fmk_processes[r_index]
             if fmk_process.poll() is not None:
-                log.info('proc-rank-%s-device-%s (pid: %d) has exited before receiving the term signal',
-                         fmk.rank_id, fmk.device_id, fmk_process.pid)
+                log.info(
+                    "proc-rank-%s-device-%s (pid: %d) has exited before receiving the term signal",
+                    fmk.rank_id,
+                    fmk.device_id,
+                    fmk_process.pid,
+                )
                 del self.fmk_processes[r_index]
                 del self.fmk[r_index]
 
@@ -99,8 +104,7 @@ class FMKManager:
                 fmk = self.fmk[r_index]
                 fmk_process = self.fmk_processes[r_index]
                 if fmk_process.poll() is not None:
-                    log.info('proc-rank-%s-device-%s (pid: %d) has exited',
-                             fmk.rank_id, fmk.device_id, fmk_process.pid)
+                    log.info("proc-rank-%s-device-%s (pid: %d) has exited", fmk.rank_id, fmk.device_id, fmk_process.pid)
                     del self.fmk_processes[r_index]
                     del self.fmk[r_index]
             if not self.fmk_processes:
@@ -115,8 +119,11 @@ class FMKManager:
                 fmk = self.fmk[r_index]
                 fmk_process = self.fmk_processes[r_index]
                 if fmk_process.poll() is None:
-                    log.warn('proc-rank-%s-device-%s (pid: %d) has not exited within the max waiting time, '
-                             'send kill signal',
-                             fmk.rank_id, fmk.device_id, fmk_process.pid)
+                    log.warn(
+                        "proc-rank-%s-device-%s (pid: %d) has not exited within the max waiting time, "
+                        "send kill signal",
+                        fmk.rank_id,
+                        fmk.device_id,
+                        fmk_process.pid,
+                    )
                     os.killpg(fmk_process.pid, signal.SIGKILL)
-
