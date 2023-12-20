@@ -30,6 +30,16 @@ from mindspore.communication.management import get_group_size, get_rank, init
 
 _logger = logging.getLogger(__name__)
 
+
+class BroadCast(nn.Cell):
+    def __init__(self, root_rank):
+        super().__init__()
+        self.broadcast = ops.Broadcast(root_rank)
+
+    def construct(self, x):
+        return (self.broadcast((x,)))[0]
+
+
 SD_XL_BASE_RATIOS = {
     "0.5": (704, 1408),
     "0.52": (704, 1344),
@@ -567,10 +577,9 @@ def _get_broadcast_datetime(rank_size=1, root_rank=0):
     if rank_size <= 1:
         return time_list
 
-    bd_cast = ops.Broadcast(root_rank=root_rank)
     # only broadcast in distribution mode
-    x = bd_cast((Tensor(time_list, dtype=ms.int32),))
-    x = x[0].asnumpy().tolist()
+    bd_cast = BroadCast(root_rank=root_rank)(Tensor(time_list, dtype=ms.int32))
+    x = bd_cast.asnumpy().tolist()
 
     return x
 
