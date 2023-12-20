@@ -230,7 +230,7 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
         --pretrained_model_path {path to pretrained checkpoint file}
     ```
     > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
-    
+
     Take fine-tuning SD1.5 on the Pokemon dataset as an example:
 
     ```shell
