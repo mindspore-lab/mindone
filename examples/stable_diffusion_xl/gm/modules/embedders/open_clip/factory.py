@@ -110,3 +110,29 @@ def create_model(
         return model(*args, **kwargs)
 
     return model if not jit else jit_func
+
+
+if __name__ == "__main__":
+    import argparse
+    import ast
+
+    from gm.modules.embedders.open_clip.tokenizer import tokenize
+
+    parser_config = argparse.ArgumentParser(description="Config", add_help=False)
+    parser_config.add_argument("--ms_jit", type=ast.literal_eval, default=False)
+    args, _ = parser_config.parse_known_args()
+
+    model = create_model(model_name="ViT-H-14-Text", pretrained="")  # "laion2b_s32b_b79k"
+
+    @ms.jit
+    def jit_warpper(token):
+        return model.token_embedding(token)
+
+    token = tokenize(["a photo of a cat", "a photo of a dog"])
+    if not args.ms_jit:
+        out = model.token_embedding(token)
+    else:
+        out = jit_warpper(token)
+
+    print(f"token.shape: {token.shape}")
+    print(f"out.shape: {out.shape}")

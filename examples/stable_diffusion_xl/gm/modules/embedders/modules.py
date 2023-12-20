@@ -553,3 +553,35 @@ class ConcatTimestepEmbedderND(AbstractEmbModel):
         emb = emb.view(b, dims, self.outdim).view(b, -1)
 
         return emb
+
+
+if __name__ == "__main__":
+    # 1. check timestep embedder
+    cond_model = ConcatTimestepEmbedderND(outdim=256)
+    cond_input = Tensor(np.tile(np.array([1024, 1024]), [2, 1]), ms.float16)
+    emb_cond = cond_model(cond_input)
+    print(f"ConcatTimestepEmbedderND, emb.shape: {emb_cond.shape}, emb.dtype: {emb_cond.dtype}")
+
+    # 2. check clip embedder
+    clip_model = FrozenCLIPEmbedder(layer="hidden", layer_idx=11, version="openai/clip-vit-large-patch14")
+    ms.amp.auto_mixed_precision(clip_model, "O2")
+    tokens, _ = clip_model.tokenize(["a photo of a cat", "a photo of a dog"])
+    emb1 = clip_model(Tensor(tokens))
+    print(f"FrozenCLIPEmbedder, emb.shape: {emb1.shape}, emb.dtype: {emb1.dtype}")
+
+    # 3. check openclip embedder
+    open_clip_model = FrozenOpenCLIPEmbedder2(
+        arch="ViT-bigG-14-Text",
+        freeze=True,
+        layer="penultimate",
+        always_return_pooled=True,
+        legacy=False,
+        require_pretrained=False,
+    )
+    ms.amp.auto_mixed_precision(open_clip_model, "O2")
+    tokens, _ = open_clip_model.tokenize(["a photo of a cat", "a photo of a dog"])
+    emb2 = open_clip_model(Tensor(tokens))
+    if isinstance(emb2, (tuple, list)):
+        print(f"FrozenOpenCLIPEmbedder2, emb.shape: {[e.shape for e in emb2]}, emb.dtype: {[e.dtype for e in emb2]}")
+    else:
+        print(f"FrozenOpenCLIPEmbedder2, emb.shape: {emb2.shape}, emb.dtype: {emb2.dtype}")
