@@ -72,7 +72,7 @@ The compatible framework versions that are well-tested are listed as follows.
 |:-----------:|:----------------:|:--------:|:---------:|:------:|:---------:|
 | 910      |     2.0         |   6.3 RC1   |  23.0.rc1 | 3.7.16  | master (4c33849)  |
 | 910      |     2.1         |   6.3 RC2   |  23.0.rc2 | 3.9.18  | master (4c33849)  |
-| 910*      |     2.2.1 (20231114)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
+| 910*      |     2.2.1 (20231124)    |   7.1  | 23.0.rc3.6   |  3.7.16  | master (4c33849)  |
 
 </div>
 
@@ -285,7 +285,7 @@ Please refer to the tutorial of [LoRA for Stable Diffusion Finetuning](docs/en/l
 
 DreamBooth allows users to generate contextualized images of one subject using just 3-5 images of the subject, e.g., your dog.
 
-Please refer to the tutorial of [DreamBooth for Stable Diffusion Finetuning](dreambooth_finetune.md) for detailed instructions.
+Please refer to the tutorial of [DreamBooth for Stable Diffusion Finetuning](docs/en/dreambooth_finetune.md) for detailed instructions.
 
 
 ### Textual Inversion Fine-tuning

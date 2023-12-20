@@ -27,6 +27,16 @@ import mindspore as ms
 from mindspore import Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
+
+class BroadCast(nn.Cell):
+    def __init__(self, root_rank):
+        super().__init__()
+        self.broadcast = ops.Broadcast(root_rank)
+
+    def construct(self, x):
+        return (self.broadcast((x,)))[0]
+
+
 SD_XL_BASE_RATIOS = {
     "0.5": (704, 1408),
     "0.52": (704, 1344),
@@ -317,6 +327,9 @@ def get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
         if key == "txt":
             batch["txt"] = np.repeat([value_dict["prompt"]], repeats=np.prod(N)).reshape(N).tolist()
             batch_uc["txt"] = np.repeat([value_dict["negative_prompt"]], repeats=np.prod(N)).reshape(N).tolist()
+        elif key == "clip_img":
+            batch["clip_img"] = value_dict["clip_img"]
+            batch_uc["clip_img"] = None
         elif key == "original_size_as_tuple":
             batch["original_size_as_tuple"] = Tensor(
                 np.tile(
@@ -393,6 +406,10 @@ def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0)
                 "sigma_max": sigma_max,
                 "rho": rho,
             },
+        }
+    elif discretization == "DiffusersDDPMDiscretization":
+        discretization_config = {
+            "target": "gm.modules.diffusionmodules.discretizer.DiffusersDDPMDiscretization",
         }
     else:
         raise NotImplementedError
@@ -523,6 +540,7 @@ def init_sampling(
     assert discretization in [
         "LegacyDDPMDiscretization",
         "EDMDiscretization",
+        "DiffusersDDPMDiscretization",
     ]
 
     steps = min(max(steps, 1), 1000)
@@ -555,10 +573,9 @@ def _get_broadcast_datetime(rank_size=1, root_rank=0):
     if rank_size <= 1:
         return time_list
 
-    bd_cast = ops.Broadcast(root_rank=root_rank)
     # only broadcast in distribution mode
-    x = bd_cast((Tensor(time_list, dtype=ms.int32),))
-    x = x[0].asnumpy().tolist()
+    bd_cast = BroadCast(root_rank=root_rank)(Tensor(time_list, dtype=ms.int32))
+    x = bd_cast.asnumpy().tolist()
 
     return x
 
