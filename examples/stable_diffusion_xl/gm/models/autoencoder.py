@@ -121,13 +121,7 @@ class AutoencoderKL(AutoencodingEngine):
         assert ddconfig["double_z"]
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
-        self.quant_conv = nn.Conv2d(
-            (1 + int(ddconfig["double_z"])) * ddconfig["z_channels"],
-            (1 + int(ddconfig["double_z"])) * embed_dim,
-            1,
-            has_bias=True,
-            pad_mode="valid",
-        )
+        self.quant_conv = nn.Conv2d(2 * ddconfig["z_channels"], 2 * embed_dim, 1, has_bias=True, pad_mode="valid")
         self.post_quant_conv = nn.Conv2d(embed_dim, ddconfig["z_channels"], 1, has_bias=True, pad_mode="valid")
         self.embed_dim = embed_dim
         self.posterior = DiagonalGaussianDistribution()

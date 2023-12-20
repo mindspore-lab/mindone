@@ -215,21 +215,14 @@ class GeneralConditioner(nn.Cell):
         vector, crossattn, concat = self.embedding(*tokens, force_zero_embeddings=force_zero_embeddings)
         return vector, crossattn, concat
 
-    def get_unconditional_conditioning(
-        self,
-        batch_c,
-        batch_uc=None,
-        force_uc_zero_embeddings=None,
-        force_cond_zero_embeddings: Optional[List[str]] = None,
-    ):
-        force_uc_zero_embeddings = force_uc_zero_embeddings or []
-        force_cond_zero_embeddings = force_cond_zero_embeddings or []
-
+    def get_unconditional_conditioning(self, batch_c, batch_uc=None, force_uc_zero_embeddings=None):
+        if force_uc_zero_embeddings is None:
+            force_uc_zero_embeddings = []
         ucg_rates = []
         for embedder in self.embedders:
             ucg_rates.append(embedder.ucg_rate)
             embedder.ucg_rate = 0.0
-        c = self.tokenize_embedding(batch_c, force_cond_zero_embeddings)
+        c = self.tokenize_embedding(batch_c)
         uc = self.tokenize_embedding(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
 
         for i in range(len(self.embedders)):
