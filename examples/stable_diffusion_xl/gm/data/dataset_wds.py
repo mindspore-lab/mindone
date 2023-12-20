@@ -7,20 +7,15 @@ import random
 import time
 
 import numpy as np
-
-# import pandas as pd
 import webdataset as wds
 import wids
 from gm.util import instantiate_from_config
 from PIL import Image
 
-# from itertools import islice
-
 
 def get_tar_file_list(data_dir):
     # get tar file recursively
     tar_files = []
-    # two levesl
     tar_files.extend(glob.glob(os.path.join(data_dir, "*.tar")))
 
     folders = [fp for fp in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, fp))]
@@ -32,7 +27,7 @@ def get_tar_file_list(data_dir):
 
 
 def get_tar_nsample(tar_file):
-    # didn't check content completeness.
+    # TODO: improve efficiency.
     wds_iterator = wds.WebDataset(tar_file)
     n = 0
     for cur in wds_iterator:
@@ -99,9 +94,6 @@ class T2I_BaseDataset:
         self.caption_key = caption_key
         self.prev_ok_sample = None
         self.require_update_prev = True
-
-        # ds = ds.shuffle(1000) # uncomment for local shuffle. no needed if shuffle in generator dataset
-        # ds = ds.decode("rgb8").to_tuple("jpg;png", "json") # will do in getitem to save time
 
         self.transforms = []
         if transforms:
@@ -199,7 +191,8 @@ class T2I_Webdataset(T2I_BaseDataset):
         print(f"Get {len(tar_files)} tar files")
 
         self.wds_iterator = wds.WebDataset(tar_files, cache_dir=None)
-
+        self.wds_iterator = self.wds_iterator.shuffle(1000)
+        # ds = ds.decode("rgb8").to_tuple("jpg;png", "json") # will do in getitem to save time
         if num_samples is None:
             print(
                 "WARNING: For webdataset, it's recommended to specify `num_samples` to save time to iterate all samples for counting"
@@ -239,7 +232,6 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
     # random access
     def __init__(self, shardlist_desc=None, *args, **kwargs):
         # shardlist_desc: path to a json file describing sample num for each tar
-        # shardlist_desc =kwargs.pop('shardlist_desc')
         super().__init__(*args, **kwargs)
         if shardlist_desc is None:
             data_path = kwargs.get("data_path")

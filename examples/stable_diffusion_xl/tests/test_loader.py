@@ -12,7 +12,6 @@ def test_loader():
 
     rank = 0
     rank_size = 1
-    # batch_size = 1
 
     config_file = "configs/training/sd_xl_base_finetune_910b_wds.yaml"
     config = OmegaConf.load(config_file)
@@ -28,7 +27,8 @@ def test_loader():
 
     ms.set_context(mode=0)
 
-    # num_batches = dataloader.get_dataset_size()
+    num_batches = dataloader.get_dataset_size()
+    print("num batches: ", num_batches)
     start = time.time()
     iterator = dataloader.create_dict_iterator()
     tot = 0
@@ -41,10 +41,7 @@ def test_loader():
         tot += dur
         run_steps += 1
         for k in batch:
-            # print(k, batch[k])  # , batch[k].min(), batch[k].max())
             print(f"{i+1}/{num_steps}, time cost: {dur * 1000} ms")
-            # if k in ["cap_tokens", "feature_framerate"]:
-            #    print(batch[k])
         start = time.time()
 
     mean = tot / run_steps
