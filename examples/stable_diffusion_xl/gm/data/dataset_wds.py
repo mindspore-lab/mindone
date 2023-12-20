@@ -217,12 +217,14 @@ class T2I_Webdataset(T2I_BaseDataset):
 
         return image, caption
 
+
     def __iter__(self):
         # images preprocess
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
                 sample = self.preprocess(image, caption)
+                # TODO: add corrupted data check and replacement
                 yield sample
             except StopIteration:
                 raise StopIteration
