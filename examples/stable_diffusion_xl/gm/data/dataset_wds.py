@@ -5,15 +5,16 @@ import json
 import os
 import random
 import time
-from itertools import islice
 
-import imagesize
 import numpy as np
-import pandas as pd
+
+# import pandas as pd
 import webdataset as wds
 import wids
 from gm.util import instantiate_from_config
 from PIL import Image
+
+# from itertools import islice
 
 
 def get_tar_file_list(data_dir):
