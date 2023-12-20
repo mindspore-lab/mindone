@@ -129,7 +129,7 @@ To save the time of scanning all data, you should prepare a data description jso
             shardlist_desc: 'data_dir/data_info.json'
 ```
 
-For distributed training, no additional effort is required for webdataset, since the data partition will be finished in `GeneratorDataset` just like training with original data format.
+For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
 
 ## Inference
 
