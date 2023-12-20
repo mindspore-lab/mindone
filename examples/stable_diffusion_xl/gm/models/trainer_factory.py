@@ -50,7 +50,10 @@ class TrainOneStepCell(nn.Cell):
 
         # first stage model
         self.scale_factor = model.scale_factor
+        disable_first_stage_amp = model.disable_first_stage_amp
         self.first_stage_model = model.first_stage_model
+        if disable_first_stage_amp:
+            self.first_stage_model.to_float(ms.float32)
 
         #
         self.sigma_sampler = model.sigma_sampler
