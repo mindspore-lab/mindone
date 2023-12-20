@@ -749,8 +749,8 @@ class VideoUNet(nn.Cell):
             time_context=time_context,
             num_video_frames=num_video_frames,
         )
-        for module in self.output_blocks:
-            h = ops.cat([h, hs.pop()], axis=1)
+        for i, module in enumerate(self.output_blocks, start=1):
+            h = ops.cat([h, hs[-i]], axis=1)
             h = module(
                 h,
                 emb,
