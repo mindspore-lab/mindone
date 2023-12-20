@@ -1,7 +1,8 @@
 import logging
 import os
 
-logo = "Training"
+
+logger_name = "Training"
 
 
 # Rank Table Constants
@@ -76,7 +77,7 @@ class ModelArts:
 class RunAscendLog:
     @staticmethod
     def setup_run_ascend_logger():
-        name = logo
+        name = logger_name
         formatter = logging.Formatter(fmt="[run ascend] %(asctime)s - %(levelname)s - %(message)s")
 
         handler = logging.StreamHandler()
@@ -90,4 +91,4 @@ class RunAscendLog:
 
     @staticmethod
     def get_run_ascend_logger():
-        return logging.getLogger(logo)
+        return logging.getLogger(logger_name)
