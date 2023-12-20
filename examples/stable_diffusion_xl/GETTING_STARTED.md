@@ -91,7 +91,7 @@ data_dir
 └── ...
 ```
 
-We provide the a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compatible with minddata GeneratorDataset.
+We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compatible with minddata GeneratorDataset.
 
 1. Set the training YAML config as follows to use the T2I_Webdataset loader.
     ```yaml
@@ -119,7 +119,7 @@ For the first time running, the data loader will scan the whole dataset to get t
 }
 ```
 
-To save the time of scanning all data, you should prepare a data description json file ahead following the above format (recording num of samples for each tar file in `nsamples`).  Then parse the prepare json file to the loader via the `shardlist_desc` argument, such as
+To save the time of scanning all data, you should prepare a data description json file ahead following the above format (recording num of samples for each tar file in `nsamples`).  Then parse the prepared json file to the loader via the `shardlist_desc` argument, such as
 
 ```yaml
     dataset_config:
@@ -129,7 +129,7 @@ To save the time of scanning all data, you should prepare a data description jso
             shardlist_desc: 'data_dir/data_info.json'
 ```
 
-For distributed training, no addtional effort is required for webdataset, since the data partition will be finished in `GeneratorDataset` just like training with original data format.
+For distributed training, no additional effort is required for webdataset, since the data partition will be finished in `GeneratorDataset` just like training with original data format.
 
 ## Inference
 
