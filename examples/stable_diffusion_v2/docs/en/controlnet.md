@@ -217,6 +217,7 @@ Final, execute the script to launch finetuning
 ```
 sh scripts/run_train_cldm.sh $CARD_ID
 ```
+> Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
 The resulting log will be saved in $output_dir as defined in the script, and the saved checkpoint will be saved in $output_path as defined in  `train_config` file.
 

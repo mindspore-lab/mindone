@@ -229,6 +229,7 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
         --output_path {path to output directory} \
         --pretrained_model_path {path to pretrained checkpoint file}
     ```
+    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     Take fine-tuning SD1.5 on the Pokemon dataset as an example:
 
@@ -266,6 +267,7 @@ For parallel training on multiple Ascend NPUs, please refer to the instructions 
     ```shell
     bash scripts/run_train_distributed.sh
     ```
+    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     After launched, the training process can be traced by running `tail -f ouputs/train_txt2img/rank_0/train.log`.
 
