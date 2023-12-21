@@ -43,7 +43,7 @@ Here are two examples:
 <div align="center">
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/24953d5f-dc20-45d4-ba45-ea602466eaa7" width="160" height="240" />
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/f1e21d57-7882-4e4f-a4c0-01568122e43b" width="160" height="240" />
-<img src="https://github.com/congw729/mindone/assets/115451386/fd1180ad-878c-44f4-988c-b18c56972015" width="160" height="240" />   
+<img src="https://github.com/congw729/mindone/assets/115451386/fd1180ad-878c-44f4-988c-b18c56972015" width="160" height="240" />
 </div>
 <p align="center">
   <em> Images prepared to add extra controls </em>
