@@ -467,8 +467,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--add_watermark",
-        default=False,
-        type=str2bool,
+        action="store_true",
         help="whether add invisible watermark to image",
     )
     args = parser.parse_args()

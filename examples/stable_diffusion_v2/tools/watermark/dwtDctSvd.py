@@ -3,6 +3,7 @@ import numpy as np
 import pywt
 
 
+# copied from https://github.com/ShieldMnt/invisible-watermark
 class EmbedDwtDctSvd(object):
     def __init__(self, watermarks=[], wmLen=8, scales=[0, 36, 0], block=4):
         self._watermarks = watermarks

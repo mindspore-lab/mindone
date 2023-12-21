@@ -1,3 +1,3 @@
-from .watermark import WatermarkEmbedder
+from .imwatermark import WatermarkEmbedder
 
 __all__ = ["WatermarkEmbedder"]
