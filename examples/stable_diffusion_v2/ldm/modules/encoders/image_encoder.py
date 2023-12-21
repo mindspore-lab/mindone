@@ -239,6 +239,7 @@ class ResidualAttentionBlock(nn.Cell):
         attn_mask: Tensor = None,
         epsilon: float = 1e-5,
         use_quick_gelu: bool = False,
+        mlp_ratio: float = 4.0,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -249,9 +250,9 @@ class ResidualAttentionBlock(nn.Cell):
         self.mlp = nn.SequentialCell(
             OrderedDict(
                 [
-                    ("c_fc", nn.Dense(d_model, d_model * 4).to_float(self.dtype)),
+                    ("c_fc", nn.Dense(d_model, round(d_model * mlp_ratio)).to_float(self.dtype)),
                     ("gelu", QuickGELU().to_float(self.dtype) if use_quick_gelu else nn.GELU().to_float(self.dtype)),
-                    ("c_proj", nn.Dense(d_model * 4, d_model).to_float(self.dtype)),
+                    ("c_proj", nn.Dense(round(d_model * mlp_ratio), d_model).to_float(self.dtype)),
                 ]
             )
         )
@@ -276,6 +277,7 @@ class Transformer(nn.Cell):
         attn_mask: Tensor = None,
         epsilon: float = 1e-5,
         use_quick_gelu: bool = False,
+        mlp_ratio: float = 4.0,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -285,7 +287,13 @@ class Transformer(nn.Cell):
         self.resblocks = nn.SequentialCell(
             *[
                 ResidualAttentionBlock(
-                    width, heads, attn_mask, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=self.dtype
+                    width,
+                    heads,
+                    attn_mask,
+                    epsilon=epsilon,
+                    use_quick_gelu=use_quick_gelu,
+                    mlp_ratio=mlp_ratio,
+                    dtype=self.dtype,
                 )
                 for _ in range(layers)
             ]
@@ -306,6 +314,7 @@ class VisionTransformer(nn.Cell):
         output_dim: int,
         epsilon: float = 1e-5,
         use_quick_gelu: bool = False,
+        mlp_ratio: float = 4.0,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -317,18 +326,18 @@ class VisionTransformer(nn.Cell):
         ).to_float(self.dtype)
 
         scale = width**-0.5
-        self.class_embedding = Parameter(scale * ms.numpy.randn(width, dtype=self.dtype))
+        self.class_embedding = Parameter(scale * ms.numpy.randn(width, dtype=ms.float32))
         self.positional_embedding = Parameter(
-            scale * ms.numpy.randn((input_resolution // patch_size) ** 2 + 1, width, dtype=self.dtype)
+            scale * ms.numpy.randn((input_resolution // patch_size) ** 2 + 1, width, dtype=ms.float32)
         )
         self.ln_pre = LayerNorm((width,), epsilon=epsilon)
 
         self.transformer = Transformer(
-            width, layers, heads, epsilon=epsilon, use_quick_gelu=use_quick_gelu, dtype=self.dtype
+            width, layers, heads, epsilon=epsilon, use_quick_gelu=use_quick_gelu, mlp_ratio=mlp_ratio, dtype=self.dtype
         )
 
         self.ln_post = LayerNorm((width,), epsilon=epsilon)
-        self.proj = Parameter(scale * ms.numpy.randn(width, output_dim, dtype=self.dtype))
+        self.proj = Parameter(scale * ms.numpy.randn(width, output_dim, dtype=ms.float32))
 
     def construct(self, x: Tensor):
         x = self.conv1(x)  # shape = [*, width, grid, grid]
@@ -347,7 +356,7 @@ class VisionTransformer(nn.Cell):
         x = self.ln_post(x[:, 0, :])
 
         if self.proj is not None:
-            x = x @ self.proj
+            x = x @ self.proj.to(x.dtype)
 
         return x
 
@@ -363,6 +372,7 @@ class ImageEncoder(nn.Cell):
         vision_head_width: int,
         epsilon=1e-5,
         use_quick_gelu=False,
+        mlp_ratio: float = 4.0,
         dtype: mstype = ms.float32,
     ):
         super().__init__()
@@ -390,6 +400,7 @@ class ImageEncoder(nn.Cell):
                 output_dim=embed_dim,
                 epsilon=epsilon,
                 use_quick_gelu=use_quick_gelu,
+                mlp_ratio=mlp_ratio,
                 dtype=self.dtype,
             )
 

@@ -68,7 +68,7 @@ def main(args):
         image = cv2.imread(image_path)
         input_image = np.array(image, dtype=np.uint8)
     else:
-        logger.error(f"input image file {args.input_image} not exists")
+        raise ValueError(f"input image file {args.input_image} not exists")
 
     sampler = DDIMSampler(model)
     image_resolution = args.image_resolution  # 256~768

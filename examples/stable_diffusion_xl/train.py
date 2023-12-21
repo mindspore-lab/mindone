@@ -16,6 +16,7 @@ from gm.helpers import (
     save_checkpoint,
     set_default,
 )
+from gm.util.util import auto_mixed_precision
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -145,6 +146,8 @@ def train(args):
                 optimizer, reducer, scaler, jit=True, overflow_still_update=args.overflow_still_update
             ),
         )
+        model = auto_mixed_precision(model, args.ms_amp_level)
+        jit_config = None
     elif args.ms_mode == 0:
         # Graph Mode
         if isinstance(model.model, nn.Cell):
@@ -160,12 +163,15 @@ def train(args):
                 clip_grad=args.clip_grad,
                 clip_norm=args.max_grad_norm,
             )
+            train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+            if model.disable_first_stage_amp:
+                train_step_fn.first_stage_model.to_float(ms.float32)
+            jit_config = ms.JitConfig()
         else:
             from gm.models.trainer_factory import TrainerMultiGraphTwoStage
 
             assert args.version == "SDXL-base-1.0", "Only supports sdxl-base."
             assert args.task == "txt2img", "Only supports text2img task."
-            assert not args.data_sink, "Not supports datasink mode."
             assert (model.stage1 is not None) and (model.stage2 is not None)
             optimizer1 = get_optimizer(
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
@@ -179,23 +185,25 @@ def train(args):
                 (reducer1, reducer2),
                 scaler,
                 overflow_still_update=args.overflow_still_update,
+                amp_level=args.ms_amp_level,
             )
 
             optimizer = optimizer1
+            jit_config = None
     else:
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
-        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model)
+        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config)
     elif args.task == "img2img":
         raise NotImplementedError
     else:
         raise ValueError(f"Unknown task {args.task}")
 
 
-def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None):  # for print  # for infer/ckpt
+def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, **kwargs):  # for print  # for infer/ckpt
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -221,11 +229,6 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
                 flush=True,
             )
         loss, overflow = train_step_fn(image, *tokens)
-        if overflow:
-            if args.overflow_still_update:
-                print(f"Step {i + 1}/{total_step}, overflow, still update.")
-            else:
-                print(f"Step {i + 1}/{total_step}, overflow, skip.")
 
         # Print meg
         if (i + 1) % args.log_interval == 0 and args.rank % 8 == 0:
@@ -267,14 +270,14 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None): 
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
 
-def train_txt2img_datasink(args, train_step_fn, dataloader, optimizer=None, model=None):  # for print  # for infer/ckpt
+def train_txt2img_datasink(
+    args, train_step_fn, dataloader, optimizer=None, model=None, jit_config=None, **kwargs
+):  # for print  # for infer/ckpt
     total_step = dataloader.get_dataset_size()
     epochs = total_step // args.sink_size
     assert args.dataset_load_tokenizer
 
-    train_fn_sink = ms.data_sink(
-        fn=train_step_fn, dataset=dataloader, sink_size=args.sink_size, jit_config=ms.JitConfig()
-    )
+    train_fn_sink = ms.data_sink(fn=train_step_fn, dataset=dataloader, sink_size=args.sink_size, jit_config=jit_config)
 
     for epoch in range(epochs):
         cur_step = args.sink_size * (epoch + 1)

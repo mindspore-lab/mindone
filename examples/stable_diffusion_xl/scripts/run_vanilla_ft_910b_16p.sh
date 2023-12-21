@@ -32,6 +32,5 @@ do
     --data_path $DATASET_PATH \
     --save_path_with_time False \
     --max_device_memory "59GB" \
-    --param_fp16 True \
     --is_parallel True > logs_for_distribute/log_$i.txt 2>&1 &
 done
