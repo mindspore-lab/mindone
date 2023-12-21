@@ -143,7 +143,7 @@ Try to customize your own ControlNet? Downloading the SD base weight, preparing 
 
 Now only support training based on SD1.5.ControlNet
 
-All codes have been tested on Ascend 910B with MindSpore 2.2 20231124 version.
+All codes have been tested on Ascend 910* with MindSpore 2.2 20231124 version.
 
 ### Train a ControlNet from SD1.5
 
