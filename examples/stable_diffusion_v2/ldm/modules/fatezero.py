@@ -363,10 +363,10 @@ class BasicTransformerBlock_ST(nn.Cell):
         else:
             attn_map_shape_cross = (n_heads * 8, 4096 * 25 // (n_heads * n_heads), 77)
             attn_map_shape_self = (n_heads * 8, 4096 * 25 // (n_heads * n_heads), 4096 * 25 * 2 // (n_heads * n_heads))
-        self.store_cross_attn = Parameter(ms.ops.zeros((self.replace_step, 1,) + attn_map_shape_cross, ms.float16),
+        self.store_cross_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_cross, ms.float16),
                                           requires_grad=False)
         if attn_map_shape_self[1] <= 1024:
-            self.store_self_attn = Parameter(ms.ops.zeros((self.replace_step, 1,) + attn_map_shape_self, ms.float16),
+            self.store_self_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_self, ms.float16),
                                              requires_grad=False)
         else:
             self.store_self_attn = none(is_parameter=True)
@@ -414,34 +414,35 @@ class BasicTransformerBlock_ST(nn.Cell):
         self.place = place
 
     def construct(self, x, context=None, video_length=None, step=None, controller=None, is_invert=False):
-        # if is_invert < 0 and step < 8:
-        #     if not_none(self.store_self_attn):
-        #         self_attn = self.store_self_attn[step]
-        #     else:
-        #         self_attn = none()
-        #     cross_attn = self.store_cross_attn[step]
-        #     mask = get_mask()
-        # else:
-        #     self_attn = none()
-        #     cross_attn = none()
+        if is_invert < 0 and step < 8:
+            if not_none(self.store_self_attn):
+                self_attn = self.store_self_attn[step]
+            else:
+                self_attn = none()
+            cross_attn = self.store_cross_attn[step]
+            # mask = get_mask()
+        else:
+            self_attn = none()
+            cross_attn = none()
 
-        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller
-                               )
+        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller)
         x1 += x
         x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller)
         x = x2 + x1
         x = self.ff(self.norm3(x)) + x
 
-        # print(self_attn.shape, attn1.shape)
-        # print(cross_attn.shape, attn2.shape)
-        print(step)
-        #if is_invert > 0 and step < 8:
-        if step < 8:
+        print(is_invert, step)
+
+        if is_invert > 0 and step < 8:
+            if not_none(attn1) and self.store_self_attn[step].shape == attn1.shape:
+                self.store_self_attn[step] = attn1
+            if self.store_cross_attn[step].shape == attn2.shape:
+                self.store_cross_attn[step] = attn2
+
+        if is_invert < 0 and step < 8:
             if not_none(attn1):
-                print(self.store_self_attn[step].shape, attn1.shape)
-                #self.store_self_attn[step] = attn1
-            print(self.store_cross_attn[step].shape,attn2.shape)
-            # self.store_cross_attn[step] = attn2
+                print('attn1', attn1.shape, self.store_self_attn[step].shape)
+            print('attn2', attn2.shape, self.store_cross_attn[step].shape)
 
         # temporal attention
         # (b f) (hw) c -> (b h w) f c
@@ -1259,8 +1260,6 @@ class UNetModel3D(nn.Cell):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
-
-        print(self.is_invert)
         assert (y is not None) == (
                 self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"
@@ -1311,6 +1310,8 @@ class UNetModel3D(nn.Cell):
             hs_index -= 1
         if self.is_invert > 0:
             self.step = self.step + 1
+            if self.step == 50:
+                self.step -= 1
         else:
             self.step = self.step - 1
 

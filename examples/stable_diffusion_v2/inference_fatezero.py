@@ -442,6 +442,7 @@ def main(args):
         tokenized_prompts = model.tokenize(prompts)
         c = model.get_learned_conditioning(tokenized_prompts)
 
+
         samples_ddim, _ = sampler.sample(
             S=args.sampling_steps,
             conditioning=c,
