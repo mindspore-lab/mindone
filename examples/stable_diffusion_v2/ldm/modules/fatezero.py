@@ -128,7 +128,7 @@ def get_mask():
 
 
 class Attention(LdmAttention):
-    def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None, attn=none()):
+    def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
@@ -142,13 +142,11 @@ class Attention(LdmAttention):
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
-        if is_none(attn):
-            if self.upcast:
-                # use fp32 for exponential inside
-                attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
-            else:
-                attn = self.softmax(sim)
-
+        if self.upcast:
+            # use fp32 for exponential inside
+            attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+        else:
+            attn = self.softmax(sim)
         out = ops.matmul(attn, v)
 
         return out, attn
@@ -216,7 +214,8 @@ class CrossAttention(nn.Cell):
         self.attention = Attention(dim_head, upcast=upcast, name=name, head=heads)
         self.flash_attention = FlashAttention(self.heads, dim_head) if self.use_flash_attention else None
 
-    def construct(self, x, context=None, mask=None, step=None, controller=None, cross_attn=none()):
+    def construct(self, x, context=None, mask=None, step=None, controller=None, cross_attn=None,
+                  is_cross_replace=False):
         is_cross = context is not None
         # print("test_0: x", x.shape)
         q = self.to_q(x)
@@ -245,8 +244,9 @@ class CrossAttention(nn.Cell):
             attn = none()
             out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
         else:
-            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller,
-                                       attn=cross_attn)
+            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
+        if is_cross_replace:
+            print('replace cross attn')
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -280,7 +280,8 @@ class SparseCausalAttention(CrossAttention):
         x = x.reshape((bf, 2 * hw, c))
         return x
 
-    def construct(self, x, context=None, mask=None, video_length=None, step=None, controller=None, self_attn=none()):
+    def construct(self, x, context=None, mask=None, video_length=None, step=None, controller=None, self_attn=None,
+                  is_self_replace=False):
         is_cross = context is not None
         q = self.to_q(x)
         context = default(context, x)
@@ -320,8 +321,9 @@ class SparseCausalAttention(CrossAttention):
             attn = none()
             out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
         else:
-            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller,
-                                       attn=self_attn)
+            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller, )
+        if is_self_replace:
+            print('replace self attn')
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -368,8 +370,13 @@ class BasicTransformerBlock_ST(nn.Cell):
         if attn_map_shape_self[1] <= 1024:
             self.store_self_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_self, ms.float16),
                                              requires_grad=False)
+            self.is_self_replace = ms.Tensor(1, ms.int32)
         else:
             self.store_self_attn = none(is_parameter=True)
+            self.is_self_replace = ms.Tensor(-1, ms.int32)
+
+        self.self_attn_shape = attn_map_shape_self
+        self.cross_attn_shape = attn_map_shape_cross
 
         self.attn1 = SparseCausalAttention(
             query_dim=dim,
@@ -415,23 +422,28 @@ class BasicTransformerBlock_ST(nn.Cell):
 
     def construct(self, x, context=None, video_length=None, step=None, controller=None, is_invert=False):
         if is_invert < 0 and step < 8:
-            if not_none(self.store_self_attn):
+            if self.is_self_replace > 0:
                 self_attn = self.store_self_attn[step]
+                is_self_replace = True
             else:
-                self_attn = none()
-            cross_attn = self.store_cross_attn[step]
-            # mask = get_mask()
-        else:
-            self_attn = none()
-            cross_attn = none()
+                self_attn = ms.ops.zeros(self.self_attn_shape)
+                is_self_replace = False
 
-        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller)
+            cross_attn = self.store_cross_attn[step]
+            is_cross_replace = True
+        else:
+            is_self_replace = False
+            is_cross_replace = False
+            self_attn = ms.ops.zeros(self.self_attn_shape)
+            cross_attn = ms.ops.zeros(self.cross_attn_shape)
+
+        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller,
+                               self_attn=self_attn, is_self_replace=False)
         x1 += x
-        x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller)
+        x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller, cross_attn=cross_attn,
+                               is_cross_replace=False)
         x = x2 + x1
         x = self.ff(self.norm3(x)) + x
-
-        print(is_invert, step)
 
         if is_invert > 0 and step < 8:
             if not_none(attn1) and self.store_self_attn[step].shape == attn1.shape:
