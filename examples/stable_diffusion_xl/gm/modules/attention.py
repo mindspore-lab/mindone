@@ -133,13 +133,15 @@ class MemoryEfficientCrossAttention(nn.Cell):
         if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), ms.uint8)
-            out = self.flash_attention(q, k, v, mask)
+            out = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(ms.uint8))
         else:
             out = scaled_dot_product_attention(q, k, v, attn_mask=mask)  # scale is dim_head ** -0.5 per default
 
         # rearange_out, "b h n d -> b n (h d)"
         b, h, n, d = out.shape
         out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+        dtype = q.dtype
+        out = out.to(dtype)
 
         if additional_tokens is not None:
             # remove additional token
