@@ -31,24 +31,25 @@ To perform controllable image generation with existing ControlNet checkpoints, p
 | **SD Version**     |  Lang.   | **MindSpore Checkpoint**                                                                                                          | **Ref. Official Model**                                                                 | **Resolution** |
 |--------------------|----------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------|----------------|
 |   SD1.5            |  EN      | [SD1.5-canny-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_canny_sd_v1.5_static-6350d204.ckpt)        | [control_sd15_canny.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models) | 512x512        |
-|   SD1.5            |  EN      | [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt) |       [control_sd15_seg.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models)                                    N.A.                                                      | 512x512        |
-
+|   SD1.5            |  EN      | [SD1.5-segmentation-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_segmentation_sd_v1.5_static-77bea2e9.ckpt) |       [control_sd15_seg.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models)                                                                                      | 512x512        |
+|   SD1.5            |  EN      | [SD1.5-openpose-ms checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/control_openpose_sd_v1.5_static-6167c529.ckpt)        | [control_sd15_openpose.pth](https://huggingface.co/lllyasviel/ControlNet/tree/main/models) | 512x512        |
 
 ### Preparing Control Signals
 
-Please prepare the source images that you want to extract the control signals from (e.g. canny edge, segmentation map).
+Please prepare the source images that you want to extract the control signals from (e.g. canny edge, segmentation map, openpose).
 
 Here are two examples:
 
 <div align="center">
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/24953d5f-dc20-45d4-ba45-ea602466eaa7" width="160" height="240" />
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/f1e21d57-7882-4e4f-a4c0-01568122e43b" width="160" height="240" />
+<img src="https://github.com/congw729/mindone/assets/115451386/fd1180ad-878c-44f4-988c-b18c56972015" width="160" height="240" />   
 </div>
 <p align="center">
   <em> Images prepared to add extra controls </em>
 </p>
 
-You may download and save them in `test_images/.`.
+You may download and save them under `test_images/` folder.
 
 - For edge control, the canny edge is extracted using opencv Canny API in the inference script. There is no need to extract it manually.
 
@@ -63,12 +64,21 @@ You may download and save them in `test_images/.`.
 
    Attention: As the DeeplabV3Plus is trained on VOC dataset, currently it only supports prompts related to the objects: 'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train','tvmonitor'. More is coming soon.
 
+- For openpose control, you need download the openpose models weight for [body pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_body_pose_model.ckpt) extraction and [hand pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_hand_pose_model.ckpt) extraction, then put them under `models/ckpts/` folder.
+
+  <div align="center">
+   <img src="https://github.com/congw729/mindone/assets/115451386/2a940947-52b0-4a0d-a5b8-7516a35fc5ca" width="160" height="240" />
+   </div>
+   <p align="center">
+     <em> openpose detection map with an image of man </em>
+   </p>
+
 
 ### Setting Arguments
 
 Before running the inference script, please set up the arguments as follows.
 
-1. Canny edge maps:
+1. Canny edge:
 
    Open the file `stable_diffusion_v2/inference/config/controlnet_canny.yaml`. Set arguments as below:
    ```yaml
@@ -94,6 +104,18 @@ Before running the inference script, please set up the arguments as follows.
    ```yaml
    pretrained_ckpt: "stable_diffusion_v2/models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt" # pretrained controlnet model weights with segmentation
    ```
+3. Openpose:
+
+   Open the file `stable_diffusion_v2/inference/config/controlnet_openpose.yaml`. Set arguments as below:
+   ```yaml
+   image_path: "test_imgs/pose1.png" # Image to inpaint
+   prompt: "Chief in the kitchen" # text prompt
+   ```
+
+   Open the file `stable_diffusion_v2/inference/config/model/v1-inference-controlnet.yaml`. Set argument as below:
+   ```yaml
+   pretrained_ckpt: "stable_diffusion_v2/models/control_openpose_sd_v1.5_static-6167c529.ckpt" # pretrained controlnet model weights with canny edge
+   ```
 
 ### Generating Images with ControlNet
 
@@ -112,7 +134,10 @@ python sd_infer.py \
 --n_samples=4 \
 --controlnet_mode=canny
 ```
+
 > For segmentation control, please set `--controlnet_mode` with "segmentation".
+
+> For openpose control, please set `--controlnet_mode` with "openpose".
 
 Key arguments:
 - `device_target`: Device target, should be in [Ascend, GPU, CPU]. (Default is `Ascend`)
@@ -122,11 +147,20 @@ Key arguments:
 - `sampling_steps`: Number of sampling steps.
 - `n_iter`: Number of iterations or trials.
 - `n_samples`: How many samples to produce for each given prompt in an iteration. A.k.a. batch size.
-- `controlnet_mode`: Control mode for controlnet, should be in [canny, segmentation]
+- `controlnet_mode`: Control mode for controlnet, should be in [canny, segmentation, openpose]
 
 ### Results
 Generated images will be saved in `stable_diffusion_v2/inference/output/samples` by default.
 Here are samples generated by a bird image with DeeplabV3Plus segmentation edge maps:
+
+<div align="center">
+<img src="https://github.com/Gaohan123/mindone/assets/20148503/6d543d0b-e1c2-447b-805a-19d9253a488b" width="160" height="240" />
+<img src="https://github.com/Gaohan123/mindone/assets/20148503/90835ad9-38aa-4ca2-862a-0344c0760463" width="160" height="240" />
+<img src="https://github.com/Gaohan123/mindone/assets/20148503/bf1bc4e9-c16c-4d37-8b72-cbc83fd8569e" width="160" height="240" />
+</div>
+<p align="center">
+  <em> Generated Images with ControlNet on DeeplabV3Plus segmentation edge maps </em>
+</p>
 
 <div align="center">
 <img src="https://github.com/Gaohan123/mindone/assets/20148503/6d543d0b-e1c2-447b-805a-19d9253a488b" width="160" height="240" />
