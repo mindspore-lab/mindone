@@ -2,7 +2,7 @@
 
 [An Image is Worth One Word: Personalizing Text-to-Image Generation using Textual Inversion](https://arxiv.org/abs/2208.01618)
 
-## 1. Introduction
+## Introduction
 
 Textual Inversion is a method to train a pretrained text-to-image model to generate images of a specific unique concepts, modifiy their appearance, or compose them in new roles and novel scenes. It does not require lots of training data, only 3-5 images of a user-provided concept. It does not update the weights of the text-to-image model to learn the new concept, but learn it through new "words" in the embedding space of a frozen text encoder. These new "words" can be composed into natural language sentences, making it plausible to generate personalized visual contents.
 
@@ -17,10 +17,9 @@ Textual Inversion is a method to train a pretrained text-to-image model to gener
 
 
 As shown above, the textual inversion method consists of following steps:
-
 - First, it creates a text prompt following some template like "A photo of $S_{*}$", where $S_{*}$ is a placeholder for the new "word" to be learned.
-- Then, the tokenizer will assign a unique index to this placeholder $S_*$. This index corresponds to a single embedding vector $v_*$ in the emebdding lookup table. Note that $v_*$ is trainable while all other parameters are non-trainable.
-- Lastly, compute the loss function of the generator (e.g., stable diffusion model) and the gradients of $v_*$. Update the weights in $v_*$ during training steps.
+- Then, the tokenizer will assign a unique index to this placeholder $S_{*}$. This index corresponds to a single embedding vector $v_{*}$ in the emebdding lookup table. Note that $v_{*}$ is trainable while all other parameters are non-trainable.
+- Lastly, compute the loss function of the generator (e.g., stable diffusion model) and the gradients of $v_{*}$. Update the weights in $v_{*}$ during training steps.
 
 
 ## Preparation
@@ -43,7 +42,7 @@ pip install -r requirement.txt
 Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/GETTING_STARTED.md#convert-pretrained-checkpoint) for detailed steps.
 
 
-#### 2.1.3 Finetuning Dataset Preparation
+#### Finetuning Dataset Preparation
 
 Depending on the concepts that we want the finetuned model to learn, the datasets can be divided into two groups: the datasets of the same **object** and the datasets of the same **style**.
 
@@ -186,5 +185,3 @@ The generated images using the prompt "a dog in \<chinese-art\> style" are show 
 # References
 
 [1] Rinon Gal, Yuval Alaluf, Yuval Atzmon, Or Patashnik, Amit Haim Bermano, Gal Chechik, Daniel Cohen-Or: An Image is Worth One Word: Personalizing Text-to-Image Generation using Textual Inversion. ICLR 2023
-
-[2] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep bidirectional transformers for language understanding. arXiv preprint arXiv:1810.04805, 2018.
