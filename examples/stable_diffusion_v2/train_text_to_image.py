@@ -35,7 +35,6 @@ def build_model_from_config(config, enable_flash_attention=None):
     if args is not None:
         if enable_flash_attention is not None:
             config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
-
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -183,6 +182,7 @@ def parse_args():
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
+    # parser.add_argument("--use_recompute", default=None, type=str2bool, help="whether use recompute")
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
