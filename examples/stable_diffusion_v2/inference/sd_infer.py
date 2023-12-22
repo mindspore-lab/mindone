@@ -174,7 +174,11 @@ def main(args):
                 detected_map = cv2.imread(args.control_path)
                 print("D---: use input openpose image: ", args.control_path)
             else:
-                apply_openpose = OpenposeDetector()
+                if os.path.exists(args.inputs.condition_ckpt_path):
+                    apply_segment = OpenposeDetector(annotator_ckpts_path=args.inputs.condition_ckpt_path)
+                else:
+                    apply_openpose = OpenposeDetector()
+
                 # cong TODO: make sure the resolution is correct
                 # resize_image(input_image, detect_resolution)
                 detected_map, _ = apply_openpose(img)
@@ -291,6 +295,11 @@ if __name__ == "__main__":
         help="path to control image. e.g. canny edge map. If not None, controlnet will use it as source control image and `image_path` will not be effective",
     )
     parser.add_argument(
+        "--condition_ckpt_path",
+        type=str,
+        help="condition detector needed by segmetation mode and openpose mode. For segementation, it is path/to/deeplabv3_ckpt. For openpose, it is folder_path/to/openpose_ckpt",
+    )
+    parser.add_argument(
         "--prompt", type=str, default=None, help="text prompt. If not None, it will overwrite the value in yaml"
     )
     parser.add_argument(
@@ -313,6 +322,7 @@ if __name__ == "__main__":
         default="canny",
         help="control mode for controlnet, should be in [canny, segmentation]",
     )
+
     args = parser.parse_args()
 
     os.makedirs(args.output_path, exist_ok=True)
@@ -342,7 +352,7 @@ if __name__ == "__main__":
             inputs_config_path = "./config/controlnet_segmentation.yaml"
             default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
         elif args.controlnet_mode == "openpose":
-            inputs_config_path = "./config/controlnet_segmentation.yaml"
+            inputs_config_path = "./config/controlnet_openpose.yaml"
             default_ckpt = "./models/ms_control_sd15_openpose.ckpt"
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")

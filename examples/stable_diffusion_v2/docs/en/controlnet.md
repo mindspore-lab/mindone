@@ -64,7 +64,7 @@ You may download and save them under `test_images/` folder.
 
    Attention: As the DeeplabV3Plus is trained on VOC dataset, currently it only supports prompts related to the objects: 'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train','tvmonitor'. More is coming soon.
 
-- For openpose control, you need download the openpose models' weights for [body pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_body_pose_model.ckpt) extraction and [hand pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_hand_pose_model.ckpt) extraction, then put them under `models/ckpts/` folder.
+- For openpose control, you need download the openpose models' weights for [body pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_body_pose_model.ckpt) extraction and [hand pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_hand_pose_model.ckpt) extraction, then put them under `models/` folder.
 
   <div align="center">
    <img src="https://github.com/congw729/mindone/assets/115451386/2a940947-52b0-4a0d-a5b8-7516a35fc5ca" width="160" height="240" />
@@ -114,7 +114,8 @@ Before running the inference script, please set up the arguments as follows.
 
    Open the file `stable_diffusion_v2/inference/config/model/v1-inference-controlnet.yaml`. Set argument as below:
    ```yaml
-   pretrained_ckpt: "stable_diffusion_v2/models/control_openpose_sd_v1.5_static-6167c529.ckpt" # pretrained controlnet model weights with canny edge
+   pretrained_ckpt: "stable_diffusion_v2/models/control_openpose_sd_v1.5_static-6167c529.ckpt" # pretrained controlnet model weights with openpose
+   condition_ckpt_path: "folder_path/to/openpose_ckpt" # If not set, will use ../models by default
    ```
 
 ### Generating Images with ControlNet

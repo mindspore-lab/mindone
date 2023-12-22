@@ -10,11 +10,11 @@ from .hand import Hand
 _logger = logging.getLogger(__name__)
 
 # from annotator.util import annotator_ckpts_path
-annotator_ckpts_path = os.path.join(os.path.abspath(os.path.join(__file__, "../../..")), "models/ckpts")
+_annotator_ckpts_path = os.path.join(os.path.abspath(os.path.join(__file__, "../../..")), "models")
 
 
 class OpenposeDetector:
-    def __init__(self):
+    def __init__(self, annotator_ckpts_path=_annotator_ckpts_path):
         body_modelpath = os.path.join(annotator_ckpts_path, "ms_body_pose_model.ckpt")
         hand_modelpath = os.path.join(annotator_ckpts_path, "ms_hand_pose_model.ckpt")
 
