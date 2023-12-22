@@ -203,6 +203,7 @@ class DiffusionEngine(nn.Cell):
         filter=None,
         adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
+        init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
     ):
         print("Sampling")
 
@@ -247,7 +248,12 @@ class DiffusionEngine(nn.Cell):
             additional_model_inputs[k] = batch[k]
 
         shape = (np.prod(num_samples), C, H // F, W // F)
-        randn = Tensor(np.random.randn(*shape), ms.float32)
+        if init_latent_path is not None:
+            print("Loading latent noise from ", init_latent_path)
+            randn = Tensor(np.load(init_latent_path), ms.float32)
+            # assert randn.shape==shape, 'unmatch shape due to loaded noise'
+        else:
+            randn = Tensor(np.random.randn(*shape), ms.float32)
 
         print("Sample latent Starting...")
         samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states)
