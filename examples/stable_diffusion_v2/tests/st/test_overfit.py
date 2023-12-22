@@ -1,8 +1,8 @@
-'''
+"""
 Vanilla, unet randomly initialized, loss change 1.0 ->  0.1
-LoRA, loss not stable, but 0.5 is a safe threshold 
+LoRA, loss not stable, but 0.5 is a safe threshold
 Dreambooth, unet randomly initialized, loss  change 2.0 -> 0.5
-'''
+"""
 
 import os
 import shutil
@@ -39,7 +39,7 @@ def create_dataset(n=1):
 
 
 @pytest.mark.parametrize("use_lora", [True, False])  # lora or vanilla
-@pytest.mark.parametrize("version", ['1.5', '2.0']) 
+@pytest.mark.parametrize("version", ["1.5", "2.0"])
 def test_vanilla_lora(use_lora, version):
     expected_loss = 0.1 if not use_lora else 0.5
 
@@ -48,16 +48,16 @@ def test_vanilla_lora(use_lora, version):
 
     # 2. init vae clip with pretrained weight, init UNet randomly
     # by pop out the unet parameter from sd checkpoint
-    if version == '1.5':
+    if version == "1.5":
         model_config = __dir__ + "/../../configs/v1-train.yaml"
         pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
         infer_config = __dir__ + "/../../configs/v1-inference.yaml"
-    elif version=='2.0':
+    elif version == "2.0":
         model_config = __dir__ + "/../../configs/v2-train.yaml"
         pretrained_model_path = __dir__ + "/../../models/sd_v2_base-57526ee4.ckpt"
         infer_config = __dir__ + "/../../configs/v2-inference.yaml"
     else:
-        raise ValueError(f'SD {version} not included in test')
+        raise ValueError(f"SD {version} not included in test")
 
     output_path = __dir__
     if use_lora:
@@ -70,7 +70,7 @@ def test_vanilla_lora(use_lora, version):
     os.makedirs(output_path, exist_ok=True)
 
     # export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
-    os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE" # It depends on MS version
+    os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"  # It depends on MS version
     epochs = 1000
 
     cmd = (
@@ -99,7 +99,7 @@ def test_vanilla_lora(use_lora, version):
         ckpt_path = end_ckpt
     else:
         lora_ckpt_path = end_ckpt
-        ckpt_path = pretrained_model_path 
+        ckpt_path = pretrained_model_path
     cmd = (
         f"python text_to_image.py --config={infer_config} --n_iter=1 --n_samples=2 "
         f"--output_path={output_path} --lora_ckpt_path={lora_ckpt_path} --use_lora={use_lora} "
@@ -110,23 +110,23 @@ def test_vanilla_lora(use_lora, version):
     assert ret == 0, "run text_to_image.py fails"
 
 
-@pytest.mark.parametrize("version", ['1.5', '2.0']) 
+@pytest.mark.parametrize("version", ["1.5", "2.0"])
 def test_db(version):
     # seed = 42
 
     # 1. create dummpy data
     data_dir = create_dataset(1)
     # data_dir = __dir__ + "/../../datasets/dog"
-    if version=='1.5':
+    if version == "1.5":
         train_config = __dir__ + "/config/train_config_dreambooth_v1.yaml"
         pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
         infer_config = __dir__ + "/../../configs/v1-inference.yaml"
-    elif version=='2.0': 
+    elif version == "2.0":
         train_config = __dir__ + "/config/train_config_dreambooth_v2.yaml"
         pretrained_model_path = __dir__ + "/../../models/sd_v2_base-57526ee4.ckpt"
         infer_config = __dir__ + "/../../configs/v2-inference.yaml"
     else:
-        raise ValueError(f'SD {version} not included in test')
+        raise ValueError(f"SD {version} not included in test")
 
     class_data_dir = "temp_class_images/sunflower"
 
@@ -172,7 +172,7 @@ def test_db(version):
     assert ret == 0, "run text_to_image.py fails"
 
 
-def run_task(task="vanilla", version='1.5'):
+def run_task(task="vanilla", version="1.5"):
     if task == "vanilla":
         test_vanilla_lora(use_lora=False, version=version)
     elif task == "lora":
