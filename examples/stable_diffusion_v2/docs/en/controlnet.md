@@ -53,7 +53,7 @@ You may download and save them under `test_images/` folder.
 
 - For edge control, the canny edge is extracted using opencv Canny API in the inference script. There is no need to extract it manually.
 
-- For segmentation map control, you can download the follow segmentation map extracted using [DeeplabV3Plus](https://arxiv.org/abs/1802.02611).
+- For segmentation map control, you can download the follow segmentation map extracted using [DeeplabV3Plus](https://arxiv.org/abs/1802.02611), download [model weights](https://download.mindspore.cn/models/r1.9/deeplabv3plus_s16_ascend_v190_voc2012_research_cv_s16acc79.06_s16multiscale79.96_s16multiscaleflip80.12.ckpt)
 
    <div align="center">
    <img src="https://github.com/Gaohan123/mindone/assets/20148503/dd4769f3-caaf-4dad-80df-5905ab6260d9" width="160" height="240" />
@@ -64,7 +64,7 @@ You may download and save them under `test_images/` folder.
 
    Attention: As the DeeplabV3Plus is trained on VOC dataset, currently it only supports prompts related to the objects: 'background', 'aeroplane', 'bicycle', 'bird', 'boat', 'bottle', 'bus', 'car', 'cat', 'chair', 'cow', 'diningtable', 'dog', 'horse', 'motorbike', 'person', 'pottedplant', 'sheep', 'sofa', 'train','tvmonitor'. More is coming soon.
 
-- For openpose control, you need download the openpose models weight for [body pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_body_pose_model.ckpt) extraction and [hand pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_hand_pose_model.ckpt) extraction, then put them under `models/ckpts/` folder.
+- For openpose control, you need download the openpose models' weights for [body pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_body_pose_model.ckpt) extraction and [hand pose](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/ms_hand_pose_model.ckpt) extraction, then put them under `models/ckpts/` folder.
 
   <div align="center">
    <img src="https://github.com/congw729/mindone/assets/115451386/2a940947-52b0-4a0d-a5b8-7516a35fc5ca" width="160" height="240" />
