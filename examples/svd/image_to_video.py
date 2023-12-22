@@ -202,7 +202,7 @@ if __name__ == "__main__":
         "--mode",
         type=int,
         default=1,
-        choices=["0", "1"],
+        choices=[0, 1],
         help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]",
     )
     parser.add_argument("--seed", type=int, default=42)

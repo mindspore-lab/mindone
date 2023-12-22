@@ -2,7 +2,9 @@ model:
   target: models.diffusion.VideoDiffusionEngine
   params:
     scale_factor: 0.18215
-    disable_first_stage_amp: True
+    disable_first_stage_amp:
+      enable: True
+      force_fp16: [mindspore.nn.Conv3d]  # For 910*. Use [] for 910.
 
     denoiser_config:
       target: gm.modules.diffusionmodules.denoiser.Denoiser
