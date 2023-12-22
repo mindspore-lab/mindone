@@ -20,6 +20,7 @@ To compute the FID between the real images and the generated images, in `example
 ```
 python tools/eval/eval_fid.py --real_dir {dir_to_real_images}  --gen_dir {dir_to_generated_images}
 ```
+> Note: If meeting `ValueError: Imaginary component`, one possible solution is to replace the scipy version, such as `pip install scipy==1.10.1`
 
 By default, we use MindSpore backend for FID computing (to run inception v3 model inference and extract image features). You may swich to `torchmetrics` backend  by setting `--backend=pt`. The computational difference between these two backends is usually lower than 0.1%, which is neglectable.
 
