@@ -150,15 +150,15 @@ def main(args):
         if args.controlnet_mode == "canny":
             if args.control_path is not None:
                 detected_map = cv2.imread(args.control_path)
-                print("D---: use input canny image: ", args.control_path)
+                logger.debug(f"D---: use input canny image: {args.control_path}")
             else:
                 apply_canny = CannyDetector()
                 detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
-            print("D--: sum canny: ", (detected_map / 255.0).sum())
+            logger.debug(f"D--: sum canny: {(detected_map / 255.0).sum()}")
             if visualize:
                 _save_fp = os.path.join(args.output_path, "canny.png")
                 cv2.imwrite(_save_fp, detected_map)
-                print("----- Canny image saved in ", _save_fp)
+                logger.debug(f"----- Canny image saved in {_save_fp}")
             detected_map = HWC3(detected_map)
         elif args.controlnet_mode == "segmentation":
             if os.path.exists(args.inputs.condition_ckpt_path):
@@ -172,7 +172,7 @@ def main(args):
         elif args.controlnet_mode == "openpose":
             if args.control_path is not None:
                 detected_map = cv2.imread(args.control_path)
-                print("D---: use input openpose image: ", args.control_path)
+                logger.debug(f"D---: use input openpose image: {args.control_path}")
             else:
                 if os.path.exists(args.inputs.condition_ckpt_path):
                     apply_segment = OpenposeDetector(annotator_ckpts_path=args.inputs.condition_ckpt_path)
@@ -183,7 +183,7 @@ def main(args):
                 # resize_image(input_image, detect_resolution)
                 detected_map, _ = apply_openpose(img)
                 detected_map = HWC3(detected_map)
-            print("D--: sum openpose: ", (detected_map / 255.0).sum())
+            logging.debug(f"D--: sum openpose: {(detected_map / 255.0).sum()}")
 
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")

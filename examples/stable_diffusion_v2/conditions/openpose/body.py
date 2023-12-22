@@ -6,6 +6,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 
 import mindspore as ms
+import mindspore.ops as ops
 
 from . import util
 from .model import bodypose_model
@@ -40,8 +41,8 @@ class Body(object):
             data = ms.Tensor.from_numpy(im)
             # data = data.permute([2, 0, 1]).unsqueeze(0).float()
 
-            # cong TODO: make sure below 1 line code runs without gradients update
-            Mconv7_stage6_L1, Mconv7_stage6_L2 = self.model(data)
+            # make sure below 1 line code runs without gradients update
+            Mconv7_stage6_L1, Mconv7_stage6_L2 = ops.stop_gradient(self.model(data))
 
             Mconv7_stage6_L1 = Mconv7_stage6_L1.asnumpy()
             Mconv7_stage6_L2 = Mconv7_stage6_L2.asnumpy()
