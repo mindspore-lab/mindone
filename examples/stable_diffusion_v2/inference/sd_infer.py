@@ -297,7 +297,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--condition_ckpt_path",
         type=str,
-        help="condition detector needed by segmetation mode and openpose mode. For segementation, it is path/to/deeplabv3_ckpt. For openpose, it is folder_path/to/openpose_ckpt",
+        help="condition detector needed by segmetation mode and openpose mode. \
+        For segementation, it is path/to/deeplabv3_ckpt. \
+        For openpose, it is folder_path/to/openpose_ckpt",
     )
     parser.add_argument(
         "--prompt", type=str, default=None, help="text prompt. If not None, it will overwrite the value in yaml"
