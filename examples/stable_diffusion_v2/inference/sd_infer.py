@@ -355,7 +355,7 @@ if __name__ == "__main__":
             default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
         elif args.controlnet_mode == "openpose":
             inputs_config_path = "./config/controlnet_openpose.yaml"
-            default_ckpt = "./models/ms_control_sd15_openpose.ckpt"
+            default_ckpt = "./models/control_openpose_sd_v1.5_static-6167c529.ckpt"
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
     else:
