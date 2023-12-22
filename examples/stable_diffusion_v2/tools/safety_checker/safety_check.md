@@ -29,6 +29,8 @@ python tools/safety_checker/safety_checker.py --ckpt_path <path-to-model> --imag
 ```
 python tools/safety_checker/safety_checker.py --backend pt --image_path_or_dir <path-to-image>
 ```
+> Note: If you want to no-check-certificate, please set `os.environ["CURL_CA_BUNDLE"] = ""` in `safety_checker.py`
+
 By default, we use MindSpore backend for CLIP score computing. You may swich to use `torch` and `transformers` by setting `--backend=pt`.
 
 For more usage, please run `python tools/safety_checker/safety_checker.py -h`.

@@ -10,8 +10,8 @@ import numpy as np
 import yaml
 from PIL import Image
 
-# equivalent to no-check-certificate flag in wget
-os.environ["CURL_CA_BUNDLE"] = ""
+# # equivalent to no-check-certificate flag in wget
+# os.environ["CURL_CA_BUNDLE"] = ""
 # add current working dir to path to prevent ModuleNotFoundError
 sys.path.insert(0, os.getcwd())
 

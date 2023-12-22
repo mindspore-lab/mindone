@@ -7,8 +7,8 @@ from mindspore import Parameter, Tensor, nn, ops
 class Normalization(nn.Cell):
     def __init__(self, shape):
         super().__init__()
-        self.mean = Parameter(Tensor(np.zeros(shape), ms.float32))
-        self.variance = Parameter(Tensor(np.ones(shape), ms.float32))
+        self.mean = Parameter(Tensor(np.zeros(shape), ms.float32), requires_grad=False)
+        self.variance = Parameter(Tensor(np.ones(shape), ms.float32), requires_grad=False)
 
     def construct(self, x):
         return (x - self.mean) / ops.sqrt(self.variance)
