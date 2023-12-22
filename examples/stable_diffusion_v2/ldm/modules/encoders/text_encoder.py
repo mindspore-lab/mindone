@@ -4,16 +4,16 @@ import numpy as np
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import Parameter, Tensor, ops
+from mindspore import Parameter, ops
 from mindspore.common.initializer import TruncatedNormal, initializer
 
 from ._common import LayerNorm, QuickGELU
 
 
 class SequentialCellWithMaskInput(nn.SequentialCell):
-    def construct(self, input_data, mask):
+    def construct(self, input_data, *args, **kwargs):
         for cell in self.cell_list:
-            input_data = cell(input_data, mask)
+            input_data = cell(input_data, *args, **kwargs)
         return input_data
 
 
@@ -37,7 +37,7 @@ class MultiheadAttention(nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.dtype = dtype
 
-    def construct(self, query, key, value, attn_mask):
+    def construct(self, query, key=None, value=None, causal_attention_mask=None, attention_mask=None):
         tgt_len, bsz, embed_dim = query.shape
         qkv = self.in_proj(query).view(tgt_len, bsz, 3, embed_dim).transpose((2, 0, 1, 3))
         q = qkv[0:1]
@@ -51,7 +51,24 @@ class MultiheadAttention(nn.Cell):
         k = k.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         v = v.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
-        attn_output_weights += self.expand_dims(attn_mask, 0)
+        # apply causal attention mask first
+        if causal_attention_mask is not None:
+            causal_attention_mask = (
+                self.expand_dims(causal_attention_mask, 0)
+                if len(causal_attention_mask.shape) == 2
+                else causal_attention_mask
+            )
+            assert (
+                len(causal_attention_mask.shape) == 3
+            ), f"expect causal_attention_mask to have three dimensions, but got {len(causal_attention_mask.shape)} dims"
+            attn_output_weights += causal_attention_mask
+        # apply attention mask then
+        if attention_mask is not None:
+            attention_mask = self.expand_dims(attention_mask, 0) if len(attention_mask.shape) == 2 else attention_mask
+            assert (
+                len(attention_mask.shape) == 3
+            ), f"expect attention_mask to have three dimensions, but got {len(attention_mask.shape)} dims"
+            attn_output_weights += attention_mask
         attn_output_weights = self.softmax(attn_output_weights)  # bs x (HW + 1) x (HW + 1)
         attn_output = ops.matmul(attn_output_weights.astype(self.dtype), v)  # bs x (HW + 1) x h
         attn_output = self.transpose(attn_output, (1, 0, 2))
@@ -60,20 +77,23 @@ class MultiheadAttention(nn.Cell):
         return attn_output
 
 
-class AttentionWithMask(nn.Cell):
-    def __init__(self, d_model, n_head, attn_mask, dtype=ms.float32):
-        super(AttentionWithMask, self).__init__()
-        self.attn = MultiheadAttention(d_model, n_head, dtype=dtype)
-        self.attn_mask = Tensor(attn_mask, dtype)
+class AttentionWrapper(nn.Cell):
+    """
+    A tricky wrapper to match legacy ckpt weight names.
+    """
 
-    def construct(self, x):
-        return self.attn(x, x, x, self.attn_mask)
+    def __init__(self, *args, **kwargs):
+        super(AttentionWrapper, self).__init__()
+        self.attn = MultiheadAttention(*args, **kwargs)
+
+    def construct(self, *args, **kwargs):
+        return self.attn(*args, **kwargs)
 
 
 class ResidualAttentionBlock(nn.Cell):
-    def __init__(self, d_model, n_head, attn_mask, epsilon, use_quick_gelu, dtype=ms.float32, upcast_attn=False):
+    def __init__(self, d_model, n_head, epsilon, use_quick_gelu, dtype=ms.float32, upcast_attn=False):
         super(ResidualAttentionBlock, self).__init__()
-        self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
+        self.attn = AttentionWrapper(d_model, n_head, dtype=dtype)
         self.ln_1 = (
             LayerNorm([d_model], epsilon=epsilon).to_float(ms.float32)
             if upcast_attn
@@ -97,8 +117,8 @@ class ResidualAttentionBlock(nn.Cell):
             else LayerNorm([d_model], epsilon=epsilon)
         )
 
-    def construct(self, x):
-        x = x + self.attn(self.ln_1(x))
+    def construct(self, x, causal_attention_mask=None, attention_mask=None):
+        x = x + self.attn(self.ln_1(x), causal_attention_mask=causal_attention_mask, attention_mask=attention_mask)
         x = x + self.mlp(self.ln_2(x))
         return x
 
@@ -109,7 +129,6 @@ class Transformer(nn.Cell):
         width,
         layers,
         heads,
-        attn_mask,
         epsilon,
         use_quick_gelu,
         dtype=ms.float32,
@@ -118,17 +137,15 @@ class Transformer(nn.Cell):
         super(Transformer, self).__init__()
         self.width = width
         self.layers = layers
-        self.resblocks = nn.SequentialCell(
+        self.resblocks = SequentialCellWithMaskInput(
             *[
-                ResidualAttentionBlock(
-                    width, heads, attn_mask, epsilon, use_quick_gelu, dtype=dtype, upcast_attn=upcast_attn
-                )
+                ResidualAttentionBlock(width, heads, epsilon, use_quick_gelu, dtype=dtype, upcast_attn=upcast_attn)
                 for _ in range(layers)
             ]
         )
 
-    def construct(self, x):
-        return self.resblocks(x)
+    def construct(self, x, causal_attention_mask=None, attention_mask=None):
+        return self.resblocks(x, causal_attention_mask=causal_attention_mask, attention_mask=attention_mask)
 
 
 class TextEncoder(nn.Cell):
@@ -167,19 +184,37 @@ class TextEncoder(nn.Cell):
             width,
             layers,
             heads,
-            self.build_attntion_mask(context_length),
             epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
             upcast_attn=upcast_attn,
         )
+        self.causal_attn_mask = ms.Tensor(self.build_attntion_mask(context_length), dtype=self.dtype)
 
     @staticmethod
     def build_attntion_mask(context_length):
         mask = np.triu(np.full((context_length, context_length), -np.inf).astype(np.float32), 1)
         return mask
 
-    def construct(self, text):
+    def _prepare_3d_attention_mask(self, mask, tgt_len=None):
+        """
+        Creates a non-causal 3D mask of shape `(batch_size, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`
+        Args:
+            mask (`torch.Tensor` or `None`):
+                A 2D attention mask of shape `(batch_size, key_value_length)`
+            tgt_len (`int`):
+                The target length or query length the created mask shall have.
+        """
+        bsz, src_len = mask.shape
+        if tgt_len is None:
+            tgt_len = src_len
+        expanded_mask = ops.repeat_interleave(mask[:, None, :], tgt_len, 1)
+        inverted_mask = 1.0 - expanded_mask
+
+        return inverted_mask.masked_fill(inverted_mask.to(ms.dtype.bool_), -np.inf).to(self.dtype)
+
+    def construct(self, text, attention_mask=None):
         bsz, ctx_len = text.shape
         flatten_id = text.flatten()
         gather_result = self.gather(self.embedding_table, flatten_id, 0)
@@ -187,7 +222,15 @@ class TextEncoder(nn.Cell):
         x = self.reshape(gather_result, (bsz, ctx_len, -1))
         x = x + self.positional_embedding
         x = x.transpose(1, 0, 2)
-        x = self.transformer_layer(x)
+        # expand attention_mask
+        if attention_mask is not None:
+            # [bsz, seq_len] -> [bsz, tgt_seq_len, src_seq_len]
+            attention_mask = self._prepare_3d_attention_mask(attention_mask)
+        x = self.transformer_layer(
+            x,
+            causal_attention_mask=self.causal_attn_mask,  # causal_attn_mask shape (tgt_len, tgt_len)
+            attention_mask=attention_mask,
+        )
         x = x.transpose(1, 0, 2)
         x = self.ln_final(x)
         return x
@@ -236,8 +279,10 @@ class OpenCLIPResidualAttentionBlock(nn.Cell):
             )
         )
 
-    def construct(self, x, attn_mask):
-        x = x + self.attn(self.ln_1(x), None, None, attn_mask)
+    def construct(self, x, causal_attention_mask=None, attention_mask=None):
+        x = x + self.attn(
+            self.ln_1(x), None, None, causal_attention_mask=causal_attention_mask, attention_mask=attention_mask
+        )
         x = x + self.mlp(self.ln_2(x))
         return x
 
@@ -256,8 +301,8 @@ class OpenCLIPTransformer(nn.Cell):
             ]
         )
 
-    def construct(self, x, attn_mask):
-        return self.resblocks(x, attn_mask)
+    def construct(self, x, causal_attention_mask=None, attention_mask=None):
+        return self.resblocks(x, causal_attention_mask=causal_attention_mask, attention_mask=attention_mask)
 
 
 class OpenClipTextEncoder(nn.Cell):
@@ -290,18 +335,44 @@ class OpenClipTextEncoder(nn.Cell):
             initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
         )
         self.ln_final = nn.LayerNorm((self.width,), epsilon=epsilon).to_float(ms.float32)
-        self.attn_mask = ms.Tensor(self.build_attntion_mask(context_length), dtype=self.dtype)
+        self.causal_attn_mask = ms.Tensor(self.build_attntion_mask(context_length), dtype=self.dtype)
 
     @staticmethod
     def build_attntion_mask(context_length):
         mask = np.triu(np.full((context_length, context_length), -np.inf).astype(np.float32), 1)
         return mask
 
-    def construct(self, text):
+    def _prepare_3d_attention_mask(self, mask, tgt_len=None):
+        """
+        Creates a non-causal 3D mask of shape `(batch_size, query_length, key_value_length)` from a 2D mask of shape
+        `(batch_size, key_value_length)`
+        Args:
+            mask (`torch.Tensor` or `None`):
+                A 2D attention mask of shape `(batch_size, key_value_length)`
+            tgt_len (`int`):
+                The target length or query length the created mask shall have.
+        """
+        bsz, src_len = mask.shape
+        if tgt_len is None:
+            tgt_len = src_len
+        expanded_mask = ops.repeat_interleave(mask[:, None, :], tgt_len, 1)
+        inverted_mask = 1.0 - expanded_mask
+
+        return inverted_mask.masked_fill(inverted_mask.to(ms.dtype.bool_), -np.inf).to(self.dtype)
+
+    def construct(self, text, attention_mask=None):
         x = self.token_embedding(text)
         x = x + self.positional_embedding
         x = x.transpose(1, 0, 2)
-        x = self.transformer(x, self.attn_mask)
+        # expand attention_mask
+        if attention_mask is not None:
+            # [bsz, seq_len] -> [bsz, tgt_seq_len, src_seq_len]
+            attention_mask = self._prepare_3d_attention_mask(attention_mask)
+        x = self.transformer_layer(
+            x,
+            causal_attention_mask=self.causal_attn_mask,  # causal_attn_mask shape (tgt_len, tgt_len)
+            attention_mask=attention_mask,
+        )
         x = x.transpose(1, 0, 2)
         x = self.ln_final(x)
         return x

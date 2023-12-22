@@ -92,8 +92,8 @@ class FrozenCLIPEmbedder(nn.Cell):
         outputs = self.transformer(tokenized_text)
         return outputs
 
-    def construct(self, c):
-        outputs = self.transformer(c)
+    def construct(self, c, attention_mask=None):
+        outputs = self.transformer(c, attention_mask=attention_mask)
         return outputs
 
 
