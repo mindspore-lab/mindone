@@ -83,6 +83,8 @@ def parse_args():
         type=str,
         help="train config path to load a yaml file that override the default arguments",
     )
+    parser.add_argument("--unet_initialize_random", default=False, type=str2bool, help="initialize unet randomly")
+    parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")
@@ -360,7 +362,9 @@ def main(args):
         model_config["params"]["cond_stage_trainable"] = False  # only lora params are trainable
     model_config["params"]["prior_loss_weight"] = args.prior_loss_weight if args.with_prior_preservation else 0.0
     latent_diffusion_with_loss = instantiate_from_config(model_config)
-    load_pretrained_model(args.pretrained_model_path, latent_diffusion_with_loss)
+    load_pretrained_model(
+        args.pretrained_model_path, latent_diffusion_with_loss, unet_initialize_random=args.unet_initialize_random
+    )
 
     # lora injection
     if args.use_lora:
@@ -508,7 +512,13 @@ def main(args):
         logger.info("Start training...")
 
     # train
-    model.train(args.epochs, train_dataloader, callbacks=callback, dataset_sink_mode=False, initial_epoch=start_epoch)
+    model.train(
+        args.epochs,
+        train_dataloader,
+        callbacks=callback,
+        dataset_sink_mode=args.dataset_sink_mode,
+        initial_epoch=start_epoch,
+    )
 
 
 if __name__ == "__main__":
