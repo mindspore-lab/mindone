@@ -177,7 +177,6 @@ Here are some examples:
 <p align="center">
   <em> Generated Images with ControlNet on openpose control maps </em>
 </p>
-![00000](https://github.com/congw729/mindone/assets/115451386/a2362dd1-bea0-414a-b13c-1c4f17175b77)
 
 ## Fine-tuning using ControlNet
 
