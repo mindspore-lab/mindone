@@ -14,6 +14,7 @@ import mindspore as ms
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
 from conditions.canny.canny_detector import CannyDetector
+from conditions.openpose.openpose_detector import OpenposeDetector
 from conditions.segmentation.segment_detector import SegmentDetector
 from conditions.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
@@ -149,15 +150,15 @@ def main(args):
         if args.controlnet_mode == "canny":
             if args.control_path is not None:
                 detected_map = cv2.imread(args.control_path)
-                print("D---: use input canny image: ", args.control_path)
+                logger.debug(f"D---: use input canny image: {args.control_path}")
             else:
                 apply_canny = CannyDetector()
                 detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
-            print("D--: sum canny: ", (detected_map / 255.0).sum())
+            logger.debug(f"D--: sum canny: {(detected_map / 255.0).sum()}")
             if visualize:
                 _save_fp = os.path.join(args.output_path, "canny.png")
                 cv2.imwrite(_save_fp, detected_map)
-                print("----- Canny image saved in ", _save_fp)
+                logger.debug(f"----- Canny image saved in {_save_fp}")
             detected_map = HWC3(detected_map)
         elif args.controlnet_mode == "segmentation":
             if os.path.exists(args.inputs.condition_ckpt_path):
@@ -168,6 +169,22 @@ def main(args):
                 )
             detected_map = apply_segment(img)
             detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+        elif args.controlnet_mode == "openpose":
+            if args.control_path is not None:
+                detected_map = cv2.imread(args.control_path)
+                logger.debug(f"D---: use input openpose image: {args.control_path}")
+            else:
+                if os.path.exists(args.inputs.condition_ckpt_path):
+                    apply_segment = OpenposeDetector(annotator_ckpts_path=args.inputs.condition_ckpt_path)
+                else:
+                    apply_openpose = OpenposeDetector()
+
+                # cong TODO: make sure the resolution is correct
+                # resize_image(input_image, detect_resolution)
+                detected_map, _ = apply_openpose(img)
+                detected_map = HWC3(detected_map)
+            logging.debug(f"D--: sum openpose: {(detected_map / 255.0).sum()}")
+
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
 
@@ -278,6 +295,13 @@ if __name__ == "__main__":
         help="path to control image. e.g. canny edge map. If not None, controlnet will use it as source control image and `image_path` will not be effective",
     )
     parser.add_argument(
+        "--condition_ckpt_path",
+        type=str,
+        help="condition detector needed by segmetation mode and openpose mode. \
+        For segementation, it is path/to/deeplabv3_ckpt. \
+        For openpose, it is folder_path/to/openpose_ckpt",
+    )
+    parser.add_argument(
         "--prompt", type=str, default=None, help="text prompt. If not None, it will overwrite the value in yaml"
     )
     parser.add_argument(
@@ -300,6 +324,7 @@ if __name__ == "__main__":
         default="canny",
         help="control mode for controlnet, should be in [canny, segmentation]",
     )
+
     args = parser.parse_args()
 
     os.makedirs(args.output_path, exist_ok=True)
@@ -328,6 +353,9 @@ if __name__ == "__main__":
         elif args.controlnet_mode == "segmentation":
             inputs_config_path = "./config/controlnet_segmentation.yaml"
             default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
+        elif args.controlnet_mode == "openpose":
+            inputs_config_path = "./config/controlnet_openpose.yaml"
+            default_ckpt = "./models/control_openpose_sd_v1.5_static-6167c529.ckpt"
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
     else:
