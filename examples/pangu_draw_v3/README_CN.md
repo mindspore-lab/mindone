@@ -31,7 +31,7 @@
 确保以下依赖已正常安装：
 
 - python >= 3.7
-- mindspore >= 2.1  [[点击安装](https://www.mindspore.cn/install)]
+- mindspore >= 2.2.10  [[点击安装](https://www.mindspore.cn/install)]
 
 通过运行下述命令安装所需依赖：
 ```shell

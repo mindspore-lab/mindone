@@ -32,7 +32,7 @@ Support inference of PanGu Draw 3.0 model for text-to-image generation.
 Please make sure the following frameworks are installed.
 
 - python >= 3.7
-- mindspore >= 2.1  [[install](https://www.mindspore.cn/install)]
+- mindspore >= 2.2.10  [[install](https://www.mindspore.cn/install)]
 
 Install the dependent packages by running:
 ```shell
