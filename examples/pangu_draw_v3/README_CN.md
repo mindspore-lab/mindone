@@ -31,7 +31,7 @@
 确保以下依赖已正常安装：
 
 - python >= 3.7
-- mindspore >= 2.2  [[点击安装](https://www.mindspore.cn/install)]
+- mindspore >= 2.1  [[点击安装](https://www.mindspore.cn/install)]
 
 通过运行下述命令安装所需依赖：
 ```shell
@@ -45,8 +45,8 @@ pip install -r requirements.txt
 
 | **模型** | **MindSpore Checkpoint** |
 |-------------|--------------------------|
-| Pangu3-low-timestamp-model | coming soon |
-| Pangu3-high-timestamp-model | coming soon |
+| Pangu3-low-timestamp-model | [pangu_low_timestamp-127da122.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/PanGu-Draw-v3/pangu_low_timestamp-127da122.ckpt) |
+| Pangu3-high-timestamp-model | [pangu_high_timestamp-c6344411.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/PanGu-Draw-v3/pangu_high_timestamp-c6344411.ckpt) |
 
 
 ### 推理

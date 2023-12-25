@@ -31,8 +31,8 @@ Support inference of PanGu Draw 3.0 model for text-to-image generation.
 
 Please make sure the following frameworks are installed.
 
-- mindspore >= 2.2  [[install](https://www.mindspore.cn/install)]
 - python >= 3.7
+- mindspore >= 2.1  [[install](https://www.mindspore.cn/install)]
 
 Install the dependent packages by running:
 ```shell
@@ -45,8 +45,8 @@ The text-to-image task of the Pangu model requires pre-training parameters for b
 
 | **Version** | **MindSpore Checkpoint** |
 |-------------|--------------------------|
-| Pangu3-low-timestamp-model | coming soon |
-| Pangu3-high-timestamp-model | coming soon |
+| Pangu3-low-timestamp-model | [pangu_low_timestamp-127da122.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/PanGu-Draw-v3/pangu_low_timestamp-127da122.ckpt) |
+| Pangu3-high-timestamp-model | [pangu_high_timestamp-c6344411.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/PanGu-Draw-v3/pangu_high_timestamp-c6344411.ckpt) |
 
 
 ### Inference
