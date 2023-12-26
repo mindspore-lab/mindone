@@ -31,7 +31,7 @@ cd tools/model_conversion
 
 python convert_diffusers_to_original_sdxl.py \
   --model_path /PATH TO THE MODEL TO CONVERT \
-  --checkpoint_path /PATH TO THE OUTPUT MODEL \
+  --checkpoint_path /PATH TO THE OUTPUT MODEL/sd_xl_base_1.0.safetensors \
   --use_safetensors \
   --unet_name "diffusion_pytorch_model.fp16.safetensors" \
   --vae_name "diffusion_pytorch_model.fp16.safetensors" \
