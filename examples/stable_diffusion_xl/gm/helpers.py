@@ -19,6 +19,7 @@ from gm.modules.diffusionmodules.sampler import (
     EulerEDMSampler,
     HeunEDMSampler,
     LinearMultistepSampler,
+    LCMSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
 from omegaconf import DictConfig, ListConfig
@@ -537,6 +538,13 @@ def get_sampler(
             guider_config=guider_config,
             verbose=True,
         )
+    elif sampler_name in ('LCMSampler',):
+        sampler = LCMSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )   
     else:
         raise ValueError(f"unknown sampler {sampler_name}!")
 
@@ -562,6 +570,7 @@ def init_sampling(
         "DPMPP2MSampler",
         "LinearMultistepSampler",
         "AncestralSampler",
+        "LCMSampler",
     ]
     assert guider in ["VanillaCFG", "IdentityGuider"]
     assert discretization in [
