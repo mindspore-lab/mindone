@@ -30,8 +30,8 @@ step2. Convert a HF Diffusers saved pipeline to a Stable Diffusion checkpoint.
 cd tools/model_conversion
 
 python convert_diffusers_to_original_sdxl.py \
-  --model_path /PATH TO THE MODEL TO CONVERT \
-  --checkpoint_path /PATH TO THE OUTPUT MODEL/sd_xl_base_1.0.safetensors \
+  --model_path /PATH_TO_THE_MODEL_TO_CONVERT \
+  --checkpoint_path /PATH_TO_THE_OUTPUT_MODEL/sd_xl_base_1.0.safetensors \
   --use_safetensors \
   --unet_name "diffusion_pytorch_model.fp16.safetensors" \
   --vae_name "diffusion_pytorch_model.fp16.safetensors" \
@@ -47,8 +47,8 @@ cd tools/model_conversion
 # convert sdxl-base-1.0 model
 python convert_weight.py \
   --task pt_to_ms \
-  --weight_safetensors /PATH TO/sd_xl_base_1.0.safetensors \
-  --weight_ms /PATH TO/sd_xl_base_1.0_ms.ckpt \
+  --weight_safetensors /PATH_TO/sd_xl_base_1.0.safetensors \
+  --weight_ms /PATH_TO/sd_xl_base_1.0_ms.ckpt \
   --key_torch torch_key_base_lcm.yaml \
   --key_ms mindspore_key_base_lcm.yaml
 ```
@@ -73,11 +73,28 @@ python demo/sampling_without_streamlit.py \
   --guidance_scale 1.5
 ```
 
+## Results
+Here are the generation results between LCM Sampler 4 steps and original EulerEDM Sampler 40 steps with same prompt.
+<div align="center">
+<img src="https://github.com/mindspore-lab/mindone/assets/73014084/8b4fef1e-28a5-4d1e-88b3-2085d560dcbf" width="45%" />
+<img src="https://github.com/mindspore-lab/mindone/assets/73014084/11d3de53-6843-4650-8089-f0a633d837d8" width="45%" />
+</div>
+<p align="center">
+  <em> LCM Sampler 4 steps(left) and EulerEDM Sampler 40 steps(right) Prompt: "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" </em>
+</p>
 
+<div align="center">
+<img src="https://github.com/mindspore-lab/mindone/assets/73014084/f574f17b-6ef8-4d88-8512-b0f047ad2393" width="45%" />
+<img src="https://github.com/mindspore-lab/mindone/assets/73014084/ae30731a-f336-4fad-8e1b-c7f679fd3277" width="45%" />
+</div>
+<p align="center">
+  <em> LCM Sampler 4 steps(left) and EulerEDM Sampler 40 steps(right) Prompt: "close-up photography of old man standing in the rain at night, in a street lit by lamps, leica 35mm summilux" </em>
+</p>
 
-
-
-
-
-
-
+<div align="center">
+<img src="https://github.com/mindspore-lab/mindone/assets/73014084/32a7fc54-c6a9-48d8-b94f-7e16b0a56cce" width="45%" />
+<img src="https://github.com/mindspore-lab/mindone/assets/73014084/bf15ba17-27db-46f0-ace4-f2704bc22662" width="45%" />
+</div>
+<p align="center">
+  <em> LCM Sampler 4 steps(left) and EulerEDM Sampler 40 steps(right) Prompt: "Self-portrait oil painting, a beautiful cyborg with golden hair, 8k" </em>
+</p>

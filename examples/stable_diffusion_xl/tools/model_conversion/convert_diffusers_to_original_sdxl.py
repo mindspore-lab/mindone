@@ -9,7 +9,6 @@ import re
 import torch
 from safetensors.torch import load_file, save_file
 
-
 # =================#
 # UNet Conversion #
 # =================#
@@ -272,13 +271,19 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", default=None, type=str, required=True, help="Path to the model to convert.")
     parser.add_argument("--checkpoint_path", default=None, type=str, required=True, help="Path to the output model.")
     parser.add_argument("--half", action="store_true", help="Save weights in half precision.")
+    parser.add_argument("--use_safetensors", action="store_true", help="Save weights use safetensors, default is ckpt.")
     parser.add_argument(
-        "--use_safetensors", action="store_true", help="Save weights use safetensors, default is ckpt."
+        "--unet_name", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Name to the unet model."
     )
-    parser.add_argument("--unet_name", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Name to the unet model.")
-    parser.add_argument("--vae_name", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Name to the vae model.")
-    parser.add_argument("--text_encoder_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder model.")
-    parser.add_argument("--text_encoder_2_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder_2 model.")
+    parser.add_argument(
+        "--vae_name", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Name to the vae model."
+    )
+    parser.add_argument(
+        "--text_encoder_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder model."
+    )
+    parser.add_argument(
+        "--text_encoder_2_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder_2 model."
+    )
 
     args = parser.parse_args()
 
@@ -342,4 +347,3 @@ if __name__ == "__main__":
     else:
         state_dict = {"state_dict": state_dict}
         torch.save(state_dict, args.checkpoint_path)
-

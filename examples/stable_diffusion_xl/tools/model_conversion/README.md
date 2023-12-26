@@ -94,3 +94,22 @@ The generated images for MS (left) and PT (right) are highly consistent as we ca
 <p align="center">
   <em> MindSpore(left) and PyTorch(right) generation results using the Dreambooth via LoRA checkpoint fine-tuned on the dog dataset </em>
 </p>
+
+## Convert diffusers pipeline of XL to original stable diffusion
+
+To convert a HF Diffusers saved pipeline to a Stable Diffusion checkpoint with `convert_diffusers_to_original_sdxl.py`, run as follows.
+
+Notes: if you want to save weights in half precision, you can add `--half`. Additionally, you can add `--use_safetensors` to save weights use safetensors. Only converts the UNet, VAE, and Text Encoder.
+
+```shell
+cd tools/model_conversion
+
+python convert_diffusers_to_original_sdxl.py \
+  --model_path /PATH_TO_THE_MODEL_TO_CONVERT \
+  --checkpoint_path /PATH_TO_THE_OUTPUT_MODEL/sd_xl_base_1.0.safetensors \
+  --use_safetensors \
+  --unet_name "diffusion_pytorch_model.fp16.safetensors" \
+  --vae_name "diffusion_pytorch_model.fp16.safetensors" \
+  --text_encoder_name "model.fp16.safetensors" \
+  --text_encoder_2_name "model.fp16.safetensors"
+```
