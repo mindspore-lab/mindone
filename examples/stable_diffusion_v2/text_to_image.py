@@ -39,6 +39,7 @@ _version_cfg = {
     "1.5-wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
+CLIP_CKPT_URL = "https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt"
 _MIN_CKPT_SIZE = 4.0 * 1e9
 
 
@@ -519,6 +520,14 @@ if __name__ == "__main__":
         if not os.path.exists(args.ckpt_path):
             print(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
+
+    if args.clip_ckpt_path is None:
+        clip_ckpt_name = os.path.basename(CLIP_CKPT_URL)
+        args.clip_ckpt_path = "models/" + clip_ckpt_name
+        if not os.path.exists(args.clip_ckpt_path):
+            print(f"Start downloading checkpoint {clip_ckpt_name} ...")
+            download_checkpoint(CLIP_CKPT_URL, "models/")
+
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])
 
