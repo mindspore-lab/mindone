@@ -182,7 +182,7 @@ class BasicTransformerBlock_ST(nn.Cell):
         self.norm_temp = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
     def construct(self, x, context=None, video_length=None):
-        x = self.attn1(x=self.norm1(x), context=context, video_length=video_length) + x
+        x = self.attn1(self.norm1(x), video_length=video_length) + x
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
 

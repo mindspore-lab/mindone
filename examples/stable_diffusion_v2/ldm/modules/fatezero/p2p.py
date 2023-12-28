@@ -25,7 +25,7 @@ def register_attention_control(unet, controller):
 
     def ca_forward(self, place_in_unet, attention_type):
         def _attention(q, k, v, mask, is_cross):
-            sim = ms.ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+            sim = ms.ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.attention.scale
 
             if exists(mask):
                 mask = self.reshape(mask, (mask.shape[0], -1))
@@ -38,11 +38,11 @@ def register_attention_control(unet, controller):
                 mask = ms.ops.expand_dims(mask, axis=1)
                 sim.masked_fill(mask, max_neg_value)
 
-            if self.upcast:
+            if self.attention.upcast:
                 # use fp32 for exponential inside
-                attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+                attn = self.attention.softmax(sim.astype(ms.float32)).astype(v.dtype)
             else:
-                attn = self.softmax(sim)
+                attn = self.attention.softmax(sim)
 
             attn = controller(attn, is_cross=is_cross, place_in_unet=place_in_unet)
 
@@ -168,12 +168,14 @@ def register_attention_control(unet, controller):
 
 class AttentionStore():
     def step_callback(self, x_t):
+        self.cur_att_layer = 0
+        self.cur_step += 1
         self.attention_store_all_step.append(copy.deepcopy(self.step_store))
         self.step_store = self.get_empty_store()
         return x_t
 
     def __call__(self, attn, is_cross: bool, place_in_unet: str):
-        if self.cur_att_layer >= self.num_uncond_att_layers:
+        if self.cur_att_layer >= 0:
             attn = self.forward(attn, is_cross, place_in_unet)
         self.cur_att_layer += 1
         return attn
