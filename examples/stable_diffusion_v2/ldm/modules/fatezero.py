@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from ldm.modules.attention import FeedForward, default
 from ldm.modules.attention import FlashAttention as LdmFlashAttention
-from ldm.modules.attention import Attention as LdmAttention
+from ldm.modules.attention import Attention, CrossAttention
 from ldm.modules.diffusionmodules.util import Identity, linear, timestep_embedding
 from ldm.util import is_old_ms_version
 
@@ -111,156 +111,13 @@ def replace_cross_attention(attn, step, controller):
     return attn
 
 
-def none(is_parameter=False):
-    return Parameter([0], requires_grad=False) if is_parameter else ms.Tensor([0], dtype=ms.int32)
-
-
-def is_none(parameter):
-    return False if len(parameter.shape) > 1 else True
-
-
-def not_none(parameter):
-    return True if len(parameter.shape) > 1 else False
-
-
-def get_mask():
-    pass
-
-
-class Attention(LdmAttention):
-    def construct(self, q, k, v, mask, is_cross_attention, step=None, controller=None):
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
-
-        if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
-            if sim.dtype == ms.float16:
-                finfo_type = np.float16
-            else:
-                finfo_type = np.float32
-            max_neg_value = -np.finfo(finfo_type).max
-            mask = mask.repeat(self.heads, axis=0)
-            mask = ops.expand_dims(mask, axis=1)
-            sim.masked_fill(mask, max_neg_value)
-
-        if self.upcast:
-            # use fp32 for exponential inside
-            attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
-        else:
-            attn = self.softmax(sim)
-        out = ops.matmul(attn, v)
-
-        return out, attn
-
-    def __init__(self, *args, **kwargs):
-        self.name = kwargs["name"]
-        # print(self.name)
-        self.head = kwargs["head"]
-        del kwargs["name"]
-        del kwargs["head"]
-        super().__init__(*args, **kwargs)
 
 
 class FlashAttention(LdmFlashAttention):
 
-    def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None, is_cross_attention=False,
-                  step=None, controller=None):
+    def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
         # ALiBi, reference to https://arxiv.org/abs/2108.12409
         return super().construct(q, k, v, attention_mask, dropout_mask, alibi_mask)
-
-
-class CrossAttention(nn.Cell):
-    def __init__(
-            self,
-            query_dim,
-            context_dim=None,
-            heads=8,
-            dim_head=64,
-            dropout=1.0,
-            dtype=ms.float32,
-            enable_flash_attention=False,
-            upcast=False,
-            name='CrossAttention',
-    ):
-        # print(name, enable_flash_attention)
-        super().__init__()
-        inner_dim = dim_head * heads
-        context_dim = default(context_dim, query_dim)
-        self.name = name
-
-        self.scale = dim_head ** -0.5
-        self.heads = heads
-
-        self.reshape = ops.Reshape()
-        # self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
-        self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_out = nn.SequentialCell(
-            nn.Dense(inner_dim, query_dim).to_float(dtype),
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
-        )
-        self.use_flash_attention = (
-                enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
-        )
-        if enable_flash_attention and not self.use_flash_attention:
-            print("WARNING: flash attention is set to enable but not available.")
-        if self.use_flash_attention:
-            print("INFO: flash attention will be used.")
-        # print('to_q:', query_dim, dim_head, heads)
-        # print('to_k:', context_dim, inner_dim)
-        # ar = AReplace()
-        # ar.num_att_layers += 1
-        self.attention = Attention(dim_head, upcast=upcast, name=name, head=heads)
-        self.flash_attention = FlashAttention(self.heads, dim_head) if self.use_flash_attention else None
-
-    def construct(self, x, context=None, mask=None, step=None, controller=None, cross_attn=None,
-                  is_cross_replace=False):
-        is_cross = context is not None
-        # print("test_0: x", x.shape)
-        q = self.to_q(x)
-        # print("test_1: q", q.shape)
-
-        context = default(context, x)
-        k = self.to_k(context)
-        v = self.to_v(context)
-
-        def rearange_in(x):
-            # (b, n, h*d) -> (b*h, n, d)
-            h = self.heads
-            b, n, d = x.shape[0], x.shape[1], x.shape[2]
-            d = d // h
-
-            x = self.reshape(x, (b, n, h, d))
-            x = self.transpose(x, (0, 2, 1, 3))
-            x = self.reshape(x, (b * h, n, d))
-            return x
-
-        q = rearange_in(q)
-        k = rearange_in(k)
-        v = rearange_in(v)
-
-        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0 and q.shape[1] > 1024:
-            attn = none()
-            out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
-        else:
-            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller)
-        if is_cross_replace:
-            print('replace cross attn')
-
-        def rearange_out(x):
-            # (b*h, n, d) -> (b, n, h*d)
-            h = self.heads
-            b, n, d = x.shape[0], x.shape[1], x.shape[2]
-            b = b // h
-
-            x = self.reshape(x, (b, h, n, d))
-            x = self.transpose(x, (0, 2, 1, 3))
-            x = self.reshape(x, (b, n, h * d))
-            return x
-
-        out = rearange_out(out)
-        return self.to_out(out), attn
 
 
 # Spatial Transformer and Attention Layer Modification based on SD
@@ -280,8 +137,7 @@ class SparseCausalAttention(CrossAttention):
         x = x.reshape((bf, 2 * hw, c))
         return x
 
-    def construct(self, x, context=None, mask=None, video_length=None, step=None, controller=None, self_attn=None,
-                  is_self_replace=False):
+    def construct(self, x, context=None, mask=None, video_length=None):
         is_cross = context is not None
         q = self.to_q(x)
         context = default(context, x)
@@ -317,13 +173,10 @@ class SparseCausalAttention(CrossAttention):
                 mask = nn.Pad(paddings)(mask)
                 mask = mask.repeat_interleave(self.heads, axis=0)
 
-        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0 and q.shape[1] > 1024:
-            attn = none()
-            out = self.flash_attention(q, k, v, is_cross_attention=is_cross, step=step, controller=controller)
+        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+            out = self.flash_attention(q, k, v)
         else:
-            out, attn = self.attention(q, k, v, mask, is_cross_attention=is_cross, step=step, controller=controller, )
-        if is_self_replace:
-            print('replace self attn')
+            out = self.attention(q, k, v, mask, is_cross_attention=is_cross)
 
         def rearange_out(x):
             # (b*h, n, d) -> (b, n, h*d)
@@ -337,7 +190,7 @@ class SparseCausalAttention(CrossAttention):
             return x
 
         out = rearange_out(out)
-        return self.to_out(out), attn
+        return self.to_out(out)
 
 
 class BasicTransformerBlock_ST(nn.Cell):
@@ -354,29 +207,9 @@ class BasicTransformerBlock_ST(nn.Cell):
             enable_flash_attention=False,
             cross_frame_attention=False,
             unet_chunk_size=2,
-            place='in',
     ):
         super().__init__()
         assert not cross_frame_attention, "expect to have cross_frame_attention to be False"
-        self.replace_step = 8
-        if place == 'mid':
-            attn_map_shape_cross = (n_heads * 8, 1024 * 25 // (n_heads * n_heads), 77)
-            attn_map_shape_self = (n_heads * 8, 1024 * 25 // (n_heads * n_heads), 1024 * 25 * 2 // (n_heads * n_heads))
-        else:
-            attn_map_shape_cross = (n_heads * 8, 4096 * 25 // (n_heads * n_heads), 77)
-            attn_map_shape_self = (n_heads * 8, 4096 * 25 // (n_heads * n_heads), 4096 * 25 * 2 // (n_heads * n_heads))
-        self.store_cross_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_cross, ms.float16),
-                                          requires_grad=False)
-        if attn_map_shape_self[1] <= 1024:
-            self.store_self_attn = Parameter(ms.ops.zeros((self.replace_step,) + attn_map_shape_self, ms.float16),
-                                             requires_grad=False)
-            self.is_self_replace = ms.Tensor(1, ms.int32)
-        else:
-            self.store_self_attn = none(is_parameter=True)
-            self.is_self_replace = ms.Tensor(-1, ms.int32)
-
-        self.self_attn_shape = attn_map_shape_self
-        self.cross_attn_shape = attn_map_shape_cross
 
         self.attn1 = SparseCausalAttention(
             query_dim=dim,
@@ -385,7 +218,6 @@ class BasicTransformerBlock_ST(nn.Cell):
             dropout=dropout,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
-            name='SparseCausalAttention',
         )  # is a self-attention
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
 
@@ -397,7 +229,6 @@ class BasicTransformerBlock_ST(nn.Cell):
             dropout=dropout,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
-            name='attn2',
 
         )  # is self-attn if context is none
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
@@ -414,55 +245,21 @@ class BasicTransformerBlock_ST(nn.Cell):
             dtype=dtype,
             enable_flash_attention=True,
             # enable_flash_attention=enable_flash_attention,
-            name='temp',
         )
         self.attn_temp.to_out[0].weight = Parameter(ms.Tensor(np.zeros(self.attn_temp.to_out[0].weight.shape), dtype))
         self.norm_temp = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.place = place
 
-    def construct(self, x, context=None, video_length=None, step=None, controller=None, is_invert=False):
-        if is_invert < 0 and step < 8:
-            if self.is_self_replace > 0:
-                self_attn = self.store_self_attn[step]
-                is_self_replace = True
-            else:
-                self_attn = ms.ops.zeros(self.self_attn_shape)
-                is_self_replace = False
-
-            cross_attn = self.store_cross_attn[step]
-            is_cross_replace = True
-        else:
-            is_self_replace = False
-            is_cross_replace = False
-            self_attn = ms.ops.zeros(self.self_attn_shape)
-            cross_attn = ms.ops.zeros(self.cross_attn_shape)
-
-        x1, attn1 = self.attn1(self.norm1(x), video_length=video_length, step=step, controller=controller,
-                               self_attn=self_attn, is_self_replace=False)
-        x1 += x
-        x2, attn2 = self.attn2(self.norm2(x1), context=context, step=step, controller=controller, cross_attn=cross_attn,
-                               is_cross_replace=False)
-        x = x2 + x1
+    def construct(self, x, context=None, video_length=None):
+        x = self.attn1(self.norm1(x), video_length=video_length) + x
+        x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
-
-        if is_invert > 0 and step < 8:
-            if not_none(attn1) and self.store_self_attn[step].shape == attn1.shape:
-                self.store_self_attn[step] = attn1
-            if self.store_cross_attn[step].shape == attn2.shape:
-                self.store_cross_attn[step] = attn2
-
-        if is_invert < 0 and step < 8:
-            if not_none(attn1):
-                print('attn1', attn1.shape, self.store_self_attn[step].shape)
-            print('attn2', attn2.shape, self.store_cross_attn[step].shape)
 
         # temporal attention
         # (b f) (hw) c -> (b h w) f c
         bf, hw, c = x.shape
         x = x.reshape((bf // video_length, video_length, hw, c))
         x = x.transpose((0, 2, 1, 3)).reshape(((bf // video_length) * hw, video_length, c))
-        x1, _ = self.attn_temp(self.norm_temp(x), step=step)
-        x1 += x
+        x = self.attn_temp(self.norm_temp(x)) + x
         # (b h w) f c -> (b f) (hw) c
         x = x.reshape((bf // video_length, hw, video_length, c))
         x = x.transpose((0, 2, 1, 3)).reshape((bf, hw, c))
@@ -488,7 +285,6 @@ class SpatialTransformer3D(nn.Cell):
             enable_flash_attention=False,
             cross_frame_attention=False,
             unet_chunk_size=2,
-            place='in',
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -518,7 +314,6 @@ class SpatialTransformer3D(nn.Cell):
                     enable_flash_attention=enable_flash_attention,
                     cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
-                    place=place,
                 )
                 for d in range(depth)
             ]
@@ -935,7 +730,6 @@ class UNetModel3D(nn.Cell):
             enable_flash_attention=False,
             adm_in_channels=None,
             use_recompute=False,
-            controller=None,
     ):
         super().__init__()
 
@@ -1062,7 +856,6 @@ class UNetModel3D(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
-                            place='in',
                         )
                     )
                 self.input_blocks.append(layers)
@@ -1139,7 +932,6 @@ class UNetModel3D(nn.Cell):
                     dropout=self.dropout,
                     use_linear=use_linear_in_transformer,
                     enable_flash_attention=enable_flash_attention,
-                    place='mid',
                 ),
                 ResnetBlock3D(
                     ch,
@@ -1202,7 +994,6 @@ class UNetModel3D(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
-                            place='out',
                         )
                     )
                 if level and i == num_res_blocks:
@@ -1248,18 +1039,6 @@ class UNetModel3D(nn.Cell):
             for oblock in self.output_blocks:
                 oblock.recompute(parallel_optimizer_comm_recompute=True)
 
-        self.step = Parameter(ms.Tensor(0, ms.int32), requires_grad=False)
-        self.is_invert = Parameter(ms.Tensor(-1, ms.int32), requires_grad=False)
-        self.controller = controller
-
-    @staticmethod
-    def is_attention_layer(c):
-        name = c.__class__.__name__
-        if name in ['SpatialTransformer3D']:
-            return True
-
-        return False
-
     def construct(
             self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None,
             **kwargs
@@ -1291,11 +1070,7 @@ class UNetModel3D(nn.Cell):
         adapter_idx = 0
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
-                if self.is_attention_layer(cell):
-                    h = cell(h, emb, context, self.step, self.controller, self.is_invert)
-                else:
-                    h = cell(h, emb, context)
-
+                h = cell(h, emb, context)
             if features_adapter and i % 3 == 0:
                 h = h + features_adapter[adapter_idx]
                 adapter_idx += 1
@@ -1306,19 +1081,13 @@ class UNetModel3D(nn.Cell):
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
 
         for module in self.middle_block:
-            if self.is_attention_layer(module):
-                h = module(h, emb, context, self.step, self.controller, self.is_invert)
-            else:
-                h = module(h, emb, context)
+            h = module(h, emb, context)
 
         hs_index = -1
         for celllist in self.output_blocks:
             h = self.cat((h, hs[hs_index]))
             for cell in celllist:
-                if self.is_attention_layer(cell):
-                    h = cell(h, emb, context, self.step, self.controller, self.is_invert)
-                else:
-                    h = cell(h, emb, context)
+                h = cell(h, emb, context)
             hs_index -= 1
         if self.is_invert > 0:
             self.step = self.step + 1
