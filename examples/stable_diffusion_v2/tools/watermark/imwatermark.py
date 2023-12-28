@@ -7,8 +7,8 @@ import uuid
 import numpy as np
 from PIL import Image
 from tools._common import load_images
-from tools.watermark.dwtDctSvd import EmbedDwtDctSvd
-from tools.watermark.maxDct import EmbedMaxDct
+from tools.watermark.dwt_dct_svd import EmbedDwtDctSvd
+from tools.watermark.max_dct import EmbedMaxDct
 
 import mindspore as ms
 from mindspore import Tensor, ops
