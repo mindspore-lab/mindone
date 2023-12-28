@@ -1,3 +1,7 @@
+# - controller注册
+# - forward替换
+# - 加噪声过程中保存attention
+# - 替换
 import logging
 
 import numpy as np
@@ -24,36 +28,36 @@ except ImportError:
     print("flash attention is unavailable.")
 
 
-def refine_replace(attn_base, attn_replace, ):
-    # replace_attn 1,b/2,-1,-1,77
-    # mapper 1,77 哪个位置上的词需要替换？对
-    # alphas 替换力度
-    alphas = 1
-    mapper = np.ones((1, 77))
-    # 8,8,1024,1,77 -> 1,8,8,1024,77
-    attn_base_replace = attn_base[:, :, :, mapper].permute(3, 0, 1, 2, 4)
-    attn_replace = attn_base_replace * alphas + attn_replace * (1 - alphas)
-    return attn_replace
-
-
-def reweight_replace(attn_base, attn_replace):
-    attn_base = refine_replace(attn_base, attn_replace)
-    # equalizer 文本权重列表，默认1
-    equalizer = np.ones((1, 77))
-    attn_replace = attn_base[None, :, :, :] * equalizer[:, None, None, :]
-    return attn_replace
-    pass
-
-
-def replace_replace(attn_base):
-    mapper = ms.Tensor(np.eye(77).reshape(1, 77, 77))
-    # shape = attn_base.shape
-    # attn_base = attn_base.reshape((shape[0] // 8, 8, shape[1], shape[2]))
-    # attn = ms.ops.einsum('thpw,bwn->bthpn', attn_base, mapper)
-    # attn = ms.ops.einsum('hpw,bwn->bhpn', attn_base, mapper)
-    # shape = attn.shape
-    # attn = attn.reshape((shape[0] * shape[1], shape[2], shape[3]))
-    return attn_base
+# def refine_replace(attn_base, attn_replace, ):
+#     # replace_attn 1,b/2,-1,-1,77
+#     # mapper 1,77 哪个位置上的词需要替换？对
+#     # alphas 替换力度
+#     alphas = 1
+#     mapper = np.ones((1, 77))
+#     # 8,8,1024,1,77 -> 1,8,8,1024,77
+#     attn_base_replace = attn_base[:, :, :, mapper].permute(3, 0, 1, 2, 4)
+#     attn_replace = attn_base_replace * alphas + attn_replace * (1 - alphas)
+#     return attn_replace
+#
+#
+# def reweight_replace(attn_base, attn_replace):
+#     attn_base = refine_replace(attn_base, attn_replace)
+#     # equalizer 文本权重列表，默认1
+#     equalizer = np.ones((1, 77))
+#     attn_replace = attn_base[None, :, :, :] * equalizer[:, None, None, :]
+#     return attn_replace
+#     pass
+#
+#
+# def replace_replace(attn_base):
+#     mapper = ms.Tensor(np.eye(77).reshape(1, 77, 77))
+#     # shape = attn_base.shape
+#     # attn_base = attn_base.reshape((shape[0] // 8, 8, shape[1], shape[2]))
+#     # attn = ms.ops.einsum('thpw,bwn->bthpn', attn_base, mapper)
+#     # attn = ms.ops.einsum('hpw,bwn->bhpn', attn_base, mapper)
+#     # shape = attn.shape
+#     # attn = attn.reshape((shape[0] * shape[1], shape[2], shape[3]))
+#     return attn_base
 
 
 class GroupNorm(nn.GroupNorm):
