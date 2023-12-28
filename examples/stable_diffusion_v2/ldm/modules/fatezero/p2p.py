@@ -71,7 +71,7 @@ def register_attention_control(unet, controller):
             k = rearange_in(k)
             v = rearange_in(v)
 
-            if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+            if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0 and q.shape[1] > 1024:
                 out = self.flash_attention(q, k, v)
             else:
                 out = _attention(q, k, v, mask, is_cross=is_cross)
@@ -126,7 +126,7 @@ def register_attention_control(unet, controller):
                     mask = ms.nn.Pad(paddings)(mask)
                     mask = mask.repeat_interleave(self.heads, axis=0)
 
-            if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+            if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0 and q.shape[1] > 1024:
                 out = self.flash_attention(q, k, v)
             else:
                 out = _attention(q, k, v, mask, is_cross=is_cross)
@@ -186,7 +186,7 @@ class AttentionStore():
                 F"{INPUT}_self": [], F"{OUTPUT}_self": [], F"{MIDDLE}_self": []}
 
     def forward(self, attn, is_cross: bool, place_in_unet: str):
-        if attn.shape[1] <= 16 ** 2:  # avoid memory overhead
+        if attn.shape[1] <= 1024 * 4:  # avoid memory overhead
             key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
             print(f"Store attention map {key} of shape {attn.shape}")
 
