@@ -23,6 +23,7 @@ from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
+from tools.safety_checker import SafetyChecker
 from tools.watermark import WatermarkEmbedder
 from utils import model_utils
 from utils.download import download_checkpoint
@@ -39,6 +40,7 @@ _version_cfg = {
     "1.5-wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
+CLIP_CKPT_URL = "https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt"
 _MIN_CKPT_SIZE = 4.0 * 1e9
 
 
@@ -95,12 +97,14 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
                     model,
                     rank=lora_rank,
                     use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+                    scale=args.lora_scale,
                 )
             if args.lora_ft_text_encoder:
                 injected_attns, injected_trainable_params = inject_trainable_lora_to_textencoder(
                     model,
                     rank=lora_rank,
                     use_fp16=(model.model.diffusion_model.dtype == ms.float16),
+                    scale=args.lora_scale,
                 )
 
             # load fine-tuned lora params
@@ -210,6 +214,10 @@ def main(args):
             "dpm_solver_pp",
         ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
 
+    # create safety checker
+    if args.check_safety:
+        safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", ckpt_path=args.clip_ckpt_path)
+
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
@@ -276,6 +284,9 @@ def main(args):
             if args.add_watermark:
                 water_mark = WatermarkEmbedder(dtype=model.model.diffusion_model.dtype)
                 x_samples_ddim = water_mark(x_samples_ddim)
+            if args.check_safety:
+                x_samples_ddim, _ = safety_checker(x_samples_ddim)
+
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
@@ -454,6 +465,12 @@ if __name__ == "__main__":
         help="path to lora only checkpoint. Set it if use_lora is not None",
     )
     parser.add_argument(
+        "--lora_scale",
+        default=1.0,
+        type=float,
+        help="scale, the higher, the more LoRA weights will affect orignal SD. If 0, LoRA has no effect.",
+    )
+    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -469,6 +486,23 @@ if __name__ == "__main__":
         "--add_watermark",
         action="store_true",
         help="whether add invisible watermark to image",
+    )
+    parser.add_argument(
+        "--check_safety",
+        action="store_true",
+        help="set this flag to use a safety checker",
+    )
+    parser.add_argument(
+        "--clip_ckpt_path",
+        type=str,
+        default=None,
+        help="path to checkpoint of clip-vit-large-patch14 for safety checker",
+    )
+    parser.add_argument(
+        "--safety_version",
+        type=int,
+        default=2,
+        help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 2",
     )
     args = parser.parse_args()
 
@@ -497,6 +531,14 @@ if __name__ == "__main__":
         if not os.path.exists(args.ckpt_path):
             print(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
+
+    if args.clip_ckpt_path is None:
+        clip_ckpt_name = os.path.basename(CLIP_CKPT_URL)
+        args.clip_ckpt_path = "models/" + clip_ckpt_name
+        if not os.path.exists(args.clip_ckpt_path):
+            print(f"Start downloading checkpoint {clip_ckpt_name} ...")
+            download_checkpoint(CLIP_CKPT_URL, "models/")
+
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])
 

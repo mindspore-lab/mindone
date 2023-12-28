@@ -680,7 +680,13 @@ class LatentDepthDiffusion(LatentDiffusion):
 
 class ImageEmbeddingConditionedLatentDiffusion(LatentDiffusion):
     def __init__(
-        self, embedder_config, embedding_dropout=0.5, freeze_embedder=True, noise_aug_config=None, *args, **kwargs
+        self,
+        embedder_config,
+        embedding_dropout=0.5,
+        freeze_embedder=True,
+        noise_aug_config=None,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.embedding_dropout = embedding_dropout
@@ -698,18 +704,29 @@ class ImageEmbeddingConditionedLatentDiffusion(LatentDiffusion):
         if config is not None:
             self.noise_augmentor = instantiate_from_config(config)
             self.noise_augmentor.set_train(False)
+            for param in self.noise_augmentor.get_parameters():
+                param.requires_grad = False
         else:
             self.noise_augmentor = None
 
     def get_input(self, x, c):
-        z, c = LatentDiffusion.get_input(self, x, c)
+        z, c = super().get_input(x, c)
+        x = self.transpose(x, (0, 3, 1, 2))
         c_adm = self.embedder(x)
         if self.noise_augmentor is not None:
             c_adm, noise_level_emb = self.noise_augmentor(c_adm)
             # assume this gives embeddings of noise levels
             c_adm = ops.concat((c_adm, noise_level_emb), 1)
-        if self.training:
-            c_adm = ops.bernoulli((1.0 - self.embedding_dropout) * ops.ones(c_adm.shape[0])[:, None]) * c_adm
 
-        # TODO: training support 3 inputs
+        if self.training:
+            c_adm = (ops.rand((c_adm.shape[0], 1)) > self.embedding_dropout) * c_adm
         return z, c, c_adm
+
+    def construct(self, x, c):
+        t = self.uniform_int(
+            (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
+        )
+        x, c, c_adm = self.get_input(x, c)
+        c = self.get_learned_conditioning_fortrain(c)
+        cond = {"c_crossattn": c, "c_adm": c_adm}
+        return self.p_losses(x, cond, t)

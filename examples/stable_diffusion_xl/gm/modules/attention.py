@@ -6,11 +6,12 @@ from gm.util import default, exists
 
 import mindspore as ms
 from mindspore import nn, ops
+from mindspore.ops._tracefunc import trace
 
 try:
-    # FIXME: some error with mindspore.nn.layer.flash_attention.FlashAttention in mindspore 2.1.0
-    # from mindspore.nn.layer.flash_attention import FlashAttention
-    from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
+    from mindspore.nn.layer.flash_attention import FlashAttention
+
+    # from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
 
     FLASH_IS_AVAILABLE = True
     print("flash attention is available.")
@@ -35,7 +36,7 @@ class FeedForward(nn.Cell):
         super().__init__()
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
-        project_in = nn.SequentialCell([nn.Dense(dim, inner_dim), nn.GELU()]) if not glu else GEGLU(dim, inner_dim)
+        project_in = nn.SequentialCell([nn.Dense(dim, inner_dim), nn.GELU(False)]) if not glu else GEGLU(dim, inner_dim)
 
         self.net = nn.SequentialCell([project_in, nn.Dropout(p=dropout), nn.Dense(inner_dim, dim_out)])
 
@@ -77,24 +78,6 @@ class LinearAttention(nn.Cell):
         return self.to_out(out)
 
 
-# reference to https://arxiv.org/abs/2205.14135
-class FlashAttention(nn.Cell):
-    def __init__(self):
-        super(FlashAttention, self).__init__()
-        self.flash_attention = get_flash_attention(tiling_stgy_name="sparse")
-
-    def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
-        # ALiBi, reference to https://arxiv.org/abs/2108.12409
-        _, h, Nq, d = q.shape
-        dim_mask = ops.ones((d,), dtype=ms.int8)
-        scale = d**-0.25
-        q = q * scale
-        k = k * scale
-        o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
-
-        return o  # (b, h, n, d)
-
-
 class MemoryEfficientCrossAttention(nn.Cell):
     def __init__(
         self,
@@ -120,7 +103,7 @@ class MemoryEfficientCrossAttention(nn.Cell):
 
         self.to_out = nn.SequentialCell(nn.Dense(inner_dim, query_dim), nn.Dropout(p=dropout))
 
-        self.flash_attention = FlashAttention()
+        self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
 
     def construct(self, x, context=None, mask=None, additional_tokens=None):
         h = self.heads
@@ -148,13 +131,17 @@ class MemoryEfficientCrossAttention(nn.Cell):
 
         head_dim = q.shape[-1]
         if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
-            out = self.flash_attention(q, k, v, mask)
+            if mask is None:
+                mask = ops.zeros((q_b, q_n, q_n), ms.uint8)
+            out = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(ms.uint8))
         else:
             out = scaled_dot_product_attention(q, k, v, attn_mask=mask)  # scale is dim_head ** -0.5 per default
 
         # rearange_out, "b h n d -> b n (h d)"
         b, h, n, d = out.shape
         out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+        dtype = q.dtype
+        out = out.to(dtype)
 
         if additional_tokens is not None:
             # remove additional token
@@ -307,10 +294,12 @@ class SpatialTransformer(nn.Cell):
             context_dim = [context_dim]
         if exists(context_dim) and isinstance(context_dim, list):
             if depth != len(context_dim):
-                print(
-                    f"WARNING: {self.__class__.__name__}: Found context dims {context_dim} of depth {len(context_dim)}, "
-                    f"which does not match the specified 'depth' of {depth}. Setting context_dim to {depth * [context_dim[0]]} now."
-                )
+                # disable context setting print
+                # print(
+                #     f"WARNING: {self.__class__.__name__}: Found context dims {context_dim} of depth {len(context_dim)}, "
+                #     f"which does not match the specified 'depth' of {depth}. Setting context_dim to {depth * [context_dim[0]]} now."
+                # )
+
                 # depth does not match context dims.
                 assert all(
                     map(lambda x: x == context_dim[0], context_dim)
@@ -350,6 +339,7 @@ class SpatialTransformer(nn.Cell):
             self.proj_out = zero_module(nn.Dense(inner_dim, in_channels))
         self.use_linear = use_linear
 
+    @trace
     def construct(self, x, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
         if not isinstance(context, (list, tuple)):

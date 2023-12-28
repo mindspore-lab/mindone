@@ -14,6 +14,7 @@ import mindspore as ms
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.dirname(workspace))
 from conditions.canny.canny_detector import CannyDetector
+from conditions.openpose.openpose_detector import OpenposeDetector
 from conditions.segmentation.segment_detector import SegmentDetector
 from conditions.utils import HWC3, resize_image
 from ldm.modules.logger import set_logger
@@ -32,6 +33,11 @@ def main(args):
     config = OmegaConf.load(f"{args.model}")
     version = config.model.version
     os.environ["SD_VERSION"] = version
+
+    if args.pretrained_ckpt is not None:
+        config.model.pretrained_ckpt = args.pretrained_ckpt
+        print("Use pretrained model: ", config.model.pretrained_ckpt)
+
     model = load_model_from_config(
         config,
         ckpt=config.model.pretrained_ckpt,
@@ -49,7 +55,8 @@ def main(args):
     batch_size = args.n_samples
     prompt = args.inputs.prompt
     if args.inputs.a_prompt:
-        prompt = prompt + ", " + args.inputs.a_prompt
+        if len(args.inputs.a_prompt) > 0:
+            prompt = prompt + ", " + args.inputs.a_prompt
     data = batch_size * [prompt]
     negative_prompt = args.inputs.negative_prompt
     assert negative_prompt is not None
@@ -134,13 +141,24 @@ def main(args):
 
         image = cv2.imread(args.inputs.image_path)
         input_image = np.array(image, dtype=np.uint8)
+        # TODO: forgot to convert BGR to RGB format ?? only used for canny extract
         img = resize_image(HWC3(input_image), args.inputs.image_resolution)
         H, W, C = img.shape
         args.inputs.H = H
         args.inputs.W = W
+        visualize = True
         if args.controlnet_mode == "canny":
-            apply_canny = CannyDetector()
-            detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
+            if args.control_path is not None:
+                detected_map = cv2.imread(args.control_path)
+                logger.debug(f"D---: use input canny image: {args.control_path}")
+            else:
+                apply_canny = CannyDetector()
+                detected_map = apply_canny(img, args.inputs.low_threshold, args.inputs.high_threshold)
+            logger.debug(f"D--: sum canny: {(detected_map / 255.0).sum()}")
+            if visualize:
+                _save_fp = os.path.join(args.output_path, "canny.png")
+                cv2.imwrite(_save_fp, detected_map)
+                logger.debug(f"----- Canny image saved in {_save_fp}")
             detected_map = HWC3(detected_map)
         elif args.controlnet_mode == "segmentation":
             if os.path.exists(args.inputs.condition_ckpt_path):
@@ -151,6 +169,22 @@ def main(args):
                 )
             detected_map = apply_segment(img)
             detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+        elif args.controlnet_mode == "openpose":
+            if args.control_path is not None:
+                detected_map = cv2.imread(args.control_path)
+                logger.debug(f"D---: use input openpose image: {args.control_path}")
+            else:
+                if os.path.exists(args.inputs.condition_ckpt_path):
+                    apply_segment = OpenposeDetector(annotator_ckpts_path=args.inputs.condition_ckpt_path)
+                else:
+                    apply_openpose = OpenposeDetector()
+
+                # cong TODO: make sure the resolution is correct
+                # resize_image(input_image, detect_resolution)
+                detected_map, _ = apply_openpose(img)
+                detected_map = HWC3(detected_map)
+            logging.debug(f"D--: sum openpose: {(detected_map / 255.0).sum()}")
+
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
 
@@ -166,7 +200,7 @@ def main(args):
 
     logger.info(
         f"Generating images with conditions:\n"
-        f"Prompt(s): {inputs['prompt']}, \n"
+        f"Prompt(s): {inputs['prompt']} \n"
         f"Negative prompt(s): {inputs['negative_prompt']}"
     )
 
@@ -242,6 +276,46 @@ if __name__ == "__main__":
     parser.add_argument(
         "--lora_ckpt_path", type=str, default=None, help="path to lora only checkpoint. Set it if use_lora is not None"
     )
+    parser.add_argument(
+        "--pretrained_ckpt",
+        type=str,
+        default=None,
+        help="path to model checkpoint. If not None, it will overwrite the value in yaml",
+    )
+    parser.add_argument(
+        "--image_path",
+        type=str,
+        default=None,
+        help="path to input image. If not None, it will overwrite the value in yaml",
+    )
+    parser.add_argument(
+        "--control_path",
+        type=str,
+        default=None,
+        help="path to control image. e.g. canny edge map. If not None, controlnet will use it as source control image and `image_path` will not be effective",
+    )
+    parser.add_argument(
+        "--condition_ckpt_path",
+        type=str,
+        help="condition detector needed by segmetation mode and openpose mode. \
+        For segementation, it is path/to/deeplabv3_ckpt. \
+        For openpose, it is folder_path/to/openpose_ckpt",
+    )
+    parser.add_argument(
+        "--prompt", type=str, default=None, help="text prompt. If not None, it will overwrite the value in yaml"
+    )
+    parser.add_argument(
+        "--a_prompt",
+        type=str,
+        default=None,
+        help="auxilary prompt, e.g. 'best quality'. If not None, it will overwrite the value in yaml",
+    )
+    parser.add_argument(
+        "--negative_prompt",
+        type=str,
+        default=None,
+        help="negative prompt, e.g. 'best quality'. If not None, it will overwrite the value in yaml",
+    )
     parser.add_argument("--seed", type=int, default=42, help="the seed (for reproducible sampling)")
     parser.add_argument("--log_level", type=str, default="INFO", help="log level, options: DEBUG, INFO, WARNING, ERROR")
     parser.add_argument(
@@ -250,7 +324,10 @@ if __name__ == "__main__":
         default="canny",
         help="control mode for controlnet, should be in [canny, segmentation]",
     )
+
     args = parser.parse_args()
+
+    os.makedirs(args.output_path, exist_ok=True)
     set_logger(name="", output_dir=args.output_path, rank=0, log_level=args.log_level)
 
     if not os.path.exists(args.model):
@@ -276,11 +353,23 @@ if __name__ == "__main__":
         elif args.controlnet_mode == "segmentation":
             inputs_config_path = "./config/controlnet_segmentation.yaml"
             default_ckpt = "./models/control_segmentation_sd_v1.5_static-77bea2e9.ckpt"
+        elif args.controlnet_mode == "openpose":
+            inputs_config_path = "./config/controlnet_openpose.yaml"
+            default_ckpt = "./models/control_openpose_sd_v1.5_static-6167c529.ckpt"
         else:
             raise NotImplementedError(f"mode {args.controlnet_mode} not supported")
     else:
         raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
     inputs = OmegaConf.load(inputs_config_path)
+
+    if args.image_path is not None:
+        inputs.image_path = args.image_path
+    if args.prompt is not None:
+        inputs.prompt = args.prompt
+    if args.a_prompt is not None:
+        inputs.a_prompt = args.a_prompt
+    if args.negative_prompt is not None:
+        inputs.negative_prompt = args.negative_prompt
 
     key_settings_info = ["Key Settings:\n" + "=" * 50]
     key_settings_info += [

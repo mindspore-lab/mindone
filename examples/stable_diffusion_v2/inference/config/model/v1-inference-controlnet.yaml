@@ -39,6 +39,7 @@ model:
         use_checkpoint: True
         legacy: False
         use_fp16: True
+        upcast_attn: True
 
         control_stage_config:
           target: cldm.cldm.ControlNet
@@ -63,6 +64,7 @@ model:
       params:
         embed_dim: 4
         monitor: val/rec_loss
+        upcast_sigmoid: True
         ddconfig:
           double_z: true
           z_channels: 4
@@ -91,5 +93,5 @@ model:
         width: 768
         layers: 12
         heads: 12
-        epsilon: 1e-7
+        epsilon: 1e-5
         use_quick_gelu: True

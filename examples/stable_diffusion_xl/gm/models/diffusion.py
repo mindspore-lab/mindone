@@ -1,7 +1,7 @@
 # reference to https://github.com/Stability-AI/generative-models
 
 from contextlib import contextmanager
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import numpy as np
 from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
@@ -41,8 +41,11 @@ class DiffusionEngine(nn.Cell):
         self.scale_factor = scale_factor
         self.disable_first_stage_amp = disable_first_stage_amp
 
-        model = instantiate_from_config(network_config)
-        self.model = get_obj_from_str(default(network_wrapper, OPENAIUNETWRAPPER))(model)
+        if network_config is not None:
+            model = instantiate_from_config(network_config)
+            self.model = get_obj_from_str(default(network_wrapper, OPENAIUNETWRAPPER))(model)
+        else:
+            self.model = None
 
         self.denoiser = instantiate_from_config(denoiser_config)
         self.conditioner = instantiate_from_config(default(conditioner_config, UNCONDITIONAL_CONFIG))
@@ -102,14 +105,7 @@ class DiffusionEngine(nn.Cell):
             "y": cond.get("vector", None),
         }
 
-    # TODO: Delete it
-    def _denoise(self, sigmas, noised_input, **kwargs):
-        c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
-        model_output = self.model(ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.int32), **kwargs)
-        model_output = model_output * c_out + noised_input * c_skip
-        return model_output
-
-    def get_grad_func(self, optimizer, reducer, scaler, jit=True):
+    def get_grad_func(self, optimizer, reducer, scaler, jit=True, overflow_still_update=True):
         from mindspore.amp import all_finite
 
         loss_fn = self.loss_fn
@@ -137,8 +133,13 @@ class DiffusionEngine(nn.Cell):
             grads = reducer(grads)
             unscaled_grads = scaler.unscale(grads)
             grads_finite = all_finite(unscaled_grads)
-            loss = ops.depend(loss, optimizer(unscaled_grads))
-            return scaler.unscale(loss), unscaled_grads, grads_finite
+            if overflow_still_update:
+                loss = ops.depend(loss, optimizer(unscaled_grads))
+            else:
+                if grads_finite:
+                    loss = ops.depend(loss, optimizer(unscaled_grads))
+            overflow_tag = not grads_finite
+            return scaler.unscale(loss), unscaled_grads, overflow_tag
 
         @ms.jit
         def jit_warpper(*args, **kwargs):
@@ -146,33 +147,26 @@ class DiffusionEngine(nn.Cell):
 
         return grad_and_update_func if not jit else jit_warpper
 
-    def train_step(self, batch, grad_func):
-        # get latent and condition
-        x = batch[self.input_key]
+    def train_step_pynative(self, x, *tokens, grad_func=None):
+        # get latent
         x = self.encode_first_stage(x)
-        cond = self.conditioner(batch)
-        cond = self.openai_input_warpper(cond)
+
+        # get condition
+        vector, crossattn, concat = self.conditioner.embedding(*tokens)
+        cond = {"context": crossattn, "y": vector, "concat": concat}
+
+        # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
-        # get loss
+        # compute loss
         print("Compute Loss Starting...")
-        loss, _, _ = grad_func(x, noised_input, sigmas, w, **cond)
-        # noised_input = Tensor(np.random.randn(1, 4, 128, 128), dtype=ms.float16)
-        # loss, _, _ = grad_func(noised_input, cond['concat'], cond['context'], cond['y'])
+        loss, _, overflow = grad_func(x, noised_input, sigmas, w, **cond)
         print("Compute Loss Done...")
 
-        return loss
-
-    def on_train_start(self, *args, **kwargs):
-        if self.loss_fn is None:
-            raise ValueError("Sampler and loss function need to be set for training.")
-
-    def on_train_batch_end(self, *args, **kwargs):
-        if self.ema:
-            self.model_ema(self.model)
+        return loss, overflow
 
     @contextmanager
     def ema_scope(self, context=None):
@@ -194,10 +188,6 @@ class DiffusionEngine(nn.Cell):
     def instantiate_optimizer_from_config(self, params, learning_rate, cfg):
         return get_obj_from_str(cfg["target"])(params, learning_rate=learning_rate, **cfg.get("params", dict()))
 
-    def configure_optimizers(self):
-        # TODO: Add Optimizer lr scheduler
-        pass
-
     def do_sample(
         self,
         sampler,
@@ -211,7 +201,9 @@ class DiffusionEngine(nn.Cell):
         batch2model_input: List = None,
         return_latents=False,
         filter=None,
+        adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
+        init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
     ):
         print("Sampling")
 
@@ -256,10 +248,15 @@ class DiffusionEngine(nn.Cell):
             additional_model_inputs[k] = batch[k]
 
         shape = (np.prod(num_samples), C, H // F, W // F)
-        randn = Tensor(np.random.randn(*shape), ms.float32)
+        if init_latent_path is not None:
+            print("Loading latent noise from ", init_latent_path)
+            randn = Tensor(np.load(init_latent_path), ms.float32)
+            # assert randn.shape==shape, 'unmatch shape due to loaded noise'
+        else:
+            randn = Tensor(np.random.randn(*shape), ms.float32)
 
         print("Sample latent Starting...")
-        samples_z = sampler(self, randn, cond=c, uc=uc)
+        samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states)
         print("Sample latent Done.")
 
         print("Decode latent Starting...")
@@ -357,10 +354,247 @@ class DiffusionEngine(nn.Cell):
 
         return samples
 
-    def log_conditionings(self):
-        # TODO
+
+class DiffusionEngineDreamBooth(DiffusionEngine):
+    def __init__(self, prior_loss_weight=1.0, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.prior_loss_weight = prior_loss_weight
+
+    def get_grad_func(self, optimizer, reducer, scaler, jit=True, overflow_still_update=True):
+        from mindspore.amp import all_finite
+
+        loss_fn = self.loss_fn
+        denoiser = self.denoiser
+        model = self.model
+
+        def _shared_step(x, noised_input, sigmas, w, concat, context, y):
+            c_skip, c_out, c_in, c_noise = denoiser(sigmas, noised_input.ndim)
+            model_output = model(
+                ops.cast(noised_input * c_in, ms.float32),
+                ops.cast(c_noise, ms.int32),
+                concat=concat,
+                context=context,
+                y=y,
+            )
+            model_output = model_output * c_out + noised_input * c_skip
+            loss = loss_fn(model_output, x, w)
+            loss = loss.mean()
+            return loss
+
+        def _forward_func(
+            x,
+            noised_input,
+            sigmas,
+            w,
+            concat,
+            context,
+            y,
+            reg_x,
+            reg_noised_input,
+            reg_sigmas,
+            reg_w,
+            reg_concat,
+            reg_context,
+            reg_y,
+        ):
+            loss_train = _shared_step(x, noised_input, sigmas, w, concat, context, y)
+            loss_reg = _shared_step(reg_x, reg_noised_input, reg_sigmas, reg_w, reg_concat, reg_context, reg_y)
+            loss = loss_train + self.prior_loss_weight * loss_reg
+            return scaler.scale(loss)
+
+        grad_fn = ops.value_and_grad(_forward_func, grad_position=None, weights=optimizer.parameters)
+
+        def grad_and_update_func(
+            x,
+            noised_input,
+            sigmas,
+            w,
+            concat,
+            context,
+            y,
+            reg_x,
+            reg_noised_input,
+            reg_sigmas,
+            reg_w,
+            reg_concat,
+            reg_context,
+            reg_y,
+        ):
+            loss, grads = grad_fn(
+                x,
+                noised_input,
+                sigmas,
+                w,
+                concat,
+                context,
+                y,
+                reg_x,
+                reg_noised_input,
+                reg_sigmas,
+                reg_w,
+                reg_concat,
+                reg_context,
+                reg_y,
+            )
+            grads = reducer(grads)
+            unscaled_grads = scaler.unscale(grads)
+            grads_finite = all_finite(unscaled_grads)
+            if overflow_still_update:
+                loss = ops.depend(loss, optimizer(unscaled_grads))
+            else:
+                if grads_finite:
+                    loss = ops.depend(loss, optimizer(unscaled_grads))
+            overflow_tag = not grads_finite
+            return scaler.unscale(loss), unscaled_grads, overflow_tag
+
+        @ms.jit
+        def jit_warpper(*args, **kwargs):
+            return grad_and_update_func(*args, **kwargs)
+
+        return grad_and_update_func if not jit else jit_warpper
+
+    def _get_inputs(self, x, *tokens):
+        # get latent
+        x = self.encode_first_stage(x)
+
+        # get condition
+        vector, crossattn, concat = self.conditioner.embedding(*tokens)
+        cond = {"context": crossattn, "y": vector, "concat": concat}
+
+        # get noise and sigma
+        sigmas = self.sigma_sampler(x.shape[0])
+        noise = ops.randn_like(x)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
+        return x, noised_input, sigmas, w, cond
+
+    def train_step_pynative(self, instance_image, class_image, *all_tokens, grad_func=None):
+        assert len(all_tokens) % 2 == 0
+        position = len(all_tokens) // 2
+        instance_tokens, class_tokens = all_tokens[:position], all_tokens[position:]
+
+        # get latent and condition
+        x, noised_input, sigmas, w, cond = self._get_inputs(instance_image, *instance_tokens)
+        reg_x, reg_noised_input, reg_sigmas, reg_w, reg_cond = self._get_inputs(class_image, *class_tokens)
+
+        concat, context, y = cond["concat"], cond["context"], cond["y"]
+        reg_concat, reg_context, reg_y = reg_cond["concat"], reg_cond["context"], reg_cond["y"]
+
+        # get loss
+        print("Compute Loss Starting...")
+        loss, _, overflow = grad_func(
+            x,
+            noised_input,
+            sigmas,
+            w,
+            concat,
+            context,
+            y,
+            reg_x,
+            reg_noised_input,
+            reg_sigmas,
+            reg_w,
+            reg_concat,
+            reg_context,
+            reg_y,
+        )
+        print("Compute Loss Done...")
+
+        return loss, overflow
+
+
+class DiffusionEngineMultiGraph(DiffusionEngine):
+    def __init__(self, **kwargs):
+        network_config = kwargs.pop("network_config", None)
+        if not network_config["target"] == "gm.modules.diffusionmodules.openaimodel.UNetModel":
+            raise NotImplementedError
+        kwargs["network_config"] = None
+
+        super(DiffusionEngineMultiGraph, self).__init__(**kwargs)
+
+        from gm.modules.diffusionmodules.openaimodel import UNetModelStage1, UNetModelStage2
+        from gm.modules.diffusionmodules.wrappers import IdentityWrapper
+
+        params = network_config["params"]
+        self.stage1 = IdentityWrapper(UNetModelStage1(**params))
+        self.stage2 = IdentityWrapper(UNetModelStage2(**params))
+        self.model = None
+
+    def load_pretrained(self, ckpts, verbose=True):
+        if ckpts:
+            print(f"Loading model from {ckpts}")
+            if isinstance(ckpts, str):
+                ckpts = [ckpts]
+
+            sd_dict = {}
+            for ckpt in ckpts:
+                assert ckpt.endswith(".ckpt")
+                _sd_dict = ms.load_checkpoint(ckpt)
+                sd_dict.update(_sd_dict)
+
+                if "global_step" in sd_dict:
+                    global_step = sd_dict["global_step"]
+                    print(f"loaded ckpt from global step {global_step}")
+                    print(f"Global Step: {sd_dict['global_step']}")
+
+            # filter for multi-stage model
+            new_stage_dict = {}
+            for k in sd_dict:
+                if k.startswith("model.diffusion_model."):
+                    if (
+                        k.startswith("model.diffusion_model.output_blocks")
+                        or k.startswith("model.diffusion_model.out")
+                        or k.startswith("model.diffusion_model.id_predictor")
+                    ):
+                        new_k = "stage2" + k[len("model") :]
+                    else:
+                        new_k = "stage1" + k[len("model") :]
+                else:
+                    new_k = k
+
+                new_stage_dict[new_k] = sd_dict[k]
+
+            m, u = ms.load_param_into_net(self, new_stage_dict, strict_load=False)
+
+            if len(m) > 0 and verbose:
+                ignore_lora_key = len(ckpts) == 1
+                m = m if not ignore_lora_key else [k for k in m if "lora_" not in k]
+                print("missing keys:")
+                print(m)
+            if len(u) > 0 and verbose:
+                print("unexpected keys:")
+                print(u)
+        else:
+            print(f"Warning: DiffusionEngineMultiGraph, Loading checkpoint from {ckpts} fail")
+
+    def save_checkpoint(self, save_ckpt_dir):
+        ckpt = []
+        for n, p in self.parameters_and_names():
+            new_n = n[:]
+
+            # FIXME: save checkpoint bug on mindspore 2.2.0
+            if "._backbone" in new_n:
+                _index = new_n.find("._backbone")
+                new_n = new_n[:_index] + new_n[_index + len("._backbone") :]
+
+            if new_n.startswith("stage1."):
+                new_n = "model." + new_n[len("stage1.") :]
+            elif new_n.startswith("stage2."):
+                new_n = "model." + new_n[len("stage2.") :]
+
+            ckpt.append({"name": new_n, "data": Tensor(p.asnumpy())})
+
+        ms.save_checkpoint(ckpt, save_ckpt_dir)
+        print(f"Save checkpoint to {save_ckpt_dir}")
+
+    def do_sample(self, *args, **kwargs):
         raise NotImplementedError
 
-    def log_images(self):
-        # TODO
+    def do_img2img(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def get_grad_func(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def train_step_pynative(self, *args, **kwargs):
         raise NotImplementedError

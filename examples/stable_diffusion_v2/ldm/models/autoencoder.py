@@ -30,12 +30,13 @@ class AutoencoderKL(nn.Cell):
         colorize_nlabels=None,
         monitor=None,
         use_fp16=False,
+        upcast_sigmoid=False,
     ):
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.image_key = image_key
-        self.encoder = Encoder(dtype=self.dtype, **ddconfig)
-        self.decoder = Decoder(dtype=self.dtype, **ddconfig)
+        self.encoder = Encoder(dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, **ddconfig)
+        self.decoder = Decoder(dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, **ddconfig)
         assert ddconfig["double_z"]
         self.quant_conv = nn.Conv2d(
             2 * ddconfig["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True

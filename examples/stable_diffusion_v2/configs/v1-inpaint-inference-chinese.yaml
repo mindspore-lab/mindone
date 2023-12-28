@@ -69,5 +69,5 @@ model:
         width: 768
         layers: 12
         heads: 12
-        epsilon: 1e-7
+        epsilon: 1e-5
         use_quick_gelu: True

@@ -2,7 +2,10 @@
 import argparse
 import ast
 import os
+import sys
 import time
+
+sys.path.append(".")
 
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
 from gm.util import seed_everything
@@ -37,6 +40,13 @@ def get_parser_sample():
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--init_latent_path",
+        type=str,
+        default=None,
+        help="path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.",
+    )
+    parser.add_argument("--precision_keep_origin_dtype", type=ast.literal_eval, default=False)
     parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
 
     # for img2img
@@ -82,15 +92,30 @@ def get_parser_sample():
 
 
 def run_txt2img(
-    args, model, version_dict, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"
+    args,
+    model,
+    version_dict,
+    is_legacy=False,
+    return_latents=False,
+    filter=None,
+    stage2strength=None,
+    amp_level="O0",
+    save_path="./",
 ):
     assert args.sd_xl_base_ratios in SD_XL_BASE_RATIOS
     W, H = SD_XL_BASE_RATIOS[args.sd_xl_base_ratios]
     C = version_dict["C"]
     F = version_dict["f"]
 
+    prompts = []
+    if os.path.exists(args.prompt):
+        with open(args.prompt, "r") as f:
+            prompts = f.read().splitlines()
+    else:
+        prompts = [args.prompt]
+
     value_dict = {
-        "prompt": args.prompt,
+        "prompt": prompts[0],
         "negative_prompt": args.negative_prompt,
         "orig_width": args.orig_width if args.orig_width else W,
         "orig_height": args.orig_height if args.orig_height else H,
@@ -112,23 +137,35 @@ def run_txt2img(
     num_samples = num_rows * num_cols
 
     print("Txt2Img Sampling")
-    s_time = time.time()
-    out = model.do_sample(
-        sampler,
-        value_dict,
-        num_samples,
-        H,
-        W,
-        C,
-        F,
-        force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-        return_latents=return_latents,
-        filter=filter,
-        amp_level=amp_level,
-    )
-    print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+    outs = []
+    for i, prompt in enumerate(prompts):
+        print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
+        value_dict["prompt"] = prompt
+        s_time = time.time()
+        out = model.do_sample(
+            sampler,
+            value_dict,
+            num_samples,
+            H,
+            W,
+            C,
+            F,
+            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+            return_latents=return_latents,
+            filter=filter,
+            amp_level=amp_level,
+            init_latent_path=args.init_latent_path,
+        )
+        print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
-    return out
+        out = out if isinstance(out, (tuple, list)) else [out, None]
+        (samples, samples_z) = out
+
+        perform_save_locally(save_path, samples)
+
+        outs.append(out)
+
+    return outs
 
 
 def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"):
@@ -233,7 +270,12 @@ def sample(args):
 
     # Init Model
     model, filter = create_model(
-        config, checkpoints=args.weight.split(","), freeze=True, load_filter=False, amp_level=args.ms_amp_level
+        config,
+        checkpoints=args.weight.split(","),
+        freeze=True,
+        load_filter=False,
+        param_fp16=False,
+        amp_level=args.ms_amp_level,
     )  # TODO: Add filter support
 
     save_path = os.path.join(args.save_path, task, version)
@@ -245,7 +287,7 @@ def sample(args):
     if add_pipeline:
         # Init for pipeline
         version2 = "SDXL-refiner-1.0"
-        config2 = args.pipeline_config
+        config2 = OmegaConf.load(args.pipeline_config)
         weight2 = args.pipeline_weight
         stage2strength = args.stage2strength
         print(f"WARNING: Running with {version2} as the second stage model. Make sure to provide (V)RAM :) ")
@@ -259,7 +301,12 @@ def sample(args):
 
         # Init Model
         model2, filter2 = create_model(
-            config2, checkpoints=weight2.split(","), freeze=True, load_filter=False, amp_level=args.ms_amp_level
+            config2,
+            checkpoints=weight2.split(","),
+            freeze=True,
+            load_filter=False,
+            param_fp16=False,
+            amp_level=args.ms_amp_level,
         )
 
         stage2strength = min(max(stage2strength, 0.0), 1.0)
@@ -287,6 +334,7 @@ def sample(args):
             filter=filter,
             stage2strength=stage2strength,
             amp_level=args.ms_amp_level,
+            save_path=save_path,
         )
     elif task == "img2img":
         out = run_img2img(
@@ -296,15 +344,16 @@ def sample(args):
             return_latents=add_pipeline,
             filter=filter,
             stage2strength=stage2strength,
-            amp_level=args.amp_level,
+            amp_level=args.ms_amp_level,
         )
     else:
         raise ValueError(f"Unknown task {task}")
 
-    out = out if isinstance(out, (tuple, list)) else [out, None]
-    (samples, samples_z) = out
+    if task != "txt2img":
+        out = out if isinstance(out, (tuple, list)) else [out, None]
+        (samples, samples_z) = out
 
-    perform_save_locally(save_path, samples)
+        perform_save_locally(save_path, samples)
 
     if add_pipeline:
         print("**Running Refinement Stage**")
@@ -327,5 +376,12 @@ def sample(args):
 if __name__ == "__main__":
     parser = get_parser_sample()
     args, _ = parser.parse_known_args()
-    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
+
+    ms.context.set_context(
+        mode=args.ms_mode,
+        device_target=args.device_target,
+    )
+    if args.precision_keep_origin_dtype:
+        ms.context.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
+
     sample(args)

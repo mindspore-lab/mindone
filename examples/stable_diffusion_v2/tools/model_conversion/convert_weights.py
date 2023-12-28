@@ -50,6 +50,34 @@ parser.add_argument(
 args = parser.parse_args()
 
 
+def _load_torch_ckpt(ckpt_file):
+    source_data = torch.load(ckpt_file, map_location="cpu")
+    if ["state_dict"] in source_data:
+        source_data = source_data["state_dict"]
+    return source_data
+
+
+def _load_huggingface_safetensor(ckpt_file):
+    from safetensors import safe_open
+
+    db_state_dict = {}
+    with safe_open(ckpt_file, framework="pt", device="cpu") as f:
+        for key in f.keys():
+            db_state_dict[key] = f.get_tensor(key)
+    return db_state_dict
+
+
+LOAD_PYTORCH_FUNCS = {"others": _load_torch_ckpt, "safetensors": _load_huggingface_safetensor}
+
+
+def load_torch_ckpt(ckpt_path):
+    extension = ckpt_path.split(".")[-1]
+    if extension not in LOAD_PYTORCH_FUNCS.keys():
+        extension = "others"
+    torch_params = LOAD_PYTORCH_FUNCS[extension](ckpt_path)
+    return torch_params
+
+
 def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
     with open(os.path.join(__dir__, "ms_names_v2.txt")) as file_ms:
         lines_ms = file_ms.readlines()
@@ -58,7 +86,7 @@ def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V2():
 
     verify_name = False
 
-    source_data = torch.load(args.source, map_location="cpu")["state_dict"]
+    source_data = load_torch_ckpt(args.source)
     target_data = []
     if verify_name:
         pt_param_names = [line_pt.strip().split("#")[0] for line_pt in lines_pt]
@@ -202,8 +230,7 @@ def PYTORCH_MINDSPORE_STABLE_DIFFUSION_V1():
         lines_ms = file_ms.readlines()
     with open("tools/model_conversion/pt_names_v1.txt") as file_pt:
         lines_pt = file_pt.readlines()
-
-    source_data = torch.load(args.source, map_location="cpu")["state_dict"]
+    source_data = load_torch_ckpt(args.source)
     target_data = _load_v1_and_merge_qkv(source_data, lines_ms, lines_pt)
     ms.save_checkpoint(target_data, args.target)
 

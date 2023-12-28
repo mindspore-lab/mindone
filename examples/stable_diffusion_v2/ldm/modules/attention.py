@@ -24,10 +24,10 @@ try:
     from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
 
     FLASH_IS_AVAILABLE = True
-    print("flash attention is available.")
+    # print("flash attention is available.")
 except ImportError:
     FLASH_IS_AVAILABLE = False
-    print("flash attention is unavailable.")
+    # print("flash attention is unavailable.")
 
 
 def exists(val):
@@ -54,6 +54,7 @@ class GEGLU(nn.Cell):
         self.proj = nn.Dense(dim_in, dim_out * 2).to_float(dtype)
         self.split = ops.Split(-1, 2)
         self.gelu = ops.GeLU()
+        # self.gelu = nn.GELU(approximate=False)
 
     def construct(self, x):
         x, gate = self.split(self.proj(x))
@@ -115,6 +116,7 @@ class CrossAttention(nn.Cell):
         dropout=1.0,
         dtype=ms.float32,
         enable_flash_attention=False,
+        upcast=False,
     ):
         super().__init__()
         inner_dim = dim_head * heads
@@ -133,15 +135,16 @@ class CrossAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim).to_float(dtype),
             nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
         )
-
-        self.enable_flash_attention = (
+        self.use_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-        if enable_flash_attention and not self.enable_flash_attention:
-            print("WARNING: flash attention not available.")
+        if enable_flash_attention and not self.use_flash_attention:
+            print("WARNING: flash attention is set to enable but not available.")
+        if self.use_flash_attention:
+            print("INFO: flash attention will be used.")
 
-        self.attention = Attention(dim_head)
-        self.flash_attention = FlashAttention(self.heads, dim_head) if self.enable_flash_attention else None
+        self.attention = Attention(dim_head, upcast=upcast)
+        self.flash_attention = FlashAttention(self.heads, dim_head) if self.use_flash_attention else None
 
     def construct(self, x, context=None, mask=None):
         q = self.to_q(x)
@@ -164,7 +167,7 @@ class CrossAttention(nn.Cell):
         k = rearange_in(k)
         v = rearange_in(v)
 
-        if self.enable_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
             out = self.flash_attention(q, k, v)
         else:
             out = self.attention(q, k, v, mask)
@@ -232,7 +235,7 @@ class CrossFrameAttention(CrossAttention):
         k = rearange_in(k)
         v = rearange_in(v)
 
-        if self.enable_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
+        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
             out = self.flash_attention(q, k, v)
         else:
             out = self.attention(q, k, v, mask)
@@ -253,11 +256,12 @@ class CrossFrameAttention(CrossAttention):
 
 
 class Attention(nn.Cell):
-    def __init__(self, dim_head):
+    def __init__(self, dim_head, upcast=False):
         super().__init__()
         self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
         self.scale = dim_head**-0.5
+        self.upcast = upcast
 
     def construct(self, q, k, v, mask):
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
@@ -273,7 +277,12 @@ class Attention(nn.Cell):
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
-        attn = self.softmax(sim)
+        if self.upcast:
+            # use fp32 for exponential inside
+            attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+        else:
+            attn = self.softmax(sim)
+
         out = ops.matmul(attn, v)
 
         return out
@@ -318,6 +327,7 @@ class BasicTransformerBlock(nn.Cell):
         enable_flash_attention=False,
         cross_frame_attention=False,
         unet_chunk_size=2,
+        upcast_attn=False,
     ):
         super().__init__()
         if cross_frame_attention:
@@ -329,6 +339,7 @@ class BasicTransformerBlock(nn.Cell):
                 dropout=dropout,
                 dtype=dtype,
                 enable_flash_attention=enable_flash_attention,
+                upcast=upcast_attn,
             )  # is a self-attention
         else:
             self.attn1 = CrossAttention(
@@ -338,7 +349,8 @@ class BasicTransformerBlock(nn.Cell):
                 dropout=dropout,
                 dtype=dtype,
                 enable_flash_attention=enable_flash_attention,
-            )  # is a self-attention
+                upcast=upcast_attn,
+            )
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
         if cross_frame_attention:
             self.attn2 = CrossFrameAttention(
@@ -350,6 +362,7 @@ class BasicTransformerBlock(nn.Cell):
                 dropout=dropout,
                 dtype=dtype,
                 enable_flash_attention=enable_flash_attention,
+                upcast=upcast_attn,
             )  # is self-attn if context is none
         else:
             self.attn2 = CrossAttention(
@@ -360,10 +373,23 @@ class BasicTransformerBlock(nn.Cell):
                 dropout=dropout,
                 dtype=dtype,
                 enable_flash_attention=enable_flash_attention,
+                upcast=upcast_attn,
             )  # is self-attn if context is none
-        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        self.norm1 = (
+            nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+            if upcast_attn
+            else nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        )
+        self.norm2 = (
+            nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+            if upcast_attn
+            else nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        )
+        self.norm3 = (
+            nn.LayerNorm([dim], epsilon=1e-05).to_float(ms.float32)
+            if upcast_attn
+            else nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        )
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
@@ -396,6 +422,7 @@ class SpatialTransformer(nn.Cell):
         enable_flash_attention=False,
         cross_frame_attention=False,
         unet_chunk_size=2,
+        upcast_attn=False,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -423,6 +450,7 @@ class SpatialTransformer(nn.Cell):
                     enable_flash_attention=enable_flash_attention,
                     cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
+                    upcast_attn=upcast_attn,
                 )
                 for d in range(depth)
             ]

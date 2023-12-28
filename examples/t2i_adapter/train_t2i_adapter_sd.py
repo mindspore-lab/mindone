@@ -1,0 +1,175 @@
+import logging
+import shutil
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import List
+
+import numpy as np
+from adapters import get_adapter
+from data.dataset_with_cond import CondDataset
+from jsonargparse import ActionConfigFile, ArgumentParser
+from omegaconf import OmegaConf
+from pipelines.sd_pipeline import SDAdapterPipeline
+
+from mindspore import Model, nn
+from mindspore.dataset.vision import Resize, ToTensor
+from mindspore.train.callback import LossMonitor, TimeMonitor
+
+sys.path.append("../stable_diffusion_v2/")
+from common import init_env
+from ldm.data.loader import build_dataloader
+from ldm.data.transforms import CannyRandomThreshold, TokenizerWrapper
+from ldm.modules.logger import set_logger
+from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
+from ldm.modules.train.optim import build_optimizer
+from ldm.modules.train.trainer import TrainOneStepWrapper
+from ldm.util import count_params
+from text_to_image import load_model_from_config
+
+
+def build_transforms(cond: str, tokenizer) -> List[dict]:
+    transforms = [
+        {"operations": TokenizerWrapper(tokenizer), "input_columns": ["caption"]},
+        {
+            "operations": [Resize((512, 512)), lambda x: (x / 127.5 - 1.0).astype(np.float32)],
+            "input_columns": ["image"],
+        },
+    ]
+
+    if cond == "canny":  # generate Canny conditions with dynamic thresholds during training
+        transforms.append({"operations": CannyRandomThreshold(), "input_columns": ["condition"]})
+
+    transforms.append({"operations": [Resize((512, 512)), ToTensor()], "input_columns": ["condition"]})
+    return transforms
+
+
+def main(args, initializer):
+    # step 1: initialize environment
+    logger = logging.getLogger(__name__)
+    device_id, rank_id, device_num = init_env(**args.environment)
+
+    output_dir = Path(args.train.output_dir) / args.adapter.condition / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    set_logger(output_dir=str(output_dir), rank=rank_id)
+
+    # step 2: load SD model
+    sd_config = OmegaConf.load(args.sd_config)
+    sd_model = load_model_from_config(sd_config, args.sd_ckpt)
+
+    # step 3: prepare train dataset and dataloader
+    transforms = build_transforms(args.adapter.condition, sd_model.cond_stage_model.tokenizer)
+    train_dataloader = build_dataloader(
+        initializer.train.dataset,
+        transforms=transforms,
+        device_num=device_num,
+        rank_id=rank_id,
+        debug=args.environment.debug,
+        enable_modelarts=args.environment.enable_modelarts,
+        **args.train.dataloader,
+    )
+
+    # step 4: load Adapter
+    adapter_model = get_adapter("sd", **args.adapter, train=True)
+    full_model = SDAdapterPipeline(sd_model, adapter_model)
+
+    # step 5: create optimizer and train the same way as regular SD
+    optimizer = build_optimizer(adapter_model, **args.train.optimizer)
+
+    loss_scaler = nn.DynamicLossScaleUpdateCell(**args.LossScale)
+
+    net_with_grads = TrainOneStepWrapper(
+        full_model, optimizer=optimizer, scale_sense=loss_scaler, **args.train.settings
+    )
+
+    callbacks = [OverflowMonitor()]
+
+    if rank_id == 0:
+        callbacks.extend(
+            [
+                TimeMonitor(1),
+                LossMonitor(),
+                EvalSaveCallback(
+                    network=adapter_model,
+                    model_name="t2iadapter",
+                    rank_id=rank_id,
+                    ckpt_save_dir=str(output_dir / "ckpt"),
+                    ckpt_save_policy="latest_k",
+                    ckpt_max_keep=10,
+                ),
+            ]
+        )
+
+        num_params_unet, _ = count_params(sd_model.model.diffusion_model)
+        num_params_text_encoder, _ = count_params(sd_model.cond_stage_model)
+        num_params_vae, _ = count_params(sd_model.first_stage_model)
+        num_params, _ = count_params(sd_model)
+        num_params_adapter, num_trainable_params = count_params(adapter_model)
+
+        key_info = "Key Settings:\n" + "=" * 50 + "\n"
+        key_info += "\n".join(
+            [
+                f"Debugging: {args.environment.debug}",
+                f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.environment.mode}",
+                f"Distributed mode: {args.environment.distributed}",
+                "Model: StableDiffusion v2.1",  # Support 1.x
+                f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num params Adapter: {num_params_adapter:,} (trainable: {num_trainable_params:,})",
+                f"Precision SD: {sd_model.model.diffusion_model.dtype}",
+                f"Precision Adapter: {'Float16' if args.adapter.use_fp16 else 'Float32'}",
+                f"Num epochs: {args.train.epochs}",
+                f"Learning rate: {args.train.optimizer.lr}",
+                f"Batch size: {args.train.dataloader.batch_size}",
+                f"Weight decay: {args.train.optimizer.weight_decay}",
+                f"Grad accumulation steps: {args.train.settings.gradient_accumulation_steps}",
+                f"Grad clipping: {args.train.settings.clip_grad}",
+                f"Max grad norm: {args.train.settings.clip_norm}",
+            ]
+        )
+        key_info += "\n" + "=" * 50
+        logger.info(key_info)
+
+        logger.info("Start training...")
+        # backup config files
+        shutil.copyfile(args.sd_config, output_dir / "sd_config.yaml")  # SD's parameters are not modified
+        ArgumentParser().save(args, output_dir / "adapter_config.yaml", format="yaml", skip_check=True)
+
+    model = Model(net_with_grads)
+    model.train(
+        args.train.epochs,
+        train_dataloader,
+        callbacks=callbacks,
+        dataset_sink_mode=not args.environment.debug,
+    )
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--config", action=ActionConfigFile)
+    parser.add_function_arguments(init_env, "environment")
+    parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
+    parser.add_argument(
+        "--train.output_dir",
+        type=str,
+        default="output/t2i_adapter_v2.1/",
+        help="Output directory for saving training results.",
+    )
+    parser.add_subclass_arguments(CondDataset, "train.dataset")
+    parser.add_function_arguments(
+        build_dataloader,
+        "train.dataloader",
+        skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
+    )
+    parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model"})
+    parser.add_class_arguments(
+        TrainOneStepWrapper, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}, instantiate=False
+    )
+    parser.add_argument("--sd_config", type=str, required=True)
+    parser.add_argument("--sd_ckpt", type=str, required=True)
+    parser.add_function_arguments(get_adapter, "adapter", skip={"diffusion_model", "train"})
+    parser.add_class_arguments(nn.DynamicLossScaleUpdateCell, "LossScale", instantiate=False, fail_untyped=False)
+
+    cfg = parser.parse_args()
+    init = parser.instantiate_classes(cfg)
+
+    main(cfg, init)

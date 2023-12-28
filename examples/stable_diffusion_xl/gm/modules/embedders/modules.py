@@ -82,6 +82,9 @@ class GeneralConditioner(nn.Cell):
                 embedder.set_grad(False)
                 for _, param in embedder.parameters_and_names():
                     param.requires_grad = False
+            else:
+                if hasattr(embedder, "set_recompute"):
+                    embedder.set_recompute()
             print(
                 f"Initialized embedder #{n}: {embedder.__class__.__name__} "
                 f"with {count_params(embedder, False)} params. Trainable: {embedder.is_trainable}"
@@ -123,8 +126,8 @@ class GeneralConditioner(nn.Cell):
                 raise AttributeError("embedder does not have attribute input_key/input_keys.")
 
             assert isinstance(
-                emb_token, (Tensor, np.ndarray, list, tuple)
-            ), f"tokens must be Tensor, np.ndarray or a sequence, but got {type(emb_token)}"
+                emb_token, (Tensor, np.ndarray, list, tuple, type(None))
+            ), f"tokens must be Tensor, np.ndarray, a sequence or None, but got {type(emb_token)}"
             assert isinstance(
                 emb_length, (np.ndarray, type(None))
             ), f"length must be np.ndarray or None, but got {type(emb_token)}"
@@ -162,6 +165,9 @@ class GeneralConditioner(nn.Cell):
                 if hasattr(embedder, "input_key") and embedder.input_key in force_zero_embeddings:
                     emb = ops.zeros_like(emb)
 
+                if not embedder.is_trainable:
+                    emb = ops.stop_gradient(emb)
+
                 # CONCAT
                 # OUTPUT_DIM2KEYS = {2: "vector", 3: "crossattn", 4: "concat", 5: "concat"}
                 # KEY2CATDIM = {"vector": 1, "crossattn": 2, "concat": 1}
@@ -175,7 +181,13 @@ class GeneralConditioner(nn.Cell):
                     if crossattn is None:
                         crossattn = emb
                     else:
-                        crossattn = ops.concat((crossattn, emb), 2)
+                        if crossattn.shape[1] == emb.shape[1]:
+                            crossattn = ops.concat((crossattn, emb), 2)
+                        else:
+                            # for image/text emb fusion
+                            if emb.shape[0] == 1:
+                                emb = ops.tile(emb, (crossattn.shape[0], 1, 1))
+                            crossattn = ops.concat((crossattn, emb), 1)
                 else:  # concat
                     if concat is None:
                         concat = emb
@@ -184,10 +196,10 @@ class GeneralConditioner(nn.Cell):
 
         return vector, crossattn, concat
 
-    def __call__(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
+    def tokenize_embedding(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
         # tokenize
         tokens, _ = self.tokenize(batch)
-        tokens = [Tensor(t) for t in tokens]
+        tokens = [Tensor(t) if t is not None else t for t in tokens]
 
         # embeddings
         vector, crossattn, concat = self.embedding(*tokens, force_zero_embeddings=force_zero_embeddings)
@@ -209,8 +221,8 @@ class GeneralConditioner(nn.Cell):
         for embedder in self.embedders:
             ucg_rates.append(embedder.ucg_rate)
             embedder.ucg_rate = 0.0
-        c = self(batch_c)
-        uc = self(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
+        c = self.tokenize_embedding(batch_c)
+        uc = self.tokenize_embedding(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
 
         for embedder, rate in zip(self.embedders, ucg_rates):
             embedder.ucg_rate = rate
@@ -235,7 +247,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         super().__init__()
         assert layer in self.LAYERS
         self.tokenizer = CLIPTokenizer.from_pretrained(version)
-        self.transformer = CLIPTextModel(config_path="openai/clip-vit-large-patch14", weight=pretrained)
+        self.transformer = CLIPTextModel(config_path=version, weight=pretrained)
 
         if freeze:
             self.freeze()
@@ -289,6 +301,13 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
 
     def encode(self, text):
         return self(text)
+
+    def set_recompute(self):
+        self.transformer.text_model.embeddings.recompute()
+        for i in range(len(self.transformer.text_model.encoder.layers)):
+            if i != 7:
+                self.transformer.text_model.encoder.layers[i].recompute()
+        # self.transformer.text_model.final_layer_norm.recompute()
 
 
 class FrozenOpenCLIPEmbedder2(AbstractEmbModel):

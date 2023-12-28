@@ -37,6 +37,7 @@ model:
         use_checkpoint: True
         legacy: False
         use_fp16: True
+        upcast_attn: False
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
@@ -44,6 +45,7 @@ model:
         embed_dim: 4
         monitor: val/rec_loss
         use_fp16: True
+        upcast_sigmoid: False
         ddconfig:
           double_z: true
           z_channels: 4

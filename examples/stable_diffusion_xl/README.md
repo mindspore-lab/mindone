@@ -4,16 +4,36 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 ## Features
 
-- [x] Text-to-image generation with SDXL-1.0-Base/SDXL-1.0-PipeLine(Base+Refiner).
-- [x] Image-to-image generation with SDXL-1.0-Refiner.
-- [x] Support 7 SoTA diffusion process samplers.
-- [x] [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base/SDXL-1.0-Refiner.
-- [ ] [DreamBooth](https://arxiv.org/abs/2208.12242) fine-tune with SDXL-1.0-Base.
-- [ ] Vanilla fine-tune.
-- [ ] Quantitative evaluation for diffusion models: FID, CLIP-Score
+- [x] Infer: Text-to-image generation with SDXL-1.0-Base/SDXL-1.0-PipeLine.
+- [x] Infer: Image-to-image generation with SDXL-1.0-Refiner.
+- [x] Infer: Support 7 SoTA diffusion process samplers.
+- [x] Infer: Support with MSLite.
+- [x] Infer: Support T2I-Adapters for Text-to-Image generation with extra visual guidance.
+- [x] (⚠️experimental) Finetune: [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base.
+- [x] (⚠️experimental) Finetune: [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune with SDXL-1.0-Base.
+- [x] (⚠️experimental) Finetune: Vanilla fine-tune with SDXL-1.0-Base.
+- [x] LoRA model conversion for Torch inference, refer to [tutorial](tools/lora_conversion/README_CN.md)
 - [x] Memory Efficient Sampling and Tuning: [Flash-Attention](https://arxiv.org/abs/2205.14135), Auto-Mix-Precision, Recompute, etc. (under continuous update)
 
+## Documentation
+
+1. Inference
+    - [Online Infer](./GETTING_STARTED.md)
+    - [Offline Infer](./offline_inference/README.md)
+2. Finetune
+    - [Vanilla Finetune](./GETTING_STARTED.md)
+    - [LoRA Finetune](./GETTING_STARTED.md)
+    - [DreamBooth Finetune](dreambooth_finetune.md)
+
 ## What is New
+
+**Nov 22, 2023**
+
+1. Support [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune.
+2. Support [Offline Infer](./offline_inference/README.md) with MSLite.
+3. Support Vanilla fine-tune.
+4. Adapted to [MindSpore 2.2](https://www.mindspore.cn/install).
+5. Add [T2I-Adapters](../t2i_adapter/README.md) support for SDXL.
 
 **Sep 15, 2023**
 
@@ -21,7 +41,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 2. Support SDXL-1.0-Refiner [LoRA](https://arxiv.org/abs/2106.09685) fine-tune.
 3. Support SDXL-1.0-PipeLine for txt-to-image generation.
 4. Support Multi-Aspect data process (e.g., [sample config](./configs/training/sd_xl_base_finetune_multi_aspect.yaml)).
-5. Faster sampling speed (e.g., [sdxl-base](./configs/inference/sd_xl_base.yaml) sampled 40 steps on Ascend910A: 125s -> 21s).
+5. Improve sampling speed (e.g., [sdxl-base](./configs/inference/sd_xl_base.yaml) sampled 40 steps on Ascend910A: 125s -> 21s).
 6. Adapted to [MindSpore 2.1.0](https://www.mindspore.cn/install).
 
 **Aug 30, 2023**
@@ -36,7 +56,7 @@ See [GETTING STARTED](GETTING_STARTED.md) for details.
 
 ## Examples:
 
-Note: sampled 40 steps by SDXL-1.0-Base on Ascend 910A.
+Note: sampled 40 steps by SDXL-1.0-Base on Ascend 910A (online infer).
 
 <div align="center">
 <img src="https://github.com/mindspore-lab/mindone/assets/20476835/68d132e1-a954-418d-8cb8-5be4d8162342" width="240" />
