@@ -6,7 +6,6 @@ import logging
 
 import numpy as np
 from ldm.modules.attention import FeedForward, default
-from ldm.modules.attention import FlashAttention as LdmFlashAttention
 from ldm.modules.attention import Attention, CrossAttention
 from ldm.modules.diffusionmodules.util import Identity, linear, timestep_embedding
 from ldm.util import is_old_ms_version
@@ -26,38 +25,6 @@ try:
 except ImportError:
     FLASH_IS_AVAILABLE = False
     print("flash attention is unavailable.")
-
-
-# def refine_replace(attn_base, attn_replace, ):
-#     # replace_attn 1,b/2,-1,-1,77
-#     # mapper 1,77 哪个位置上的词需要替换？对
-#     # alphas 替换力度
-#     alphas = 1
-#     mapper = np.ones((1, 77))
-#     # 8,8,1024,1,77 -> 1,8,8,1024,77
-#     attn_base_replace = attn_base[:, :, :, mapper].permute(3, 0, 1, 2, 4)
-#     attn_replace = attn_base_replace * alphas + attn_replace * (1 - alphas)
-#     return attn_replace
-#
-#
-# def reweight_replace(attn_base, attn_replace):
-#     attn_base = refine_replace(attn_base, attn_replace)
-#     # equalizer 文本权重列表，默认1
-#     equalizer = np.ones((1, 77))
-#     attn_replace = attn_base[None, :, :, :] * equalizer[:, None, None, :]
-#     return attn_replace
-#     pass
-#
-#
-# def replace_replace(attn_base):
-#     mapper = ms.Tensor(np.eye(77).reshape(1, 77, 77))
-#     # shape = attn_base.shape
-#     # attn_base = attn_base.reshape((shape[0] // 8, 8, shape[1], shape[2]))
-#     # attn = ms.ops.einsum('thpw,bwn->bthpn', attn_base, mapper)
-#     # attn = ms.ops.einsum('hpw,bwn->bhpn', attn_base, mapper)
-#     # shape = attn.shape
-#     # attn = attn.reshape((shape[0] * shape[1], shape[2], shape[3]))
-#     return attn_base
 
 
 class GroupNorm(nn.GroupNorm):
@@ -80,48 +47,6 @@ def normalization(channels, eps: float = 1e-5):
     :return: an nn.Cell for normalization.
     """
     return GroupNorm(32, channels, eps=eps).to_float(ms.float32)
-
-
-def split_attention(attn, batch_size=2):
-    index = attn.shape[0] // batch_size
-    return attn[:index], attn[:index]
-
-
-def reshape_attention(attn):
-    b, h, s, t = attn.shape
-    return ms.ops.reshape(attn, (b * h, s, t))
-
-
-def replace_self_attention(attn, step, controller):
-    num_self_replace = controller["num_self_replace"]
-    assert step is not None, 'step is None'
-    if num_self_replace[0] < step and step < num_self_replace[1]:
-        if attn.shape[2] <= 256:
-            attn_base, _ = split_attention(attn)
-            return attn_base.tile((2, 1, 1))
-    return attn
-
-
-def replace_cross_attention(attn, step, controller):
-    num_cross_replace = controller["num_self_replace"]
-    type = controller["type"]
-    if num_cross_replace[0] < step and step < num_cross_replace[1]:
-
-        if type == 'replace':
-            attn_base, _ = split_attention(attn)
-            attn_new = replace_replace(attn_base)
-            return ms.ops.cat([attn_base, attn_new], axis=0)
-            # attn_new.tile((2, 1, 1))
-    return attn
-
-
-
-
-class FlashAttention(LdmFlashAttention):
-
-    def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
-        # ALiBi, reference to https://arxiv.org/abs/2108.12409
-        return super().construct(q, k, v, attention_mask, dropout_mask, alibi_mask)
 
 
 # Spatial Transformer and Attention Layer Modification based on SD
@@ -223,6 +148,7 @@ class BasicTransformerBlock_ST(nn.Cell):
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
         )  # is a self-attention
+        self.attn1.attention_type = 'SparseCausalAttention'
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
 
         self.attn2 = CrossAttention(
@@ -235,6 +161,8 @@ class BasicTransformerBlock_ST(nn.Cell):
             enable_flash_attention=enable_flash_attention,
 
         )  # is self-attn if context is none
+        self.attn2.attention_type = 'CrossAttention'
+
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
@@ -254,7 +182,7 @@ class BasicTransformerBlock_ST(nn.Cell):
         self.norm_temp = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
     def construct(self, x, context=None, video_length=None):
-        x = self.attn1(self.norm1(x), video_length=video_length) + x
+        x = self.attn1(x=self.norm1(x), context=context, video_length=video_length) + x
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
 
@@ -334,7 +262,7 @@ class SpatialTransformer3D(nn.Cell):
         self.reshape = ops.Reshape()
         self.transpose = ops.Transpose()
 
-    def construct(self, x, emb=None, context=None, step=None, controller=None, is_invert=False):
+    def construct(self, x, emb=None, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
         assert len(x.shape) == 5, f"Expect to have five dimensions input, but got {len(x.shape)} dims"
         b, c, f, h, w = x.shape
@@ -357,7 +285,7 @@ class SpatialTransformer3D(nn.Cell):
             )  # (b*f, ch, h, w) -> (b*f, h, w, ch) -> (b*f, h*w, ch)
             x = self.proj_in(x)
         for block in self.transformer_blocks:
-            x = block(x, context=context, video_length=f, step=step, controller=controller, is_invert=is_invert)
+            x = block(x, context=context, video_length=f)
         if self.use_linear:
             x = self.proj_out(x)
             ch = x.shape[-1]
@@ -1093,12 +1021,6 @@ class UNetModel3D(nn.Cell):
             for cell in celllist:
                 h = cell(h, emb, context)
             hs_index -= 1
-        if self.is_invert > 0:
-            self.step = self.step + 1
-            if self.step == 50:
-                self.step -= 1
-        else:
-            self.step = self.step - 1
 
         if self.predict_codebook_ids:
             return self.id_predictor(h)

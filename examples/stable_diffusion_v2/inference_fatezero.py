@@ -34,9 +34,10 @@ from PIL import Image
 
 import mindspore as ms
 
+from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionStore
+
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
-from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.uni_pc import UniPCSampler
@@ -44,6 +45,7 @@ from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
+from ldm.modules.fatezero.ddim import DDIMSampler
 
 logger = logging.getLogger("text_to_image")
 
@@ -332,16 +334,16 @@ def main(args):
     if not os.path.isabs(args.config):
         args.config = os.path.join(work_dir, args.config)
     config = OmegaConf.load(f"{args.config}")
-    controller = {
-        "num_self_replace": (0, 20),
-        "num_cross_replace": (0, 20),
-        "type": 'replace',
-        "mapper": False,
-        # "alpha_layers":
-
-    }
-
-    OmegaConf.update(config, 'model.params.unet_config.params.controller', controller)
+    # controller = {
+    #     "num_self_replace": (0, 20),
+    #     "num_cross_replace": (0, 20),
+    #     "type": 'replace',
+    #     "mapper": False,
+    #     # "alpha_layers":
+    #
+    # }
+    #
+    # OmegaConf.update(config, 'model.params.unet_config.params.controller', controller)
 
     model = load_model_from_config(
         config,
@@ -414,7 +416,7 @@ def main(args):
 
     # infer
     shape = [4, len(frames), args.H // 8, args.W // 8]
-    inv_sampler = DDIMSampler(model)
+    inv_sampler = DDIMSampler(model, controller=AttentionStore())
     inv_sampler.make_schedule(args.inv_sampling_steps, verbose=False)
     if True or not os.path.exists(args.latent_path):
         c = model.get_learned_conditioning(model.tokenize([source_prompt]))
@@ -441,7 +443,6 @@ def main(args):
             uc = model.get_learned_conditioning(tokenized_negative_prompts)
         tokenized_prompts = model.tokenize(prompts)
         c = model.get_learned_conditioning(tokenized_prompts)
-
 
         samples_ddim, _ = sampler.sample(
             S=args.sampling_steps,

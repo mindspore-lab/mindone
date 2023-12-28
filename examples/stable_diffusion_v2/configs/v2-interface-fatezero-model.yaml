@@ -1,5 +1,5 @@
 model:
-  target: ldm.modules.fatezero.InflatedLatentDiffusion
+  target: ldm.modules.fatezero.model.InflatedLatentDiffusion
   params:
     linear_start: 0.00085
     linear_end: 0.0120
@@ -18,7 +18,7 @@ model:
     parameterization: "eps"
 
     unet_config:
-      target: ldm.modules.fatezero.UNetModel3D
+      target: ldm.modules.fatezero.model.UNetModel3D
       params:
         image_size: 32 # unused
         in_channels: 4
