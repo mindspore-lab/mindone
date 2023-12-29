@@ -292,6 +292,17 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                     print(f"loaded ckpt from global step {global_step}")
                     print(f"Global Step: {sd_dict['global_step']}")
 
+            # FIXME: parameter auto-prefix name bug on mindspore 2.2.10
+            _new_sd_dict = {}
+            for k in sd_dict:
+                if "._backbone" in k:
+                    _index = k.find("._backbone")
+                    new_k = k[:_index] + k[_index + len("._backbone") :]
+                else:
+                    new_k = k[:]
+                _new_sd_dict[new_k] = sd_dict[k]
+            sd_dict = _new_sd_dict
+
             m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 
             if len(m) > 0 and verbose:
