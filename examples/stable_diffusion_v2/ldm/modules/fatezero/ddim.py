@@ -14,9 +14,13 @@ class DDIMSampler(BaseDDIMSampler):
         self.controller = controller
         register_attention_control(model, controller)
 
-    def pre_sample(self, controller=None):
+    def pre_sample(self,model, controller=None):
         self.controller.is_invert = False
         self.edit_controller = controller
+        register_attention_control(model, controller)
+
+        self.edit_controller.attention_store_all_step = self.controller.attention_store_all_step
+        self.edit_controller.pos_dict = self.controller.pos_dict
 
     def p_sample_ddim(
             self,

@@ -171,7 +171,6 @@ class AttentionStore():
     def step_callback(self, x_t):
         self.cur_att_layer = 0
         self.cur_step += 1
-        print(self.cur_step)
         if self.cur_step <= NUM_STEP:
             self.attention_store_all_step.append(copy.deepcopy(self.step_store))
         self.step_store = self.get_empty_store()
@@ -194,8 +193,8 @@ class AttentionStore():
         if attn.shape[1] <= 1024:  # avoid memory overhead
             key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
             print(f"Store attention map {key} of shape {attn.shape}")
-
             self.step_store[key].append(attn)
+            self.pos_dict[F"{key}_{self.cur_att_layer}"] = len(self.step_store[key]) - 1
         return attn
 
     def __init__(self):
@@ -206,87 +205,73 @@ class AttentionStore():
         self.is_invert = True
         self.latents_store = []
         self.attention_store_all_step = []
+        self.pos_dict = {}
 
     def reset(self):
         self.step_store = self.get_empty_store()
         self.latents_store = []
         self.attention_store_all_step = []
 
-class AttentionControlReplace():
-    pass
 
-#
-#
-# class AttentionControlEdit(AttentionStore, abc.ABC):
-#
-#     def step_callback(self, x_t):
-#         if self.local_blend is not None:
-#             x_t = self.local_blend(x_t, self.attention_store, self.cur_step)
-#         return x_t
-#
-#     def replace_self_attention(self, attn_base, att_replace):
-#         if att_replace.shape[2] <= 16 ** 2:
-#             return attn_base.unsqueeze(0).broadcast_to((att_replace.shape[0],) + attn_base.shape)
-#         else:
-#             return att_replace
-#
-#     @abc.abstractmethod
-#     def replace_cross_attention(self, attn_base, att_replace):
-#         raise NotImplementedError
-#
-#     # @ms.jit
-#     def f(self, attn, is_cross: bool):
-#         if is_cross or (self.num_self_replace[0] <= self.cur_step and self.cur_step < self.num_self_replace[1]):
-#             h = attn.shape[0] // (self.batch_size)
-#             attn = attn.reshape((self.batch_size, h) + attn.shape[1:])
-#             # attn = attn.reshape((self.batch_size, h, *attn.shape[1:]))
-#             attn_base, attn_repalce = attn[0], attn[1:]
-#             if is_cross:
-#                 alpha_words = self.cross_replace_alpha[self.cur_step]
-#                 attn_repalce_new = self.replace_cross_attention(attn_base, attn_repalce) * alpha_words + (
-#                         1 - alpha_words) * attn_repalce
-#                 attn[1:] = attn_repalce_new
-#             else:
-#                 attn[1:] = self.replace_self_attention(attn_base, attn_repalce)
-#             # attn = attn.reshape((self.batch_size * h, attn.shape[2]))
-#             attn = attn.reshape((self.batch_size * h,) + attn.shape[2:])
-#         return attn
-#
-#     def forward(self, attn, is_cross: bool, place_in_unet: int):
-#         super(AttentionControlEdit, self).forward(attn, is_cross, place_in_unet)
-#         return self.f(attn, is_cross)
-#
-#     def __init__(self, prompts, num_steps: int,
-#                  cross_replace_steps: Union[float, Tuple[float, float], Dict[str, Tuple[float, float]]],
-#                  self_replace_steps: Union[float, Tuple[float, float]],
-#                  local_blend):
-#         super(AttentionControlEdit, self).__init__()
-#         self.batch_size = len(prompts)
-#         self.cross_replace_alpha = get_time_words_attention_alpha(prompts, num_steps, cross_replace_steps)
-#         if type(self_replace_steps) is float:
-#             self_replace_steps = 0, self_replace_steps
-#         self.num_self_replace = int(num_steps * self_replace_steps[0]), int(num_steps * self_replace_steps[1])
-#         self.local_blend = local_blend
-#
-#
-#
-# class AttentionReplace(AttentionControlEdit):
-#
-#     # @ms.jit
-#     def replace_cross_attention(self, attn_base, att_replace):
-#         dtype = attn_base.dtype
-#
-#         h, p, w = attn_base.shape
-#         b, w, n = self.mapper.shape
-#         i = attn_base.to(ms.float16).permute(1, 0, 2).reshape((h * p, -1))
-#         j = self.mapper.to(ms.float16).permute(0, 2, 1)
-#         r = ms.ops.matmul(i, j).to(dtype)
-#         r = r.reshape((p, h, b, n)).permute(2, 1, 0, 3)
-#         return r
-#         # return ms.ops.einsum('hpw,bwn->bhpn', attn_base, self.mapper)
-#
-#     def __init__(self, prompts, num_steps: int, cross_replace_steps: float, self_replace_steps: float,
-#                  local_blend=None, **kwargs):
-#         super(AttentionReplace, self).__init__(prompts, num_steps, cross_replace_steps, self_replace_steps,
-#                                                local_blend)
-#         self.mapper = get_replacement_mapper(prompts)
+class AttentionControlReplace():
+    def step_callback(self, x_t):
+        if self.latent_blend is not None and (50 - 1 - self.cur_step) >= len(self.attention_store_all_step):
+            store = self.attention_store_all_step[50 - 1 - self.cur_step]
+            x_t = self.latent_blend(attention_store=store, x_t=x_t)
+
+        self.cur_att_layer = 0
+        self.cur_step += 1
+        return x_t
+
+    def replace_self_attention(self, attn_base, attn_replace, mask=None):
+        if attn_replace.shape[2] <= 16 ** 2:
+            attn_base = attn_base.unsqueeze(0).broadcast_to((attn_replace.shape[0],) + attn_base.shape)
+            if mask is not None:
+                return attn_base * (1 - mask) + mask * attn_replace
+            return attn_base
+        else:
+            return attn_replace
+
+    def replace_cross_attention(self, attn_base, att_replace):
+        dtype = attn_base.dtype
+
+        h, p, w = attn_base.shape
+        b, w, n = self.mapper.shape
+        i = attn_base.to(ms.float16).permute(1, 0, 2).reshape((h * p, -1))
+        j = self.mapper.to(ms.float16).permute(0, 2, 1)
+        r = ms.ops.matmul(i, j).to(dtype)
+        r = r.reshape((p, h, b, n)).permute(2, 1, 0, 3)
+        return r
+        # return ms.ops.einsum('hpw,bwn->bhpn', attn_base, self.mapper)
+
+    def forward(self, attn, is_cross: bool, place_in_unet: int):
+        if 50 - 1 - self.cur_step >= len(self.attention_store_all_step):
+            return attn
+        store = self.attention_store_all_step[50 - 1 - self.cur_step]
+        key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
+        pos_index = self.pos_dict[F"{key}_{self.cur_att_layer}"]
+        attn_base = store[key][pos_index]
+        if is_cross:
+            attn = self.replace_cross_attention(attn_base, attn)
+        else:
+            w = int(np.sqrt(attn.shape[1]))
+            mask = self.local_blend(target_h=w, target_w=w, attention_store=store)
+            attn = self.replace_self_attention(attn_base, attn, mask)
+        return attn
+
+    def __call__(self, attn, is_cross: bool, place_in_unet: str):
+        attn = self.forward(attn, is_cross, place_in_unet)
+        self.cur_att_layer += 1
+        return attn
+
+    def __init__(self,
+                 prompts, local_blend=None,
+                 # num_steps: int, cross_replace_steps: float, self_replace_steps: float,
+                 # local_blend=None, **kwargs
+                 ):
+        self.local_blend = local_blend
+        self.pos_dict = None
+        self.cur_step = 0
+        self.cur_att_layer = 0
+        self.mapper = get_replacement_mapper(prompts)
+        self.attention_store_all_step = []

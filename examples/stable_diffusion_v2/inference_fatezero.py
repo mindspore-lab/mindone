@@ -35,7 +35,8 @@ from PIL import Image
 
 import mindspore as ms
 
-from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionStore
+from examples.stable_diffusion_v2.ldm.modules.fatezero.blend import SpatialBlender
+from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionStore, AttentionControlReplace
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
@@ -353,28 +354,6 @@ def main(args):
 
     prediction_type = getattr(config.model, "prediction_type", "noise")
     logger.info(f"Prediction type: {prediction_type}")
-    # create sampler
-    # if args.ddim:
-    #     sampler = DDIMSampler(model)
-    #     sname = "ddim"
-    # elif args.dpm_solver:
-    #     sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
-    #     sname = "dpm_solver"
-    # elif args.plms:
-    #     sampler = PLMSSampler(model)
-    #     sname = "plms"
-    # elif args.uni_pc:
-    #     sampler = UniPCSampler(model)
-    #     sname = "uni_pc"
-    # else:
-    #     sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
-    #     sname = "dpm_solver_pp"
-    # if prediction_type == "v":
-    #     assert sname in [
-    #         "dpm_solver",
-    #         "dpm_solver_pp",
-    #     ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
-
     # prepare prompt and reference video
     # todo negative_prompt
     # negative_prompt = args.negative_prompt
@@ -386,11 +365,6 @@ def main(args):
     # read the source reference video
     frames = read_video_frames(args.video_path, image_size=(args.H, args.W), num_frames=args.num_frames,
                                sample_start_index=args.sample_start_idx, sample_interval=args.sample_interval, )
-
-    # controller = AttentionReplace(['a silver jeep driving down a curvy road in the countryside', prompt],
-    #                               args.sampling_steps, cross_replace_steps=.8, self_replace_steps=.2, )
-    # unet = model.model.diffusion_model
-    # register_attention_control(unet, controller)
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -422,10 +396,8 @@ def main(args):
     if True or not os.path.exists(args.latent_path):
         c = model.get_learned_conditioning(model.tokenize([source_prompt]))
         frames = ms.Tensor(frames[None, ...])
-        model.model.diffusion_model.is_invert = ms.Tensor(1, ms.int32)
         latents, _ = model.get_input(frames, c)
         ddim_inv, _ = inv_sampler.encode(latents, c, args.inv_sampling_steps)
-        model.model.diffusion_model.is_invert = ms.Tensor(-1, ms.int32)
         start_code = ddim_inv
         ms.save_checkpoint([{"name": "start_code", "data": start_code}], args.latent_path)
     else:
@@ -444,7 +416,10 @@ def main(args):
             uc = model.get_learned_conditioning(tokenized_negative_prompts)
         tokenized_prompts = model.tokenize(prompts)
         c = model.get_learned_conditioning(tokenized_prompts)
-        inv_sampler.pre_sample()
+
+        local_blend = SpatialBlender(prompts=[source_prompt], words=[['jeep', ], ["car", ]])
+        controller = AttentionControlReplace(prompts=[source_prompt, target_prompt], local_blend=local_blend)
+        inv_sampler.pre_sample(model=model, controller=controller)
         samples_ddim, _ = inv_sampler.sample(
             S=args.sampling_steps,
             conditioning=c,
