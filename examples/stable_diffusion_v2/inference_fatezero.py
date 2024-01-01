@@ -21,6 +21,7 @@ output/
 
 """
 import argparse
+import gc
 import logging
 import os
 import sys
@@ -353,26 +354,26 @@ def main(args):
     prediction_type = getattr(config.model, "prediction_type", "noise")
     logger.info(f"Prediction type: {prediction_type}")
     # create sampler
-    if args.ddim:
-        sampler = DDIMSampler(model)
-        sname = "ddim"
-    elif args.dpm_solver:
-        sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
-        sname = "dpm_solver"
-    elif args.plms:
-        sampler = PLMSSampler(model)
-        sname = "plms"
-    elif args.uni_pc:
-        sampler = UniPCSampler(model)
-        sname = "uni_pc"
-    else:
-        sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
-        sname = "dpm_solver_pp"
-    if prediction_type == "v":
-        assert sname in [
-            "dpm_solver",
-            "dpm_solver_pp",
-        ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
+    # if args.ddim:
+    #     sampler = DDIMSampler(model)
+    #     sname = "ddim"
+    # elif args.dpm_solver:
+    #     sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
+    #     sname = "dpm_solver"
+    # elif args.plms:
+    #     sampler = PLMSSampler(model)
+    #     sname = "plms"
+    # elif args.uni_pc:
+    #     sampler = UniPCSampler(model)
+    #     sname = "uni_pc"
+    # else:
+    #     sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
+    #     sname = "dpm_solver_pp"
+    # if prediction_type == "v":
+    #     assert sname in [
+    #         "dpm_solver",
+    #         "dpm_solver_pp",
+    #     ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
 
     # prepare prompt and reference video
     # todo negative_prompt
@@ -405,7 +406,7 @@ def main(args):
             f"Model: StableDiffusion v-{args.version}",
             f"Precision: {model.model.diffusion_model.dtype}",
             f"Pretrained ckpt path: {args.ckpt_path}",
-            f"Sampler: {sname}",
+            # f"Sampler: {sname}",
             f"Sampling steps: {args.sampling_steps}",
             f"Uncondition guidance scale: {args.scale}",
             f"Target image size (H, W): ({args.H}, {args.W})",
@@ -443,8 +444,8 @@ def main(args):
             uc = model.get_learned_conditioning(tokenized_negative_prompts)
         tokenized_prompts = model.tokenize(prompts)
         c = model.get_learned_conditioning(tokenized_prompts)
-
-        samples_ddim, _ = sampler.sample(
+        inv_sampler.pre_sample()
+        samples_ddim, _ = inv_sampler.sample(
             S=args.sampling_steps,
             conditioning=c,
             batch_size=batch_size,
@@ -455,6 +456,11 @@ def main(args):
             eta=args.ddim_eta,
             x_T=start_code,
         )
+        print(gc.collect())
+        del inv_sampler
+        # del c, tokenized_prompts, uc, tokenized_negative_prompts, start_code, ddim_inv,frames,latents
+        # ms.ms_memory_recycle()
+        print(gc.collect())
 
         b, c, f, h, w = samples_ddim.shape
         samples_ddim = samples_ddim.transpose((0, 2, 1, 3, 4)).reshape((b * f, c, h, w))

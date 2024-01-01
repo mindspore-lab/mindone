@@ -12,6 +12,7 @@ CROSS_ATTENTION_NAME = 'CrossAttention'
 INPUT = 'input_blocks'
 MIDDLE = 'middle_block'
 OUTPUT = 'output_blocks'
+NUM_STEP = 3
 
 
 def register_attention_control(unet, controller):
@@ -170,11 +171,15 @@ class AttentionStore():
     def step_callback(self, x_t):
         self.cur_att_layer = 0
         self.cur_step += 1
-        self.attention_store_all_step.append(copy.deepcopy(self.step_store))
+        print(self.cur_step)
+        if self.cur_step <= NUM_STEP:
+            self.attention_store_all_step.append(copy.deepcopy(self.step_store))
         self.step_store = self.get_empty_store()
         return x_t
 
     def __call__(self, attn, is_cross: bool, place_in_unet: str):
+        if not self.is_invert:
+            return attn
         if self.cur_att_layer >= 0:
             attn = self.forward(attn, is_cross, place_in_unet)
         self.cur_att_layer += 1
@@ -186,7 +191,7 @@ class AttentionStore():
                 F"{INPUT}_self": [], F"{OUTPUT}_self": [], F"{MIDDLE}_self": []}
 
     def forward(self, attn, is_cross: bool, place_in_unet: str):
-        if attn.shape[1] <= 1024 * 4:  # avoid memory overhead
+        if attn.shape[1] <= 1024:  # avoid memory overhead
             key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
             print(f"Store attention map {key} of shape {attn.shape}")
 
@@ -198,9 +203,18 @@ class AttentionStore():
         self.num_att_layers = -1
         self.cur_att_layer = 0
         self.step_store = self.get_empty_store()
-
+        self.is_invert = True
         self.latents_store = []
         self.attention_store_all_step = []
+
+    def reset(self):
+        self.step_store = self.get_empty_store()
+        self.latents_store = []
+        self.attention_store_all_step = []
+
+class AttentionControlReplace():
+    pass
+
 #
 #
 # class AttentionControlEdit(AttentionStore, abc.ABC):
