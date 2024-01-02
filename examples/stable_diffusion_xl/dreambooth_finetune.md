@@ -114,7 +114,6 @@ Notice that the training command above gets finetuned lora weights in the specif
 
   ```shell
   # (recommend) run with streamlit
-  export MS_PYNATIVE_GE=1
   export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
   streamlit run demo/sampling.py --server.port <your_port>
   ```
@@ -123,7 +122,6 @@ Notice that the training command above gets finetuned lora weights in the specif
 
   ```shell
   # run with other commands
-  export MS_PYNATIVE_GE=1
   python demo/sampling_without_streamlit.py \
     --task txt2img \
     --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \

@@ -143,7 +143,6 @@ After obtaining the weights, place them into checkpoints/. Next, start the demo 
 
 ```shell
 # (recommend) run with streamlit
-export MS_PYNATIVE_GE=1
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
@@ -156,7 +155,6 @@ streamlit run demo/sampling.py --server.port <your_port>
 
 ```shell
 # run sdxl-base txt2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
@@ -165,7 +163,6 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run sdxl-refiner img2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task img2img \
   --config configs/inference/sd_xl_refiner.yaml \
@@ -175,7 +172,6 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run pipeline without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
@@ -188,7 +184,6 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run lora(unmerge weight) without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/training/sd_xl_base_finetune_lora.yaml \

@@ -3,6 +3,9 @@
 import os
 import time
 
+if os.environ.get("MS_PYNATIVE_GE") != "1":
+    os.environ["MS_PYNATIVE_GE"] = "1"
+
 import streamlit as st
 from demo.streamlit_helpers import (
     create_model_with_streamlit,
