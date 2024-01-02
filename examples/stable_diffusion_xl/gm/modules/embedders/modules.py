@@ -438,6 +438,36 @@ class ConcatTimestepEmbedderND(AbstractEmbModel):
         return x, None
 
 
+class FrozenOpenCLIPEmbedder2_CLIPTokenizer(FrozenOpenCLIPEmbedder2):
+    """
+    A wrapper over FrozenOpenCLIPEmbedder2 to use the CLIPTokenizer (from transformer library) instead of SimpleTokenizer
+    clip tokenizer from 'openai/clip-vit-large-patch14' is the same as the tokenizer from 'laion/CLIP-ViT-H-14-laion2B-s32B-b79K'
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tokenizer = CLIPTokenizer.from_pretrained("openai/clip-vit-large-patch14")
+        # change to pad with zeros, not eos
+        self.tokenizer._pad_token = "!"
+        assert (
+            self.tokenizer.pad_token_id == 0
+        ), f"Expect FrozenOpenCLIPEmbedder2 pads with zeros, not {self.tokenizer.pad_token_id}"
+
+    # rewrite the tokenize function
+    def tokenize(self, text):
+        batch_encoding = self.tokenizer(
+            text,
+            truncation=True,
+            max_length=self.max_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = np.array(batch_encoding["input_ids"], np.int32)
+        length = np.array(batch_encoding["length"], np.int32)
+        return tokens, length
+
+
 if __name__ == "__main__":
     # 1. check timestep embedder
     cond_model = ConcatTimestepEmbedderND(outdim=256)
