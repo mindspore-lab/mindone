@@ -173,7 +173,8 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
+    # ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, device_id=device_id, max_device_memory="30GB") # only for 910a
+    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, device_id=device_id)
 
     set_random_seed(args.seed)
 
@@ -307,6 +308,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
+    parser.add_argument("--device_target", type=str, nargs="?", default="Ascend", help="Ascend, GPU")
     parser.add_argument(
         "--data_path",
         type=str,

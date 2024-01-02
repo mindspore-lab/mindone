@@ -1,0 +1,22 @@
+ToonYou:
+  motion_module:
+    - "models/motion_module/mm_sd_v15_v2.ckpt"
+
+  dreambooth_path: "models/dreambooth_lora/toonyou_beta3.ckpt"
+  lora_model_path: ""
+
+  seed:           [1024, 434, 431, 1024]
+  steps:          30
+  guidance_scale: 7.5
+
+  prompt:
+    - "1girl, bare shoulders, brown eyes, white hair, closed mouth, sunshine, snowing background, looking at viewer, makeup, smile, solo"
+    - "masterpiece, best quality, 1girl, solo, cherry blossoms, hanami, pink flower, white flower, spring season, wisteria, petals, flower, plum blossoms, outdoors, falling petals, white hair, black eyes,"
+    - "best quality, masterpiece, 1boy, formal, abstract, looking at viewer, masculine, marble pattern"
+    - "best quality, masterpiece, 1girl, cloudy sky, dandelion, contrapposto, alternate hairstyle,"
+
+  n_prompt:
+    - "badhandv4,easynegative,ng_deepnegative_v1_75t,verybadimagenegative_v1.3, bad-artist, bad_prompt_version2-neg, teeth"
+    - "badhandv4,easynegative,ng_deepnegative_v1_75t,verybadimagenegative_v1.3, bad-artist, bad_prompt_version2-neg, teeth"
+    - ""
+    - "badhandv4,easynegative,ng_deepnegative_v1_75t,verybadimagenegative_v1.3, bad-artist, bad_prompt_version2-neg, teeth"
