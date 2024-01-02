@@ -1,5 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
 
+from functools import partial
 from typing import Dict, List, Optional, Union
 
 import numpy as np
@@ -310,6 +311,80 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         # self.transformer.text_model.final_layer_norm.recompute()
 
 
+class FrozenCLIPEmbedder_lora(FrozenCLIPEmbedder):
+    """Lora injection to clip embedder."""
+
+    def __init__(self, *, lora_dim=4, lora_alpha=None, lora_dropout=0.0, lora_merge_weights=True, **kwargs):
+        super(FrozenCLIPEmbedder_lora, self).__init__(**kwargs)
+        from gm.modules.embedders.clip import CLIPAttention
+        from gm.modules.lora import Dense as Dense_lora
+        from gm.modules.lora import mark_only_lora_as_trainable
+
+        for cell_name, cell in self.cells_and_names():
+            if isinstance(cell, CLIPAttention):
+                assert hasattr(cell, "k_proj")
+                query_dim, inner_dim = cell.k_proj.in_channels, cell.k_proj.out_channels
+                cell.k_proj = Dense_lora(
+                    query_dim,
+                    inner_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.k_proj.get_parameters())]
+
+                assert hasattr(cell, "v_proj")
+                context_dim, inner_dim = cell.v_proj.in_channels, cell.v_proj.out_channels
+                cell.v_proj = Dense_lora(
+                    context_dim,
+                    inner_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.v_proj.get_parameters())]
+
+                assert hasattr(cell, "q_proj")
+                context_dim, inner_dim = cell.q_proj.in_channels, cell.q_proj.out_channels
+                cell.q_proj = Dense_lora(
+                    context_dim,
+                    inner_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.q_proj.get_parameters())]
+
+                assert hasattr(cell, "out_proj")
+                inner_dim, query_dim = cell.out_proj.in_channels, cell.out_proj.out_channels
+                cell.out_proj = Dense_lora(
+                    inner_dim,
+                    query_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.out_proj.get_parameters())]
+
+        mark_only_lora_as_trainable(self, bias="none")
+
+        num_param = sum([p.size for _, p in self.parameters_and_names()])
+        num_param_trainable = sum([p.size for p in self.trainable_params()])
+        print(
+            f"FrozenCLIPEmbedder_lora total params: {float(num_param) / 1e9}B, "
+            f"trainable params: {float(num_param_trainable) / 1e6}M."
+        )
+
+    @staticmethod
+    def _prefix_param(prefix, param):
+        if not param.name.startswith(prefix):
+            param.name = f"{prefix}.{param.name}"
+
+
 class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
     """
     Uses the OpenCLIP transformer encoder for text
@@ -407,6 +482,45 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
 
     def encode(self, text):
         return self(text)
+
+
+class FrozenOpenCLIPEmbedder2_lora(FrozenOpenCLIPEmbedder2):
+    """Lora injection to openclip embedder.
+    Currently only support injection to dense layers in attention modules."""
+
+    def __init__(self, *, lora_dim=4, lora_alpha=None, lora_dropout=0.0, lora_merge_weights=True, **kwargs):
+        super(FrozenOpenCLIPEmbedder2_lora, self).__init__(**kwargs)
+        from gm.modules.embedders.open_clip.transformer import MultiheadAttention
+        from gm.modules.lora import Dense as Dense_lora
+        from gm.modules.lora import mark_only_lora_as_trainable
+
+        for cell_name, cell in self.cells_and_names():
+            if isinstance(cell, MultiheadAttention):
+                assert hasattr(cell, "out_proj")
+                inner_dim, query_dim = cell.out_proj.in_channels, cell.out_proj.out_channels
+                cell.out_proj = Dense_lora(
+                    inner_dim,
+                    query_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.out_proj.get_parameters())]
+
+        mark_only_lora_as_trainable(self, bias="none")
+
+        num_param = sum([p.size for _, p in self.parameters_and_names()])
+        num_param_trainable = sum([p.size for p in self.trainable_params()])
+        print(
+            f"FrozenOpenCLIPEmbedder2_lora total params: {float(num_param) / 1e9}B, "
+            f"trainable params: {float(num_param_trainable) / 1e6}M."
+        )
+
+    @staticmethod
+    def _prefix_param(prefix, param):
+        if not param.name.startswith(prefix):
+            param.name = f"{prefix}.{param.name}"
 
 
 class ConcatTimestepEmbedderND(AbstractEmbModel):
