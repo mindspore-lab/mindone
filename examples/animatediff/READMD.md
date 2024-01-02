@@ -14,12 +14,12 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 pip install -r requirements.txt
 ```
 
-If `decord` package is not available on your environment, you may use `pip install eva-decord`
+In case `decord` package is not available in your environment, try `pip install eva-decord`
 
 
 ## Prepare Model Weights
 
-First download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
+First, download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
 
 - Convert SD dreambooth model
 ```
@@ -33,7 +33,7 @@ cd ../examples/animatediff/tools
 python motion_module_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module
 ```
 
-- Conert Motion LoRA
+- Convert Motion LoRA
 ```
 cd ../examples/animatediff/tools
 python motion_lora_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module
@@ -49,7 +49,8 @@ python motion_lora_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../mo
 python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 512 --W 512
 ```
 
-Generation speed: 30s/video
+By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
+
 Results:
 
 
@@ -65,7 +66,7 @@ python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 25
 python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 512 --W 512
 ```
 
-Generation speed: 30s/video
+By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
 Results:
 
 
