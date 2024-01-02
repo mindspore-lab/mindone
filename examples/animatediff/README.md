@@ -7,6 +7,8 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 - [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
 - [x] MotionLoRA inference
 - [ ] Motion Module Training
+- [ ] Motion LoRA Training
+- [ ] AnimateDiff v3
 
 ## Requirements
 
@@ -36,7 +38,7 @@ python motion_module_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../
 - Convert Motion LoRA
 ```
 cd ../examples/animatediff/tools
-python motion_lora_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module
+python motion_lora_convert.py --src ../torch_ckpts/.ckpt --tar ../models/motion_lora
 ```
 
 
@@ -53,7 +55,10 @@ By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
 
 Results:
 
-
+<p float="left">
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/aca5174f-e0b6-4756-83ca-c049b120ba3b" width="25%" />
+<img src="https://github.com/SamitHuang/mindone/assets/8156835/fba8cd8c-7098-4193-8aa3-ff0c6fd056fe" width="25%" />
+</p>
 
 - Running on GPU:
 ```
@@ -67,11 +72,16 @@ python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --
 ```
 
 By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
-Results:
+
+Results using Zoom-In motion lora:
+
+<p float="left">
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/f74280ca-a8c6-468a-909b-6189b6677c22 width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/c56c32c4-49b5-4898-9964-22f5bdd4c59c width="25%" />
+</p>
 
 
 - Running on GPU:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 256 --W 256 --target_device GPU
-
 ```
