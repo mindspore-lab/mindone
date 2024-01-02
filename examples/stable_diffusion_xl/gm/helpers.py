@@ -168,9 +168,10 @@ def create_model(
     textual_inversion_ckpt: str = None,
     placeholder_token: str = None,
     num_vectors: int = None,
+    use_ema: bool = False,
 ):
     # create model
-    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
+    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level, use_ema=use_ema)
 
     if freeze:
         model.set_train(False)
@@ -289,7 +290,7 @@ def get_optimizer(optim_comfig, lr, params, filtering=True):
     return optimizer
 
 
-def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
+def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0", use_ema=False):
     model = instantiate_from_config(model_config)
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
@@ -304,6 +305,24 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
             for ckpt in ckpts:
                 assert ckpt.endswith(".ckpt")
                 _sd_dict = ms.load_checkpoint(ckpt)
+                ema_param_dict = {}
+                origin_param_dict = {}
+                for param in _sd_dict:
+                    if param.startswith("ema"):
+                        new_name = param.split("ema.")[1]
+                        ema_data = _sd_dict[param]
+                        ema_data.name = new_name
+                        ema_param_dict[new_name] = ema_data
+                    else:
+                        origin_param_dict[param] = _sd_dict[param]
+                if ema_param_dict and use_ema:
+                    _sd_dict = ema_param_dict
+                elif bool(ema_param_dict) is False and use_ema:
+                    _sd_dict = origin_param_dict
+                    print(f"{ckpt} does not contain ema_parameter, it will load origin parameter.")
+                else:
+                    _sd_dict = origin_param_dict
+
                 sd_dict.update(_sd_dict)
 
                 if "global_step" in sd_dict:
@@ -675,10 +694,9 @@ class EMA(nn.Cell):
     """
     Args:
         updates: number of ema updates, which can be restored from resumed training.
-        offloading: if True, offload the assign computation to CPU to avoid OOM issue.
     """
 
-    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True, offloading=True):
+    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True):
         super().__init__()
         # TODO: net.trainable_params() is more reasonable?
         if trainable_only:
@@ -686,16 +704,9 @@ class EMA(nn.Cell):
         else:
             self.net_weight = ms.ParameterTuple(network.get_parameters())
         self.ema_weight = self.net_weight.clone(prefix="ema", init="same")
-        self.swap_cache = self.net_weight.clone(prefix="swap", init="zeros")
-
         self.ema_decay = ema_decay
         self.updates = Parameter(Tensor(updates, ms.float32), requires_grad=False)
-
         self.hyper_map = ops.HyperMap()
-        if offloading:
-            self.assign = ops.Assign().add_prim_attr("primitive_target", "CPU")
-        else:
-            self.assign = ops.Assign()
 
     def ema_update(self):
         """Update EMA parameters."""
@@ -705,15 +716,3 @@ class EMA(nn.Cell):
         success = self.hyper_map(ops.partial(_ema_op, d), self.ema_weight, self.net_weight)
         self.updates = ops.depend(self.updates, success)
         return self.updates
-
-    def swap_before_eval(self):
-        # net -> swap
-        success = self.hyper_map(self.assign, self.swap_cache, self.net_weight)
-        # ema -> net
-        success = ops.depend(success, self.hyper_map(self.assign, self.net_weight, self.ema_weight))
-        return success
-
-    def swap_after_eval(self):
-        # swap -> net
-        success = self.hyper_map(self.assign, self.net_weight, self.swap_cache)
-        return success

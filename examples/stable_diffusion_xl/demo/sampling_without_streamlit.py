@@ -22,6 +22,7 @@ def get_parser_sample():
     parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img"])
     parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
+    parser.add_argument("--use_ema", action="store_true", help="whether use ema")
     parser.add_argument(
         "--textual_inversion_weight",
         type=str,
@@ -306,6 +307,7 @@ def sample(args):
         textual_inversion_ckpt=args.textual_inversion_weight,
         placeholder_token=args.placeholder_token,
         num_vectors=args.num_vectors,
+        use_ema=args.use_ema,
     )  # TODO: Add filter support
     if args.textual_inversion_weight is not None:
         model, manager = model

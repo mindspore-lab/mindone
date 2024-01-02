@@ -184,7 +184,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
                 loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
                 loss = F.depend(loss, ops.assign(self.accum_step, ms.Tensor(0, ms.int32)))
                 if self.ema is not None:
-                    self.ema.ema_update() 
+                    self.ema.ema_update()
             else:
                 # update the learning rate, do not update the parameter
                 loss = F.depend(loss, self.optimizer.get_lr())

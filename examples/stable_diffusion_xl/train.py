@@ -204,14 +204,18 @@ def train(args):
     # 5. Start Training
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
-        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config, ema=ema)
+        train_fn(
+            args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config, ema=ema
+        )
     elif args.task == "img2img":
         raise NotImplementedError
     else:
         raise ValueError(f"Unknown task {args.task}")
 
 
-def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, ema=None, **kwargs):  # for print  # for infer/ckpt
+def train_txt2img(
+    args, train_step_fn, dataloader, optimizer=None, model=None, ema=None, **kwargs
+):  # for print  # for infer/ckpt
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -253,14 +257,11 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, e
 
         # Save checkpoint
         if (i + 1) % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
-            if ema is not None:
-                # swap ema weight and network weight
-                ema.swap_before_eval()
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{(i + 1)}.ckpt")
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
                 save_checkpoint(
-                    model,
+                    model if not ema else ema,
                     save_ckpt_dir,
                     only_save_lora=False
                     if not hasattr(model.model.diffusion_model, "only_save_lora")
@@ -270,24 +271,14 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, e
             else:
                 model.save_checkpoint(save_ckpt_dir)
 
-            if ema is not None:
-                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
-                ema.swap_after_eval()
-
         # Infer during train
         if (i + 1) % args.infer_interval == 0 and args.infer_during_train:
             print(f"Step {i + 1}/{total_step}, infer starting...")
-            if ema is not None:
-                # swap ema weight and network weight
-                ema.swap_before_eval()
             infer_during_train(
                 model=model,
                 prompt="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
                 save_path=os.path.join(args.save_path, "txt2img/", f"step_{i+1}_rank_{args.rank}"),
             )
-            if ema is not None:
-                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
-                ema.swap_after_eval()
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
 
@@ -328,14 +319,11 @@ def train_txt2img_datasink(
 
         # Save checkpoint
         if cur_step % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
-            if ema is not None:
-                # swap ema weight and network weight
-                ema.swap_before_eval()
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{cur_step}.ckpt")
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
                 save_checkpoint(
-                    model,
+                    model if not ema else ema,
                     save_ckpt_dir,
                     only_save_lora=False
                     if not hasattr(model.model.diffusion_model, "only_save_lora")
@@ -345,24 +333,14 @@ def train_txt2img_datasink(
             else:
                 model.save_checkpoint(save_ckpt_dir)
 
-            if ema is not None:
-                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
-                ema.swap_after_eval()
-
         # Infer during train
         if cur_step % args.infer_interval == 0 and args.infer_during_train:
             print(f"Step {cur_step}/{total_step}, infer starting...")
-            if ema is not None:
-                # swap ema weight and network weight
-                ema.swap_before_eval()
             infer_during_train(
                 model=model,
                 prompt="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
                 save_path=os.path.join(args.save_path, "txt2img/", f"step_{cur_step}_rank_{args.rank}"),
             )
-            if ema is not None:
-                # swap back network weight and ema weight. MUST execute after model saving and before next-step training
-                ema.swap_after_eval()
             print(f"Step {cur_step}/{total_step}, infer done.", flush=True)
 
 
