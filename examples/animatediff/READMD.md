@@ -1,10 +1,12 @@
 # AnimateDiff based on MindSpore
 
-Features:
+This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.org/abs/2307.04725).
 
-[x] AnimdateDiff v2 text-to-video generation, supporting 16 frames in 512x512 resolution on Ascend 910B, 16 frames in 256x256 resolution on GPU 3090.
-[x] MotionLoRA inference
-[ ] Motion Module Training
+## Features
+
+- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
+- [x] MotionLoRA inference
+- [ ] Motion Module Training
 
 ## Requirements
 
@@ -15,7 +17,7 @@ pip install -r requirements.txt
 If `decord` package is not available on your environment, you may use `pip install eva-decord`
 
 
-## Prepare model weights
+## Prepare Model Weights
 
 First download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
 
