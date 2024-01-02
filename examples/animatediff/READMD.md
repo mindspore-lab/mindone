@@ -70,6 +70,7 @@ python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --
 ```
 
 By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
+
 Results using Zoom-In motion lora:
 
 <p float="left">
