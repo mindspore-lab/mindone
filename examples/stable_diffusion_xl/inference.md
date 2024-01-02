@@ -35,7 +35,6 @@ Download the official pre-train weights from huggingface, convert the weights fr
 
 ```shell
 # (recommend) run with streamlit
-export MS_PYNATIVE_GE=1
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
@@ -44,7 +43,6 @@ streamlit run demo/sampling.py --server.port <your_port>
 
 ```shell
 # run sdxl-base txt2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --config configs/inference/sd_xl_base.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
@@ -55,7 +53,6 @@ python demo/sampling_without_streamlit.py \
 
 ```shell
 # run sdxl-refiner img2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task img2img \
   --config configs/inference/sd_xl_refiner.yaml \
@@ -64,7 +61,6 @@ python demo/sampling_without_streamlit.py \
   --img /PATH TO/img.jpg \
 
 # run pipeline without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \

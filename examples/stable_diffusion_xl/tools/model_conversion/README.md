@@ -73,7 +73,6 @@ To check inference consistency quantitatively, you should ensure MS and PT use t
   finetuned_ckpt_path='./checkpoints/sd_xl_base_finetuned_ms.ckpt'
   init_latent_path='./tmp/rand_init_noise.npy'
 
-  export MS_PYNATIVE_GE=1
   python demo/sampling_without_streamlit.py \
     --task txt2img \
     --config configs/inference/sd_xl_base.yaml \

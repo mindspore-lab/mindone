@@ -6,6 +6,8 @@ import sys
 import time
 
 sys.path.append(".")
+if os.environ.get("MS_PYNATIVE_GE") != "1":
+    os.environ["MS_PYNATIVE_GE"] = "1"
 
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
 from gm.util import seed_everything
