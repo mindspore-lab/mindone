@@ -730,3 +730,14 @@ class ImageEmbeddingConditionedLatentDiffusion(LatentDiffusion):
         c = self.get_learned_conditioning_fortrain(c)
         cond = {"c_crossattn": c, "c_adm": c_adm}
         return self.p_losses(x, cond, t)
+
+
+class InflatedLatentDiffusion(LatentDiffusion):
+    def get_input(self, x, c):
+        assert len(x.shape) == 5, f"expect the input image shape is (b, f, h, w, c), but got {x.shape}"
+        x = self.transpose(x, (0, 1, 4, 2, 3))  # (b, f, h, w, c)-> (b, f, c, h, w)
+        b, f, ch, h, w = x.shape
+        z = ops.stop_gradient(self.get_first_stage_encoding(self.encode_first_stage(x.reshape((b * f, ch, h, w)))))
+        _, ch, h, w = z.shape
+        z = self.transpose(z.reshape((b, f, ch, h, w)), (0, 2, 1, 3, 4))  # (b, f, c, h, w) - > (b, c, f, h, w)
+        return z, c

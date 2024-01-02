@@ -5,8 +5,10 @@ import time
 import imagesize
 import numpy as np
 import pandas as pd
+from gm.data.commons import TEMPLATES_FACE, TEMPLATES_OBJECT, TEMPLATES_STYLE
 from gm.util import instantiate_from_config
 from PIL import Image
+from PIL.ImageOps import exif_transpose
 
 
 class Text2ImageDataset:
@@ -74,6 +76,7 @@ class Text2ImageDataset:
         # images preprocess
         image_path = self.local_images[idx]
         image = Image.open(image_path)
+        image = exif_transpose(image)
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
@@ -234,12 +237,14 @@ class Text2ImageDatasetDreamBooth:
         # images preprocess
         instance_image_path = self.instance_images[idx]
         instance_image = Image.open(instance_image_path)
+        instance_image = exif_transpose(instance_image)
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         instance_image = np.array(instance_image).astype(np.uint8)
 
         class_image_path = random.choice(self.class_images)
         class_image = Image.open(class_image_path)
+        class_image = exif_transpose(class_image)
         if not class_image.mode == "RGB":
             class_image = class_image.convert("RGB")
         class_image = np.array(class_image).astype(np.uint8)
@@ -347,6 +352,98 @@ class Text2ImageDatasetDreamBooth:
         return data_list * repeats
 
 
+class Text2ImageDatasetTextualInversion(Text2ImageDataset):
+    def __init__(
+        self,
+        data_path,
+        *args,
+        learnable_property="object",
+        placeholder_token="",
+        templates=None,
+        image_extensions=[".png", ".jpg", ".jpeg"],
+        **kwargs,
+    ):
+        self.placeholder_token = placeholder_token
+        self.learnable_property = learnable_property
+        self.image_extensions = image_extensions  # recognize images with these extensions only
+        if templates is not None:
+            assert (
+                isinstance(templates, (list, tuple)) and len(templates) > 0
+            ), "Expect to have non-empty templates as list or tuple."
+            templates = list(templates)
+            assert all(
+                ["{}" in x for x in templates]
+            ), "Expect to have templates list of strings such as 'a photo of {{}}'"
+        else:
+            if learnable_property.lower() == "object":
+                templates = TEMPLATES_OBJECT
+            elif learnable_property.lower() == "style":
+                templates = TEMPLATES_STYLE
+            elif learnable_property.lower() == "face":
+                templates = TEMPLATES_FACE
+            else:
+                raise ValueError(
+                    f"{learnable_property} learnable property is not supported! Only support ['object', 'style', 'face']"
+                )
+        self.templates = templates
+        super().__init__(data_path, *args, **kwargs)
+
+    def __getitem__(self, idx):
+        # images preprocess
+        image_path = self.local_images[idx]
+        image = Image.open(image_path)
+        image = exif_transpose(image)
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
+        image = np.array(image).astype(np.uint8)
+
+        # caption preprocess
+        placeholder_string = self.placeholder_token
+        caption = random.choice(self.templates).format(placeholder_string)
+        caption = caption if self.tokenizer is None else np.array(self.tokenize(caption), dtype=np.int32)
+        caption = np.array(caption)
+
+        sample = {
+            "image": image,
+            "txt": caption,
+            "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
+            "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
+            "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
+            "aesthetic_score": np.array(
+                [
+                    6.0,
+                ]
+            ),
+        }
+
+        for trans in self.transforms:
+            sample = trans(sample)
+
+        return sample
+
+    def list_image_files_captions_recursively(self, image_path):
+        assert os.path.exists(image_path), f"The given data path {image_path} does not exist!"
+        image_path_list = sorted(os.listdir(image_path))
+        img_extensions = self.image_extensions
+        all_images = [
+            os.path.join(image_path, f) for f in image_path_list if any([f.lower().endswith(e) for e in img_extensions])
+        ]
+        return all_images, None
+
+    @staticmethod
+    def filter_small_image(all_images, all_captions, image_filter_size):
+        assert all_captions is None
+        filted_images = []
+        for image in all_images:
+            w, h = imagesize.get(image)
+            if min(w, h) < image_filter_size:
+                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                continue
+            else:
+                filted_images.append(image)
+        return filted_images, None
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -396,6 +493,13 @@ if __name__ == "__main__":
         for i, data in enumerate(dataset):
             print(data)
             break
-
+    elif args.target == "Text2ImageDatasetTextualInversion":
+        dataset = Text2ImageDatasetTextualInversion(
+            data_path=args.data_path,
+            learnable_property="style",
+            placeholder_token="<pokemon>",
+            target_size=1024,
+            transforms=transforms,
+        )
     else:
         ValueError("dataset only support Text2ImageDataset and Text2ImageDatasetDreamBooth")

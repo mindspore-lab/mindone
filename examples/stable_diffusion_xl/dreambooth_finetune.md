@@ -21,13 +21,13 @@ Make sure the following frameworks are installed.
 
 Enter the `example/stable_diffusion_xl` folder and run
 
-```shell l
+```shell
 pip install -r requirement.txt
 ```
 
 #### Pretrained models
 
-Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [GETTING_STARTED.md](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/GETTING_STARTED.md#convert-pretrained-checkpoint) for detailed steps.
+Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
 
 #### Finetuning Dataset Preparation
 
@@ -114,7 +114,6 @@ Notice that the training command above gets finetuned lora weights in the specif
 
   ```shell
   # (recommend) run with streamlit
-  export MS_PYNATIVE_GE=1
   export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
   streamlit run demo/sampling.py --server.port <your_port>
   ```
@@ -123,7 +122,6 @@ Notice that the training command above gets finetuned lora weights in the specif
 
   ```shell
   # run with other commands
-  export MS_PYNATIVE_GE=1
   python demo/sampling_without_streamlit.py \
     --task txt2img \
     --config configs/training/sd_xl_base_finetune_dreambooth_lora_910b.yaml \

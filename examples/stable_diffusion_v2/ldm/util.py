@@ -110,10 +110,19 @@ def is_old_ms_version(last_old_version="1.10.1"):
     return version.parse(ms.__version__) <= version.parse(last_old_version)
 
 
-def load_pretrained_model(pretrained_ckpt, net):
+def load_pretrained_model(pretrained_ckpt, net, unet_initialize_random=False):
     _logger.info(f"Loading pretrained model from {pretrained_ckpt}")
     if os.path.exists(pretrained_ckpt):
         param_dict = load_checkpoint(pretrained_ckpt)
+
+        if unet_initialize_random:
+            pnames = list(param_dict.keys())
+            # pop unet params from pretrained weight
+            for pname in pnames:
+                if pname.startswith("model.diffusion_model"):
+                    param_dict.pop(pname)
+            print("UNet will be initialized randomly")
+
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict)
         else:

@@ -52,10 +52,7 @@ class TrainOneStepCell(nn.Cell):
 
         # first stage model
         self.scale_factor = model.scale_factor
-        disable_first_stage_amp = model.disable_first_stage_amp
         self.first_stage_model = model.first_stage_model
-        if disable_first_stage_amp:
-            self.first_stage_model.to_float(ms.float32)
 
         #
         self.sigma_sampler = model.sigma_sampler
@@ -160,26 +157,24 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         self.clip_norm = clip_norm
         self.ema = ema
 
-        self.enable_accum_grad = False
-        if grad_accum_steps > 1:
-            self.enable_accum_grad = True
-            self.accum_steps = grad_accum_steps
-            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
+        self.accum_steps = grad_accum_steps
+        if self.accum_steps > 1:
+            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step", requires_grad=False)
             self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
             self.hyper_map = ops.HyperMap()
 
     def do_optim(self, loss, grads):
-        if not self.enable_accum_grad:
+        if not self.accum_steps > 1:
             if self.clip_grad:
                 grads = ops.clip_by_global_norm(grads, self.clip_norm)
             loss = F.depend(loss, self.optimizer(grads))
             if self.ema is not None:
                 self.ema.ema_update()
         else:
-            self.accum_step += 1
             loss = F.depend(
                 loss, self.hyper_map(F.partial(_grad_accum_op, self.accum_steps), self.accumulated_grads, grads)
             )
+            loss = F.depend(loss, ops.assign_add(self.accum_step, ms.Tensor(1, ms.int32)))
             if self.accum_step % self.accum_steps == 0:
                 if self.clip_grad:
                     grads = ops.clip_by_global_norm(self.accumulated_grads, self.clip_norm)
@@ -187,8 +182,9 @@ class LatentDiffusionWithLossGrad(nn.Cell):
                 else:
                     loss = F.depend(loss, self.optimizer(self.accumulated_grads))
                 loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
+                loss = F.depend(loss, ops.assign(self.accum_step, ms.Tensor(0, ms.int32)))
                 if self.ema is not None:
-                    self.ema.ema_update()
+                    self.ema.ema_update() 
             else:
                 # update the learning rate, do not update the parameter
                 loss = F.depend(loss, self.optimizer.get_lr())
@@ -326,13 +322,13 @@ class TrainOneStepCellDreamBooth(nn.Cell):
 class TrainerMultiGraphTwoStage:
     def __init__(self, engine, optimizers, reducers, scaler, overflow_still_update=True, amp_level="O2"):
         # get conditioner trainable status
-        trainable_conditioner = False
+        self.trainable_conditioner = False
         for embedder in engine.conditioner.embedders:
             if embedder.is_trainable:
-                trainable_conditioner = True
+                self.trainable_conditioner = True
                 print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
 
-        if trainable_conditioner:
+        if self.trainable_conditioner:
             self.pre_process = PreProcessModelWithoutConditioner(engine)
             self.stage1_fp = LatentDiffusionStage1WithConditioner(engine)
         else:
@@ -366,7 +362,17 @@ class TrainerMultiGraphTwoStage:
             self.stage1_with_grad = auto_mixed_precision(self.stage1_with_grad, amp_level)
             self.stage2_with_grad = auto_mixed_precision(self.stage2_with_grad, amp_level)
 
+            disable_first_stage_amp = engine.disable_first_stage_amp
+            if disable_first_stage_amp:
+                self.pre_process.first_stage_model.to_float(ms.float32)
+
     def __call__(self, x, *tokens):
+        if self.trainable_conditioner:
+            return self.train_unet_conditioner(x, *tokens)
+        else:
+            return self.train_unet(x, *tokens)
+
+    def train_unet_conditioner(self, x, *tokens):
         diffusion_inputs = self.pre_process(x)
 
         self.stage1_fp.set_train(False)
@@ -384,6 +390,24 @@ class TrainerMultiGraphTwoStage:
 
         return loss, overflow_tag
 
+    def train_unet(self, x, *tokens):
+        diffusion_inputs = self.pre_process(x, *tokens)
+
+        self.stage1_fp.set_train(False)
+        self.stage1_fp.set_grad(False)
+        out_stage1 = self.stage1_fp(*diffusion_inputs)
+
+        loss, grads_i, unscaled_grads2, overflow_tag2 = self.stage2_with_grad(*out_stage1)
+
+        self.stage1_with_grad.network.set_train(True)
+        self.stage1_with_grad.network.set_grad(True)
+        _, unscaled_grads1, overflow_tag1 = self.stage1_with_grad(*diffusion_inputs, *grads_i)
+
+        overflow_tag = overflow_tag1 or overflow_tag2
+        # unscaled_grads = unscaled_grads1 + unscaled_grads2  # TODO: enable it if need grad
+
+        return loss, overflow_tag
+
 
 class PreProcessModel(nn.Cell):
     def __init__(self, engine):
@@ -391,10 +415,7 @@ class PreProcessModel(nn.Cell):
 
         # first stage model
         self.scale_factor = engine.scale_factor
-        disable_first_stage_amp = engine.disable_first_stage_amp
         self.first_stage_model = engine.first_stage_model
-        if disable_first_stage_amp:
-            self.first_stage_model.to_float(ms.float32)
 
         # others
         self.sigma_sampler = engine.sigma_sampler
@@ -402,6 +423,7 @@ class PreProcessModel(nn.Cell):
         self.loss_fn = engine.loss_fn
         self.denoiser = engine.denoiser
 
+    @ms.jit
     def construct(self, x, *tokens):
         # get latent target
         x = self.first_stage_model.encode(x)
@@ -426,16 +448,14 @@ class PreProcessModelWithoutConditioner(nn.Cell):
 
         # first stage model
         self.scale_factor = engine.scale_factor
-        disable_first_stage_amp = engine.disable_first_stage_amp
         self.first_stage_model = engine.first_stage_model
-        if disable_first_stage_amp:
-            self.first_stage_model.to_float(ms.float32)
 
         # others
         self.sigma_sampler = engine.sigma_sampler
         self.loss_fn = engine.loss_fn
         self.denoiser = engine.denoiser
 
+    @ms.jit
     def construct(self, x):
         # get latent target
         x = self.first_stage_model.encode(x)
@@ -456,6 +476,7 @@ class LatentDiffusionStage1(nn.Cell):
         self.stage1 = engine.stage1
         self.denoiser = engine.denoiser
 
+    @ms.jit
     def construct(self, x, noised_input, sigmas, w, context, y):
         c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
         stage1_outputs = self.stage1(
@@ -485,6 +506,7 @@ class LatentDiffusionStage1WithConditioner(nn.Cell):
         self.stage1 = engine.stage1
         self.denoiser = engine.denoiser
 
+    @ms.jit
     def construct(self, x, noised_input, sigmas, w, *tokens):
         # get condition
         vector, crossattn, concat = self.conditioner(*tokens)
@@ -518,6 +540,7 @@ class LatentDiffusionStage2WithLoss(nn.Cell):
         self.loss_fn = engine.loss_fn
         self.scaler = scaler
 
+    @ms.jit
     def construct(self, x, noised_input, w, c_out, c_skip, *stage2_inputs):
         model_output = self.stage2(*stage2_inputs)
         model_output = model_output * c_out + noised_input * c_skip
@@ -539,6 +562,7 @@ class LatentDiffusionStage1Grad(nn.Cell):
         self.weights = self.optimizer.parameters
         self.grad_fn = ops.GradOperation(get_all=False, get_by_list=True, sens_param=True)
 
+    @ms.jit
     def construct(self, *args):
         inputs = args[:-17]
         sens = args[-17:]
@@ -571,6 +595,7 @@ class LatentDiffusionStage2Grad(nn.Cell):
         self.weights = self.optimizer.parameters
         self.grad_fn = ops.GradOperation(get_all=True, get_by_list=True, sens_param=False)
 
+    @ms.jit
     def construct(self, *args):
         inputs = args[:]
         loss = self.network(*inputs)

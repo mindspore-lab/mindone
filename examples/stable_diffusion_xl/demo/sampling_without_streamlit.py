@@ -6,6 +6,8 @@ import sys
 import time
 
 sys.path.append(".")
+if os.environ.get("MS_PYNATIVE_GE") != "1":
+    os.environ["MS_PYNATIVE_GE"] = "1"
 
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
 from gm.util import seed_everything
@@ -20,6 +22,26 @@ def get_parser_sample():
     parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img"])
     parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
+    parser.add_argument(
+        "--textual_inversion_weight",
+        type=str,
+        default=None,
+        help="the weight file path for the textual inversion finetuned weights",
+    )
+    parser.add_argument(
+        "--placeholder_token",
+        type=str,
+        default=None,
+        help="the placeholder token for the textual inversion. "
+        "If not provided, the placholder token in the textual_inversion_weight will be used.",
+    )
+    parser.add_argument(
+        "--num_vectors",
+        type=int,
+        default=None,
+        help="the number of vectors for the textual inversion. "
+        "If not provided, the number of vectors in the textual_inversion_weight will be used.",
+    )
     parser.add_argument(
         "--prompt", type=str, default="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
     )
@@ -36,6 +58,9 @@ def get_parser_sample():
     parser.add_argument("--negative_aesthetic_score", type=float, default=None)
     parser.add_argument("--sampler", type=str, default="EulerEDMSampler")
     parser.add_argument("--guider", type=str, default="VanillaCFG")
+    parser.add_argument(
+        "--guidance_scale", type=int, default=5.0, help="the guidance scale for txt2img and img2img tasks"
+    )
     parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_cols", type=int, default=1)
@@ -130,6 +155,7 @@ def run_txt2img(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
+        guidance_scale=args.guidance_scale,
         discretization=args.discretization,
         steps=args.sample_step,
         stage2strength=stage2strength,
@@ -193,6 +219,7 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
+        guidance_scale=args.guidance_scale,
         discretization=args.discretization,
         steps=args.sample_step,
         img2img_strength=strength,
@@ -276,7 +303,14 @@ def sample(args):
         load_filter=False,
         param_fp16=False,
         amp_level=args.ms_amp_level,
+        textual_inversion_ckpt=args.textual_inversion_weight,
+        placeholder_token=args.placeholder_token,
+        num_vectors=args.num_vectors,
     )  # TODO: Add filter support
+    if args.textual_inversion_weight is not None:
+        model, manager = model
+        # replace placeholder token by placeholder tokens
+        args.prompt = manager.manage_prompt(args.prompt)
 
     save_path = os.path.join(args.save_path, task, version)
     is_legacy = version_dict["is_legacy"]
