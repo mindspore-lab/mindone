@@ -16,10 +16,10 @@ Textual Inversion is a method to train a pretrained text-to-image model to gener
 </p>
 
 
-As shown above, the textual inversion method consists of following steps:
-- First, it creates a text prompt following some template like "A photo of $S_{*}$", where $S_{*}$ is a placeholder for the new "word" to be learned.
-- Then, the tokenizer will assign a unique index to this placeholder $S_{*}$. This index corresponds to a single embedding vector $v_{*}$ in the emebdding lookup table. Note that $v_{*}$ is trainable while all other parameters are non-trainable.
-- Lastly, compute the loss function of the generator (e.g., stable diffusion model) and the gradients of $v_{*}$. Update the weights in $v_{*}$ during training steps.
+As shown above, the textual inversion method consists of the following steps:
+1. First, it creates a text prompt following some template like **A photo of $S_{*}$**, where $S_{*}$ is a placeholder for the new "word" to be learned.
+2. Then, the tokenizer will assign a unique index to this placeholder. This index corresponds to a single embedding vector $v_{*}$ in the embedding lookup table which is trainable, while all other parameters are non-trainable.
+3. Lastly, compute the loss function of the generator (e.g., stable diffusion model) and the gradients of the single embedding vector, then update the weights in $v_{*}$ during training steps.
 
 
 ## Preparation
