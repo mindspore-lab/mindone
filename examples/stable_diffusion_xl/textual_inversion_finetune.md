@@ -159,6 +159,26 @@ Notice that the training command above gets finetuned textual inversion weights 
     --num_cols 4
   ```
 
+It is also recommended to run inference with an interactive app via streamlit. Please revise the `VERSION2SPECS` in `demo/sampling.py` as the example below (Note that `config` and `textual_inversion_weight` are modified):
+```yaml
+    "SDXL-base-1.0": {
+        "H": 1024,
+        "W": 1024,
+        "C": 4,
+        "f": 8,
+        "is_legacy": False,
+        "config": "configs/training/sd_xl_base_finetune_textual_inversion.yaml",
+        "ckpt": "checkpoints/sd_xl_base_1.0_ms.ckpt",
+        "textual_inversion_weight": "runs/chinese_art/SD-XL-base-1.0_2000_ti.ckpt",  # or path to another textual inversion weight
+    },
+```
+Then specify the prompt as "a dog in \<chinese-art\> style" in `__main__` of `demo/sampling.py` and run:
+
+  ```shell
+  export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+  streamlit run demo/sampling.py --server.port <your_port>
+  ```
+
 ### Object Inference Results
 
 The generated images using the prompt "a \<cat-toy\> backpack" are show below:
