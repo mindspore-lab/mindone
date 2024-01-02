@@ -46,6 +46,7 @@ step2. Convert weight to MindSpore `.ckpt` format and put it to `./models/`.
 # convert sdxl-base-1.0 model
 cd tools/model_conversion
 python convert_weight.py \
+  --task pt_to_ms \
   --weight_safetensors /PATH TO/sd_xl_base_1.0.safetensors \
   --weight_ms /PATH TO/sd_xl_base_1.0_ms.ckpt \
   --key_torch torch_key_base.yaml \

@@ -62,8 +62,7 @@ class UniPCSampler(object):
                     print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
 
         # sampling
-        C, H, W = shape
-        size = (batch_size, C, H, W)
+        size = (batch_size, *shape)
         print(f"Data shape for UniPC sampling is {size}")
 
         if x_T is None:

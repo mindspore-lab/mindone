@@ -28,6 +28,7 @@ cd tools/model_conversion
 
 # convert sdxl-base-1.0 model
 python convert_weight.py \
+  --task pt_to_ms \
   --weight_safetensors /PATH TO/sd_xl_base_1.0.safetensors \
   --weight_ms /PATH TO/sd_xl_base_1.0_ms.ckpt \
   --key_torch torch_key_base.yaml \
@@ -35,6 +36,7 @@ python convert_weight.py \
 
 # convert sdxl-refiner-1.0 model
 python convert_weight.py \
+  --task pt_to_ms \
   --weight_safetensors /PATH TO/sd_xl_refiner_1.0.safetensors \
   --weight_ms /PATH TO/sd_xl_refiner_1.0_ms.ckpt \
   --key_torch torch_key_refiner.yaml \
@@ -73,6 +75,62 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 </details>
 
 
+#### Training with Webdataset
+
+Image-text pair data are archived into `tar` files in webdataset. A training dataset is like
+```text
+data_dir
+├── 00001.tar
+│   ├── 00001.jpg
+│   ├── 00001.json
+│   ├── 00002.jpg
+│   ├── 00002.json
+│   └── ...
+├── 00002.tar
+├── 00003.tar
+└── ...
+```
+
+We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compatible with minddata GeneratorDataset.
+
+1. Set the training YAML config as follows to use the T2I_Webdataset loader.
+    ```yaml
+        dataset_config:
+            target: gm.data.dataset_wds.T2I_Webdataset_RndAcs
+            params:
+                caption_key: 'text_english'
+    ```
+
+2. Set `--data_path` in the training script with the path to the data root of the whole training dataset, e.g. `data_dir` in the above example.
+
+Note that the dataloader is implemented based on [wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets), which requires shardlist information which describes the path to each tar file and the number of data samples in the tar file.
+
+For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save it as a json file like follows.
+
+```json
+{
+"__kind__": "wids-shard-index-v1",
+"wids_version": 1,
+"shardlist":
+    [
+        {"url": "data_dir/part01/00001.tar", "nsamples": 10000},
+        {"url": "data_dir/part01/00002.tar", "nsamples": 10000},
+    ]
+}
+```
+
+To save the time of scanning all data, you should prepare a data description json file ahead following the above format (recording num of samples for each tar file in `nsamples`).  Then parse the prepared json file to the loader via the `shardlist_desc` argument, such as
+
+```yaml
+    dataset_config:
+        target: gm.data.dataset_wds.T2I_Webdataset_RndAcs
+        params:
+            caption_key: 'text_english'
+            shardlist_desc: 'data_dir/data_info.json'
+```
+
+For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
+
 ## Inference
 
 ### Online Infer
@@ -85,7 +143,6 @@ After obtaining the weights, place them into checkpoints/. Next, start the demo 
 
 ```shell
 # (recommend) run with streamlit
-export MS_PYNATIVE_GE=1
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
@@ -98,7 +155,6 @@ streamlit run demo/sampling.py --server.port <your_port>
 
 ```shell
 # run sdxl-base txt2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
@@ -107,7 +163,6 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run sdxl-refiner img2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task img2img \
   --config configs/inference/sd_xl_refiner.yaml \
@@ -117,7 +172,6 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run pipeline without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
@@ -130,7 +184,6 @@ python demo/sampling_without_streamlit.py \
   --device_target Ascend
 
 # run lora(unmerge weight) without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/training/sd_xl_base_finetune_lora.yaml \
