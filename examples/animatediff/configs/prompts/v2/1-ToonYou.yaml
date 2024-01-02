@@ -13,7 +13,7 @@ ToonYou:
     - "1girl, bare shoulders, brown eyes, white hair, closed mouth, sunshine, snowing background, looking at viewer, makeup, smile, solo"
     - "masterpiece, best quality, 1girl, solo, cherry blossoms, hanami, pink flower, white flower, spring season, wisteria, petals, flower, plum blossoms, outdoors, falling petals, white hair, black eyes,"
     - "best quality, masterpiece, 1boy, formal, abstract, looking at viewer, masculine, marble pattern"
-    - "best quality, masterpiece, 1girl, cloudy sky, dandelion, contrapposto, alternate hairstyle,"
+    - "best quality, masterpiece, 1girl, looking at viewer, blurry background, upper body, contemporary, dress"
 
   n_prompt:
     - "badhandv4,easynegative,ng_deepnegative_v1_75t,verybadimagenegative_v1.3, bad-artist, bad_prompt_version2-neg, teeth"
