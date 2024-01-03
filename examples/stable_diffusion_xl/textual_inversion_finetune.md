@@ -160,7 +160,7 @@ Notice that the training command above gets finetuned textual inversion weights 
   ```
 
 It is also recommended to run inference with an interactive app via streamlit. Please revise the `VERSION2SPECS` in `demo/sampling.py` as the example below (Note that `config` and `textual_inversion_weight` are modified):
-```yaml
+```python
     "SDXL-base-1.0": {
         "H": 1024,
         "W": 1024,
