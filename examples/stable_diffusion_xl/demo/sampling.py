@@ -39,6 +39,7 @@ VERSION2SPECS = {
         "is_legacy": False,
         "config": "configs/inference/sd_xl_base.yaml",
         "ckpt": "checkpoints/sd_xl_base_1.0_ms.ckpt",
+        "textual_inversion_weight": None,
     },
     "SDXL-refiner-1.0": {
         "H": 1024,
@@ -48,6 +49,7 @@ VERSION2SPECS = {
         "is_legacy": True,
         "config": "configs/inference/sd_xl_refiner.yaml",
         "ckpt": "checkpoints/sd_xl_refiner_1.0_ms.ckpt",
+        "textual_inversion_weight": None,
     },
 }
 
@@ -254,6 +256,7 @@ if __name__ == "__main__":
         load_filter=False,
         param_fp16=False,
         amp_level=amp_level,
+        textual_inversion_ckpt=version_dict["textual_inversion_weight"],
     )
 
     # Get prompt
@@ -261,6 +264,10 @@ if __name__ == "__main__":
         "prompt",
         "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
     )
+    if version_dict["textual_inversion_weight"] is not None:
+        model, manager = model
+        # replace placeholder token by placeholder tokens
+        prompt = manager.manage_prompt(prompt)
 
     save_locally, save_path = init_save_locally(os.path.join(SAVE_PATH, mode, version))
     is_legacy = version_dict["is_legacy"]
@@ -292,6 +299,9 @@ if __name__ == "__main__":
         version_dict2 = VERSION2SPECS[version2]
 
         # Init Model
+        assert (
+            version_dict2["textual_inversion_weight"] is None
+        ), "Refiner Model does not support textual inversion now. Please do not specify `textual_inversion_weight`."
         model2, filter2 = create_model_with_streamlit(
             version_dict2["config"],
             checkpoints=version_dict2["ckpt"].split(","),
@@ -299,6 +309,7 @@ if __name__ == "__main__":
             load_filter=False,
             param_fp16=False,
             amp_level=amp_level,
+            textual_inversion_ckpt=version_dict2["textual_inversion_weight"],
         )
 
         stage2strength = st.number_input("**Refinement strength**", value=0.15, min_value=0.0, max_value=1.0)
