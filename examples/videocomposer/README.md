@@ -8,59 +8,79 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 - image depth
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/d073e00f-d72f-4d69-9670-5685ff3d25b5" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A black swan swam in the water" </em>
 </p>
 
 - local image
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/a36ea362-d697-41e1-a8e6-7c80d1d5cd45" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A black swan swam in the water" </em>
 </p>
 
 - mask
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/6e4d51fc-d6c0-43fe-9107-10bd258c10d7" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A black swan swam in the water" </em>
 </p>
 
 - motion
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/afa49b6c-be68-4454-aa78-950674e3ec35" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A black swan swam in the water" </em>
 </p>
 
 - sketch
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/cdaabe13-3d28-4a25-bc00-1dc86e6507f3" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A black swan swam in the water" </em>
 </p>
 
 ### Motion Transfer with style from a video to a Single Image
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/fce94e45-9e32-4e5c-8c09-93a3e75fca2b" width="720" />
+</div>
 <p align="center">
 <em> Text input: "Beneath Van Gogh's Starry Sky" </em>
 </p>
 
-
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/9a727772-5659-4392-b998-99d5aa93e6f2" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A beautiful big silver moon on the water" </em>
 </p>
 
 ### Motion Transfer without style from a video to a Single Image
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/61c4bb3b-7f52-4a97-a747-fbe3bb896306" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A sunflower in a field of flowers" </em>
 </p>
 
-
-<p align="center">
-<em> Text input: "Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect." </em>
-</p>
-
-
 ### Single Sketch to videos with style
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/1b6eaa42-038c-42cd-9a20-4317d700f029" width="720" />
+</div>
 <p align="center">
 <em> Text input: "Red-backed Shrike lanius collurio" </em>
 </p>
@@ -68,6 +88,9 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 ### Single Sketch to videos without style input
 
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/c56ccaa0-f4c0-4bab-9223-688fbee6f1c6" width="720" />
+</div>
 <p align="center">
 <em> Text input: "A little bird is standing on a branch" </em>
 </p>
@@ -75,7 +98,9 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 ### Depth to video without style
 
-
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/571f6d94-8bd5-4601-9c20-215740f14aca" width="720" />
+</div>
 <p align="center">
 <em> Text input: "Ironman is fighting against the enemy, big fire in the background, photorealistic" </em>
 </p>
@@ -83,7 +108,9 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 ### Depth to video with style
 
-
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/492318f4-c5bb-4fea-aa9b-764d236786d3" width="720" />
+</div>
 <p align="center">
 <em> Text input: "Van Gogh played tennis under the stars" </em>
 </p>
