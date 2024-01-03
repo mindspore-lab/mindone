@@ -210,6 +210,7 @@ python demo/sampling_without_streamlit.py \
   --support_long_prompts True \  # allow long text prompts
   ```
 
+When running inference with `demo/sampling.py`, you can simply input your long prompt and click the button of "Use long text prompt support (token length > 77)" under the prompt, and then start sampling.
 
 </details>
 
