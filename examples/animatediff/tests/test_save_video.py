@@ -7,7 +7,10 @@ from PIL import Image
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
-from animate_diff.utils.util import save_videos
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+
+from mindone.visualize.videos import save_videos
 
 img_dir = os.path.join(__dir__, "../../videocomposer/datasets/webvid5")
 print(img_dir)
@@ -21,4 +24,4 @@ for img_fp in img_fps:
 frames = np.array([frames])
 print(frames.shape)
 
-save_videos(frames, "./tmp.gif")
+save_videos(frames, "./tmp.gif", loop=0)

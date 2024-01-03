@@ -4,7 +4,7 @@ import os
 import mindspore as ms
 
 from mindone.utils.config import instantiate_from_config
-from mindone.utils.load_params import load_param_into_net_with_filter
+from mindone.utils.params import load_param_into_net_with_filter
 
 logger = logging.getLogger()
 

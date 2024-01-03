@@ -23,10 +23,10 @@ from ad.pipelines.infer_engine import AnimateDiffText2Video
 from ad.utils.load_models import load_model_from_config, merge_motion_lora_to_unet
 
 from mindone.utils.config import instantiate_from_config
-from mindone.utils.load_params import load_param_into_net_with_filter
 from mindone.utils.logger import set_logger
+from mindone.utils.params import load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
-from mindone.utils.videos import save_videos
+from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +195,7 @@ def main(args):
         os.makedirs(save_dir, exist_ok=True)
         prompt = "-".join((prompt.replace("/", "").split(" ")[:10]))
         save_fp = f"{save_dir}/{sample_idx}-{prompt}.gif"
-        save_videos(x_samples, save_fp)
+        save_videos(x_samples, save_fp, loop=0)
 
         # save_videos_grid(sample, f"{save_dir}/sample/{sample_idx}-{prompt}.gif")
         logger.info(f"save to {save_fp}")

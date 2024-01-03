@@ -134,3 +134,12 @@ def load_checkpoint_to_net(
             if len(param_not_load) > 0:
                 logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")]))
         logger.info("Checkpoint params not loaded: {}".format([p for p in ckpt_not_load if not p.startswith("adam")]))
+
+
+def count_params(model, verbose=False):
+    total_params = sum([param.size for param in model.get_parameters()])
+    trainable_params = sum([param.size for param in model.get_parameters() if param.requires_grad])
+
+    if verbose:
+        print(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
+    return total_params, trainable_params
