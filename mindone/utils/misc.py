@@ -1,8 +1,8 @@
 from inspect import isfunction
 from typing import List, Tuple, Union
 
-import mindspore.ops as ops
-from mindspore import ms
+import mindspore as ms
+from mindspore import ops
 
 
 def extract_into_tensor(a: ms.Tensor, t: ms.Tensor, x_shape: Union[Tuple, List]):

@@ -83,3 +83,8 @@ def choose_flash_attention_dtype():
     if MSVersion >= "2.2.1":
         return ms.uint8
     return ms.float16
+
+
+def is_old_ms_version(last_old_version="1.10.1"):
+    # some APIs are changed after ms 1.10.1 version, such as dropout
+    return MSVersion <= last_old_version
