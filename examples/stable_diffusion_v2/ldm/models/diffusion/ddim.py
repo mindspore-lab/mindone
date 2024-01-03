@@ -191,7 +191,7 @@ class DDIMSampler(object):
 
         iterator = time_range
 
-        for i, step in enumerate(iterator):
+        for i, step in tqdm(enumerate(iterator), total=len(iterator)):
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
 

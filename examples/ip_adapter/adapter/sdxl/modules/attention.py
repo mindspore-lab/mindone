@@ -16,9 +16,10 @@ import mindspore.ops as ops
 
 
 class IPAdapterMemoryEfficientCrossAttention(MemoryEfficientCrossAttention):
-    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0.0, ip_scale=1.0):
+    def __init__(self, query_dim, context_dim=None, heads=8, dim_head=64, dropout=0.0, ip_scale=1.0, num_tokens=4):
         super().__init__(query_dim, context_dim=context_dim, heads=heads, dim_head=dim_head, dropout=dropout)
         self.ip_scale = ip_scale
+        self.num_tokens = num_tokens
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
 
@@ -72,13 +73,12 @@ class IPAdapterMemoryEfficientCrossAttention(MemoryEfficientCrossAttention):
 
         if context is None:
             context = x
-            ip_context = x
-        else:
-            end_pos = context.shape[1] - self.num_tokens
-            context, ip_context = (
-                context[:, :end_pos, :],
-                context[:, end_pos:, :],
-            )
+
+        end_pos = context.shape[1] - self.num_tokens
+        context, ip_context = (
+            context[:, :end_pos, :],
+            context[:, end_pos:, :],
+        )
 
         z = self._cal_z(q, h, context, mask, additional_tokens, n_tokens_to_mask, False)
         z_ip = self._cal_z(q, h, ip_context, mask, additional_tokens, n_tokens_to_mask, True)
@@ -139,13 +139,12 @@ class IPAdapterCrossAttention(CrossAttention):
 
         if context is None:
             context = x
-            ip_context = x
-        else:
-            end_pos = context.shape[1] - self.num_tokens
-            context, ip_context = (
-                context[:, :end_pos, :],
-                context[:, end_pos:, :],
-            )
+
+        end_pos = context.shape[1] - self.num_tokens
+        context, ip_context = (
+            context[:, :end_pos, :],
+            context[:, end_pos:, :],
+        )
 
         z = self._cal_z(q, h, context, mask, additional_tokens, n_tokens_to_mask, False)
         z_ip = self._cal_z(q, h, ip_context, mask, additional_tokens, n_tokens_to_mask, True)
@@ -156,7 +155,7 @@ class IPAdapterCrossAttention(CrossAttention):
 
 
 class IPAdapterBasicTransformerBlock(BasicTransformerBlock):
-    # overwrite the original attention modes
+    # add extra attention modes
     IPADAPTER_ATTENTION_MODES = {
         "vanilla": IPAdapterCrossAttention,  # vanilla attention
         "flash-attention": IPAdapterMemoryEfficientCrossAttention,  # flash attention
@@ -173,6 +172,7 @@ class IPAdapterBasicTransformerBlock(BasicTransformerBlock):
         disable_self_attn=False,
         attn_mode="vanilla",  # ["vanilla", "flash-attention"]
         ip_scale=1.0,
+        num_tokens=4,
     ):
         super(BasicTransformerBlock, self).__init__()
         assert attn_mode in self.ATTENTION_MODES
@@ -202,6 +202,7 @@ class IPAdapterBasicTransformerBlock(BasicTransformerBlock):
             dim_head=d_head,
             dropout=dropout,
             ip_scale=ip_scale,
+            num_tokens=num_tokens,
         )  # is self-attn if context is none
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-5)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-5)
@@ -221,6 +222,7 @@ class IPAdapterSpatialTransformer(SpatialTransformer):
         use_linear=False,
         attn_type="vanilla",
         ip_scale=1.0,
+        num_tokens=4,
     ):
         super(SpatialTransformer, self).__init__()
         print(f"constructing {self.__class__.__name__} of depth {depth} w/ {in_channels} channels and {n_heads} heads")
@@ -262,6 +264,7 @@ class IPAdapterSpatialTransformer(SpatialTransformer):
                     disable_self_attn=disable_self_attn,
                     attn_mode=attn_type,
                     ip_scale=ip_scale,
+                    num_tokens=num_tokens,
                 )
                 for d in range(depth)
             ]

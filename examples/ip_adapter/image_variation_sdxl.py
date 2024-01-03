@@ -20,14 +20,27 @@ import mindspore as ms
 
 def get_parser_sample():
     parser = argparse.ArgumentParser(description="sampling with sd-xl")
-    parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
-    parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms_ip_adapter.ckpt")
-    parser.add_argument("--ip_scale", type=float, default=1.0)
-    parser.add_argument("--prompt", type=str, default="best quality, high quality")
     parser.add_argument(
-        "--negative_prompt", type=str, default="monochrome, lowres, bad anatomy, worst quality, low quality"
+        "--config", type=str, default="configs/inference/sd_xl_base.yaml", help="Path of the config file"
     )
-    parser.add_argument("--img", type=str, required=True)
+    parser.add_argument(
+        "--weight",
+        type=str,
+        default="checkpoints/sdxl_models/merged/sd_xl_base_1.0_ms_ip_adapter.ckpt",
+        help="Path of the checkpoint",
+    )
+    parser.add_argument(
+        "--ip_scale", type=float, default=1.0, help="IP Scale, control the attention of the image input."
+    )
+    parser.add_argument("--guidance_scale", type=float, default=5.0, help="Guidance scale")
+    parser.add_argument("--prompt", type=str, default="best quality, high quality", help="Prompt input")
+    parser.add_argument(
+        "--negative_prompt",
+        type=str,
+        default="monochrome, lowres, bad anatomy, worst quality, low quality",
+        help="Negative prompt input",
+    )
+    parser.add_argument("--img", type=str, required=True, help="Path of the input image file")
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     parser.add_argument("--orig_width", type=int, default=None)
     parser.add_argument("--orig_height", type=int, default=None)
@@ -40,10 +53,11 @@ def get_parser_sample():
     parser.add_argument("--sampler", type=str, default="EulerEDMSampler")
     parser.add_argument("--guider", type=str, default="VanillaCFG")
     parser.add_argument("--discretization", type=str, default="DiffusersDDPMDiscretization")
-    parser.add_argument("--sample_step", type=int, default=30)
-    parser.add_argument("--num_cols", type=int, default=1)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
+    parser.add_argument("--sample_step", type=int, default=30, help="Number of sampling steps")
+    parser.add_argument("--num_cols", type=int, default=1, help="Number of images in single trial")
+    parser.add_argument("--num_trials", type=int, default=1, help="Number of trials.")
+    parser.add_argument("--seed", type=int, default=42, help="Seed number")
+    parser.add_argument("--save_path", type=str, default="outputs/demo/", help="Save directory")
 
     # system
     parser.add_argument("--device_target", type=str, default="Ascend", help="device target, Ascend/GPU/CPU")
@@ -93,6 +107,7 @@ def run_text2img(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
+        guidance_scale=args.guidance_scale,
         discretization=args.discretization,
         steps=args.sample_step,
         stage2strength=stage2strength,
@@ -100,20 +115,21 @@ def run_text2img(
     num_samples = num_rows * num_cols
 
     print("Img2Img Sampling")
-    s_time = time.time()
-    out = model.do_sample(
-        sampler,
-        value_dict,
-        num_samples,
-        H,
-        W,
-        C,
-        F,
-        force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-        return_latents=return_latents,
-        filter=filter,
-        amp_level=amp_level,
-    )
+    for _ in range(args.num_trials):
+        s_time = time.time()
+        out = model.do_sample(
+            sampler,
+            value_dict,
+            num_samples,
+            H,
+            W,
+            C,
+            F,
+            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+            return_latents=return_latents,
+            filter=filter,
+            amp_level=amp_level,
+        )
     print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
     return out
