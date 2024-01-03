@@ -1,4 +1,5 @@
 import math
+from typing import List
 
 import numpy as np
 
@@ -69,6 +70,7 @@ class DDIMScheduler(nn.Cell):
     `DDIMScheduler` extends the denoising procedure introduced in denoising diffusion probabilistic models (DDPMs) with non-Markovian guidance.
 
     This model is based on nn.Cell for accelearting diffusion step computation.
+    Note: `set_timesteps` should be run after creating the scheduler
     """
 
     def __init__(
@@ -148,13 +150,15 @@ class DDIMScheduler(nn.Cell):
         self.with_mask = with_mask
         self.order = 1
 
-    def set_timesteps(self, num_inference_steps: int):
+    def set_timesteps(self, num_inference_steps: int) -> List[int]:
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
         Args:
             num_inference_steps (`int`):
                 The number of diffusion steps used when generating samples with a pre-trained model.
+        Returns:
+            a list to time step for scheduling
         """
 
         if num_inference_steps > self.num_train_timesteps:
@@ -198,7 +202,9 @@ class DDIMScheduler(nn.Cell):
         return variance
 
     # step function for denoising
-    def construct(self, model_output: ms.Tensor, timestep: ms.Tensor, sample: ms.Tensor, num_inference_steps: ms.Tensor, mask: ms.Tensor=None):
+    def construct(
+        self, model_output: ms.Tensor, timestep: ms.Tensor, sample: ms.Tensor, mask: ms.Tensor = None
+    ) -> ms.Tensor:
         """
         Predict the sample from the previous timestep. This function propagates the \
         diffusion process from the learned model outputs (most often the predicted noise).
@@ -207,29 +213,31 @@ class DDIMScheduler(nn.Cell):
             model_output: diffusion model output, typically predicted latent noise, shape (b, z, h, w)
             timestep: current time step for scheduling, in range [1, num_inference_steps]
             sample: input sample for current step, typically input latent, shape (b, z, h, w)
-            num_inference_steps: number of inference steps in total, e.g. 50
             mask: placeholder for future extension
 
         Return:
             ms.Tensor, sample of previous step
 
         Notes:
-        See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
-        Ideally, read DDIM paper in-detail understanding
+            See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
+            Ideally, read DDIM paper in-detail understanding
 
-        Notation (<variable name> -> <name in paper>
-        - pred_noise_t -> e_theta(x_t, t)
-        - pred_original_sample -> f_theta(x_t, t) or x_0
-        - std_dev_t -> sigma_t
-        - eta -> η
-        - pred_sample_direction -> "direction pointing to x_t"
-        - pred_prev_sample -> "x_t-1"
+            Notation (<variable name> -> <name in paper>
+            - pred_noise_t -> e_theta(x_t, t)
+            - pred_original_sample -> f_theta(x_t, t) or x_0
+            - std_dev_t -> sigma_t
+            - eta -> η
+            - pred_sample_direction -> "direction pointing to x_t"
+            - pred_prev_sample -> "x_t-1"
         """
 
         # 1. get previous step value (=t-1)
 
-        if num_inference_steps is None:
-            num_inference_steps = self.num_inference_steps
+        if self.num_inference_steps is None:
+            raise ValueError(
+                "`num_inference_steps` is None, you should run `set_timesteps` after creating the scheduler"
+            )
+        num_inference_steps = self.num_inference_steps
 
         timestep = timestep.astype(ms.int32)
         prev_timestep = ops.maximum(timestep - self.num_train_timesteps // num_inference_steps, 0)
@@ -283,18 +291,20 @@ class DDIMScheduler(nn.Cell):
     def scale_model_input(self, latents, t):
         return latents + t * 0  # If t is not used, lite will eliminate the second input
 
-    def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timesteps: ms.Tensor):
+    def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timestep: int) -> ms.Tensor:
         """
-        Diffusion forward
+        Diffusion forward sampling
         Make sure alphas_cumprod and timestep have same device and dtype as original_samples
 
         Args:
             original_samples: input sample
             noise: noise to add
-            timesteps: the product-cumulated alpha for current time step ($bar(\alpha)_t$). 
-                Expect input value retrieved from self.alphas_cumprod[timestep]
+            timestep: current time step t
+        Return:
+            noised sample
         """
-        sqrt_alpha_prod = timesteps.sqrt()
-        sqrt_one_minus_alpha_prod = (1 - timesteps).sqrt()
+        alpha_prod_t = self.alphas_cumprod[timestep]
+        sqrt_alpha_prod = alpha_prod_t.sqrt()
+        sqrt_one_minus_alpha_prod = (1 - alpha_prod_t).sqrt()
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples

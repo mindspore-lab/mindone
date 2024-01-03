@@ -148,7 +148,6 @@ def main(args):
     logger.info(f"noise beta scheduler: {sampler_config.params.beta_schedule}")
 
     scheduler = instantiate_from_config(sampler_config)
-    timesteps = scheduler.set_timesteps(steps)
 
     # 3. build inference pipeline
     pipeline = AnimateDiffText2Video(
@@ -175,7 +174,7 @@ def main(args):
         inputs["prompt_data"] = sd_model.tokenize([prompt] * bs)
         inputs["negative_prompt"] = n_prompt
         inputs["negative_prompt_data"] = sd_model.tokenize([n_prompt] * bs)
-        inputs["timesteps"] = timesteps
+        # inputs["timesteps"] = timesteps
         inputs["scale"] = ms.Tensor(guidance_scale, ms.float16)
 
         # latent noisy frames: b c f h w

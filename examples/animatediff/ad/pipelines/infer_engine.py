@@ -38,6 +38,9 @@ class AnimateDiffText2Video(ABC):
         self.scheduler = scheduler
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
+
+        scheduler.set_timesteps(num_inference_steps)
+
         self.num_inference_steps = ms.Tensor(num_inference_steps, ms.int32)
         self.alphas_cumprod = scheduler.alphas_cumprod
 
@@ -78,7 +81,7 @@ class AnimateDiffText2Video(ABC):
 
     @ms.jit
     def latents_add_noise(self, image_latents, noise, ts):
-        latents = self.scheduler.add_noise(image_latents, noise, self.alphas_cumprod[ts])
+        latents = self.scheduler.add_noise(image_latents, noise, ts)
         return latents
 
     @ms.jit
@@ -140,7 +143,7 @@ class AnimateDiffText2Video(ABC):
             frames (b f H W 3)
         """
         latents, c_crossattn, c_concat = self.data_prepare(inputs)
-        timesteps = inputs["timesteps"]
+        timesteps = self.scheduler.timesteps
         iterator = tqdm(timesteps, desc="Sampling", total=len(timesteps))
         for i, t in enumerate(iterator):
             ts = ms.Tensor(t, ms.int32)
