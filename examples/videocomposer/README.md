@@ -4,18 +4,17 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 ## Gallery
 
-### Inference different conditions from a video
+### Different conditions to videos
 
-<div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/d073e00f-d72f-4d69-9670-5685ff3d25b5" width="720" />
-</div>
 <p align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/9409b63e-c9fb-40c4-8ca6-7e8291a7c983" width="720" />
+<br />
 <em> Condition: image depth <br /> Text input: "A black swan swam in the water" </em>
 </p>
 
 <br />
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/a36ea362-d697-41e1-a8e6-7c80d1d5cd45" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/03af962b-3c56-4bdd-a16b-c6038bfd6389" width="720" />
 </div>
 <p align="center">
 <em> Condition: local image <br /> Text input: "A black swan swam in the water" </em>
@@ -23,7 +22,7 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 <br />
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/6e4d51fc-d6c0-43fe-9107-10bd258c10d7" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/35c8ea4e-b59e-4dab-a2d9-31eb29ddd098" width="720" />
 </div>
 <p align="center">
 <em> Condition: mask <br /> Text input: "A black swan swam in the water" </em>
@@ -31,7 +30,7 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 <br />
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/afa49b6c-be68-4454-aa78-950674e3ec35" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/5bddeb4f-9e6c-42a8-bfed-f74e27a2e490" width="720" />
 </div>
 <p align="center">
 <em> Condition: motion <br /> Text input: "A black swan swam in the water" </em>
@@ -39,16 +38,16 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 <br />
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/cdaabe13-3d28-4a25-bc00-1dc86e6507f3" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/89cdfceb-e070-446e-9dcb-a983bea8c9d9" width="720" />
 </div>
 <p align="center">
 <em> Condition: sketch <br /> Text input: "A black swan swam in the water" </em>
 </p>
 
-### Motion Transfer from a video to a Single Image
+### Motion transfer to videos
 
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/fce94e45-9e32-4e5c-8c09-93a3e75fca2b" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/0617e0de-5eb8-4820-8cac-1847b32b2a90" width="720" />
 </div>
 <p align="center">
 <em> Text input: "Beneath Van Gogh's Starry Sky" </em>
@@ -56,7 +55,7 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 <br />
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/9a727772-5659-4392-b998-99d5aa93e6f2" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/1ba8cab5-d646-4574-b62a-a63c0bdd3d25" width="720" />
 </div>
 <p align="center">
 <em> Text input: "A beautiful big silver moon on the water" </em>
@@ -64,18 +63,18 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 <br />
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/61c4bb3b-7f52-4a97-a747-fbe3bb896306" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/0f989cc9-24b9-4925-b07b-2d44dc100f24" width="720" />
 </div>
 <p align="center">
 <em> Text input: "A sunflower in a field of flowers" </em>
 </p>
 
-### Single Sketch to videos with style
+### Single sketch to videos with style
 
 <div align="center">
 <img src="https://github.com/HaoyangLee/mindone/assets/20376974/b8a2ed38-d209-4ca2-b60c-6cca1114a21b" width="30%" />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/1b6eaa42-038c-42cd-9a20-4317d700f029" width="60%" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/d6967daf-7b3d-48bd-8382-ba65724077c0" width="60%" />
 </div>
 <p align="center">
 <em> Style image </em>
@@ -87,30 +86,30 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 <em> Text input: "Red-backed Shrike lanius collurio" </em>
 </p>
 
-### Single Sketch to videos without style
+### Single sketch to videos without style
 
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/c56ccaa0-f4c0-4bab-9223-688fbee6f1c6" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/32d67667-e5ea-4b2e-afbc-be8781f22e04" width="720" />
 </div>
 <p align="center">
 <em> Text input: "A little bird is standing on a branch" </em>
 </p>
 
-### Depth to video without style
+### Image depth to videos without style
 
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/571f6d94-8bd5-4601-9c20-215740f14aca" width="720" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/03a71a01-0b66-499d-bfe0-3fd9a8fbf34f" width="720" />
 </div>
 <p align="center">
 <em> Text input: "Ironman is fighting against the enemy, big fire in the background, photorealistic" </em>
 </p>
 
-### Depth to video with style
+### Image depth to videos with style
 
 <div align="center">
 <img src="https://github.com/HaoyangLee/mindone/assets/20376974/124e927b-8291-41ea-b6ab-58279f9ceb1d" width="25%" />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/492318f4-c5bb-4fea-aa9b-764d236786d3" width="60%" />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/7c8a1a1e-4034-4c17-a1f7-1eaac1839fc5" width="60%" />
 </div>
 <p align="center">
 <em> Style image </em>
