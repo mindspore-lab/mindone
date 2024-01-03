@@ -2,6 +2,7 @@
 
 import os
 import time
+from functools import partial
 
 if os.environ.get("MS_PYNATIVE_GE") != "1":
     os.environ["MS_PYNATIVE_GE"] = "1"
@@ -21,6 +22,7 @@ from gm.helpers import (
     perform_save_locally,
 )
 from gm.util import seed_everything
+from gm.util.long_prompt import do_sample as do_sample_long_prompts
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -60,6 +62,7 @@ def run_txt2img(
     stage2strength=None,
     amp_level="O0",
 ):
+    support_long_prompts = st.checkbox("Use long text prompt support (token length > 77)")
     W, H = st.selectbox("Resolution:", list(SD_XL_BASE_RATIOS.values()), 10)
     C = version_dict["C"]
     F = version_dict["f"]
@@ -85,7 +88,8 @@ def run_txt2img(
         outputs = st.empty()
         s_time = time.time()
 
-        out = model.do_sample(
+        sampling_func = partial(do_sample_long_prompts, model) if support_long_prompts else model.do_sample
+        out = sampling_func(
             sampler,
             value_dict,
             num_samples,
