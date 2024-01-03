@@ -184,6 +184,7 @@ def run_txt2img(
             return_latents=return_latents,
             filter=filter,
             amp_level=amp_level,
+            init_latent_path=args.init_latent_path,
         )
         print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 

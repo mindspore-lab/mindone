@@ -370,6 +370,8 @@ def do_sample(
     adapter_states: Optional[List[ms.Tensor]] = None,
     amp_level="O0",
     max_n_chunks: Optional[int] = None,
+    init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
+    **kwargs,
 ):
     """
     Args:
@@ -379,6 +381,11 @@ def do_sample(
 
     """
     print("Sampling")
+    if kwargs:
+        print(
+            "Some key arguments are fed but not supported in the long text prompt sampling function"
+            " ".join(list(kwargs.key()))
+        )
 
     dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
 
@@ -423,7 +430,12 @@ def do_sample(
         additional_model_inputs[k] = batch[k]
 
     shape = (np.prod(num_samples), C, H // F, W // F)
-    randn = Tensor(np.random.randn(*shape), ms.float32)
+    if init_latent_path is not None:
+        print("Loading latent noise from ", init_latent_path)
+        randn = Tensor(np.load(init_latent_path), ms.float32)
+        # assert randn.shape==shape, 'unmatch shape due to loaded noise'
+    else:
+        randn = Tensor(np.random.randn(*shape), ms.float32)
 
     print("Sample latent Starting...")
     samples_z = sampler(model, randn, cond=c, uc=uc, adapter_states=adapter_states)
