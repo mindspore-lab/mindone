@@ -104,6 +104,9 @@ python train_dreambooth.py \
 
 Our implementation is trained with prior-preservation loss, which avoids overfitting and language drift. We first generate images using the pertained model with a class prompt, and input those data in parallel with our data during finetuning. The `num_class_images` in the arguments of `train_dreambooth.py`  specifies the number of class images for prior-preservation. If not enough images are present in `class_image_path`, additional images will be sampled with `class_prompt`. And you would need to relaunch the training using the command above when sampling is finished. It takes about 25 minutes to sample 50 class images.
 
+Alongside the Unet, **training with the two text encoders in SDXL is also supported**. The implementation is via LoRA as well.  To do so, just replace the config of training commands above with `configs/training/sd_xl_base_finetune_dreambooth_textencoder_lora_910b.yaml`. In our experiment, training without text encoders yields better generation results.
+
+
 ## Inference
 
 Notice that the training command above gets finetuned lora weights in the specified `save_path`. Now we could use the inference command to generate images on a given prompt. Assume that the pretrained ckpt path is `checkpoints/sd_xl_base_1.0_ms.ckpt` and the trained lora ckpt path is `runs/SDXL_base_1.0_1000_lora.ckpt`, examples of inference command are as below.
