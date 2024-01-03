@@ -243,9 +243,12 @@ def main(args):
     if args.use_compel:
         # extract text embedding with Compel
         from compel import Compel
+        from transformers import CLIPTokenizer
 
+        workdir = os.path.dirname(os.path.abspath(__file__))
+        tokenizer = CLIPTokenizer.from_pretrained(os.path.join(workdir, "openai/clip-vit-large-patch14"))
         text_encoder = model.cond_stage_model
-        tokenizer = text_encoder.tokenizer
+        text_encoder.tokenizer = tokenizer
         compel = Compel(tokenizer=tokenizer, text_encoder=text_encoder)
     all_samples = list()
     for i, prompts in enumerate(data):
