@@ -2,6 +2,95 @@
 
 MindSpore implementation & optimization of [VideoComposer: Compositional Video Synthesis with Motion Controllability](https://arxiv.org/pdf/2306.02018.pdf).
 
+## Gallery
+
+### Inference different conditions from a video
+
+- image depth
+
+<p align="center">
+<em> Text input: "A black swan swam in the water" </em>
+</p>
+
+- local image
+
+<p align="center">
+<em> Text input: "A black swan swam in the water" </em>
+</p>
+
+- mask
+
+<p align="center">
+<em> Text input: "A black swan swam in the water" </em>
+</p>
+
+- motion
+
+<p align="center">
+<em> Text input: "A black swan swam in the water" </em>
+</p>
+
+- sketch
+
+<p align="center">
+<em> Text input: "A black swan swam in the water" </em>
+</p>
+
+### Motion Transfer with style from a video to a Single Image
+
+<p align="center">
+<em> Text input: "Beneath Van Gogh's Starry Sky" </em>
+</p>
+
+
+<p align="center">
+<em> Text input: "A beautiful big silver moon on the water" </em>
+</p>
+
+### Motion Transfer without style from a video to a Single Image
+
+<p align="center">
+<em> Text input: "A sunflower in a field of flowers" </em>
+</p>
+
+
+<p align="center">
+<em> Text input: "Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect." </em>
+</p>
+
+
+### Single Sketch to videos with style
+
+<p align="center">
+<em> Text input: "Red-backed Shrike lanius collurio" </em>
+</p>
+
+
+### Single Sketch to videos without style input
+
+<p align="center">
+<em> Text input: "A little bird is standing on a branch" </em>
+</p>
+
+
+### Depth to video without style
+
+
+<p align="center">
+<em> Text input: "Ironman is fighting against the enemy, big fire in the background, photorealistic" </em>
+</p>
+
+
+### Depth to video with style
+
+
+<p align="center">
+<em> Text input: "Van Gogh played tennis under the stars" </em>
+</p>
+
+
+> Inference scripts and configuration referring to [`scripts/run_infer.sh`](scripts/run_infer.sh).
+
 ## Main Features
 
 - [x] Conditional Video Generation including the following tasks:
