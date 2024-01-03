@@ -231,6 +231,26 @@ class LatentDiffusionWithLossDreamBooth(LatentDiffusionWithLoss):
         return self.scaler.scale(loss)
 
 
+class LatentDiffusionWithConditionerAndLossDreamBooth(LatentDiffusionWithConditionerAndLoss):
+    def __init__(self, model, scaler, prior_loss_weight=1.0):
+        super().__init__(model, scaler)
+        self.prior_loss_weight = prior_loss_weight
+
+    def construct(self, x, noised_input, sigmas, w, reg_x, reg_noised_input, reg_sigmas, reg_w, *all_tokens):
+        assert len(all_tokens) % 2 == 0
+        position = len(all_tokens) // 2
+        tokens, reg_tokens = all_tokens[:position], all_tokens[position:]
+
+        loss_train = super(LatentDiffusionWithConditionerAndLossDreamBooth, self).construct(
+            x, noised_input, sigmas, w, *tokens
+        )
+        loss_reg = super(LatentDiffusionWithConditionerAndLossDreamBooth, self).construct(
+            reg_x, reg_noised_input, reg_sigmas, reg_w, *reg_tokens
+        )
+        loss = loss_train + self.prior_loss_weight * loss_reg
+        return self.scaler.scale(loss)
+
+
 class TrainOneStepCellDreamBooth(nn.Cell):
     def __init__(
         self,
@@ -240,37 +260,50 @@ class TrainOneStepCellDreamBooth(nn.Cell):
         scaler,
         overflow_still_update=True,
         gradient_accumulation_steps=1,
+        clip_grad=False,
+        clip_norm=1.0,
         prior_loss_weight=1.0,
     ):
         super(TrainOneStepCellDreamBooth, self).__init__()
 
+        # get conditioner trainable status
+        trainable_conditioner = False
+        for embedder in model.conditioner.embedders:
+            if embedder.is_trainable:
+                trainable_conditioner = True
+                print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
+
         # train net
-        ldm_with_loss = LatentDiffusionWithLossDreamBooth(model, scaler, prior_loss_weight)
+        if not trainable_conditioner:
+            ldm_with_loss = LatentDiffusionWithLossDreamBooth(model, scaler, prior_loss_weight)
+            self.conditioner = model.conditioner
+        else:
+            ldm_with_loss = LatentDiffusionWithConditionerAndLossDreamBooth(model, scaler, prior_loss_weight)
+            self.conditioner = None
         self.ldm_with_loss_grad = LatentDiffusionWithLossGrad(
-            ldm_with_loss, optimizer, scaler, reducer, overflow_still_update, gradient_accumulation_steps
+            ldm_with_loss,
+            optimizer,
+            scaler,
+            reducer,
+            overflow_still_update,
+            gradient_accumulation_steps,
+            clip_grad,
+            clip_norm,
         )
 
         # first stage model
         self.scale_factor = model.scale_factor
-        disable_first_stage_amp = model.disable_first_stage_amp
         self.first_stage_model = model.first_stage_model
-        if disable_first_stage_amp:
-            self.first_stage_model.to_float(ms.float32)
 
         #
         self.sigma_sampler = model.sigma_sampler
-        self.conditioner = model.conditioner
         self.loss_fn = model.loss_fn
         self.denoiser = model.denoiser
 
-    def _get_inputs(self, x, *tokens):
+    def _get_inputs(self, x):
         # get latent target
         x = self.first_stage_model.encode(x)
         x = self.scale_factor * x
-
-        # get condition
-        vector, crossattn, concat = self.conditioner(*tokens)
-        context, y = crossattn, vector
 
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
@@ -278,34 +311,46 @@ class TrainOneStepCellDreamBooth(nn.Cell):
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
-        return x, noised_input, sigmas, w, concat, context, y
+        return x, noised_input, sigmas, w
 
     def construct(self, x, reg_x, *all_tokens):
-        assert len(all_tokens) % 2 == 0
-        position = len(all_tokens) // 2
-        tokens, reg_tokens = all_tokens[:position], all_tokens[position:]
-        x, noised_input, sigmas, w, concat, context, y = self._get_inputs(x, *tokens)
-        reg_x, reg_noised_input, reg_sigmas, reg_w, reg_concat, reg_context, reg_y = self._get_inputs(
-            reg_x, *reg_tokens
-        )
+        x, noised_input, sigmas, w = self._get_inputs(x)
+        reg_x, reg_noised_input, reg_sigmas, reg_w = self._get_inputs(reg_x)
 
         # compute loss
-        loss, _, overflow = self.ldm_with_loss_grad(
-            x,
-            noised_input,
-            sigmas,
-            w,
-            concat,
-            context,
-            y,
-            reg_x,
-            reg_noised_input,
-            reg_sigmas,
-            reg_w,
-            reg_concat,
-            reg_context,
-            reg_y,
-        )
+        if self.conditioner:
+            # get condition
+            assert len(all_tokens) % 2 == 0
+            position = len(all_tokens) // 2
+            tokens, reg_tokens = all_tokens[:position], all_tokens[position:]
+
+            vector, crossattn, concat = self.conditioner(*tokens)
+            context, y = crossattn, vector
+
+            reg_vector, reg_crossattn, reg_concat = self.conditioner(*reg_tokens)
+            reg_context, reg_y = reg_crossattn, reg_vector
+
+            loss, _, overflow = self.ldm_with_loss_grad(
+                x,
+                noised_input,
+                sigmas,
+                w,
+                concat,
+                context,
+                y,
+                reg_x,
+                reg_noised_input,
+                reg_sigmas,
+                reg_w,
+                reg_concat,
+                reg_context,
+                reg_y,
+            )
+
+        else:
+            loss, _, overflow = self.ldm_with_loss_grad(
+                x, noised_input, sigmas, w, reg_x, reg_noised_input, reg_sigmas, reg_w, *all_tokens
+            )
 
         return loss, overflow
 
