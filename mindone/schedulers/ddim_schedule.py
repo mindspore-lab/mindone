@@ -198,10 +198,20 @@ class DDIMScheduler(nn.Cell):
         return variance
 
     # step function for denoising
-    def construct(self, model_output, timestep, sample, num_inference_steps, mask=None):
+    def construct(self, model_output: ms.Tensor, timestep: ms.Tensor, sample: ms.Tensor, num_inference_steps: ms.Tensor, mask: ms.Tensor=None):
         """
         Predict the sample from the previous timestep. This function propagates the \
         diffusion process from the learned model outputs (most often the predicted noise).
+
+        Args:
+            model_output: diffusion model output, typically predicted latent noise, shape (b, z, h, w)
+            timestep: current time step for scheduling, in range [1, num_inference_steps]
+            sample: input sample for current step, typically input latent, shape (b, z, h, w)
+            num_inference_steps: number of inference steps in total, e.g. 50
+            mask: placeholder for future extension
+
+        Return:
+            ms.Tensor, sample of previous step
 
         Notes:
         See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
@@ -273,10 +283,16 @@ class DDIMScheduler(nn.Cell):
     def scale_model_input(self, latents, t):
         return latents + t * 0  # If t is not used, lite will eliminate the second input
 
-    def add_noise(self, original_samples, noise, timesteps):
+    def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timesteps: ms.Tensor):
         """
         Diffusion forward
         Make sure alphas_cumprod and timestep have same device and dtype as original_samples
+
+        Args:
+            original_samples: input sample
+            noise: noise to add
+            timesteps: the product-cumulated alpha for current time step ($bar(\alpha)_t$). 
+                Expect input value retrieved from self.alphas_cumprod[timestep]
         """
         sqrt_alpha_prod = timesteps.sqrt()
         sqrt_one_minus_alpha_prod = (1 - timesteps).sqrt()
