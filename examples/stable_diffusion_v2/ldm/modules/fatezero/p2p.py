@@ -12,7 +12,7 @@ CROSS_ATTENTION_NAME = 'CrossAttention'
 INPUT = 'input_blocks'
 MIDDLE = 'middle_block'
 OUTPUT = 'output_blocks'
-NUM_STEP = 3
+NUM_STEP = 10
 
 
 def register_attention_control(unet, controller):
