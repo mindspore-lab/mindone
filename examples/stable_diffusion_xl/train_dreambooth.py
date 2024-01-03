@@ -65,8 +65,8 @@ def get_parser_train():
     parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
-    # parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
-    # parser.add_argument("--sink_size", type=int, default=1000)
+    parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
+    parser.add_argument("--sink_size", type=int, default=1000)
     parser.add_argument(
         "--dataset_load_tokenizer", type=ast.literal_eval, default=True, help="create dataset with tokenizer"
     )
@@ -327,11 +327,6 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
                 flush=True,
             )
         loss, overflow = train_step_fn(instance_image, class_image, *instance_tokens, *class_tokens)
-        if overflow:
-            if args.overflow_still_update:
-                print(f"Step {i + 1}/{total_step}, overflow, still update.")
-            else:
-                print(f"Step {i + 1}/{total_step}, overflow, skip.")
 
         # Print meg
         if (i + 1) % args.log_interval == 0 and args.rank % 8 == 0:
