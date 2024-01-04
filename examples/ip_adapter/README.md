@@ -107,8 +107,7 @@ The `--n_samples` flag denotes the number of output images in a single trial. Th
 ```bash
 python image_variation_sd.py --img assets/woman.png
 ```
-
-<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/b9a7219a-158e-49df-8fab-68b50da513f5"/>
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/a42eca42-3c73-4f0d-865e-66a8347f8a67"/>
 <br><em>An example of image variation. (SD-1.5)</em></p>
 
 ## Model Training
