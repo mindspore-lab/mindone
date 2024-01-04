@@ -105,6 +105,8 @@ def create_loader_dreambooth(
     shuffle=True,
     drop_remainder=True,
     python_multiprocessing=False,
+    tokenizer=None,
+    token_nums=None,
 ):
     r"""Creates dataloader.
     Returns:
@@ -116,9 +118,15 @@ def create_loader_dreambooth(
         instance_prompt=instance_prompt,
         class_prompt=class_prompt,
         train_data_repeat=train_data_repeat,
+        tokenizer=tokenizer,
+        token_nums=token_nums,
         **dataset_config.get("params", dict()),
     )
-    batch_collate_fn, dataset_column_names = dataset.collate_fn, dataset.dataset_column_names
+    batch_collate_fn, dataset_column_names, dataset_output_column_names = (
+        dataset.collate_fn,
+        dataset.dataset_column_names,
+        dataset.dataset_output_column_names,
+    )
     dataset_size = len(dataset)
     num_step_per_epoch = dataset_size // (per_batch_size * rank_size)
     epoch_size = math.ceil(total_step / num_step_per_epoch)
@@ -149,7 +157,7 @@ def create_loader_dreambooth(
         per_batch_size,
         per_batch_map=batch_collate_fn,
         input_columns=dataset_column_names,
-        output_columns=dataset_column_names,
+        output_columns=dataset_output_column_names,
         num_parallel_workers=min(8, num_parallel_workers),
         drop_remainder=drop_remainder,
     )

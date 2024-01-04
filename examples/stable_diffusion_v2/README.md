@@ -186,6 +186,22 @@ Take SD 2.0 as an example:
 # Use SD 2.0 instead and add negative prompt guidance to eliminate artifacts
 python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
+<details>
+
+  <summary>Long Prompts Support</summary>
+
+  By Default, SD V2(1.5) only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+
+  To avoid information loss for long text prompts, we can divide one long tokens sequence (N>77) into several shorter sub-sequences (N<=77) to bypass the constraint of context length of the text encoders. This feature is supported by `args.support_long_prompts` in `text_to_image.py`.
+
+  When running inference with `text_to_image.py`, you can set the arguments as below.
+
+  ```bash
+  python text_to_image.py \
+  ...  \  # other arguments configurations
+  --support_long_prompts True \  # allow long text prompts
+  ```
+</details>
 
 Here are some generation results.
 
@@ -229,6 +245,7 @@ To run vanilla fine-tuning, we will use the `train_text_to_image.py` script foll
         --output_path {path to output directory} \
         --pretrained_model_path {path to pretrained checkpoint file}
     ```
+    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     Take fine-tuning SD1.5 on the Pokemon dataset as an example:
 
@@ -266,6 +283,7 @@ For parallel training on multiple Ascend NPUs, please refer to the instructions 
     ```shell
     bash scripts/run_train_distributed.sh
     ```
+    > Please enable INFNAN mode by `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` for Ascend 910* if overflow found.
 
     After launched, the training process can be traced by running `tail -f ouputs/train_txt2img/rank_0/train.log`.
 

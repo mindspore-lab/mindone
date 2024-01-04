@@ -14,6 +14,7 @@ END_DEVICE=$3
 RANK_SIZE=$4
 DATASET_PATH=$5
 
+export HCCL_CONNECT_TIMEOUT=7200
 export RANK_TABLE_FILE=$RANK_TABLE_FILE
 export RANK_SIZE=$RANK_SIZE
 export DEVICE_NUM=$(($END_DEVICE - $START_DEVICE))
@@ -27,7 +28,7 @@ do
   export DEVICE_ID=$((i-START_DEVICE))
   echo "start training for rank $RANK_ID, device $DEVICE_ID"
   python train.py \
-    --config configs/training/sd_xl_base_finetune_multi_graph_910b.yaml \
+    --config configs/training/sd_xl_base_finetune_910b.yaml \
     --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
     --data_path $DATASET_PATH \
     --save_path_with_time False \

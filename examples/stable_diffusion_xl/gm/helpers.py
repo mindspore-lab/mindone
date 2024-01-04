@@ -160,6 +160,9 @@ def create_model(
     load_filter: bool = False,
     param_fp16: bool = False,
     amp_level: Literal["O0", "O1", "O2", "O3"] = "O0",
+    textual_inversion_ckpt: str = None,
+    placeholder_token: str = None,
+    num_vectors: int = None,
 ):
     # create model
     model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
@@ -194,6 +197,14 @@ def create_model(
     if load_filter:
         # TODO: Add DeepFloydDataFiltering
         raise NotImplementedError
+
+    if textual_inversion_ckpt is not None:
+        assert os.path.exists(textual_inversion_ckpt), f"{textual_inversion_ckpt} does not exist!"
+        from gm.modules.textual_inversion.manager import TextualInversionManager
+
+        manager = TextualInversionManager(model, placeholder_token, num_vectors)
+        manager.load_checkpoint_textual_inversion(textual_inversion_ckpt, verbose=True)
+        return (model, manager), None
 
     return model, None
 
@@ -294,6 +305,17 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                     global_step = sd_dict["global_step"]
                     print(f"loaded ckpt from global step {global_step}")
                     print(f"Global Step: {sd_dict['global_step']}")
+
+            # FIXME: parameter auto-prefix name bug on mindspore 2.2.10
+            _new_sd_dict = {}
+            for k in sd_dict:
+                if "._backbone" in k:
+                    _index = k.find("._backbone")
+                    new_k = k[:_index] + k[_index + len("._backbone") :]
+                else:
+                    new_k = k[:]
+                _new_sd_dict[new_k] = sd_dict[k]
+            sd_dict = _new_sd_dict
 
             m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 

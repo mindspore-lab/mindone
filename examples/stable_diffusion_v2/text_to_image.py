@@ -23,8 +23,10 @@ from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
+from tools.safety_checker import SafetyChecker
 from utils import model_utils
 from utils.download import download_checkpoint
+from utils.long_prompt import get_text_embeddings
 
 logger = logging.getLogger("text_to_image")
 
@@ -38,6 +40,7 @@ _version_cfg = {
     "1.5-wukong": ("wukong-huahua-ms.ckpt", "v1-inference-chinese.yaml", 512),
 }
 _URL_PREFIX = "https://download.mindspore.cn/toolkits/mindone/stable_diffusion"
+CLIP_CKPT_URL = "https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt"
 _MIN_CKPT_SIZE = 4.0 * 1e9
 
 
@@ -211,6 +214,10 @@ def main(args):
             "dpm_solver_pp",
         ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
 
+    # create safety checker
+    if args.check_safety:
+        safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", ckpt_path=args.clip_ckpt_path)
+
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
@@ -253,12 +260,13 @@ def main(args):
             if args.scale != 1.0:
                 if isinstance(negative_prompts, tuple):
                     negative_prompts = list(negative_prompts)
-                tokenized_negative_prompts = model.tokenize(negative_prompts)
-                uc = model.get_learned_conditioning(tokenized_negative_prompts)
+            else:
+                negative_prompts = None
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
-            tokenized_prompts = model.tokenize(prompts)
-            c = model.get_learned_conditioning(tokenized_prompts)
+            c, uc = get_text_embeddings(
+                model, prompts, negative_prompts, support_long_prompts=args.support_long_prompts
+            )
             shape = [4, args.H // 8, args.W // 8]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
@@ -273,6 +281,8 @@ def main(args):
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+            if args.check_safety:
+                x_samples_ddim, _ = safety_checker(x_samples_ddim)
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
@@ -365,6 +375,12 @@ if __name__ == "__main__":
         type=int,
         default=4,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
+    )
+    parser.add_argument(
+        "--support_long_prompts",
+        default=False,
+        type=str2bool,
+        help="Whether to support long prompts exceeding the context length. If False, it will truncate the text prompts",
     )
     parser.add_argument(
         "--H",
@@ -468,6 +484,23 @@ if __name__ == "__main__":
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
+    parser.add_argument(
+        "--check_safety",
+        action="store_true",
+        help="set this flag to use a safety checker",
+    )
+    parser.add_argument(
+        "--clip_ckpt_path",
+        type=str,
+        default=None,
+        help="path to checkpoint of clip-vit-large-patch14 for safety checker",
+    )
+    parser.add_argument(
+        "--safety_version",
+        type=int,
+        default=2,
+        help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 2",
+    )
     args = parser.parse_args()
 
     # check args
@@ -495,6 +528,14 @@ if __name__ == "__main__":
         if not os.path.exists(args.ckpt_path):
             print(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
+
+    if args.clip_ckpt_path is None:
+        clip_ckpt_name = os.path.basename(CLIP_CKPT_URL)
+        args.clip_ckpt_path = "models/" + clip_ckpt_name
+        if not os.path.exists(args.clip_ckpt_path):
+            print(f"Start downloading checkpoint {clip_ckpt_name} ...")
+            download_checkpoint(CLIP_CKPT_URL, "models/")
+
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])
 
