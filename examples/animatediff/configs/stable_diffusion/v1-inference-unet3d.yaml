@@ -28,14 +28,14 @@ model:
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4, 4 ]
-        num_heads: 8
+        num_heads: 8 # => attn head dim = 320/8 = 40
         use_spatial_transformer: True
         transformer_depth: 1
         context_dim: 768
         use_checkpoint: True
         legacy: False
         use_fp16: True
-        enable_flash_attention: False # TODO: turn it on after adapting to future MS version
+        enable_flash_attention: False # TODO: turn it on after FA bug fixed (noisy result on attn_head_dim=40)
         # Additional. from animatediff v2.yaml. TODO: support v1.yaml
         use_inflated_groupnorm: true
         unet_use_cross_frame_attention: false
