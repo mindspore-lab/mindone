@@ -16,10 +16,10 @@ Textual Inversion is a method to train a pretrained text-to-image model to gener
 </p>
 
 
-As shown above, the textual inversion method consists of following steps:
-- First, it creates a text prompt following some template like "A photo of $S_{*}$", where $S_{*}$ is a placeholder for the new "word" to be learned.
-- Then, the tokenizer will assign a unique index to this placeholder $S_{*}$. This index corresponds to a single embedding vector $v_{*}$ in the emebdding lookup table. Note that $v_{*}$ is trainable while all other parameters are non-trainable.
-- Lastly, compute the loss function of the generator (e.g., stable diffusion model) and the gradients of $v_{*}$. Update the weights in $v_{*}$ during training steps.
+As shown above, the textual inversion method consists of the following steps:
+1. First, it creates a text prompt following some template like **A photo of $S_{*}$**, where $S_{*}$ is a placeholder for the new "word" to be learned.
+2. Then, the tokenizer will assign a unique index to this placeholder. This index corresponds to a single embedding vector $v_{*}$ in the embedding lookup table which is trainable, while all other parameters are non-trainable.
+3. Lastly, compute the loss function of the generator (e.g., stable diffusion model) and the gradients of the single embedding vector, then update the weights in $v_{*}$ during training steps.
 
 
 ## Preparation
@@ -157,6 +157,26 @@ Notice that the training command above gets finetuned textual inversion weights 
     --prompt "a dog in <chinese-art> style" \
     --device_target Ascend \
     --num_cols 4
+  ```
+
+It is also recommended to run inference with an interactive app via streamlit. Please revise the `VERSION2SPECS` in `demo/sampling.py` as the example below (Note that `config` and `textual_inversion_weight` are modified):
+```python
+    "SDXL-base-1.0": {
+        "H": 1024,
+        "W": 1024,
+        "C": 4,
+        "f": 8,
+        "is_legacy": False,
+        "config": "configs/training/sd_xl_base_finetune_textual_inversion.yaml",
+        "ckpt": "checkpoints/sd_xl_base_1.0_ms.ckpt",
+        "textual_inversion_weight": "runs/chinese_art/SD-XL-base-1.0_2000_ti.ckpt",  # or path to another textual inversion weight
+    },
+```
+Then specify the prompt as "a dog in \<chinese-art\> style" in `__main__` of `demo/sampling.py` and run:
+
+  ```shell
+  export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+  streamlit run demo/sampling.py --server.port <your_port>
   ```
 
 ### Object Inference Results

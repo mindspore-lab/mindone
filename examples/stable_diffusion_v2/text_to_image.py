@@ -26,6 +26,7 @@ from ldm.util import instantiate_from_config, str2bool
 from tools.safety_checker import SafetyChecker
 from utils import model_utils
 from utils.download import download_checkpoint
+from utils.long_prompt import get_text_embeddings
 
 logger = logging.getLogger("text_to_image")
 
@@ -267,12 +268,13 @@ def main(args):
             if args.scale != 1.0:
                 if isinstance(negative_prompts, tuple):
                     negative_prompts = list(negative_prompts)
-                tokenized_negative_prompts = model.tokenize(negative_prompts)
-                uc = model.get_learned_conditioning(tokenized_negative_prompts)
+            else:
+                negative_prompts = None
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
-            tokenized_prompts = model.tokenize(prompts)
-            c = model.get_learned_conditioning(tokenized_prompts)
+            c, uc = get_text_embeddings(
+                model, prompts, negative_prompts, support_long_prompts=args.support_long_prompts
+            )
             shape = [4, args.H // 8, args.W // 8]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
@@ -382,6 +384,12 @@ if __name__ == "__main__":
         type=int,
         default=4,
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
+    )
+    parser.add_argument(
+        "--support_long_prompts",
+        default=False,
+        type=str2bool,
+        help="Whether to support long prompts exceeding the context length. If False, it will truncate the text prompts",
     )
     parser.add_argument(
         "--H",

@@ -166,8 +166,6 @@ class Text2ImageDataset:
 
 
 class Text2ImageDatasetDreamBooth:
-    dataset_column_names = ["instance_samples", "class_samples"]
-
     def __init__(
         self,
         instance_data_path,
@@ -179,6 +177,7 @@ class Text2ImageDatasetDreamBooth:
         transforms=None,
         batched_transforms=None,
         tokenizer=None,
+        token_nums=None,
         image_filter_size=0,
         random_crop=False,
         filter_small_size=False,
@@ -188,6 +187,24 @@ class Text2ImageDatasetDreamBooth:
     ):
         super().__init__()
         self.tokenizer = tokenizer
+        self.token_nums = token_nums
+        self.dataset_column_names = ["instance_samples", "class_samples"]
+        if self.tokenizer is None:
+            self.dataset_output_column_names = self.dataset_column_names
+        else:
+            assert token_nums is not None and token_nums > 0
+            instance_l = [
+                "instance_image",
+            ] + [f"instance_token{i}" for i in range(token_nums)]
+
+            class_l = [
+                "class_image",
+            ] + [f"class_token{i}" for i in range(token_nums)]
+
+            self.dataset_output_column_names = []
+            self.dataset_output_column_names.extend(instance_l)
+            self.dataset_output_column_names.extend(class_l)
+
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
@@ -230,9 +247,6 @@ class Text2ImageDatasetDreamBooth:
                     f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
-        if self.tokenizer:
-            raise NotImplementedError
-
     def __getitem__(self, idx):
         # images preprocess
         instance_image_path = self.instance_images[idx]
@@ -250,19 +264,8 @@ class Text2ImageDatasetDreamBooth:
         class_image = np.array(class_image).astype(np.uint8)
 
         # caption preprocess
-        instance_caption = (
-            self.instance_caption
-            if self.tokenizer is None
-            else np.array(self.tokenize(self.instance_caption), dtype=np.int32)
-        )
-        instance_caption = np.array(instance_caption)
-
-        class_caption = (
-            self.class_caption
-            if self.tokenizer is None
-            else np.array(self.tokenize(self.class_caption), dtype=np.int32)
-        )
-        class_caption = np.array(class_caption)
+        instance_caption = np.array(self.instance_caption)
+        class_caption = np.array(self.class_caption)
 
         instance_sample = {
             "image": instance_image,
@@ -324,7 +327,23 @@ class Text2ImageDatasetDreamBooth:
         class_batch_samples = {
             k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in class_batch_samples.items()
         }
-        return instance_batch_samples, class_batch_samples
+
+        if self.tokenizer:
+            instance_batch_samples = {
+                k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in instance_batch_samples.items()
+            }
+            instance_tokens, _ = self.tokenizer(instance_batch_samples)
+            instance_outs = (instance_batch_samples["image"],) + tuple(instance_tokens)
+
+            class_batch_samples = {
+                k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in class_batch_samples.items()
+            }
+            class_tokens, _ = self.tokenizer(class_batch_samples)
+            class_outs = (class_batch_samples["image"],) + tuple(class_tokens)
+            return instance_outs + class_outs
+
+        else:
+            return instance_batch_samples, class_batch_samples
 
     def __len__(self):
         return len(self.instance_images)

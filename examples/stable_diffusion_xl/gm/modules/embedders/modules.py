@@ -1,6 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
-
-from typing import Dict, List, Optional, Union
+from functools import partial
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from gm.modules.diffusionmodules.openaimodel import Timestep
@@ -27,7 +27,7 @@ class AbstractEmbModel(nn.Cell):
         self._input_key = None
 
     def tokenize(self, x):
-        raise NotImplementedError
+        return x, None
 
     @property
     def is_trainable(self) -> bool:
@@ -64,6 +64,12 @@ class AbstractEmbModel(nn.Cell):
     @input_key.deleter
     def input_key(self):
         del self._input_key
+
+    def freeze(self):
+        self.set_train(False)
+        self.set_grad(False)
+        for _, p in self.parameters_and_names():
+            p.requires_grad = False
 
 
 class GeneralConditioner(nn.Cell):
@@ -263,7 +269,6 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
     def freeze(self):
         self.transformer.set_train(False)
         self.transformer.set_grad(False)
-
         for _, p in self.parameters_and_names():
             p.requires_grad = False
 
@@ -310,6 +315,80 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
         # self.transformer.text_model.final_layer_norm.recompute()
 
 
+class FrozenCLIPEmbedder_lora(FrozenCLIPEmbedder):
+    """Lora injection to clip embedder."""
+
+    def __init__(self, *, lora_dim=4, lora_alpha=None, lora_dropout=0.0, lora_merge_weights=True, **kwargs):
+        super(FrozenCLIPEmbedder_lora, self).__init__(**kwargs)
+        from gm.modules.embedders.clip import CLIPAttention
+        from gm.modules.lora import Dense as Dense_lora
+        from gm.modules.lora import mark_only_lora_as_trainable
+
+        for cell_name, cell in self.cells_and_names():
+            if isinstance(cell, CLIPAttention):
+                assert hasattr(cell, "k_proj")
+                query_dim, inner_dim = cell.k_proj.in_channels, cell.k_proj.out_channels
+                cell.k_proj = Dense_lora(
+                    query_dim,
+                    inner_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.k_proj.get_parameters())]
+
+                assert hasattr(cell, "v_proj")
+                context_dim, inner_dim = cell.v_proj.in_channels, cell.v_proj.out_channels
+                cell.v_proj = Dense_lora(
+                    context_dim,
+                    inner_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.v_proj.get_parameters())]
+
+                assert hasattr(cell, "q_proj")
+                context_dim, inner_dim = cell.q_proj.in_channels, cell.q_proj.out_channels
+                cell.q_proj = Dense_lora(
+                    context_dim,
+                    inner_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.q_proj.get_parameters())]
+
+                assert hasattr(cell, "out_proj")
+                inner_dim, query_dim = cell.out_proj.in_channels, cell.out_proj.out_channels
+                cell.out_proj = Dense_lora(
+                    inner_dim,
+                    query_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.out_proj.get_parameters())]
+
+        mark_only_lora_as_trainable(self, bias="none")
+
+        num_param = sum([p.size for _, p in self.parameters_and_names()])
+        num_param_trainable = sum([p.size for p in self.trainable_params()])
+        print(
+            f"FrozenCLIPEmbedder_lora total params: {float(num_param) / 1e9}B, "
+            f"trainable params: {float(num_param_trainable) / 1e6}M."
+        )
+
+    @staticmethod
+    def _prefix_param(prefix, param):
+        if not param.name.startswith(prefix):
+            param.name = f"{prefix}.{param.name}"
+
+
 class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
     """
     Uses the OpenCLIP transformer encoder for text
@@ -330,7 +409,7 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
     ):
         super().__init__()
         assert layer in self.LAYERS
-        self.model = openclip_create_model(arch, pretrained=pretrained, require_pretrained=require_pretrained)
+        self.model = openclip_create_model(arch, pretrained=pretrained)
 
         self.max_length = max_length
         self.return_pooled = always_return_pooled
@@ -344,12 +423,6 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         else:
             raise NotImplementedError()
         self.legacy = legacy
-
-    def freeze(self):
-        self.model.set_train(False)
-        self.model.set_grad(False)
-        for _, p in self.parameters_and_names():
-            p.requires_grad = False
 
     def tokenize(self, text):
         tokens, lengths = openclip_tokenize(text)
@@ -409,6 +482,164 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         return self(text)
 
 
+class FrozenOpenCLIPEmbedder2_lora(FrozenOpenCLIPEmbedder2):
+    """Lora injection to openclip embedder.
+    Currently only support injection to dense layers in attention modules."""
+
+    def __init__(self, *, lora_dim=4, lora_alpha=None, lora_dropout=0.0, lora_merge_weights=True, **kwargs):
+        super(FrozenOpenCLIPEmbedder2_lora, self).__init__(**kwargs)
+        from gm.modules.embedders.open_clip.transformer import MultiheadAttention
+        from gm.modules.lora import Dense as Dense_lora
+        from gm.modules.lora import mark_only_lora_as_trainable
+
+        for cell_name, cell in self.cells_and_names():
+            if isinstance(cell, MultiheadAttention):
+                assert hasattr(cell, "out_proj")
+                inner_dim, query_dim = cell.out_proj.in_channels, cell.out_proj.out_channels
+                cell.out_proj = Dense_lora(
+                    inner_dim,
+                    query_dim,
+                    r=lora_dim,
+                    lora_alpha=lora_alpha,
+                    lora_dropout=lora_dropout,
+                    merge_weights=lora_merge_weights,
+                )
+                _ = [_ for _ in map(partial(self._prefix_param, cell_name), cell.out_proj.get_parameters())]
+
+        mark_only_lora_as_trainable(self, bias="none")
+
+        num_param = sum([p.size for _, p in self.parameters_and_names()])
+        num_param_trainable = sum([p.size for p in self.trainable_params()])
+        print(
+            f"FrozenOpenCLIPEmbedder2_lora total params: {float(num_param) / 1e9}B, "
+            f"trainable params: {float(num_param_trainable) / 1e6}M."
+        )
+
+    @staticmethod
+    def _prefix_param(prefix, param):
+        if not param.name.startswith(prefix):
+            param.name = f"{prefix}.{param.name}"
+
+
+class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
+    """
+    Uses the OpenCLIP vision transformer encoder for images
+    """
+
+    def __init__(
+        self,
+        arch="ViT-H-14",
+        version: str = "",
+        max_length=77,
+        freeze=True,
+        antialias=True,
+        ucg_rate=0.0,
+        unsqueeze_dim=False,
+        repeat_to_max_len=False,
+        num_image_crops=0,
+        output_tokens=False,
+    ):
+        super().__init__()
+        model = openclip_create_model(arch, pretrained=version)
+        del model.transformer
+        self.model = model
+        self.max_crops = num_image_crops
+        self.pad_to_max_len = self.max_crops > 0
+        self.repeat_to_max_len = repeat_to_max_len and (not self.pad_to_max_len)
+        self.max_length = max_length
+        if freeze:
+            self.freeze()
+
+        self.antialias = antialias
+
+        self.mean = Tensor(np.expand_dims([0.48145466, 0.4578275, 0.40821073], axis=(0, 2, 3)).astype(np.float32))
+        self.std = Tensor(np.expand_dims([0.26862954, 0.26130258, 0.27577711], axis=(0, 2, 3)).astype(np.float32))
+
+        self.ucg_rate = ucg_rate
+        self.unsqueeze_dim = unsqueeze_dim
+        self.stored_batch = None
+        self.model.visual.output_tokens = output_tokens
+        self.output_tokens = output_tokens
+
+    def preprocess(self, x):
+        # FIXME: antialias is not supported
+        x = ops.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
+        # normalize to [0,1]
+        x = (x + 1.0) / 2.0
+        # renormalize according to clip
+        x = (x - self.mean) / self.std
+        return x
+
+    def construct(self, image: Tensor, no_dropout: bool = False):
+        z = self.encode_with_vision_transformer(image)
+        tokens = None
+
+        if self.output_tokens:
+            z, tokens = z[0], z[1]
+        z = z.to(image.dtype)
+
+        if self.ucg_rate > 0.0 and not no_dropout and not (self.max_crops > 0):
+            z = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(z.shape[0], dtype=z.dtype)).expand_dims(-1) * z
+            if tokens is not None:
+                tokens = (
+                    expand_dims_like(
+                        ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(tokens.shape[0], dtype=tokens.dtype)), tokens
+                    )
+                    * tokens
+                )
+
+        if self.unsqueeze_dim:
+            z = z.expand_dims(1)
+
+        if self.output_tokens:
+            assert not self.repeat_to_max_len
+            assert not self.pad_to_max_len
+            return tokens, z
+
+        if self.repeat_to_max_len:
+            z_ = z.expand_dims(1) if z.ndim == 2 else z
+            return z_.repeat(self.max_length, axis=1), z
+
+        elif self.pad_to_max_len:
+            assert z.ndim == 3
+            z_pad = ops.cat(
+                (z, ops.zeros((z.shape[0], self.max_length - z.shape[1], z.shape[2]), dtype=z.dtype)), axis=1
+            )
+            return z_pad, z_pad[:, 0, ...]
+
+        return z
+
+    def encode_with_vision_transformer(self, img: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if img.ndim == 5:
+            assert self.max_crops == img.shape[1]
+            img = img.reshape(-1, *img.shape[2:])  # b n c h w -> (b n) c h w
+        img = self.preprocess(img)
+        if not self.output_tokens:
+            assert not self.model.visual.output_tokens
+            x = self.model.visual(img)
+            tokens = None
+        else:
+            assert self.model.visual.output_tokens
+            x, tokens = self.model.visual(img)
+        if self.max_crops > 0:
+            x = x.reshape(-1, self.max_crops, x.shape[-1])  # (b n) d -> b n d
+            # drop out between 0 and all along the sequence axis
+            x = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones((x.shape[0], x.shape[1], 1), dtype=x.dtype)) * x
+            if tokens is not None:
+                tokens = tokens.reshape(-1, self.max_crops, *tokens.shape[1:]).swapaxes(1, 2)  # (b n) t d -> b t n d
+                tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)  # b t n d -> b t (n d)
+                ops.print_(
+                    f"You are running very experimental token-concat in {self.__class__.__name__}. "
+                    f"Check what you are doing, and then remove this message."
+                )
+        if self.output_tokens:
+            return x, tokens
+        return x
+
+    def encode(self, text):
+        return self(text)
+
+
 class ConcatTimestepEmbedderND(AbstractEmbModel):
     """embeds each dimension independently and concatenates them"""
 
@@ -433,9 +664,6 @@ class ConcatTimestepEmbedderND(AbstractEmbModel):
         emb = emb.view(b, dims, self.outdim).view(b, -1)
 
         return emb
-
-    def tokenize(self, x):
-        return x, None
 
 
 class FrozenOpenCLIPEmbedder2_CLIPTokenizer(FrozenOpenCLIPEmbedder2):
