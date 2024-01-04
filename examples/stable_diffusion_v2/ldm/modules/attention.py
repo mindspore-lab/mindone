@@ -68,7 +68,7 @@ class FeedForward(nn.Cell):
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
         project_in = (
-            nn.Sequential(nn.Dense(dim, inner_dim).to_float(dtype), nn.GELU().to_float(dtype))
+            nn.SequentialCell(nn.Dense(dim, inner_dim).to_float(dtype), nn.GELU().to_float(dtype))
             if not glu
             else GEGLU(dim, inner_dim, dtype=dtype)
         )
@@ -136,7 +136,7 @@ class CrossAttention(nn.Cell):
             nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
         )
         self.use_flash_attention = (
-            enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
+            enable_flash_attention and FLASH_IS_AVAILABLE and (ms.get_context("device_target") == "Ascend")
         )
         if enable_flash_attention and not self.use_flash_attention:
             print("WARNING: flash attention is set to enable but not available.")

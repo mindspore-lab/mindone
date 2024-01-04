@@ -123,18 +123,10 @@ class AttnBlock(nn.Cell):
         self.attn_dtype = attn_dtype
 
         self.norm = Normalize(in_channels)
-        self.q = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.k = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.v = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
     def attention(self, h_: Tensor) -> Tensor:
         h_ = self.norm(h_)
@@ -179,18 +171,10 @@ class MemoryEfficientAttnBlock(nn.Cell):
         self.attn_dtype = attn_dtype
 
         self.norm = Normalize(in_channels)
-        self.q = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.k = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.v = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
         self.flash_attention = FlashAttention()
 

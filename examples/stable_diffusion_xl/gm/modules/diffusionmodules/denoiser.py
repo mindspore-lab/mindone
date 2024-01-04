@@ -9,7 +9,7 @@ from mindspore import Tensor, nn, ops
 class Denoiser(nn.Cell):
     def __init__(self, weighting_config, scaling_config):
         super(Denoiser, self).__init__()
-        self.weighting = instantiate_from_config(weighting_config)
+        self.weighting = instantiate_from_config(weighting_config) if weighting_config is not None else None
         self.scaling = instantiate_from_config(scaling_config)
 
     def possibly_quantize_sigma(self, sigma):
@@ -43,7 +43,7 @@ class DiscreteDenoiser(Denoiser):
         quantize_c_noise=True,
         flip=True,
     ):
-        super(DiscreteDenoiser, self).__init__(weighting_config, scaling_config)
+        super().__init__(weighting_config, scaling_config)
         sigmas = instantiate_from_config(discretization_config)(num_idx, do_append_zero=do_append_zero, flip=flip)
         self.sigmas = Tensor(sigmas, ms.float32)
         self.quantize_c_noise = quantize_c_noise

@@ -1,6 +1,7 @@
 # reference to https://github.com/Stability-AI/generative-models
+from typing import Tuple
 
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 
 class EDMScaling(nn.Cell):
@@ -31,4 +32,13 @@ class VScaling(nn.Cell):
         c_out = -sigma / (sigma**2 + 1.0) ** 0.5
         c_in = 1.0 / (sigma**2 + 1.0) ** 0.5
         c_noise = sigma.copy()
+        return c_skip, c_out, c_in, c_noise
+
+
+class VScalingWithEDMcNoise(nn.Cell):
+    def construct(self, sigma: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        c_skip = 1.0 / (sigma**2 + 1.0)
+        c_out = -sigma / (sigma**2 + 1.0) ** 0.5
+        c_in = 1.0 / (sigma**2 + 1.0) ** 0.5
+        c_noise = 0.25 * sigma.log()
         return c_skip, c_out, c_in, c_noise
