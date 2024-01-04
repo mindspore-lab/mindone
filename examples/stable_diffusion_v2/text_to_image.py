@@ -174,7 +174,8 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
+    # ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, device_id=device_id, max_device_memory="30GB") # only for 910a
+    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, device_id=device_id)
 
     set_random_seed(args.seed)
 
@@ -216,6 +217,13 @@ def main(args):
 
     # create safety checker
     if args.check_safety:
+        if args.clip_ckpt_path is None:
+            clip_ckpt_name = os.path.basename(CLIP_CKPT_URL)
+            args.clip_ckpt_path = "models/" + clip_ckpt_name
+            if not os.path.exists(args.clip_ckpt_path):
+                print(f"Start downloading checkpoint {clip_ckpt_name} ...")
+                download_checkpoint(CLIP_CKPT_URL, "models/")
+
         safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", ckpt_path=args.clip_ckpt_path)
 
     # log
@@ -309,6 +317,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
+    parser.add_argument("--device_target", type=str, nargs="?", default="Ascend", help="Ascend, GPU")
     parser.add_argument(
         "--data_path",
         type=str,
@@ -528,13 +537,6 @@ if __name__ == "__main__":
         if not os.path.exists(args.ckpt_path):
             print(f"Start downloading checkpoint {ckpt_name} ...")
             download_checkpoint(os.path.join(_URL_PREFIX, ckpt_name), "models/")
-
-    if args.clip_ckpt_path is None:
-        clip_ckpt_name = os.path.basename(CLIP_CKPT_URL)
-        args.clip_ckpt_path = "models/" + clip_ckpt_name
-        if not os.path.exists(args.clip_ckpt_path):
-            print(f"Start downloading checkpoint {clip_ckpt_name} ...")
-            download_checkpoint(CLIP_CKPT_URL, "models/")
 
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])

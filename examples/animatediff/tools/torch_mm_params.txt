@@ -1,0 +1,588 @@
+down_blocks.0.motion_modules.0.temporal_transformer.norm.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.norm.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.proj_in.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.proj_in.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(320, 1280)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.proj_out.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.0.temporal_transformer.proj_out.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.norm.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.norm.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.proj_in.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.proj_in.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(320, 1280)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(320,)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.proj_out.weight#(320, 320)#torch.float32
+down_blocks.0.motion_modules.1.temporal_transformer.proj_out.bias#(320,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.norm.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.norm.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.proj_in.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.proj_in.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(640, 2560)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.proj_out.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.0.temporal_transformer.proj_out.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.norm.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.norm.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.proj_in.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.proj_in.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(640, 2560)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(640,)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.proj_out.weight#(640, 640)#torch.float32
+down_blocks.1.motion_modules.1.temporal_transformer.proj_out.bias#(640,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.norm.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.norm.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.0.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.norm.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.norm.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+down_blocks.2.motion_modules.1.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.norm.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.norm.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.0.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.norm.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.norm.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+down_blocks.3.motion_modules.1.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.norm.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.norm.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.0.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.norm.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.norm.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.1.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.norm.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.norm.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+up_blocks.0.motion_modules.2.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.norm.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.norm.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.0.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.norm.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.norm.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.1.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.norm.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.norm.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+up_blocks.1.motion_modules.2.temporal_transformer.proj_out.bias#(1280,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.norm.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.norm.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.proj_in.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.proj_in.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(640, 2560)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.proj_out.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.0.temporal_transformer.proj_out.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.norm.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.norm.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.proj_in.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.proj_in.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(640, 2560)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.proj_out.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.1.temporal_transformer.proj_out.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.norm.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.norm.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.proj_in.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.proj_in.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(5120, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(5120,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(640, 2560)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.weight#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.bias#(640,)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.proj_out.weight#(640, 640)#torch.float32
+up_blocks.2.motion_modules.2.temporal_transformer.proj_out.bias#(640,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.norm.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.norm.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.proj_in.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.proj_in.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(320, 1280)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.proj_out.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.0.temporal_transformer.proj_out.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.norm.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.norm.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.proj_in.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.proj_in.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.norms.1.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(320, 1280)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.transformer_blocks.0.ff_norm.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.proj_out.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.1.temporal_transformer.proj_out.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.norm.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.norm.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.proj_in.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.proj_in.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.0.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.norms.1.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(2560, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(2560,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(320, 1280)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.weight#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.transformer_blocks.0.ff_norm.bias#(320,)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.proj_out.weight#(320, 320)#torch.float32
+up_blocks.3.motion_modules.2.temporal_transformer.proj_out.bias#(320,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.norm.weight#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.norm.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.proj_in.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.proj_in.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_q.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_k.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_v.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.to_out.0.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.0.pos_encoder.pe#(1, 32, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_q.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_k.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_v.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.to_out.0.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.attention_blocks.1.pos_encoder.pe#(1, 32, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.weight#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.0.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.weight#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.norms.1.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.weight#(10240, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.0.proj.bias#(10240,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.weight#(1280, 5120)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.ff.net.2.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.weight#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.transformer_blocks.0.ff_norm.bias#(1280,)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.proj_out.weight#(1280, 1280)#torch.float32
+mid_block.motion_modules.0.temporal_transformer.proj_out.bias#(1280,)#torch.float32
