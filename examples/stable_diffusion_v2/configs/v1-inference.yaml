@@ -28,8 +28,9 @@ model:
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4, 4 ]
-        num_heads: 8
+        num_heads: 8 # num of attention head, => head dim will be 320 / 8 = 40, not divisable by 16
         use_spatial_transformer: True
+        enable_flash_attention: False
         transformer_depth: 1
         context_dim: 768
         use_checkpoint: True
