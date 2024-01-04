@@ -141,5 +141,5 @@ def count_params(model, verbose=False):
     trainable_params = sum([param.size for param in model.get_parameters() if param.requires_grad])
 
     if verbose:
-        print(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
+        logger.info(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
     return total_params, trainable_params
