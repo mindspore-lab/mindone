@@ -112,7 +112,7 @@ class FeedForward(nn.Cell):
         # project out
         self.net.append(nn.Dense(inner_dim, dim_out).to_float(dtype))
 
-    def construct(self, hidden_states: ms.Tensor, scale: float = 1.0) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         # TODO: simple use self.net(x)?
         for module in self.net:
             hidden_states = module(hidden_states)
