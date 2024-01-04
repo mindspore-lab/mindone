@@ -141,13 +141,13 @@ def load_model_from_config(config, ckpt, **kwargs):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+        "--ms_mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument(
         "--video_path",
         type=str,
         nargs="?",
-        default="",
+        default="videos/jeep.mp4",
         help="the source (reference) video path.",
     )
     parser.add_argument("--num_frames", default=8, type=int, help="the number of sampled frames from the input video")
@@ -163,14 +163,14 @@ def parse_args():
         "--version",
         type=str,
         nargs="?",
-        default="2.1",
+        default="2.0",
         help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
     )
-    parser.add_argument("--source_prompt", type=str, nargs="?", default="", help="")
-    parser.add_argument("--target_prompt", type=str, nargs="?", default="", help="")
+    parser.add_argument("--source_prompt", type=str, nargs="?", default="a silver jeep driving down a curvy road in the countryside", help="")
+    parser.add_argument("--target_prompt", type=str, nargs="?", default="a Porsche car driving down a curvy road in the countryside", help="")
     # todo negative_prompt
     # parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
-    parser.add_argument("--output_path", type=str, nargs="?", default="output", help="dir to write results to")
+    parser.add_argument("--output_path", type=str, nargs="?", default="output/", help="dir to write results to")
     parser.add_argument(
         "--skip_save",
         action="store_true",
@@ -180,7 +180,7 @@ def parse_args():
     parser.add_argument(
         "--sampling_steps",
         type=int,
-        default=20,
+        default=50,
         help="number of ddim sampling steps. The recommended value is 50 for PLMS, DDIM and 20 for UniPC,DPM-Solver, DPM-Solver++",
     )
     parser.add_argument(
@@ -265,14 +265,14 @@ def parse_args():
     parser.add_argument(
         "--config",
         type=str,
-        default="",
+        default="configs/v2-interface-fatezero-model.yaml",
         help="path to config which constructs model. If None, select by version",
     )
 
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="models/sd_v2_base-57526ee4.ckpt",
+        default="sd-500.ckpt",
         help="path to checkpoint of model",
     )
     parser.add_argument(
