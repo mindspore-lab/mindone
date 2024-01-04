@@ -19,6 +19,13 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
+try:
+    from transformers import CLIPTokenizer
+
+    _transformers_installed = True
+except ImportError:
+    _transformers_installed = False
+
 import ftfy
 import regex as re
 
@@ -330,12 +337,19 @@ class WordpieceTokenizer(object):
         return text
 
 
-def get_tokenizer(tokenizer_name):
+def get_tokenizer(tokenizer_name, version=None):
     if tokenizer_name == "WordpieceTokenizer":
         tokenizer = WordpieceTokenizer()
         _logger.debug("Using tokenizer `WordPieceTokenizer`")
     elif tokenizer_name == "BpeTokenizer":
         tokenizer = BpeTokenizer()
+    elif tokenizer_name == "CLIPTokenizer":
+        if _transformers_installed:
+            if version is None:
+                raise ValueError("`version` must not be None for `CLIPTokenizer`")
+            tokenizer = CLIPTokenizer.from_pretrained(version)
+        else:
+            raise RuntimeError("To use `CLIPTokenizer`, you must install `transformers` first.")
     else:
         raise NotImplementedError(f"tokenizer {tokenizer_name} not implemented")
     return tokenizer

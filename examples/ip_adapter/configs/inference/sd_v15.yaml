@@ -22,3 +22,9 @@ model:
         num_tokens: 4
         mlp_ratio: 4.0
         use_fp16: True
+
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
+      params:
+        tokenizer_name: CLIPTokenizer
+        version: openai/clip-vit-large-patch14

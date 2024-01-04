@@ -30,11 +30,13 @@ class FrozenCLIPEmbedder(nn.Cell):
         epsilon=1e-5,
         use_quick_gelu=False,
         upcast_attn=False,
+        version=None,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.context_length = context_length
-        self.tokenizer = get_tokenizer(tokenizer_name)
+        self.tokenizer_name = tokenizer_name
+        self.tokenizer = get_tokenizer(tokenizer_name, version=version)
         setattr(self.tokenizer, "context_length", context_length)
 
         self.transformer = TextEncoder(
@@ -51,6 +53,9 @@ class FrozenCLIPEmbedder(nn.Cell):
         )
 
     def tokenize(self, texts):
+        if self.tokenizer_name == "CLIPTokenizer":
+            return self._clip_tokenize(texts)
+
         SOT_TEXT = self.tokenizer.sot_text
         EOT_TEXT = self.tokenizer.eot_text
         CONTEXT_LEN = self.context_length
@@ -70,6 +75,18 @@ class FrozenCLIPEmbedder(nn.Cell):
             result[i, : len(tokens)] = np.array(tokens, np.int64)
 
         return Tensor(result)
+
+    def _clip_tokenize(self, texts):
+        batch_encoding = self.tokenizer(
+            texts,
+            truncation=True,
+            max_length=self.context_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = ms.Tensor(batch_encoding["input_ids"], ms.int32)
+        return tokens
 
     def encode(self, tokenized_text):
         outputs = self.transformer(tokenized_text)
