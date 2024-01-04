@@ -18,7 +18,7 @@ model:
     parameterization: "eps"
 
     unet_config:
-      target: ldm.modules.tuneavideo.UNetModel3D
+      target: modules.tuneavideo.UNetModel3D
       params:
         image_size: 32 # unused
         in_channels: 4

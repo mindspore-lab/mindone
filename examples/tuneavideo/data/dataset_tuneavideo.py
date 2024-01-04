@@ -14,9 +14,12 @@
 # ============================================================================
 
 import os
+import sys
 
 import cv2
 import numpy as np
+
+sys.path.append("../stable_diffusion_v2")  # FIXME: loading modules from the stable_diffusion_v2 directory
 from ldm.data.dataset import MetaLoader, build_dataloader_ft
 from ldm.data.t2i_collate import data_column, t2i_collate
 
