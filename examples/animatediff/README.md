@@ -56,9 +56,11 @@ By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
 Results:
 
 <p float="left">
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/aca5174f-e0b6-4756-83ca-c049b120ba3b" width="25%" />
-<img src="https://github.com/SamitHuang/mindone/assets/8156835/fba8cd8c-7098-4193-8aa3-ff0c6fd056fe" width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/9d6ef65f-223d-407c-bc85-a852d3594934 width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/40dbe614-ccc6-4567-ab53-099cb8d61ebc width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/fb9e2069-041a-4e81-b88e-ccdcfa8afd32 width="25%" />
 </p>
+
 
 - Running on GPU:
 ```
@@ -76,8 +78,9 @@ By default, DDIM sampling is used, and the sampling speed is 1.07s/iter.
 Results using Zoom-In motion lora:
 
 <p float="left">
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/f74280ca-a8c6-468a-909b-6189b6677c22 width="25%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/c56c32c4-49b5-4898-9964-22f5bdd4c59c width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/9357b2e4-0479-4afa-a28b-7a121aba865e width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/f8ff1d2a-20d8-447d-89b2-fd94430db7a4 width="25%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/d4d947a3-4d10-4c7e-b134-a725269037c3 width="25%" />
 </p>
 
 
