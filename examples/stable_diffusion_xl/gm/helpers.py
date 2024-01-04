@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from typing import List, Union
@@ -26,6 +27,8 @@ from PIL import Image
 import mindspore as ms
 from mindspore import Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
+
+_logger = logging.getLogger(__name__)
 
 
 class BroadCast(nn.Cell):
@@ -286,9 +289,9 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
 
-    if not isinstance(model, DiffusionEngineMultiGraph):
-        if ckpts:
-            print(f"Loading model from {ckpts}")
+    if ckpts:
+        logging.info(f"Loading model from {ckpts}")
+        if not isinstance(model, DiffusionEngineMultiGraph):
             if isinstance(ckpts, str):
                 ckpts = [ckpts]
 
@@ -325,12 +328,13 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                 print("unexpected keys:")
                 print(u)
         else:
-            print(f"Warning: Loading checkpoint from {ckpts} fail")
+            model.load_pretrained(ckpts, verbose=verbose)
+    else:
+        logging.warning("No checkpoints were provided.")
 
+    if not isinstance(model, DiffusionEngineMultiGraph):
         model = auto_mixed_precision(model, amp_level=amp_level)
         model.set_train(False)
-    else:
-        model.load_pretrained(ckpts, verbose=verbose)
 
     return model
 

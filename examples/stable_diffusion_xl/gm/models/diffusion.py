@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Union
 import numpy as np
 from gm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
 from gm.modules import UNCONDITIONAL_CONFIG
-from gm.modules.diffusionmodules.wrappers import OPENAIUNETWRAPPER
+from gm.modules.diffusionmodules.wrappers import OpenAIWrapper
 from gm.util import append_dims, default, get_obj_from_str, instantiate_from_config
 from omegaconf import ListConfig, OmegaConf
 
@@ -43,11 +43,12 @@ class DiffusionEngine(nn.Cell):
 
         if network_config is not None:
             model = instantiate_from_config(network_config)
-            self.model = get_obj_from_str(default(network_wrapper, OPENAIUNETWRAPPER))(model)
+            self.model = (get_obj_from_str(network_wrapper) if network_wrapper is not None else OpenAIWrapper)(model)
         else:
             self.model = None
 
         self.denoiser = instantiate_from_config(denoiser_config)
+        self.sampler = instantiate_from_config(sampler_config) if sampler_config is not None else None
         self.conditioner = instantiate_from_config(default(conditioner_config, UNCONDITIONAL_CONFIG))
         self.first_stage_model = self.init_freeze_first_stage(first_stage_config)
 
