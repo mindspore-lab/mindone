@@ -145,7 +145,7 @@ class CrossAttention(nn.Cell):
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
-
+        )
         if self.enable_flash_attention:
             self.flash_attention = FlashAttention(
                 head_dim=dim_head, head_num=heads, high_precision=True
