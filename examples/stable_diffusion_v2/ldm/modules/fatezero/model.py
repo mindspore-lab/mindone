@@ -5,8 +5,7 @@
 import logging
 
 import numpy as np
-from ldm.modules.attention import FeedForward, default
-from ldm.modules.attention import Attention, CrossAttention
+from ldm.modules.attention import Attention, CrossAttention, FeedForward, default
 from ldm.modules.diffusionmodules.util import Identity, linear, timestep_embedding
 from ldm.util import is_old_ms_version
 
@@ -124,18 +123,18 @@ class SparseCausalAttention(CrossAttention):
 
 class BasicTransformerBlock_ST(nn.Cell):
     def __init__(
-            self,
-            dim,
-            n_heads,
-            d_head,
-            dropout=1.0,
-            context_dim=None,
-            gated_ff=True,
-            checkpoint=True,
-            dtype=ms.float32,
-            enable_flash_attention=False,
-            cross_frame_attention=False,
-            unet_chunk_size=2,
+        self,
+        dim,
+        n_heads,
+        d_head,
+        dropout=1.0,
+        context_dim=None,
+        gated_ff=True,
+        checkpoint=True,
+        dtype=ms.float32,
+        enable_flash_attention=False,
+        cross_frame_attention=False,
+        unet_chunk_size=2,
     ):
         super().__init__()
         assert not cross_frame_attention, "expect to have cross_frame_attention to be False"
@@ -148,7 +147,7 @@ class BasicTransformerBlock_ST(nn.Cell):
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
         )  # is a self-attention
-        self.attn1.attention_type = 'SparseCausalAttention'
+        self.attn1.attention_type = "SparseCausalAttention"
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
 
         self.attn2 = CrossAttention(
@@ -159,9 +158,8 @@ class BasicTransformerBlock_ST(nn.Cell):
             dropout=dropout,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
-
         )  # is self-attn if context is none
-        self.attn2.attention_type = 'CrossAttention'
+        self.attn2.attention_type = "CrossAttention"
 
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
@@ -204,19 +202,19 @@ class SpatialTransformer3D(nn.Cell):
     """
 
     def __init__(
-            self,
-            in_channels,
-            n_heads,
-            d_head,
-            depth=1,
-            dropout=1.0,
-            context_dim=None,
-            use_checkpoint=True,
-            use_linear=False,
-            dtype=ms.float32,
-            enable_flash_attention=False,
-            cross_frame_attention=False,
-            unet_chunk_size=2,
+        self,
+        in_channels,
+        n_heads,
+        d_head,
+        depth=1,
+        dropout=1.0,
+        context_dim=None,
+        use_checkpoint=True,
+        use_linear=False,
+        dtype=ms.float32,
+        enable_flash_attention=False,
+        cross_frame_attention=False,
+        unet_chunk_size=2,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -470,18 +468,18 @@ class ResnetBlock3D(nn.Cell):
     """
 
     def __init__(
-            self,
-            channels,
-            emb_channels,
-            dropout=1.0,
-            out_channels=None,
-            use_conv=False,
-            use_scale_shift_norm=False,
-            dims=2,
-            use_checkpoint=False,
-            up=False,
-            down=False,
-            dtype=ms.float32,
+        self,
+        channels,
+        emb_channels,
+        dropout=1.0,
+        out_channels=None,
+        use_conv=False,
+        use_scale_shift_norm=False,
+        dims=2,
+        use_checkpoint=False,
+        up=False,
+        down=False,
+        dtype=ms.float32,
     ):
         super().__init__()
         self.channels = channels
@@ -583,12 +581,12 @@ class AttentionBlock(nn.Cell):
     """
 
     def __init__(
-            self,
-            channels,
-            num_heads=1,
-            num_head_channels=-1,
-            use_checkpoint=False,
-            use_new_attention_order=False,
+        self,
+        channels,
+        num_heads=1,
+        num_head_channels=-1,
+        use_checkpoint=False,
+        use_new_attention_order=False,
     ):
         super().__init__()
 
@@ -633,41 +631,41 @@ class UNetModel3D(nn.Cell):
     """
 
     def __init__(
-            self,
-            image_size,
-            in_channels,
-            model_channels,
-            out_channels,
-            num_res_blocks,
-            attention_resolutions,
-            dropout=0.0,
-            channel_mult=(1, 2, 4, 8),
-            conv_resample=True,
-            dims=3,
-            num_classes=None,
-            use_checkpoint=False,
-            use_fp16=False,
-            num_heads=-1,
-            num_head_channels=-1,
-            num_heads_upsample=-1,
-            use_scale_shift_norm=False,
-            resblock_updown=False,
-            use_new_attention_order=False,
-            use_spatial_transformer=False,  # custom transformer support
-            transformer_depth=1,  # custom transformer support
-            context_dim=None,  # custom transformer support
-            n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
-            legacy=True,
-            use_linear_in_transformer=False,
-            enable_flash_attention=False,
-            adm_in_channels=None,
-            use_recompute=False,
+        self,
+        image_size,
+        in_channels,
+        model_channels,
+        out_channels,
+        num_res_blocks,
+        attention_resolutions,
+        dropout=0.0,
+        channel_mult=(1, 2, 4, 8),
+        conv_resample=True,
+        dims=3,
+        num_classes=None,
+        use_checkpoint=False,
+        use_fp16=False,
+        num_heads=-1,
+        num_head_channels=-1,
+        num_heads_upsample=-1,
+        use_scale_shift_norm=False,
+        resblock_updown=False,
+        use_new_attention_order=False,
+        use_spatial_transformer=False,  # custom transformer support
+        transformer_depth=1,  # custom transformer support
+        context_dim=None,  # custom transformer support
+        n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
+        legacy=True,
+        use_linear_in_transformer=False,
+        enable_flash_attention=False,
+        adm_in_channels=None,
+        use_recompute=False,
     ):
         super().__init__()
 
         if use_spatial_transformer:
             assert (
-                    context_dim is not None
+                context_dim is not None
             ), "Fool!! You forgot to include the dimension of your cross-attention conditioning..."
 
         if context_dim is not None:
@@ -972,8 +970,7 @@ class UNetModel3D(nn.Cell):
                 oblock.recompute(parallel_optimizer_comm_recompute=True)
 
     def construct(
-            self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None,
-            **kwargs
+        self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs
     ):
         """
         Apply the model to an input batch.
@@ -984,7 +981,7 @@ class UNetModel3D(nn.Cell):
         :return: an [N x C x ...] Tensor of outputs.
         """
         assert (y is not None) == (
-                self.num_classes is not None
+            self.num_classes is not None
         ), "must specify y if and only if the model is class-conditional"
         hs = []
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)

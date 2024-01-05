@@ -1,10 +1,11 @@
-from ldm.models.diffusion.ddim import DDIMSampler as BaseDDIMSampler
 import numpy as np
+from ldm.models.diffusion.ddim import DDIMSampler as BaseDDIMSampler
 from tqdm import tqdm
+
 import mindspore as ms
 
-from .p2p import register_attention_control
 from ..diffusionmodules.util import noise_like
+from .p2p import register_attention_control
 
 
 class DDIMSampler(BaseDDIMSampler):
@@ -14,7 +15,7 @@ class DDIMSampler(BaseDDIMSampler):
         self.controller = controller
         register_attention_control(model, controller)
 
-    def pre_sample(self,model, controller=None):
+    def pre_sample(self, model, controller=None):
         self.controller.is_invert = False
         self.edit_controller = controller
         register_attention_control(model, controller)
@@ -23,23 +24,23 @@ class DDIMSampler(BaseDDIMSampler):
         self.edit_controller.pos_dict = self.controller.pos_dict
 
     def p_sample_ddim(
-            self,
-            x,
-            c,
-            t,
-            index,
-            repeat_noise=False,
-            use_original_steps=False,
-            quantize_denoised=False,
-            temperature=1.0,
-            noise_dropout=0.0,
-            score_corrector=None,
-            corrector_kwargs=None,
-            unconditional_guidance_scale=1.0,
-            unconditional_conditioning=None,
-            dynamic_threshold=None,
-            features_adapter=None,
-            append_to_context=None,
+        self,
+        x,
+        c,
+        t,
+        index,
+        repeat_noise=False,
+        use_original_steps=False,
+        quantize_denoised=False,
+        temperature=1.0,
+        noise_dropout=0.0,
+        score_corrector=None,
+        corrector_kwargs=None,
+        unconditional_guidance_scale=1.0,
+        unconditional_conditioning=None,
+        dynamic_threshold=None,
+        features_adapter=None,
+        append_to_context=None,
     ):
         b = x.shape[0]
         print("index:", index)
@@ -114,7 +115,7 @@ class DDIMSampler(BaseDDIMSampler):
             raise NotImplementedError()
 
         # direction pointing to x_t
-        dir_xt = (1.0 - a_prev - sigma_t ** 2).sqrt() * e_t
+        dir_xt = (1.0 - a_prev - sigma_t**2).sqrt() * e_t
         noise = sigma_t * noise_like(x.shape, repeat_noise) * temperature
         if noise_dropout > 0.0:
             noise, _ = ms.ops.dropout(noise, p=noise_dropout)
@@ -123,15 +124,15 @@ class DDIMSampler(BaseDDIMSampler):
         return x_prev, pred_x0
 
     def encode(
-            self,
-            x0,
-            c,
-            t_enc,
-            use_original_steps=False,
-            return_intermediates=None,
-            unconditional_guidance_scale=1.0,
-            unconditional_conditioning=None,
-            callback=None,
+        self,
+        x0,
+        c,
+        t_enc,
+        use_original_steps=False,
+        return_intermediates=None,
+        unconditional_guidance_scale=1.0,
+        unconditional_conditioning=None,
+        callback=None,
     ):
         num_reference_steps = self.ddpm_num_timesteps if use_original_steps else self.ddim_timesteps.shape[0]
 
@@ -164,7 +165,7 @@ class DDIMSampler(BaseDDIMSampler):
 
             xt_weighted = (alphas_next[i] / alphas[i]).sqrt() * x_next
             weighted_noise_pred = (
-                    alphas_next[i].sqrt() * ((1 / alphas_next[i] - 1).sqrt() - (1 / alphas[i] - 1).sqrt()) * noise_pred
+                alphas_next[i].sqrt() * ((1 / alphas_next[i] - 1).sqrt() - (1 / alphas[i] - 1).sqrt()) * noise_pred
             )
             x_next = xt_weighted + weighted_noise_pred
             if return_intermediates and i % (num_steps // return_intermediates) == 0 and i < num_steps - 1:

@@ -26,8 +26,8 @@ import logging
 import os
 import sys
 import time
-import cv2
 
+import cv2
 import imageio
 import numpy as np
 from omegaconf import OmegaConf
@@ -36,18 +36,18 @@ from PIL import Image
 import mindspore as ms
 
 from examples.stable_diffusion_v2.ldm.modules.fatezero.blend import SpatialBlender
-from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionStore, AttentionControlReplace
+from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionControlReplace, AttentionStore
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.uni_pc import UniPCSampler
+from ldm.modules.fatezero.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from utils import model_utils
-from ldm.modules.fatezero.ddim import DDIMSampler
 
 logger = logging.getLogger("text_to_image")
 
@@ -166,10 +166,20 @@ def parse_args():
         default="2.0",
         help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
     )
-    parser.add_argument("--source_prompt", type=str, nargs="?",
-                        default="a silver jeep driving down a curvy road in the countryside", help="")
-    parser.add_argument("--target_prompt", type=str, nargs="?",
-                        default="a Porsche car driving down a curvy road in the countryside", help="")
+    parser.add_argument(
+        "--source_prompt",
+        type=str,
+        nargs="?",
+        default="a silver jeep driving down a curvy road in the countryside",
+        help="",
+    )
+    parser.add_argument(
+        "--target_prompt",
+        type=str,
+        nargs="?",
+        default="a Porsche car driving down a curvy road in the countryside",
+        help="",
+    )
     # todo negative_prompt
     # parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
     parser.add_argument("--output_path", type=str, nargs="?", default="output/", help="dir to write results to")
@@ -262,7 +272,7 @@ def parse_args():
         type=float,
         default=None,
         help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
-             "Simplified: `uc + scale * (uc - prompt)`",
+        "Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
         "--config",
@@ -381,8 +391,13 @@ def main(args):
     source_prompt = args.source_prompt
     target_prompt = args.target_prompt
     # read the source reference video
-    frames = read_video_frames(args.video_path, image_size=(args.H, args.W), num_frames=args.num_frames,
-                               sample_start_index=args.sample_start_idx, sample_interval=args.sample_interval, )
+    frames = read_video_frames(
+        args.video_path,
+        image_size=(args.H, args.W),
+        num_frames=args.num_frames,
+        sample_start_index=args.sample_start_idx,
+        sample_interval=args.sample_interval,
+    )
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -436,10 +451,27 @@ def main(args):
         tokenized_prompts = model.tokenize(prompts)
         c = model.get_learned_conditioning(tokenized_prompts)
 
-        local_blend = SpatialBlender(prompts=[source_prompt], words=[['jeep', ], ["car", ]]) if args.use_blend else None
-        controller = AttentionControlReplace(prompts=[source_prompt, target_prompt], local_blend=local_blend,
-                                             self_replace_step=args.self_replace_step,
-                                             cross_replace_step=args.cross_replace_step)
+        local_blend = (
+            SpatialBlender(
+                prompts=[source_prompt],
+                words=[
+                    [
+                        "jeep",
+                    ],
+                    [
+                        "car",
+                    ],
+                ],
+            )
+            if args.use_blend
+            else None
+        )
+        controller = AttentionControlReplace(
+            prompts=[source_prompt, target_prompt],
+            local_blend=local_blend,
+            self_replace_step=args.self_replace_step,
+            cross_replace_step=args.cross_replace_step,
+        )
         inv_sampler.pre_sample(model=model, controller=controller)
         samples_ddim, _ = inv_sampler.sample(
             S=args.sampling_steps,

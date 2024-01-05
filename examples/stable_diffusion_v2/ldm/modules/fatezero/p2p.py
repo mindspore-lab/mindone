@@ -1,24 +1,25 @@
 import abc
 import copy
-from typing import Union, Tuple, List, Callable, Dict, Optional
-import mindspore as ms
+from typing import Callable, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 
-from .seq_aligner import get_replacement_mapper
-from .utils import get_word_inds, get_time_words_attention_alpha
-from ..attention import default, exists
+import mindspore as ms
 
-CROSS_ATTENTION_NAME = 'CrossAttention'
-INPUT = 'input_blocks'
-MIDDLE = 'middle_block'
-OUTPUT = 'output_blocks'
+from ..attention import default, exists
+from .seq_aligner import get_replacement_mapper
+from .utils import get_time_words_attention_alpha, get_word_inds
+
+CROSS_ATTENTION_NAME = "CrossAttention"
+INPUT = "input_blocks"
+MIDDLE = "middle_block"
+OUTPUT = "output_blocks"
 NUM_STEP = 3
 CKPT_PATH = "output/tmp_attention_map_"
 
 
 def register_attention_control(unet, controller):
     class DummyController:
-
         def __call__(self, *args):
             return args[0]
 
@@ -147,15 +148,14 @@ def register_attention_control(unet, controller):
             out = rearange_out(out)
             return self.to_out(out)
 
-        return forward if attention_type == 'CrossAttention' else sparse_forward
+        return forward if attention_type == "CrossAttention" else sparse_forward
 
     if controller is None:
         controller = DummyController()
 
     cross_att_count = 0
     for n in unet.cells_and_names():
-
-        if hasattr(n[1], "attention_type") and n[1].attention_type in ['CrossAttention', 'SparseCausalAttention']:
+        if hasattr(n[1], "attention_type") and n[1].attention_type in ["CrossAttention", "SparseCausalAttention"]:
             if INPUT in n[0]:
                 key = INPUT
             elif MIDDLE in n[0]:
@@ -173,7 +173,7 @@ def save_checkpoint(save_obj, ckpt):
     d = []
     for key in data:
         for index, item in enumerate(data[key]):
-            d.append({"name": F"{key}|{index}", "data": item})
+            d.append({"name": f"{key}|{index}", "data": item})
     ms.save_checkpoint(d, ckpt)
 
 
@@ -188,11 +188,10 @@ def load_checkpoint(ckpt):
     return d
 
 
-class AttentionStore():
+class AttentionStore:
     def step_callback(self, x_t):
         self.cur_att_layer = 0
-        save_checkpoint([{"name": "attention_map", "data": self.step_store}],
-                        F"{CKPT_PATH}{self.cur_step}.ckpt")
+        save_checkpoint([{"name": "attention_map", "data": self.step_store}], f"{CKPT_PATH}{self.cur_step}.ckpt")
         self.cur_step += 1
         #
         # if self.cur_step <= NUM_STEP:
@@ -210,15 +209,21 @@ class AttentionStore():
 
     @staticmethod
     def get_empty_store():
-        return {F"{INPUT}_cross": [], F"{OUTPUT}_cross": [], F"{MIDDLE}_cross": [],
-                F"{INPUT}_self": [], F"{OUTPUT}_self": [], F"{MIDDLE}_self": []}
+        return {
+            f"{INPUT}_cross": [],
+            f"{OUTPUT}_cross": [],
+            f"{MIDDLE}_cross": [],
+            f"{INPUT}_self": [],
+            f"{OUTPUT}_self": [],
+            f"{MIDDLE}_self": [],
+        }
 
     def forward(self, attn, is_cross: bool, place_in_unet: str):
         if attn.shape[1] <= 1024:  # avoid memory overhead
             key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
             # print(f"Store attention map {key} of shape {attn.shape}")
             self.step_store[key].append(attn)
-            self.pos_dict[F"{key}_{self.cur_att_layer}"] = len(self.step_store[key]) - 1
+            self.pos_dict[f"{key}_{self.cur_att_layer}"] = len(self.step_store[key]) - 1
         return attn
 
     def __init__(self):
@@ -237,7 +242,7 @@ class AttentionStore():
         self.attention_store_all_step = []
 
 
-class AttentionControlReplace():
+class AttentionControlReplace:
     def step_callback(self, x_t):
         # if self.local_blend is not None and (50 - 1 - self.cur_step) >= len(self.attention_store_all_step):
         #   store = self.attention_store_all_step[50 - 1 - self.cur_step]
@@ -247,7 +252,7 @@ class AttentionControlReplace():
         return x_t
 
     def replace_self_attention(self, attn_base, attn_replace, mask=None):
-        if attn_replace.shape[2] <= 32 ** 2:
+        if attn_replace.shape[2] <= 32**2:
             # attn_base = attn_base.unsqueeze(0).broadcast_to((attn_replace.shape[0],) + attn_base.shape)
             if mask is not None:
                 ch, rr, d = attn_base.shape
@@ -262,7 +267,7 @@ class AttentionControlReplace():
                 r = ms.ops.reshape(r.squeeze(0), (ch, rr, d))
             else:
                 r = attn_base
-            return ms.ops.cat((r, attn_replace[r.shape[0]:]), axis=0)
+            return ms.ops.cat((r, attn_replace[r.shape[0] :]), axis=0)
         else:
             return attn_replace
 
@@ -285,10 +290,10 @@ class AttentionControlReplace():
         if attn.shape[1] > 1024:
             return attn
         # store = self.attention_store_all_step[50 - 1 - self.cur_step]
-        store = load_checkpoint(F"{CKPT_PATH}{49 - self.cur_step}.ckpt")
+        store = load_checkpoint(f"{CKPT_PATH}{49 - self.cur_step}.ckpt")
 
         key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
-        pos_index = self.pos_dict[F"{key}_{self.cur_att_layer}"]
+        pos_index = self.pos_dict[f"{key}_{self.cur_att_layer}"]
         attn_base = store[key][pos_index]
         if is_cross:
             if self.cur_step < self.step_num - self.cross_replace_steps:
@@ -314,13 +319,16 @@ class AttentionControlReplace():
         self.cur_att_layer += 1
         return attn
 
-    def __init__(self,
-                 prompts, local_blend=None,
-                 # num_steps: int,
-                 cross_replace_steps=0.2, self_replace_steps=1.0,
-                 step_num=50,
-                 # local_blend=None, **kwargs
-                 ):
+    def __init__(
+        self,
+        prompts,
+        local_blend=None,
+        # num_steps: int,
+        cross_replace_steps=0.2,
+        self_replace_steps=1.0,
+        step_num=50,
+        # local_blend=None, **kwargs
+    ):
         self.step_num = step_num
         self.cross_replace_steps = round(cross_replace_steps * step_num)
         self.self_replace_steps = round(self_replace_steps * step_num)

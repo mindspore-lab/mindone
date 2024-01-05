@@ -1,6 +1,8 @@
-from typing import Union, Tuple, Dict, Optional
-import mindspore as ms
+from typing import Dict, Optional, Tuple, Union
+
 import numpy as np
+
+import mindspore as ms
 
 
 def get_word_inds(text: str, word_place: int):
@@ -25,30 +27,30 @@ def get_word_inds(text: str, word_place: int):
     return np.array(out)
 
 
-def update_alpha_time_word(alpha, bounds: Union[float, Tuple[float, float]], prompt_ind: int,
-                           word_inds: Optional[ms.Tensor] = None):
+def update_alpha_time_word(
+    alpha, bounds: Union[float, Tuple[float, float]], prompt_ind: int, word_inds: Optional[ms.Tensor] = None
+):
     if type(bounds) is float:
         bounds = 0, bounds
     start, end = int(bounds[0] * alpha.shape[0]), int(bounds[1] * alpha.shape[0])
     if word_inds is None:
         word_inds = ms.ops.arange(alpha.shape[2])
-    alpha[: start, prompt_ind, word_inds] = 0
-    alpha[start: end, prompt_ind, word_inds] = 1
+    alpha[:start, prompt_ind, word_inds] = 0
+    alpha[start:end, prompt_ind, word_inds] = 1
     alpha[end:, prompt_ind, word_inds] = 0
     return alpha
 
 
-def get_time_words_attention_alpha(prompts, num_steps,
-                                   cross_replace_steps: Union[float, Dict[str, Tuple[float, float]]],
-                                    max_num_words=77):
+def get_time_words_attention_alpha(
+    prompts, num_steps, cross_replace_steps: Union[float, Dict[str, Tuple[float, float]]], max_num_words=77
+):
     if type(cross_replace_steps) is not dict:
         cross_replace_steps = {"default_": cross_replace_steps}
     if "default_" not in cross_replace_steps:
-        cross_replace_steps["default_"] = (0., 1.)
+        cross_replace_steps["default_"] = (0.0, 1.0)
     alpha_time_words = ms.ops.zeros((num_steps + 1, len(prompts) - 1, max_num_words))
     for i in range(len(prompts) - 1):
-        alpha_time_words = update_alpha_time_word(alpha_time_words, cross_replace_steps["default_"],
-                                                  i)
+        alpha_time_words = update_alpha_time_word(alpha_time_words, cross_replace_steps["default_"], i)
     for key, item in cross_replace_steps.items():
         if key != "default_":
             inds = [get_word_inds(prompts[i], key) for i in range(1, len(prompts))]

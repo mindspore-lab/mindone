@@ -1,4 +1,5 @@
 import numpy as np
+
 import mindspore as ms
 
 from examples.stable_diffusion_v2.ldm.modules.fatezero.utils import get_word_inds
@@ -16,7 +17,8 @@ class SpatialBlender:
         mask have dimension of [clip_length, dim, res, res]
         """
         k = 1
-        if maps.dim() == 5: alpha = alpha[:, None, ...]
+        if maps.dim() == 5:
+            alpha = alpha[:, None, ...]
         maps = (maps * alpha).sum(-1).mean(1)
         if use_pool:
             maps = ms.ops.max_pool2d(maps, (k * 2 + 1, k * 2 + 1), (1, 1), padding=(k, k))
@@ -60,8 +62,8 @@ class SpatialBlender:
         # self.alpha_layers.shape = torch.Size([2, 1, 1, 1, 1, 77]), 1 denotes the world to be replaced
 
         self.alpha_layers = alpha_layers
-        print('the index mask of edited word in the prompt')
-        print(self.alpha_layers[0][..., 0:(len(prompts[0].split(" ")) + 2)])
-        print(self.alpha_layers[1][..., 0:(len(prompts[1].split(" ")) + 2)])
+        print("the index mask of edited word in the prompt")
+        print(self.alpha_layers[0][..., 0 : (len(prompts[0].split(" ")) + 2)])
+        print(self.alpha_layers[1][..., 0 : (len(prompts[1].split(" ")) + 2)])
         self.counter = 0
         self.mask_list = []
