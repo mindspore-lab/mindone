@@ -1,14 +1,9 @@
-import abc
-import copy
-from typing import Callable, Dict, List, Optional, Tuple, Union
-
 import numpy as np
 
 import mindspore as ms
 
 from ..attention import default, exists
 from .seq_aligner import get_replacement_mapper
-from .utils import get_time_words_attention_alpha, get_word_inds
 
 CROSS_ATTENTION_NAME = "CrossAttention"
 INPUT = "input_blocks"

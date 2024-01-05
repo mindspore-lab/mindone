@@ -13,7 +13,6 @@ import mindspore as ms
 from mindspore import Parameter, nn, ops
 
 from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusion
-from examples.stable_diffusion_v2.ldm.modules.attention import exists
 
 _logger = logging.getLogger(__name__)
 try:

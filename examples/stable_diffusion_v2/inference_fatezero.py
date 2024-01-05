@@ -21,7 +21,6 @@ output/
 
 """
 import argparse
-import gc
 import logging
 import os
 import sys
@@ -40,9 +39,6 @@ from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionContr
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
-from ldm.models.diffusion.dpm_solver import DPMSolverSampler
-from ldm.models.diffusion.plms import PLMSSampler
-from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.fatezero.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
@@ -272,7 +268,7 @@ def parse_args():
         type=float,
         default=None,
         help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
-        "Simplified: `uc + scale * (uc - prompt)`",
+             "Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
         "--config",
@@ -341,7 +337,7 @@ def main(args):
     )
 
     work_dir = os.path.dirname(os.path.abspath(__file__))
-    logger.debug(f"WORK DIR:{work_dir}")
+    logger.debug(f"WORK DIR: {work_dir}")
     os.makedirs(args.output_path, exist_ok=True)
     outpath = args.output_path
     batch_size = args.n_samples
