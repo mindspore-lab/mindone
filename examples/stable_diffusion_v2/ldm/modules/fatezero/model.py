@@ -17,6 +17,7 @@ from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusi
 _logger = logging.getLogger(__name__)
 try:
     from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import KERNEL_NAME
+
     if KERNEL_NAME:
         FLASH_IS_AVAILABLE = True
     print("flash attention is available.")

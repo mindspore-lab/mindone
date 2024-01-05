@@ -268,7 +268,7 @@ def parse_args():
         type=float,
         default=None,
         help="unconditional guidance scale: eps = eps(x, uncond) + scale * (eps(x, cond) - eps(x, uncond)). "
-             "Simplified: `uc + scale * (uc - prompt)`",
+        "Simplified: `uc + scale * (uc - prompt)`",
     )
     parser.add_argument(
         "--config",
