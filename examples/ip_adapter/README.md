@@ -72,7 +72,7 @@ The merged checkpoint `sd_v1.5_ip_adapter.ckpt` and `sd_xl_base_1.0_ms_ip_adapte
 
 ### Image Variation (SD-XL)
 
-To run the image variation on SD-XL, you can use the `image_vairiation_sdxl.py` script. First, prepare the input image and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/dd266d78-2b4b-4159-ad95-5a6afc138235) and saved it as `assets/woman.png`. Then, run the following command in your terminal:
+To run the image variation task on SD-XL, you can use the `image_variation_sdxl.py` script. First, prepare the input image and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/dd266d78-2b4b-4159-ad95-5a6afc138235) and saved it as `assets/woman.png`. Then, run the following command in your terminal:
 ```bash
 python image_variation_sdxl.py --img path_of_the_image --weight path_of_the_ckpt --num_cols 4
 ```
@@ -98,7 +98,7 @@ For more information on how to use this script, please run `python image_variati
 
 ### Image Variation (SD-1.5)
 
-To run the image variation on SD-1.5, you can use the `image_vairiation_sd.py` script. First, prepare the input image and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/dd266d78-2b4b-4159-ad95-5a6afc138235) and saved it as `assets/woman.png`. Then, run the following command in your terminal:
+To run the image variation task on SD-1.5, you can use the `image_variation_sd.py` script. First, prepare the input image and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/dd266d78-2b4b-4159-ad95-5a6afc138235) and saved it as `assets/woman.png`. Then, run the following command in your terminal:
 ```bash
 python image_variation_sd.py --img path_of_the_image --ckpt_path path_of_the_ckpt --n_samples 4
 ```
@@ -109,6 +109,20 @@ python image_variation_sd.py --img assets/woman.png
 ```
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/a42eca42-3c73-4f0d-865e-66a8347f8a67"/>
 <br><em>An example of image variation. (SD-1.5)</em></p>
+
+### Image-To-Image (SD-1.5)
+
+To run the image-to-image task on SD-1.5, you can use the `image_to_image_sd.py` script. First, prepare the input image, reference image and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/1b25fa59-96ff-439c-9d33-75d6bbc96f2d) and [reference image](https://github.com/zhtmike/mindone/assets/8342575/2e1a2c37-4436-484a-948d-865febadeedc), saved them as `assets/river.png` and `assets/vermeer.jpg` respectively. Then, run the following command in your terminal:
+```bash
+python image_to_image_sd.py --img path_of_the_image --ref_img path_of_the_ref_image --ckpt_path path_of_the_ckpt --n_samples 4 --strength 0.6
+```
+The `--n_samples` flag denotes the number of output images in a single trial. The `--strength` flag controls the image similarity betweeen the reference image and the output image. The output images will be saved under `outputs/demo/SD/samples` directory. Here are some examples (The leftmost images is the input image, and the second one from left is the reference image, while the remaining images are the outputs.):
+
+```bash
+python image_to_image_sd.py --img assets/river.png --ref_img assets/vermeer.jpg
+```
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/8eec2237-b339-47b5-adbf-1ec876100623"/>
+<br><em>An example of image-to-image. (SD-1.5)</em></p>
 
 ## Model Training
 
