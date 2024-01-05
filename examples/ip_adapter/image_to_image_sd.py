@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Text to image generation
+Image to image generation
 """
 import argparse
 import logging
@@ -25,7 +25,7 @@ from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config
 from utils import model_utils
 
-logger = logging.getLogger("image_variation")
+logger = logging.getLogger("image_to_image")
 
 # naming: {sd_base_version}-{variation}
 _version_cfg = {
@@ -73,6 +73,21 @@ def load_clip_image(image: str) -> ms.Tensor:
     image = image.convert("RGB")
     image = CLIPImageProcessor()(image)
     image = ms.Tensor(image.pixel_values, ms.float32)
+    return image
+
+
+def load_ref_image(image: str, scale_factor: int = 8) -> ms.Tensor:
+    image = Image.open(image)
+    image = ImageOps.exif_transpose(image)  # type: Image.Image
+    image = image.convert("RGB")
+    w, h = image.size
+    w, h = (x - x % scale_factor for x in (w, h))
+    image = image.resize((w, h), resample=Image.LANCZOS)
+    image = np.array(image, dtype=np.float32)
+    image = image[None, ...]
+    image = image.transpose(0, 3, 1, 2)
+    image = image / 127.5 - 1.0
+    image = ms.Tensor(image, ms.float32)
     return image
 
 
@@ -146,6 +161,11 @@ def main(args):
 
     # read image
     clip_img = load_clip_image(args.img)
+    ref_img = load_ref_image(args.ref_img)
+
+    # get ref image latent
+    ref_img_latent = model.get_first_stage_encoding(model.encode_first_stage(ref_img))
+    ref_img_latent = ops.tile(ref_img_latent, (batch_size, 1, 1, 1))
 
     # get image conditioning
     clip_img_c = model.embedder(clip_img)
@@ -161,6 +181,12 @@ def main(args):
     sampler = DDIMSampler(model)
     sname = "ddim"
 
+    # determine total timesteps for q_forward
+    sampler.make_schedule(args.sampling_steps, verbose=False)  # create the ddim steps internally
+    sampling_steps = int(args.sampling_steps * args.strength)  # the real sampling steps
+    start_sample_step = args.sampling_steps - sampling_steps
+    n_timestep = sampler.ddim_timesteps[::-1][None, start_sample_step, ...]
+
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
@@ -175,20 +201,14 @@ def main(args):
             f"Precision: {model.model.diffusion_model.dtype}",
             f"Pretrained ckpt path: {args.ckpt_path}",
             f"Sampler: {sname}",
-            f"Sampling steps: {args.sampling_steps}",
+            f"Sampling steps: {sampling_steps} ({args.sampling_steps} * {args.strength})",
             f"Uncondition guidance scale: {args.scale}",
-            f"Target image size (H, W): ({args.H}, {args.W})",
         ]
     )
     key_info += "\n" + "=" * 50
     logger.info(key_info)
 
     # infer
-    start_code = None
-    if args.fixed_code:
-        stdnormal = ops.StandardNormal()
-        start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
-
     all_samples = list()
     for i, prompts in enumerate(data):
         negative_prompts = negative_data[i]
@@ -213,7 +233,8 @@ def main(args):
             # concat text/img embedding
             c = ops.concat([c, clip_img_c], axis=1)
 
-            shape = [4, args.H // 8, args.W // 8]
+            start_code = model.q_sample(ref_img_latent, n_timestep, ops.randn(ref_img_latent.shape))
+            shape = [4, ref_img_latent.shape[2], ref_img_latent.shape[3]]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
                 conditioning=c,
@@ -224,6 +245,7 @@ def main(args):
                 unconditional_conditioning=uc,
                 eta=args.ddim_eta,
                 x_T=start_code,
+                timesteps=sampling_steps + 1,  # add offset
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
@@ -328,18 +350,6 @@ if __name__ == "__main__":
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
     parser.add_argument(
-        "--H",
-        type=int,
-        default=512,
-        help="image height, in pixel space",
-    )
-    parser.add_argument(
-        "--W",
-        type=int,
-        default=512,
-        help="image width, in pixel space",
-    )
-    parser.add_argument(
         "--n_rows",
         type=int,
         default=0,
@@ -381,6 +391,8 @@ if __name__ == "__main__":
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
+    parser.add_argument("--strength", type=float, default=0.6, help="the extent to transform the reference image")
+    parser.add_argument("--ref_img", required=True, help="Path of the reference image")
     args = parser.parse_args()
 
     # check args
@@ -391,12 +403,6 @@ if __name__ == "__main__":
     if args.ckpt_path is None:
         ckpt_name = _version_cfg[args.version][0]
         args.ckpt_path = "checkpoints/" + ckpt_name
-
-        desire_size = _version_cfg[args.version][2]
-        if args.H != desire_size or args.W != desire_size:
-            logger.warning(
-                f"The optimal H, W for SD {args.version} is ({desire_size}, {desire_size}) . But got ({args.H}, {args.W})."
-            )
 
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])

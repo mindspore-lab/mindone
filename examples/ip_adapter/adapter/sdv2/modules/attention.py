@@ -43,29 +43,9 @@ class IPAdapterCrossAttention(CrossAttention):
         self.to_k_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_v_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
 
-    def _rearange_in(self, x):
-        # (b, n, h*d) -> (b*h, n, d)
-        h = self.heads
-        b, n, d = x.shape
-        d = d // h
-
-        x = self.reshape(x, (b, n, h, d))
-        x = self.transpose(x, (0, 2, 1, 3))
-        x = self.reshape(x, (b * h, n, d))
-        return x
-
-    def _rearange_out(self, x):
-        # (b*h, n, d) -> (b, n, h*d)
-        h = self.heads
-        b, n, d = x.shape
-        b = b // h
-
-        x = self.reshape(x, (b, h, n, d))
-        x = self.transpose(x, (0, 2, 1, 3))
-        x = self.reshape(x, (b, n, h * d))
-        return x
-
     def _cal_z(self, q, context, mask=None, ip_branch=False):
+        h = self.heads
+
         if ip_branch:
             k = self.to_k_ip(context)
             v = self.to_v_ip(context)
@@ -73,16 +53,39 @@ class IPAdapterCrossAttention(CrossAttention):
             k = self.to_k(context)
             v = self.to_v(context)
 
-        q = self._rearange_in(q)
-        k = self._rearange_in(k)
-        v = self._rearange_in(v)
+        q_b, q_n, _ = q.shape  # (b n h*d)
+        k_b, k_n, _ = k.shape
+        v_b, v_n, _ = v.shape
 
-        if self.use_flash_attention and q.shape[1] % 16 == 0 and k.shape[1] % 16 == 0:
-            out = self.flash_attention(q, k, v)
+        head_dim = q.shape[-1] // self.heads
+
+        if (
+            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
+        ):  # TODO: why restrict head_dim?
+            # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
+            q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
+            k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
+            v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+            if mask is None:
+                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+
+            out = self.flash_attention(
+                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+            )
+
+            b, h, n, _ = out.shape
+            # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
+            out = out.transpose(0, 2, 1, 3).view(b, n, -1)
         else:
-            out = self.attention(q, k, v, mask)
+            # (b, n, h*d) -> (b*h, n, d)
+            q = self._rearange_in(q, h)
+            k = self._rearange_in(k, h)
+            v = self._rearange_in(v, h)
 
-        out = self._rearange_out(out)
+            out = self.attention(q, k, v, mask)
+            # (b*h, n, d) -> (b, n, h*d)
+            out = self._rearange_out(out, h)
+
         return out
 
     def construct(self, x, context=None, mask=None):
