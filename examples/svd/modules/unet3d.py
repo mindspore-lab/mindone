@@ -334,7 +334,6 @@ class TemporalResBlock(ResBlock):
         self,
         channels: int,
         emb_channels: int,
-        num_frames: int,
         dropout: float,
         video_kernel_size: Union[int, List[int]] = 3,
         merge_strategy: Literal["fixed", "learned", "learned_with_images"] = "fixed",
@@ -371,9 +370,7 @@ class TemporalResBlock(ResBlock):
             kernel_size=video_kernel_size,
             exchange_temb_dims=True,
         )
-        self.time_mixer = AlphaBlender(
-            alpha=merge_factor, merge_strategy=merge_strategy, reshape_pattern=(-1, 1, num_frames, 1, 1)
-        )
+        self.time_mixer = AlphaBlender(alpha=merge_factor, merge_strategy=merge_strategy)
 
     def construct(
         self,
@@ -546,7 +543,6 @@ class VideoUNet(nn.Cell):
             up=False,
         ):
             return TemporalResBlock(
-                num_frames=num_frames,
                 merge_factor=merge_factor,
                 merge_strategy=merge_strategy,
                 video_kernel_size=video_kernel_size,
