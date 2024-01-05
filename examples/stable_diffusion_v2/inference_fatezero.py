@@ -166,8 +166,10 @@ def parse_args():
         default="2.0",
         help="Stable diffusion version. Options: '2.1', '2.1-v', '2.0', '2.0-v', '1.5', '1.5-wukong'",
     )
-    parser.add_argument("--source_prompt", type=str, nargs="?", default="a silver jeep driving down a curvy road in the countryside", help="")
-    parser.add_argument("--target_prompt", type=str, nargs="?", default="a Porsche car driving down a curvy road in the countryside", help="")
+    parser.add_argument("--source_prompt", type=str, nargs="?",
+                        default="a silver jeep driving down a curvy road in the countryside", help="")
+    parser.add_argument("--target_prompt", type=str, nargs="?",
+                        default="a Porsche car driving down a curvy road in the countryside", help="")
     # todo negative_prompt
     # parser.add_argument("--negative_prompt", type=str, nargs="?", default="", help="the negative prompt not to render")
     parser.add_argument("--output_path", type=str, nargs="?", default="output/", help="dir to write results to")
@@ -287,6 +289,22 @@ def parse_args():
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
+    parser.add_argument(
+        "--self_replace_step",
+        type=float,
+        default="1.0",
+        help="",
+    )
+    parser.add_argument(
+        "--cross_replace_step",
+        type=float,
+        default="0.2",
+        help="",
+    )
+    parser.add_argument(
+        "--use_blend",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     # check args
@@ -384,6 +402,7 @@ def main(args):
             f"Sampling steps: {args.sampling_steps}",
             f"Uncondition guidance scale: {args.scale}",
             f"Target image size (H, W): ({args.H}, {args.W})",
+            f"use blend: {args.use_blend}",
         ]
     )
     key_info += "\n" + "=" * 50
@@ -417,8 +436,10 @@ def main(args):
         tokenized_prompts = model.tokenize(prompts)
         c = model.get_learned_conditioning(tokenized_prompts)
 
-        local_blend = SpatialBlender(prompts=[source_prompt], words=[['jeep', ], ["car", ]])
-        controller = AttentionControlReplace(prompts=[source_prompt, target_prompt], local_blend=local_blend)
+        local_blend = SpatialBlender(prompts=[source_prompt], words=[['jeep', ], ["car", ]]) if args.use_blend else None
+        controller = AttentionControlReplace(prompts=[source_prompt, target_prompt], local_blend=local_blend,
+                                             self_replace_step=args.self_replace_step,
+                                             cross_replace_step=args.cross_replace_step)
         inv_sampler.pre_sample(model=model, controller=controller)
         samples_ddim, _ = inv_sampler.sample(
             S=args.sampling_steps,
@@ -431,11 +452,9 @@ def main(args):
             eta=args.ddim_eta,
             x_T=start_code,
         )
-        print(gc.collect())
         del inv_sampler
         # del c, tokenized_prompts, uc, tokenized_negative_prompts, start_code, ddim_inv,frames,latents
         # ms.ms_memory_recycle()
-        print(gc.collect())
 
         b, c, f, h, w = samples_ddim.shape
         samples_ddim = samples_ddim.transpose((0, 2, 1, 3, 4)).reshape((b * f, c, h, w))

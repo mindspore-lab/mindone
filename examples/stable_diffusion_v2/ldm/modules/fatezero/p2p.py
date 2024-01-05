@@ -239,7 +239,7 @@ class AttentionStore():
 
 class AttentionControlReplace():
     def step_callback(self, x_t):
-        #if self.local_blend is not None and (50 - 1 - self.cur_step) >= len(self.attention_store_all_step):
+        # if self.local_blend is not None and (50 - 1 - self.cur_step) >= len(self.attention_store_all_step):
         #   store = self.attention_store_all_step[50 - 1 - self.cur_step]
         #   x_t = self.latent_blend(attention_store=store, x_t=x_t)
         self.cur_att_layer = 0
@@ -291,9 +291,12 @@ class AttentionControlReplace():
         pos_index = self.pos_dict[F"{key}_{self.cur_att_layer}"]
         attn_base = store[key][pos_index]
         if is_cross:
-            attn = self.replace_cross_attention(attn_base, attn)
+            if self.cur_step < self.step_num - self.cross_replace_steps:
+                return attn
+            else:
+                attn = self.replace_cross_attention(attn_base, attn)
         else:
-            if self.cur_step < 30:
+            if self.cur_step < self.step_num - self.self_replace_steps:
                 return attn
             if attn.shape[1] <= 1024:
                 w = int(np.sqrt(attn.shape[1]))
@@ -313,9 +316,14 @@ class AttentionControlReplace():
 
     def __init__(self,
                  prompts, local_blend=None,
-                 # num_steps: int, cross_replace_steps: float, self_replace_steps: float,
+                 # num_steps: int,
+                 cross_replace_steps=0.2, self_replace_steps=1.0,
+                 step_num=50,
                  # local_blend=None, **kwargs
                  ):
+        self.step_num = step_num
+        self.cross_replace_steps = round(cross_replace_steps * step_num)
+        self.self_replace_steps = round(self_replace_steps * step_num)
         self.local_blend = local_blend
         self.pos_dict = None
         self.cur_step = 0
