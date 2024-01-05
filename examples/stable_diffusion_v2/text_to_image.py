@@ -24,6 +24,7 @@ from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_tex
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from tools.safety_checker import SafetyChecker
+from tools.watermark import WatermarkEmbedder
 from utils import model_utils
 from utils.download import download_checkpoint
 from utils.long_prompt import get_text_embeddings
@@ -289,8 +290,13 @@ def main(args):
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ms.ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+
+            if args.add_watermark:
+                water_mark = WatermarkEmbedder(dtype=model.model.diffusion_model.dtype)
+                x_samples_ddim = water_mark(x_samples_ddim)
             if args.check_safety:
                 x_samples_ddim, _ = safety_checker(x_samples_ddim)
+
             x_samples_ddim_numpy = x_samples_ddim.asnumpy()
 
             if not args.skip_save:
@@ -492,6 +498,11 @@ if __name__ == "__main__":
         type=str,
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
+    )
+    parser.add_argument(
+        "--add_watermark",
+        action="store_true",
+        help="whether add invisible watermark to image",
     )
     parser.add_argument(
         "--check_safety",
