@@ -1,7 +1,7 @@
 # for ms2.2 0907, remove this later
 export MS_ENABLE_REF_MODE=1
 
-# Exp01, inference different conditions from a video
+# Exp01, different conditions to videos
 python infer.py \
     --cfg configs/exp01_vidcomposer_full.yaml \
     --seed 9999 \
@@ -9,7 +9,7 @@ python infer.py \
     --input_text_desc "A black swan swam in the water"
 
 
-# Exp02, Motion Transfer from a video to a Single Image
+# Exp02, motion transfer to videos
 python infer.py \
     --cfg configs/exp02_motion_transfer.yaml \
     --seed 9999 \
@@ -36,7 +36,7 @@ python infer.py \
     --input_text_desc "Beneath Van Gogh's Starry Sky"
 
 
-# Exp03, Single Sketch to videos with style
+# Exp03, single sketch to videos with style
 python infer.py \
     --cfg configs/exp03_sketch2video_style.yaml \
     --seed 8888 \
@@ -44,7 +44,7 @@ python infer.py \
     --style_image "demo_video/style/qibaishi_01.png" \
     --input_text_desc "Red-backed Shrike lanius collurio"
 
-# Exp04, Single Sketch to videos without style input
+# Exp04, single sketch to videos without style
 python infer.py \
     --cfg configs/exp04_sketch2video_wo_style.yaml \
     --seed 144 \
@@ -52,7 +52,7 @@ python infer.py \
     --input_text_desc "A little bird is standing on a branch"
 
 
-# Exp05, Depth to video without style
+# Exp05, image depth to videos without style
 python infer.py \
     --cfg configs/exp05_text_depths_wo_style.yaml \
     --seed 9999 \
@@ -60,7 +60,7 @@ python infer.py \
     --input_text_desc "Ironman is fighting against the enemy, big fire in the background, photorealistic"
 
 
-# Exp06, Depth to video with style
+# Exp06, image depth to videos with style
 python infer.py \
     --cfg configs/exp06_text_depths_vs_style.yaml \
     --seed 9999 \
