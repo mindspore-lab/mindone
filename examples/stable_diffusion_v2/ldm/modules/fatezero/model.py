@@ -5,7 +5,7 @@
 import logging
 
 import numpy as np
-from ldm.modules.attention import Attention, CrossAttention, FeedForward, default
+from ldm.modules.attention import CrossAttention, FeedForward, default
 from ldm.modules.diffusionmodules.util import Identity, linear, timestep_embedding
 from ldm.util import is_old_ms_version
 
@@ -16,9 +16,9 @@ from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusi
 
 _logger = logging.getLogger(__name__)
 try:
-    from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
-
-    FLASH_IS_AVAILABLE = True
+    from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import KERNEL_NAME
+    if KERNEL_NAME:
+        FLASH_IS_AVAILABLE = True
     print("flash attention is available.")
 except ImportError:
     FLASH_IS_AVAILABLE = False
