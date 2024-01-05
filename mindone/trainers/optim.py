@@ -27,11 +27,11 @@ def create_optimizer(
         name: Name of the optimizer.
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
-            If not provided, [0.9, 0.98] is used as default.
+               If not provided, [0.9, 0.999] is used as default.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
         eps: epsilon in adam or adamw optimization, Default: 1e-6
         group_strategy: The specific grouping startegy for weight decay. If it is None,
-            then only the weight decays for parameters in layernorm and all bias will be set to 0.
+                        then only the weight decays for parameters in layernorm and all bias will be set to 0.
 
     Returns:
         Initialized optimizer.

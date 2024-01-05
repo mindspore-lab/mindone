@@ -307,7 +307,7 @@ def get_grad_reducer(is_parallel, parameters):
         degree = ms.context.get_auto_parallel_context("device_num")
         grad_reducer = nn.DistributedGradReducer(parameters, mean, degree)
     else:
-        grad_reducer = ops.functional.identity
+        grad_reducer = nn.Identity()
     return grad_reducer
 
 
@@ -406,15 +406,7 @@ def load_model_from_config(
                     print(f"Global Step: {sd_dict['global_step']}")
 
             # FIXME: parameter auto-prefix name bug on mindspore 2.2.10
-            _new_sd_dict = {}
-            for k in sd_dict:
-                if "._backbone" in k:
-                    _index = k.find("._backbone")
-                    new_k = k[:_index] + k[_index + len("._backbone") :]
-                else:
-                    new_k = k[:]
-                _new_sd_dict[new_k] = sd_dict[k]
-            sd_dict = _new_sd_dict
+            sd_dict = {k.replace("._backbone", ""): v for k, v in sd_dict.items()}
 
             # filter first_stage_model and conditioner
             _keys = copy.deepcopy(list(sd_dict.keys()))

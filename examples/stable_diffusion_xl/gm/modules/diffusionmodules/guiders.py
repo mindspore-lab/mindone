@@ -2,7 +2,6 @@
 from functools import partial
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 from gm.util import append_dims, default, instantiate_from_config
 
 from mindspore import Tensor, nn, ops
@@ -59,30 +58,28 @@ class IdentityGuider:
 class LinearPredictionGuider(nn.Cell):
     def __init__(
         self,
-        max_scale: float,
-        num_frames: int,
         min_scale: float = 1.0,
+        max_scale: float = 2.5,
         additional_cond_keys: Optional[Union[List[str], str]] = None,
     ):
         super().__init__()
         self.min_scale = min_scale
         self.max_scale = max_scale
-        self.num_frames = num_frames
-        self.scale = Tensor(np.expand_dims(np.linspace(min_scale, max_scale, num_frames, dtype=np.float32), 0))
 
         additional_cond_keys = additional_cond_keys or []
         if isinstance(additional_cond_keys, str):
             additional_cond_keys = [additional_cond_keys]
         self.additional_cond_keys = additional_cond_keys
 
-    def construct(self, x: Tensor, sigma: Tensor) -> Tensor:
+    def construct(self, x: Tensor, sigma: Tensor, num_frames: int) -> Tensor:
         x_u, x_c = x.chunk(2)
 
         # (b t) ... -> b t ...
-        x_u = x_u.reshape(-1, self.num_frames, *x_u.shape[1:])
-        x_c = x_c.reshape(-1, self.num_frames, *x_c.shape[1:])
+        x_u = x_u.reshape(-1, num_frames, *x_u.shape[1:])
+        x_c = x_c.reshape(-1, num_frames, *x_c.shape[1:])
 
-        scale = self.scale.repeat(x_u.shape[0], axis=0)  # 1 t -> b t
+        scale = ops.linspace(self.min_scale, self.max_scale, num_frames)[None, :]
+        scale = scale.repeat(x_u.shape[0], axis=0)  # 1 t -> b t
         scale = append_dims(scale, x_u.ndim)
 
         out = x_u + scale * (x_c - x_u)
