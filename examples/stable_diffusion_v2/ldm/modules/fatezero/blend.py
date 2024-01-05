@@ -2,7 +2,7 @@ import numpy as np
 
 import mindspore as ms
 
-from examples.stable_diffusion_v2.ldm.modules.fatezero.utils import get_word_inds
+from .utils import get_word_inds
 
 
 class SpatialBlender:

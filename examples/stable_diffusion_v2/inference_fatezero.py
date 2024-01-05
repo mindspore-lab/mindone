@@ -34,12 +34,11 @@ from PIL import Image
 
 import mindspore as ms
 
-from examples.stable_diffusion_v2.ldm.modules.fatezero.blend import SpatialBlender
-from examples.stable_diffusion_v2.ldm.modules.fatezero.p2p import AttentionControlReplace, AttentionStore
-
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+from ldm.modules.fatezero.blend import SpatialBlender
 from ldm.modules.fatezero.ddim import DDIMSampler
+from ldm.modules.fatezero.p2p import AttentionControlReplace, AttentionStore
 from ldm.modules.logger import set_logger
 from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool

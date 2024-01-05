@@ -5,14 +5,13 @@
 import logging
 
 import numpy as np
+from ldm.models.diffusion.ddpm import LatentDiffusion
 from ldm.modules.attention import CrossAttention, FeedForward, default
 from ldm.modules.diffusionmodules.util import Identity, linear, timestep_embedding
 from ldm.util import is_old_ms_version
 
 import mindspore as ms
 from mindspore import Parameter, nn, ops
-
-from examples.stable_diffusion_v2.ldm.models.diffusion.ddpm import LatentDiffusion
 
 _logger = logging.getLogger(__name__)
 try:
