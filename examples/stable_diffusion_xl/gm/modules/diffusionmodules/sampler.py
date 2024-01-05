@@ -329,3 +329,28 @@ class DPMPP2MSampler(BaseDiffusionSampler):
             )
 
         return x
+
+
+class LCMSampler(BaseDiffusionSampler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.noise_sampler = lambda x: Tensor(np.random.randn(*x.shape), x.dtype)
+
+    def sampler_step(self, sigma, next_sigma, model, x, cond, uc, **kwargs):
+        denoised = self.denoise(x, model, sigma, cond, uc, **kwargs)
+        x = denoised
+        x = ops.where(
+            append_dims(next_sigma, x.ndim) > 0.0,
+            x + self.noise_sampler(x) * append_dims(next_sigma, x.ndim),
+            x,
+        )
+
+        return x
+
+    def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
+        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
+
+        for i in self.get_sigma_gen(num_sigmas):
+            x = self.sampler_step(s_in * sigmas[i], s_in * sigmas[i + 1], model, x, cond, uc, **kwargs)
+
+        return x

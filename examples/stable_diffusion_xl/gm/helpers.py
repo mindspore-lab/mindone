@@ -18,6 +18,7 @@ from gm.modules.diffusionmodules.sampler import (
     EulerAncestralSampler,
     EulerEDMSampler,
     HeunEDMSampler,
+    LCMSampler,
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
@@ -500,14 +501,14 @@ def get_sampler(
             )
         else:
             raise ValueError
-    elif sampler_name in ("AncestralSampler"):
+    elif sampler_name == "AncestralSampler":
         sampler = AncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
             verbose=True,
         )
-    elif sampler_name in ("EulerAncestralSampler"):
+    elif sampler_name == "EulerAncestralSampler":
         sampler = EulerAncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
@@ -515,7 +516,7 @@ def get_sampler(
             verbose=True,
             eta=0.001,
         )
-    elif sampler_name in ("DPMPP2SAncestralSampler"):
+    elif sampler_name == "DPMPP2SAncestralSampler":
         sampler = DPMPP2SAncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
@@ -523,15 +524,22 @@ def get_sampler(
             verbose=True,
         )
 
-    elif sampler_name in ("DPMPP2MSampler",):
+    elif sampler_name == "DPMPP2MSampler":
         sampler = DPMPP2MSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
             verbose=True,
         )
-    elif sampler_name in ("LinearMultistepSampler",):
+    elif sampler_name == "LinearMultistepSampler":
         sampler = LinearMultistepSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+    elif sampler_name == "LCMSampler":
+        sampler = LCMSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
@@ -562,6 +570,7 @@ def init_sampling(
         "DPMPP2MSampler",
         "LinearMultistepSampler",
         "AncestralSampler",
+        "LCMSampler",
     ]
     assert guider in ["VanillaCFG", "IdentityGuider"]
     assert discretization in [
