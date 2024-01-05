@@ -118,9 +118,7 @@ A shardlist decription obeys the following format.
 }
 ```
 
-For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`.
-
-For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json`  to save scanning time. 
+For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`. For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json` to save scanning time. 
 
 You can manually specify a new shardlist description file in the config yaml via the `shardlist_desc` argument, for example.
 
@@ -132,7 +130,7 @@ You can manually specify a new shardlist description file in the config yaml via
             shardlist_desc: 'data_dir/data_info.json'
 ```
 
-Note that if you updated the training data, you should either specify a new shardlist description file or remove the existing one `{data_dir}/data_info.json` for auto re-generation.
+> Note that if you have updated the training data, you should either specify a new shardlist description file or **remove the existing shardlist file** `{data_dir}/data_info.json` for auto re-generation.
 
 For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
 
