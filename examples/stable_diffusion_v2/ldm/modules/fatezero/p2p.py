@@ -216,7 +216,7 @@ class AttentionStore():
     def forward(self, attn, is_cross: bool, place_in_unet: str):
         if attn.shape[1] <= 1024:  # avoid memory overhead
             key = f"{place_in_unet}_{'cross' if is_cross else 'self'}"
-            print(f"Store attention map {key} of shape {attn.shape}")
+            # print(f"Store attention map {key} of shape {attn.shape}")
             self.step_store[key].append(attn)
             self.pos_dict[F"{key}_{self.cur_att_layer}"] = len(self.step_store[key]) - 1
         return attn
@@ -239,17 +239,14 @@ class AttentionStore():
 
 class AttentionControlReplace():
     def step_callback(self, x_t):
-        if self.local_blend is not None and (50 - 1 - self.cur_step) >= len(self.attention_store_all_step):
-            # store = self.attention_store_all_step[50 - 1 - self.cur_step]
-            # x_t = self.latent_blend(attention_store=store, x_t=x_t)
-            pass
-
+        #if self.local_blend is not None and (50 - 1 - self.cur_step) >= len(self.attention_store_all_step):
+        #   store = self.attention_store_all_step[50 - 1 - self.cur_step]
+        #   x_t = self.latent_blend(attention_store=store, x_t=x_t)
         self.cur_att_layer = 0
         self.cur_step += 1
         return x_t
 
     def replace_self_attention(self, attn_base, attn_replace, mask=None):
-        # if attn_replace.shape[2] <= 16 ** 2:
         if attn_replace.shape[2] <= 32 ** 2:
             # attn_base = attn_base.unsqueeze(0).broadcast_to((attn_replace.shape[0],) + attn_base.shape)
             if mask is not None:
@@ -258,9 +255,9 @@ class AttentionControlReplace():
                 c = ch // h
                 base = ms.ops.reshape(attn_base, (c, h, rr, d))[None, ...]
                 replace = ms.ops.reshape(attn_replace[:ch], (c, h, rr, d))[None, ...]
-                print("attn_base.shape", attn_base.shape)
-                print("attn_replace.shape", attn_replace.shape)
-                print("mask.shape", mask.shape)
+                # print("attn_base.shape", attn_base.shape)
+                # print("attn_replace.shape", attn_replace.shape)
+                # print("mask.shape", mask.shape)
                 r = (1 - mask) * base + mask * replace
                 r = ms.ops.reshape(r.squeeze(0), (ch, rr, d))
             else:
@@ -287,7 +284,6 @@ class AttentionControlReplace():
         #     return attn
         if attn.shape[1] > 1024:
             return attn
-        print("replace")
         # store = self.attention_store_all_step[50 - 1 - self.cur_step]
         store = load_checkpoint(F"{CKPT_PATH}{49 - self.cur_step}.ckpt")
 
