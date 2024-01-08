@@ -344,7 +344,7 @@ class VisionTransformer(nn.Cell):
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
         x = ops.concat(
-            [self.class_embedding + ops.zeros((x.shape[0], 1, x.shape[-1]), dtype=self.dtype), x], axis=1
+            [self.class_embedding.to(self.dtype) + ops.zeros((x.shape[0], 1, x.shape[-1]), dtype=self.dtype), x], axis=1
         )  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding
         x = self.ln_pre(x)
