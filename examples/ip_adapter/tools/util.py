@@ -1,10 +1,13 @@
-#!/usr/bin/env python
 from typing import Dict, List, Union
 
 import torch
-from safetensors import safe_open
 
 import mindspore as ms
+
+
+def append_prefix(content: str, prefix: str) -> str:
+    content = prefix + content
+    return content
 
 
 def replace(content: str, old: str, new: str) -> str:
@@ -60,13 +63,8 @@ def replace_all(content: str) -> str:
     return content
 
 
-def append_prefix(content: str, prefix: str = "conditioner.embedders.2.") -> str:
-    content = prefix + content
-    return content
-
-
-def create_ip_mapping() -> Dict[str, str]:
-    with open("tools/ip_names.txt", "r") as f:
+def create_ip_mapping(ip_mapping: str) -> Dict[str, str]:
+    with open(ip_mapping, "r") as f:
         lines = f.readlines()
         ms_names = [x.strip() for x in lines]
 
@@ -87,39 +85,3 @@ def convert_to_ms(tensors: Dict[str, torch.Tensor]) -> List[Dict[str, Union[str,
         record = {"name": k, "data": ms.Tensor(v.numpy(), ms.float32)}
         records.append(record)
     return records
-
-
-def main():
-    print("Create IP Adapter naming mapping...")
-    ip_mapping = create_ip_mapping()
-
-    # openclip ViT
-    print("Converting openclip ViT...")
-    tensors = dict()
-    with safe_open("checkpoints/OpenCLIP-ViT-bigG-14/model.safetensors", framework="pt", device="cpu") as f:
-        for k in f.keys():
-            tensors[append_prefix(replace_all(k))] = f.get_tensor(k)
-
-    merge_qkv(tensors)
-    misc_ops(tensors)
-
-    # ip adapter proj
-    print("Converting IP Adatper...")
-    with safe_open("checkpoints/ip-adapter_sdxl.safetensors", framework="pt", device="cpu") as f:
-        for k in f.keys():
-            if "to_k_ip" not in k and "to_v_ip" not in k:
-                tensors[append_prefix(replace_all(k))] = f.get_tensor(k)
-            else:
-                tensors[ip_mapping[k]] = f.get_tensor(k)
-
-    print("Loading SD XL base...")
-    ms_tensors = ms.load_checkpoint("checkpoints/sd_xl_base_1.0_ms.ckpt")
-    tensors.update(ms_tensors)
-
-    print("Saving to MS checkpoints...")
-    records = convert_to_ms(tensors)
-    ms.save_checkpoint(records, "checkpoints/sd_xl_base_1.0_ms_ip_adapter.ckpt")
-
-
-if __name__ == "__main__":
-    main()

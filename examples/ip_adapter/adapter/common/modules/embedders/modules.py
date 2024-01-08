@@ -40,6 +40,7 @@ class ImageProjModel(nn.Cell):
 class IPAdapterImageEmbedder(AbstractEmbModel):
     def __init__(
         self,
+        freeze: bool = False,
         embed_dim: int = 1280,
         image_resolution: int = 224,
         vision_layers: int = 48,
@@ -50,10 +51,12 @@ class IPAdapterImageEmbedder(AbstractEmbModel):
         num_tokens: int = 4,
         mlp_ratio: float = 4.9231,
         use_fp16: bool = False,
+        embedding_dropout: float = 0.0,
     ) -> None:
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.embed_dim = embed_dim
+        self.embedding_dropout = embedding_dropout
 
         # load image encoder
         self.image_encoder = FrozenOpenCLIPImageEmbedder(
@@ -73,12 +76,15 @@ class IPAdapterImageEmbedder(AbstractEmbModel):
             use_fp16=use_fp16,
         )
 
+        self._freeze = freeze
+        if self._freeze:
+            self.freeze()
+
     def freeze(self):
+        # only freeze the image encoder
         self.image_encoder.set_train(False)
         self.image_encoder.set_grad(False)
-        self.image_proj.set_train(False)
-        self.image_proj.set_grad(False)
-        for _, p in self.parameters_and_names():
+        for _, p in self.image_encoder.parameters_and_names():
             p.requires_grad = False
 
     def tokenize(self, img: Optional[np.ndarray] = None):
@@ -89,10 +95,16 @@ class IPAdapterImageEmbedder(AbstractEmbModel):
             clip_image_embeds = ops.zeros((1, self.embed_dim), dtype=self.dtype)
         else:
             clip_image_embeds = self.image_encoder.encode(image_tensor)
+            mask = ops.rand((clip_image_embeds.shape[0], 1)) > self.embedding_dropout
+            clip_image_embeds = mask * clip_image_embeds
+
+        if self._freeze:
+            clip_image_embeds = ops.stop_gradient(clip_image_embeds)
+
         image_prompt_embeds = self.image_proj(clip_image_embeds)
         return image_prompt_embeds
 
     @ms.jit
-    def construct(self, image_tensor: Tensor) -> Tensor:
+    def construct(self, image_tensor: Optional[Tensor] = None) -> Tensor:
         image_prompt_embeds = self.get_image_embeds(image_tensor)
         return image_prompt_embeds

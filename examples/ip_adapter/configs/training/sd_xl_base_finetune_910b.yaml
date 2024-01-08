@@ -1,6 +1,7 @@
-base: ../stable_diffusion_xl/configs/inference/sd_xl_base.yaml
+base: ../stable_diffusion_xl/configs/training/sd_xl_base_finetune_910b.yaml
 model:
   params:
+    disable_first_stage_amp: True
     conditioner_config:
       params:
         emb_models:
@@ -24,7 +25,7 @@ model:
               legacy: False
               require_pretrained: False
           # crossattn cond
-          - is_trainable: False
+          - is_trainable: True
             input_key: clip_img
             target: adapter.common.modules.embedders.modules.IPAdapterImageEmbedder
             params:
@@ -39,6 +40,7 @@ model:
               num_tokens: 4
               mlp_ratio: 4.9231
               use_fp16: True
+              embedding_dropout: 0.05
           # vector cond
           - is_trainable: False
             input_key: original_size_as_tuple
@@ -63,3 +65,15 @@ model:
       params:
         ip_scale: 1.0
         num_tokens: 4
+
+optim:
+  base_learning_rate: 1.0e-4
+
+data:
+  per_batch_size: 4
+  total_step: 200000
+
+  dataset_config:
+    target: adapter.sdxl.data.dataset.IPAdapterImageDataset
+    params:
+      drop_text_prob: 0.05
