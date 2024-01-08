@@ -96,6 +96,7 @@ class DDIMSampler(object):
         dynamic_threshold=None,
         ucg_schedule=None,
         timesteps=None,
+        noise=None,  # noise for inpainting (deterministic q_sample)
         **kwargs,
     ):
         if conditioning is not None:
@@ -145,6 +146,7 @@ class DDIMSampler(object):
             dynamic_threshold=dynamic_threshold,
             ucg_schedule=ucg_schedule,
             timesteps=timesteps,
+            noise=noise,
         )
         return samples, intermediates
 
@@ -173,6 +175,7 @@ class DDIMSampler(object):
         style_cond_tau=1.0,
         dynamic_threshold=None,
         ucg_schedule=None,
+        noise=None,
     ):
         b = shape[0]
         if x_T is None:
@@ -199,7 +202,7 @@ class DDIMSampler(object):
 
             if mask is not None:
                 assert x0 is not None
-                img_orig = self.model.q_sample(x0, ts)  # TODO: deterministic forward pass?
+                img_orig = self.model.q_sample(x0, ts, noise)
                 img = img_orig * mask + (1.0 - mask) * img
 
             if ucg_schedule is not None:

@@ -124,6 +124,20 @@ python image_to_image_sd.py --img assets/river.png --ref_img assets/vermeer.jpg
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/8eec2237-b339-47b5-adbf-1ec876100623"/>
 <br><em>An example of image-to-image. (SD-1.5)</em></p>
 
+### Image Inpainting (SD-1.5)
+
+To run the image inpainting task on SD-1.5, you can use the `image_inpainting_sd.py` script. First, prepare the input image, reference image, the mask of the reference image, and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/e4837c29-40ef-468c-b94e-6df1e3485211), [reference image](https://github.com/zhtmike/mindone/assets/8342575/fdbcfc46-d2ba-4c0a-818a-ad08f931d4a1), and [mask image](https://github.com/zhtmike/mindone/assets/8342575/d2b27d3a-6125-4c37-bf13-7a6b6bde7495) saved them as `assets/girl.png`, `assets/inpainting/image.png` and `assets/inpainting/mask.png` respectively. Then, run the following command in your terminal:
+```bash
+python image_inpainting_sd.py --img path_of_the_image --ref_img path_of_the_ref_image --ref_mask path_of_the_mask_image --ckpt_path path_of_the_ckpt --n_samples 4 --strength 0.7
+```
+The `--n_samples` flag denotes the number of output images in a single trial. The `--strength` flag controls the image similarity betweeen the reference image and the output image. The output images will be saved under `outputs/demo/SD/samples` directory. Here are some examples (The leftmost images is the input image, the second one from left is the reference image, and the third one from left is the mask, while the remaining images are the outputs.):
+
+```bash
+python image_inpainting_sd.py --img assets/girl.png --ref_img assets/inpainting/image.png --ref_mask assets/inpainting/mask.png --seed 0
+```
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/39818911-5162-4b40-a953-ddf9161255cb"/>
+<br><em>An example of image inpainting. (SD-1.5)</em></p>
+
 ## Model Training
 
 ### Text-image Dataset Preparation
