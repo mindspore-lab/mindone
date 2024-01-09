@@ -4,3 +4,5 @@ transformers
 imagesize
 pandas
 opencv-python
+toolz
+albumentations
