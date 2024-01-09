@@ -33,6 +33,7 @@ def convert(pt_weights_file: Path_fr, config: Path_fr, out_dir: Optional[Path_dc
     pt_keys = list(pt_ckpt.keys())
 
     config = OmegaConf.load(config.absolute)
+    del config.model.params.sampler_config
     network, _ = create_model(config, freeze=True)
     ms_weights = network.parameters_dict()
     ms_keys = list(ms_weights.keys())

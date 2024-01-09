@@ -73,7 +73,6 @@ class SVDInferPipeline(nn.Cell):
             )
 
         config = OmegaConf.load(config.absolute)
-        config.model.params.network_config.params.num_frames = num_frames
         config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
         if sampling_steps:
             config.model.params.sampler_config.params.num_steps = sampling_steps

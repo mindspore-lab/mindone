@@ -194,7 +194,6 @@ class TemporalTransformer(SpatialTransformer):
         in_channels,
         n_heads,
         d_head,
-        num_frames: int,
         depth=1,
         dropout=0.0,
         use_linear=False,
@@ -223,7 +222,7 @@ class TemporalTransformer(SpatialTransformer):
         )
         self.depth = depth
         self.max_time_embed_period = max_time_embed_period
-        self._pe = Tensor(_positional_encoding(num_frames, in_channels), dtype=ms_dtype.float32)  # FIXME: check this
+        # self._pe = Tensor(_positional_encoding(num_frames, in_channels), dtype=ms_dtype.float32)  # FIXME: check this
 
         time_mix_d_head = d_head
         n_time_mix_heads = n_heads
@@ -399,7 +398,6 @@ class VideoUNet(nn.Cell):
         out_channels: int,
         num_res_blocks: int,
         attention_resolutions: int,
-        num_frames: int,
         dropout: float = 0.0,
         channel_mult: List[int] = (1, 2, 4, 8),
         conv_resample: bool = True,
@@ -513,7 +511,6 @@ class VideoUNet(nn.Cell):
                 ch,
                 num_heads,
                 dim_head,
-                num_frames=num_frames,
                 depth=depth,
                 context_dim=context_dim,
                 time_context_dim=time_context_dim,
