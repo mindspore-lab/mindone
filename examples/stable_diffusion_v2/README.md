@@ -308,7 +308,9 @@ Please refer to the tutorial of [DreamBooth for Stable Diffusion Finetuning](doc
 
 ### Textual Inversion Fine-tuning
 
-Coming soon
+Textual Inversion learns one or a few text embedding vectors for a new concept, e.g., object or style, with only 3~5 images.
+
+Please refer to the tutorial of [Textual Inversion for Stable Diffusion Finetuning](docs/en/textual_inversion_finetune.md) for detailed instructions.
 
 ## Image-to-Image
 
@@ -548,6 +550,8 @@ Coming soon
 Coming soon
 
 ## What's New
+- 2024.01.10
+  - Add Textual Inversion fine-tuning
 - 2023.12.01
   - Add ControlNet v1
   - Add unclip image variation pipeline, supporting both inference and training.
