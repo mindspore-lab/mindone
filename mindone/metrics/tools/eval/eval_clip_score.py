@@ -1,16 +1,16 @@
 import argparse
 import json
 import os
+import sys
 from functools import partial
 
+# add current working dir to path to prevent ModuleNotFoundError
+sys.path.insert(0, os.getcwd())
 from PIL import Image
 from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
 import mindspore
 from mindspore import ops
-
-# add current working dir to path to prevent ModuleNotFoundError
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

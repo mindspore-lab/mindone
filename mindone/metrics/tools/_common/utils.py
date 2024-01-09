@@ -2,11 +2,11 @@
 import os
 from functools import partial
 
+
 from PIL import Image
 
 from mindspore import ops
 
-# get L2 norm operator
 L2_norm_ops = partial(ops.norm, ord=2, dim=1, keepdim=True)
 
 
