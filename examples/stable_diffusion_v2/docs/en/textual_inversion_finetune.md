@@ -28,7 +28,7 @@ Make sure the following frameworks are installed.
 
 - mindspore 2.1.0 (Ascend 910) / mindspore 2.2.1 (Ascend 910*)
 
-Enter the `example/stable_diffusion_xl` folder and run
+Enter the `example/stable_diffusion_v2` folder and run
 
 ```shell l
 pip install -r requirement.txt
