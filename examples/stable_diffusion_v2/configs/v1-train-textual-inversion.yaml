@@ -58,10 +58,11 @@ model:
           attn_resolutions: []
 
     cond_stage_config:
-      target: ldm.modules.textual_inversion.text_encoder.FrozenCLIPEmbedder_CLIPTokenizer
+      target: ldm.modules.textual_inversion.text_encoder.FrozenCLIPEmbedder
       params:
         use_fp16: True
-        tokenizer_name: "BpeTokenizer"
+        tokenizer_name: "CLIPTokenizer"
+        version: "openai/clip-vit-large-patch14"
         context_length: 77
         vocab_size: 49408
         output_dim: 768

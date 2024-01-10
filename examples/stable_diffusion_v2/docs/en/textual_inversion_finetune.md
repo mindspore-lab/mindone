@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Textual Inversion is a method to train a pretrained text-to-image model to generate images of a specific unique concepts, modifiy their appearance, or compose them in new roles and novel scenes. It does not require lots of training data, only 3-5 images of a user-provided concept. It does not update the weights of the text-to-image model to learn the new concept, but learn it through new "words" in the embedding space of a frozen text encoder. These new "words" can be composed into natural language sentences, making it plausible to generate personalized visual contents.
+Textual Inversion is a method to train a pretrained text-to-image model to generate images of a specific unique concept, modify their appearance, or compose them in new roles and novel scenes. It does not require lots of training data, only 3-5 images of a user-provided concept. It does not update the weights of the text-to-image model to learn the new concept, but learns it through new "words" in the embedding space of a frozen text encoder. These new "words" can be composed into natural language sentences, making it plausible to generate personalized visual content.
 
 
 
@@ -30,8 +30,8 @@ Make sure the following frameworks are installed.
 
 Enter the `example/stable_diffusion_v2` folder and run
 
-```shell l
-pip install -r requirement.txt
+```bash
+pip install -r requirements.txt
 ```
 ### Pretrained Models
 
@@ -42,7 +42,7 @@ Since we use `CLIPTokenizer` from the `transformers` library, please also instal
 pip install transformers>=4.16.0
 ```
 
-In addition, please prepare the tokenizer `openai/clip-vit-large-patch14` from the [huggingface website](https://huggingface.co/openai/clip-vit-large-patch14/tree/main) for the usage of `CLIPTokenizer`. The diretory tree of `openai/` folder should be:
+In addition, please prepare the tokenizer `openai/clip-vit-large-patch14` from the [huggingface website](https://huggingface.co/openai/clip-vit-large-patch14/tree/main) for the usage of `CLIPTokenizer`. The directory tree of `openai/` folder should be:
 
 ```bash
 openai/
@@ -57,7 +57,7 @@ openai/
 ```
 ### Finetuning Dataset Preparation
 
-Depending on the concepts that we want the finetuned model to learn, the datasets can be divided into two groups: the datasets of the same **object** and the datasets of the same **style**.
+Depending on the concept that we want the finetuned model to learn, the datasets can be divided into two groups: the datasets of the same **object** and the datasets of the same **style**.
 
 For **object** dataset, we use the [cat-toy](https://huggingface.co/datasets/diffusers/cat_toy_example) dataset. The dataset contains six images which are shown below.
 
@@ -96,7 +96,7 @@ We name the folder containing the object dataset as `datasets/cat_toy`, and the 
 ## Finetuning
 
 The key arguments for finetuning experiments are explained as follows:
-- `num_vectors`: the number of trainable text embeddings for text encoder. Larger value indicates larger capacity. We recommend to take a grid search to find the optimal number of vectors for each training experiment.
+- `num_vectors`: the number of trainable text embeddings for the text encoder. A larger value indicates  a larger capacity. We recommend taking a grid search to find the optimal number of vectors for each training experiment.
 - `start_learning_rate`: the initial learning rate for linear decay learning scheduler.
 - `max_steps`: the maximum number of training steps, which overwrites the number of training epochs `--epochs`.
 - `gradient_accumulation_steps`: the number of gradient accumulation steps. The default value is 4.
@@ -107,7 +107,7 @@ The key arguments for finetuning experiments are explained as follows:
 
 In the following tutorial, we will use SDv1.5 as an example. The hyperparameter configuration file for SDv1.5 is `configs/train/train_config_textual_inversion_v1.yaml`.
 
-> We also support finetuning SDv2.0(2.1) with `configs/train/train_config_textual_inversion_v2.yaml`. Compared with the hyperparameters for SDv1.5, we use smaller learning rate (x0.5) and train more steps (x2.0) for SDv2.0 since SDv2.0 is more likely to overfit.
+> We also support finetuning SDv2.0(2.1) with `configs/train/train_config_textual_inversion_v2.yaml`. Compared with the hyperparameters for SDv1.5, we use a smaller learning rate (x0.5) and train more steps (x2.0) for SDv2.0 since SDv2.0 is more likely to overfit.
 
 ### Object Dataset Experiment
 
@@ -123,7 +123,6 @@ python train_textual_inversion.py \
 
 Suppose the saved checkpoint file is `output/weights/SDv1.5_textual_inversion_3000_ti.ckpt`, we use the following command to run inference with the newly learned text embedding.
 ```bash
-export MS_PYNATIVE_GE=1
 python text_to_image.py  \
     --version "1.5" \
     --prompt "a <cat-toy> backpack" \
@@ -166,7 +165,6 @@ python train_textual_inversion.py  \
 
 After training, suppose we have the saved checkpoint file `output/chinese_art/weights/SDv1.5_textual_inversion_4000_ti.ckpt`, we use the following command to run inference with the newly learned text embedding.
 ```bash
-export MS_PYNATIVE_GE=1
 python text_to_image.py  \
     --version "1.5" \
     --prompt "a dog in <chinese-art> style" \
