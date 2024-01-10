@@ -15,9 +15,9 @@ from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.data import build_dataloader
+from mindone.env import init_train_env
 
 sys.path.append("../stable_diffusion_v2/")
-from common import init_env
 from ldm.data.transforms import TokenizerWrapper
 from ldm.modules.logger import set_logger
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -30,7 +30,7 @@ from text_to_image import load_model_from_config
 def main(args, initializer):
     # step 1: initialize environment
     logger = logging.getLogger(__name__)
-    device_id, rank_id, device_num = init_env(**args.environment)
+    device_id, rank_id, device_num = init_train_env(**args.environment)
 
     output_dir = Path(args.train.output_dir) / args.adapter.condition / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -130,7 +130,7 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_env, "environment")
+    parser.add_function_arguments(init_train_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument(
         "--train.output_dir",

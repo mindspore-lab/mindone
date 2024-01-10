@@ -14,11 +14,12 @@ from t2i_utils import read_images
 
 from mindspore import ops
 
-sys.path.append("../stable_diffusion_v2/")
+sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
+from mindone.env import init_train_env
+from mindone.utils import set_logger
+
 sys.path.append("../stable_diffusion_xl/")
-from common import init_env
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling
-from ldm.modules.logger import set_logger
 
 
 def prepare_infer_dict(
@@ -62,7 +63,7 @@ def main(args):
     sample_path.mkdir(exist_ok=True, parents=True)
 
     # set ms context
-    init_env(**args.environment)
+    init_train_env(**args.environment)
 
     # initialize SD and adapter models
     args.SDXL.config = OmegaConf.load(args.SDXL.config)  # NOQA
@@ -155,7 +156,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
     parser.add_function_arguments(
-        init_env, "environment", skip={"distributed", "enable_modelarts", "num_workers", "json_data_path"}
+        init_train_env, "environment", skip={"distributed", "enable_modelarts", "num_workers", "json_data_path"}
     )
 
     # Stable Diffusion

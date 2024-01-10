@@ -2,32 +2,35 @@ import logging
 import os
 from typing import Optional, Tuple
 
-from ldm.data.dataset_dist import split_and_sync_data
-from ldm.modules.train.parallel_config import ParallelConfig
-from ldm.modules.train.tools import set_random_seed
-
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
+
+from ..utils.seed import set_random_seed
+from .parallel_config import ParallelConfig
 
 _logger = logging.getLogger(__name__)
 
 
-def init_env(
+def init_train_env(
     mode: int = ms.GRAPH_MODE,
     debug: bool = False,
     seed: int = 42,
+    cache_graph: bool = False,
     distributed: bool = False,
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
 ) -> Tuple[int, int, int]:
     """
-    Initialize MindSpore environment.
+    Initialize MindSpore training environment.
 
     Args:
         mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
         debug: Whether to enable debug mode (forces PyNative mode). Default is False.
         seed: The seed value for reproducibility. Default is 42.
+        cache_graph: (Experimental) Save or load the saved computation graph to significantly reduce the graph
+                     compilation time during the first epoch. Use this feature with great caution, as any changes to the
+                     Python scripts may cause inconsistencies in the results.
         distributed: Whether to enable distributed training. Default is False.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
@@ -68,7 +71,8 @@ def init_env(
         _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:
-            split_and_sync_data(json_data_path, num_workers, device_num, rank_id)
+            # split_and_sync_data(json_data_path, num_workers, device_num, rank_id)
+            raise NotImplementedError("ModelArts is not supported yet.")
     else:
         device_num = 1
         device_id = int(os.getenv("DEVICE_ID", 0))
@@ -79,6 +83,8 @@ def init_env(
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             pynative_synchronize=debug,
+            enable_compile_cache=cache_graph,
+            compile_cache_path="./cache",
         )
 
     return device_id, rank_id, device_num
