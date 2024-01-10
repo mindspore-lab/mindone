@@ -230,7 +230,7 @@ class T2I_Webdataset(T2I_BaseDataset):
 
 class T2I_Webdataset_RndAcs(T2I_BaseDataset):
     # random access
-    def __init__(self, shardlist_desc=None, *args, **kwargs):
+    def __init__(self, shardlist_desc=None, cache_dir=None, *args, **kwargs):
         # shardlist_desc: path to a json file describing sample num for each tar
         super().__init__(*args, **kwargs)
         if shardlist_desc is None:
@@ -245,9 +245,12 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
 
         with open(shardlist_desc, "r") as fp:
             shardlist = json.load(fp)["shardlist"]
-        self.dataset = wids.ShardListDataset(shardlist)
+        self.dataset = wids.ShardListDataset(shardlist, cache_dir=cache_dir)
         self._datalen = len(self.dataset)
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        os.rmdir(self.dataset.cache_dir)
+        
     def parse_raw_data(self, raw_data):
         # parse webdataset reading result
         if ".jpg" in raw_data:
