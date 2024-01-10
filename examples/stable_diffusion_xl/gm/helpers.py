@@ -649,39 +649,43 @@ def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False)
         else:
             ckpt.append({"name": n, "data": p})
 
+    delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora)
+
     if not only_save_lora:
-        delete_checkpoint(ckpt_queue, max_num_ckpt)
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
 
     if len(ckpt_lora) > 0:
-        delete_checkpoint(ckpt_queue, max_num_ckpt, is_lora_ckpt=True)
         path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
 
 
-def delete_checkpoint(ckpt_queue, max_num_ckpt, is_lora_ckpt=False):
+def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
     """
     Only keep the latest `max_num_ckpt` ckpts while training. If max_num_ckpt == 0, keep all ckpts.
     """
     if max_num_ckpt > 0 and len(ckpt_queue) >= max_num_ckpt:
-        to_del = ckpt_queue.pop(0)
-        if is_lora_ckpt:
-            to_del = _build_lora_ckpt_path(to_del)
-
-        if os.path.isfile(to_del):
-            try:
-                os.chmod(to_del, stat.S_IWRITE)
-                os.remove(to_del)
-                _logger.info(
-                    f"The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
-                )
-            except OSError as e:
-                _logger.error(f"Failed to delete the ckpt file {to_del}.")
-                _logger.exception(e)
+        del_ckpt = ckpt_queue.pop(0)
+        del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
+        if only_save_lora:
+            del_ckpts = [del_ckpt_lora]
         else:
-            _logger.warning(f"The ckpt file {to_del} to be deleted does not exist.")
+            del_ckpts = [del_ckpt, del_ckpt_lora]
+
+        for to_del in del_ckpts:
+            if os.path.isfile(to_del):
+                try:
+                    os.chmod(to_del, stat.S_IWRITE)
+                    os.remove(to_del)
+                    print(
+                        f"INFO: The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
+                    )
+                except OSError as e:
+                    print(e)
+                    print(f"ERROR: Failed to delete the ckpt file {to_del}.")
+            else:
+                print(f"WARNING: The ckpt file {to_del} to be deleted does not exist.")
 
 
 def get_interactive_image(image) -> Image.Image:
