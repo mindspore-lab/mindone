@@ -5,6 +5,7 @@ import json
 import os
 import random
 import time
+import shutil
 
 import numpy as np
 import webdataset as wds
@@ -249,7 +250,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         self._datalen = len(self.dataset)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        os.rmdir(self.dataset.cache_dir)
+        shutil.rmtree(self.dataset.cache_dir)
         
     def parse_raw_data(self, raw_data):
         # parse webdataset reading result
