@@ -23,7 +23,7 @@ from mindspore import Tensor, ops
 
 def get_parser_sample():
     parser = argparse.ArgumentParser(description="sampling with sd-xl")
-    parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img"])
+    parser.add_argument("--task", type=str, default="txt2img", choices=["txt2img", "img2img", "super_resolution"])
     parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument(
@@ -101,6 +101,19 @@ def get_parser_sample():
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
         "--ms_enable_graph_kernel", type=ast.literal_eval, default=False, help="use enable_graph_kernel or not"
+    )
+
+    # for super resolution
+    parser.add_argument("--add_sr", type=ast.literal_eval, default=False)
+    parser.add_argument("--sr_img", type=str, help="path of input image for rrdb")
+    parser.add_argument("--sr_config", type=str, default="configs/inference/sd_xl_sr.yaml")
+    parser.add_argument("--sr_weight", type=str, default="checkpoints/rrdb_ascend_div2k_psnr30.68_20230524.ckpt")
+    parser.add_argument(
+        "--scale",
+        type=int,
+        default=2,
+        choices=[2, 4],
+        help="the ratio between the scale of a given original object and a new object",
     )
 
     # for controlnet
@@ -298,6 +311,28 @@ def apply_refiner(
     return samples
 
 
+def run_sr(args, model):
+    img = load_img(args.sr_img)
+    assert img is not None
+    print("Improving Resolution")
+    s_time = time.time()
+    img = (img + 1.0) / 2
+    out = model(Tensor(img, ms.float32)).asnumpy()
+    print(f"Output image done, time cost: {time.time() - s_time:.2f}s")
+    return out
+
+
+def apply_sr(samples, model):
+    s_time = time.time()
+    outs = []
+    for sample in samples:
+        c, h, w = sample.shape
+        out = model(Tensor(sample.reshape(1, c, h, w))).squeeze(axis=0).asnumpy()
+        outs.append(out)
+    print(f"Output image done, time cost: {time.time() - s_time:.2f}s")
+    return outs
+
+
 def sample(args):
     config = OmegaConf.load(args.config)
     version = config.pop("version", "SDXL-base-1.0")
@@ -312,24 +347,27 @@ def sample(args):
             f"'add_pipeline' is only supported on SDXL-base model, but got {version}, 'add_pipeline' modify to 'False'"
         )
 
+    add_sr = args.add_sr
+
     seed_everything(args.seed)
 
-    # Init Model
-    model, filter = create_model(
-        config,
-        checkpoints=args.weight.split(","),
-        freeze=True,
-        load_filter=False,
-        param_fp16=False,
-        amp_level=args.ms_amp_level,
-        textual_inversion_ckpt=args.textual_inversion_weight,
-        placeholder_token=args.placeholder_token,
-        num_vectors=args.num_vectors,
-    )  # TODO: Add filter support
-    if args.textual_inversion_weight is not None:
-        model, manager = model
-        # replace placeholder token by placeholder tokens
-        args.prompt = manager.manage_prompt(args.prompt)
+    if task != "super_resolution":
+        # Init Model
+        model, filter = create_model(
+            config,
+            checkpoints=args.weight.split(","),
+            freeze=True,
+            load_filter=False,
+            param_fp16=False,
+            amp_level=args.ms_amp_level,
+            textual_inversion_ckpt=args.textual_inversion_weight,
+            placeholder_token=args.placeholder_token,
+            num_vectors=args.num_vectors,
+        )  # TODO: Add filter support
+        if args.textual_inversion_weight is not None:
+            model, manager = model
+            # replace placeholder token by placeholder tokens
+            args.prompt = manager.manage_prompt(args.prompt)
 
     save_path = os.path.join(args.save_path, task, version)
     is_legacy = version_dict["is_legacy"]
@@ -377,6 +415,20 @@ def sample(args):
         if not args.finish_denoising:
             stage2strength = None
 
+    if task == "super_resolution" or add_sr:
+        # Init Model
+        config3 = OmegaConf.load(args.sr_config)
+        config3.model.params.scale = args.scale
+        weight3 = args.sr_weight
+        model3, _ = create_model(
+            config3,
+            checkpoints=weight3.split(","),
+            freeze=True,
+            load_filter=False,
+            param_fp16=False,
+            amp_level=args.ms_amp_level,
+        )
+
     if task == "txt2img":
         out = run_txt2img(
             args,
@@ -399,6 +451,11 @@ def sample(args):
             stage2strength=stage2strength,
             amp_level=args.ms_amp_level,
         )
+    elif task == "super_resolution":
+        out = run_sr(
+            args,
+            model3,
+        )
     else:
         raise ValueError(f"Unknown task {task}")
 
@@ -410,20 +467,37 @@ def sample(args):
 
     if add_pipeline:
         print("**Running Refinement Stage**")
-        assert samples_z is not None
+        outs = []
+        for samples, samples_z in out:
+            assert samples_z is not None
 
-        samples = apply_refiner(
-            samples_z,
-            model=model2,
-            sampler=sampler2,
-            num_samples=samples_z.shape[0],
-            prompt=args.prompt,
-            negative_prompt=args.negative_prompt if is_legacy else "",
-            filter=filter2,
-            finish_denoising=args.finish_denoising,
-        )
+            samples = apply_refiner(
+                samples_z,
+                model=model2,
+                sampler=sampler2,
+                num_samples=samples_z.shape[0],
+                prompt=args.prompt,
+                negative_prompt=args.negative_prompt if is_legacy else "",
+                filter=filter2,
+                finish_denoising=args.finish_denoising,
+            )
 
-        perform_save_locally(os.path.join(save_path, "pipeline"), samples)
+            outs.append(samples)
+            perform_save_locally(os.path.join(save_path, "pipeline"), samples)
+
+    if add_sr:
+        print("**Running Image Super-Resolution Task**")
+        if task == "txt2img" and not add_pipeline:
+            for samples, samples_z in out:
+                samples = apply_sr(samples, model3)
+                perform_save_locally(os.path.join(save_path, "sr"), samples)
+        elif task == "txt2img" and add_pipeline:
+            for samples in outs:
+                samples = apply_sr(samples, model3)
+                perform_save_locally(os.path.join(save_path, "sr"), samples)
+        else:
+            samples = apply_sr(samples, model3)
+            perform_save_locally(os.path.join(save_path, "sr"), samples)
 
 
 if __name__ == "__main__":

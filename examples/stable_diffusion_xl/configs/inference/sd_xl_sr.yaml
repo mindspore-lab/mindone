@@ -1,0 +1,10 @@
+model:
+  params:
+    bias: true
+    in_channels: 3
+    internal_ch: 32
+    mid_channels: 64
+    num_blocks: 8
+    out_channels: 3
+    scale: 2
+  target: gm.models.rrdb.RRDBNet

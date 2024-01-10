@@ -61,7 +61,6 @@ After obtaining the weights, place them into checkpoints/. We recommend setting 
 
 ```shell
 # run sdxl-base txt2img without streamlit on Ascend
-export MS_PYNATIVE_GE=1
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base.yaml \
