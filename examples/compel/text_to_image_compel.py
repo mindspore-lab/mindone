@@ -10,11 +10,13 @@ import time
 import numpy as np
 from omegaconf import OmegaConf
 from PIL import Image
+from sdv2.text_encoder import TextEncoder
 
 import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+from ldm.models.clip.simple_tokenizer import get_tokenizer
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
@@ -53,8 +55,38 @@ def numpy_to_pil(images):
     return pil_images
 
 
+# To keep Rewrite ldm.modules.encoders.text_encoder from examples/stable_diffusion_v2 untouched
+# write a new text encoder and replace the old one
+
+
+def init_new_text_encoder(config):
+    if isinstance(config, str):
+        config = OmegaConf.load(config).model
+    params = config.cond_stage_config.params
+    dtype = ms.float16 if params.use_fp16 else ms.float32
+    context_length = params.context_length
+    tokenizer = get_tokenizer(params.tokenizer_name)
+    setattr(tokenizer, "context_length", context_length)
+    transformer = TextEncoder(
+        context_length=context_length,
+        vocab_size=params.vocab_size,
+        output_dim=params.output_dim,
+        width=params.width,
+        layers=params.layers,
+        heads=params.heads,
+        epsilon=params.epsilon,
+        use_quick_gelu=params.use_quick_gelu,
+        dtype=dtype,
+        upcast_attn=params.upcast_attn,
+    )
+    return transformer
+
+
 def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None):
     model = instantiate_from_config(config.model)
+    # replace the TextEncoder
+    new_text_encoder = init_new_text_encoder(config.model)
+    model.cond_stage_model.transformer = new_text_encoder
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
         if os.path.exists(ckpt_fp):
