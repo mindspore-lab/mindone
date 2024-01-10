@@ -1,6 +1,6 @@
 # This file only applies to static graph mode
 
-from gm.util import append_dims
+from gm.util import append_dims, clip_grad
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -149,6 +149,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         self.scaler = scaler
         self.reducer = reducer
         self.overflow_still_update = overflow_still_update
+        self.hyper_map = ops.HyperMap()
 
         self.clip_grad = clip_grad
         self.clip_norm = clip_norm
@@ -157,12 +158,11 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         if self.accum_steps > 1:
             self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step", requires_grad=False)
             self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
-            self.hyper_map = ops.HyperMap()
 
     def do_optim(self, loss, grads):
         if not self.accum_steps > 1:
             if self.clip_grad:
-                grads = ops.clip_by_global_norm(grads, self.clip_norm)
+                grads = self.hyper_map(F.partial(clip_grad, 1, self.clip_norm), grads)
             loss = F.depend(loss, self.optimizer(grads))
         else:
             loss = F.depend(

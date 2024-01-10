@@ -6,6 +6,8 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import nn
+from mindspore.ops import composite as C
+from mindspore.ops import functional as F
 from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
 
 
@@ -72,6 +74,34 @@ def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
     ms.set_seed(seed)
+
+
+clip_grad = C.MultitypeFuncGraph("clip_grad")
+
+
+@clip_grad.register("Number", "Number", "Tensor")
+def _clip_grad(clip_type, clip_value, grad):
+    """
+    Clip gradients.
+
+    Inputs:
+        clip_type (int): The way to clip, 0 for 'value', 1 for 'norm'.
+        clip_value (float): Specifies how much to clip.
+        grad (tuple[Tensor]): Gradients.
+
+    Outputs:
+        tuple[Tensor]: clipped gradients.
+    """
+    if clip_type not in (0, 1):
+        return grad
+    dt = F.dtype(grad)
+    if clip_type == 0:
+        new_grad = C.clip_by_value(
+            grad, F.cast(F.tuple_to_array((-clip_value,)), dt), F.cast(F.tuple_to_array((clip_value,)), dt)
+        )
+    else:
+        new_grad = nn.ClipByNorm()(grad, F.cast(F.tuple_to_array((clip_value,)), dt))
+    return new_grad
 
 
 def auto_mixed_precision(network, amp_level="O0"):
