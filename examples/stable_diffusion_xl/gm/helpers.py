@@ -1,5 +1,6 @@
 import logging
 import os
+import stat
 from datetime import datetime
 from typing import List, Union
 
@@ -632,7 +633,11 @@ def perform_save_locally(save_path, samples):
         base_count += 1
 
 
-def save_checkpoint(model, path, only_save_lora=False):
+def _build_lora_ckpt_path(ckpt_path):
+    return ckpt_path[: -len(".ckpt")] + "_lora.ckpt"
+
+
+def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
     ckpt, ckpt_lora = [], []
     for n, p in model.parameters_and_names():
         # FIXME: save checkpoint bug on mindspore 2.1.0
@@ -645,13 +650,38 @@ def save_checkpoint(model, path, only_save_lora=False):
             ckpt.append({"name": n, "data": p})
 
     if not only_save_lora:
+        delete_checkpoint(ckpt_queue, max_num_ckpt)
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
 
     if len(ckpt_lora) > 0:
-        path_lora = path[: -len(".ckpt")] + "_lora.ckpt"
+        delete_checkpoint(ckpt_queue, max_num_ckpt, is_lora_ckpt=True)
+        path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+
+
+def delete_checkpoint(ckpt_queue, max_num_ckpt, is_lora_ckpt=False):
+    """
+    Only keep the latest `max_num_ckpt` ckpts while training. If max_num_ckpt == 0, keep all ckpts.
+    """
+    if max_num_ckpt > 0 and len(ckpt_queue) >= max_num_ckpt:
+        to_del = ckpt_queue.pop(0)
+        if is_lora_ckpt:
+            to_del = _build_lora_ckpt_path(to_del)
+
+        if os.path.isfile(to_del):
+            try:
+                os.chmod(to_del, stat.S_IWRITE)
+                os.remove(to_del)
+                _logger.info(
+                    f"The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
+                )
+            except OSError as e:
+                _logger.error(f"Failed to delete the ckpt file {to_del}.")
+                _logger.exception(e)
+        else:
+            _logger.warning(f"The ckpt file {to_del} to be deleted does not exist.")
 
 
 def get_interactive_image(image) -> Image.Image:
