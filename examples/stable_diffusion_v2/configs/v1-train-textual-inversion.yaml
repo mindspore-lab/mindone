@@ -58,7 +58,7 @@ model:
           attn_resolutions: []
 
     cond_stage_config:
-      target: ldm.modules.textual_inversion.text_encoder.FrozenCLIPEmbedder
+      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
       params:
         use_fp16: True
         tokenizer_name: "CLIPTokenizer"
