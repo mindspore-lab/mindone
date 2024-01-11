@@ -14,8 +14,7 @@ from sdv2.text_encoder import TextEncoder
 
 import mindspore as ms
 
-workspace = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(workspace)
+sys.path.append("../stable_diffusion_v2")
 from ldm.models.clip.simple_tokenizer import get_tokenizer
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
@@ -57,16 +56,15 @@ def numpy_to_pil(images):
 
 # To keep Rewrite ldm.modules.encoders.text_encoder from examples/stable_diffusion_v2 untouched
 # write a new text encoder and replace the old one
-
-
 def init_new_text_encoder(config):
     if isinstance(config, str):
         config = OmegaConf.load(config).model
-    params = config.cond_stage_config.params
+    params = config.params.cond_stage_config.params
     dtype = ms.float16 if params.use_fp16 else ms.float32
     context_length = params.context_length
     tokenizer = get_tokenizer(params.tokenizer_name)
     setattr(tokenizer, "context_length", context_length)
+    upcast_attn = params.get("upcast_attn", False)
     transformer = TextEncoder(
         context_length=context_length,
         vocab_size=params.vocab_size,
@@ -77,7 +75,7 @@ def init_new_text_encoder(config):
         epsilon=params.epsilon,
         use_quick_gelu=params.use_quick_gelu,
         dtype=dtype,
-        upcast_attn=params.upcast_attn,
+        upcast_attn=upcast_attn,
     )
     return transformer
 
