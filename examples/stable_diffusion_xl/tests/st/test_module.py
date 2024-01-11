@@ -7,8 +7,7 @@ import numpy as np
 
 import mindspore as ms
 import mindspore.dataset as de
-from mindspore import Profiler, Tensor, context, nn, ops
-from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore import Profiler, nn, ops
 
 
 def create_loader(
@@ -408,7 +407,7 @@ def main(args):
         run_bp = False
     elif args.net == "GeneralConditioner":
         from gm.modules.embedders.modules import GeneralConditioner
-        from gm.util.util import auto_mixed_precision, instantiate_from_config
+        from gm.util.util import auto_mixed_precision
         from omegaconf import OmegaConf
 
         config = OmegaConf.load("./configs/inference/sd_xl_base.yaml")
@@ -600,8 +599,6 @@ def main(args):
         run_bp = False
     elif args.net == "SDXL_MultiGraph_Dev":
         from gm.models.autoencoder import AutoencoderKLInferenceWrapper
-        from gm.modules.diffusionmodules.denoiser import DiscreteDenoiser
-        from gm.modules.diffusionmodules.loss import StandardDiffusionLoss
         from gm.modules.diffusionmodules.openaimodel import UNetModel
         from gm.util.util import auto_mixed_precision
 
@@ -623,13 +620,6 @@ def main(args):
                 "decoder_attn_dtype": "fp16",
             },
         )
-        denoiser = DiscreteDenoiser(
-            num_idx=1000,
-            weighting_config={"target": "gm.modules.diffusionmodules.denoiser_weighting.EpsWeighting"},
-            scaling_config={"target": "gm.modules.diffusionmodules.denoiser_scaling.EpsScaling"},
-            discretization_config={"target": "gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization"},
-        )
-        loss_fn = StandardDiffusionLoss()
         unet = UNetModel(
             in_channels=4,
             out_channels=4,
