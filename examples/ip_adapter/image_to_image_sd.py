@@ -17,8 +17,8 @@ from transformers import CLIPImageProcessor
 import mindspore as ms
 import mindspore.ops as ops
 
-sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
+sys.path.append("../stable_diffusion_xl/")
 
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
@@ -54,7 +54,6 @@ def load_model_from_config(config, ckpt):
                             "Ckpt params not loaded: {}".format([p for p in ckpt_not_load if not p.startswith("adam")])
                         )
         else:
-            logger.error(f"!!!Error!!!: {ckpt_fp} doesn't exist")
             raise FileNotFoundError(f"{ckpt_fp} doesn't exist")
 
     logger.info(f"Loading model from {ckpt}")

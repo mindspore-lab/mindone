@@ -167,9 +167,9 @@ For convenience, we have prepared one public text-image dataset obeying the abov
 To use it, please download `pokemon_blip.zip` from the [openi dataset website](https://openi.pcl.ac.cn/jasonhuang/mindone/datasets). Then unzip them on your local directory, e.g. `./datasets/pokemon_blip`.
 
 
-### IP-Adapter Finetune (SDXL)
+### IP-Adapter Finetune (SD-XL)
 
-We will use `train_sdxl.py` script to finetune the IP-Adapter. Run the following command to launch finetuning:
+We will use `train_sdxl.py` script to finetune the IP-Adapter (SD-XL). Run the following command to launch finetuning:
 
 ```bash
 python train_sdxl.py \
@@ -213,6 +213,42 @@ The full model is saved as `SDXL-base-1.0-200000_full.ckpt`, which can be loaded
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/a336ca54-22f6-4548-b6a2-898265099109"/>
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/f68c94a7-4050-4083-9e3e-7d8ef00f4e82"/>
 <br><em>Finetuned result on Pokemon dataset. (SD-XL)</em></p>
+
+### IP-Adapter Finetune (SD-1.5)
+
+We will use `train_sd.py` script to finetune the IP-Adapter (SD-1.5). Run the following command to launch finetuning:
+
+```bash
+python train_sd.py \
+    --data_path ./datasets/pokemon_blip/train \
+    --pretrained_model_path checkpoints/sd_models/merged/sd_v1.5_ip_adapter.ckpt
+```
+
+> Note: to modify other important hyper-parameters, please refer to training config file `configs/training/sd_v15_finetune_910b.yaml`.
+
+After training, the checkpoint of the finetuned IP-Adpater will be saved in `runs/ckpt/sd-500.ckpt` by default.
+
+Below are some arguments in the config file that you may want to tune for a better performance on your dataset:
+
+- `train_batch_size`: the number of batch size for training.
+- `start_learning_rate`: the learning rates for training.
+- `epochs`: total number of training epochs
+
+For more argument illustration, please run `python train_sd.py -h`.
+
+Once you have finished the model finetuning, you need to merge the weight from stable diffusion 1.5, image encoder, and *finetuned* IP-Adapter into a single file, which can be loaded by the inference script later. To merge the checkpoint, please run the following command:
+
+```bash
+python tools/merge_ckpts_sd.py \
+    --ip_adpater runs/ckpt/sd-500.ckpt \
+    --out runs/ckpt/sd-500_full.ckpt
+```
+
+The full model is saved as `sd-500_full.ckpt`, which can be loaded by `image_variation_sd.py` directly. Here are some inference result (The image on the left is the original input, while the remaining images are the outputs.):
+
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/a336ca54-22f6-4548-b6a2-898265099109"/>
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/f68c94a7-4050-4083-9e3e-7d8ef00f4e82"/>
+<br><em>Finetuned result on Pokemon dataset. (SD-1.5)</em></p>
 
 ### IP-Adapter Training From scratch
 

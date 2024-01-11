@@ -9,6 +9,7 @@ from PIL import Image, ImageOps
 
 sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
+
 import numpy as np
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, perform_save_locally
 from gm.util import seed_everything

@@ -161,10 +161,11 @@ class EvalSaveCallback(Callback):
 
                 self.step_start_time = time.time()
                 _logger.info(
-                    "epoch: %d step: %d, loss is %.3f, average step time (in %d step(s)): %.3f.",
+                    "epoch: %d step: %d, loss: %.3f, loss scale: %.1f, average step time (in %d step(s)): %.3f.",
                     cb_params.cur_epoch_num,
                     (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                     loss.asnumpy().item(),
+                    loss_scale_manager.get_loss_scale(),
                     self.log_interval,
                     train_time / self.log_interval,
                 )
