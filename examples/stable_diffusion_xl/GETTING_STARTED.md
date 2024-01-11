@@ -276,7 +276,11 @@ python train.py \
 
 For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
 
-4. Run with Multiple NPUs, example as:
+4. Textual Inversion fine-tune
+
+For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
+
+5. Run with Multiple NPUs, example as:
 
 ```shell
 # run with multiple NPU/GPUs
