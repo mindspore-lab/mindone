@@ -16,16 +16,45 @@ import logging
 
 import numpy as np
 from ldm.util import is_old_ms_version
+from packaging import version
 
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.common.initializer import initializer
 
-try:
-    from mindspore.nn.layer.flash_attention import FlashAttention
 
-    FLASH_IS_AVAILABLE = True
-    print("flash attention is available.")
+def new_version():
+    return version.parse(ms.__version__) >= version.parse("2.2")
+
+
+try:
+    if new_version():
+        from mindspore.nn.layer.flash_attention import FlashAttention
+
+        FLASH_IS_AVAILABLE = True
+        print("flash attention is available.")
+    else:
+        from mindspore.ops._op_impl._custom_op.flash_attention.flash_attention_impl import get_flash_attention
+
+        # reference to https://arxiv.org/abs/2205.14135
+        class FlashAttention(nn.Cell):
+            def __init__(self):
+                super(FlashAttention, self).__init__()
+                self.flash_attention = get_flash_attention(tiling_stgy_name="sparse")
+
+            def construct(self, q, k, v, attention_mask=None, dropout_mask=None, alibi_mask=None):
+                # ALiBi, reference to https://arxiv.org/abs/2108.12409
+                _, h, Nq, d = q.shape
+                dim_mask = ops.ones((d,), dtype=ms.int8)
+                scale = d**-0.25
+                q = q * scale
+                k = k * scale
+                o, l, m = self.flash_attention(q, k, v, dim_mask, attention_mask, dropout_mask, alibi_mask)
+                return o  # (b, h, n, d)
+
+        FLASH_IS_AVAILABLE = True
+        print("flash attention is available.")
+
 except ImportError:
     FLASH_IS_AVAILABLE = False
     print("flash attention is unavailable.")
@@ -147,11 +176,15 @@ class CrossAttention(nn.Cell):
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         if self.enable_flash_attention:
-            self.flash_attention = FlashAttention(
-                head_dim=dim_head, head_num=heads, high_precision=True
-            )  # TODO: how high_precision affect the training or inference quality
-            self.fa_mask_dtype = ms.uint8  # choose_flash_attention_dtype()
-            # logger.info("Flash attention is enabled.")
+            if new_version():
+                self.flash_attention = FlashAttention(
+                    head_dim=dim_head, head_num=heads, high_precision=True
+                )  # TODO: how high_precision affect the training or inference quality
+                self.fa_mask_dtype = ms.uint8  # choose_flash_attention_dtype()
+                # logger.info("Flash attention is enabled.")
+            else:
+                self.flash_attention = FlashAttention()
+                self.fa_mask_dtype = ms.uint8
         else:
             self.flash_attention = None
 
@@ -201,10 +234,12 @@ class CrossAttention(nn.Cell):
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
+            if new_version():
+                out = self.flash_attention(
+                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+                )
+            else:
+                out = self.flash_attention(q, k, v, mask.to(q.dtype))
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -285,9 +320,12 @@ class CrossFrameAttention(CrossAttention):
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
 
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
+            if new_version():
+                out = self.flash_attention(
+                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+                )
+            else:
+                out = self.flash_attention(q, k, v, mask.to(q.dtype))
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
