@@ -68,8 +68,8 @@ def get_parser_train():
     parser.add_argument(
         "--max_num_ckpt",
         type=int,
-        default=0,
-        help="Max number of ckpts saved. If exceeds, delete the oldest one. Set 0: keep all ckpts.",
+        default=None,
+        help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
     )
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
@@ -278,6 +278,7 @@ def train(args):
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
+    assert args.max_num_ckpt is None or args.max_num_ckpt > 0, "args.max_num_ckpt must be None or a positive integer!"
     if args.task == "txt2img":
         train_txt2img(
             args,

@@ -662,7 +662,7 @@ def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
     """
     Only keep the latest `max_num_ckpt` ckpts while training. If max_num_ckpt == 0, keep all ckpts.
     """
-    if max_num_ckpt > 0 and len(ckpt_queue) >= max_num_ckpt:
+    if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
         del_ckpt = ckpt_queue.pop(0)
         del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
         if only_save_lora:
