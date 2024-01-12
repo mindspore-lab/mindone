@@ -14,11 +14,11 @@ model:
     conditioning_key: crossattn
     monitor: val/loss_simple_ema
     scale_factor: 0.18215
-    use_ema: False
     use_fp16: True
+    parameterization: "eps"
 
     unet_config:
-      target: ldm.modules.tuneavideo.UNetModel3D
+      target: modules.tuneavideo.UNetModel3D
       params:
         image_size: 32 # unused
         in_channels: 4
@@ -27,11 +27,14 @@ model:
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4, 4 ]
-        num_heads: 8
+        #num_heads: 8  #wukong
+        num_head_channels: 64  # SD_VERSION v2.0
         use_spatial_transformer: True
-        enable_flash_attention: False  # not yet supported for SDv1.5
+        enable_flash_attention: True
+        use_linear_in_transformer: True #SD_VERSION v2.0
         transformer_depth: 1
-        context_dim: 768
+        #context_dim: 768
+        context_dim: 1024 # SD_VERSION v2.0
         use_checkpoint: True
         legacy: False
         use_fp16: True
@@ -66,9 +69,9 @@ model:
         tokenizer_name: "BpeTokenizer"
         context_length: 77
         vocab_size: 49408
-        output_dim: 768
-        width: 768
-        layers: 12
-        heads: 12
-        epsilon: 1e-7
-        use_quick_gelu: True
+        output_dim: 1024
+        width: 1024
+        layers: 23
+        heads: 16
+        epsilon: 1e-5
+        use_quick_gelu: False

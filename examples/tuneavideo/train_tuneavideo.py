@@ -6,10 +6,13 @@ import importlib
 import logging
 import os
 import shutil
+import sys
 
 import yaml
+
+sys.path.append("../stable_diffusion_v2")  # FIXME: loading modules from the stable_diffusion_v2 directory
 from common import init_env
-from ldm.data.dataset_tuneavideo import load_data
+from data.dataset_tuneavideo import load_data
 from ldm.modules.logger import set_logger
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.checkpoint import resume_train_network
