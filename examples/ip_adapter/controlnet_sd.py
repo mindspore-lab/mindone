@@ -97,6 +97,7 @@ def load_control_image(image: str, scale_factor: int = 8, min_size: int = 512) -
     image = np.array(image, dtype=np.float32)
     image = image[None, ...]
     image = image.transpose(0, 3, 1, 2)
+    image = image / 255.0
     image = ms.Tensor(image, ms.float32)
     return image
 

@@ -270,6 +270,9 @@ class DDIMSampler(object):
         else:
             x_in = ops.concat((x, x), axis=0)
             t_in = ops.concat((t, t), axis=0)
+            if control is not None:
+                # support non-guess mode only
+                control = ops.concat((control, control), axis=0)
             if isinstance(c, dict):
                 assert isinstance(unconditional_conditioning, dict)
                 c_in = dict()
