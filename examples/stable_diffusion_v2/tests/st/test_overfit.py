@@ -151,7 +151,7 @@ def test_db(version):
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
         f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 "
-        f"--dataset_sink_mode=True --with_prior_preservation=False "  # 800 steps
+        f"--with_prior_preservation=False "  # 800 steps
     )
 
     print(f"Running command: \n{cmd}")
