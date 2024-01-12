@@ -1,6 +1,5 @@
 import logging
 import os
-import stat
 from datetime import datetime
 from typing import List, Union
 
@@ -29,8 +28,6 @@ from PIL import Image
 import mindspore as ms
 from mindspore import Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
-
-_logger = logging.getLogger(__name__)
 
 
 class BroadCast(nn.Cell):
@@ -676,16 +673,17 @@ def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
         for to_del in del_ckpts:
             if os.path.isfile(to_del):
                 try:
-                    os.chmod(to_del, stat.S_IWRITE)
                     os.remove(to_del)
-                    print(
-                        f"INFO: The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
+                    logging.debug(
+                        f"The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
                     )
                 except OSError as e:
-                    print(e)
-                    print(f"ERROR: Failed to delete the ckpt file {to_del}.")
+                    logging.error(e)
+                    logging.error(f"Failed to delete the ckpt file {to_del}.")
             else:
-                print(f"WARNING: The ckpt file {to_del} to be deleted does not exist.")
+                logging.debug(
+                    f"The ckpt file {to_del} to be deleted doesn't exist. If lora is not used for training, it's normal that lora ckpt doesn't exist."
+                )
 
 
 def get_interactive_image(image) -> Image.Image:
