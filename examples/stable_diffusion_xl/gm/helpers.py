@@ -631,7 +631,7 @@ def perform_save_locally(save_path, samples):
 
 
 def _build_lora_ckpt_path(ckpt_path):
-    return ckpt_path[: -len(".ckpt")] + "_lora.ckpt"
+    return ckpt_path.replace(".ckpt", "_lora.ckpt")
 
 
 def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
@@ -678,8 +678,7 @@ def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
                         f"The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
                     )
                 except OSError as e:
-                    logging.error(e)
-                    logging.error(f"Failed to delete the ckpt file {to_del}.")
+                    logging.exception(e)
             else:
                 logging.debug(
                     f"The ckpt file {to_del} to be deleted doesn't exist. If lora is not used for training, it's normal that lora ckpt doesn't exist."

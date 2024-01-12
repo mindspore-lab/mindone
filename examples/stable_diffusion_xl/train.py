@@ -200,7 +200,8 @@ def train(args):
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
-    assert args.max_num_ckpt is None or args.max_num_ckpt > 0, "args.max_num_ckpt must be None or a positive integer!"
+    if args.max_num_ckpt is not None and args.max_num_ckpt <= 0:
+        raise ValueError("args.max_num_ckpt must be None or a positive integer!")
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
         train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config)
