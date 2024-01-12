@@ -35,5 +35,24 @@ def gen_dummpy_data():
     return data_dir
 
 
+def down_checkpoint(version="1.5"):
+    root = os.path.dirname(os.path.abspath(__file__))
+    url = {
+        "1.5": "https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt",
+        "2.0": "https://download-mindspore.osinfra.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt",
+    }
+    pretrained_model_dir = os.path.join(root, "../../models/")
+    if version == "1.5":
+        pretrained_model_path = os.path.join(root, "../../models/sd_v1.5-d0ab7146.ckpt")
+    elif version == "2.0":
+        pretrained_model_path = os.path.join(root, "../../models/sd_v2_base-57526ee4.ckpt")
+    else:
+        raise ValueError(f"SD {version} not included in test")
+
+    Download().download_and_extract_archive(url[version], pretrained_model_dir)
+
+    return pretrained_model_path
+
+
 if __name__ == "__main__":
     gen_dummpy_data()
