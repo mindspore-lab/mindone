@@ -52,6 +52,12 @@ def get_parser_train():
     parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
+    parser.add_argument(
+        "--max_num_ckpt",
+        type=int,
+        default=None,
+        help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
+    )
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
     parser.add_argument(
@@ -194,6 +200,8 @@ def train(args):
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
+    if args.max_num_ckpt is not None and args.max_num_ckpt <= 0:
+        raise ValueError("args.max_num_ckpt must be None or a positive integer!")
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
         train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config)
@@ -208,6 +216,8 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
     s_time = time.time()
+
+    ckpt_queue = []
     for i, data in enumerate(loader):
         if not args.dataset_load_tokenizer:
             # Get data, image and tokens, to tensor
@@ -251,6 +261,8 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
                 save_checkpoint(
                     model,
                     save_ckpt_dir,
+                    ckpt_queue,
+                    args.max_num_ckpt,
                     only_save_lora=False
                     if not hasattr(model.model.diffusion_model, "only_save_lora")
                     else model.model.diffusion_model.only_save_lora,
@@ -258,6 +270,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
                 model.model.set_train(True)  # only unet
             else:
                 model.save_checkpoint(save_ckpt_dir)
+            ckpt_queue.append(save_ckpt_dir)
 
         # Infer during train
         if (i + 1) % args.infer_interval == 0 and args.infer_during_train:
@@ -279,6 +292,7 @@ def train_txt2img_datasink(
 
     train_fn_sink = ms.data_sink(fn=train_step_fn, dataset=dataloader, sink_size=args.sink_size, jit_config=jit_config)
 
+    ckpt_queue = []
     for epoch in range(epochs):
         cur_step = args.sink_size * (epoch + 1)
 
@@ -313,6 +327,8 @@ def train_txt2img_datasink(
                 save_checkpoint(
                     model,
                     save_ckpt_dir,
+                    ckpt_queue,
+                    args.max_num_ckpt,
                     only_save_lora=False
                     if not hasattr(model.model.diffusion_model, "only_save_lora")
                     else model.model.diffusion_model.only_save_lora,
@@ -320,6 +336,7 @@ def train_txt2img_datasink(
                 model.model.set_train(True)  # only unet
             else:
                 model.save_checkpoint(save_ckpt_dir)
+            ckpt_queue.append(save_ckpt_dir)
 
         # Infer during train
         if cur_step % args.infer_interval == 0 and args.infer_during_train:
