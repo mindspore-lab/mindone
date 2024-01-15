@@ -247,6 +247,7 @@ The full model is saved as `SDXL-base-1.0-200000_full.ckpt`, which can be loaded
 We will use `train_sd.py` script to finetune the IP-Adapter (SD-1.5). Run the following command to launch finetuning:
 
 ```bash
+export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 python train_sd.py \
     --data_path ./datasets/pokemon_blip/train \
     --pretrained_model_path checkpoints/sd_models/merged/sd_v1.5_ip_adapter.ckpt
