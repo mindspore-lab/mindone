@@ -31,6 +31,7 @@ def gen_dummpy_data():
                     row[0] = os.path.basename(img_paths[i - 1])
                 spamwriter.writerow(row)
     print(f"Dummpy annotation file is generated in {new_label_path}")
+    data_dir = "data/Canidae/val/dogs"
 
     return data_dir
 
