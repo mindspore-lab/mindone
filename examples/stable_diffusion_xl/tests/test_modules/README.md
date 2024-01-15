@@ -15,13 +15,13 @@ Please run the following command to test the module
 For example, to test ResBlock module forward output
 
 ```shell
-python  tests/st/ResBlock_forward.py
+python  tests/test_modules/ResBlock_forward.py
 ```
 You can get forward output from the console or out.npy.
 
 To test ResBlock module loss output
 ```shell
-python  tests/st/ResBlock_loss.py
+python  tests/test_modules/ResBlock_loss.py
 ```
 You can get loss from the console.
 
