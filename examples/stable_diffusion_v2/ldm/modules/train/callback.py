@@ -115,12 +115,6 @@ class EvalSaveCallback(Callback):
         else:
             cur_epoch = cb_params.cur_epoch_num - 1
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
-
         if self.is_main_device:
             if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
                 if self.ema is not None:
@@ -141,7 +135,7 @@ class EvalSaveCallback(Callback):
                     append_dict={
                         "epoch_num": cur_epoch,
                         "cur_step": cur_step,
-                        "loss_scale": loss_scale_manager.get_loss_scale(),
+                        "loss_scale": cb_params.train_network.scale_sense.asnumpy().item(),
                     },
                 )
 
@@ -165,7 +159,7 @@ class EvalSaveCallback(Callback):
                     cb_params.cur_epoch_num,
                     (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                     loss.asnumpy().item(),
-                    loss_scale_manager.get_loss_scale(),
+                    cb_params.train_network.scale_sense.asnumpy().item(),  # `loss_scale_manager.get_loss_scale()` will not work
                     self.log_interval,
                     train_time / self.log_interval,
                 )
@@ -189,12 +183,6 @@ class EvalSaveCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
-
         if self.is_main_device and not self.step_mode:
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
                 if self.ema is not None:
@@ -211,7 +199,10 @@ class EvalSaveCallback(Callback):
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={"epoch_num": cur_epoch, "loss_scale": loss_scale_manager.get_loss_scale()},
+                    append_dict={
+                        "epoch_num": cur_epoch,
+                        "loss_scale": cb_params.train_network.scale_sense.asnumpy().item(),
+                    },
                 )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
