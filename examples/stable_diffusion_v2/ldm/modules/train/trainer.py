@@ -85,6 +85,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.verbose = verbose
         self.is_cpu_device = context.get_context("device_target") == "CPU"  # to support CPU in CI
         self.skip_start_overflow_check = version.parse(ms.__version__) >= version.parse("2.1")
+        self.manually_increase_step = version.parse(ms.__version__) >= version.parse("2.2")
 
         self.map = ops.Map()
         self.partial = ops.Partial()
@@ -148,7 +149,13 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                 else:
                     # update LR in each gradient step but not optimize net parameter to ensure the LR curve is
                     # consistent
-                    loss = F.depend(loss, self.optimizer.get_lr())  # .get_lr() will make lr step increased by 1
+                    if self.manually_increase_step:
+                        # for MS >= 2.2, `get_lr`` and `global_step += 1` is decoupled
+                        loss = F.depend(
+                            ops.assign_add(self.optimizer.global_step, self.optimizer.global_step_increase_tensor)
+                        )
+                    else:
+                        loss = F.depend(loss, self.optimizer.get_lr())  # apply global_step += 1 internally
             else:
                 # 5. gradient reduction on distributed GPUs/NPUs
                 grads = self.grad_reducer(grads)
