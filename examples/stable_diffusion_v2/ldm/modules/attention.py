@@ -184,7 +184,7 @@ class CrossAttention(nn.Cell):
                 # logger.info("Flash attention is enabled.")
             else:
                 self.flash_attention = FlashAttention()
-                self.fa_mask_dtype = ms.uint8
+                self.fa_mask_dtype = ms.float16
         else:
             self.flash_attention = None
 
@@ -232,17 +232,11 @@ class CrossAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if new_version():
-                if mask is None:
-                    mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-                out = self.flash_attention(
-                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-                )
-            else:
-                if mask is None:
-                    mask = ops.zeros((q_b, q_n, q_n), q.dtype)
-                out = self.flash_attention(q, k, v, mask)
-
+            if mask is None:
+                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+            out = self.flash_attention(
+                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+            )
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
@@ -319,17 +313,11 @@ class CrossFrameAttention(CrossAttention):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if new_version():
-                if mask is None:
-                    mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-                out = self.flash_attention(
-                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-                )
-            else:
-                if mask is None:
-                    mask = ops.zeros((q_b, q_n, q_n), q.dtype)
-                out = self.flash_attention(q, k, v, mask)
-
+            if mask is None:
+                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+            out = self.flash_attention(
+                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+            )
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
