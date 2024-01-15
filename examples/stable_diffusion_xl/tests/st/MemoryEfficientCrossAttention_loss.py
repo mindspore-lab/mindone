@@ -14,8 +14,6 @@ def create_loader(
     total_batch_size,
     size=(),
     dtypes=None,
-    rank=None,
-    rank_size=None,
     num_parallel_workers=1,
     shuffle=True,
     drop_remainder=True,
@@ -26,26 +24,14 @@ def create_loader(
     dataset = Dataset(size=size, dtypes=dtypes)
 
     de.config.set_seed(seed)
-    if rank_size is not None and rank_size > 1:
-        ds = de.GeneratorDataset(
-            dataset,
-            column_names=dataset_column_names,
-            num_parallel_workers=min(8, num_parallel_workers),
-            shuffle=shuffle,
-            python_multiprocessing=python_multiprocessing,
-            num_shards=rank_size,
-            shard_id=rank,
-        )
-        per_batch_size = max(total_batch_size // rank_size, 1)
-    else:
-        ds = de.GeneratorDataset(
-            dataset,
-            column_names=dataset_column_names,
-            num_parallel_workers=min(8, num_parallel_workers),
-            shuffle=shuffle,
-            python_multiprocessing=python_multiprocessing,
-        )
-        per_batch_size = total_batch_size
+    ds = de.GeneratorDataset(
+        dataset,
+        column_names=dataset_column_names,
+        num_parallel_workers=min(8, num_parallel_workers),
+        shuffle=shuffle,
+        python_multiprocessing=python_multiprocessing,
+    )
+    per_batch_size = total_batch_size
 
     ds = ds.batch(
         per_batch_size,
@@ -92,9 +78,6 @@ class NetWithLoss(nn.Cell):
         super(NetWithLoss, self).__init__()
         self.network = network
 
-    # def shard(self, dp=1, mp=1):
-    #     self.network.shard(dp=dp, mp=mp)
-
     def construct(self, *args, **kwargs):
         out = self.network(*args, **kwargs)
         loss = ((out - 1) ** 2).mean()
@@ -135,7 +118,7 @@ def main(args):
             use_scale_shift_norm=use_scale_shift_norm,
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, model_channels, 128, 128), (1, 1280))  # x, emb
         dataset_column_names = ["data1", "data2"]
     elif args.net == "MemoryEfficientCrossAttention":
@@ -146,7 +129,7 @@ def main(args):
             query_dim=640, heads=10, dim_head=64, dropout=0.0, context_dim=None, dp=args.dp, mp=args.mp
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 4096, 640),)
         dataset_column_names = [
             "data1",
@@ -166,7 +149,7 @@ def main(args):
             attn_mode="vanilla",
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 4096, 640), (1, 77, 2048))
         dataset_column_names = ["data1", "data2"]
     elif args.net == "BasicTransformerBlockFA":
@@ -186,7 +169,7 @@ def main(args):
             mp=args.mp,
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 4096, 640), (1, 77, 2048))
         dataset_column_names = ["data1", "data2"]
     elif args.net == "SpatialTransformer":
@@ -205,7 +188,7 @@ def main(args):
             attn_type="vanilla",
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 640, 64, 64), (1, 77, 2048))
         dataset_column_names = ["data1", "data2"]
     elif args.net == "SpatialTransformerFA":
@@ -226,7 +209,7 @@ def main(args):
             mp=args.mp,
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 640, 64, 64), (1, 77, 2048))
         dataset_column_names = ["data1", "data2"]
     elif args.net == "UNetModel":
@@ -254,7 +237,7 @@ def main(args):
             use_recompute=False,
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 4, 128, 128), (1,), (1, 77, 2048), (1, 2816))
         dataset_column_names = ["data1", "data2", "data3", "data4"]
     elif args.net == "UNetModelFA":
@@ -282,7 +265,7 @@ def main(args):
             mp=args.mp,
         )
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 4, 128, 128), (1,), (1, 77, 2048), (1, 2816))
         dataset_column_names = ["data1", "data2", "data3", "data4"]
     elif args.net == "VAE-Encoder":
@@ -313,21 +296,12 @@ def main(args):
                 super(EncoderWrapper, self).__init__()
                 self.ae = ae
 
-            def shard(self, dp=1, mp=1):
-                for cell in self.cells():
-                    if isinstance(cell, nn.Conv2d):
-                        cell.conv2d.shard(((dp, 1, 1, 1), (mp, 1, 1, 1)))
-                        cell.bias_add.shard(((dp, mp, 1, 1), (mp,)))
-                    elif isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
-
             def construct(self, x):
                 return self.ae.encode(x)
 
         _net = EncoderWrapper(ae)
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 3, 1024, 1024),)
         dataset_column_names = [
             "data1",
@@ -338,12 +312,11 @@ def main(args):
         from gm.util.util import auto_mixed_precision
 
         class ConcatTimestepEmbedderNDWrapper(ConcatTimestepEmbedderND):
-            def shard(self, dp=1, mp=1):
-                pass
+            pass
 
         _net = ConcatTimestepEmbedderNDWrapper(outdim=256)
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 2),)
         dataset_column_names = [
             "data1",
@@ -354,15 +327,11 @@ def main(args):
         from gm.util.util import auto_mixed_precision
 
         class FrozenCLIPEmbedderWrapper(FrozenCLIPEmbedder):
-            def shard(self, dp=1, mp=1):
-                for cell in self.cells():
-                    if isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
+            pass
 
         _net = FrozenCLIPEmbedderWrapper(layer="hidden", layer_idx=11, version="openai/clip-vit-large-patch14")
         net = NetWithLoss(_net)
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 77),)
         input_dtype = (np.int32,)
         dataset_column_names = [
@@ -374,20 +343,8 @@ def main(args):
         from gm.util.util import auto_mixed_precision
 
         class FrozenOpenCLIPEmbedder2Wrapper(FrozenOpenCLIPEmbedder2):
-            def shard(self, dp=1, mp=1):
-                for cell in self.cells():
-                    if isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
-
             def construct(self, *args, **kwargs):
                 outs = super(FrozenOpenCLIPEmbedder2Wrapper, self).construct(*args, **kwargs)
-
-                # 1. success
-                # out = outs[0] if isinstance(outs, tuple) else outs
-                # loss = ((out - 1) ** 2).mean()
-                # return loss
-                # 2. running
                 return outs
 
         net = FrozenOpenCLIPEmbedder2Wrapper(
@@ -398,7 +355,7 @@ def main(args):
             legacy=False,
             require_pretrained=False,
         )
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 77),)
         input_dtype = (np.int32,)
         dataset_column_names = [
@@ -414,24 +371,12 @@ def main(args):
         conditioner_config = config.model.get("params", dict())["conditioner_config"]
 
         class Wrapper(GeneralConditioner):
-            def shard(self, dp=1, mp=1):
-                for cell in self.cells():
-                    if isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
-
             def construct(self, *args, **kwargs):
                 vector, crossattn, concat = super(Wrapper, self).construct(*args, **kwargs)
-                # 1. success
-                # loss = vector.mean() + crossattn.mean()
-                # return loss
-                # 2. error: point null
-                # return vector, crossattn, concat
-                # 3. success
                 return vector, crossattn
 
         net = Wrapper(**conditioner_config.get("params", dict()))
-        net = auto_mixed_precision(net, amp_level="O2")
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 77), (1, 77), (1, 2), (1, 2), (1, 2))
         input_dtype = (np.int32, np.int32, np.float32, np.float32, np.float32)
         dataset_column_names = ["data1", "data2", "data3", "data4", "data5"]
@@ -492,17 +437,6 @@ def main(args):
                 # for p in self.get_parameters():
                 #     p.requires_grad = False
 
-            def shard(self, dp, mp):
-                self.unet.shard(dp, mp)
-
-                for cell in self.ae.cells():
-                    if isinstance(cell, nn.Conv2d):
-                        cell.conv2d.shard(((dp, 1, 1, 1), (mp, 1, 1, 1)))
-                        cell.bias_add.shard(((dp, mp, 1, 1), (mp,)))
-                    elif isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
-
             def construct(self, *args):
                 x = args[0]
                 x = self.ae.encode(x)
@@ -512,169 +446,7 @@ def main(args):
                 return out
 
         net = SDXLWrapper(ae, unet)
-        net = auto_mixed_precision(net, amp_level="O2")
-        input_size = ((1, 3, 1024, 1024), (1,), (1, 77, 2048), (1, 2816))
-        dataset_column_names = ["data1", "data2", "data3", "data4"]
-        run_bp = False
-    elif args.net == "SDXL_MultiGraph":
-        from gm.models.autoencoder import AutoencoderKLInferenceWrapper
-        from gm.modules.diffusionmodules.openaimodel import UNetModel
-        from gm.util.util import auto_mixed_precision
-
-        ae = AutoencoderKLInferenceWrapper(
-            embed_dim=4,
-            monitor="val/rec_loss",
-            ddconfig={
-                "attn_type": "vanilla",
-                "double_z": True,
-                "z_channels": 4,
-                "resolution": 256,
-                "in_channels": 3,
-                "out_ch": 3,
-                "ch": 128,
-                "ch_mult": [1, 2, 4, 4],
-                "num_res_blocks": 2,
-                "attn_resolutions": [],
-                "dropout": 0.0,
-                "decoder_attn_dtype": "fp16",
-            },
-        )
-        unet = UNetModel(
-            in_channels=4,
-            out_channels=4,
-            model_channels=320,
-            attention_resolutions=[4, 2],
-            num_res_blocks=2,
-            channel_mult=[1, 2, 4],
-            num_head_channels=64,
-            use_spatial_transformer=True,
-            use_linear_in_transformer=True,
-            transformer_depth=[1, 2, 2],  # [1, 2, 10]
-            context_dim=2048,
-            adm_in_channels=2816,
-            spatial_transformer_attn_type="vanilla",
-            num_classes="sequential",
-            legacy=False,
-            use_recompute=True,
-            dp=args.dp,
-            mp=args.mp,
-        )
-
-        class Wrapper:
-            def __init__(self, ae, unet):
-                self.ae = ae
-                self.unet = NetWithLoss(unet)
-                optimizer = nn.SGD(unet.trainable_params(), learning_rate=1e-2)
-                self.train_net = nn.TrainOneStepCell(self.unet, optimizer)
-
-                self.ae = auto_mixed_precision(self.ae, amp_level="O2")
-                self.train_net = auto_mixed_precision(self.train_net, amp_level="O2")
-
-                # # freeze ae parameters
-                # for p in self.get_parameters():
-                #     p.requires_grad = False
-
-            def shard(self, dp, mp):
-                self.unet.shard(dp, mp)
-
-                for cell in self.ae.cells():
-                    if isinstance(cell, nn.Conv2d):
-                        cell.conv2d.shard(((dp, 1, 1, 1), (mp, 1, 1, 1)))
-                        cell.bias_add.shard(((dp, mp, 1, 1), (mp,)))
-                    elif isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
-
-            def __call__(self, *args):
-                x = args[0]
-                x = self.ae.encode(x)
-                x = ops.stop_gradient(x)
-                # out = self.unet(x, *args[1:])
-                out = self.train_net(x, *args[1:])
-                return out
-
-        net = Wrapper(ae, unet)
-        input_size = ((1, 3, 1024, 1024), (1,), (1, 77, 2048), (1, 2816))
-        dataset_column_names = ["data1", "data2", "data3", "data4"]
-        run_bp = False
-    elif args.net == "SDXL_MultiGraph_Dev":
-        from gm.models.autoencoder import AutoencoderKLInferenceWrapper
-        from gm.modules.diffusionmodules.openaimodel import UNetModel
-        from gm.util.util import auto_mixed_precision
-
-        ae = AutoencoderKLInferenceWrapper(
-            embed_dim=4,
-            monitor="val/rec_loss",
-            ddconfig={
-                "attn_type": "vanilla",
-                "double_z": True,
-                "z_channels": 4,
-                "resolution": 256,
-                "in_channels": 3,
-                "out_ch": 3,
-                "ch": 128,
-                "ch_mult": [1, 2, 4, 4],
-                "num_res_blocks": 2,
-                "attn_resolutions": [],
-                "dropout": 0.0,
-                "decoder_attn_dtype": "fp16",
-            },
-        )
-        unet = UNetModel(
-            in_channels=4,
-            out_channels=4,
-            model_channels=320,
-            attention_resolutions=[4, 2],
-            num_res_blocks=2,
-            channel_mult=[1, 2, 4],
-            num_head_channels=64,
-            use_spatial_transformer=True,
-            use_linear_in_transformer=True,
-            transformer_depth=[1, 2, 2],  # [1, 2, 10]
-            context_dim=2048,
-            adm_in_channels=2816,
-            spatial_transformer_attn_type="vanilla",
-            num_classes="sequential",
-            legacy=False,
-            use_recompute=True,
-            dp=args.dp,
-            mp=args.mp,
-        )
-
-        class Wrapper:
-            def __init__(self, ae, unet):
-                self.ae = ae
-                self.unet = NetWithLoss(unet)
-                optimizer = nn.SGD(unet.trainable_params(), learning_rate=1e-2)
-                self.train_net = nn.TrainOneStepCell(self.unet, optimizer)
-
-                self.ae = auto_mixed_precision(self.ae, amp_level="O2")
-                self.train_net = auto_mixed_precision(self.train_net, amp_level="O2")
-
-                # # freeze ae parameters
-                # for p in self.get_parameters():
-                #     p.requires_grad = False
-
-            def shard(self, dp, mp):
-                self.unet.shard(dp, mp)
-
-                for cell in self.ae.cells():
-                    if isinstance(cell, nn.Conv2d):
-                        cell.conv2d.shard(((dp, 1, 1, 1), (mp, 1, 1, 1)))
-                        cell.bias_add.shard(((dp, mp, 1, 1), (mp,)))
-                    elif isinstance(cell, nn.Dense):
-                        cell.matmul.shard(((dp, 1), (mp, 1)))
-                        cell.bias_add.shard(((dp, mp), (mp,)))
-
-            def __call__(self, *args):
-                x = args[0]
-                x = self.ae.encode(x)
-                x = ops.stop_gradient(x)
-                # out = self.unet(x, *args[1:])
-                out = self.train_net(x, *args[1:])
-                return out
-
-        net = Wrapper(ae, unet)
+        net = auto_mixed_precision(net, amp_level="O0")
         input_size = ((1, 3, 1024, 1024), (1,), (1, 77, 2048), (1, 2816))
         dataset_column_names = ["data1", "data2", "data3", "data4"]
         run_bp = False
@@ -742,14 +514,12 @@ if __name__ == "__main__":
             "FrozenCLIPEmbedder",
             "FrozenOpenCLIPEmbedder2",
             "SDXL",
-            "SDXL_MultiGraph",
-            "SDXL_MultiGraph_Dev",
             "MemoryEfficientCrossAttention",
             "BasicTransformerBlockFA",
             "SpatialTransformerFA",
             "UNetModelFA",
         ],
-        default="UNetModel",
+        default="MemoryEfficientCrossAttention",
     )
     parser.add_argument("--save_checkpoint", type=ast.literal_eval, default=False)
     parser.add_argument("--save_checkpoint_path", type=str, default="./test_module_weights")
