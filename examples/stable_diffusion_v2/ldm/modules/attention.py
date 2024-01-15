@@ -17,6 +17,15 @@ import logging
 import numpy as np
 from ldm.util import is_old_ms_version
 
+# import os
+# import sys
+# # TODO: remove in future when mindone is ready for install
+# __dir__ = os.path.dirname(os.path.abspath(__file__))
+# mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
+# sys.path.insert(0, mindone_lib_path)
+# from mindone.utils.version_control import is_910a
+from packaging import version
+
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.common.initializer import initializer
@@ -147,9 +156,14 @@ class CrossAttention(nn.Cell):
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         if self.enable_flash_attention:
-            self.flash_attention = FlashAttention(
-                head_dim=dim_head, head_num=heads, high_precision=True
-            )  # TODO: how high_precision affect the training or inference quality
+            if version.parse(ms.__version__) < version.parse("2.2"):
+                self.flash_attention = FlashAttention(
+                    head_dim=dim_head, high_precision=True
+                )  # TODO: how high_precision affect the training or inference quality
+            else:
+                self.flash_attention = FlashAttention(
+                    head_dim=dim_head, head_num=heads, high_precision=True
+                )  # TODO: how high_precision affect the training or inference quality
             self.fa_mask_dtype = ms.uint8  # choose_flash_attention_dtype()
             # logger.info("Flash attention is enabled.")
         else:
@@ -201,10 +215,12 @@ class CrossAttention(nn.Cell):
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
+            if version.parse(ms.__version__) >= version.parse("2.2"):
+                out = self.flash_attention(
+                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+                )
+            else:
+                out = self.flash_attention(q, k, v)
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -285,9 +301,12 @@ class CrossFrameAttention(CrossAttention):
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
 
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
+            if version.parse(ms.__version__) >= version.parse("2.2"):
+                out = self.flash_attention(
+                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+                )
+            else:
+                out = self.flash_attention(q, k, v)
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
