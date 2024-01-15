@@ -232,14 +232,16 @@ class CrossAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
             if new_version():
+                if mask is None:
+                    mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
                 out = self.flash_attention(
                     q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
                 )
             else:
-                out = self.flash_attention(q, k, v, mask.to(q.dtype))
+                if mask is None:
+                    mask = ops.zeros((q_b, q_n, q_n), q.dtype)
+                out = self.flash_attention(q, k, v, mask)
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -317,15 +319,16 @@ class CrossFrameAttention(CrossAttention):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-
             if new_version():
+                if mask is None:
+                    mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
                 out = self.flash_attention(
                     q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
                 )
             else:
-                out = self.flash_attention(q, k, v, mask.to(q.dtype))
+                if mask is None:
+                    mask = ops.zeros((q_b, q_n, q_n), q.dtype)
+                out = self.flash_attention(q, k, v, mask)
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
