@@ -18,7 +18,7 @@ import logging
 import os
 from collections import OrderedDict
 
-from gm.modules.embedders.bert.configuration_bert import BertConfig
+from gm.modules.embedders.chinese_clip.configuration_bert import BertConfig
 
 import mindspore.common.dtype as mstype
 from mindspore import Tensor, nn, ops
