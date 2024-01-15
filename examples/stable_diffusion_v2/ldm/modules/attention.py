@@ -16,14 +16,6 @@ import logging
 
 import numpy as np
 from ldm.util import is_old_ms_version
-
-# import os
-# import sys
-# # TODO: remove in future when mindone is ready for install
-# __dir__ = os.path.dirname(os.path.abspath(__file__))
-# mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
-# sys.path.insert(0, mindone_lib_path)
-# from mindone.utils.version_control import is_910a
 from packaging import version
 
 import mindspore as ms
