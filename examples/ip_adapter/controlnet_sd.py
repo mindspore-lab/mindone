@@ -155,7 +155,12 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
+    ms.set_context(
+        mode=args.ms_mode,
+        device_target="Ascend",
+        device_id=device_id,
+        ascend_config=dict(precision_mode="must_keep_origin_dtype"),
+    )
 
     set_random_seed(args.seed)
 
@@ -174,6 +179,7 @@ def main(args):
     clip_img = load_clip_image(args.img)
     control_img = load_control_image(args.control_img)
     control_img = ops.tile(control_img, (batch_size, 1, 1, 1))
+    _, _, H, W = control_img.shape
 
     # get image conditioning
     clip_img_c = model.embedder(clip_img)
@@ -205,7 +211,6 @@ def main(args):
             f"Sampler: {sname}",
             f"Sampling steps: {args.sampling_steps}",
             f"Uncondition guidance scale: {args.scale}",
-            f"Target image size (H, W): ({args.H}, {args.W})",
         ]
     )
     key_info += "\n" + "=" * 50
@@ -215,7 +220,7 @@ def main(args):
     start_code = None
     if args.fixed_code:
         stdnormal = ops.StandardNormal()
-        start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
+        start_code = stdnormal((args.n_samples, 4, H // 8, W // 8))
 
     all_samples = list()
     for i, prompts in enumerate(data):
@@ -241,7 +246,7 @@ def main(args):
             # concat text/img embedding
             c = ops.concat([c, clip_img_c], axis=1)
 
-            shape = [4, args.H // 8, args.W // 8]
+            shape = [4, H // 8, W // 8]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
                 conditioning=c,
@@ -358,18 +363,6 @@ if __name__ == "__main__":
         help="how many samples to produce for each given prompt in an iteration. A.k.a. batch size",
     )
     parser.add_argument(
-        "--H",
-        type=int,
-        default=512,
-        help="image height, in pixel space",
-    )
-    parser.add_argument(
-        "--W",
-        type=int,
-        default=512,
-        help="image width, in pixel space",
-    )
-    parser.add_argument(
         "--n_rows",
         type=int,
         default=0,
@@ -424,10 +417,6 @@ if __name__ == "__main__":
         args.ckpt_path = "checkpoints/" + ckpt_name
 
         desire_size = _version_cfg[args.version][2]
-        if args.H != desire_size or args.W != desire_size:
-            logger.warning(
-                f"The optimal H, W for SD {args.version} is ({desire_size}, {desire_size}) . But got ({args.H}, {args.W})."
-            )
 
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])

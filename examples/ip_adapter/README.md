@@ -29,6 +29,7 @@ You can download the following models before running the inference
 - [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse) (required by SD-1.5)
 - [SDXL-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) (required by SD-XL)
 - [IP-Adapter weight](https://huggingface.co/h94/IP-Adapter) (required by SD-1.5 & SD-XL)
+- [ControlNet](https://huggingface.co/lllyasviel) (optionally required by SD-1.5)
 
 ### Converting Models
 
@@ -138,6 +139,33 @@ python image_inpainting_sd.py --img assets/girl.png --ref_img assets/inpainting/
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/39818911-5162-4b40-a953-ddf9161255cb"/>
 <br><em>An example of image inpainting. (SD-1.5)</em></p>
 
+### Controlnet (SD-1.5)
+
+To run the controlnet task on SD-1.5, you can use the `controlnet_sd.py` script. First, download the controlnet checkpoint (in `.safetensors` format) from (https://huggingface.co/lllyasviel), save them under `checkpoints/sd_models`. Prepare the converted checkpoint by running
+
+```bash
+python tools/merge_ckpts_sd.py --controlnet path_of_the_controlnet_checkpoint
+```
+
+The converted checkpoint `sd_v1.5_ip_adapter.ckpt` will be saved under `checkpoints/sd_models/merged` directorly.  Then, prepare then input image and the control image, as an example, you may download the [input image 1](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864), [input image 2](https://github.com/zhtmike/mindone/assets/8342575/e4837c29-40ef-468c-b94e-6df1e3485211), [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), and [openpose image](https://github.com/zhtmike/mindone/assets/8342575/0791217b-acf2-4c8f-aa41-da2911b8058d) , saved them as `assets/statue.png`, `assets/girl`, `assets/structure_controls/depth.png`, `assets/structure_controls/openpose.png` respectively. Then, run the following command in your terminal:
+```bash
+python controlnet_sd.py --img path_of_the_image --control_image path_of_the_control_image --ckpt_path path_of_the_ckpt --n_samples 4
+```
+The `--n_samples` flag denotes the number of output images in a single trial. The output images will be saved under `outputs/demo/SD/samples` directory. Here are some examples (The leftmost images is the input image, the second one from left is the control image, while the remaining images are the outputs.):
+
+```bash
+python controlnet_sd.py --img assets/statue.png --control_img assets/structure_controls/depth.png
+```
+
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/03590d89-a165-4063-bd4e-ac31458a573b"/>
+<br><em>An example of controlnet. (SD-1.5, depth)</em></p>
+
+```bash
+python controlnet_sd.py --img assets/girl.png --control_img assets/structure_controls/openpose.png
+```
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/d1582945-dcb4-41d6-91dd-4bdb4e05a82d"/>
+<br><em>An example of controlnet. (SD-1.5, openpose)</em></p>
+
 ## Model Training
 
 ### Text-image Dataset Preparation
@@ -226,7 +254,7 @@ python train_sd.py \
 
 > Note: to modify other important hyper-parameters, please refer to training config file `configs/training/sd_v15_finetune_910b.yaml`.
 
-After training, the checkpoint of the finetuned IP-Adpater will be saved in `runs/ckpt/sd-500.ckpt` by default.
+After training, the checkpoint of the finetuned IP-Adpater will be saved in `runs/ckpt/sd-2000.ckpt` by default.
 
 Below are some arguments in the config file that you may want to tune for a better performance on your dataset:
 
@@ -240,14 +268,14 @@ Once you have finished the model finetuning, you need to merge the weight from s
 
 ```bash
 python tools/merge_ckpts_sd.py \
-    --ip_adpater runs/ckpt/sd-500.ckpt \
-    --out runs/ckpt/sd-500_full.ckpt
+    --ip_adpater runs/ckpt/sd-2000.ckpt \
+    --out runs/ckpt/sd-2000_full.ckpt
 ```
 
-The full model is saved as `sd-500_full.ckpt`, which can be loaded by `image_variation_sd.py` directly. Here are some inference result (The image on the left is the original input, while the remaining images are the outputs.):
+The full model is saved as `sd-2000_full.ckpt`, which can be loaded by `image_variation_sd.py` directly. Here are some inference result (The image on the left is the original input, while the remaining images are the outputs.):
 
-<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/a336ca54-22f6-4548-b6a2-898265099109"/>
-<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/f68c94a7-4050-4083-9e3e-7d8ef00f4e82"/>
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/d20177bc-2270-4bc6-b127-91946f0428fc"/>
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/b5095eab-4c19-4015-9436-9ad9046ab90a"/>
 <br><em>Finetuned result on Pokemon dataset. (SD-1.5)</em></p>
 
 ### IP-Adapter Training From scratch

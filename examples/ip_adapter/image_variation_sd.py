@@ -128,7 +128,12 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
+    ms.set_context(
+        mode=args.ms_mode,
+        device_target="Ascend",
+        device_id=device_id,
+        ascend_config=dict(precision_mode="must_keep_origin_dtype"),
+    )
 
     set_random_seed(args.seed)
 

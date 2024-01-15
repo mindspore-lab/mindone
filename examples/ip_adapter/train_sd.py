@@ -8,6 +8,8 @@ import logging
 import os
 import sys
 
+import mindspore as ms
+
 sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
 
@@ -201,6 +203,8 @@ def main(args):
         num_workers=args.num_workers,
         json_data_path=args.json_data_path,
     )
+    # overwrite the original
+    ms.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # build model
