@@ -7,7 +7,7 @@ from functools import partial
 # add current working dir to path to prevent ModuleNotFoundError
 sys.path.insert(0, os.getcwd())
 from PIL import Image
-from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+from mindone.metrics._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
 import mindspore
 from mindspore import ops

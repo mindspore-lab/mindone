@@ -3,7 +3,7 @@ import os
 from functools import partial
 
 from PIL import Image
-from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+from mindone.metrics._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
 import mindspore
 from mindspore import ops
