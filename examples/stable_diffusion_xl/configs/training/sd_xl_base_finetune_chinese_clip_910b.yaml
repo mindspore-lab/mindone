@@ -44,12 +44,12 @@ model:
                   # crossattn cond
                   - is_trainable: False
                     input_key: txt
-                    target: gm.modules.embedders.modules.FrozenCLIPEmbedder
+                    target: gm.modules.embedders.modules.FrozenCnCLIPEmbedder
                     params:
                       layer: hidden
                       layer_idx: 11
-                      version: openai/clip-vit-large-patch14
-                      # pretrained: ''
+                      version: gm/modules/embedders/chinese_clip/model_configs/chinese_clip_L14.json
+                      tokenizer_version: bert-base-chinese
                   # crossattn and vector cond
                   - is_trainable: False
                     input_key: txt
@@ -131,9 +131,8 @@ data:
     shuffle: True
 
     dataset_config:
-        target: gm.data.dataset_wds.T2I_Webdataset_RndAcs
+        target: gm.data.dataset.Text2ImageDataset
         params:
-            caption_key: 'text_english'
             target_size: 1024
             transforms:
                 - target: gm.data.mappers.Resize

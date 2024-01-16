@@ -29,8 +29,6 @@ import mindspore as ms
 from mindspore import Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
-_logger = logging.getLogger(__name__)
-
 
 class BroadCast(nn.Cell):
     def __init__(self, root_rank):
@@ -632,7 +630,11 @@ def perform_save_locally(save_path, samples):
         base_count += 1
 
 
-def save_checkpoint(model, path, only_save_lora=False):
+def _build_lora_ckpt_path(ckpt_path):
+    return ckpt_path.replace(".ckpt", "_lora.ckpt")
+
+
+def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
     ckpt, ckpt_lora = [], []
     for n, p in model.parameters_and_names():
         # FIXME: save checkpoint bug on mindspore 2.1.0
@@ -644,14 +646,43 @@ def save_checkpoint(model, path, only_save_lora=False):
         else:
             ckpt.append({"name": n, "data": p})
 
+    delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora)
+
     if not only_save_lora:
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
 
     if len(ckpt_lora) > 0:
-        path_lora = path[: -len(".ckpt")] + "_lora.ckpt"
+        path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+
+
+def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
+    """
+    Only keep the latest `max_num_ckpt` ckpts while training. If max_num_ckpt == 0, keep all ckpts.
+    """
+    if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
+        del_ckpt = ckpt_queue.pop(0)
+        del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
+        if only_save_lora:
+            del_ckpts = [del_ckpt_lora]
+        else:
+            del_ckpts = [del_ckpt, del_ckpt_lora]
+
+        for to_del in del_ckpts:
+            if os.path.isfile(to_del):
+                try:
+                    os.remove(to_del)
+                    logging.debug(
+                        f"The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
+                    )
+                except OSError as e:
+                    logging.exception(e)
+            else:
+                logging.debug(
+                    f"The ckpt file {to_del} to be deleted doesn't exist. If lora is not used for training, it's normal that lora ckpt doesn't exist."
+                )
 
 
 def get_interactive_image(image) -> Image.Image:
