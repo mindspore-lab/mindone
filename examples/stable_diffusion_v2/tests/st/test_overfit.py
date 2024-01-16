@@ -3,9 +3,6 @@ vanilla_8p, unet randomly initialized, loss change 1.0 ->  0.3
 Vanilla, unet randomly initialized, loss change 1.0 ->  0.1
 LoRA, loss not stable, but 0.5 is a safe threshold
 Dreambooth, unet randomly initialized, loss  change 2.0 -> 0.5
-Before running the `test_vanilla_8p`, please ensure that the `chinese_art_blip` dataset
-is located in the `path_to_examples/stable_diffusion_v2/datasets/` folder.
-The 'chinese_art_blip' dataset url is "https://openi.pcl.ac.cn/attachments/c1941496-fafc-4074-be7b-75fa9f803a53?type=1"
 """
 
 import os
