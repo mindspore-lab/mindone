@@ -85,6 +85,26 @@ class AutoencodingEngine(AbstractAutoencoder):
         self.optimizer_config = default(optimizer_config, {"target": "mindspore.nn.Adam"})
         self.lr_g_factor = lr_g_factor
 
+    def encode(
+        self, x: Tensor, return_reg_log: bool = False, unregularized: bool = False
+    ) -> Union[Tensor, Tuple[Tensor, dict]]:
+        z = self.encoder(x)
+        if unregularized:
+            return z, dict()
+        z, reg_log = self.regularization(z)
+        if return_reg_log:
+            return z, reg_log
+        return z
+
+    def decode(self, z: Tensor, **kwargs) -> Tensor:
+        x = self.decoder(z, **kwargs)
+        return x
+
+    def construct(self, x: Tensor, **additional_decode_kwargs) -> Tuple[Tensor, Tensor, dict]:
+        z, reg_log = self.encode(x, return_reg_log=True)
+        dec = self.decode(z, **additional_decode_kwargs)
+        return z, dec, reg_log
+
 
 class AutoencoderKL(AutoencodingEngine):
     def __init__(self, embed_dim: int, **kwargs):
@@ -110,7 +130,7 @@ class AutoencoderKL(AutoencodingEngine):
             self.load_checkpoint(ckpt_path, ignore_keys=ignore_keys)
 
     @ms.jit
-    def encode(self, x):
+    def encode(self, x, **kwargs):
         # only supports inference currently
         h = self.encoder(x)
         moments = self.quant_conv(h)
@@ -125,7 +145,15 @@ class AutoencoderKL(AutoencodingEngine):
 
 class AutoencoderKLInferenceWrapper(AutoencoderKL):
     @ms.jit
-    def encode(self, x):
+    def encode(self, x, **kwargs):
         h = self.encoder(x)
         moments = self.quant_conv(h)
         return self.posterior.sample(moments)
+
+
+class AutoencoderKLModeOnly(AutoencoderKL):
+    def encode(self, x, **kwargs):
+        # super().encode(x) doesn't work correctly when wrapped with jit
+        h = self.encoder(x)
+        moments = self.quant_conv(h)
+        return self.posterior.mode(moments)

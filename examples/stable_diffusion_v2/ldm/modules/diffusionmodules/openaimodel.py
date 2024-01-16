@@ -344,7 +344,7 @@ class UNetModel(nn.Cell):
             ), "Fool!! You forgot to use the spatial transformer for your cross-attention conditioning..."
             from omegaconf.listconfig import ListConfig
 
-            if type(context_dim) == ListConfig:
+            if isinstance(context_dim, ListConfig):
                 context_dim = list(context_dim)
 
         if num_heads_upsample == -1:

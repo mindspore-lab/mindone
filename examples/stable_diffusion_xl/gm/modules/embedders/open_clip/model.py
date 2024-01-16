@@ -133,7 +133,7 @@ class CLIP(nn.Cell):
         self.ln_final = text.ln_final
         self.text_projection = text.text_projection
 
-        self.attn_mask = Parameter(text.attn_mask, requires_grad=False)
+        self.attn_mask = Tensor(text.attn_mask)
 
         self.logit_scale = Parameter(Tensor(np.log(1 / 0.07), ms.float32))
 

@@ -1,3 +1,4 @@
+import logging
 import os
 from datetime import datetime
 from typing import List, Union
@@ -17,6 +18,7 @@ from gm.modules.diffusionmodules.sampler import (
     EulerAncestralSampler,
     EulerEDMSampler,
     HeunEDMSampler,
+    LCMSampler,
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
@@ -38,6 +40,7 @@ class BroadCast(nn.Cell):
 
 
 SD_XL_BASE_RATIOS = {
+    # W/H ratio: (W, H)
     "0.5": (704, 1408),
     "0.52": (704, 1344),
     "0.57": (768, 1344),
@@ -295,9 +298,9 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
 
-    if not isinstance(model, DiffusionEngineMultiGraph):
-        if ckpts:
-            print(f"Loading model from {ckpts}")
+    if ckpts:
+        logging.info(f"Loading model from {ckpts}")
+        if not isinstance(model, DiffusionEngineMultiGraph):
             if isinstance(ckpts, str):
                 ckpts = [ckpts]
 
@@ -352,12 +355,13 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                 print("unexpected keys:")
                 print(u)
         else:
-            print(f"Warning: Loading checkpoint from {ckpts} fail")
+            model.load_pretrained(ckpts, verbose=verbose)
+    else:
+        logging.warning("No checkpoints were provided.")
 
+    if not isinstance(model, DiffusionEngineMultiGraph):
         model = auto_mixed_precision(model, amp_level=amp_level)
         model.set_train(False)
-    else:
-        model.load_pretrained(ckpts, verbose=verbose)
 
     return model
 
@@ -522,14 +526,14 @@ def get_sampler(
             )
         else:
             raise ValueError
-    elif sampler_name in ("AncestralSampler"):
+    elif sampler_name == "AncestralSampler":
         sampler = AncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
             verbose=True,
         )
-    elif sampler_name in ("EulerAncestralSampler"):
+    elif sampler_name == "EulerAncestralSampler":
         sampler = EulerAncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
@@ -537,7 +541,7 @@ def get_sampler(
             verbose=True,
             eta=0.001,
         )
-    elif sampler_name in ("DPMPP2SAncestralSampler"):
+    elif sampler_name == "DPMPP2SAncestralSampler":
         sampler = DPMPP2SAncestralSampler(
             num_steps=steps,
             discretization_config=discretization_config,
@@ -545,15 +549,22 @@ def get_sampler(
             verbose=True,
         )
 
-    elif sampler_name in ("DPMPP2MSampler",):
+    elif sampler_name == "DPMPP2MSampler":
         sampler = DPMPP2MSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
             verbose=True,
         )
-    elif sampler_name in ("LinearMultistepSampler",):
+    elif sampler_name == "LinearMultistepSampler":
         sampler = LinearMultistepSampler(
+            num_steps=steps,
+            discretization_config=discretization_config,
+            guider_config=guider_config,
+            verbose=True,
+        )
+    elif sampler_name == "LCMSampler":
+        sampler = LCMSampler(
             num_steps=steps,
             discretization_config=discretization_config,
             guider_config=guider_config,
@@ -584,6 +595,7 @@ def init_sampling(
         "DPMPP2MSampler",
         "LinearMultistepSampler",
         "AncestralSampler",
+        "LCMSampler",
     ]
     assert guider in ["VanillaCFG", "IdentityGuider"]
     assert discretization in [
@@ -645,7 +657,11 @@ def perform_save_locally(save_path, samples):
         base_count += 1
 
 
-def save_checkpoint(model, path, only_save_lora=False):
+def _build_lora_ckpt_path(ckpt_path):
+    return ckpt_path.replace(".ckpt", "_lora.ckpt")
+
+
+def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
     ckpt, ckpt_lora = [], []
     for n, p in model.parameters_and_names():
         # FIXME: save checkpoint bug on mindspore 2.1.0
@@ -657,14 +673,43 @@ def save_checkpoint(model, path, only_save_lora=False):
         else:
             ckpt.append({"name": n, "data": p})
 
+    delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora)
+
     if not only_save_lora:
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
 
     if len(ckpt_lora) > 0:
-        path_lora = path[: -len(".ckpt")] + "_lora.ckpt"
+        path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+
+
+def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
+    """
+    Only keep the latest `max_num_ckpt` ckpts while training. If max_num_ckpt == 0, keep all ckpts.
+    """
+    if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
+        del_ckpt = ckpt_queue.pop(0)
+        del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
+        if only_save_lora:
+            del_ckpts = [del_ckpt_lora]
+        else:
+            del_ckpts = [del_ckpt, del_ckpt_lora]
+
+        for to_del in del_ckpts:
+            if os.path.isfile(to_del):
+                try:
+                    os.remove(to_del)
+                    logging.debug(
+                        f"The ckpt file {to_del} is deleted, because the number of ckpt files exceeds the limit {max_num_ckpt}."
+                    )
+                except OSError as e:
+                    logging.exception(e)
+            else:
+                logging.debug(
+                    f"The ckpt file {to_del} to be deleted doesn't exist. If lora is not used for training, it's normal that lora ckpt doesn't exist."
+                )
 
 
 def get_interactive_image(image) -> Image.Image:

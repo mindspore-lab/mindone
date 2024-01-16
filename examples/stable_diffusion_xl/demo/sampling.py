@@ -2,6 +2,7 @@
 
 import os
 import time
+from functools import partial
 
 if os.environ.get("MS_PYNATIVE_GE") != "1":
     os.environ["MS_PYNATIVE_GE"] = "1"
@@ -21,6 +22,7 @@ from gm.helpers import (
     perform_save_locally,
 )
 from gm.util import seed_everything
+from gm.util.long_prompt import do_sample as do_sample_long_prompts
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -37,6 +39,7 @@ VERSION2SPECS = {
         "is_legacy": False,
         "config": "configs/inference/sd_xl_base.yaml",
         "ckpt": "checkpoints/sd_xl_base_1.0_ms.ckpt",
+        "textual_inversion_weight": None,
     },
     "SDXL-refiner-1.0": {
         "H": 1024,
@@ -46,6 +49,7 @@ VERSION2SPECS = {
         "is_legacy": True,
         "config": "configs/inference/sd_xl_refiner.yaml",
         "ckpt": "checkpoints/sd_xl_refiner_1.0_ms.ckpt",
+        "textual_inversion_weight": None,
     },
 }
 
@@ -60,6 +64,7 @@ def run_txt2img(
     stage2strength=None,
     amp_level="O0",
 ):
+    support_long_prompts = st.checkbox("Use long text prompt support (token length > 77)")
     W, H = st.selectbox("Resolution:", list(SD_XL_BASE_RATIOS.values()), 10)
     C = version_dict["C"]
     F = version_dict["f"]
@@ -85,7 +90,8 @@ def run_txt2img(
         outputs = st.empty()
         s_time = time.time()
 
-        out = model.do_sample(
+        sampling_func = partial(do_sample_long_prompts, model) if support_long_prompts else model.do_sample
+        out = sampling_func(
             sampler,
             value_dict,
             num_samples,
@@ -250,6 +256,7 @@ if __name__ == "__main__":
         load_filter=False,
         param_fp16=False,
         amp_level=amp_level,
+        textual_inversion_ckpt=version_dict["textual_inversion_weight"],
     )
 
     # Get prompt
@@ -257,6 +264,10 @@ if __name__ == "__main__":
         "prompt",
         "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
     )
+    if version_dict["textual_inversion_weight"] is not None:
+        model, manager = model
+        # replace placeholder token by placeholder tokens
+        prompt = manager.manage_prompt(prompt)
 
     save_locally, save_path = init_save_locally(os.path.join(SAVE_PATH, mode, version))
     is_legacy = version_dict["is_legacy"]
@@ -288,6 +299,9 @@ if __name__ == "__main__":
         version_dict2 = VERSION2SPECS[version2]
 
         # Init Model
+        assert (
+            version_dict2["textual_inversion_weight"] is None
+        ), "Refiner Model does not support textual inversion now. Please do not specify `textual_inversion_weight`."
         model2, filter2 = create_model_with_streamlit(
             version_dict2["config"],
             checkpoints=version_dict2["ckpt"].split(","),
@@ -295,6 +309,7 @@ if __name__ == "__main__":
             load_filter=False,
             param_fp16=False,
             amp_level=amp_level,
+            textual_inversion_ckpt=version_dict2["textual_inversion_weight"],
         )
 
         stage2strength = st.number_input("**Refinement strength**", value=0.15, min_value=0.0, max_value=1.0)
