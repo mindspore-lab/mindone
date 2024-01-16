@@ -1,9 +1,11 @@
 # reference to https://github.com/Stability-AI/generative-models
 from functools import partial
+from json import load as json_load
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from gm.modules.diffusionmodules.openaimodel import Timestep
+from gm.modules.embedders.chinese_clip import BertConfig, BertModel
 from gm.modules.embedders.clip import CLIPTextModel
 
 # OpenCLIP model
@@ -12,8 +14,8 @@ from gm.modules.embedders.open_clip import tokenize as openclip_tokenize
 from gm.util import count_params, expand_dims_like, instantiate_from_config
 from omegaconf import ListConfig
 
-# CLIP model
-from transformers import CLIPTokenizer
+# CLIP & Chinese-CLIP model
+from transformers import BertTokenizer, CLIPTokenizer
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -387,6 +389,81 @@ class FrozenCLIPEmbedder_lora(FrozenCLIPEmbedder):
     def _prefix_param(prefix, param):
         if not param.name.startswith(prefix):
             param.name = f"{prefix}.{param.name}"
+
+
+class FrozenCnCLIPEmbedder(AbstractEmbModel):
+    """Uses the Bert transformer encoder for text (from huggingface)"""
+
+    LAYERS = ["last", "pooled", "hidden"]
+
+    def __init__(
+        self,
+        version="./chinese_clip/model_configs/chinese_clip_L14.json",
+        tokenizer_version="bert-base-chinese",
+        max_length=77,
+        freeze=True,
+        layer="last",
+        layer_idx=None,
+    ):  # Chinese-CLIP-ViT-L14
+        super().__init__()
+
+        with open(version, "r") as f:
+            version = json_load(f)
+        version = version.get("text_config")
+
+        assert layer in self.LAYERS
+        if layer == "hidden":
+            version["output_hidden_states"] = True
+
+        config = BertConfig(**version)
+        self.bert = BertModel(config)
+        self.tokenizer = BertTokenizer.from_pretrained(tokenizer_version, do_lower_case=True)
+
+        if freeze:
+            self.freeze()
+
+        self.layer = layer
+        self.layer_idx = layer_idx
+        self.max_length = max_length
+        if layer == "hidden":
+            assert layer_idx is not None
+            assert 0 <= abs(layer_idx) <= config.num_hidden_layers
+
+    def freeze(self):
+        self.bert.set_train(False)
+        self.bert.set_grad(False)
+
+        for _, p in self.parameters_and_names():
+            p.requires_grad = False
+
+    def tokenize(self, text):
+        batch_encoding = self.tokenizer(
+            text,
+            truncation=True,
+            max_length=self.max_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = np.array(batch_encoding["input_ids"], np.int32)
+        length = np.array(batch_encoding["length"], np.int32)
+        return tokens, length
+
+    @ms.jit
+    def construct(self, tokens):
+        (last_hidden_state, _, hidden_states, _) = self.embedding(input_ids=tokens)
+
+        if self.layer == "last":
+            z = last_hidden_state
+        else:
+            z = hidden_states[self.layer_idx]
+        return z
+
+    def embedding(self, input_ids):
+        return self.bert(input_ids=input_ids)
+
+    def encode(self, text):
+        return self(text)
 
 
 class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
