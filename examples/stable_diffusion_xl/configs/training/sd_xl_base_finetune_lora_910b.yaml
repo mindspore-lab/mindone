@@ -126,9 +126,8 @@ optim:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
         params:
             beta1: 0.9
-            beta2: 0.999
+            beta2: 0.98
             weight_decay: 0.01
-            eps: 1.0e-8
 
 
 data:
