@@ -1,5 +1,5 @@
 """
-vanilla_8p, unet randomly initialized, loss change 1.0 ->  0.2
+vanilla_8p, unet randomly initialized, loss change 1.0 ->  0.3
 Vanilla, unet randomly initialized, loss change 1.0 ->  0.1
 LoRA, loss not stable, but 0.5 is a safe threshold
 Dreambooth, unet randomly initialized, loss  change 2.0 -> 0.5
