@@ -247,7 +247,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             else:
                 cur_lr = optimizer.learning_rate.asnumpy().item()
             print(
-                f"Step {i + 1}/{total_step}, size: {image.shape[2:]}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
+                f"Step {i + 1}/{total_step}, size: {image.shape[:]}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
                 f", time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
                 flush=True,
             )
