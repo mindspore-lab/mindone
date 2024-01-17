@@ -168,10 +168,9 @@ def create_model(
     textual_inversion_ckpt: str = None,
     placeholder_token: str = None,
     num_vectors: int = None,
-    use_ema: bool = False,
 ):
     # create model
-    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level, use_ema=use_ema)
+    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
 
     if freeze:
         model.set_train(False)
@@ -290,7 +289,7 @@ def get_optimizer(optim_comfig, lr, params, filtering=True):
     return optimizer
 
 
-def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0", use_ema=False):
+def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
     model = instantiate_from_config(model_config)
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
@@ -305,24 +304,6 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
             for ckpt in ckpts:
                 assert ckpt.endswith(".ckpt")
                 _sd_dict = ms.load_checkpoint(ckpt)
-                ema_param_dict = {}
-                origin_param_dict = {}
-                for param in _sd_dict:
-                    if param.startswith("ema"):
-                        new_name = param.split("ema.")[1]
-                        ema_data = _sd_dict[param]
-                        ema_data.name = new_name
-                        ema_param_dict[new_name] = ema_data
-                    else:
-                        origin_param_dict[param] = _sd_dict[param]
-                if ema_param_dict and use_ema:
-                    _sd_dict = ema_param_dict
-                elif bool(ema_param_dict) is False and use_ema:
-                    _sd_dict = origin_param_dict
-                    print(f"{ckpt} does not contain ema_parameter, it will load origin parameter.")
-                else:
-                    _sd_dict = origin_param_dict
-
                 sd_dict.update(_sd_dict)
 
                 if "global_step" in sd_dict:
@@ -646,16 +627,30 @@ def perform_save_locally(save_path, samples):
 
 
 def save_checkpoint(model, path, only_save_lora=False):
-    ckpt, ckpt_lora = [], []
+    ckpt, ckpt_lora, ckpt_lora_ema, ckpt_ema = [], [], [], []
     for n, p in model.parameters_and_names():
         # FIXME: save checkpoint bug on mindspore 2.1.0
         if "._backbone" in n:
             _index = n.find("._backbone")
             n = n[:_index] + n[_index + len("._backbone") :]
-        if "lora_" in n:
+        if "lora_" in n and "ema." not in n:
             ckpt_lora.append({"name": n, "data": p})
+        elif "lora_" in n and "ema." in n:
+            _index = n.find("ema.")
+            n = n[:_index] + n[_index + len("ema.") :]
+            ckpt_lora_ema.append({"name": n, "data": p})
+        elif "lora_" not in n and "ema." in n:
+            _index = n.find("ema.")
+            n = n[:_index] + n[_index + len("ema.") :]
+            ckpt_ema.append({"name": n, "data": p})
         else:
             ckpt.append({"name": n, "data": p})
+
+    if len(ckpt_lora_ema) > 0:
+        ckpt_lora = ckpt_lora_ema
+
+    if len(ckpt_ema) > 0:
+        ckpt = ckpt_ema
 
     if not only_save_lora:
         ms.save_checkpoint(ckpt, path)
