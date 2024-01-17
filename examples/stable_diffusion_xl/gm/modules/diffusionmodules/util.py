@@ -3,7 +3,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 
 class ZeroInitModule(nn.Cell):
@@ -65,13 +65,25 @@ def zero_module(module):
     return module
 
 
+class GroupNorm(nn.GroupNorm):
+    """
+    Convert temporal 5D tensors to 4D as MindSpore supports (N, C, H, W) input only
+    """
+
+    def construct(self, x: Tensor) -> Tensor:
+        if x.ndim == 5:
+            return super().construct(x.view(x.shape[0], x.shape[1], x.shape[2], -1)).view(x.shape)
+        else:
+            return super().construct(x)
+
+
 def normalization(channels, eps=1e-5):
     """
     Make a standard normalization layer.
     :param channels: number of input channels.
     :return: an nn.Module for normalization.
     """
-    return nn.GroupNorm(32, channels, eps)
+    return GroupNorm(32, channels, eps)
 
 
 def conv_nd(dims, *args, **kwargs):

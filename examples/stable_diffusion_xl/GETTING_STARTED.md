@@ -194,6 +194,26 @@ python demo/sampling_without_streamlit.py \
 
 </details>
 
+<details>
+
+  <summary>Long Prompts Support</summary>
+
+  By Default, SD-XL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+
+  To avoid information loss for long text prompts, we can divide one long tokens sequence (N>77) into several shorter sub-sequences (N<=77) to bypass the constraint of context length of the text encoders. This feature is supported by `args.support_long_prompts` in `demo/sampling_without_streamlit.py`.
+
+  When running inference with `demo/sampling_without_streamlit.py`, you can set the arguments as below.
+
+  ```bash
+  python demo/sampling_without_streamlit.py \
+  ...  \  # other arguments configurations
+  --support_long_prompts True \  # allow long text prompts
+  ```
+
+When running inference with `demo/sampling.py`, you can simply input your long prompt and click the button of "Use long text prompt support (token length > 77)" under the prompt, and then start sampling.
+
+</details>
+
 ### Offline Infer
 
 See [offline_inference](./offline_inference/README.md).
@@ -256,7 +276,11 @@ python train.py \
 
 For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
 
-4. Run with Multiple NPUs, example as:
+4. Textual Inversion fine-tune
+
+For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
+
+5. Run with Multiple NPUs, example as:
 
 ```shell
 # run with multiple NPU/GPUs

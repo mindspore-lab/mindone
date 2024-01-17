@@ -51,9 +51,7 @@ class BaseDiffusionSampler:
         noised_input, sigmas, cond = self.guider.prepare_inputs(x, sigma, cond, uc)
         cond = model.openai_input_warpper(cond)
         c_skip, c_out, c_in, c_noise = model.denoiser(sigmas, noised_input.ndim)
-        model_output = model.model(
-            ops.cast(noised_input * c_in, ms.float32), ops.cast(c_noise, ms.int32), **cond, **kwargs
-        )
+        model_output = model.model(noised_input * c_in, c_noise, **cond, **kwargs)
         model_output = model_output.astype(ms.float32)
         denoised = model_output * c_out + noised_input * c_skip
         denoised = self.guider(denoised, sigma)
@@ -295,7 +293,7 @@ class DPMPP2MSampler(BaseDiffusionSampler):
             return mult1, mult2
 
     def sampler_step(self, old_denoised, previous_sigma, sigma, next_sigma, model, x, cond, uc=None, **kwargs):
-        denoised = self.denoise(x, model, sigma, cond, uc)
+        denoised = self.denoise(x, model, sigma, cond, uc, **kwargs)
 
         h, r, t, t_next = self.get_variables(sigma, next_sigma, previous_sigma)
         mult = [append_dims(mult, x.ndim) for mult in self.get_mult(h, r, t, t_next, previous_sigma)]
@@ -329,5 +327,30 @@ class DPMPP2MSampler(BaseDiffusionSampler):
                 uc=uc,
                 **kwargs,
             )
+
+        return x
+
+
+class LCMSampler(BaseDiffusionSampler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.noise_sampler = lambda x: Tensor(np.random.randn(*x.shape), x.dtype)
+
+    def sampler_step(self, sigma, next_sigma, model, x, cond, uc, **kwargs):
+        denoised = self.denoise(x, model, sigma, cond, uc, **kwargs)
+        x = denoised
+        x = ops.where(
+            append_dims(next_sigma, x.ndim) > 0.0,
+            x + self.noise_sampler(x) * append_dims(next_sigma, x.ndim),
+            x,
+        )
+
+        return x
+
+    def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
+        x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
+
+        for i in self.get_sigma_gen(num_sigmas):
+            x = self.sampler_step(s_in * sigmas[i], s_in * sigmas[i + 1], model, x, cond, uc, **kwargs)
 
         return x

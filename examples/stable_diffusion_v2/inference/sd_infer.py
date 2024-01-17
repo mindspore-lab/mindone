@@ -42,7 +42,6 @@ def main(args):
         config,
         ckpt=config.model.pretrained_ckpt,
         use_lora=args.use_lora,
-        lora_rank=args.lora_rank,
         lora_only_ckpt=args.lora_ckpt_path,
     )
     sampler_config = OmegaConf.load(args.sampler)

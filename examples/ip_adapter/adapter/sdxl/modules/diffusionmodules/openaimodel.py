@@ -76,6 +76,7 @@ class IPAdatperUNetModel(UNetModel):
         transformer_depth_middle=None,
         use_recompute=False,
         ip_scale=1.0,
+        num_tokens=4,
     ):
         super(UNetModel, self).__init__()
         from omegaconf.listconfig import ListConfig
@@ -246,6 +247,7 @@ class IPAdatperUNetModel(UNetModel):
                                 use_linear=use_linear_in_transformer,
                                 attn_type=spatial_transformer_attn_type,
                                 ip_scale=ip_scale,
+                                num_tokens=num_tokens,
                             )
                         )
                 self.input_blocks.append(TimestepEmbedSequential(*layers))
@@ -306,6 +308,7 @@ class IPAdatperUNetModel(UNetModel):
                 use_linear=use_linear_in_transformer,
                 attn_type=spatial_transformer_attn_type,
                 ip_scale=ip_scale,
+                num_tokens=num_tokens,
             ),
             ResBlock(
                 ch,
@@ -365,6 +368,7 @@ class IPAdatperUNetModel(UNetModel):
                                 use_linear=use_linear_in_transformer,
                                 attn_type=spatial_transformer_attn_type,
                                 ip_scale=ip_scale,
+                                num_tokens=num_tokens,
                             )
                         )
                 if level and i == self.num_res_blocks[level]:

@@ -155,7 +155,8 @@ class ResBlock(TimestepBlock):
         self.exchange_temb_dims = exchange_temb_dims
 
         if isinstance(kernel_size, Iterable):
-            padding = [k // 2 for k in kernel_size]
+            # MS doesn't support lists; MS requires padding for each side.
+            padding = tuple(k // 2 for k in kernel_size for _ in range(2))
         else:
             padding = kernel_size // 2
 
@@ -376,6 +377,7 @@ class Timestep(nn.Cell):
         self.dim = dim
 
     def construct(self, t):
+        # TODO: Allow different return type, e.g. int32 -> float32
         return timestep_embedding(t, self.dim, dtype=t.dtype)
 
 

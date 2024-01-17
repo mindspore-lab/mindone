@@ -1,4 +1,5 @@
 """
+vanilla_8p, unet randomly initialized, loss change 1.0 ->  0.3
 Vanilla, unet randomly initialized, loss change 1.0 ->  0.1
 LoRA, loss not stable, but 0.5 is a safe threshold
 Dreambooth, unet randomly initialized, loss  change 2.0 -> 0.5
@@ -12,21 +13,21 @@ import sys
 import numpy as np
 import pandas as pd
 import pytest
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
+from _common import down_checkpoint
 
 
 def create_dataset(n=1):
-    data_dir = __dir__ + "/demo_data"
+    root = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(root, "demo_data")
     os.makedirs(data_dir, exist_ok=True)
 
     img_fn = "sunflower.png"
-    img_path = __dir__ + f"/../../../videocomposer/demo_video/{img_fn}"
+    img_path = os.path.join(root, f"../../../videocomposer/demo_video/{img_fn}")
     caption = '"a photo of sunflowers under blue sky, vivid color"'
 
-    shutil.copy(img_path, data_dir + f"/{img_fn}")
+    shutil.copy(img_path, os.path.join(data_dir, f"{img_fn}"))
 
-    tmp_annot_fp = data_dir + "/img_txt.csv"
+    tmp_annot_fp = os.path.join(data_dir, "img_txt.csv")
     with open(tmp_annot_fp, "w") as fp:
         fp.write("dir,text\n")
         for i in range(n):
@@ -38,9 +39,74 @@ def create_dataset(n=1):
     return data_dir
 
 
+@pytest.mark.parametrize("version", ["1.5", "2.0"])
+def test_vanilla_8p(version):
+    root = os.path.dirname(os.path.abspath(__file__))
+    expected_loss = 0.3
+
+    # 1. create dummpy data
+    data_dir = os.path.join(root, "../../datasets/chinese_art_blip/train")
+
+    # 2. init vae clip with pretrained weight, init UNet randomly
+    # by pop out the unet parameter from sd checkpoint
+    if version == "1.5":
+        train_config = os.path.join(root, "../../configs/train/train_config_vanilla_v1.yaml")
+        pretrained_model_path = os.path.join(root, "../../models/sd_v1.5-d0ab7146.ckpt")
+        if not os.path.exists(pretrained_model_path):
+            pretrained_model_path = down_checkpoint(version=version)
+        infer_config = os.path.join(root, "../../configs/v1-inference.yaml")
+    elif version == "2.0":
+        train_config = os.path.join(root, "../../configs/train/train_config_vanilla_v2.yaml")
+        pretrained_model_path = os.path.join(root, "../../models/sd_v2_base-57526ee4.ckpt")
+        if not os.path.exists(pretrained_model_path):
+            pretrained_model_path = down_checkpoint(version=version)
+        infer_config = os.path.join(root, "../../configs/v2-inference.yaml")
+    else:
+        raise ValueError(f"SD {version} not included in test")
+
+    output_path = root
+    output_path = os.path.join(output_path, "vanilla_8p")
+
+    os.makedirs(output_path, exist_ok=True)
+
+    # export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
+    os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"  # It depends on MS version
+    epochs = 1000
+
+    cmd = (
+        f"mpirun --allow-run-as-root -n 8 python train_text_to_image.py --data_path={data_dir} --train_config={train_config} "
+        f"--pretrained_model_path={pretrained_model_path} --dataset_sink_mode=True --callback_size=3 "
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --init_loss_scale=65536 "
+        f"--output_path={output_path} --clip_grad=True --unet_initialize_random=True --use_parallel=True "
+    )
+
+    print(f"Running command: \n{cmd}")
+    ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
+    assert ret == 0, "Training fails"
+
+    # check ending loss
+    result_log = os.path.join(output_path, "ckpt/result.log")
+    df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
+    converge_loss = np.mean(df["loss"][-100:])
+
+    print("converge_loss: ", converge_loss)
+    assert converge_loss < expected_loss
+    # test inference
+    end_ckpt = os.path.join(output_path, "ckpt", f"sd-{epochs}.ckpt")
+
+    cmd = (
+        f"python text_to_image.py --config={infer_config} --n_iter=1 --n_samples=2 "
+        f"--output_path={output_path} --ckpt_path={end_ckpt} --negative_prompt='flowers' "
+    )
+    print(f"Running command: \n{cmd}")
+    ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
+    assert ret == 0, "run text_to_image.py fails"
+
+
 @pytest.mark.parametrize("use_lora", [True, False])  # lora or vanilla
 @pytest.mark.parametrize("version", ["1.5", "2.0"])
 def test_vanilla_lora(use_lora, version):
+    root = os.path.dirname(os.path.abspath(__file__))
     expected_loss = 0.1 if not use_lora else 0.5
 
     # 1. create dummpy data
@@ -49,23 +115,29 @@ def test_vanilla_lora(use_lora, version):
     # 2. init vae clip with pretrained weight, init UNet randomly
     # by pop out the unet parameter from sd checkpoint
     if version == "1.5":
-        model_config = __dir__ + "/../../configs/v1-train.yaml"
-        pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
-        infer_config = __dir__ + "/../../configs/v1-inference.yaml"
+        model_config = os.path.join(root, "../../configs/v1-train.yaml")
+        pretrained_model_path = os.path.join(root, "../../models/sd_v1.5-d0ab7146.ckpt")
+        if not os.path.exists(pretrained_model_path):
+            pretrained_model_path = down_checkpoint(version=version)
+        infer_config = os.path.join(root, "../../configs/v1-inference.yaml")
     elif version == "2.0":
-        model_config = __dir__ + "/../../configs/v2-train.yaml"
-        pretrained_model_path = __dir__ + "/../../models/sd_v2_base-57526ee4.ckpt"
-        infer_config = __dir__ + "/../../configs/v2-inference.yaml"
+        model_config = os.path.join(root, "../../configs/v2-train.yaml")
+        pretrained_model_path = os.path.join(root, "../../models/sd_v2_base-57526ee4.ckpt")
+        if not os.path.exists(pretrained_model_path):
+            pretrained_model_path = down_checkpoint(version=version)
+        infer_config = os.path.join(root, "../../configs/v2-inference.yaml")
     else:
         raise ValueError(f"SD {version} not included in test")
 
-    output_path = __dir__
+    output_path = root
     if use_lora:
-        output_path = output_path + "/lora"
+        output_path = os.path.join(output_path, "lora")
         unet_initialize_random = False
+        start_learning_rate = 0.0001
     else:
-        output_path = output_path + "/vanilla"
+        output_path = os.path.join(output_path, "vanilla")
         unet_initialize_random = True
+        start_learning_rate = 0.00001
 
     os.makedirs(output_path, exist_ok=True)
 
@@ -76,7 +148,7 @@ def test_vanilla_lora(use_lora, version):
     cmd = (
         f"python train_text_to_image.py --data_path={data_dir} --model_config={model_config} "
         f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=512 --dataset_sink_mode=True "
-        f"--epochs={epochs} --ckpt_save_interval={epochs} --start_learning_rate=0.00001 --train_batch_size=1 --init_loss_scale=65536 "
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --start_learning_rate={start_learning_rate} --train_batch_size=1 --init_loss_scale=65536 "
         f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True "
         f"--unet_initialize_random={unet_initialize_random} "
     )
@@ -113,24 +185,23 @@ def test_vanilla_lora(use_lora, version):
 @pytest.mark.parametrize("version", ["1.5", "2.0"])
 def test_db(version):
     # seed = 42
-
+    root = os.path.dirname(os.path.abspath(__file__))
     # 1. create dummpy data
     data_dir = create_dataset(1)
-    # data_dir = __dir__ + "/../../datasets/dog"
     if version == "1.5":
-        train_config = __dir__ + "/config/train_config_dreambooth_v1.yaml"
-        pretrained_model_path = __dir__ + "/../../models/sd_v1.5-d0ab7146.ckpt"
-        infer_config = __dir__ + "/../../configs/v1-inference.yaml"
+        train_config = os.path.join(root, "../../configs/train/train_config_dreambooth_v1.yaml")
+        pretrained_model_path = os.path.join(root, "../../models/sd_v1.5-d0ab7146.ckpt")
+        infer_config = os.path.join(root, "../../configs/v1-inference.yaml")
     elif version == "2.0":
-        train_config = __dir__ + "/config/train_config_dreambooth_v2.yaml"
-        pretrained_model_path = __dir__ + "/../../models/sd_v2_base-57526ee4.ckpt"
-        infer_config = __dir__ + "/../../configs/v2-inference.yaml"
+        train_config = os.path.join(root, "../../configs/train/train_config_dreambooth_v2.yaml")
+        pretrained_model_path = os.path.join(root, "../../models/sd_v2_base-57526ee4.ckpt")
+        infer_config = os.path.join(root, "../../configs/v2-inference.yaml")
     else:
         raise ValueError(f"SD {version} not included in test")
 
     class_data_dir = "temp_class_images/sunflower"
 
-    output_path = __dir__ + "/db"
+    output_path = os.path.join(root, "db")
     os.makedirs(output_path, exist_ok=True)
 
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -144,7 +215,8 @@ def test_db(version):
         f"--output_path  {output_path} "
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
-        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 --dataset_sink_mode=True "  # 800 steps
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 "
+        f"--with_prior_preservation=False "  # 800 steps
     )
 
     print(f"Running command: \n{cmd}")
@@ -186,6 +258,7 @@ def run_task(task="vanilla", version="1.5"):
 if __name__ == "__main__":
     # from fire import Fire
     # Fire(run_task)
+    test_vanilla_8p("1.5")
     test_vanilla_lora(False, "1.5")
     test_vanilla_lora(True, "1.5")
     test_db("1.5")

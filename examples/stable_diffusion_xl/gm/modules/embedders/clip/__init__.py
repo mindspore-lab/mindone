@@ -1,3 +1,3 @@
-from .modeling_clip import CLIPTextModel
+from .modeling_clip import CLIPAttention, CLIPTextModel
 
-__all__ = ["CLIPTextModel"]
+__all__ = ["CLIPAttention", "CLIPTextModel"]
