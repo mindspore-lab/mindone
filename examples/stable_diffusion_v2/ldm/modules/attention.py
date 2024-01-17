@@ -151,7 +151,7 @@ class CrossAttention(nn.Cell):
         )
         if self.enable_flash_attention:
             # TODO: how high_precision affect the training or inference quality
-            if version.parse(ms.__version__) < version.parse("2.2"):
+            if version.parse(ms.__version__) <= version.parse("2.2.0"):
                 self.flash_attention = FlashAttention(head_dim=dim_head, high_precision=True)
                 self.fa_mask_dtype = ms.float16  # choose_flash_attention_dtype()
             else:
