@@ -33,6 +33,8 @@ class DiffusionEngine(nn.Cell):
         input_key: str = "image",
         log_keys: Union[List, None] = None,
         no_cond_log: bool = False,
+        load_first_stage_model: bool = True,
+        load_conditioner: bool = True,
     ):
         super().__init__()
         self.log_keys = log_keys
@@ -49,8 +51,11 @@ class DiffusionEngine(nn.Cell):
 
         self.denoiser = instantiate_from_config(denoiser_config)
         self.sampler = instantiate_from_config(sampler_config) if sampler_config is not None else None
-        self.conditioner = instantiate_from_config(default(conditioner_config, UNCONDITIONAL_CONFIG))
-        self.first_stage_model = self.init_freeze_first_stage(first_stage_config)
+
+        self.first_stage_model = self.init_freeze_first_stage(first_stage_config) if load_first_stage_model else None
+        self.conditioner = (
+            instantiate_from_config(default(conditioner_config, UNCONDITIONAL_CONFIG)) if load_conditioner else None
+        )
 
         # for train
         self.sigma_sampler = instantiate_from_config(sigma_sampler_config) if sigma_sampler_config else None

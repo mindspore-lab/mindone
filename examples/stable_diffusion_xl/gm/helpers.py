@@ -1,3 +1,4 @@
+import copy
 import logging
 import os
 from datetime import datetime
@@ -113,6 +114,10 @@ def set_default(args):
 
     # data sink step
     if args.data_sink:
+        if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
+            os.environ["MS_DATASET_SINK_QUEUE"] = "10"
+            print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+
         assert args.dataset_load_tokenizer
         args.log_interval = args.sink_size
         if not (args.save_ckpt_interval >= args.sink_size and args.save_ckpt_interval % args.sink_size == 0):
@@ -122,6 +127,10 @@ def set_default(args):
 
     # split weights path
     args.weight = args.weight.split(",") if len(args.weight) > 0 else ""
+
+    # cache
+    if args.cache_latent != args.cache_text_embedding:
+        raise ValueError("Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent")
 
     # Directories and Save run settings
     if args.save_path_with_time:
@@ -153,6 +162,65 @@ def set_default(args):
     return args
 
 
+def get_all_reduce_config(model):
+    trainable_params = []
+    all_reduce_fusion_config = []
+
+    i = -1
+
+    if model.conditioner is not None and len(model.conditioner.trainable_params()) > 0:
+        for p in model.conditioner.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    unet = model.model.diffusion_model
+    for p in unet.time_embed.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    for p in unet.label_emb.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    all_reduce_fusion_config.append(i)
+
+    for block in unet.input_blocks:
+        for p in block.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    for p in unet.middle_block.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    all_reduce_fusion_config.append(i)
+
+    for block in unet.output_blocks:
+        for p in block.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    for p in unet.out.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    if hasattr(unet, "id_predictor"):
+        for p in unet.id_predictor.trainable_params():
+            trainable_params.append(p)
+            i += 1
+    all_reduce_fusion_config.append(i)
+
+    trainable_params = tuple(trainable_params)
+
+    num_trainable_params = (
+        len(model.model.trainable_params()) + len(model.conditioner.trainable_params())
+        if model.conditioner is not None
+        else len(model.model.trainable_params())
+    )
+    assert len(trainable_params) == num_trainable_params
+
+    return trainable_params, all_reduce_fusion_config
+
+
 def create_model(
     config: DictConfig,
     checkpoints: Union[str, List[str]] = "",
@@ -163,9 +231,17 @@ def create_model(
     textual_inversion_ckpt: str = None,
     placeholder_token: str = None,
     num_vectors: int = None,
+    load_first_stage_model: bool = True,
+    load_conditioner: bool = True,
 ):
     # create model
-    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
+    model = load_model_from_config(
+        config.model,
+        checkpoints,
+        amp_level=amp_level,
+        load_first_stage_model=load_first_stage_model,
+        load_conditioner=load_conditioner,
+    )
 
     if freeze:
         model.set_train(False)
@@ -174,7 +250,12 @@ def create_model(
             p.requires_grad = False
 
     if param_fp16:
-        convert_modules = (model.conditioner, model.first_stage_model)
+        convert_modules = ()
+        if load_conditioner:
+            convert_modules += (model.conditioner,)
+        if load_first_stage_model:
+            convert_modules += (model.first_stage_model,)
+
         if isinstance(model.model, nn.Cell):
             convert_modules += (model.model,)
         else:
@@ -284,7 +365,11 @@ def get_optimizer(optim_comfig, lr, params, filtering=True):
     return optimizer
 
 
-def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
+def load_model_from_config(
+    model_config, ckpts=None, verbose=True, amp_level="O0", load_first_stage_model=True, load_conditioner=True
+):
+    model_config["params"]["load_first_stage_model"] = load_first_stage_model
+    model_config["params"]["load_conditioner"] = load_conditioner
     model = instantiate_from_config(model_config)
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
@@ -316,6 +401,14 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                     new_k = k[:]
                 _new_sd_dict[new_k] = sd_dict[k]
             sd_dict = _new_sd_dict
+
+            # filter first_stage_model and conditioner
+            _keys = copy.deepcopy(list(sd_dict.keys()))
+            for _k in _keys:
+                if not load_first_stage_model and _k.startswith("first_stage_model."):
+                    sd_dict.pop(_k)
+                if not load_conditioner and _k.startswith("conditioner."):
+                    sd_dict.pop(_k)
 
             m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 

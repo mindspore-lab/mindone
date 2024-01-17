@@ -17,6 +17,8 @@ pip install -r requirements.txt
 
 ### Convert Pretrained Checkpoint
 
+<details onclose>
+
 We provide a script for converting pre-trained weight from `.safetensors` to `.ckpt` in `tools/model_conversion/convert_weight.py`.
 
 step1. Download the [Official](https://github.com/Stability-AI/generative-models) pre-train weights [SDXL-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) and [SDXL-refiner-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0) from huggingface.
@@ -43,9 +45,23 @@ python convert_weight.py \
   --key_ms mindspore_key_refiner.yaml
 ```
 
+(Option) Step3. Replace and convert VAE, Download [vae-fp16-fix weights](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix) from huggingface.
+
+```shell
+python convert_diffusers_to_mindone_sdxl.py \
+  --model_path /PATH TO/sdxl-vae-fp16-fix \                 # dir of vae weight
+  --vae_name diffusion_pytorch_model.safetensors \          # source vae weight, from https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+  --sdxl_base_ckpt /PATH TO/sd_xl_base_1.0_ms.ckpt          # base checkpoint, from Step2
+  --checkpoint_path /PATH TO/sd_xl_base_1.0_vaefix_ms.ckpt  # output path
+```
+
+</details>
+
+For details, please refer to [weight_convertion.md](./weight_convertion.md).
+
 ### Dataset Preparation for Fine-Tuning (Optional)
 
-The text-image dataset for fine-tuning should follow the file structure below
+#### The text-image dataset for fine-tuning should follow the file structure below
 
 <details onclose>
 
@@ -76,6 +92,8 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 
 
 #### Training with Webdataset
+
+<details onclose>
 
 Image-text pair data are archived into `tar` files in webdataset. A training dataset is like
 ```text
@@ -130,6 +148,8 @@ To save the time of scanning all data, you should prepare a data description jso
 ```
 
 For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
+
+</details>
 
 ## Inference
 
@@ -238,7 +258,9 @@ To be supplemented
 
 We are providing example training configs in `configs/training`. To launch a training, run
 
-1. Vanilla fine-tune, example as:
+#### 1. Vanilla fine-tune, example as:
+
+<details close>
 
 ```shell
 # sdxl-base fine-tune with 1p on Ascend
@@ -256,12 +278,20 @@ mpirun --allow-run-as-root -n 8 python train.py \
   --param_fp16 True \
   --is_parallel True
 
+# sdxl-base fine-tune with cache on Ascend
+bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
+
 # sdxl-base fine-tune with 16p on Ascend
-bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
-bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
 ```
 
-2. LoRA fine-tune, example as:
+</details>
+
+For details, please refer to [vanilla_finetune.md](./vanilla_finetune.md)
+
+#### 2. LoRA fine-tune, example as:
 
 ```shell
 # sdxl-base lora fine-tune with 1p on Ascend
@@ -272,22 +302,10 @@ python train.py \
   --gradient_accumulation_steps 4 \
 ```
 
-3. DreamBooth fine-tune
+#### 3. DreamBooth fine-tune
 
 For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
 
-4. Textual Inversion fine-tune
+#### 4. Textual Inversion fine-tune
 
 For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
-
-5. Run with Multiple NPUs, example as:
-
-```shell
-# run with multiple NPU/GPUs
-mpirun --allow-run-as-root -n 8 python train.py \
-  --config /PATH TO/config.yaml \
-  --weight /PATH TO/weight.ckpt \
-  --data_path /PATH TO/YOUR DATASET/ \
-  --is_parallel True \
-  --device_target <YOUR DEVCIE>
-```

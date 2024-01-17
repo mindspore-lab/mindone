@@ -33,7 +33,7 @@ model:
                 use_linear_in_transformer: True
                 transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
                 context_dim: 2048
-                spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
+                spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
                 legacy: False
                 use_recompute: True
 
@@ -116,11 +116,12 @@ optim:
     base_learning_rate: 1.0e-5
 
     optimizer_config:
-        target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
+        target: gm.modules.optimizers.AdamWeightDecayZeRO1
         params:
             beta1: 0.9
             beta2: 0.98
             weight_decay: 0.01
+            shard_size: 8
 
 
 data:
@@ -133,26 +134,16 @@ data:
     dataset_config:
         target: gm.data.dataset.Text2ImageDataset
         params:
-            multi_aspect: [
-                [704, 1408],
-                [768, 1344],
-                [832, 1216],
-                [896, 1152],
-                [960, 1088],
-                [1024, 1024],
-                [1088, 960],
-                [1152, 896],
-                [1216, 832],
-                [1344, 768],
-                [1472, 704],
-                [1600, 640],
-                [1728, 576]
-            ]
-            batched_transforms:
-                - target: gm.data.mappers.BatchedResizedAndRandomCrop
-                - target: gm.data.mappers.BatchedRescaler
+            target_size: 1024
+            transforms:
+                - target: gm.data.mappers.Resize
+                  params:
+                    size: 1024
+                    interpolation: 3
+                - target: gm.data.mappers.Rescaler
                   params:
                     isfloat: False
-                - target: gm.data.mappers.BatchedTranspose
+                - target: gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare
+                - target: gm.data.mappers.Transpose
                   params:
                     type: hwc2chw
