@@ -110,7 +110,7 @@ def test_vanilla_lora(use_lora, version):
     expected_loss = 0.1 if not use_lora else 0.5
 
     # 1. create dummpy data
-    data_dir = create_dataset(1)
+    data_dir = create_dataset(5)
 
     # 2. init vae clip with pretrained weight, init UNet randomly
     # by pop out the unet parameter from sd checkpoint
@@ -147,7 +147,7 @@ def test_vanilla_lora(use_lora, version):
 
     cmd = (
         f"python train_text_to_image.py --data_path={data_dir} --model_config={model_config} "
-        f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=512 --dataset_sink_mode=True "
+        f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=512 --dataset_sink_mode=True --callback_size=5 "
         f"--epochs={epochs} --ckpt_save_interval={epochs} --start_learning_rate={start_learning_rate} --train_batch_size=1 --init_loss_scale=65536 "
         f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True "
         f"--unet_initialize_random={unet_initialize_random} "
