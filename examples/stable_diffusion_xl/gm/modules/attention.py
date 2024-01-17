@@ -1,4 +1,8 @@
 # reference to https://github.com/Stability-AI/generative-models
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
 
 from gm.modules.diffusionmodules.util import normalization, zero_module
 from gm.modules.transformers import scaled_dot_product_attention
@@ -284,7 +288,7 @@ class SpatialTransformer(nn.Cell):
         context_dim=None,
         disable_self_attn=False,
         use_linear=False,
-        attn_type="vanilla",
+        attn_type: Literal["vanilla", "flash-attention"] = "vanilla",
     ):
         super().__init__()
         print(f"constructing {self.__class__.__name__} of depth {depth} w/ {in_channels} channels and {n_heads} heads")
