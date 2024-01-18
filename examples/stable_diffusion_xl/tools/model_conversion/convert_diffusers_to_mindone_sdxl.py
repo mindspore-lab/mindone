@@ -288,6 +288,8 @@ def convert_weight(pth, msname):
                 key_ms[i] = key_ms[i][:-6] + "gamma"
             if "bias" in key_torch[i]:
                 key_ms[i] = key_ms[i][:-4] + "beta"
+            if "embedding_table" in key_torch[i]:
+                key_ms[i] = key_ms[i][:-15] + "weight"
 
     newckpt = []
     for i in range(len(key_torch)):
