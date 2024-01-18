@@ -398,4 +398,3 @@ if __name__ == "__main__":
         merge_weight("part.ckpt", args.sdxl_base_ckpt)
     if len(state_dict["state_dict"].keys()) > line_count:
         raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
-
