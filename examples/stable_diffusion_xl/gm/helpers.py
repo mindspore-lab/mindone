@@ -638,8 +638,17 @@ def perform_save_locally(save_path, samples):
         base_count += 1
 
 
-def _build_lora_ckpt_path(ckpt_path):
-    return ckpt_path.replace(".ckpt", "_lora.ckpt")
+def _build_lora_ckpt_path(ckpt_path, save_ema_ckpt=False, save_lora_ckpt=True):
+    if save_lora_ckpt and not save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_lora.ckpt")
+    elif save_lora_ckpt and save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_lora_ema.ckpt")
+    elif not save_lora_ckpt and save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_ema.ckpt")
+    else:
+        path = ckpt_path
+
+    return path
 
 
 def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
@@ -662,22 +671,24 @@ def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False)
         else:
             ckpt.append({"name": n, "data": p})
 
-    if len(ckpt_lora_ema) > 0:
-        ckpt_lora = ckpt_lora_ema
-
-    if len(ckpt_ema) > 0:
-        ckpt = ckpt_ema
-
     delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora)
 
     if not only_save_lora:
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
+        if len(ckpt_ema) > 0:
+            path_ema = _build_lora_ckpt_path(path, save_ema_ckpt=True, save_lora_ckpt=False)
+            ms.save_checkpoint(ckpt_ema, path_ema)
+            print(f"save ema checkpoint to {path_ema}")
 
     if len(ckpt_lora) > 0:
         path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+        if len(ckpt_lora_ema) > 0:
+            path_lora_ema = _build_lora_ckpt_path(path, save_ema_ckpt=True)
+            ms.save_checkpoint(ckpt_lora_ema, path_lora_ema)
+            print(f"save ema lora checkpoint to {path_lora_ema}")
 
 
 def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
@@ -687,10 +698,12 @@ def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
     if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
         del_ckpt = ckpt_queue.pop(0)
         del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
+        del_ckpt_ema = _build_lora_ckpt_path(del_ckpt, save_ema_ckpt=True, save_lora_ckpt=False)
+        del_ckpt_lora_ema = _build_lora_ckpt_path(del_ckpt, save_ema_ckpt=True)
         if only_save_lora:
-            del_ckpts = [del_ckpt_lora]
+            del_ckpts = [del_ckpt_lora, del_ckpt_lora_ema]
         else:
-            del_ckpts = [del_ckpt, del_ckpt_lora]
+            del_ckpts = [del_ckpt, del_ckpt_lora, del_ckpt_ema, del_ckpt_lora_ema]
 
         for to_del in del_ckpts:
             if os.path.isfile(to_del):
