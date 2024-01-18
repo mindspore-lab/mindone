@@ -59,6 +59,12 @@ model:
             params:
               outdim: 256
 
+          - input_key: cond_aug
+            is_trainable: False
+            target: gm.modules.embedders.modules.ConcatTimestepEmbedderND
+            params:
+              outdim: 256
+
     first_stage_config:
       target: gm.models.autoencoder.AutoencodingEngine
       params:

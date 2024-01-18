@@ -1,23 +1,17 @@
-import logging
 import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
-import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
-from jsonargparse.typing import Path_fr
+from jsonargparse.typing import Path_fr, path_type
 from omegaconf import OmegaConf
 
-from mindspore import Model, Tensor, amp, load_checkpoint, load_param_into_net, nn
-from mindspore.dataset.vision import CenterCrop, Resize
+from mindspore import Model, amp, load_checkpoint, load_param_into_net, nn
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
-from data.video_dataset import VideoDataset
-
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import build_dataloader
+from mindone.data import build_dataloader, BaseDataset
 from mindone.env import init_env
 from mindone.utils import count_params, set_logger
 
@@ -25,55 +19,13 @@ sys.path.append("../stable_diffusion_xl")
 from gm.helpers import create_model
 
 sys.path.append("../stable_diffusion_v2")
-from ldm.data.transforms import TokenizerWrapper
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.trainer import TrainOneStepWrapper
 
 
-class ModelWrapper(nn.Cell):
-    def __init__(self, network):
-        super().__init__()
-        self._net = network
-
-    def construct(self, batch: Tensor, context: Tensor):
-        # merge the batch dimension with the frame dimension b t c h w -> (b t) c h w
-        batch = batch.reshape(-1, *batch.shape[2:])
-        context = context.reshape(-1, *context.shape[2:])
-        return self._net(batch, context)
-
-
-def load_pretrained_model(logger, net, pretrained_ckpt, weights_map: Optional[dict] = None):
-    logger.info(f"Loading pretrained model from {pretrained_ckpt}")
-    param_dict = load_checkpoint(pretrained_ckpt)
-    if weights_map is not None:
-        for old_name, new_name in weights_map.items():
-            assert new_name not in param_dict  # FIXME
-            param_dict[new_name] = param_dict.pop(old_name)
-
-    param_not_load, ckpt_not_load = load_param_into_net(net, param_dict)
-    return param_not_load, ckpt_not_load
-
-
-def build_transforms(tokenizer, frames_num) -> List[dict]:
-    return [
-        {
-            "operations": [
-                Resize(320),
-                CenterCrop((320, 512)),
-                lambda x: (x / 127.5 - 1.0).astype(np.float32),
-            ],
-            "input_columns": ["frames"],
-        },
-        {
-            "operations": [
-                TokenizerWrapper(tokenizer),
-                lambda x: np.tile(x, (frames_num, 1)),  # expand the number of prompts to match the number of frames
-            ],
-            "input_columns": ["caption"],
-        },
-    ]
+Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
 
 
 def mixed_precision(network):
@@ -82,49 +34,47 @@ def mixed_precision(network):
     from mindspore.nn import GroupNorm, SiLU
 
     black_list = amp.get_black_list() + [SiLU, GroupNorm, GroupNorm3D]
-    return amp.custom_mixed_precision(network, black_list=black_list)
+    return amp.custom_mixed_precision(network, black_list=black_list)._backbone     # FIXME
 
 
 def main(args, initializer):
     # step 1: initialize environment
-    logger = logging.getLogger(__name__)
     device_id, rank_id, device_num = init_env(**args.environment)
 
     output_dir = Path(args.train.output_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
-    set_logger(output_dir=str(output_dir), rank=rank_id)
+    logger = set_logger(name=__name__, output_dir=str(output_dir), rank=rank_id)
 
     # step 2: load SD model
-    config = OmegaConf.load(args.SD.absolute)
-    if "base_config" in config:
-        base_config = OmegaConf.load(config["base_config"])
-        config = OmegaConf.merge(base_config, config)
+    config = OmegaConf.load(args.svd_config.absolute)
+    config.model.params.sampler_config.params.guider_config.params.num_frames = args.train.dataset.init_args.frames  # FIXME
+    ldm_with_loss, _ = create_model(config, checkpoints=args.train.pretrained.absolute, freeze=False, amp_level="O0")
+    ldm_with_loss.model.set_train(True)  # only unet
 
-    ldm_with_loss = create_model(config.model, freeze=False)
-    temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_params(prefix="model.diffusion_model.")
-    new_weights_map = ldm_with_loss.model.diffusion_model.get_weights_map(prefix="model.diffusion_model.")
-    param_not_load, _ = load_pretrained_model(logger, ldm_with_loss, args.train.pretrained, weights_map=new_weights_map)
+    # temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_params(prefix="model.diffusion_model.")
+    # new_weights_map = ldm_with_loss.model.diffusion_model.get_weights_map(prefix="model.diffusion_model.")
 
-    if param_not_load:
-        diff = set(param_not_load).difference(temporal_param_names)
-        if not diff:
-            logger.info("Temporal parameters are not loaded.")
-        else:
-            logger.warning(f"Failed to load parameters: {diff}")
+    # if param_not_load:
+    #     diff = set(param_not_load).difference(temporal_param_names)
+    #     if not diff:
+    #         logger.info("Temporal parameters are not loaded.")
+    #     else:
+    #         logger.warning(f"Failed to load parameters: {diff}")
 
-    if args.train.temporal_only:
-        for param in ldm_with_loss.trainable_params():
-            if param.name not in temporal_param_names:
-                param.requires_grad = False
+    # if args.train.temporal_only:
+    #     for param in ldm_with_loss.trainable_params():
+    #         if param.name not in temporal_param_names:
+    #             param.requires_grad = False
 
-    ldm_with_loss_wrap = ModelWrapper(ldm_with_loss)
-    ldm_with_loss_wrap = mixed_precision(ldm_with_loss_wrap)
+    ldm_with_loss = mixed_precision(ldm_with_loss)
 
     # step 3: prepare train dataset and dataloader
-    transforms = build_transforms(ldm_with_loss.cond_stage_model.tokenizer, args.train.dataset.init_args.frames)
+    dataset = initializer.train.dataset
     train_dataloader = build_dataloader(
-        initializer.train.dataset,
-        transforms=transforms,
+        dataset,
+        transforms=dataset.train_transforms(
+            ldm_with_loss.conditioner.embedders[0].tokenize, args.train.dataset.init_args.frames
+        ),
         device_num=device_num,
         rank_id=rank_id,
         debug=args.environment.debug,
@@ -145,7 +95,7 @@ def main(args, initializer):
     loss_scaler = nn.DynamicLossScaleUpdateCell(**args.LossScale)
 
     net_with_grads = TrainOneStepWrapper(
-        ldm_with_loss_wrap, optimizer=optimizer, scale_sense=loss_scaler, **args.train.settings
+        ldm_with_loss, optimizer=optimizer, scale_sense=loss_scaler, **args.train.settings
     )
 
     if not args.environment.debug and args.train.sink_size != -1:
@@ -179,7 +129,7 @@ def main(args, initializer):
         )
 
         num_params_unet, _ = count_params(ldm_with_loss.model.diffusion_model)
-        num_params_text_encoder, _ = count_params(ldm_with_loss.cond_stage_model)
+        num_params_text_encoder, _ = count_params(ldm_with_loss.conditioner)
         num_params_vae, _ = count_params(ldm_with_loss.first_stage_model)
         num_params, num_trainable_params = count_params(ldm_with_loss)
 
@@ -189,10 +139,10 @@ def main(args, initializer):
                 f"Debugging: {args.environment.debug}",
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.environment.mode}",
                 f"Distributed mode: {args.environment.distributed}",
-                "Model: StableDiffusion v2.1",  # Support 1.x
+                "Model: StableDiffusion v2.1",
                 f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
-                f"Precision SD: {ldm_with_loss.model.diffusion_model.dtype}",
+                f"Precision SD: {args.train.amp_level}",
                 f"Num epochs: {args.train.epochs} {f'(adjusted to sink size {args.train.sink_size})' if not args.environment.debug else ''}",
                 f"Learning rate: {args.train.scheduler.lr}",
                 f"Batch size: {args.train.dataloader.batch_size}",
@@ -207,8 +157,8 @@ def main(args, initializer):
 
         logger.info("Start training...")
         # backup config files
-        shutil.copyfile(args.SD.absolute, output_dir / "sd_config.yaml")  # SD's parameters are not modified
-        ArgumentParser().save(args, output_dir / "svd_config.yaml", format="yaml", skip_check=True)
+        # shutil.copyfile(args.svd_config.absolute, output_dir / "sd_config.yaml")  # SD's parameters are not modified
+        # ArgumentParser().save(args, output_dir / "svd_config.yaml", format="yaml", skip_check=True)
 
     model = Model(net_with_grads)
     model.train(
@@ -227,14 +177,17 @@ if __name__ == "__main__":
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--train.sink_size", type=int, default=-1, help="Number of steps in each data sinking.")
     parser.add_argument("--train.temporal_only", type=bool, default=True, help="Train temporal layers only.")
-    parser.add_argument("--train.pretrained", type=str, required=True, help="Path to pretrained model.")
+    parser.add_argument("--train.pretrained", type=Path_fr, required=True, help="Path to pretrained model.")
+    parser.add_argument(
+        "--train.amp_level", choices=["O0", "O1", "O2", "O3"], default="O2", help="Automatic Mixed Precision."
+    )
     parser.add_argument(
         "--train.output_dir",
-        type=str,
+        type=Path_dcc,
         default="output/",
         help="Output directory for saving training results.",
     )
-    parser.add_subclass_arguments(VideoDataset, "train.dataset")
+    parser.add_subclass_arguments(BaseDataset, "train.dataset")
     parser.add_function_arguments(
         build_dataloader,
         "train.dataloader",
@@ -246,10 +199,10 @@ if __name__ == "__main__":
         TrainOneStepWrapper, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}, instantiate=False
     )
     parser.add_argument(
-        "--SD",
+        "--svd_config",
         type=Path_fr,
-        default="configs/sd_v2.1.yaml",
-        help="Stable Diffusion model configuration.",
+        default="configs/svd.yaml",
+        help="Stable Video Diffusion model configuration.",
     )
     parser.add_class_arguments(nn.DynamicLossScaleUpdateCell, "LossScale", instantiate=False, fail_untyped=False)
 

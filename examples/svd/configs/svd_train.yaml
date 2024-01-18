@@ -1,23 +1,23 @@
 environment:
   mode: 0
-  debug: False
+  debug: True
   seed: 42
   distributed: False
   enable_modelarts: False
 
 train:
-  epochs: 5
+  epochs: 10
   temporal_only: True
-  pretrained: models/sd_v2-1_base-7c8d09ce.ckpt
-  output_dir: output/videoldm_sd_v2.1/
+  pretrained: /home/rustam/projects/mindone/models/videoldm/ms/svd_d19a808f.ckpt
+  output_dir: output/
   sink_size: 60
 
   dataset:
     class_path: data.video_dataset.VideoDataset
     init_args:
-      data_dir: /data1/webvid-10m/dataset/2M_val/part0/00000
-      metadata_dir: /home/rustam/projects/mindone/data/
-      frames: 8
+      data_dir: /data1/webvid-10m/dataset/2M_val/
+      metadata: videos.csv
+      frames: 2
       step: 10
 
   dataloader:

@@ -4,12 +4,15 @@ model:
     scale_factor: 0.18215
     disable_first_stage_amp:
       enable: True
-      force_fp16: [mindspore.nn.Conv3d]  # For 910*. Use [] for 910.
+      force_fp16: [ mindspore.nn.Conv3d ]  # For 910*. Use [] for 910.
 
     denoiser_config:
       target: gm.modules.diffusionmodules.denoiser.Denoiser
       params:
         weighting_config: # FIXME: legacy
+          target: gm.modules.diffusionmodules.denoiser_weighting.EDMWeighting
+          params:
+            sigma_data: 1.0
         scaling_config:
           target: gm.modules.diffusionmodules.denoiser_scaling.VScalingWithEDMcNoise
 
@@ -28,10 +31,10 @@ model:
         use_linear_in_transformer: True
         transformer_depth: 1
         context_dim: 1024
-        spatial_transformer_attn_type: flash-attention
+        spatial_transformer_attn_type: vanilla
         extra_ff_mix_layer: True
         use_spatial_context: True
-        merge_strategy: learned_with_images
+        merge_strategy: learned
         video_kernel_size: [ 3, 1, 1 ]
 
     conditioner_config:
@@ -130,6 +133,15 @@ model:
             dropout: 0.0
             video_kernel_size: [ 3, 1, 1 ]
 
+    sigma_sampler_config:
+      target: gm.modules.diffusionmodules.sigma_sampling.EDMSampling
+      params:
+        p_mean: 1.0
+        p_std: 1.6
+
+    loss_fn_config:
+      target: gm.modules.diffusionmodules.loss.StandardDiffusionLoss
+
     sampler_config:
       target: gm.modules.diffusionmodules.sampler.EulerEDMSampler
       params:
@@ -145,3 +157,14 @@ model:
           params:
             max_scale: 2.5
             min_scale: 1.0
+
+
+optim:
+    base_learning_rate: 1.0e-5
+
+    optimizer_config:
+        target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
+        params:
+            beta1: 0.9
+            beta2: 0.98
+            weight_decay: 0.01

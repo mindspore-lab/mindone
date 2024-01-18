@@ -118,7 +118,7 @@ class DiffusionEngine(nn.Cell):
         denoiser = self.denoiser
         model = self.model
 
-        def _forward_func(x, noised_input, sigmas, w, concat, context, y):
+        def _forward_func(x, noised_input, sigmas, w, concat, context, y, **kwargs):
             c_skip, c_out, c_in, c_noise = denoiser(sigmas, noised_input.ndim)
             model_output = model(
                 ops.cast(noised_input * c_in, ms.float32),
@@ -126,6 +126,7 @@ class DiffusionEngine(nn.Cell):
                 concat=concat,
                 context=context,
                 y=y,
+                **kwargs
             )
             model_output = model_output * c_out + noised_input * c_skip
             loss = loss_fn(model_output, x, w)
@@ -134,8 +135,8 @@ class DiffusionEngine(nn.Cell):
 
         grad_fn = ops.value_and_grad(_forward_func, grad_position=None, weights=optimizer.parameters)
 
-        def grad_and_update_func(x, noised_input, sigmas, w, concat, context, y):
-            loss, grads = grad_fn(x, noised_input, sigmas, w, concat, context, y)
+        def grad_and_update_func(x, noised_input, sigmas, w, concat, context, y, **kwargs):
+            loss, grads = grad_fn(x, noised_input, sigmas, w, concat, context, y, **kwargs)
             grads = reducer(grads)
             unscaled_grads = scaler.unscale(grads)
             grads_finite = all_finite(unscaled_grads)
@@ -154,12 +155,23 @@ class DiffusionEngine(nn.Cell):
         return grad_and_update_func if not jit else jit_warpper
 
     def train_step_pynative(self, x, *tokens, grad_func=None):
+        num_frames = x.shape[1]
+        cond_frames_without_noise, fps_id, motion_bucket_id, cond_frames, cond_aug = tokens
+        x = x.reshape(-1, *x.shape[2:])
+        fps_id = fps_id.reshape(-1, *fps_id.shape[2:])
+        motion_bucket_id = motion_bucket_id.reshape(-1, *motion_bucket_id.shape[2:])
+        cond_aug = cond_aug.reshape(-1, *cond_aug.shape[2:])
+
         # get latent
         x = self.encode_first_stage(x)
 
+        tokens = (cond_frames_without_noise, fps_id, motion_bucket_id, cond_frames, cond_aug)
+
         # get condition
         vector, crossattn, concat = self.conditioner.embedding(*tokens)
-        cond = {"context": crossattn, "y": vector, "concat": concat}
+        crossattn = crossattn.repeat(num_frames, axis=0)
+        concat = concat.repeat(num_frames, axis=0)
+        cond = {"context": crossattn, "y": vector, "concat": concat, "num_video_frames": num_frames}
 
         # get noise and sigma
         sigmas = self.sigma_sampler(x.shape[0])
