@@ -305,13 +305,12 @@ def merge_weight(partckpt, allckpt):
     alkey = list(al.keys())
     newckpt = {}
     for i in range(len(al)):
-        print(i)
         key = alkey[i]
         if key in partkey:
             newckpt[key] = part[key]
         else:
             newckpt[key] = al[key]
-    ms.save_checkpoint(newckpt, "sdxl_final.ckpt")
+    ms.save_checkpoint(newckpt, args.checkpoint_path)
 
 
 if __name__ == "__main__":
@@ -347,32 +346,45 @@ if __name__ == "__main__":
     vae_path = osp.join(args.model_path, "vae", args.vae_name)
     text_enc_path = osp.join(args.model_path, "text_encoder", args.text_encoder_name)
     text_enc_2_path = osp.join(args.model_path, "text_encoder_2", args.text_encoder_2_name)
-    unet_state_dict = {}
-    vae_state_dict = {}
-    text_enc_dict = {}
-    text_enc_2_dict = {}
 
+    # Load models from safetensors if it exists, if it doesn't pytorch
     if osp.exists(unet_path):
         unet_state_dict = load_file(unet_path, device="cpu")
-        # Convert the UNet model
-        unet_state_dict = convert_unet_state_dict(unet_state_dict)
-        unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
+    else:
+        unet_path = osp.join(args.model_path, "unet", "diffusion_pytorch_model.bin")
+        unet_state_dict = torch.load(unet_path, map_location="cpu")
 
     if osp.exists(vae_path):
         vae_state_dict = load_file(vae_path, device="cpu")
-        # Convert the VAE model
-        vae_state_dict = convert_vae_state_dict(vae_state_dict)
-        vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
+    else:
+        vae_path = osp.join(args.model_path, "vae", "diffusion_pytorch_model.bin")
+        vae_state_dict = torch.load(vae_path, map_location="cpu")
 
     if osp.exists(text_enc_path):
         text_enc_dict = load_file(text_enc_path, device="cpu")
-        text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
-        text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
+    else:
+        text_enc_path = osp.join(args.model_path, "text_encoder", "pytorch_model.bin")
+        text_enc_dict = torch.load(text_enc_path, map_location="cpu")
 
     if osp.exists(text_enc_2_path):
         text_enc_2_dict = load_file(text_enc_2_path, device="cpu")
-        text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
-        text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
+    else:
+        text_enc_2_path = osp.join(args.model_path, "text_encoder_2", "pytorch_model.bin")
+        text_enc_2_dict = torch.load(text_enc_2_path, map_location="cpu")
+
+    # Convert the UNet model
+    unet_state_dict = convert_unet_state_dict(unet_state_dict)
+    unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
+
+    # Convert the VAE model
+    vae_state_dict = convert_vae_state_dict(vae_state_dict)
+    vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
+
+    text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
+    text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
+
+    text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
+    text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
 
     # Put together new checkpoint
     state_dict = {**unet_state_dict, **vae_state_dict, **text_enc_dict, **text_enc_2_dict}
@@ -384,13 +396,16 @@ if __name__ == "__main__":
         save_file(state_dict, args.checkpoint_path)
     else:
         state_dict = {"state_dict": state_dict}
-        torch.save(state_dict, args.checkpoint_path)
+        torch.save(state_dict, "torch_part.ckpt")
 
     # Convert the torch ckpt to mindspore ckpt
-    convert_weight(args.checkpoint_path, "part.ckpt")
+    convert_weight("torch_part.ckpt", "mindspore_part.ckpt")
 
-    with open("mindspore_key_base.yaml", "r") as file:
-        line_count = len(file.readlines())
+    if osp.exists("mindspore_key_base.yaml"):
+        with open("mindspore_key_base.yaml", "r") as file:
+            line_count = len(file.readlines())
+    else:
+        line_count = 2514
 
     # If you have obtained all the keys, you do not need to run the insertion operation
     if len(state_dict["state_dict"].keys()) < line_count:

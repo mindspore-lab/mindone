@@ -125,9 +125,10 @@ cd tools/model_conversion
 
 python convert_diffusers_to_mindone_sdxl.py \
   --model_path /PATH_TO_THE_MODEL_TO_CONVERT \
-  --checkpoint_path /PATH_TO_THE_OUTPUT_MODEL \
+  --checkpoint_path /PATH_TO_THE_OUTPUT_MODEL/converted_sd_xl_base_1.0.ckpt  \
   --unet_name "diffusion_pytorch_model.fp16.safetensors" \
   --vae_name "diffusion_pytorch_model.fp16.safetensors" \
   --text_encoder_name "model.fp16.safetensors" \
-  --text_encoder_2_name "model.fp16.safetensors"
+  --text_encoder_2_name "model.fp16.safetensors" \
+  --sdxl_base_ckpt "/PATH_TO_THE_BASE_MINDONE_CKPT/sd_xl_base_1.0_ms.ckpt"
 ```
