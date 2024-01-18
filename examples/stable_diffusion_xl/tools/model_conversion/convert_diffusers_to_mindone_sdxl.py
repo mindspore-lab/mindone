@@ -348,48 +348,35 @@ if __name__ == "__main__":
     text_enc_path = osp.join(args.model_path, "text_encoder", args.text_encoder_name)
     text_enc_2_path = osp.join(args.model_path, "text_encoder_2", args.text_encoder_2_name)
 
-    # Load models from safetensors if it exists, if it doesn't pytorch
+    unet_state_dict = {}
+    vae_state_dict = {}
+    text_enc_dict = {}
+    text_enc_2_dict = {}
+
     if osp.exists(unet_path):
         unet_state_dict = load_file(unet_path, device="cpu")
-    else:
-        unet_path = osp.join(args.model_path, "unet", "diffusion_pytorch_model.bin")
-        unet_state_dict = torch.load(unet_path, map_location="cpu")
+        # Convert the UNet model
+        unet_state_dict = convert_unet_state_dict(unet_state_dict)
+        unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
 
     if osp.exists(vae_path):
         vae_state_dict = load_file(vae_path, device="cpu")
-    else:
-        vae_path = osp.join(args.model_path, "vae", "diffusion_pytorch_model.bin")
-        vae_state_dict = torch.load(vae_path, map_location="cpu")
+        # Convert the VAE model
+        vae_state_dict = convert_vae_state_dict(vae_state_dict)
+        vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
 
     if osp.exists(text_enc_path):
         text_enc_dict = load_file(text_enc_path, device="cpu")
-    else:
-        text_enc_path = osp.join(args.model_path, "text_encoder", "pytorch_model.bin")
-        text_enc_dict = torch.load(text_enc_path, map_location="cpu")
+        text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
+        text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
 
     if osp.exists(text_enc_2_path):
         text_enc_2_dict = load_file(text_enc_2_path, device="cpu")
-    else:
-        text_enc_2_path = osp.join(args.model_path, "text_encoder_2", "pytorch_model.bin")
-        text_enc_2_dict = torch.load(text_enc_2_path, map_location="cpu")
-
-    # Convert the UNet model
-    unet_state_dict = convert_unet_state_dict(unet_state_dict)
-    unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
-
-    # Convert the VAE model
-    vae_state_dict = convert_vae_state_dict(vae_state_dict)
-    vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
-
-    text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
-    text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
-
-    text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
-    text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
+        text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
+        text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
 
     # Put together new checkpoint
     state_dict = {**unet_state_dict, **vae_state_dict, **text_enc_dict, **text_enc_2_dict}
-    state_dict = {**vae_state_dict}
 
     if args.half:
         state_dict = {k: v.half() for k, v in state_dict.items()}
@@ -411,4 +398,4 @@ if __name__ == "__main__":
         # insert these ckpt to mindspore sdxl base ckpt
         merge_weight("part.ckpt", args.sdxl_base_ckpt)
     if len(state_dict["state_dict"].keys()) > line_count:
-        raise ValueError("The number of keys is greater than 2514. Insertion not allowed.")
+        raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
