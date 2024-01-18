@@ -5,6 +5,7 @@ LoRA, loss not stable, but 0.5 is a safe threshold
 Dreambooth, unet randomly initialized, loss  change 2.0 -> 0.5
 """
 
+import argparse
 import os
 import shutil
 import subprocess
@@ -244,21 +245,35 @@ def test_db(version):
     assert ret == 0, "run text_to_image.py fails"
 
 
-def run_task(task="vanilla", version="1.5"):
-    if task == "vanilla":
+def run_task(task="vanilla", version="1.5", device_num=1):
+    if task == "vanilla" and device_num == 1:
         test_vanilla_lora(use_lora=False, version=version)
-    elif task == "lora":
+    elif task == "lora" and device_num == 1:
         test_vanilla_lora(use_lora=True, version=version)
-    elif task == "db":
+    elif task == "db" and device_num == 1:
         test_db(version=version)
+    elif task == "vanilla" and device_num == 8:
+        test_vanilla_8p(version=version)
     else:
-        raise ValueError
+        raise ValueError("please check task, version and device_num")
 
 
 if __name__ == "__main__":
-    # from fire import Fire
-    # Fire(run_task)
-    test_vanilla_8p("1.5")
-    test_vanilla_lora(False, "1.5")
-    test_vanilla_lora(True, "1.5")
-    test_db("1.5")
+    # test_vanilla_8p("1.5")
+    # test_vanilla_lora(False, "1.5")
+    # test_vanilla_lora(True, "1.5")
+    # test_db("1.5")
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--task", type=str, default="vanilla", choices=["vanilla", "lora", "db"], help="stable diffusion task"
+    )
+    parser.add_argument("--version", type=str, default="1.5", choices=["1.5", "2.0"], help="stable diffusion version")
+    parser.add_argument(
+        "--device_num",
+        type=int,
+        default=1,
+        choices=[1, 8],
+        help="device num, only supports 1 or 8. Note: device_num=8 only supports vanilla task.",
+    )
+    args = parser.parse_args()
+    run_task(task=args.task, version=args.version, device_num=args.device_num)
