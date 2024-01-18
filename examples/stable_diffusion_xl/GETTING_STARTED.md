@@ -118,7 +118,7 @@ A shardlist decription obeys the following format.
 }
 ```
 
-For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`. For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json` to save scanning time. 
+For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`. For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json` to save scanning time.
 
 You can manually specify a new shardlist description file in the config yaml via the `shardlist_desc` argument, for example.
 
