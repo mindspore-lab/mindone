@@ -347,7 +347,6 @@ if __name__ == "__main__":
     vae_path = osp.join(args.model_path, "vae", args.vae_name)
     text_enc_path = osp.join(args.model_path, "text_encoder", args.text_encoder_name)
     text_enc_2_path = osp.join(args.model_path, "text_encoder_2", args.text_encoder_2_name)
-
     unet_state_dict = {}
     vae_state_dict = {}
     text_enc_dict = {}
@@ -399,3 +398,4 @@ if __name__ == "__main__":
         merge_weight("part.ckpt", args.sdxl_base_ckpt)
     if len(state_dict["state_dict"].keys()) > line_count:
         raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
+

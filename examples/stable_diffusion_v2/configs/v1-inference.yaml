@@ -30,7 +30,8 @@ model:
         channel_mult: [ 1, 2, 4, 4 ]
         num_heads: 8 # num of attention head, => head dim will be 320 / 8 = 40, not divisable by 16
         use_spatial_transformer: True
-        enable_flash_attention: False
+        enable_flash_attention: True
+        fa_max_head_dim: 256  # max head dim of flash attention. In case of oom, reduce it to 128
         transformer_depth: 1
         context_dim: 768
         use_checkpoint: True

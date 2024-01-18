@@ -24,7 +24,8 @@ The compatible framework version that are well-tested are listed as follows.
 
 ## Run
 
-Please run the following command to test `vanilla_8p`, `vanilla`, `lora` and `dreambooth` method.
+Please run the following command to test `vanilla_8p`, `vanilla`, `lora` or `dreambooth` method.
 ```shell
-pyhon tests/st/test_overfit.py
+pyhon tests/st/test_overfit.py --task {task} --version {version} --device_num {device_num}
 ```
+For more usage, please run `python tests/st/test_overfit.py -h`.

@@ -294,6 +294,8 @@ class UNetModel(nn.Cell):
     :param resblock_updown: use residual blocks for up/downsampling.
     :param use_new_attention_order: use a different attention pattern for potentially
                                     increased efficiency.
+    :param fa_max_head_dim: the maximum head dimension to apply flash attention. In case of OOM,
+                                reduce this value.
     """
 
     def __init__(
@@ -324,6 +326,7 @@ class UNetModel(nn.Cell):
         legacy=True,
         use_linear_in_transformer=False,
         enable_flash_attention=False,
+        fa_max_head_dim=256,
         cross_frame_attention=False,
         unet_chunk_size=2,
         adm_in_channels=None,
@@ -460,6 +463,7 @@ class UNetModel(nn.Cell):
                             cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                             upcast_attn=upcast_attn,
+                            fa_max_head_dim=fa_max_head_dim,
                         )
                     )
                 self.input_blocks.append(layers)
@@ -539,6 +543,7 @@ class UNetModel(nn.Cell):
                     cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
                     upcast_attn=upcast_attn,
+                    fa_max_head_dim=fa_max_head_dim,
                 ),
                 ResBlock(
                     ch,
@@ -606,6 +611,7 @@ class UNetModel(nn.Cell):
                             cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                             upcast_attn=upcast_attn,
+                            fa_max_head_dim=fa_max_head_dim,
                         )
                     )
                 if level and i == num_res_blocks:
