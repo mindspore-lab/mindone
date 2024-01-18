@@ -298,7 +298,7 @@ def convert_weight(pth, msname):
     ms.save_checkpoint(newckpt, msname)
 
 
-def ms2ms(partckpt, allckpt):
+def merge_weight(partckpt, allckpt):
     part = ms.load_checkpoint(partckpt)
     al = ms.load_checkpoint(allckpt)
     partkey = list(part.keys())
@@ -403,9 +403,12 @@ if __name__ == "__main__":
     # Convert the torch ckpt to mindspore ckpt
     convert_weight(args.checkpoint_path, "part.ckpt")
 
+    with open("mindspore_key_base.yaml", "r") as file:
+        line_count = len(file.readlines())
+
     # If you have obtained all the keys, you do not need to run the insertion operation
-    if len(state_dict["state_dict"].keys()) < 2514:
+    if len(state_dict["state_dict"].keys()) < line_count:
         # insert these ckpt to mindspore sdxl base ckpt
-        ms2ms("part.ckpt", args.sdxl_base_ckpt)
-    if len(state_dict["state_dict"].keys()) > 2514:
+        merge_weight("part.ckpt", args.sdxl_base_ckpt)
+    if len(state_dict["state_dict"].keys()) > line_count:
         raise ValueError("The number of keys is greater than 2514. Insertion not allowed.")
