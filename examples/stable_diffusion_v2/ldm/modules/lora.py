@@ -156,7 +156,12 @@ def inject_trainable_lora_to_textencoder(
             if verbose:
                 print(f"Create LoRA dense layer, of which linear weight is {tar_dense.weight.name}.")
             tmp_lora_dense = LoRADenseLayer(
-                in_features=in_channels, out_features=out_channels, has_bias=has_bias, rank=rank, dtype=dtype
+                in_features=in_channels,
+                out_features=out_channels,
+                has_bias=has_bias,
+                rank=rank,
+                dtype=dtype,
+                scale=scale,
             )
 
             # copy orignal weight and bias to lora linear (pointing)
@@ -277,7 +282,12 @@ def inject_trainable_lora(
             if verbose:
                 print(f"Create LoRA dense layer, of which linear weight is {tar_dense.weight.name}.")
             tmp_lora_dense = LoRADenseLayer(
-                in_features=in_channels, out_features=out_channels, has_bias=has_bias, rank=rank, dtype=dtype
+                in_features=in_channels,
+                out_features=out_channels,
+                has_bias=has_bias,
+                rank=rank,
+                dtype=dtype,
+                scale=scale,
             )
 
             # copy orignal weight and bias to lora linear (pointing)

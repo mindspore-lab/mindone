@@ -2,6 +2,128 @@
 
 MindSpore implementation & optimization of [VideoComposer: Compositional Video Synthesis with Motion Controllability](https://arxiv.org/pdf/2306.02018.pdf).
 
+## Gallery
+
+### Different conditions to videos
+
+<p align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/9409b63e-c9fb-40c4-8ca6-7e8291a7c983" width="720" />
+<br />
+<em> Condition: image depth <br /> Text input: "A black swan swam in the water" </em>
+</p>
+
+<br />
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/03af962b-3c56-4bdd-a16b-c6038bfd6389" width="720" />
+</div>
+<p align="center">
+<em> Condition: local image <br /> Text input: "A black swan swam in the water" </em>
+</p>
+
+<br />
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/35c8ea4e-b59e-4dab-a2d9-31eb29ddd098" width="720" />
+</div>
+<p align="center">
+<em> Condition: mask <br /> Text input: "A black swan swam in the water" </em>
+</p>
+
+<br />
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/5bddeb4f-9e6c-42a8-bfed-f74e27a2e490" width="720" />
+</div>
+<p align="center">
+<em> Condition: motion <br /> Text input: "A black swan swam in the water" </em>
+</p>
+
+<br />
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/89cdfceb-e070-446e-9dcb-a983bea8c9d9" width="720" />
+</div>
+<p align="center">
+<em> Condition: sketch <br /> Text input: "A black swan swam in the water" </em>
+</p>
+
+### Motion transfer to videos
+
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/0617e0de-5eb8-4820-8cac-1847b32b2a90" width="720" />
+</div>
+<p align="center">
+<em> Text input: "Beneath Van Gogh's Starry Sky" </em>
+</p>
+
+<br />
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/1ba8cab5-d646-4574-b62a-a63c0bdd3d25" width="720" />
+</div>
+<p align="center">
+<em> Text input: "A beautiful big silver moon on the water" </em>
+</p>
+
+<br />
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/0f989cc9-24b9-4925-b07b-2d44dc100f24" width="720" />
+</div>
+<p align="center">
+<em> Text input: "A sunflower in a field of flowers" </em>
+</p>
+
+### Single sketch to videos with style
+
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/b8a2ed38-d209-4ca2-b60c-6cca1114a21b" width="30%" />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/d6967daf-7b3d-48bd-8382-ba65724077c0" width="60%" />
+</div>
+<p align="center">
+<em> Style image </em>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<em> Text input: "Red-backed Shrike lanius collurio" </em>
+</p>
+
+### Single sketch to videos without style
+
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/32d67667-e5ea-4b2e-afbc-be8781f22e04" width="720" />
+</div>
+<p align="center">
+<em> Text input: "A little bird is standing on a branch" </em>
+</p>
+
+### Image depth to videos without style
+
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/03a71a01-0b66-499d-bfe0-3fd9a8fbf34f" width="720" />
+</div>
+<p align="center">
+<em> Text input: "Ironman is fighting against the enemy, big fire in the background, photorealistic" </em>
+</p>
+
+### Image depth to videos with style
+
+<div align="center">
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/124e927b-8291-41ea-b6ab-58279f9ceb1d" width="25%" />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/7c8a1a1e-4034-4c17-a1f7-1eaac1839fc5" width="60%" />
+</div>
+<p align="center">
+<em> Style image </em>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<em> Text input: "Van Gogh played tennis under the stars" </em>
+</p>
+
+<br />
+
+> Inference scripts and configuration referring to [`scripts/run_infer.sh`](scripts/run_infer.sh).
+
 ## Main Features
 
 - [x] Conditional Video Generation including the following tasks:
@@ -9,7 +131,7 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
     - [x] Single sketch to videos with or without style guidance (exp03 and exp04)
     - [x] Depth to video with or without style guidance (exp5 and exp6)
     - [x] Generate videos based on multiple conditions: depth maps, local image, masks, motion, and sketch
-- [x] Model Training (vanilla finetuning) supporting both Ascend 910A and 910B
+- [x] Model Training (vanilla finetuning) supporting both Ascend 910 and 910*
 - [x] Acceleration and Memory Reduction
     - [x] Mixed Precision
     - [x] Graph Mode for Training
@@ -24,10 +146,10 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 ## Environment Setup
 
-**NOTES:** The training code of VC is well tested on **NPU 910B + MindSpore 2.2 (20230907) + CANN 7.0T2 + Ascend driver 23.0.rc3.b060**. Other mindspore and CANN versions may suffer from precision issues.
+**NOTES:** The training code of VC is well tested on **NPU 910* + MindSpore 2.2 (20230907) + CANN 7.0T2 + Ascend driver 23.0.rc3.b060**. Other mindspore and CANN versions may suffer from precision issues.
 
 ### 1. Framework Installation
-- For 910B NPU, please make sure the following packages are installed using the exact versions.
+- For 910* NPU, please make sure the following packages are installed using the exact versions.
     1. CANN 7.0-T2. Version check:
     ```
         ll /usr/local/Ascend/latest
@@ -71,7 +193,7 @@ For CANN 7.0T2, please disable `AdamApplyOneFusionPasss` to avoid overflow in tr
 
     If case you fail to install `motion-vector-extractor` via pip, please manually install it referring to the [official](https://github.com/LukasBommes/mv-extractor) repo.
 
-> Notes for 910A: the code is also runnable on 910A for training and inference. But the number of frames `max_frames` for training should be changed from 16 to 8 frames or fewer due to memory limitation.
+> Notes for 910: the code is also runnable on 910 for training and inference. But the number of frames `max_frames` for training should be changed from 16 to 8 frames or fewer due to memory limitation.
 
 ## Prepare Pretrained Weights
 
@@ -105,17 +227,17 @@ video_name2.mp4,"a pigeon sitting on the street near the house"
 
 ### Online Inference
 
-To run all video generation tasks on 910A or 910B, please run
+To run all video generation tasks on 910 or 910*, please run
 
 ```shell
 bash scripts/run_infer.sh
 ```
 
-On 910A, to run a single task, you can pick the corresponding snippet of code in `scripts/run_infer.sh`, such as
+On 910, to run a single task, you can pick the corresponding snippet of code in `scripts/run_infer.sh`, such as
 
 ```shell
-# export MS_ENABLE_GE=1  # for 910B
-# export MS_ENABLE_REF_MODE=1 # for 910B and Mindspore > 2.1
+# export MS_ENABLE_GE=1  # for 910*
+# export MS_ENABLE_REF_MODE=1 # for 910* and Mindspore > 2.1
 python infer.py \
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --seed 9999 \
@@ -125,7 +247,7 @@ python infer.py \
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-On 910B, you need to enable the GE Mode first by running `export MS_ENABLE_GE=1`. For Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
+On 910*, you need to enable the GE Mode first by running `export MS_ENABLE_GE=1`. For Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
 
 It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
 
@@ -162,11 +284,11 @@ To install Mindspore Lite, please refer to [Lite install](https://mindspore.cn/l
 
 #### Export Mindspore Lite Model
 
-For different tasks, you can use the corresponding snippet of the code in `scripts/run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910B and run `export MS_ENABLE_REF_MODE=1` on 910B and Mindspore > 2.1 before running the code snippet.
+For different tasks, you can use the corresponding snippet of the code in `scripts/run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910* and run `export MS_ENABLE_REF_MODE=1` on 910* and Mindspore > 2.1 before running the code snippet.
 
 ```shell
-# export MS_ENABLE_GE=1  # for 910B
-# export MS_ENABLE_REF_MODE=1 # for 910B and Mindspore > 2.1
+# export MS_ENABLE_GE=1  # for 910*
+# export MS_ENABLE_REF_MODE=1 # for 910* and Mindspore > 2.1
 python export.py\
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --input_video "demo_video/motion_transfer.mp4" \
@@ -175,11 +297,11 @@ python export.py\
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. Please note that on 910B, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variables before running the conversion.
+The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. Please note that on 910*, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variables before running the conversion.
 
 ```shell
-unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910B
-unset MS_ENABLE_REF_MODE  # Remember to unset MS_ENABLE_REF_MODE on 910B and Mindspore > 2.1
+unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910*
+unset MS_ENABLE_REF_MODE  # Remember to unset MS_ENABLE_REF_MODE on 910* and Mindspore > 2.1
 python convert_lite.py
 ```
 
@@ -279,9 +401,9 @@ Both json and csv file are supported. JSON has a higher priority.
 
 You can adjust the arguments in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
 
-- max_frames: number of frames to generate for each sample. Without memory reduction tricks, it can be set  up to 8 for 910A (30GB memory), and 16 for 910B (60GB memory) for task-2 finetuning.
-- optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910A to avoid OOM and `adamw` for 910B for better loss convergence.
-- use_recompute: by enabling it, you can reduce memory usage with a small increase in time cost. For example, on 910A, the max number of trainable frames per batch increases from 8 to 14 after recomputing is enabled.
+- max_frames: number of frames to generate for each sample. Without memory reduction tricks, it can be set up to 8 for 910, and 16 for 910* for task-2 finetuning.
+- optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910 to avoid OOM and `adamw` for 910* for better loss convergence.
+- use_recompute: by enabling it, you can reduce memory usage with a small increase in time cost. For example, on 910, the max number of trainable frames per batch increases from 8 to 14 after recomputing is enabled.
 - `root_dir`: dataset root dir which should contain a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
 - `num_parallel_workers`: default is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)
 
@@ -293,15 +415,15 @@ The training performance for exp02-motion transfer is as follows.
 
 | **NPU**     | ** Num. Cards**    | **Dataset**  |  **Batch size** | ** Performance (ms/step)**  |
 |-------------|----------------|---------------|----------------|----------------|
-| 910B        | 1x8 		| WebVid     | 	1	|   ~950	|
-| 910B        | 8x8 		| WebVid     | 	1	|   ~1100 	|
+| 910*        | 1x8 		| WebVid     | 	1	|   ~950	|
+| 910*        | 8x8 		| WebVid     | 	1	|   ~1100 	|
 
 ### Inference
 
 The video generation speed is as follows.
 | **NPU**     | ** Framework **    | ** Sampler ** | ** Steps ** |** Performance (s/trial)**  |
 |-------------|-------------------|----------------|----------------|----------------|
-| 910B        | MindSpore-2.2(20230907)	 |  DDIM   	|	50 	|	12	|
-| 910B        | MindSpore-Lite-2.2(20230907) |   DDIM 	|	50	| 	11.6	|
+| 910*        | MindSpore-2.2(20230907)	 |  DDIM   	|	50 	|	12	|
+| 910*        | MindSpore-Lite-2.2(20230907) |   DDIM 	|	50	| 	11.6	|
 
 Note that with MindSpore-Lite, the graph compilation time is eliminated.

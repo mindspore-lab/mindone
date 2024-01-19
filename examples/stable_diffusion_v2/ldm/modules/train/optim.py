@@ -1,10 +1,13 @@
 """
 Build optimizer for ms
 """
-from typing import List, Union
+import logging
+from typing import List, Optional, Union
 
 from mindspore.nn import Cell
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
+
+_logger = logging.getLogger(__name__)
 
 
 def build_optimizer(
@@ -13,6 +16,7 @@ def build_optimizer(
     lr: Union[float, List[float]],
     betas: List[float] = None,
     weight_decay: float = 1e-6,
+    group_strategy: Optional[str] = None,
 ) -> Optimizer:
     """
     Build and return an instance of the Optimizer class based on the specified parameters.
@@ -24,6 +28,8 @@ def build_optimizer(
         betas: Beta coefficients for computing running averages of gradient and its square.
             If not provided, [0.9, 0.999] is used as default.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
+        group_strategy: The specific grouping startegy for weight decay. If it is None,
+            then only the weight decays for parameters in layernorm and all bias will be set to 0.
 
     Returns:
         Initialized optimizer.
@@ -31,8 +37,16 @@ def build_optimizer(
     if betas is None:
         betas = [0.9, 0.999]
 
-    def decay_filter(x):
-        return "layernorm" not in x.name.lower() and "bias" not in x.name.lower()
+    if group_strategy is not None:
+        _logger.info("Applying `%s` strategy for weight decay.", group_strategy)
+
+    def decay_filter(param):
+        if group_strategy is not None and group_strategy.lower() == "unclip":
+            # set decay of embedding to 0 should be beneficial for most of the cases
+            filter_list = ["layernorm", "bias", "label_emb", "time_embed", "emb_layers"]
+        else:
+            filter_list = ["layernorm", "bias"]
+        return all([x not in param.name.lower() for x in filter_list])
 
     param_optimizer = model.trainable_params()
     decay_params = list(filter(decay_filter, param_optimizer))

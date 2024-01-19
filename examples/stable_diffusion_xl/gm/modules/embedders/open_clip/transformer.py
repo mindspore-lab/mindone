@@ -59,7 +59,7 @@ class MultiheadAttention(nn.Cell):
         self.transpose = ops.Transpose()
         self.scaling = self.head_dim**-0.5
 
-    def construct(self, query, key, value, attn_mask):
+    def construct(self, query, key, value, attn_mask: Optional[Tensor] = None):
         tgt_len, bsz, embed_dim = query.shape
         # qkv = self.in_proj(query).view(tgt_len, bsz, 3, embed_dim).transpose((2, 0, 1, 3))
         # qkv = ops.matmul(query.view(-1, embed_dim), ops.swapaxes(self.in_proj_weight, 0, 1))
@@ -78,7 +78,8 @@ class MultiheadAttention(nn.Cell):
         k = k.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         v = v.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
-        attn_output_weights += self.expand_dims(attn_mask, 0)
+        if attn_mask is not None:
+            attn_output_weights += self.expand_dims(attn_mask, 0)
         attn_output_weights = self.softmax(attn_output_weights)  # bs x (HW + 1) x (HW + 1)
         attn_output = ops.matmul(attn_output_weights, v)  # bs x (HW + 1) x h
         attn_output = self.transpose(attn_output, (1, 0, 2))
@@ -176,14 +177,14 @@ class ResidualAttentionBlock(nn.Cell):
     ):
         super().__init__()
 
-        self.ln_1 = norm_layer([d_model])
+        self.ln_1 = norm_layer([d_model], epsilon=1e-5)
         self.attn = MultiheadAttention(d_model, n_head)
         self.ls_1 = LayerScale(d_model, ls_init_value) if ls_init_value is not None else nn.Identity()
         self.is_cross_attention = is_cross_attention
         if is_cross_attention:
-            self.ln_1_kv = norm_layer([d_model])
+            self.ln_1_kv = norm_layer([d_model], epsilon=1e-5)
 
-        self.ln_2 = norm_layer([d_model])
+        self.ln_2 = norm_layer([d_model], epsilon=1e-5)
         mlp_width = int(d_model * mlp_ratio)
         self.mlp = nn.SequentialCell(
             OrderedDict(
@@ -275,6 +276,7 @@ class VisionTransformer(nn.Cell):
         global_average_pool: bool = False,
         output_dim: int = 512,
         input_patchnorm: bool = False,
+        final_ln_after_pool: bool = False,
         act_layer: Callable = nn.GELU,
         norm_layer: Callable = nn.LayerNorm,
     ):
@@ -282,6 +284,7 @@ class VisionTransformer(nn.Cell):
         image_height, image_width = self.image_size = (image_size, image_size)
         patch_height, patch_width = self.patch_size = (patch_size, patch_size)
         self.grid_size = (image_height // patch_height, image_width // patch_width)
+        self.final_ln_after_pool = final_ln_after_pool  # currently ignored w/ attn pool enabled
         self.output_dim = output_dim
 
         # whether to layernorm each patch, as done in dual patchnorm paper - https://arxiv.org/abs/2302.01327v1
@@ -304,13 +307,15 @@ class VisionTransformer(nn.Cell):
 
         # class embeddings and positional embeddings
         scale = width**-0.5
-        self.class_embedding = Parameter(scale * np.random.randn(width))
-        self.positional_embedding = Parameter(scale * np.random.randn(self.grid_size[0] * self.grid_size[1] + 1, width))
+        self.class_embedding = Parameter(scale * np.random.randn(width).astype(np.float32))
+        self.positional_embedding = Parameter(
+            scale * np.random.randn(self.grid_size[0] * self.grid_size[1] + 1, width).astype(np.float32)
+        )
 
         # setting a patch_dropout of 0. would mean it is disabled and this function would be the identity fn
         # self.patch_dropout = nn.Identity()
 
-        self.ln_pre = norm_layer([width])
+        self.ln_pre = norm_layer([width], epsilon=1e-5)
         self.transformer = Transformer(
             width,
             layers,
@@ -324,7 +329,7 @@ class VisionTransformer(nn.Cell):
         self.global_average_pool = global_average_pool
 
         self.attn_pool = None
-        self.ln_post = norm_layer([width])
+        self.ln_post = norm_layer([width], epsilon=1e-5)
         self.proj = Parameter(Tensor(scale * np.random.randn(width, output_dim), ms.float32))
 
     def _global_pool(self, x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -366,9 +371,12 @@ class VisionTransformer(nn.Cell):
             x = self.attn_pool(x)
             x = self.ln_post(x)
             pooled, tokens = self._global_pool(x)
-        else:
+        elif self.final_ln_after_pool:
             pooled, tokens = self._global_pool(x)
             pooled = self.ln_post(pooled)
+        else:
+            x = self.ln_post(x)
+            pooled, tokens = self._global_pool(x)
 
         if self.proj is not None:
             # pooled = pooled @ self.proj
@@ -418,7 +426,7 @@ class TextTransformer(nn.Cell):
             act_layer=act_layer,
             norm_layer=norm_layer,
         )
-        self.ln_final = norm_layer([width])
+        self.ln_final = norm_layer([width], epsilon=1e-5)
 
         _attn_mask_tensor = self.build_attention_mask()
         self.attn_mask = Parameter(_attn_mask_tensor, requires_grad=False)

@@ -44,6 +44,7 @@ def load_data(
     replace=True,
     sample_num=-1,
     enable_modelarts=False,
+    drop_text_prob=0.0,
 ):
     if not os.path.exists(data_path):
         raise ValueError(f"Data directory {data_path} does not exist!")
@@ -65,6 +66,7 @@ def load_data(
         image_filter_size,
         random_crop=random_crop,
         filter_small_size=filter_small_size,
+        drop_text_prob=drop_text_prob,
     )
     datalen = dataset.__len__
     if enable_modelarts:
@@ -80,7 +82,7 @@ def load_data(
 
     dataset = GeneratorDataset(metaloader, column_names=data_column, shuffle=True)
 
-    print("dataset size per shard:", dataset.get_dataset_size(), flush=True)
+    _logger.info("dataset size per shard: {}".format(dataset.get_dataset_size()))
     return dataset
 
 
@@ -130,13 +132,13 @@ def filter_small_image(all_images, all_captions, image_filter_size, replace):
         else:
             filted_images.append(image)
             filted_captions.append(caption)
-    _logger.info(f"filter image count {filter_count}")
+    _logger.info(f"filter image count: {filter_count}")
     if replace:
         while filter_count > 0:
             filted_images.append(filted_images[filter_count])
             filted_captions.append(filted_captions[filter_count])
             filter_count -= 1
-    _logger.info("complete image list, size:" + str(len(filted_images)))
+    _logger.info("complete image list, size: " + str(len(filted_images)))
     return filted_images, filted_captions
 
 
@@ -168,6 +170,7 @@ class ImageDataset:
         shuffle=True,
         random_crop=False,
         filter_small_size=False,
+        drop_text_prob=0.0,
     ):
         super().__init__()
         self.batch_size = batch_size
@@ -179,6 +182,7 @@ class ImageDataset:
         self.shuffle = shuffle
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
+        self.drop_text_prob = drop_text_prob
 
         self.rescaler = albumentations.SmallestMaxSize(max_size=self.image_size)
         if not self.random_crop:
@@ -214,7 +218,10 @@ class ImageDataset:
         image_input = self.preprocess_image(img_path)
 
         # caption preprocess
-        caption = self.local_captions[idx]
+        if np.random.rand() < self.drop_text_prob:
+            caption = ""
+        else:
+            caption = self.local_captions[idx]
         caption_input = self.tokenize(caption)
         return np.array(image_input, dtype=np.float32), np.array(caption_input, dtype=np.int32)
 
@@ -392,6 +399,7 @@ def build_dataset(
     filter_small_size,
     replace,
     enable_modelarts,
+    drop_text_prob=0.0,
 ):
     dataset = load_data(
         data_path=data_path,
@@ -406,6 +414,7 @@ def build_dataset(
         replace=replace,
         sample_num=-1,
         enable_modelarts=enable_modelarts,
+        drop_text_prob=drop_text_prob,
     )
     _logger.info(f"Num batches for rank {rank_id}: {dataset.get_dataset_size()}")
 

@@ -4,7 +4,7 @@ This document provides a brief introduction to the usage of built-in command-lin
 
 ## Dependency
 
-- mindspore 2.1.0
+- mindspore 2.2
 - openmpi 4.0.3 (for distributed mode)
 
 To install the dependency, please run
@@ -28,6 +28,7 @@ cd tools/model_conversion
 
 # convert sdxl-base-1.0 model
 python convert_weight.py \
+  --task pt_to_ms \
   --weight_safetensors /PATH TO/sd_xl_base_1.0.safetensors \
   --weight_ms /PATH TO/sd_xl_base_1.0_ms.ckpt \
   --key_torch torch_key_base.yaml \
@@ -35,6 +36,7 @@ python convert_weight.py \
 
 # convert sdxl-refiner-1.0 model
 python convert_weight.py \
+  --task pt_to_ms \
   --weight_safetensors /PATH TO/sd_xl_refiner_1.0.safetensors \
   --weight_ms /PATH TO/sd_xl_refiner_1.0_ms.ckpt \
   --key_torch torch_key_refiner.yaml \
@@ -73,7 +75,65 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 </details>
 
 
+#### Training with Webdataset
+
+Image-text pair data are archived into `tar` files in webdataset. A training dataset is like
+```text
+data_dir
+├── 00001.tar
+│   ├── 00001.jpg
+│   ├── 00001.json
+│   ├── 00002.jpg
+│   ├── 00002.json
+│   └── ...
+├── 00002.tar
+├── 00003.tar
+└── ...
+```
+
+We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compatible with minddata GeneratorDataset.
+
+1. Set the training YAML config as follows to use the T2I_Webdataset loader.
+    ```yaml
+        dataset_config:
+            target: gm.data.dataset_wds.T2I_Webdataset_RndAcs
+            params:
+                caption_key: 'text_english'
+    ```
+
+2. Set `--data_path` in the training script with the path to the data root of the whole training dataset, e.g. `data_dir` in the above example.
+
+Note that the dataloader is implemented based on [wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets), which requires shardlist information which describes the path to each tar file and the number of data samples in the tar file.
+
+For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save it as a json file like follows.
+
+```json
+{
+"__kind__": "wids-shard-index-v1",
+"wids_version": 1,
+"shardlist":
+    [
+        {"url": "data_dir/part01/00001.tar", "nsamples": 10000},
+        {"url": "data_dir/part01/00002.tar", "nsamples": 10000},
+    ]
+}
+```
+
+To save the time of scanning all data, you should prepare a data description json file ahead following the above format (recording num of samples for each tar file in `nsamples`).  Then parse the prepared json file to the loader via the `shardlist_desc` argument, such as
+
+```yaml
+    dataset_config:
+        target: gm.data.dataset_wds.T2I_Webdataset_RndAcs
+        params:
+            caption_key: 'text_english'
+            shardlist_desc: 'data_dir/data_info.json'
+```
+
+For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
+
 ## Inference
+
+### Online Infer
 
 We provide a demo for text-to-image sampling in `demo/sampling_without_streamlit.py` and `demo/sampling.py` with [streamlit](https://streamlit.io/).
 
@@ -86,6 +146,8 @@ After obtaining the weights, place them into checkpoints/. Next, start the demo 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 streamlit run demo/sampling.py --server.port <your_port>
 ```
+
+> If you have network issues on downloading clip tokenizer, please manually download `openai/clip-vit-large-patch14` from huggingface and change `version: openai/clip-vit-large-patch14` in `configs/inference/sd_xl_base.yaml` to `version: your_path/to/clip-vit-large-patch14`
 
 2. Run with other methods:
 
@@ -132,6 +194,39 @@ python demo/sampling_without_streamlit.py \
 
 </details>
 
+<details>
+
+  <summary>Long Prompts Support</summary>
+
+  By Default, SD-XL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+
+  To avoid information loss for long text prompts, we can divide one long tokens sequence (N>77) into several shorter sub-sequences (N<=77) to bypass the constraint of context length of the text encoders. This feature is supported by `args.support_long_prompts` in `demo/sampling_without_streamlit.py`.
+
+  When running inference with `demo/sampling_without_streamlit.py`, you can set the arguments as below.
+
+  ```bash
+  python demo/sampling_without_streamlit.py \
+  ...  \  # other arguments configurations
+  --support_long_prompts True \  # allow long text prompts
+  ```
+
+When running inference with `demo/sampling.py`, you can simply input your long prompt and click the button of "Use long text prompt support (token length > 77)" under the prompt, and then start sampling.
+
+</details>
+
+### Offline Infer
+
+See [offline_inference](./offline_inference/README.md).
+
+### Inference with T2i-Adapter
+
+[T2I-Adapter](../t2i_adapter/README.md) is a simple and lightweight network that provides extra visual guidance for
+Stable Diffusion models without re-training them. The adapter act as plug-ins to SDXL models, making it easy to
+integrate and use.
+
+For more information on inference and training with T2I-Adapters, please refer
+to [T2I-Adapter](../t2i_adapter/README.md) page.
+
 ### Invisible Watermark Detection
 
 To be supplemented
@@ -143,21 +238,51 @@ To be supplemented
 
 We are providing example training configs in `configs/training`. To launch a training, run
 
+1. Vanilla fine-tune, example as:
+
+```shell
+# sdxl-base fine-tune with 1p on Ascend
+python train.py \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+
+# sdxl-base fine-tune with 8p on Ascend
+mpirun --allow-run-as-root -n 8 python train.py \
+  --config configs/training/sd_xl_base_finetune_multi_graph_910b.yaml \
+  --weight "" \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --max_device_memory "59GB" \
+  --param_fp16 True \
+  --is_parallel True
+
+# sdxl-base fine-tune with 16p on Ascend
+bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
+bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
+```
+
+2. LoRA fine-tune, example as:
+
 ```shell
 # sdxl-base lora fine-tune with 1p on Ascend
 python train.py \
-  --config configs/training/sd_xl_base_finetune_lora.yaml \
+  --config configs/training/sd_xl_base_finetune_lora_910b.yaml \
   --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
   --data_path /PATH TO/YOUR DATASET/ \
-  --device_target Ascend
+  --gradient_accumulation_steps 4 \
+```
 
-# sdxl-refiner lora fine-tune with 1p on Ascend
-python train.py \
-  --config configs/training/sd_xl_refiner_finetune_lora.yaml \
-  --weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
-  --data_path /PATH TO/YOUR DATASET/ \
-  --device_target Ascend
+3. DreamBooth fine-tune
 
+For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
+
+4. Textual Inversion fine-tune
+
+For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
+
+5. Run with Multiple NPUs, example as:
+
+```shell
 # run with multiple NPU/GPUs
 mpirun --allow-run-as-root -n 8 python train.py \
   --config /PATH TO/config.yaml \

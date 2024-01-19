@@ -1,0 +1,10 @@
+{
+    "embed_dim": 1024,
+    "text_cfg": {
+        "context_length": 77,
+        "vocab_size": 49408,
+        "width": 1024,
+        "heads": 16,
+        "layers": 24
+    }
+}

@@ -3,3 +3,6 @@ omegaconf
 ftfy
 transformers
 imagesize
+webdataset>=0.2.86
+pandas
+opencv-python

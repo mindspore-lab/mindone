@@ -32,11 +32,13 @@ model:
         num_head_channels: 64
         use_spatial_transformer: True
         use_linear_in_transformer: True
+        enable_flash_attention: True
         transformer_depth: 1
         context_dim: 1024
         use_checkpoint: True
         legacy: False
         use_fp16: True
+        upcast_attn: False
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
@@ -44,6 +46,7 @@ model:
         embed_dim: 4
         monitor: val/rec_loss
         use_fp16: True
+        upcast_sigmoid: False
         ddconfig:
           double_z: true
           z_channels: 4

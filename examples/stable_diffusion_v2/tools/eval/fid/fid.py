@@ -1,6 +1,5 @@
 import numpy as np
 from PIL import Image
-from scipy import linalg
 from tqdm import tqdm
 
 import mindspore as ms
@@ -134,12 +133,16 @@ class FrechetInceptionDistance:
         diff = mu1 - mu2
 
         # Product might be almost singular
-        covmean, _ = linalg.sqrtm(sigma1.dot(sigma2), disp=False)
+        eigenvalues, eigenvectors = np.linalg.eig(sigma1.dot(sigma2))
+        sqrt_diagonal_matrix = np.diag(np.sqrt(eigenvalues))
+        covmean = np.dot(np.dot(eigenvectors, sqrt_diagonal_matrix), np.linalg.inv(eigenvectors))
         if not np.isfinite(covmean).all():
             msg = ("fid calculation produces singular product; " "adding %s to diagonal of cov estimates") % eps
             print(msg)
             offset = np.eye(sigma1.shape[0]) * eps
-            covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
+            eigenvalues, eigenvectors = np.linalg.eig((sigma1 + offset).dot(sigma2 + offset))
+            sqrt_diagonal_matrix = np.diag(np.sqrt(eigenvalues))
+            covmean = np.dot(np.dot(eigenvectors, sqrt_diagonal_matrix), np.linalg.inv(eigenvectors))
 
         # Numerical error might give slight imaginary component
         if np.iscomplexobj(covmean):

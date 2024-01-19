@@ -1,5 +1,6 @@
 image_path: "path/to/test_imgs/bird.png"
 prompt: "Bird"  # The prompt to render
+controlnet_mode: "segmentation" # candidates: [segmentation, canny, openpose]
 a_prompt: "best quality, extremely detailed"
 negative_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"  # The negative prompt not to render
 H: 512  # Image height, in pixel space
