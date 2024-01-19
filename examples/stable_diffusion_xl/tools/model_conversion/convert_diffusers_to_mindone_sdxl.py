@@ -348,28 +348,35 @@ if __name__ == "__main__":
     text_enc_2_path = osp.join(args.model_path, "text_encoder_2", args.text_encoder_2_name)
 
     # Load models from safetensors if it exists, if it doesn't pytorch
+    unet_bin_path = osp.join(args.model_path, "unet", "diffusion_pytorch_model.bin")
+    vae_bin_path = osp.join(args.model_path, "vae", "diffusion_pytorch_model.bin")
+    text_enc_bin_path = osp.join(args.model_path, "text_encoder", "pytorch_model.bin")
+    text_enc_2_bin_path = osp.join(args.model_path, "text_encoder_2", "pytorch_model.bin")
+    unet_state_dict = {}
+    vae_state_dict = {}
+    text_enc_dict = {}
+    text_enc_2_dict = {}
+
     if osp.exists(unet_path):
         unet_state_dict = load_file(unet_path, device="cpu")
-    else:
-        unet_path = osp.join(args.model_path, "unet", "diffusion_pytorch_model.bin")
+
+    elif osp.exists(unet_bin_path):
         unet_state_dict = torch.load(unet_path, map_location="cpu")
 
     if osp.exists(vae_path):
         vae_state_dict = load_file(vae_path, device="cpu")
-    else:
-        vae_path = osp.join(args.model_path, "vae", "diffusion_pytorch_model.bin")
+
+    elif osp.exists(vae_bin_path):
         vae_state_dict = torch.load(vae_path, map_location="cpu")
 
     if osp.exists(text_enc_path):
         text_enc_dict = load_file(text_enc_path, device="cpu")
-    else:
-        text_enc_path = osp.join(args.model_path, "text_encoder", "pytorch_model.bin")
+    elif osp.exists(text_enc_bin_path):
         text_enc_dict = torch.load(text_enc_path, map_location="cpu")
 
     if osp.exists(text_enc_2_path):
         text_enc_2_dict = load_file(text_enc_2_path, device="cpu")
-    else:
-        text_enc_2_path = osp.join(args.model_path, "text_encoder_2", "pytorch_model.bin")
+    elif osp.exists(text_enc_2_bin_path):
         text_enc_2_dict = torch.load(text_enc_2_path, map_location="cpu")
 
     # Convert the UNet model
