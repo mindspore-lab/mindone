@@ -305,13 +305,12 @@ def merge_weight(partckpt, allckpt):
     alkey = list(al.keys())
     newckpt = {}
     for i in range(len(al)):
-        print(i)
         key = alkey[i]
         if key in partkey:
             newckpt[key] = part[key]
         else:
             newckpt[key] = al[key]
-    ms.save_checkpoint(newckpt, "sdxl_final.ckpt")
+    ms.save_checkpoint(newckpt, args.checkpoint_path)
 
 
 if __name__ == "__main__":
@@ -389,7 +388,6 @@ if __name__ == "__main__":
 
     # Put together new checkpoint
     state_dict = {**unet_state_dict, **vae_state_dict, **text_enc_dict, **text_enc_2_dict}
-    state_dict = {**vae_state_dict}
 
     if args.half:
         state_dict = {k: v.half() for k, v in state_dict.items()}
@@ -398,17 +396,20 @@ if __name__ == "__main__":
         save_file(state_dict, args.checkpoint_path)
     else:
         state_dict = {"state_dict": state_dict}
-        torch.save(state_dict, args.checkpoint_path)
+        torch.save(state_dict, "torch_part.ckpt")
 
     # Convert the torch ckpt to mindspore ckpt
-    convert_weight(args.checkpoint_path, "part.ckpt")
+    convert_weight("torch_part.ckpt", "mindspore_part.ckpt")
 
-    with open("mindspore_key_base.yaml", "r") as file:
-        line_count = len(file.readlines())
+    if osp.exists("mindspore_key_base.yaml"):
+        with open("mindspore_key_base.yaml", "r") as file:
+            line_count = len(file.readlines())
+    else:
+        line_count = 2514
 
     # If you have obtained all the keys, you do not need to run the insertion operation
     if len(state_dict["state_dict"].keys()) < line_count:
         # insert these ckpt to mindspore sdxl base ckpt
         merge_weight("part.ckpt", args.sdxl_base_ckpt)
     if len(state_dict["state_dict"].keys()) > line_count:
-        raise ValueError("The number of keys is greater than 2514. Insertion not allowed.")
+        raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
