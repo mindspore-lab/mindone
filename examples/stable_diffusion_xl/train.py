@@ -13,6 +13,7 @@ from gm.helpers import (
     get_learning_rate,
     get_loss_scaler,
     get_optimizer,
+    load_checkpoint,
     save_checkpoint,
     set_default,
 )
@@ -58,6 +59,8 @@ def get_parser_train():
         default=None,
         help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
     )
+    parser.add_argument("--optimizer_weight", type=str, default=None, help="load optimizer weight")
+    parser.add_argument("--save_optimizer", type=ast.literal_eval, default=False, help="enable save optimizer")
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
     parser.add_argument(
@@ -140,6 +143,9 @@ def train(args):
             config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
         )
         reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+        if args.optimizer_weight:
+            print(f"Loading optimizer from {args.optimizer_weight}")
+            load_checkpoint(optimizer, args.optimizer_weight, remove_prefix="ldm_with_loss_grad.optimizer.")
     else:
         optimizer, reducer = None, None
 
@@ -178,6 +184,7 @@ def train(args):
 
             assert args.version == "SDXL-base-1.0", "Only supports sdxl-base."
             assert args.task == "txt2img", "Only supports text2img task."
+            assert args.optimizer_weight is None, "Not supports load optimizer weight."
             assert (model.stage1 is not None) and (model.stage2 is not None)
             optimizer1 = get_optimizer(
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
@@ -271,6 +278,11 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             else:
                 model.save_checkpoint(save_ckpt_dir)
             ckpt_queue.append(save_ckpt_dir)
+
+            if args.save_optimizer:
+                save_optimizer_dir = os.path.join(args.save_path, "optimizer.ckpt")
+                ms.save_checkpoint(optimizer, save_optimizer_dir)
+                print(f"save optimizer weight to {save_optimizer_dir}")
 
         # Infer during train
         if (i + 1) % args.infer_interval == 0 and args.infer_during_train:

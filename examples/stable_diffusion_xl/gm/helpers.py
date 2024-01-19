@@ -339,6 +339,29 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
     return model
 
 
+def load_checkpoint(model, ckpt, verbose=True, remove_prefix=None):
+    sd_dict = ms.load_checkpoint(ckpt)
+
+    if remove_prefix is not None:
+        new_sd_dict = {}
+        for k in sd_dict:
+            if k.startswith(remove_prefix):
+                new_k = k[len(remove_prefix) :]
+            else:
+                new_k = k[:]
+            new_sd_dict[new_k] = sd_dict[k]
+        sd_dict = new_sd_dict
+
+    m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
+
+    if len(m) > 0 and verbose:
+        print("missing keys:")
+        print(m)
+    if len(u) > 0 and verbose:
+        print("unexpected keys:")
+        print(u)
+
+
 def get_unique_embedder_keys_from_conditioner(conditioner):
     return list(set([emb.input_key for emb in conditioner.embedders]))
 
