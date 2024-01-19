@@ -1,3 +1,4 @@
+import logging
 import sys
 from typing import Callable, Union
 
@@ -96,15 +97,29 @@ class Conv3DLayer(nn.Conv2d):
         return x
 
 
-class VideoBlock(AttnBlock):
-    def __init__(self, in_channels: int, alpha: float = 0, merge_strategy: Literal["fixed", "learned"] = "learned"):
-        super().__init__(in_channels)
+class VideoBlock(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int,
+        attn_type: Literal["vanilla", "flash-attention"] = "vanilla",
+        alpha: float = 0,
+        merge_strategy: Literal["fixed", "learned"] = "learned",
+    ):
+        super().__init__()
+
+        self.in_channels = in_channels
+
+        if attn_type.lower() == "flash-attention":
+            logging.warning("Flash attention is not yet supported for the Attention Block.")
+        self.spat_attn = AttnBlock(in_channels)
+
         # no context, single headed, as in base class
         self.time_mix_block = TemporalTransformerBlock(
             dim=in_channels,
             n_heads=1,
             d_head=in_channels,
             ff_in=True,
+            attn_mode=attn_type,
         )
 
         time_embed_dim = self.in_channels * 4
@@ -124,10 +139,10 @@ class VideoBlock(AttnBlock):
 
     def construct(self, x: Tensor, timesteps: Tensor, skip_video: bool = False):
         if skip_video:
-            return super().construct(x)
+            return self.spat_attn(x)
 
         x_in = x
-        x = self.attention(x)
+        x = self.spat_attn.attention(x)
 
         b, c, h, w = x.shape
         x = x.transpose(0, 2, 3, 1).reshape(b, -1, c)  # b c h w -> b (h w) c
@@ -144,7 +159,7 @@ class VideoBlock(AttnBlock):
         x = alpha * x + (1.0 - alpha) * x_mix  # alpha merge
 
         x = x.reshape(b, h, w, c).transpose(0, 3, 1, 2)  # b (h w) c -> b c h w
-        x = self.proj_out(x)
+        x = self.spat_attn.proj_out(x)
 
         return x_in + x
 
