@@ -101,7 +101,6 @@ def load_model(
 
     if load_from[:4] == "http":
         local_ckpt_path = download_model(load_from)
-        print(f"Finish downloading ckpt from {load_from} to {local_ckpt_path}")
     else:
         local_ckpt_path = load_from
 

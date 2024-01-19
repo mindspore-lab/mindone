@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from PIL import Image
 from sklearn.metrics.pairwise import polynomial_kernel
+from tqdm import tqdm
 
 import mindspore as ms
 import mindspore.dataset as ds
@@ -150,9 +151,12 @@ def calucation(model, datalist):
     )
     dataloader = dataloader.batch(1, drop_remainder=False)
     pred_arr = []
-    for batch in dataloader.create_dict_iterator():
-        pred = model(batch["video_frames"])
-        pred_arr.append(pred)
+    with tqdm(total=dataloader.get_dataset_size()) as p_bar:
+        for batch in dataloader.create_dict_iterator():
+            pred = model(batch["video_frames"])
+            pred_arr.append(pred)
+
+            p_bar.update(1)
 
     pred_arr = ops.cat(pred_arr, 0)
     return pred_arr
