@@ -359,25 +359,33 @@ if __name__ == "__main__":
 
     if osp.exists(unet_path):
         unet_state_dict = load_file(unet_path, device="cpu")
+        print("load unet from unet_path")
 
     elif osp.exists(unet_bin_path):
         unet_state_dict = torch.load(unet_path, map_location="cpu")
+        print("load unet from unet_bin_path")
 
     if osp.exists(vae_path):
         vae_state_dict = load_file(vae_path, device="cpu")
+        print("load vae from vae_path")
 
     elif osp.exists(vae_bin_path):
         vae_state_dict = torch.load(vae_path, map_location="cpu")
+        print("load vae from vae_bin_path")
 
     if osp.exists(text_enc_path):
         text_enc_dict = load_file(text_enc_path, device="cpu")
+        print("load text encoder from text_enc_path")
     elif osp.exists(text_enc_bin_path):
         text_enc_dict = torch.load(text_enc_path, map_location="cpu")
+        print("load text encoder from text_enc_bin_path")
 
     if osp.exists(text_enc_2_path):
         text_enc_2_dict = load_file(text_enc_2_path, device="cpu")
+        print("load text encoder 2 from text_enc_2_path")
     elif osp.exists(text_enc_2_bin_path):
         text_enc_2_dict = torch.load(text_enc_2_path, map_location="cpu")
+        print("load text encoder 2 from text_enc_2_bin_path")
 
     # Convert the UNet model
     unet_state_dict = convert_unet_state_dict(unet_state_dict)
