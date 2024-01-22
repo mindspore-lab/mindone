@@ -7,6 +7,8 @@ import urllib.request
 from copy import deepcopy
 from typing import Callable, Dict, Optional
 
+from tqdm import tqdm
+
 from mindspore import load_checkpoint, load_param_into_net
 
 # The default root directory where we save downloaded files.
@@ -29,6 +31,11 @@ def get_checkpoint_download_root():
 
 class Download:
     """Base utility class for downloading."""
+
+    USER_AGENT: str = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/92.0.4515.131 Safari/537.36"
+    )
 
     def download_url(
         self,
@@ -70,6 +77,28 @@ class Download:
                 raise e
 
         return file_path
+
+    def download_file(self, url: str, file_path: str, chunk_size: int = 1024):
+        """Download a file."""
+
+        # no check certificate
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        # Define request headers.
+        headers = {"User-Agent": self.USER_AGENT}
+
+        print(f"Downloading from {url} to {file_path} ...")
+        with open(file_path, "wb") as f:
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, context=ctx) as response:
+                with tqdm(total=response.length, unit="B") as pbar:
+                    for chunk in iter(lambda: response.read(chunk_size), b""):
+                        if not chunk:
+                            break
+                        pbar.update(chunk_size)
+                        f.write(chunk)
 
 
 def download_model(url):
