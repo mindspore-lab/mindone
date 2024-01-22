@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Stable diffusion model training/finetuning
+IPAdapter SD training/finetuning
 """
 import argparse
 import importlib

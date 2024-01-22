@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+IPAdapter SDXL training/finetuning
+"""
 import argparse
 import ast
 import os

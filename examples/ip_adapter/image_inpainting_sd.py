@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Image to image generation
+IPAdapter SD image to image generation (Inpainting condition)
 """
 import argparse
 import logging

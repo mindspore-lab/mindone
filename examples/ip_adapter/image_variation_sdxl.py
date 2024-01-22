@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+IPAdapter SDXL image to image generation (image variation)
+"""
 import argparse
 import ast
 import os

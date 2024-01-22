@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Text to image generation
+IPAdapter SD image to image generation (image variation)
 """
 import argparse
 import logging

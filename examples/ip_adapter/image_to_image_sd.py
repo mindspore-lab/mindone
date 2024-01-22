@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Image to image generation
+IPAdapter SD image to image generation (image2image)
 """
 import argparse
 import logging

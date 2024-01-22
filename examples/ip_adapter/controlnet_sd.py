@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Text to image generation
+IPAdapter SD Image to image generation (Controlnet condition)
 """
 import argparse
 import logging
