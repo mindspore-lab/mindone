@@ -1,5 +1,4 @@
 import os
-import random
 
 import cv2
 import numpy as np
@@ -38,7 +37,7 @@ class CenterCrop(object):
 class VideoPathDataset:
     """Video files dataload."""
 
-    def __init__(self, files, video_length=16, resolution=224):
+    def __init__(self, files, video_length=256, resolution=224):
         self.files = files
         self.video_length = video_length
         self.resolution = resolution
@@ -70,8 +69,8 @@ class VideoPathDataset:
             else:
                 break
         cap.release()
-        rand_idx = random.randint(0, len(video_frames) - self.video_length)
-        video_frames = video_frames[rand_idx : rand_idx + self.video_length]
+        # rand_idx = random.randint(0, len(video_frames) - self.video_length)
+        video_frames = video_frames[0 : self.video_length]
         # note video_frames are in BGR mode, need to trans to RGB mode
         video_frames = [Image.fromarray(video_frame[:, :, ::-1]) for video_frame in video_frames]
         video_frames = np.stack([self.transform(frame)[0] for frame in video_frames], axis=1)
@@ -147,7 +146,7 @@ def calucation(model, datalist):
         shuffle=False,
         num_parallel_workers=4,
         python_multiprocessing=True,
-        max_rowsize=64,
+        max_rowsize=128,
     )
     dataloader = dataloader.batch(1, drop_remainder=False)
     pred_arr = []
