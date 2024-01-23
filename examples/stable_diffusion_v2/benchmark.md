@@ -4,10 +4,12 @@
 
 ### Training
 
-| SD Model      |   Context      |  Method      | Batch Size x Grad. Accu. |   Resolution       |   Acceleration   |   FPS (img/s)  |
+| SD Model      |   Context      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   |   FPS (img/s)  |
 |---------------|---------------|--------------|:-------------------:|:------------------:|:----------------:|:----------------:|
 | 1.5           |    D910x1-MS2.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |       5.98          |
+| 1.5           |    D910x8-MS2.2.10      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |       28.37          |
 | 1.5           |    D910x1-MS2.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |       8.25          |
+| 1.5           |    D910x8-MS2.2.10      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |       62.89          |
 | 1.5           |    D910x1-MS2.1      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     2.09            |
 | 2.0           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |       7.21          |
 | 2.0           |    D910x1-MS2.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |          8.87       |
@@ -15,7 +17,9 @@
 | 2.1-v           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16,  |       3.16          |
 | 2.1-v           |    D910x1-MS2.1       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16,  |       3.39          |
 | 1.5           |    D910*x1-MS2.2      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |       9.12          |
+| 1.5           |    D910*x8-MS2.2.10      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |      52.30          |
 | 1.5           |    D910*x1-MS2.2      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |       10.72          |
+| 1.5           |    D910*x8-MS2.2.10      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |       105.08          |
 | 1.5           |    D910*x1-MS2.2      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |       2.33          |
 | 2.0           |    D910*x1-MS2.2       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |         9.87        |
 | 2.0           |    D910*x1-MS2.2       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |            12.31     |
@@ -31,6 +35,8 @@
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
 
 Note that SD1.x and SD2.x share the same UNet architecture, thus their performance on vanilla training are similar.
+
+Note that the single card parameter dataset_sink_mode is False, while the multi card parameter dataset_sink_mode is True.
 
 <!--
 TB tested:
