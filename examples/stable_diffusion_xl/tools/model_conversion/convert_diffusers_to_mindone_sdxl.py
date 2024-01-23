@@ -283,19 +283,31 @@ def convert_weight(pth, msname):
     key_torch = list(sd["state_dict"].keys())
     key_ms = copy.deepcopy(key_torch)
     for i in range(len(key_torch)):
-        if "norm" in key_torch[i]:
+        if ("norm" in key_torch[i]) or ("ln_" in key_torch[i]) or ("model.diffusion_model.out.0." in key_torch[i]):
             if "weight" in key_torch[i]:
                 key_ms[i] = key_ms[i][:-6] + "gamma"
             if "bias" in key_torch[i]:
                 key_ms[i] = key_ms[i][:-4] + "beta"
-            if "embedding_table" in key_torch[i]:
-                key_ms[i] = key_ms[i][:-15] + "weight"
-
+        pattern1 = r"model\.diffusion_model\.(input_blocks|middle_block|output_blocks)\.[0-8]\.0\.(in_layers|out_layers)\.0\.(weight|bias)"
+        pattern2 = r"model\.diffusion_model\.middle_block\.[02]\.(in_layers|out_layers)\.0\.(weight|bias)"
+        if re.match(pattern1, key_torch[i]) or re.match(pattern2, key_torch[i]):
+            if "weight" in key_torch[i]:
+                key_ms[i] = key_ms[i][:-6] + "gamma"
+            if "bias" in key_torch[i]:
+                key_ms[i] = key_ms[i][:-4] + "beta"
+        if "embedding.weight" in key_torch[i]:
+            key_ms[i] = key_ms[i][:-6] + "embedding_table"
+        if "conditioner.embedders.1.model.text_projection.weight" in key_torch[i]:
+            key_ms[i] = "conditioner.embedders.1.model.text_projection"
     newckpt = []
+    ms_key = []
     for i in range(len(key_torch)):
         kt, kms = key_torch[i], key_ms[i]
         newckpt.append({"name": kms, "data": Tensor(sd["state_dict"][kt].numpy(), ms.float32)})
+        ms_key.append(kms)
     ms.save_checkpoint(newckpt, msname)
+    print("convert Stable Diffusion checkpoint(torch) to MindOne Stable Diffusion checkpoint(mindspore) success!")
+    return ms_key
 
 
 def merge_weight(partckpt, allckpt):
@@ -311,6 +323,20 @@ def merge_weight(partckpt, allckpt):
         else:
             newckpt[key] = al[key]
     ms.save_checkpoint(newckpt, args.checkpoint_path)
+    print("insert Stable Diffusion checkpoint(mindspore) to sd_xl_base_1.0_ms.ckpt success!")
+
+
+def compare_missing_key(key_list):
+    # get the sdxl base ckpt's key
+    base_key = []
+    with open("mindspore_key_base.yaml", "r", encoding="utf-8") as file:
+        for line in file:
+            key = line.split(":", 1)[0].strip()
+            base_key.append(key)
+    base_key = set(base_key)
+    key_list = set(key_list)
+    difference = base_key - key_list
+    return list(difference)
 
 
 if __name__ == "__main__":
@@ -331,9 +357,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--text_encoder_2_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder_2 model."
     )
-    parser.add_argument(
-        "--sdxl_base_ckpt", default="sd_xl_base_1.0_ms.ckpt", type=str, help="Name to the sd_xl_base model."
-    )
+    parser.add_argument("--sdxl_base_ckpt", default=None, type=str, help="Name to the sd_xl_base model.")
 
     args = parser.parse_args()
 
@@ -413,8 +437,8 @@ if __name__ == "__main__":
         state_dict = {"state_dict": state_dict}
         torch.save(state_dict, "torch_part.ckpt")
 
-    # Convert the torch ckpt to mindspore ckpt
-    convert_weight("torch_part.ckpt", "mindspore_part.ckpt")
+    # Convert the torch ckpt to mindspore ckpt and return mindspore key list
+    key_list = convert_weight("torch_part.ckpt", "mindspore_part.ckpt")
 
     if osp.exists("mindspore_key_base.yaml"):
         with open("mindspore_key_base.yaml", "r") as file:
@@ -423,8 +447,22 @@ if __name__ == "__main__":
         line_count = 2514
 
     # If you have obtained all the keys, you do not need to run the insertion operation
-    if len(state_dict["state_dict"].keys()) < line_count:
+    if len(key_list) < line_count:
+        print("mindspore_part.ckpt has ", str(len(key_list)), "keys.")
+        print(str(line_count - len(key_list)), " fewer parameters than sdxl base ckpt")
+        if osp.exists("mindspore_key_base.yaml"):
+            missing_key_list = compare_missing_key(key_list)
+            print("The first 20 missing parameters are: ", str(missing_key_list[:20]))
+        if not args.sdxl_base_ckpt:
+            print(
+                "you didn't add sdxl_base_ckpt argument,so it will not run merge operation. the mindspore_part.ckpt is your final result"
+            )
+
         # insert these ckpt to mindspore sdxl base ckpt
-        merge_weight("part.ckpt", args.sdxl_base_ckpt)
+        else:
+            print(
+                "you have added sdxl_base_ckpt argument,so it will run merge operation(merge mindspore_part.ckpt to sdxl_base_ckpt)"
+            )
+            merge_weight("mindspore_part.ckpt", args.sdxl_base_ckpt)
     if len(state_dict["state_dict"].keys()) > line_count:
         raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
