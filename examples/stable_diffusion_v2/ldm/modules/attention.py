@@ -21,6 +21,8 @@ from packaging import version
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.common.initializer import initializer
+import mindspore.numpy as msnp
+import math
 
 try:
     from mindspore.nn.layer.flash_attention import FlashAttention
@@ -207,11 +209,19 @@ class CrossAttention(nn.Cell):
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+            # FIXME: a trick to pad sdv1.5 head dimensions from [40, 80, 160] to [64, 128, 256]
+            if head_dim % 64 != 0:
+                # pad to 2**n * 64
+                padding_size = 64 * 2 ** math.ceil(math.log(head_dim / 64, 2)) - head_dim
+                q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
+                k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
+                v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
 
             out = self.flash_attention(
                 q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
             )
-
+            if head_dim % 64 != 0:
+                out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
