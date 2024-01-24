@@ -28,6 +28,10 @@ model:
         use_linear_in_transformer: True
         transformer_depth: 1
         context_dim: 1024
+<<<<<<< HEAD
+=======
+        spatial_transformer_attn_type: flash-attention
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
         extra_ff_mix_layer: True
         use_spatial_context: True
         merge_strategy: learned_with_images

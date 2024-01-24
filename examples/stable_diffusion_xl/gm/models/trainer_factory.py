@@ -1,6 +1,10 @@
 # This file only applies to static graph mode
 
+<<<<<<< HEAD
 from gm.util import append_dims
+=======
+from gm.util import append_dims, clip_grad_, clip_grad_global_
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -155,14 +159,25 @@ class LatentDiffusionWithLossGrad(nn.Cell):
 
         self.accum_steps = grad_accum_steps
         if self.accum_steps > 1:
+<<<<<<< HEAD
             self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step", requires_grad=False)
             self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
             self.hyper_map = ops.HyperMap()
+=======
+            self.hyper_map = ops.HyperMap()
+            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step", requires_grad=False)
+            self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 
     def do_optim(self, loss, grads):
         if not self.accum_steps > 1:
             if self.clip_grad:
+<<<<<<< HEAD
                 grads = ops.clip_by_global_norm(grads, self.clip_norm)
+=======
+                # grads = clip_grad_global_(grads, clip_norm=self.clip_norm)
+                grads = clip_grad_(grads, clip_norm=self.clip_norm)
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
             loss = F.depend(loss, self.optimizer(grads))
         else:
             loss = F.depend(
@@ -171,7 +186,11 @@ class LatentDiffusionWithLossGrad(nn.Cell):
             loss = F.depend(loss, ops.assign_add(self.accum_step, ms.Tensor(1, ms.int32)))
             if self.accum_step % self.accum_steps == 0:
                 if self.clip_grad:
+<<<<<<< HEAD
                     grads = ops.clip_by_global_norm(self.accumulated_grads, self.clip_norm)
+=======
+                    grads = clip_grad_global_(self.accumulated_grads, self.clip_norm)
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
                     loss = F.depend(loss, self.optimizer(grads))
                 else:
                     loss = F.depend(loss, self.optimizer(self.accumulated_grads))

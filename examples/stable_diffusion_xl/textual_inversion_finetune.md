@@ -4,7 +4,11 @@
 
 ## Introduction
 
+<<<<<<< HEAD
 Textual Inversion is a method to train a pretrained text-to-image model to generate images of a specific unique concepts, modifiy their appearance, or compose them in new roles and novel scenes. It does not require lots of training data, only 3-5 images of a user-provided concept. It does not update the weights of the text-to-image model to learn the new concept, but learn it through new "words" in the embedding space of a frozen text encoder. These new "words" can be composed into natural language sentences, making it plausible to generate personalized visual contents.
+=======
+Textual Inversion is a method to train a pretrained text-to-image model to generate images of a specific unique concept, modify their appearance, or compose them in new roles and novel scenes. It does not require lots of training data, only 3-5 images of a user-provided concept. It does not update the weights of the text-to-image model to learn the new concept, but learns it through new "words" in the embedding space of a frozen text encoder. These new "words" can be composed into natural language sentences, making it plausible to generate personalized visual content.
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 
 
 

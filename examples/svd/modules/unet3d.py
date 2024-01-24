@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+import logging
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 import sys
 from typing import List, Optional, Tuple, Union
 
@@ -8,12 +12,26 @@ except ImportError:
 
 import numpy as np
 
+<<<<<<< HEAD
+=======
+import mindspore as ms
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 from mindspore import Tensor
 from mindspore import dtype as ms_dtype
 from mindspore import nn, ops
 
 sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
+<<<<<<< HEAD
 from gm.modules.attention import CrossAttention, FeedForward, SpatialTransformer
+=======
+from gm.modules.attention import (
+    FLASH_IS_AVAILABLE,
+    CrossAttention,
+    FeedForward,
+    MemoryEfficientCrossAttention,
+    SpatialTransformer,
+)
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 from gm.modules.diffusionmodules.openaimodel import Downsample, ResBlock, Timestep, TimestepBlock, Upsample
 from gm.modules.diffusionmodules.util import conv_nd, normalization, timestep_embedding, zero_module
 from modules.diffusionmodules.util import AlphaBlender
@@ -87,12 +105,33 @@ class TemporalTransformerBlock(nn.Cell):
         timesteps=None,
         ff_in=False,
         inner_dim=None,
+<<<<<<< HEAD
+=======
+        attn_mode: Literal["vanilla", "flash-attention"] = "vanilla",
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
         disable_self_attn=False,
         disable_temporal_crossattention=False,
         switch_temporal_ca_to_sa=False,
     ):
         super().__init__()
 
+<<<<<<< HEAD
+=======
+        if attn_mode.lower() == "vanilla":
+            attn_cls = CrossAttention
+        elif attn_mode.lower() == "flash-attention":
+            if not FLASH_IS_AVAILABLE:
+                logging.warning(
+                    f"Flash attention is not available as it requires MindSpore >= 2.1"
+                    f" (current version: {ms.__version__}). Falling back to vanilla attention."
+                )
+                attn_cls = CrossAttention
+            else:
+                attn_cls = MemoryEfficientCrossAttention
+        else:
+            raise ValueError(f"Unknown attention mode: {attn_mode}")
+
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
         self.ff_in = ff_in or inner_dim is not None
         if inner_dim is None:
             inner_dim = dim
@@ -107,7 +146,11 @@ class TemporalTransformerBlock(nn.Cell):
 
         self.timesteps = timesteps
         self.disable_self_attn = disable_self_attn
+<<<<<<< HEAD
         self.attn1 = CrossAttention(
+=======
+        self.attn1 = attn_cls(
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
             query_dim=inner_dim,
             heads=n_heads,
             dim_head=d_head,
@@ -124,7 +167,11 @@ class TemporalTransformerBlock(nn.Cell):
                 self.attn2 = None
         else:
             self.norm2 = nn.LayerNorm([inner_dim], epsilon=1e-5)
+<<<<<<< HEAD
             self.attn2 = CrossAttention(
+=======
+            self.attn2 = attn_cls(
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
                 query_dim=inner_dim,
                 context_dim=None if switch_temporal_ca_to_sa else context_dim,
                 heads=n_heads,
@@ -182,6 +229,10 @@ class TemporalTransformer(SpatialTransformer):
         merge_factor: float = 0.5,
         time_context_dim=None,
         ff_in=False,
+<<<<<<< HEAD
+=======
+        attn_mode: Literal["vanilla", "flash-attention"] = "vanilla",
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
         disable_self_attn=False,
         disable_temporal_crossattention=False,
         max_time_embed_period: int = 10000,
@@ -192,6 +243,10 @@ class TemporalTransformer(SpatialTransformer):
             d_head,
             depth=depth,
             dropout=dropout,
+<<<<<<< HEAD
+=======
+            attn_type=attn_mode,
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
             context_dim=context_dim,
             use_linear=use_linear,
             disable_self_attn=disable_self_attn,
@@ -220,6 +275,10 @@ class TemporalTransformer(SpatialTransformer):
                     timesteps=timesteps,
                     ff_in=ff_in,
                     inner_dim=time_mix_inner_dim,
+<<<<<<< HEAD
+=======
+                    attn_mode=attn_mode,
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
                     disable_self_attn=disable_self_attn,
                     disable_temporal_crossattention=disable_temporal_crossattention,
                 )
@@ -392,6 +451,10 @@ class VideoUNet(nn.Cell):
         context_dim: Optional[int] = None,
         time_downup: bool = False,
         time_context_dim: Optional[int] = None,
+<<<<<<< HEAD
+=======
+        spatial_transformer_attn_type: Literal["vanilla", "flash-attention"] = "vanilla",
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
         extra_ff_mix_layer: bool = False,
         use_spatial_context: bool = False,
         merge_strategy: Literal["fixed", "learned", "learned_with_images"] = "fixed",
@@ -499,6 +562,10 @@ class VideoUNet(nn.Cell):
                 merge_strategy=merge_strategy,
                 merge_factor=merge_factor,
                 use_linear=use_linear_in_transformer,
+<<<<<<< HEAD
+=======
+                attn_mode=spatial_transformer_attn_type,
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
                 disable_self_attn=disabled_sa,
                 disable_temporal_crossattention=disable_temporal_crossattention,
                 max_time_embed_period=max_ddpm_temb_period,

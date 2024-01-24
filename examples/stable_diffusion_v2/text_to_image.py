@@ -57,7 +57,9 @@ def numpy_to_pil(images):
     return pil_images
 
 
-def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None):
+def load_model_from_config(
+    config, ckpt, use_lora=False, lora_rank=4, lora_fp16=True, lora_only_ckpt=None, ti_only_ckpt=None
+):
     model = instantiate_from_config(config.model)
 
     def _load_model(_model, ckpt_fp, verbose=True, filter=None):
@@ -114,11 +116,20 @@ def load_model_from_config(config, ckpt, use_lora=False, lora_rank=4, lora_fp16=
     else:
         logger.info(f"Loading model from {ckpt}")
         _load_model(model, ckpt)
+    if ti_only_ckpt is not None:
+        from ldm.modules.textual_inversion.manager import TextualInversionManager
+
+        logger.info(f"Loading Textual Inversion params from {ti_only_ckpt}")
+        manager = TextualInversionManager(
+            model,
+        )
+        manager.load_checkpoint_textual_inversion(ti_only_ckpt)
 
     model.set_train(False)
     for param in model.trainable_params():
         param.requires_grad = False
-
+    if ti_only_ckpt is not None:
+        return model, manager
     return model
 
 
@@ -190,7 +201,11 @@ def main(args):
         use_lora=args.use_lora,
         lora_rank=args.lora_rank,
         lora_only_ckpt=args.lora_ckpt_path,
+        ti_only_ckpt=args.ti_ckpt_path,
     )
+    if args.ti_ckpt_path is not None:
+        model, manager = model
+        data = [[manager.manage_prompt(p) for p in prompts] for prompts in data]
 
     prediction_type = getattr(config.model, "prediction_type", "noise")
     logger.info(f"Prediction type: {prediction_type}")
@@ -241,6 +256,7 @@ def main(args):
             f"Precision: {model.model.diffusion_model.dtype}",
             f"Pretrained ckpt path: {args.ckpt_path}",
             f"Lora ckpt path: {args.lora_ckpt_path if args.use_lora else None}",
+            f"Textual Inversion ckpt path: {args.ti_ckpt_path}",
             f"Sampler: {sname}",
             f"Sampling steps: {args.sampling_steps}",
             f"Uncondition guidance scale: {args.scale}",
@@ -482,6 +498,15 @@ if __name__ == "__main__":
         help="path to lora only checkpoint. Set it if use_lora is not None",
     )
     parser.add_argument(
+<<<<<<< HEAD
+=======
+        "--ti_ckpt_path",
+        type=str,
+        default=None,
+        help="path to textual inversion only checkpoint. ",
+    )
+    parser.add_argument(
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
         "--lora_scale",
         default=1.0,
         type=float,

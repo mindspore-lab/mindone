@@ -18,14 +18,8 @@ model:
                     target: gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization
 
         network_config:
-            target: gm.modules.diffusionmodules.openaimodel.UNetModel_lora
+            target: gm.modules.diffusionmodules.openaimodel.UNetModel
             params:
-                lora_dim: 4                 # for LoRA
-                lora_alpha: 4               # for LoRA
-                lora_dropout: 0.0           # for LoRA
-                lora_merge_weights: False   # for LoRA
-                only_save_lora: True        # for LoRA
-
                 adm_in_channels: 2816
                 num_classes: sequential
                 in_channels: 4
@@ -41,6 +35,7 @@ model:
                 context_dim: 2048
                 spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
                 legacy: False
+                use_recompute: True
 
         conditioner_config:
             target: gm.modules.GeneralConditioner
@@ -49,12 +44,12 @@ model:
                   # crossattn cond
                   - is_trainable: False
                     input_key: txt
-                    target: gm.modules.embedders.modules.FrozenCLIPEmbedder
+                    target: gm.modules.embedders.modules.FrozenCnCLIPEmbedder
                     params:
                       layer: hidden
                       layer_idx: 11
-                      version: openai/clip-vit-large-patch14
-                      # pretrained: ''
+                      version: gm/modules/embedders/chinese_clip/model_configs/chinese_clip_L14.json
+                      tokenizer_version: bert-base-chinese
                   # crossattn and vector cond
                   - is_trainable: False
                     input_key: txt
@@ -103,11 +98,9 @@ model:
                     num_res_blocks: 2
                     attn_resolutions: []
                     dropout: 0.0
-                    decoder_attn_dtype: fp16
                 lossconfig:
                     target: mindspore.nn.Identity
 
-        # Module for Train
         sigma_sampler_config:
             target: gm.modules.diffusionmodules.sigma_sampling.DiscreteSampling
             params:
@@ -120,7 +113,7 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-4
+    base_learning_rate: 1.0e-5
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
@@ -128,16 +121,12 @@ optim:
             beta1: 0.9
             beta2: 0.98
             weight_decay: 0.01
-<<<<<<< HEAD
-            eps: 1.0e-8
-=======
->>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 
 
 data:
     per_batch_size: 1
-    total_step: 15000
-    num_parallel_workers: 6
+    total_step: 100000
+    num_parallel_workers: 2
     python_multiprocessing: False
     shuffle: True
 

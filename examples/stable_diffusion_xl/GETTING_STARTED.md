@@ -103,10 +103,16 @@ We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compati
 
 2. Set `--data_path` in the training script with the path to the data root of the whole training dataset, e.g. `data_dir` in the above example.
 
+<<<<<<< HEAD
 Note that the dataloader is implemented based on [wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets), which requires shardlist information which describes the path to each tar file and the number of data samples in the tar file.
 
 For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save it as a json file like follows.
 
+=======
+Note that the dataloader is implemented based on [wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets). It requires a shardlist information file describing each tar file path and the number of samples in the tar file.
+
+A shardlist decription obeys the following format.
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 ```json
 {
 "__kind__": "wids-shard-index-v1",
@@ -119,7 +125,13 @@ For the first time running, the data loader will scan the whole dataset to get t
 }
 ```
 
+<<<<<<< HEAD
 To save the time of scanning all data, you should prepare a data description json file ahead following the above format (recording num of samples for each tar file in `nsamples`).  Then parse the prepared json file to the loader via the `shardlist_desc` argument, such as
+=======
+For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`. For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json` to save scanning time.
+
+You can manually specify a new shardlist description file in the config yaml via the `shardlist_desc` argument, for example.
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 
 ```yaml
     dataset_config:
@@ -129,6 +141,11 @@ To save the time of scanning all data, you should prepare a data description jso
             shardlist_desc: 'data_dir/data_info.json'
 ```
 
+<<<<<<< HEAD
+=======
+> Note that if you have updated the training data, you should either specify a new shardlist description file or **remove the existing shardlist file** `{data_dir}/data_info.json` for auto re-generation.
+
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
 
 ## Inference
@@ -276,7 +293,15 @@ python train.py \
 
 For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
 
+<<<<<<< HEAD
 4. Run with Multiple NPUs, example as:
+=======
+4. Textual Inversion fine-tune
+
+For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
+
+5. Run with Multiple NPUs, example as:
+>>>>>>> 0462c9215e154a5010ebe65e91d3d00cf168e819
 
 ```shell
 # run with multiple NPU/GPUs
