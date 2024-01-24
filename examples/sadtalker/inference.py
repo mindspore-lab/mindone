@@ -54,6 +54,7 @@ def main(args, config):
     # coeff2video
     facerender_dataset = TestFaceRenderDataset(
         args=args,
+        config=config,
         coeff_path=coeff_path,
         pic_path=crop_pic_path,
         first_coeff_path=first_coeff_path,

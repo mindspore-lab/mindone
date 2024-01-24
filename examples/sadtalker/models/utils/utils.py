@@ -49,9 +49,10 @@ class CellDict(nn.Cell):
 
     def update(self, modules) -> None:
         if not isinstance(modules, collections.abc.Iterable):
-            raise TypeError("CellDict.update should be called with an "
-                            "iterable of key/value pairs, but got " +
-                            type(modules).__name__)
+            raise TypeError(
+                "CellDict.update should be called with an "
+                "iterable of key/value pairs, but got " + type(modules).__name__
+            )
 
         if isinstance(modules, (OrderedDict, CellDict, collections.abc.Mapping)):
             for key, module in modules.items():
@@ -59,13 +60,15 @@ class CellDict(nn.Cell):
         else:
             for index, module in enumerate(modules):
                 if not isinstance(module, collections.abc.Iterable):
-                    raise TypeError("CellDict update sequence element "
-                                    "#" + str(index) + " should be Iterable; is" +
-                                    type(module).__name__)
+                    raise TypeError(
+                        "CellDict update sequence element "
+                        "#" + str(index) + " should be Iterable; is" + type(module).__name__
+                    )
                 if not len(module) == 2:
-                    raise ValueError("CellDict update sequence element "
-                                     "#" + str(index) + " has length " + str(len(module)) +
-                                     "; 2 is required")
+                    raise ValueError(
+                        "CellDict update sequence element "
+                        "#" + str(index) + " has length " + str(len(module)) + "; 2 is required"
+                    )
                 self[module[0]] = module[1]
 
     def construct(self, *inputs):
@@ -73,7 +76,7 @@ class CellDict(nn.Cell):
 
 
 class IntermediateLayerGetter(CellDict):
-    """ implementation of `torchvision.models._utils.IntermediateLayerGetter`
+    """implementation of `torchvision.models._utils.IntermediateLayerGetter`
     Module wrapper that returns intermediate layers from a model
 
     It has a strong assumption that the modules have been registered

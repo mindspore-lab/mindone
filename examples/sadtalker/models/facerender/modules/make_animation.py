@@ -14,35 +14,37 @@ def normalize_kp(
     use_relative_jacobian=False,
 ):
     if adapt_movement_scale:
-        source_area = ConvexHull(kp_source["value"][0].asnumpy()).volume
-        driving_area = ConvexHull(kp_driving_initial["value"][0].asnumpy()).volume
+        source_area = ConvexHull(kp_source[0][0].asnumpy()).volume
+        driving_area = ConvexHull(kp_driving_initial[0][0].asnumpy()).volume
         adapt_movement_scale = np.sqrt(source_area) / np.sqrt(driving_area)
     else:
         adapt_movement_scale = 1
 
-    kp_new = {k: v for k, v in kp_driving.items()}
+    kp_new = kp_driving.copy()
 
     if use_relative_movement:
-        kp_value_diff = kp_driving["value"] - kp_driving_initial["value"]
+        kp_value_diff = kp_driving[0] - kp_driving_initial[0]
         kp_value_diff *= adapt_movement_scale
-        kp_new["value"] = kp_value_diff + kp_source["value"]
+        kp_new[0] = kp_value_diff + kp_source[0]
 
         if use_relative_jacobian:
-            jacobian_diff = ops.MatMul()(kp_driving["jacobian"], ops.inverse(kp_driving_initial["jacobian"]))
-            kp_new["jacobian"] = ops.MatMul()(jacobian_diff, kp_source["jacobian"])
+            jacobian_diff = ops.MatMul()(kp_driving[1], ops.inverse(kp_driving_initial[1]))
+            kp_new[1] = ops.MatMul()(jacobian_diff, kp_source[1])
 
     return kp_new
 
 
 def headpose_pred_to_degree(pred):
+    datatype = pred.dtype
     idx_tensor = [idx for idx in range(66)]
-    idx_tensor = ms.Tensor(idx_tensor, dtype=pred.dtype)
+    idx_tensor = ms.Tensor(idx_tensor, dtype=datatype)
     pred = ops.softmax(pred)
-    degree = ops.sum(pred * idx_tensor, 1) * 3 - 99
+    degree = ops.sum(pred * idx_tensor, 1) * 3.0 - 99.0
+    degree = ops.cast(degree, datatype)
     return degree
 
 
-def get_rotation_matrix(yaw, pitch, roll):
+def get_rotation_matrix(yaw, pitch, roll, datatype=ms.float32):
     yaw = yaw / 180.0 * 3.14
     pitch = pitch / 180.0 * 3.14
     roll = roll / 180.0 * 3.14
@@ -53,91 +55,107 @@ def get_rotation_matrix(yaw, pitch, roll):
 
     pitch_mat = ops.cat(
         [
-            ops.ones_like(pitch),
-            ops.zeros_like(pitch),
-            ops.zeros_like(pitch),
-            ops.zeros_like(pitch),
+            ops.ones((2, 1), dtype=ms.float32),
+            ops.zeros((2, 1), dtype=ms.float32),
+            ops.zeros((2, 1), dtype=ms.float32),
+            ops.zeros((2, 1), dtype=ms.float32),
             ops.cos(pitch),
-            -ops.sin(pitch),
-            ops.zeros_like(pitch),
+            -ops.cos(pitch),
+            ops.zeros((2, 1), dtype=ms.float32),
             ops.sin(pitch),
             ops.cos(pitch),
         ],
         axis=1,
     )
+
     pitch_mat = pitch_mat.view(pitch_mat.shape[0], 3, 3)
 
     yaw_mat = ops.cat(
         [
-            ops.cos(yaw),
-            ops.zeros_like(yaw),
-            ops.sin(yaw),
-            ops.zeros_like(yaw),
-            ops.ones_like(yaw),
-            ops.zeros_like(yaw),
-            -ops.sin(yaw),
-            ops.zeros_like(yaw),
-            ops.cos(yaw),
+            ops.Cos()(yaw),
+            ops.zeros((2, 1), dtype=yaw.dtype),
+            ops.Sin()(yaw),
+            ops.zeros((2, 1), dtype=yaw.dtype),
+            ops.ones((2, 1), dtype=yaw.dtype),
+            ops.zeros((2, 1), dtype=yaw.dtype),
+            -ops.Sin()(yaw),
+            ops.zeros((2, 1), dtype=yaw.dtype),
+            ops.Cos()(yaw),
         ],
         axis=1,
     )
+
     yaw_mat = yaw_mat.view(yaw_mat.shape[0], 3, 3)
 
     roll_mat = ops.cat(
         [
-            ops.cos(roll),
-            -ops.sin(roll),
-            ops.zeros_like(roll),
-            ops.sin(roll),
-            ops.cos(roll),
-            ops.zeros_like(roll),
-            ops.zeros_like(roll),
-            ops.zeros_like(roll),
-            ops.ones_like(roll),
+            ops.Cos()(roll),
+            -ops.Sin()(roll),
+            ops.zeros((2, 1), dtype=roll.dtype),
+            ops.Sin()(roll),
+            ops.Cos()(roll),
+            ops.zeros((2, 1), dtype=roll.dtype),
+            ops.zeros((2, 1), dtype=roll.dtype),
+            ops.zeros((2, 1), dtype=roll.dtype),
+            ops.ones((2, 1), dtype=roll.dtype),
         ],
         axis=1,
     )
+
     roll_mat = roll_mat.view(roll_mat.shape[0], 3, 3)
 
-    rot_mat = ms.Tensor(np.einsum("bij,bjk,bkm->bim", pitch_mat.asnumpy(), yaw_mat.asnumpy(), roll_mat.asnumpy()))
+    # rot_mat = ms.Tensor(
+    #     np.einsum(
+    #         "bij,bjk,bkm->bim",
+    #         pitch_mat.asnumpy(),
+    #         yaw_mat.asnumpy(),
+    #         roll_mat.asnumpy(),
+    #     )
+    # )
+
+    mid_mat = ops.BatchMatMul(transpose_b=True)(pitch_mat, yaw_mat)
+    rot_mat = ops.BatchMatMul(transpose_b=True)(mid_mat, roll_mat)
 
     return rot_mat
 
 
-def keypoint_transformation(kp_canonical, he, wo_exp=False):
-    kp = kp_canonical["value"]  # (bs, k, 3)
-    yaw, pitch, roll = he["yaw"], he["pitch"], he["roll"]
+def keypoint_transformation(kp_canonical, he, wo_exp=False, yaw_in=None, pitch_in=None, roll_in=None):
+    kp_value = kp_canonical.astype(ms.float32)  # (bs, k, 3)
+    yaw, pitch, roll, t, exp = he
+
+    # yaw, pitch, roll = he["yaw"], he["pitch"], he["roll"]
     yaw = headpose_pred_to_degree(yaw)
     pitch = headpose_pred_to_degree(pitch)
     roll = headpose_pred_to_degree(roll)
 
-    if "yaw_in" in he:
-        yaw = he["yaw_in"]
-    if "pitch_in" in he:
-        pitch = he["pitch_in"]
-    if "roll_in" in he:
-        roll = he["roll_in"]
+    if yaw_in is not None:
+        yaw = yaw_in
+    if pitch_in is not None:
+        pitch = pitch_in
+    if roll_in is not None:
+        roll = roll_in
 
     rot_mat = get_rotation_matrix(yaw, pitch, roll)  # (bs, 3, 3)
 
-    t, exp = he["t"], he["exp"]
     if wo_exp:
-        exp = exp * 0
+        exp = exp * 0.0
 
     # keypoint rotation
-    kp_rotated = ms.Tensor(np.einsum("bmp,bkp->bkm", rot_mat.asnumpy(), kp.asnumpy()))
+    # kp_rotated = ms.Tensor(np.einsum("bmp,bkp->bkm", rot_mat.asnumpy(), kp.asnumpy()))
+    rot_mat = rot_mat.astype(ms.float32)
+    kp_rotated = ops.BatchMatMul(transpose_b=True)(rot_mat, kp_value).transpose(0, 2, 1).astype(ms.float32)
 
     # keypoint translation
-    t[:, 0] = t[:, 0] * 0
-    t[:, 2] = t[:, 2] * 0
-    t = t.unsqueeze(1).repeat(kp.shape[1], axis=1)
+    t[:, 0] = t[:, 0] * 0.0
+    t[:, 2] = t[:, 2] * 0.0
+    t = t.unsqueeze(1).repeat(kp_value.shape[1], axis=1)
     kp_t = kp_rotated + t
 
     # add expression deviation
     exp = exp.view(exp.shape[0], -1, 3)
     kp_transformed = kp_t + exp
 
-    return {"value": kp_transformed}
+    return kp_transformed
 
 
 def make_animation(
@@ -165,16 +183,24 @@ def make_animation(
         # print(target_semantics.shape, source_semantics.shape)
         target_semantics_frame = target_semantics[:, frame_idx]
         he_driving = mapping(target_semantics_frame)
-        if yaw_c_seq is not None:
-            he_driving["yaw_in"] = yaw_c_seq[:, frame_idx]
-        if pitch_c_seq is not None:
-            he_driving["pitch_in"] = pitch_c_seq[:, frame_idx]
-        if roll_c_seq is not None:
-            he_driving["roll_in"] = roll_c_seq[:, frame_idx]
 
-        kp_driving = keypoint_transformation(kp_canonical, he_driving)
+        yaw_in = None
+        pitch_in = None
+        roll_in = None
+
+        if yaw_c_seq is not None:
+            yaw_in = yaw_c_seq[:, frame_idx]
+        if pitch_c_seq is not None:
+            pitch_in = pitch_c_seq[:, frame_idx]
+        if roll_c_seq is not None:
+            roll_in = roll_c_seq[:, frame_idx]
+
+        kp_driving = keypoint_transformation(
+            kp_canonical, he_driving, yaw_in=yaw_in, pitch_in=pitch_in, roll_in=roll_in
+        )
 
         out = generator(source_image, kp_source=kp_source, kp_driving=kp_driving)
+
         """
         source_image_new = out['prediction'].squeeze(1)
         kp_canonical_new =  kp_detector(source_image_new)
@@ -186,42 +212,3 @@ def make_animation(
         predictions.append(out)
     predictions_ts = ops.stack(predictions, axis=1)
     return predictions_ts
-
-
-class AnimateModel(nn.Cell):
-    """
-    Merge all generator related updates into single model for better multi-gpu usage
-    """
-
-    def __init__(self, generator, kp_extractor, mapping):
-        super(AnimateModel, self).__init__()
-        self.kp_extractor = kp_extractor
-        self.generator = generator
-        self.mapping = mapping
-
-        self.kp_extractor.set_train(False)
-        self.generator.set_train(False)
-        self.mapping.set_train(False)
-
-    def construct(self, x):
-        source_image = x["source_image"]
-        source_semantics = x["source_semantics"]
-        target_semantics = x["target_semantics"]
-        yaw_c_seq = x["yaw_c_seq"]
-        pitch_c_seq = x["pitch_c_seq"]
-        roll_c_seq = x["roll_c_seq"]
-
-        predictions_video = make_animation(
-            source_image,
-            source_semantics,
-            target_semantics,
-            self.generator,
-            self.kp_extractor,
-            self.mapping,
-            use_exp=True,
-            yaw_c_seq=yaw_c_seq,
-            pitch_c_seq=pitch_c_seq,
-            roll_c_seq=roll_c_seq,
-        )
-
-        return predictions_video

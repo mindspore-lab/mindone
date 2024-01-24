@@ -18,12 +18,9 @@ def load_video_to_cv2(input_path):
 
 
 def save_video_with_watermark(video, audio, save_path, watermark=False):
+    # ./ffmpeg-6.0-amd64-static/ffmpeg
     temp_file = str(uuid.uuid4()) + ".mp4"
-    cmd = r'./ffmpeg-6.0-amd64-static/ffmpeg -y -hide_banner -loglevel error -i "%s" -i "%s" -vcodec copy "%s"' % (
-        video,
-        audio,
-        temp_file,
-    )
+    cmd = r'ffmpeg -y -hide_banner -loglevel error -i "%s" -i "%s" -vcodec copy "%s"' % (video, audio, temp_file)
     os.system(cmd)
 
     if watermark is False:
@@ -42,7 +39,7 @@ def save_video_with_watermark(video, audio, save_path, watermark=False):
             watarmark_path = dir_path + "/../../docs/sadtalker_logo.png"
 
         cmd = (
-            r'./ffmpeg-6.0-amd64-static/ffmpeg -y -hide_banner -loglevel error -i "%s" -i "%s" -filter_complex "[1]scale=100:-1[wm];[0][wm]overlay=(main_w-overlay_w)-10:10" "%s"'
+            r'ffmpeg -y -hide_banner -loglevel error -i "%s" -i "%s" -filter_complex "[1]scale=100:-1[wm];[0][wm]overlay=(main_w-overlay_w)-10:10" "%s"'
             % (temp_file, watarmark_path, save_path)
         )
         os.system(cmd)

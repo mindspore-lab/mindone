@@ -22,25 +22,17 @@ def default_init_weights(module_list, scale=1, bias_fill=0, **kwargs):
     for module in module_list:
         for cell in module.cells():
             if isinstance(cell, nn.Conv2d):
-                cell.weight.set_data(
-                    ms.common.initializer.initializer(
-                        ms.common.initializer.HeNormal(negative_slope=0, mode="fan_out", nonlinearity="relu"),
-                        cell.weight.shape,
-                        cell.weight.dtype,
-                    )
-                )
+                cell.weight.set_data(ms.common.initializer.initializer(
+                    ms.common.initializer.HeNormal(negative_slope=0, mode='fan_out', nonlinearity='relu'),
+                    cell.weight.shape, cell.weight.dtype))
                 cell.weight.set_data(cell.weight.data * scale)
             elif isinstance(cell, (nn.BatchNorm2d, nn.GroupNorm)):
                 cell.gamma.set_data(ms.common.initializer.initializer("ones", cell.gamma.shape, cell.gamma.dtype))
                 cell.beta.set_data(ms.common.initializer.initializer("zeros", cell.beta.shape, cell.beta.dtype))
             elif isinstance(cell, (nn.Dense)):
-                cell.weight.set_data(
-                    ms.common.initializer.initializer(
-                        ms.common.initializer.HeUniform(negative_slope=math.sqrt(5)),
-                        cell.weight.shape,
-                        cell.weight.dtype,
-                    )
-                )
+                cell.weight.set_data(ms.common.initializer.initializer(
+                    ms.common.initializer.HeUniform(negative_slope=math.sqrt(5)),
+                    cell.weight.shape, cell.weight.dtype))
                 cell.weight.set_data(cell.weight.data * scale)
                 cell.bias.set_data(ms.common.initializer.initializer("zeros", cell.bias.shape, cell.bias.dtype))
 
@@ -135,7 +127,7 @@ def make_grid(
             #     2, x * width + padding, width - padding
             # ).copy_(tensor[k])
 
-            grid[:, y * height + padding : height - padding, y * height + padding : height - padding] = tensor[k].copy()
+            grid[:, y * height + padding: height - padding, y * height + padding: height - padding] = tensor[k].copy()
 
             k = k + 1
     return grid
@@ -175,8 +167,8 @@ def img2tensor(imgs, bgr2rgb=True, float32=True):
 
     def _totensor(img, bgr2rgb, float32):
         if img.shape[2] == 3 and bgr2rgb:
-            if img.dtype == "float64":
-                img = img.astype("float32")
+            if img.dtype == 'float64':
+                img = img.astype('float32')
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = ms.Tensor(img.transpose(2, 0, 1))
         if float32:
@@ -211,7 +203,7 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         shape (H x W). The channel order is BGR.
     """
     if not (ops.is_tensor(tensor) or (isinstance(tensor, list) and all(ops.is_tensor(t) for t in tensor))):
-        raise TypeError(f"tensor or list of tensors expected, got {type(tensor)}")
+        raise TypeError(f'tensor or list of tensors expected, got {type(tensor)}')
 
     if ops.is_tensor(tensor):
         tensor = [tensor]
@@ -239,7 +231,7 @@ def tensor2img(tensor, rgb2bgr=True, out_type=np.uint8, min_max=(0, 1)):
         elif n_dim == 2:
             img_np = _tensor.numpy()
         else:
-            raise TypeError(f"Only support 4D, 3D or 2D tensor. But received with dimension: {n_dim}")
+            raise TypeError(f'Only support 4D, 3D or 2D tensor. But received with dimension: {n_dim}')
         if out_type == np.uint8:
             # Unlike MATLAB, numpy.unit8() WILL NOT round by default.
             img_np = (img_np * 255.0).round()

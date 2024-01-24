@@ -31,38 +31,40 @@ class KeypointExtractor:
                     keypoints.append(current_kp[None])
 
             keypoints = np.concatenate(keypoints, 0)
-            np.savetxt(os.path.splitext(name)[0] + ".txt", keypoints.reshape(-1))
+
+            if name is not None:
+                np.savetxt(os.path.splitext(name)[0] + ".txt", keypoints.reshape(-1))
             return keypoints
         else:
             while True:
-                try:
-                    # face detection -> face alignment.
-                    img = np.array(images)
-                    bboxes = self.det_net.detect_faces(images, 0.97)
+                # try:
+                # face detection -> face alignment
+                img = images.asnumpy() if isinstance(images, ms.Tensor) else np.array(images)
+                bboxes = self.det_net.detect_faces(images, 0.97)
 
-                    bboxes = bboxes[0]
-                    img = img[int(bboxes[1]) : int(bboxes[3]), int(bboxes[0]) : int(bboxes[2]), :]
+                bboxes = bboxes[0]
+                img = img[int(bboxes[1]) : int(bboxes[3]), int(bboxes[0]) : int(bboxes[2]), :]
 
-                    keypoints = landmark_98_to_68(self.detector.get_landmarks(img))  # [0]
+                keypoints = landmark_98_to_68(self.detector.get_landmarks(img))  # [0]
 
-                    # keypoints to the original location
-                    keypoints[:, 0] += int(bboxes[0])
-                    keypoints[:, 1] += int(bboxes[1])
+                # keypoints to the original location
+                keypoints[:, 0] += int(bboxes[0])
+                keypoints[:, 1] += int(bboxes[1])
 
-                    break
+                break
 
-                except RuntimeError as e:
-                    if str(e).startswith("CUDA"):
-                        print("Warning: out of memory, sleep for 1s")
-                        time.sleep(1)
-                    else:
-                        print(e)
-                        break
-                except TypeError:
-                    print("No face detected in this image")
-                    shape = [68, 2]
-                    keypoints = -1.0 * np.ones(shape)
-                    break
+                # except RuntimeError as e:
+                #     if str(e).startswith('CUDA'):
+                #         print("Warning: out of memory, sleep for 1s")
+                #         time.sleep(1)
+                #     else:
+                #         print(e)
+                #         break
+                # except TypeError:
+                #     print('No face detected in this image')
+                #     shape = [68, 2]
+                #     keypoints = -1. * np.ones(shape)
+                #     break
             if name is not None:
                 np.savetxt(os.path.splitext(name)[0] + ".txt", keypoints.reshape(-1))
             return keypoints

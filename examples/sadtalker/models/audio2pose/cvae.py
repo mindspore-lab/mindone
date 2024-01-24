@@ -27,7 +27,7 @@ class CVAE(nn.Cell):
     def reparameterize(self, mu, logvar):
         std = ops.Exp()(0.5 * logvar)
         eps = ops.randn_like(std)
-        return mu + eps * std
+        return ops.add(mu, ops.mul(eps, std))
 
     def construct(self, batch):
         batch = self.encoder(batch)
@@ -43,7 +43,7 @@ class CVAE(nn.Cell):
         z = np.random.randn([class_id.size(0), self.latent_size])
         batch['z'] = z
         """
-        return self.decoder(batch)
+        return self.decoder.decode(batch)
 
 
 class Encoder(nn.Cell):
@@ -55,7 +55,7 @@ class Encoder(nn.Cell):
         self.seq_len = seq_len
 
         self.mlp = nn.SequentialCell()
-        layer_sizes[0] += latent_size + seq_len * audio_emb_out_size + 6
+        layer_sizes[0] = layer_sizes[0] + latent_size + seq_len * audio_emb_out_size + 6
         for i, (in_size, out_size) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:])):
             self.mlp.append(nn.Dense(in_size, out_size))
             self.mlp.append(nn.ReLU())
@@ -64,7 +64,7 @@ class Encoder(nn.Cell):
         self.linear_logvar = nn.Dense(layer_sizes[-1], latent_size)
         self.linear_audio = nn.Dense(audio_emb_in_size, audio_emb_out_size)
 
-        self.classbias = ms.Parameter(np.random.randn(self.num_classes, latent_size))
+        self.classbias = ms.Tensor(np.random.randn(self.num_classes, latent_size).astype(np.float32))
 
     def construct(self, batch):
         class_id = batch["class"]
@@ -103,19 +103,20 @@ class Decoder(nn.Cell):
         self.num_classes = num_classes
         self.seq_len = seq_len
 
-        self.mlp = nn.SequentialCell()
+        mlp = nn.SequentialCell()
         input_size = latent_size + seq_len * audio_emb_out_size + 6
         for i, (in_size, out_size) in enumerate(zip([input_size] + layer_sizes[:-1], layer_sizes)):
-            self.mlp.append(nn.Dense(in_size, out_size))
+            mlp.append(nn.Dense(in_size, out_size))
             if i + 1 < len(layer_sizes):
-                self.mlp.append(nn.ReLU())
+                mlp.append(nn.ReLU())
             else:
-                self.mlp.append(nn.Sigmoid())
+                mlp.append(nn.Sigmoid())
+        self.mlp = mlp
 
         self.pose_linear = nn.Dense(6, 6)
         self.linear_audio = nn.Dense(audio_emb_in_size, audio_emb_out_size)
 
-        self.classbias = ms.Parameter(np.random.randn(self.num_classes, latent_size))
+        self.classbias = ms.Tensor(np.random.randn(self.num_classes, latent_size).astype(np.float16))
 
     def construct(self, batch):
         z = batch["z"]  # bs latent_size
@@ -136,6 +137,36 @@ class Decoder(nn.Cell):
         z = z + class_bias
         z = ops.Cast()(z, ref.dtype)
         x_in = ops.cat([ref, z, audio_out], axis=-1)
+        # bs layer_sizes[-1]
+        x_out = self.mlp(x_in)
+        x_out = x_out.reshape((bs, self.seq_len, -1))
+
+        pose_emb = self.resunet(x_out.unsqueeze(1))  # bs 1 seq_len 6
+
+        pose_motion_pred = self.pose_linear(pose_emb.squeeze(1))  # bs seq_len 6
+
+        batch.update({"pose_motion_pred": pose_motion_pred})
+        return batch
+
+    def decode(self, batch):
+        z = batch["z"]  # bs latent_size
+        bs = z.shape[0]
+        class_id = batch["class"]
+        ref = batch["ref"]  # bs 6
+        # bs seq_len audio_emb_in_size
+        audio_in = batch["audio_emb"]
+        # print('audio_in: ', audio_in[:, :, :10])
+
+        # bs seq_len audio_emb_out_size
+        audio_out = self.linear_audio(audio_in)
+        # print('audio_out: ', audio_out[:, :, :10])
+        # bs seq_len*audio_emb_out_size
+        audio_out = audio_out.reshape([bs, -1])
+        class_bias = self.classbias[class_id]  # bs latent_size
+
+        z = z + class_bias
+        z = ops.Cast()(z, ref.dtype)
+        x_in = ops.cat([ref, z, audio_out.astype(ms.float32)], axis=-1)
         # bs layer_sizes[-1]
         x_out = self.mlp(x_in)
         x_out = x_out.reshape((bs, self.seq_len, -1))

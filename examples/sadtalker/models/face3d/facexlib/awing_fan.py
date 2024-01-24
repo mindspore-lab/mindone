@@ -14,7 +14,7 @@ def calculate_points(heatmaps):
     indexes = np.argmax(heatline, axis=2)
 
     preds = np.stack((indexes % W, indexes // W), axis=2)
-    preds = preds.astype(np.float, copy=False)
+    preds = preds.astype(np.float32, copy=False)
 
     inr = indexes.ravel()
 
@@ -253,7 +253,7 @@ class HourGlass(nn.Cell):
         up1 = getattr(self, "b1_" + str(level))(up1)
 
         # Lower branch
-        low1 = ops.avg_pool2d(inp, 2, stride=2)
+        low1 = ops.AvgPool(kernel_size=2, strides=2)(inp)
         low1 = getattr(self, "b2_" + str(level))(low1)
 
         if level > 1:
@@ -264,8 +264,9 @@ class HourGlass(nn.Cell):
 
         low3 = low2
         low3 = getattr(self, "b3_" + str(level))(low3)
-
-        up2 = ops.interpolate(low3, scale_factor=2.0, mode="area")  # TODO: nearest
+        # up2 = ops.interpolate(low3, scale_factor=2.0, mode='area') # TODO: nearest (1, 256, 8, 8)
+        target_shape = [x * 2 for x in low3.shape[-2:]]
+        up2 = ops.interpolate(low3, size=target_shape)
 
         return up1 + up2
 
@@ -348,8 +349,8 @@ class FAN(nn.Cell):
     def construct(self, x):
         x, _ = self.conv1(x)
         x = ops.relu(self.bn1(x))
-        # x = ops.relu(self.bn1(self.conv1(x)), True)
-        x = ops.avg_pool2d(self.conv2(x), 2, stride=2)
+        x = self.conv2(x)
+        x = ops.AvgPool(kernel_size=2, strides=2)(x)
         x = self.conv3(x)
         x = self.conv4(x)
 

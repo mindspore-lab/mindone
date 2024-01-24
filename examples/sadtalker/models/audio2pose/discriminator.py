@@ -83,7 +83,7 @@ class PoseSequenceDiscriminator(nn.Cell):
         )
 
     def construct(self, x):
-        x = x.reshape(x.shape[0], x.shape[1], -1).transpose(1, 2)
+        x = x.reshape(x.shape[0], x.shape[1], -1).transpose(0, 2, 1)
         x = self.seq(x)
         x = x.squeeze(1)
         return x

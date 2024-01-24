@@ -68,6 +68,24 @@ def generate_blink_seq_randomly(num_frames):
     return ratio
 
 
+def read_filelist(input_path):
+    audios = []
+    images = []
+
+    if os.path.isfile(input_path):
+        ext = input_path.split(".")[-1]
+        if ext == "txt":
+            with open(input_path, "r") as f:
+                for line in f.read().splitlines():
+                    audio_path, first_image_path = line.split(" ")
+
+                    if os.path.isfile(audio_path) and os.path.isfile(first_image_path):
+                        audios.append(audio_path)
+                        images.append(first_image_path)
+
+    return audios, images
+
+
 class TestDataset:
     def __init__(
         self,
@@ -92,12 +110,20 @@ class TestDataset:
         self.length_of_audio = length_of_audio
         self.use_blink = use_blink
 
-    def crop_and_extract(self):
+        # read files
+        if args.train_list is not None:
+            self.audios, self.src_images = read_filelist(args.train_list)
+
+        else:
+            self.audios = [args.driven_audio]
+            self.src_images = [args.source_image]
+
+    def crop_and_extract(self, source_image):
         os.makedirs(self.first_frame_dir, exist_ok=True)
         print("3DMM Extraction for source image")
 
         first_coeff_path, crop_pic_path, crop_info = self.preprocessor.generate(
-            self.args.source_image,
+            source_image,
             self.first_frame_dir,
             self.args.preprocess,
             source_image_flag=True,
@@ -148,7 +174,7 @@ class TestDataset:
         )
 
     def __next__(self):
-        if self._index >= 1:
+        if self._index >= len(self.audios):
             raise StopIteration
         else:
             item = self.__getitem__(self._index)
@@ -156,9 +182,12 @@ class TestDataset:
             return item
 
     def __len__(self):
-        return 1
+        return len(self.audios)
 
     def __getitem__(self, idx):
+        image = self.src_images[idx]
+        driven_audio = self.audios[idx]
+
         # 1. crop and extract 3dMM coefficients
         (
             first_coeff_path,
@@ -166,17 +195,17 @@ class TestDataset:
             crop_info,
             ref_eyeblink_coeff_path,
             ref_pose_coeff_path,
-        ) = self.crop_and_extract()
+        ) = self.crop_and_extract(image)
 
         # 2. process audio
-        pic_name = os.path.splitext(os.path.split(first_coeff_path)[-1])[0]
-        audio_name = os.path.splitext(os.path.split(self.args.driven_audio)[-1])[0]
+        pic_name = os.path.splitext(os.path.split(image)[-1])[0]
+        audio_name = os.path.splitext(os.path.split(driven_audio)[-1])[0]
 
         if self.idlemode:
             num_frames = int(self.length_of_audio * self.fps)
             indiv_mels = np.zeros((num_frames, num_frames, self.syncnet_mel_step_size))
         else:
-            wav = audio.load_wav(self.args.driven_audio, 16000)
+            wav = audio.load_wav(driven_audio, 16000)
             wav_length, num_frames = parse_audio_length(len(wav), 16000, self.fps)
             wav = crop_pad_audio(wav, wav_length)
             orig_mel = audio.melspectrogram(wav).T

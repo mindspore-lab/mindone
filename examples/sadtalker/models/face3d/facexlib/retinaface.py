@@ -162,6 +162,8 @@ class RetinaFace(nn.Cell):
         # convert to opencv format
         if isinstance(image, Image.Image):
             image = cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
+        elif isinstance(image, ms.Tensor):
+            image = image.asnumpy()
         image = image.astype(np.float32)
 
         # testing scale

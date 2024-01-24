@@ -248,14 +248,16 @@ class ResNet(nn.Cell):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x)
+        # x = self.maxpool(x)
+        x = ops.MaxPool(kernel_size=3, strides=2, pad_mode="same")(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = self.avgpool(x)
+        # x = self.avgpool(x)
+        x = ops.mean(x, axis=(-1, -2), keep_dims=True)
         if self.use_last_fc:
             x = ops.flatten(x, start_dim=1)
             x = self.fc(x)

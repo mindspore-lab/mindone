@@ -7,7 +7,14 @@ from tqdm import tqdm
 from utils.videoio import save_video_with_watermark
 
 
-def paste_pic(video_path, pic_path, crop_info, new_audio_path, full_video_path, extended_crop=False):
+def paste_pic(
+    video_path,
+    pic_path,
+    crop_info,
+    new_audio_path,
+    full_video_path,
+    extended_crop=False,
+):
     if not os.path.isfile(pic_path):
         raise ValueError("pic_path must be a valid path to video/image file")
     elif pic_path.split(".")[-1] in ["jpg", "png", "jpeg"]:

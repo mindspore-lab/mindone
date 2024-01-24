@@ -85,13 +85,19 @@ class Conv2dNormalized(nn.Cell):
             self.bias = Parameter(initializer("zeros", (out_channels,)), name="bias")
 
         self.weight_orig = Parameter(
-            initializer(Normal(sigma=0.02), (out_channels, in_channels, kernel_size, kernel_size)), name="weight_orig"
+            initializer(
+                Normal(sigma=0.02),
+                (out_channels, in_channels, kernel_size, kernel_size),
+            ),
+            name="weight_orig",
         )
 
         self.weight_u = Parameter(self.initialize_param(out_channels, 1), requires_grad=False, name="weight_u")
 
         self.weight_v = Parameter(
-            self.initialize_param(in_channels * kernel_size * kernel_size, 1), requires_grad=False, name="weight_v"
+            self.initialize_param(in_channels * kernel_size * kernel_size, 1),
+            requires_grad=False,
+            name="weight_v",
         )
 
         if is_ascend():
@@ -109,7 +115,7 @@ class Conv2dNormalized(nn.Cell):
         """Weights normalization"""
         eps = 1e-12
         size = weight_orig.shape
-        weight_mat = weight_orig.ravel().view(size[0], -1)
+        weight_mat = weight_orig.flatten().view(size[0], -1)
 
         if self.training:
             v = ops.matmul(weight_mat.T, u)
@@ -123,8 +129,8 @@ class Conv2dNormalized(nn.Cell):
             u = ops.depend(u, ops.assign(self.weight_u, u))
             v = ops.depend(v, ops.assign(self.weight_v, v))
 
-        u = ops.stop_gradient(u)
-        v = ops.stop_gradient(v)
+        # u = ops.stop_gradient(u)
+        # v = ops.stop_gradient(v)
 
         weight_norm = self.spectral_norm(weight_mat, u, v)
         weight_sn = weight_mat / weight_norm.clip(eps, None)

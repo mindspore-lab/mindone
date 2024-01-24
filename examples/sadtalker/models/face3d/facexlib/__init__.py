@@ -64,12 +64,8 @@ def init_detection_model(model_name, half=False, model_rootpath=None):
 
     if os.path.exists(model_path):
         param_dict = ms.load_checkpoint(model_path)
-        # remove unnecessary 'module.'
-        for k, v in deepcopy(param_dict).items():
-            if k.startswith("module."):
-                param_dict[k[7:]] = v
-                param_dict.pop(k)
         ms.load_param_into_net(model, param_dict)
+        print(f"loaded the pretrained model from {model_path}.")
     model.set_train(False)
     return model
 
@@ -84,6 +80,7 @@ def init_alignment_model(model_name, half=False, model_rootpath=None):
     if os.path.exists(model_path):
         param_dict = ms.load_checkpoint(model_path)
         ms.load_param_into_net(model, param_dict)
+        print(f"loaded the pretrained model from {model_path}.")
     model.set_train(False)
     return model
 

@@ -14,7 +14,7 @@ class Conv2d(nn.Cell):
     def construct(self, x):
         out = self.conv_block(x)
         if self.residual:
-            out += x
+            out = out + x
         return self.act(out)
 
 

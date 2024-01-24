@@ -7,7 +7,8 @@ from collections import OrderedDict
 def rgetattr(obj, attr, *args):
     def _getattr(obj, attr):
         return getattr(obj, attr, *args)
-    return functools.reduce(_getattr, [obj] + attr.split('.'))
+
+    return functools.reduce(_getattr, [obj] + attr.split("."))
 
 
 class IntermediateLayerGetter:
@@ -50,10 +51,11 @@ class IntermediateLayerGetter:
                         ret[new_name] = [ret[new_name], output]
                 else:
                     ret[new_name] = output
+
             try:
                 h = layer.register_forward_hook(hook)
             except AttributeError as e:
-                raise AttributeError(f'Module {name} not found')
+                raise AttributeError(f"Module {name} not found")
             handles.append(h)
 
         if self.keep_output:

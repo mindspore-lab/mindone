@@ -2,7 +2,6 @@ import math
 import random
 import mindspore as ms
 from mindspore import nn, ops
-
 # from basicsr.utils.registry import ARCH_REGISTRY
 
 from models.gfpgan.archs.stylegan2_clean_arch import StyleGAN2GeneratorClean
@@ -28,22 +27,19 @@ class StyleGAN2GeneratorCSFT(StyleGAN2GeneratorClean):
             num_style_feat=num_style_feat,
             num_mlp=num_mlp,
             channel_multiplier=channel_multiplier,
-            narrow=narrow,
-        )
+            narrow=narrow)
         self.sft_half = sft_half
 
-    def construct(
-        self,
-        styles,
-        conditions,
-        input_is_latent=False,
-        noise=None,
-        randomize_noise=True,
-        truncation=1,
-        truncation_latent=None,
-        inject_index=None,
-        return_latents=False,
-    ):
+    def construct(self,
+                  styles,
+                  conditions,
+                  input_is_latent=False,
+                  noise=None,
+                  randomize_noise=True,
+                  truncation=1,
+                  truncation_latent=None,
+                  inject_index=None,
+                  return_latents=False):
         """construct function for StyleGAN2GeneratorCSFT.
 
         Args:
@@ -65,12 +61,14 @@ class StyleGAN2GeneratorCSFT(StyleGAN2GeneratorClean):
             if randomize_noise:
                 noise = [None] * self.num_layers  # for each style conv layer
             else:  # use the stored noise
-                noise = [getattr(self.noises, f"noise{i}") for i in range(self.num_layers)]
+                noise = [getattr(self.noises, f'noise{i}')
+                         for i in range(self.num_layers)]
         # style truncation
         if truncation < 1:
             style_truncation = []
             for style in styles:
-                style_truncation.append(truncation_latent + truncation * (style - truncation_latent))
+                style_truncation.append(
+                    truncation_latent + truncation * (style - truncation_latent))
             styles = style_truncation
         # get style latents with injection
         if len(styles) == 1:
@@ -85,7 +83,8 @@ class StyleGAN2GeneratorCSFT(StyleGAN2GeneratorClean):
             if inject_index is None:
                 inject_index = random.randint(1, self.num_latent - 1)
             latent1 = styles[0].unsqueeze(1).repeat(inject_index, axis=1)
-            latent2 = styles[1].unsqueeze(1).repeat(self.num_latent - inject_index, axis=1)
+            latent2 = styles[1].unsqueeze(1).repeat(
+                self.num_latent - inject_index, axis=1)
             latent = ops.cat([latent1, latent2], 1)
         else:
             latent = styles[0]
@@ -96,16 +95,16 @@ class StyleGAN2GeneratorCSFT(StyleGAN2GeneratorClean):
         skip = self.to_rgb1(out, latent[:, 1])
 
         i = 1
-        for conv1, conv2, noise1, noise2, to_rgb in zip(
-            self.style_convs[::2], self.style_convs[1::2], noise[1::2], noise[2::2], self.to_rgbs
-        ):
+        for conv1, conv2, noise1, noise2, to_rgb in zip(self.style_convs[::2], self.style_convs[1::2], noise[1::2],
+                                                        noise[2::2], self.to_rgbs):
             out = conv1(out, latent[:, i], noise=noise1)
 
             # the conditions may have fewer levels
             if i < len(conditions):
                 # SFT part to combine the conditions
                 if self.sft_half:  # only apply SFT to half of the channels
-                    out_same, out_sft = ops.split(out, int(out.shape[1] // 2), axis=1)
+                    out_same, out_sft = ops.split(
+                        out, int(out.shape[1] // 2), axis=1)
                     out_sft = out_sft * conditions[i - 1] + conditions[i]
                     out = ops.cat([out_same, out_sft], axis=1)
                 else:  # apply SFT to all the channels
@@ -133,19 +132,18 @@ class ResBlock(nn.Cell):
         mode (str): Upsampling/downsampling mode. Options: down | up. Default: down.
     """
 
-    def __init__(self, in_channels, out_channels, mode="down"):
+    def __init__(self, in_channels, out_channels, mode='down'):
         super(ResBlock, self).__init__()
 
-        self.conv1 = nn.Conv2d(
-            in_channels, in_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
-        self.conv2 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
-        self.skip = nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False)
-        if mode == "down":
+        self.conv1 = nn.Conv2d(in_channels, in_channels,
+                               kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True)
+        self.conv2 = nn.Conv2d(in_channels, out_channels,
+                               kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True)
+        self.skip = nn.Conv2d(in_channels, out_channels,
+                              kernel_size=1, has_bias=False)
+        if mode == 'down':
             self.scale_factor = 0.5
-        elif mode == "up":
+        elif mode == 'up':
             self.scale_factor = 2.0
 
     def construct(self, x):
@@ -153,10 +151,10 @@ class ResBlock(nn.Cell):
         # upsample/downsample
         # out = ops.interpolate(out, scale_factor=self.scale_factor,
         #                       mode='bilinear', align_corners=False)
-        out = ops.interpolate(out, scale_factor=self.scale_factor, mode="area")
+        out = ops.interpolate(out, scale_factor=self.scale_factor, mode='area')
         out = ops.leaky_relu(self.conv2(out), alpha=0.2)
         # skip
-        x = ops.interpolate(x, scale_factor=self.scale_factor, mode="area")
+        x = ops.interpolate(x, scale_factor=self.scale_factor, mode='area')
         skip = self.skip(x)
         out = out + skip
         return out
@@ -185,19 +183,19 @@ class GFPGANv1Clean(nn.Cell):
     """
 
     def __init__(
-        self,
-        out_size,
-        num_style_feat=512,
-        channel_multiplier=1,
-        decoder_load_path=None,
-        fix_decoder=True,
-        # for stylegan decoder
-        num_mlp=8,
-        input_is_latent=False,
-        different_w=False,
-        narrow=1,
-        sft_half=False,
-    ):
+            self,
+            out_size,
+            num_style_feat=512,
+            channel_multiplier=1,
+            decoder_load_path=None,
+            fix_decoder=True,
+            # for stylegan decoder
+            num_mlp=8,
+            input_is_latent=False,
+            different_w=False,
+            narrow=1,
+            sft_half=False):
+
         super(GFPGANv1Clean, self).__init__()
         self.input_is_latent = input_is_latent
         self.different_w = different_w
@@ -205,42 +203,44 @@ class GFPGANv1Clean(nn.Cell):
 
         unet_narrow = narrow * 0.5  # by default, use a half of input channels
         channels = {
-            "4": int(512 * unet_narrow),
-            "8": int(512 * unet_narrow),
-            "16": int(512 * unet_narrow),
-            "32": int(512 * unet_narrow),
-            "64": int(256 * channel_multiplier * unet_narrow),
-            "128": int(128 * channel_multiplier * unet_narrow),
-            "256": int(64 * channel_multiplier * unet_narrow),
-            "512": int(32 * channel_multiplier * unet_narrow),
-            "1024": int(16 * channel_multiplier * unet_narrow),
+            '4': int(512 * unet_narrow),
+            '8': int(512 * unet_narrow),
+            '16': int(512 * unet_narrow),
+            '32': int(512 * unet_narrow),
+            '64': int(256 * channel_multiplier * unet_narrow),
+            '128': int(128 * channel_multiplier * unet_narrow),
+            '256': int(64 * channel_multiplier * unet_narrow),
+            '512': int(32 * channel_multiplier * unet_narrow),
+            '1024': int(16 * channel_multiplier * unet_narrow)
         }
 
         self.log_size = int(math.log(out_size, 2))
-        first_out_size = 2 ** (int(math.log(out_size, 2)))
+        first_out_size = 2**(int(math.log(out_size, 2)))
 
-        self.conv_body_first = nn.Conv2d(3, channels[f"{first_out_size}"], kernel_size=1, has_bias=True)
+        self.conv_body_first = nn.Conv2d(
+            3, channels[f'{first_out_size}'], kernel_size=1, has_bias=True)
 
         # downsample
-        in_channels = channels[f"{first_out_size}"]
+        in_channels = channels[f'{first_out_size}']
         conv_body_down = nn.CellList()
         for i in range(self.log_size, 2, -1):
-            out_channels = channels[f"{2**(i - 1)}"]
-            conv_body_down.append(ResBlock(in_channels, out_channels, mode="down"))
+            out_channels = channels[f'{2**(i - 1)}']
+            conv_body_down.append(
+                ResBlock(in_channels, out_channels, mode='down'))
             in_channels = out_channels
 
         self.conv_body_down = conv_body_down
 
         self.final_conv = nn.Conv2d(
-            in_channels, channels["4"], kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
+            in_channels, channels['4'], kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True)
 
         # upsample
-        in_channels = channels["4"]
+        in_channels = channels['4']
         conv_body_up = nn.CellList()
         for i in range(3, self.log_size + 1):
-            out_channels = channels[f"{2**i}"]
-            conv_body_up.append(ResBlock(in_channels, out_channels, mode="up"))
+            out_channels = channels[f'{2**i}']
+            conv_body_up.append(
+                ResBlock(in_channels, out_channels, mode='up'))
             in_channels = out_channels
 
         self.conv_body_up = conv_body_up
@@ -248,16 +248,19 @@ class GFPGANv1Clean(nn.Cell):
         # to RGB
         toRGB = nn.CellList()
         for i in range(3, self.log_size + 1):
-            toRGB.append(nn.Conv2d(channels[f"{2**i}"], 3, 1, has_bias=True))
+            toRGB.append(
+                nn.Conv2d(channels[f'{2**i}'], 3, 1, has_bias=True))
 
         self.toRGB = toRGB
 
         if different_w:
-            linear_out_channel = (int(math.log(out_size, 2)) * 2 - 2) * num_style_feat
+            linear_out_channel = (int(math.log(out_size, 2))
+                                  * 2 - 2) * num_style_feat
         else:
             linear_out_channel = num_style_feat
 
-        self.final_linear = nn.Dense(channels["4"] * 4 * 4, linear_out_channel)
+        self.final_linear = nn.Dense(
+            channels['4'] * 4 * 4, linear_out_channel)
 
         # the decoder: stylegan2 generator with SFT modulations
         self.stylegan_decoder = StyleGAN2GeneratorCSFT(
@@ -266,8 +269,7 @@ class GFPGANv1Clean(nn.Cell):
             num_mlp=num_mlp,
             channel_multiplier=channel_multiplier,
             narrow=narrow,
-            sft_half=sft_half,
-        )
+            sft_half=sft_half)
 
         # load pre-trained stylegan2 model if necessary # TODO!!!
         # if decoder_load_path:
@@ -283,45 +285,25 @@ class GFPGANv1Clean(nn.Cell):
         condition_scale = nn.CellList()
         condition_shift = nn.CellList()
         for i in range(3, self.log_size + 1):
-            out_channels = channels[f"{2**i}"]
+            out_channels = channels[f'{2**i}']
             if sft_half:
                 sft_out_channels = out_channels
             else:
                 sft_out_channels = out_channels * 2
             condition_scale.append(
                 nn.SequentialCell(
-                    nn.Conv2d(
-                        out_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
-                    ),
+                    nn.Conv2d(out_channels, out_channels, kernel_size=3,
+                              stride=1, padding=1, pad_mode='pad', has_bias=True),
                     nn.LeakyReLU(0.2),
-                    nn.Conv2d(
-                        out_channels,
-                        sft_out_channels,
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        pad_mode="pad",
-                        has_bias=True,
-                    ),
-                )
-            )
+                    nn.Conv2d(out_channels, sft_out_channels, kernel_size=3,
+                              stride=1, padding=1, pad_mode='pad', has_bias=True)))
             condition_shift.append(
                 nn.SequentialCell(
-                    nn.Conv2d(
-                        out_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
-                    ),
+                    nn.Conv2d(out_channels, out_channels, kernel_size=3,
+                              stride=1, padding=1, pad_mode='pad', has_bias=True),
                     nn.LeakyReLU(0.2),
-                    nn.Conv2d(
-                        out_channels,
-                        sft_out_channels,
-                        kernel_size=3,
-                        stride=1,
-                        padding=1,
-                        pad_mode="pad",
-                        has_bias=True,
-                    ),
-                )
-            )
+                    nn.Conv2d(out_channels, sft_out_channels, kernel_size=3,
+                              stride=1, padding=1, pad_mode='pad', has_bias=True)))
 
         self.condition_scale = condition_scale
         self.condition_shift = condition_shift
@@ -349,7 +331,8 @@ class GFPGANv1Clean(nn.Cell):
         # style code
         style_code = self.final_linear(feat.view(feat.shape[0], -1))
         if self.different_w:
-            style_code = style_code.view(style_code.shape[0], -1, self.num_style_feat)
+            style_code = style_code.view(
+                style_code.shape[0], -1, self.num_style_feat)
 
         # decode
         for i in range(self.log_size - 2):
@@ -367,12 +350,10 @@ class GFPGANv1Clean(nn.Cell):
                 out_rgbs.append(self.toRGB[i](feat))
 
         # decoder
-        image, _ = self.stylegan_decoder(
-            [style_code],
-            conditions,
-            return_latents=return_latents,
-            input_is_latent=self.input_is_latent,
-            randomize_noise=randomize_noise,
-        )
+        image, _ = self.stylegan_decoder([style_code],
+                                         conditions,
+                                         return_latents=return_latents,
+                                         input_is_latent=self.input_is_latent,
+                                         randomize_noise=randomize_noise)
 
         return image, out_rgbs

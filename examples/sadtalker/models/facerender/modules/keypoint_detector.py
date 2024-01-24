@@ -2,7 +2,12 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from mindspore.nn import BatchNorm2d
-from models.facerender.modules.utils import KPHourglass, make_coordinate_grid, AntiAliasInterpolation2d, ResBottleneck
+from models.facerender.modules.utils import (
+    KPHourglass,
+    make_coordinate_grid,
+    AntiAliasInterpolation2d,
+    ResBottleneck,
+)
 
 
 class KPDetector(nn.Cell):
@@ -44,6 +49,7 @@ class KPDetector(nn.Cell):
             padding=1,
             has_bias=True,
         )
+        self.kp.to_float(ms.float16)
 
         if estimate_jacobian:
             self.num_jacobian_maps = 1 if single_jacobian_map else num_kp
@@ -63,13 +69,17 @@ class KPDetector(nn.Cell):
             """
             self.jacobian.weight.data.zero_()
             self.jacobian.bias.data.copy_(
-                ms.tensor([1, 0, 0, 0, 1, 0, 0, 0, 1] * self.num_jacobian_maps, dtype=ms.float32)
+                ms.tensor(
+                    [1, 0, 0, 0, 1, 0, 0, 0, 1] * self.num_jacobian_maps,
+                    dtype=ms.float32,
+                )
             )
         else:
-            self.jacobian = None
+            self.jacobian = ms.Tensor(False, dtype=ms.bool_)
 
         self.temperature = temperature
         self.scale_factor = scale_factor
+
         if self.scale_factor != 1:
             self.down = AntiAliasInterpolation2d(image_channel, self.scale_factor)
 
@@ -80,10 +90,45 @@ class KPDetector(nn.Cell):
         shape = heatmap.shape
         heatmap = heatmap.unsqueeze(-1)
         grid = make_coordinate_grid(shape[2:], heatmap.dtype).unsqueeze(0).unsqueeze(0)
-        value = (heatmap * grid).sum(axis=(2, 3, 4))
-        kp = {"value": value}
+        value = ops.sum(heatmap * grid, dim=(2, 3, 4))
 
-        return kp
+        return value
+
+    def test(self, x):
+        if self.scale_factor != 1:
+            x = self.down(x)
+
+        feature_map = self.predictor(x)
+        prediction = self.kp(feature_map)
+
+        final_shape = prediction.shape
+        heatmap = prediction.view(final_shape[0], final_shape[1], -1)
+        heatmap = ops.softmax(heatmap / self.temperature, axis=2)
+        heatmap = heatmap.view(*final_shape)
+
+        kp_value = self.gaussian2kp(heatmap)
+
+        if self.jacobian:
+            jacobian_map = self.jacobian(feature_map)
+            jacobian_map = jacobian_map.reshape(
+                final_shape[0],
+                self.num_jacobian_maps,
+                9,
+                final_shape[2],
+                final_shape[3],
+                final_shape[4],
+            )
+            heatmap = heatmap.unsqueeze(2)
+
+            jacobian = heatmap * jacobian_map
+            jacobian = jacobian.view(final_shape[0], final_shape[1], 9, -1)
+            jacobian = jacobian.sum(dim=-1)
+            jacobian = jacobian.view(jacobian.shape[0], jacobian.shape[1], 3, 3)
+
+        else:
+            jacobian = ms.Tensor(False, dtype=ms.bool_)
+
+        return (kp_value, jacobian)
 
     def construct(self, x):
         if self.scale_factor != 1:
@@ -97,22 +142,9 @@ class KPDetector(nn.Cell):
         heatmap = ops.softmax(heatmap / self.temperature, axis=2)
         heatmap = heatmap.view(*final_shape)
 
-        out = self.gaussian2kp(heatmap)
+        kp_value = self.gaussian2kp(heatmap)
 
-        if self.jacobian is not None:
-            jacobian_map = self.jacobian(feature_map)
-            jacobian_map = jacobian_map.reshape(
-                final_shape[0], self.num_jacobian_maps, 9, final_shape[2], final_shape[3], final_shape[4]
-            )
-            heatmap = heatmap.unsqueeze(2)
-
-            jacobian = heatmap * jacobian_map
-            jacobian = jacobian.view(final_shape[0], final_shape[1], 9, -1)
-            jacobian = jacobian.sum(dim=-1)
-            jacobian = jacobian.view(jacobian.shape[0], jacobian.shape[1], 3, 3)
-            out["jacobian"] = jacobian
-
-        return out
+        return kp_value
 
 
 class HEEstimator(nn.Cell):
@@ -121,7 +153,14 @@ class HEEstimator(nn.Cell):
     """
 
     def __init__(
-        self, block_expansion, feature_channel, num_kp, image_channel, max_features, num_bins=66, estimate_jacobian=True
+        self,
+        block_expansion,
+        feature_channel,
+        num_kp,
+        image_channel,
+        max_features,
+        num_bins=66,
+        estimate_jacobian=True,
     ):
         super(HEEstimator, self).__init__()
 
@@ -220,4 +259,5 @@ class HEEstimator(nn.Cell):
         t = self.fc_t(out)
         exp = self.fc_exp(out)
 
-        return {"yaw": yaw, "pitch": pitch, "roll": roll, "t": t, "exp": exp}
+        # return {"yaw": yaw, "pitch": pitch, "roll": roll, "t": t, "exp": exp}
+        return (yaw, pitch, roll, t, exp)

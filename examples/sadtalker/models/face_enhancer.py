@@ -7,5 +7,9 @@ channel_multiplier = 2
 bg_upsampler = None
 
 restorer = GFPGANer(
-    model_path=model_path, upscale=2, arch=arch, channel_multiplier=channel_multiplier, bg_upsampler=bg_upsampler
+    model_path=model_path,
+    upscale=2,
+    arch=arch,
+    channel_multiplier=channel_multiplier,
+    bg_upsampler=bg_upsampler,
 )

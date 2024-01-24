@@ -1,6 +1,11 @@
 import mindspore as ms
 from mindspore import nn, ops
-from models.facerender.modules.utils import SameBlock2d, DownBlock2d, ResBlock3d, SPADEResnetBlock
+from models.facerender.modules.utils import (
+    SameBlock2d,
+    DownBlock2d,
+    ResBlock3d,
+    SPADEResnetBlock,
+)
 from models.facerender.modules.dense_motion import DenseMotionNetwork
 
 
@@ -22,7 +27,7 @@ class SPADEDecoder(nn.Cell):
         self.up_0 = SPADEResnetBlock(2 * ic, ic, norm_G, label_nc)
         self.up_1 = SPADEResnetBlock(ic, oc, norm_G, label_nc)
         self.conv_img = nn.Conv2d(oc, 3, 3, pad_mode="pad", padding=1, has_bias=True)
-        self.up = nn.Upsample(scale_factor=2.0, mode="area")
+        # self.up = nn.Upsample(scale_factor=2.0, mode="area")
 
     def construct(self, feature):
         seg = feature
@@ -33,10 +38,10 @@ class SPADEDecoder(nn.Cell):
         x = self.G_middle_3(x, seg)
         x = self.G_middle_4(x, seg)
         x = self.G_middle_5(x, seg)
-        x = self.up(x)
-        x = self.up_0(x, seg)  # 256, 128, 128
-        x = self.up(x)
-        x = self.up_1(x, seg)  # 64, 256, 256
+        x = ops.interpolate(x, size=(x.shape[-2] * 2, x.shape[-1] * 2))
+        x = self.up_0(x, seg)  # bs, 256, 128, 128
+        x = ops.interpolate(x, size=(x.shape[-2] * 2, x.shape[-1] * 2))
+        x = self.up_1(x, seg)  # bs, 64, 256, 256
 
         x = self.conv_img(ops.leaky_relu(x, 2e-1))
         x = ops.sigmoid(x)
@@ -69,6 +74,7 @@ class OcclusionAwareSPADEGenerator(nn.Cell):
                 estimate_occlusion_map=estimate_occlusion_map,
                 **dense_motion_params
             )
+
         else:
             self.dense_motion_network = None
 
@@ -79,10 +85,14 @@ class OcclusionAwareSPADEGenerator(nn.Cell):
             in_features = min(max_features, block_expansion * (2**i))
             out_features = min(max_features, block_expansion * (2 ** (i + 1)))
             down_blocks.append(DownBlock2d(in_features, out_features, kernel_size=(3, 3), padding=(1, 1, 1, 1)))
-        self.down_blocks = nn.CellList(down_blocks)
+        self.down_blocks = nn.SequentialCell(down_blocks)
 
         self.second = nn.Conv2d(
-            in_channels=out_features, out_channels=max_features, kernel_size=1, stride=1, has_bias=True
+            in_channels=out_features,
+            out_channels=max_features,
+            kernel_size=1,
+            stride=1,
+            has_bias=True,
         )
 
         self.reshape_channel = reshape_channel
@@ -94,9 +104,19 @@ class OcclusionAwareSPADEGenerator(nn.Cell):
         self.resblocks_3d = resblocks_3d
 
         out_features = block_expansion * (2 ** (num_down_blocks))
-        self.third = SameBlock2d(max_features, out_features, kernel_size=(3, 3), padding=(1, 1, 1, 1), lrelu=True)
+        self.third = SameBlock2d(
+            max_features,
+            out_features,
+            kernel_size=(3, 3),
+            padding=(1, 1, 1, 1),
+            lrelu=True,
+        )
         self.fourth = nn.Conv2d(
-            in_channels=out_features, out_channels=out_features, kernel_size=1, stride=1, has_bias=True
+            in_channels=out_features,
+            out_channels=out_features,
+            kernel_size=1,
+            stride=1,
+            has_bias=True,
         )
 
         self.estimate_occlusion_map = estimate_occlusion_map
@@ -116,39 +136,37 @@ class OcclusionAwareSPADEGenerator(nn.Cell):
     def construct(self, source_image, kp_driving, kp_source):
         # Encoding (downsampling) part
         out = self.first(source_image)
-        for i in range(len(self.down_blocks)):
-            out = self.down_blocks[i](out)
+        out = self.down_blocks(out)
         out = self.second(out)
-        bs, c, h, w = out.shape
-        # print(out.shape)
-        feature_3d = out.view(bs, self.reshape_channel, self.reshape_depth, h, w)
-        feature_3d = self.resblocks_3d(feature_3d)
 
         # Transforming feature representation according to deformation and occlusion
-        output_dict = {}
         if self.dense_motion_network is not None:
-            dense_motion = self.dense_motion_network(feature=feature_3d, kp_driving=kp_driving, kp_source=kp_source)
-            output_dict["mask"] = dense_motion["mask"]
+            bs, c, h, w = out.shape  # (2, 512, 64, 64)
+            # print(out.shape)
+            feature_3d = out.view(bs, self.reshape_channel, self.reshape_depth, h, w)
+            feature_3d = self.resblocks_3d(feature_3d)
 
-            if "occlusion_map" in dense_motion:
-                occlusion_map = dense_motion["occlusion_map"]
-                output_dict["occlusion_map"] = occlusion_map
-            else:
-                occlusion_map = None
-            deformation = dense_motion["deformation"]
-            out = self.deform_input(feature_3d, deformation)
+            _, dense_motion_deform, occlusion_map = self.dense_motion_network(
+                feature=feature_3d, kp_driving=kp_driving, kp_source=kp_source
+            )
+
+            out = self.deform_input(feature_3d, dense_motion_deform)
+            dense_motion_deform = dense_motion_deform.astype(ms.float16)
+            out = ops.grid_sample(feature_3d, dense_motion_deform)
 
             bs, c, d, h, w = out.shape
             out = out.view(bs, c * d, h, w)
+
             out = self.third(out)
             out = self.fourth(out)
 
-            # occlusion_map = torch.where(occlusion_map < 0.95, 0, occlusion_map)
-
-            if occlusion_map is not None:
-                if out.shape[2] != occlusion_map.shape[2] or out.shape[3] != occlusion_map.shape[3]:
-                    occlusion_map = ops.interpolate(occlusion_map, size=out.shape[2:], mode="bilinear")
+            if self.estimate_occlusion_map:
+                occlusion_map = ops.interpolate(occlusion_map, size=out.shape[2:], mode="bilinear")
                 out = out * occlusion_map
+
+        else:
+            out = self.third(out)
+            out = self.fourth(out)
 
         # Decoding part
         out = self.decoder(out)

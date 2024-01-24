@@ -9,14 +9,27 @@ class MappingNet(nn.Cell):
         nonlinearity = nn.LeakyReLU(0.1)
 
         self.first = nn.SequentialCell(
-            nn.Conv1d(coeff_nc, descriptor_nc, kernel_size=7, pad_mode="pad", padding=0, has_bias=True)
+            nn.Conv1d(
+                coeff_nc,
+                descriptor_nc,
+                kernel_size=7,
+                pad_mode="pad",
+                padding=0,
+                has_bias=True,
+            )
         )
 
         for i in range(layer):
             net = nn.SequentialCell(
                 nonlinearity,
                 nn.Conv1d(
-                    descriptor_nc, descriptor_nc, kernel_size=3, pad_mode="pad", padding=0, dilation=3, has_bias=True
+                    descriptor_nc,
+                    descriptor_nc,
+                    kernel_size=3,
+                    pad_mode="pad",
+                    padding=0,
+                    dilation=3,
+                    has_bias=True,
                 ),
             )
             setattr(self, "encoder" + str(i), net)
@@ -32,9 +45,15 @@ class MappingNet(nn.Cell):
 
     def construct(self, input_3dmm):
         out = self.first(input_3dmm)
-        for i in range(self.layer):
-            model = getattr(self, "encoder" + str(i))
-            out = model(out) + out[:, :, 3:-3]
+
+        # for i in range(self.layer):
+        #     model = getattr(self, "encoder" + str(i))
+        #     out = model(out) + out[:, :, 3:-3]
+
+        out = self.encoder0(out) + out[:, :, 3:-3]
+        out = self.encoder1(out) + out[:, :, 3:-3]
+        out = self.encoder2(out) + out[:, :, 3:-3]
+
         out = self.pooling(out)
         out = out.view(out.shape[0], -1)
 
@@ -44,4 +63,5 @@ class MappingNet(nn.Cell):
         t = self.fc_t(out)
         exp = self.fc_exp(out)
 
-        return {"yaw": yaw, "pitch": pitch, "roll": roll, "t": t, "exp": exp}
+        # return {"yaw": yaw, "pitch": pitch, "roll": roll, "t": t, "exp": exp}
+        return (yaw, pitch, roll, t, exp)
