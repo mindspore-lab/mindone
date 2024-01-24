@@ -13,12 +13,14 @@
 # limitations under the License.
 # ============================================================================
 import logging
+import math
 
 import numpy as np
 from ldm.util import is_old_ms_version
 from packaging import version
 
 import mindspore as ms
+import mindspore.numpy as msnp
 from mindspore import nn, ops
 from mindspore.common.initializer import initializer
 
@@ -207,11 +209,19 @@ class CrossAttention(nn.Cell):
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+            # FIXME: a trick to pad sdv1.5 head dimensions from 160 to 256
+            if head_dim == 160:
+                # pad to 2**n * 64
+                padding_size = 64 * 2 ** math.ceil(math.log(head_dim / 64, 2)) - head_dim
+                q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
+                k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
+                v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
 
             out = self.flash_attention(
                 q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
             )
-
+            if head_dim == 160:
+                out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
