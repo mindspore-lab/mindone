@@ -13,16 +13,16 @@
 # limitations under the License.
 # ============================================================================
 import logging
+import math
 
 import numpy as np
 from ldm.util import is_old_ms_version
 from packaging import version
 
 import mindspore as ms
+import mindspore.numpy as msnp
 from mindspore import nn, ops
 from mindspore.common.initializer import initializer
-import mindspore.numpy as msnp
-import math
 
 try:
     from mindspore.nn.layer.flash_attention import FlashAttention
