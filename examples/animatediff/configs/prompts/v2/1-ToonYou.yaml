@@ -1,6 +1,7 @@
 ToonYou:
   motion_module:
     - "models/motion_module/mm_sd_v15_v2.ckpt"
+    # - "outputs/train_infnan_bs4_toonyou_zoomin/ad_v2-2000.ckpt"
 
   dreambooth_path: "models/dreambooth_lora/toonyou_beta3.ckpt"
   lora_model_path: ""

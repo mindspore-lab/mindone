@@ -446,6 +446,8 @@ def main(args):
         # backup config files
         shutil.copyfile(args.model_config, os.path.join(args.output_path, "model_config.yaml"))
 
+        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
+            yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
     # train
     model.train(
         args.epochs, dataset, callbacks=callback, dataset_sink_mode=args.dataset_sink_mode, initial_epoch=start_epoch

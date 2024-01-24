@@ -21,6 +21,8 @@ def init_env(
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -49,9 +51,9 @@ def init_env(
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
             mode=mode,
-            device_target="Ascend",
+            device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
         )
         init()
         device_num = get_group_size()
@@ -77,10 +79,15 @@ def init_env(
         rank_id = 0
         ms.set_context(
             mode=mode,
-            device_target="Ascend",
+            device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+            ascend_config={
+                "precision_mode": "allow_fp32_to_fp16"
+            },  # Only effective on Ascend 901B # TODO: try to remove it
             pynative_synchronize=debug,
         )
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
 
     return device_id, rank_id, device_num

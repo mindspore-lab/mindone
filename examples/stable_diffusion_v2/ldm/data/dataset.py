@@ -223,7 +223,7 @@ class ImageDataset:
         else:
             caption = self.local_captions[idx]
         caption_input = self.tokenize(caption)
-        return np.array(image_input, dtype=np.float32), np.array(caption_input, dtype=np.int32)
+        return np.array(image_input, dtype=np.float32), np.array(caption_input, dtype=np.int64)
 
     def preprocess_image(self, image_path):
         try:
@@ -246,7 +246,7 @@ class ImageDataset:
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN])
+        result = np.zeros([CONTEXT_LEN]) + eot_token
         if len(tokens) > CONTEXT_LEN:
             tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
         result[: len(tokens)] = tokens

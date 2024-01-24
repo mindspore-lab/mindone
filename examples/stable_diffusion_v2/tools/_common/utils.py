@@ -2,13 +2,14 @@
 import os
 from functools import partial
 
-from ldm.util import is_old_ms_version
+from packaging import version
 from PIL import Image
 
+import mindspore as ms
 from mindspore import ops
 
 # get L2 norm operator
-if not is_old_ms_version("2.0.0-alpha"):
+if version.parse(ms.__version__) > version.parse("2.0.0-alpha"):
     L2_norm_ops = partial(ops.norm, ord=2, dim=1, keepdim=True)
 else:
     L2_norm_ops = partial(ops.norm, p=2, axis=1, keep_dims=True)

@@ -86,13 +86,16 @@ class avg_pool_nd(nn.Cell):
         return x
 
 
-def normalization(channels):
+def normalization(channels, norm_in_5d=False):
     """
     Make a standard normalization layer.
     :param channels: number of input channels.
     :return: an nn.Cell for normalization.
     """
-    return GroupNorm32(32, channels).to_float(ms.float32)
+    if not norm_in_5d:
+        return GroupNorm32(32, channels)  # .to_float(ms.float32)
+    else:
+        return NonInflatedGroupNorm(32, channels)  # .to_float(ms.float32)
 
 
 class SiLU(nn.Cell):
@@ -106,11 +109,63 @@ class SiLU(nn.Cell):
 
 
 class GroupNorm32(nn.GroupNorm):
-    def construct(self, x):
+    def construct(self, x, video_length=None):
+        # video_length: just a placeholder
         ori_dtype = x.dtype
         out = super().construct(x.astype(ms.float32))
 
         return out.astype(ori_dtype)
+
+
+def rearrange_in_gn5d(x, video_length):
+    # (b*f c h w) -> (b f c h w) -> (b c f h w) for GN5D
+    bf, c, h, w = x.shape
+    x = ops.reshape(x, (bf // video_length, video_length, c, h, w))
+    x = ops.transpose(x, (0, 2, 1, 3, 4))
+
+    return x
+
+
+def rearrange_out_gn5d(x):
+    # (b c f h w) -> (b f c h w) -> (b*f c h w)
+    b, c, f, h, w = x.shape
+    x = ops.transpose(x, (0, 2, 1, 3, 4))
+    x = ops.reshape(x, (-1, c, h, w))
+
+    return x
+
+
+class NonInflatedGroupNorm(nn.GroupNorm):
+    """
+    compute GroupNorm in 5D based on the input in shape (b*f c h w) using the same way defined in AnimateDiff when use_inflated_groupnom=False,
+    i.e. reshape to 5d tensor and normalize and reshape back
+    1. (b*f c h w) -> (b f c h w) -> (b c f h w)
+    2. GroupNorm in 5D = reshape to (b c f h*w) -> ms.GN 4D -> reshape to (b c f h w)
+    3. (b c f h w) -> (b f c h w) -> (b*f c h w)
+    """
+
+    def construct(self, x, video_length):
+        # input: 4D tensor (b*f c h w)
+        # output: 4D tensor (b*f c h w)
+        x = rearrange_in_gn5d(x, video_length)
+
+        ori_dtype = x.dtype
+        x_shape = x.shape
+        x_ndim = x.ndim
+
+        if x_ndim == 5:
+            # (b c f h w) -> (b c f h*w)
+            x = ops.reshape(x, (x_shape[0], x_shape[1], x_shape[2], -1))
+
+        out = super().construct(x.astype(ms.float32)).astype(ori_dtype)
+
+        if x_ndim == 5:
+            # (b c f h*w) -> (b c f h w)
+            out = ops.reshape(out, (x_shape[0], x_shape[1], x_shape[2], x_shape[3], x_shape[4]))
+
+        out = rearrange_out_gn5d(out)
+
+        return out
 
 
 def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):

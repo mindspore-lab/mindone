@@ -6,7 +6,7 @@ from functools import partial
 from typing import Optional, Union
 
 import numpy as np
-from ldm.util import is_old_ms_version
+from packaging import version
 
 import mindspore as ms
 import mindspore.ops as ops
@@ -130,7 +130,7 @@ class CLIPModel(nn.Cell):
 
         image_features = self.get_image_features(image)
         text_features = self.get_text_features(text)
-        if not is_old_ms_version("2.0.0-alpha"):
+        if version.parse(ms.__version__) > version.parse("2.0.0-alpha"):
             L2_norm_ops = partial(ops.norm, ord=2, dim=1, keepdim=True)
         else:
             L2_norm_ops = partial(ops.norm, p=2, axis=1, keep_dims=True)

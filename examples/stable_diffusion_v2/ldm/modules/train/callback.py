@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+from typing import List
 
 import mindspore as ms
 from mindspore.train.callback._callback import Callback, _handle_loss
@@ -29,6 +30,7 @@ class EvalSaveCallback(Callback):
         use_lora=False,
         rank_id=0,
         ckpt_save_dir="./",
+        output_dir=None,
         ema=None,
         ckpt_save_policy="lastest_k",
         ckpt_max_keep=10,
@@ -39,11 +41,23 @@ class EvalSaveCallback(Callback):
         start_epoch=0,
         record_lr=True,
         model_name="sd",
+        save_trainable_only: bool = False,
+        param_save_filter: List[str] = None,
     ):
+        """
+        Args:
+            param_save_filter: indicates what parameters to save in checkpoint. If None, save all parameters in network. \
+                Otherwise, only params that contain one of the keyword in param_save_filter list will be saved.
+        """
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
         self.ema = ema
-        self.ckpt_save_dir = ckpt_save_dir
+        if output_dir is not None:
+            self.output_dir = output_dir
+            self.ckpt_save_dir = os.path.join(output_dir, "ckpt")
+        else:
+            self.output_dir = ckpt_save_dir.replace("/ckpt", "")
+            self.ckpt_save_dir = ckpt_save_dir
         self.ckpt_save_interval = ckpt_save_interval
         self.step_mode = step_mode
         self.model_name = model_name
@@ -69,14 +83,24 @@ class EvalSaveCallback(Callback):
                     perf_columns = ["step", "loss", "lr", "train_time(s)"]
                 else:
                     perf_columns = ["step", "loss", "train_time(s)"]
-                self.rec = PerfRecorder(self.ckpt_save_dir, metric_names=perf_columns)
+                self.rec = PerfRecorder(self.output_dir, metric_names=perf_columns)
             else:
-                self.rec = PerfRecorder(self.ckpt_save_dir, resume=True)
+                self.rec = PerfRecorder(self.output_dir, resume=True)
 
-        if use_lora:
+        self.save_trainable_only = save_trainable_only or use_lora
+        if self.save_trainable_only:
             # save lora trainable params only
             self.net_to_save = [{"name": p.name, "data": p} for p in network.trainable_params()]
             self.lora_rank = lora_rank
+        elif param_save_filter is not None:
+            if isinstance(param_save_filter, str):
+                param_save_filter = [param_save_filter]
+            self.net_to_save = []
+            for p in network.get_parameters():
+                for keyword in param_save_filter:
+                    if keyword in p.name:
+                        self.net_to_save.append({"name": p.name, "data": p})
+                        break
         else:
             self.net_to_save = network
         self.use_lora = use_lora
@@ -161,12 +185,11 @@ class EvalSaveCallback(Callback):
 
                 self.step_start_time = time.time()
                 _logger.info(
-                    "epoch: %d step: %d, loss is %.3f, average step time (in %d step(s)): %.3f.",
+                    "epoch: %d step: %d, loss is %.6f",
                     cb_params.cur_epoch_num,
                     (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                     loss.asnumpy().item(),
-                    self.log_interval,
-                    train_time / self.log_interval,
+                    # train_time / self.log_interval,  # TODO: divide by data sink size
                 )
 
     def on_train_epoch_begin(self, run_context):

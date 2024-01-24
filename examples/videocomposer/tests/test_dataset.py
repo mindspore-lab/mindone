@@ -37,7 +37,7 @@ def test_dataset():
     dl = build_dataset(cfg, 1, 0, tokenizer, record_data_stat=True)
     num_batches = dl.get_dataset_size()
 
-    ms.set_context(mode=0)
+    ms.set_context(mode=1)
 
     num_tries = num_batches
     start = time.time()
