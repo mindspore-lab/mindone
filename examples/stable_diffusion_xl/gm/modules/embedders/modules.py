@@ -236,6 +236,102 @@ class GeneralConditioner(nn.Cell):
             embedder.ucg_rate = rate
         return c, uc
 
+    def controlnet_tokenize_embedding(self, batch: Dict, force_zero_embeddings: Optional[List] = None) -> Dict:
+        # tokenize
+        tokens, _ = self.tokenize(batch)
+        tokens = [Tensor(t) if t is not None else t for t in tokens]
+
+        # embeddings
+        vector, crossattn, concat, text_embeds, time_ids = self.controlnet_embedding(
+            *tokens, force_zero_embeddings=force_zero_embeddings
+        )
+        embeddings_dict = {}
+        for k, v in zip(
+            ("vector", "crossattn", "concat", "controlnet_text_embeds", "controlnet_time_ids"),
+            (vector, crossattn, concat, text_embeds, time_ids),
+        ):
+            if v is not None:
+                embeddings_dict[k] = v
+
+        return embeddings_dict
+
+    def get_controlnet_unconditional_conditioning(self, batch_c, batch_uc=None, force_uc_zero_embeddings=None):
+        if force_uc_zero_embeddings is None:
+            force_uc_zero_embeddings = []
+        ucg_rates = []
+        for embedder in self.embedders:
+            ucg_rates.append(embedder.ucg_rate)
+            embedder.ucg_rate = 0.0
+        c = self.controlnet_tokenize_embedding(batch_c)
+        uc = self.controlnet_tokenize_embedding(batch_c if batch_uc is None else batch_uc, force_uc_zero_embeddings)
+
+        for embedder, rate in zip(self.embedders, ucg_rates):
+            embedder.ucg_rate = rate
+        return c, uc
+
+    def controlnet_embedding(self, *tokens, force_zero_embeddings=None):
+        assert len(tokens) == len(self.embedders), (
+            f"tokens and self.embedders length is not equal, " f"{len(tokens)}, {len(self.embedders)}"
+        )
+
+        vector, crossattn, concat = None, None, None
+        text_embeds = None
+        time_ids = ops.concat([tokens[-3], tokens[-2], tokens[-1]], axis=-1)
+
+        if force_zero_embeddings is None:
+            force_zero_embeddings = ()
+        for i in range(len(self.embedders)):
+            embedder = self.embedders[i]
+            token = tokens[i]
+            token = token if isinstance(token, (list, tuple)) else (token,)
+            emb_out = embedder(*token)
+
+            if not isinstance(emb_out, (list, tuple)):
+                emb_out = (emb_out,)
+            for emb in emb_out:
+                if embedder.ucg_rate > 0.0 and embedder.legacy_ucg_val is None:
+                    emb = (
+                        expand_dims_like(
+                            ops.bernoulli((1.0 - embedder.ucg_rate) * ops.ones(emb.shape[0], dtype=emb.dtype)),
+                            emb,
+                        )
+                        * emb
+                    )
+                if hasattr(embedder, "input_key") and embedder.input_key in force_zero_embeddings:
+                    emb = ops.zeros_like(emb)
+
+                if not embedder.is_trainable:
+                    emb = ops.stop_gradient(emb)
+
+                # CONCAT
+                # OUTPUT_DIM2KEYS = {2: "vector", 3: "crossattn", 4: "concat", 5: "concat"}
+                # KEY2CATDIM = {"vector": 1, "crossattn": 2, "concat": 1}
+                assert emb.dim() in (2, 3, 4, 5)
+                if emb.dim() == 2:  # vector
+                    if vector is None:
+                        vector = emb
+                        text_embeds = emb
+                    else:
+                        vector = ops.concat((vector, emb), 1)
+                elif emb.dim() == 3:  # crossattn
+                    if crossattn is None:
+                        crossattn = emb
+                    else:
+                        if crossattn.shape[1] == emb.shape[1]:
+                            crossattn = ops.concat((crossattn, emb), 2)
+                        else:
+                            # for image/text emb fusion
+                            if emb.shape[0] == 1:
+                                emb = ops.tile(emb, (crossattn.shape[0], 1, 1))
+                            crossattn = ops.concat((crossattn, emb), 1)
+                else:  # concat
+                    if concat is None:
+                        concat = emb
+                    else:
+                        concat = ops.concat((concat, emb), 1)
+
+        return vector, crossattn, concat, text_embeds, time_ids
+
 
 class FrozenCLIPEmbedder(AbstractEmbModel):
     """Uses the CLIP transformer encoder for text (from huggingface)"""

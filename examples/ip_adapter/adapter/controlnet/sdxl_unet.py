@@ -46,7 +46,7 @@ class IPAdapterControlNetUnetModel(IPAdatperUNetModel):
             )
             add_t_emb = ops.reshape(add_t_emb, (add_text_embeds.shape[0], -1))
 
-            add_emb = ops.concat([add_text_embeds, add_time_ids], axis=-1)
+            add_emb = ops.concat([add_text_embeds.to(add_t_emb.dtype), add_t_emb], axis=-1)
             add_emb = self.controlnet.add_embed(add_emb)
             emb_c += add_emb
 

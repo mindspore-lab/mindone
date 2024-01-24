@@ -34,7 +34,7 @@ class VanillaCFG:
         c_out = dict()
 
         for k in c:
-            if k in ["vector", "crossattn", "concat"]:
+            if k in ["vector", "crossattn", "concat", "controlnet_text_embeds", "controlnet_time_ids"]:
                 c_out[k] = ops.concat((uc[k], c[k]), 0)
             else:
                 assert c[k] == uc[k]

@@ -1,5 +1,6 @@
 base: ../stable_diffusion_xl/configs/inference/sd_xl_base_controlnet.yaml
 model:
+  target: adapter.sdxl.models.diffusion.ControlNetDiffusionEngine
   params:
     conditioner_config:
       params:
