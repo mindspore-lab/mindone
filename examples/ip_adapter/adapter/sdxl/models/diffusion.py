@@ -4,6 +4,7 @@ import numpy as np
 from gm.models.diffusion import DiffusionEngine, get_batch, get_unique_embedder_keys_from_conditioner
 
 import mindspore as ms
+import mindspore.ops as ops
 from mindspore import Tensor
 
 
@@ -75,6 +76,9 @@ class ControlNetDiffusionEngine(DiffusionEngine):
             # assert randn.shape==shape, 'unmatch shape due to loaded noise'
         else:
             randn = Tensor(np.random.randn(*shape), ms.float32)
+
+        # support non-guess mode only
+        control = ops.concat((control, control), axis=0)
 
         print("Sample latent Starting...")
         samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states, control=control)

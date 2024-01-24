@@ -34,10 +34,6 @@ class IPAdapterControlNetUnetModel(IPAdatperUNetModel):
 
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
-
-        if self.num_classes is not None:
-            emb = emb + self.label_emb(y)
-
         emb_c = self.controlnet.time_embed(t_emb)
 
         if self.controlnet.addition_embed_type == "text_time":
@@ -48,6 +44,7 @@ class IPAdapterControlNetUnetModel(IPAdatperUNetModel):
 
             add_emb = ops.concat([add_text_embeds.to(add_t_emb.dtype), add_t_emb], axis=-1)
             add_emb = self.controlnet.add_embed(add_emb)
+            emb += add_emb
             emb_c += add_emb
 
         if control is not None:

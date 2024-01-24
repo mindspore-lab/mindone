@@ -29,10 +29,6 @@ class IPAdapterControlNetUnetModel(IPAdapterUNetModel):
         hs = []
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
-
-        if self.num_classes is not None:
-            emb = emb + self.label_emb(y)
-
         emb_c = self.controlnet.time_embed(t_emb)
 
         guided_hint = control

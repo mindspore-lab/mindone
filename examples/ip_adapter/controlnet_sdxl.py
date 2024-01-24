@@ -11,6 +11,8 @@ from typing import Tuple
 
 from PIL import Image, ImageOps
 
+import mindspore.ops as ops
+
 sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
 
@@ -119,7 +121,7 @@ def run_text2img(
 
     clip_img = load_clip_image(args.img)
     control_img = load_control_image(args.control_img)
-    # control_img = ops.tile(control_img, (batch_size, 1, 1, 1))
+    control_img = ops.tile(control_img, (args.num_cols, 1, 1, 1))
     _, _, H, W = control_img.shape
 
     value_dict = {
