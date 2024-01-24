@@ -2,10 +2,19 @@
 import argparse
 import ast
 import os
+import sys
 import time
+from functools import partial
 
+sys.path.append(".")
+sys.path.append("..")
+if os.environ.get("MS_PYNATIVE_GE") != "1":
+    os.environ["MS_PYNATIVE_GE"] = "1"
+
+from cldm.util import get_control
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
 from gm.util import seed_everything
+from gm.util.long_prompt import do_sample as do_sample_long_prompts
 from omegaconf import OmegaConf
 
 import mindspore as ms
@@ -18,10 +27,31 @@ def get_parser_sample():
     parser.add_argument("--config", type=str, default="configs/inference/sd_xl_base.yaml")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument(
+        "--textual_inversion_weight",
+        type=str,
+        default=None,
+        help="the weight file path for the textual inversion finetuned weights",
+    )
+    parser.add_argument(
+        "--placeholder_token",
+        type=str,
+        default=None,
+        help="the placeholder token for the textual inversion. "
+        "If not provided, the placholder token in the textual_inversion_weight will be used.",
+    )
+    parser.add_argument(
+        "--num_vectors",
+        type=int,
+        default=None,
+        help="the number of vectors for the textual inversion. "
+        "If not provided, the number of vectors in the textual_inversion_weight will be used.",
+    )
+    parser.add_argument(
         "--prompt", type=str, default="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
     )
 
     parser.add_argument("--negative_prompt", type=str, default="")
+    parser.add_argument("--support_long_prompts", type=ast.literal_eval, default=False)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     parser.add_argument("--orig_width", type=int, default=None)
     parser.add_argument("--orig_height", type=int, default=None)
@@ -33,10 +63,23 @@ def get_parser_sample():
     parser.add_argument("--negative_aesthetic_score", type=float, default=None)
     parser.add_argument("--sampler", type=str, default="EulerEDMSampler")
     parser.add_argument("--guider", type=str, default="VanillaCFG")
+    parser.add_argument(
+        "--guidance_scale",
+        type=float,
+        default=5.0,
+        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (uncond - cond).",
+    )
     parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--init_latent_path",
+        type=str,
+        default=None,
+        help="path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.",
+    )
+    parser.add_argument("--precision_keep_origin_dtype", type=ast.literal_eval, default=False)
     parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
 
     # for img2img
@@ -60,6 +103,12 @@ def get_parser_sample():
         "--ms_enable_graph_kernel", type=ast.literal_eval, default=False, help="use enable_graph_kernel or not"
     )
 
+    # for controlnet
+    parser.add_argument("--controlnet_mode", type=str, choices=["canny"])
+    parser.add_argument("--control_image_path", type=str, help="path of input image for controlnet")
+    parser.add_argument("--low_threshold", type=int, default=100, help="param of cv2.Canny()")
+    parser.add_argument("--high_threshold", type=int, default=200, help="param of cv2.Canny()")
+
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
     parser.add_argument(
@@ -82,15 +131,30 @@ def get_parser_sample():
 
 
 def run_txt2img(
-    args, model, version_dict, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"
+    args,
+    model,
+    version_dict,
+    is_legacy=False,
+    return_latents=False,
+    filter=None,
+    stage2strength=None,
+    amp_level="O0",
+    save_path="./",
 ):
     assert args.sd_xl_base_ratios in SD_XL_BASE_RATIOS
     W, H = SD_XL_BASE_RATIOS[args.sd_xl_base_ratios]
     C = version_dict["C"]
     F = version_dict["f"]
 
+    prompts = []
+    if os.path.exists(args.prompt):
+        with open(args.prompt, "r") as f:
+            prompts = f.read().splitlines()
+    else:
+        prompts = [args.prompt]
+
     value_dict = {
-        "prompt": args.prompt,
+        "prompt": prompts[0],
         "negative_prompt": args.negative_prompt,
         "orig_width": args.orig_width if args.orig_width else W,
         "orig_height": args.orig_height if args.orig_height else H,
@@ -105,6 +169,7 @@ def run_txt2img(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
+        guidance_scale=args.guidance_scale,
         discretization=args.discretization,
         steps=args.sample_step,
         stage2strength=stage2strength,
@@ -112,23 +177,40 @@ def run_txt2img(
     num_samples = num_rows * num_cols
 
     print("Txt2Img Sampling")
-    s_time = time.time()
-    out = model.do_sample(
-        sampler,
-        value_dict,
-        num_samples,
-        H,
-        W,
-        C,
-        F,
-        force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-        return_latents=return_latents,
-        filter=filter,
-        amp_level=amp_level,
-    )
-    print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+    outs = []
+    control = None
+    if args.controlnet_mode is not None:
+        control, H, W = get_control(args, num_samples, min(H, W))
+    for i, prompt in enumerate(prompts):
+        print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
+        value_dict["prompt"] = prompt
+        s_time = time.time()
+        sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
+        out = sampling_func(
+            sampler,
+            value_dict,
+            num_samples,
+            H,
+            W,
+            C,
+            F,
+            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+            return_latents=return_latents,
+            filter=filter,
+            amp_level=amp_level,
+            init_latent_path=args.init_latent_path,
+            control=control,
+        )
+        print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
-    return out
+        out = out if isinstance(out, (tuple, list)) else [out, None]
+        (samples, samples_z) = out
+
+        perform_save_locally(save_path, samples)
+
+        outs.append(out)
+
+    return outs
 
 
 def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"):
@@ -156,6 +238,7 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
+        guidance_scale=args.guidance_scale,
         discretization=args.discretization,
         steps=args.sample_step,
         img2img_strength=strength,
@@ -239,7 +322,14 @@ def sample(args):
         load_filter=False,
         param_fp16=False,
         amp_level=args.ms_amp_level,
+        textual_inversion_ckpt=args.textual_inversion_weight,
+        placeholder_token=args.placeholder_token,
+        num_vectors=args.num_vectors,
     )  # TODO: Add filter support
+    if args.textual_inversion_weight is not None:
+        model, manager = model
+        # replace placeholder token by placeholder tokens
+        args.prompt = manager.manage_prompt(args.prompt)
 
     save_path = os.path.join(args.save_path, task, version)
     is_legacy = version_dict["is_legacy"]
@@ -250,7 +340,7 @@ def sample(args):
     if add_pipeline:
         # Init for pipeline
         version2 = "SDXL-refiner-1.0"
-        config2 = args.pipeline_config
+        config2 = OmegaConf.load(args.pipeline_config)
         weight2 = args.pipeline_weight
         stage2strength = args.stage2strength
         print(f"WARNING: Running with {version2} as the second stage model. Make sure to provide (V)RAM :) ")
@@ -297,6 +387,7 @@ def sample(args):
             filter=filter,
             stage2strength=stage2strength,
             amp_level=args.ms_amp_level,
+            save_path=save_path,
         )
     elif task == "img2img":
         out = run_img2img(
@@ -311,10 +402,11 @@ def sample(args):
     else:
         raise ValueError(f"Unknown task {task}")
 
-    out = out if isinstance(out, (tuple, list)) else [out, None]
-    (samples, samples_z) = out
+    if task != "txt2img":
+        out = out if isinstance(out, (tuple, list)) else [out, None]
+        (samples, samples_z) = out
 
-    perform_save_locally(save_path, samples)
+        perform_save_locally(save_path, samples)
 
     if add_pipeline:
         print("**Running Refinement Stage**")
@@ -337,5 +429,12 @@ def sample(args):
 if __name__ == "__main__":
     parser = get_parser_sample()
     args, _ = parser.parse_known_args()
-    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target)
+
+    ms.context.set_context(
+        mode=args.ms_mode,
+        device_target=args.device_target,
+    )
+    if args.precision_keep_origin_dtype:
+        ms.context.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
+
     sample(args)

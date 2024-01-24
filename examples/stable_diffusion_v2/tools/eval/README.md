@@ -9,7 +9,7 @@ This folder contains code and scripts for diffusion model evaluation, e.g.,
 
 Note that all the above metrics are computed based on neural network models.
 
-> A convincing evaluation for diffusion models requires both visually qualitative comparision and quantitative measure. A higher FID score (or CLIP score) does not nessarily show one model is better than another.
+> A convincing evaluation for diffusion models requires both visually qualitative comparision and quantitative measure. A lower FID score (or a higher CLIP score) does not necessarily show one model is better than another.
 
 ## Usage
 
@@ -29,7 +29,7 @@ For more usage, please run `python tools/eval/eval_fid.py -h`.
 
 ### CLIP Score
 
-To compute the CLIP score between images and texts, in `examples/stable_diffusion` directory, please run
+To compute the CLIP score between images and texts, in `examples/stable_diffusion_v2` directory, please run
 
 - Mindspore backend
 ```
@@ -49,7 +49,7 @@ You need to download the checkpoint file for a CLIP model of your choice. Downlo
 - [clip_vit_b_32](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/XFormer_for_mindspore/clip/clip_vit_b_32.ckpt)
 - [clip_vit_l_14](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt)
 
-For other compatible models, e.g., OpenCLIP, you can download `pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `eval/clip_score/utils/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `eval/clip_score/configs`.
+For other compatible models, e.g., OpenCLIP, you can download `pytorch_model.bin` from HuggingFace (HF) and then convert to `.ckpt` using `tools/_common/clip/convert_weight.py`. When using a model other than the default, you should supply the path to your model's config file. Some useful examples are provided in `tools/_common/clip/configs`.
 
 `image_path` should lead to an image file or a directory containing images. If it is a directory, then the images are sorted by their filename in an ascending order. `prompt` can be either a piece of text or the path to an `.txt` file, where prompts are placed line by line. Images and prompts are matched such that each prompt corresponding to one or many images in order.
 

@@ -109,8 +109,7 @@ class PLMSSampler:
                     _logger.warning(f"Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
         self.make_schedule(ddim_num_steps=S, ddim_eta=eta, verbose=verbose)
         # sampling
-        C, H, W = shape
-        size = (batch_size, C, H, W)
+        size = (batch_size, *shape)
         _logger.debug(f"Data shape for PLMS sampling is {size}")
         samples, intermediates = self.plms_sampling(
             conditioning,

@@ -1,9 +1,7 @@
 # reference to https://github.com/Stability-AI/generative-models
 
-
 from typing import Callable
 
-import numpy as np
 from gm.modules.attention import FLASH_IS_AVAILABLE, FlashAttention, LinearAttention
 from gm.modules.transformers import scaled_dot_product_attention
 
@@ -125,18 +123,10 @@ class AttnBlock(nn.Cell):
         self.attn_dtype = attn_dtype
 
         self.norm = Normalize(in_channels)
-        self.q = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.k = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.v = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
     def attention(self, h_: Tensor) -> Tensor:
         h_ = self.norm(h_)
@@ -181,18 +171,10 @@ class MemoryEfficientAttnBlock(nn.Cell):
         self.attn_dtype = attn_dtype
 
         self.norm = Normalize(in_channels)
-        self.q = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.k = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.v = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="valid", has_bias=True
-        )
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
         self.flash_attention = FlashAttention()
 
@@ -242,8 +224,6 @@ class LinAttnBlock(LinearAttention):
 
 def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None, attn_dtype=None):
     assert attn_type in ["vanilla", "flash-attention", "linear", "none"], f"attn_type {attn_type} unknown"
-
-    print(f"AE: making attention of type '{attn_type}' with {in_channels} in_channels")
 
     if attn_type == "flash-attention" and not FLASH_IS_AVAILABLE:
         print(
@@ -436,7 +416,8 @@ class Decoder(nn.Cell):
         block_in = ch * ch_mult[self.num_resolutions - 1]
         curr_res = resolution // 2 ** (self.num_resolutions - 1)
         self.z_shape = (1, z_channels, curr_res, curr_res)
-        print("Working with z of shape {} = {} dimensions.".format(self.z_shape, np.prod(self.z_shape)))
+        # disable print
+        # print("Working with z of shape {} = {} dimensions.".format(self.z_shape, np.prod(self.z_shape)))
 
         make_attn_cls = self._make_attn()
         make_resblock_cls = self._make_resblock()

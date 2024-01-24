@@ -1,18 +1,21 @@
+import logging
+from typing import Optional
+
 import numpy as np
 from ldm.models.clip.simple_tokenizer import get_tokenizer
 from ldm.modules.diffusionmodules.openaimodel import Timestep
 from ldm.modules.diffusionmodules.upscaling import ImageConcatWithNoiseAugmentation
-from PIL import Image
 
 import mindspore as ms
-import mindspore.dataset.vision as vision
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
-from mindspore.dataset.transforms import Compose
+from mindspore.common.initializer import TruncatedNormal, initializer
 
 from .image_encoder import ImageEncoder
 from .text_encoder import OpenClipTextEncoder, TextEncoder
+
+_logger = logging.getLogger(__name__)
 
 
 class FrozenCLIPEmbedder(nn.Cell):
@@ -28,11 +31,14 @@ class FrozenCLIPEmbedder(nn.Cell):
         heads=12,
         epsilon=1e-5,
         use_quick_gelu=False,
+        upcast_attn=False,
+        version=None,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.context_length = context_length
-        self.tokenizer = get_tokenizer(tokenizer_name)
+        self.tokenizer_name = tokenizer_name
+        self.tokenizer = get_tokenizer(tokenizer_name, version=version)
         setattr(self.tokenizer, "context_length", context_length)
 
         self.transformer = TextEncoder(
@@ -45,9 +51,13 @@ class FrozenCLIPEmbedder(nn.Cell):
             epsilon=epsilon,
             use_quick_gelu=use_quick_gelu,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     def tokenize(self, texts):
+        if self.tokenizer_name == "CLIPTokenizer":
+            return self._clip_tokenize(texts)
+
         SOT_TEXT = self.tokenizer.sot_text
         EOT_TEXT = self.tokenizer.eot_text
         CONTEXT_LEN = self.context_length
@@ -68,6 +78,18 @@ class FrozenCLIPEmbedder(nn.Cell):
 
         return Tensor(result)
 
+    def _clip_tokenize(self, texts):
+        batch_encoding = self.tokenizer(
+            texts,
+            truncation=True,
+            max_length=self.context_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = ms.Tensor(batch_encoding["input_ids"], ms.int32)
+        return tokens
+
     def encode(self, tokenized_text):
         outputs = self.transformer(tokenized_text)
         return outputs
@@ -75,6 +97,83 @@ class FrozenCLIPEmbedder(nn.Cell):
     def construct(self, c):
         outputs = self.transformer(c)
         return outputs
+
+    def get_input_embeddings(self) -> ms.Parameter:
+        return self.transformer.embedding_table
+
+    def set_input_embeddings(self, new_embedding_table):
+        self.transformer.embedding_table = new_embedding_table
+
+    def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> ms.Parameter:
+        """
+        Resizes input token embeddings matrix of the `CLIPTextTransformer` if `new_num_tokens != config.vocab_size`.
+
+        Arguments:
+            new_num_tokens (`int`, *optional*):
+                The number of new tokens in the embedding matrix. Increasing the size will add newly initialized
+                vectors at the end. Reducing the size will remove vectors from the end. If not provided or `None`, just
+                returns a pointer to the input tokens `ms.Parameter` module of the model without doing anything.
+
+        Return:
+            `ms.Parameter`: Pointer to the input tokens Embeddings Module of the model.
+        """
+        model_embeds = self._resize_token_embeddings(new_num_tokens)
+        if new_num_tokens is None:
+            return model_embeds
+
+        # Update base model and current model config
+        # self.config.vocab_size = model_embeds.shape[0]
+        self.vocab_size = model_embeds.shape[0]
+        return model_embeds
+
+    def _resize_token_embeddings(self, new_num_tokens) -> ms.Parameter:
+        old_embeddings = self.get_input_embeddings()
+        new_embeddings = self._get_resized_embeddings(old_embeddings, new_num_tokens)
+        self.set_input_embeddings(new_embeddings)
+
+        return self.get_input_embeddings()
+
+    def _get_resized_embeddings(
+        self,
+        old_embeddings,
+        new_num_tokens: Optional[int] = None,
+    ) -> ms.Parameter:
+        """Build a resized Embedding Module from a provided token Embedding Module.
+            Increasing the size will add newly initialized vectors at the end
+            Reducing the size will remove vectors from the end
+
+        Args:
+            new_num_tokens: (`optional`) int
+                New number of tokens in the embedding matrix.
+                Increasing the size will add newly initialized vectors at the end
+                Reducing the size will remove vectors from the end
+                If not provided or None: return the provided token Embedding Module.
+        Return: ``mindspore.Parameter``
+            Pointer to the resized Embedding Module or the old Embedding Module if new_num_tokens is None
+        """
+        if new_num_tokens is None:
+            return old_embeddings
+
+        old_num_tokens, old_embedding_dim = old_embeddings.shape
+        if old_num_tokens == new_num_tokens:
+            return old_embeddings
+
+        old_dtype = old_embeddings.dtype
+        # Build new embeddings
+        new_embeddings = ms.Parameter(
+            initializer(TruncatedNormal(0.02), [new_num_tokens, old_embedding_dim], dtype=old_dtype)
+        )
+
+        # Copy word embeddings from the previous weights
+        num_tokens_to_copy = min(old_num_tokens, new_num_tokens)
+        new_embeddings.data[:num_tokens_to_copy, :] = old_embeddings.data[:num_tokens_to_copy, :]
+
+        # align the parameter status
+        old_name = old_embeddings.name
+        old_requires_grad = old_embeddings.requires_grad
+        new_embeddings.name = old_name
+        new_embeddings.requires_grad = old_requires_grad
+        return new_embeddings
 
 
 class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
@@ -88,6 +187,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
         width=768,
         layers=12,
         heads=12,
+        upcast_attn=False,
     ):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
@@ -105,6 +205,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
             epsilon=1e-5,
             use_quick_gelu=False,
             dtype=self.dtype,
+            upcast_attn=upcast_attn,
         )
 
     def encode(self, tokenized_text):
@@ -126,7 +227,7 @@ class CLIPImageEmbedder(nn.Cell):
         vision_width=1024,
         vision_patch_size=14,
         vision_head_width=64,
-        ucg_rate=0.0,
+        mlp_ratio=4.0,
     ):
         super().__init__()
         self.use_fp16 = use_fp16
@@ -140,42 +241,29 @@ class CLIPImageEmbedder(nn.Cell):
             vision_head_width=vision_head_width,
             epsilon=1e-5,
             use_quick_gelu=True,
+            mlp_ratio=mlp_ratio,
             dtype=self.dtype,
         )
-        self.ucg_rate = ucg_rate
 
-        self.transform = self._build_transform()
+        self.mean = ms.Tensor([0.48145466, 0.4578275, 0.40821073], dtype=self.dtype)
+        self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711], dtype=self.dtype)
 
-    def _build_transform(self):
-        mean = np.array([0.48145466, 0.4578275, 0.40821073]) * 255
-        std = np.array([0.26862954, 0.26130258, 0.27577711]) * 255
-        transforms = Compose(
-            [
-                vision.Resize((224, 224), vision.Inter.BICUBIC),
-                vision.Normalize(mean.tolist(), std.tolist()),
-                vision.HWC2CHW(),
-            ]
-        )
-        return transforms
-
-    def preprocess(self, image: Image.Image) -> Tensor:
-        w, h = image.size
-        w, h = map(lambda x: x - x % 64, (w, h))
-        image = image.resize((w, h), resample=Image.LANCZOS)
-
-        image = np.array(image)
-        image = self.transform(image)
-        image = image[None, ...]
-        if self.use_fp16:
-            image = image.astype(np.float16)
-        x = ms.Tensor(image)
+    def preprocess(self, x: Tensor) -> Tensor:
+        x = ops.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
+        # normalize to [0,1]
+        x = (x + 1.0) / 2.0
+        # re-normalize according to clip
+        x = (x - self.mean[None, :, None, None]) / self.std[None, :, None, None]
         return x
 
-    def construct(self, x: Tensor, no_dropout: bool = False):
+    def encode(self, x: Tensor) -> Tensor:
+        # x should be a CLIP preproceesed tensor
+        return self.model.encode_image(x)
+
+    def construct(self, x: Tensor) -> Tensor:
+        # x should be a normalzized tensor with range (-1, 1)
+        x = self.preprocess(x)
         out = self.model.encode_image(x)
-        out = out.to(x.dtype)
-        if self.ucg_rate > 0.0 and not no_dropout:
-            out = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(out.shape[0]))[:, None] * out
         return out
 
 
@@ -189,7 +277,7 @@ class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
         vision_width=1024,
         vision_patch_size=14,
         vision_head_width=64,
-        ucg_rate=0.0,
+        mlp_ratio=4.0,
     ):
         super(CLIPImageEmbedder, self).__init__()
         self.use_fp16 = use_fp16
@@ -203,9 +291,12 @@ class FrozenOpenCLIPImageEmbedder(CLIPImageEmbedder):
             vision_head_width=vision_head_width,
             epsilon=1e-5,
             use_quick_gelu=False,
+            mlp_ratio=mlp_ratio,
             dtype=self.dtype,
         )
-        self.ucg_rate = ucg_rate
+
+        self.mean = ms.Tensor([0.48145466, 0.4578275, 0.40821073], dtype=self.dtype)
+        self.std = ms.Tensor([0.26862954, 0.26130258, 0.27577711], dtype=self.dtype)
 
 
 class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
@@ -216,6 +307,7 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
         if clip_stats_path is None:
             clip_mean, clip_std = ops.zeros(timestep_dim), ops.ones(timestep_dim)
         else:
+            _logger.info(f"Loading CLIP stats from {clip_stats_path}")
             clip = ms.load_checkpoint(clip_stats_path)
             clip_mean, clip_std = clip["mean"], clip["std"]
 
@@ -235,7 +327,7 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
 
     def construct(self, x, noise_level=None):
         if noise_level is None:
-            noise_level = ms.numpy.randint(0, self.max_noise_level, (x.shape[0],), dtype=ms.int64)
+            noise_level = ms.numpy.randint(0, self.max_noise_level, (x.shape[0],), dtype=ms.int32)
         x = self.scale(x)
         z = self.q_sample(x, noise_level)
         z = self.unscale(z)

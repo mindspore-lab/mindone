@@ -178,12 +178,26 @@ def noise_like(shape, repeat=False):
         raise ValueError("The repeat method is not supported")
 
 
+def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
+    betas = []
+    for i in range(num_diffusion_timesteps):
+        t1 = i / num_diffusion_timesteps
+        t2 = (i + 1) / num_diffusion_timesteps
+        betas.append(min(1 - alpha_bar(t2) / alpha_bar(t1), max_beta))
+    return np.array(betas)
+
+
 def make_beta_schedule(schedule="linear", n_timestep=1000, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
     if schedule == "linear":
         start = linear_start**0.5
         stop = linear_end**0.5
         num = n_timestep
         betas = (np.linspace(start, stop, num) ** 2).astype(np.float32)
+    elif schedule == "squaredcos_cap_v2":
+        return betas_for_alpha_bar(
+            n_timestep,
+            lambda t: np.cos((t + 0.008) / 1.008 * np.pi / 2) ** 2,
+        )
     else:
         raise ValueError(f"schedule '{schedule}' unknown.")
 

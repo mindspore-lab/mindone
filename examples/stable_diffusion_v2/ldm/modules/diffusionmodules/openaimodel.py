@@ -123,6 +123,7 @@ class ResBlock(nn.Cell):
         up=False,
         down=False,
         dtype=ms.float32,
+        upcast_sigmoid=False,
     ):
         super().__init__()
         self.channels = channels
@@ -139,7 +140,7 @@ class ResBlock(nn.Cell):
         self.split = ops.Split(1, 2)
 
         self.in_layers_norm = normalization(channels)
-        self.in_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.in_layers_silu = nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU()
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
@@ -154,14 +155,14 @@ class ResBlock(nn.Cell):
             self.h_upd = self.x_upd = self.identity
 
         self.emb_layers = nn.SequentialCell(
-            nn.SiLU().to_float(self.dtype),
+            nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
             linear(
                 emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels, dtype=self.dtype
             ),
         )
 
         self.out_layers_norm = normalization(self.out_channels)
-        self.out_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.out_layers_silu = nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU()
 
         if is_old_ms_version():
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
@@ -293,6 +294,8 @@ class UNetModel(nn.Cell):
     :param resblock_updown: use residual blocks for up/downsampling.
     :param use_new_attention_order: use a different attention pattern for potentially
                                     increased efficiency.
+    :param fa_max_head_dim: the maximum head dimension to apply flash attention. In case of OOM,
+                                reduce this value.
     """
 
     def __init__(
@@ -323,10 +326,12 @@ class UNetModel(nn.Cell):
         legacy=True,
         use_linear_in_transformer=False,
         enable_flash_attention=False,
+        fa_max_head_dim=256,
         cross_frame_attention=False,
         unet_chunk_size=2,
         adm_in_channels=None,
         upcast_attn=False,
+        use_recompute=False,
         upcast_sigmoid=False,
     ):
         super().__init__()
@@ -342,7 +347,7 @@ class UNetModel(nn.Cell):
             ), "Fool!! You forgot to use the spatial transformer for your cross-attention conditioning..."
             from omegaconf.listconfig import ListConfig
 
-            if type(context_dim) == ListConfig:
+            if isinstance(context_dim, ListConfig):
                 context_dim = list(context_dim)
 
         if num_heads_upsample == -1:
@@ -374,7 +379,7 @@ class UNetModel(nn.Cell):
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
 
@@ -386,7 +391,7 @@ class UNetModel(nn.Cell):
                 self.label_emb = nn.SequentialCell(
                     nn.SequentialCell(
                         linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
-                        nn.SiLU().to_float(self.dtype),
+                        nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
@@ -422,6 +427,7 @@ class UNetModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             dtype=self.dtype,
+                            upcast_sigmoid=upcast_sigmoid,
                         )
                     ]
                 )
@@ -457,6 +463,7 @@ class UNetModel(nn.Cell):
                             cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                             upcast_attn=upcast_attn,
+                            fa_max_head_dim=fa_max_head_dim,
                         )
                     )
                 self.input_blocks.append(layers)
@@ -477,6 +484,7 @@ class UNetModel(nn.Cell):
                                 use_scale_shift_norm=use_scale_shift_norm,
                                 down=True,
                                 dtype=self.dtype,
+                                upcast_sigmoid=upcast_sigmoid,
                             )
                         ]
                     )
@@ -511,6 +519,7 @@ class UNetModel(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    upcast_sigmoid=upcast_sigmoid,
                 ),
                 AttentionBlock(
                     ch,
@@ -534,6 +543,7 @@ class UNetModel(nn.Cell):
                     cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
                     upcast_attn=upcast_attn,
+                    fa_max_head_dim=fa_max_head_dim,
                 ),
                 ResBlock(
                     ch,
@@ -543,6 +553,7 @@ class UNetModel(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    upcast_sigmoid=upcast_sigmoid,
                 ),
             ]
         )
@@ -563,6 +574,7 @@ class UNetModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             dtype=self.dtype,
+                            upcast_sigmoid=upcast_sigmoid,
                         )
                     ]
                 )
@@ -599,6 +611,7 @@ class UNetModel(nn.Cell):
                             cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                             upcast_attn=upcast_attn,
+                            fa_max_head_dim=fa_max_head_dim,
                         )
                     )
                 if level and i == num_res_blocks:
@@ -614,6 +627,7 @@ class UNetModel(nn.Cell):
                             use_scale_shift_norm=use_scale_shift_norm,
                             up=True,
                             dtype=self.dtype,
+                            upcast_sigmoid=upcast_sigmoid,
                         )
                         if resblock_updown
                         else Upsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
@@ -624,7 +638,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             normalization(ch),
-            nn.SiLU().to_float(self.dtype),
+            nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
             zero_module(
                 conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
                     self.dtype
@@ -638,6 +652,13 @@ class UNetModel(nn.Cell):
                 conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode="pad").to_float(self.dtype),
             )
         self.cat = ops.Concat(axis=1)
+
+        # recompute to save NPU mem
+        if use_recompute:
+            for mblock in self.middle_block:
+                mblock.recompute()
+            for oblock in self.output_blocks:
+                oblock.recompute()
 
     def construct(
         self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs

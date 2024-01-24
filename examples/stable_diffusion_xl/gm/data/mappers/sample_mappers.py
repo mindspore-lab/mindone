@@ -97,6 +97,26 @@ class Resize:
         return sample
 
 
+class CenterCrop:
+    def __init__(self, key: str = "image", size: Union[int, List] = 256):
+        self.center_crop_op = ms.dataset.transforms.vision.CenterCrop(size)
+        self.key = key
+
+    def __call__(self, sample: Dict):
+        sample[self.key] = self.center_crop_op(sample[self.key])
+        return sample
+
+
+class RandomHorizontalFlip:
+    def __init__(self, key: str = "image", p: float = 0.5):
+        self.random_flip_op = ms.dataset.transforms.vision.RandomHorizontalFlip(prob=p)
+        self.key = key
+
+    def __call__(self, sample: Dict):
+        sample[self.key] = self.random_flip_op(sample[self.key])
+        return sample
+
+
 class Transpose:
     def __init__(self, key: str = "image", type: str = "hwc2chw"):
         self.key = key

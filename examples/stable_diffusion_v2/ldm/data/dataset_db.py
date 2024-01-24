@@ -98,8 +98,9 @@ def build_dataloader_ft(dataset, datalens, collate_fn, batch_size, device_num, r
 def list_image_files(data_path):
     all_images = []
     for file_name in os.listdir(data_path):
-        imges_path = os.path.join(data_path, file_name)
-        all_images.append(imges_path)
+        if (not file_name.endswith(".csv")) and (not file_name.endswith(".json")):
+            imges_path = os.path.join(data_path, file_name)
+            all_images.append(imges_path)
     return all_images
 
 

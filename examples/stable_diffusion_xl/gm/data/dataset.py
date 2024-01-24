@@ -5,13 +5,13 @@ import time
 import imagesize
 import numpy as np
 import pandas as pd
+from gm.data.commons import TEMPLATES_FACE, TEMPLATES_OBJECT, TEMPLATES_STYLE
 from gm.util import instantiate_from_config
 from PIL import Image
+from PIL.ImageOps import exif_transpose
 
 
 class Text2ImageDataset:
-    dataset_column_names = ["samples"]
-
     def __init__(
         self,
         data_path,
@@ -19,6 +19,7 @@ class Text2ImageDataset:
         transforms=None,
         batched_transforms=None,
         tokenizer=None,
+        token_nums=None,
         image_filter_size=0,
         random_crop=False,
         filter_small_size=False,
@@ -28,6 +29,16 @@ class Text2ImageDataset:
     ):
         super().__init__()
         self.tokenizer = tokenizer
+        self.token_nums = token_nums
+        self.dataset_column_names = ["samples"]
+        if self.tokenizer is None:
+            self.dataset_output_column_names = self.dataset_column_names
+        else:
+            assert token_nums is not None and token_nums > 0
+            self.dataset_output_column_names = [
+                "image",
+            ] + [f"token{i}" for i in range(token_nums)]
+
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
@@ -61,20 +72,17 @@ class Text2ImageDataset:
                     f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
-        if self.tokenizer:
-            raise NotImplementedError
-
     def __getitem__(self, idx):
         # images preprocess
         image_path = self.local_images[idx]
         image = Image.open(image_path)
+        image = exif_transpose(image)
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
 
         # caption preprocess
         caption = self.local_captions[idx]
-        caption = caption if self.tokenizer is None else np.array(self.tokenize(caption), dtype=np.int32)
         caption = np.array(caption)
 
         sample = {
@@ -95,21 +103,6 @@ class Text2ImageDataset:
 
         return sample
 
-    def tokenize(self, text):
-        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
-        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
-        CONTEXT_LEN = self.tokenizer.context_length
-
-        sot_token = self.tokenizer.encoder[SOT_TEXT]
-        eot_token = self.tokenizer.encoder[EOT_TEXT]
-        tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN])
-        if len(tokens) > CONTEXT_LEN:
-            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
-        result[: len(tokens)] = tokens
-
-        return result
-
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
@@ -125,7 +118,17 @@ class Text2ImageDataset:
         for s in samples:
             for k in s:
                 batch_samples[k].append(s[k])
-        return {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
+
+        data = {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
+
+        if self.tokenizer:
+            data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
+            tokens, _ = self.tokenizer(data)
+            outs = (data["image"],) + tuple(tokens)
+        else:
+            outs = data
+
+        return outs
 
     def __len__(self):
         return len(self.local_images)
@@ -163,8 +166,6 @@ class Text2ImageDataset:
 
 
 class Text2ImageDatasetDreamBooth:
-    dataset_column_names = ["instance_samples", "class_samples"]
-
     def __init__(
         self,
         instance_data_path,
@@ -176,6 +177,7 @@ class Text2ImageDatasetDreamBooth:
         transforms=None,
         batched_transforms=None,
         tokenizer=None,
+        token_nums=None,
         image_filter_size=0,
         random_crop=False,
         filter_small_size=False,
@@ -185,6 +187,24 @@ class Text2ImageDatasetDreamBooth:
     ):
         super().__init__()
         self.tokenizer = tokenizer
+        self.token_nums = token_nums
+        self.dataset_column_names = ["instance_samples", "class_samples"]
+        if self.tokenizer is None:
+            self.dataset_output_column_names = self.dataset_column_names
+        else:
+            assert token_nums is not None and token_nums > 0
+            instance_l = [
+                "instance_image",
+            ] + [f"instance_token{i}" for i in range(token_nums)]
+
+            class_l = [
+                "class_image",
+            ] + [f"class_token{i}" for i in range(token_nums)]
+
+            self.dataset_output_column_names = []
+            self.dataset_output_column_names.extend(instance_l)
+            self.dataset_output_column_names.extend(class_l)
+
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
         self.random_crop = random_crop
         self.filter_small_size = filter_small_size
@@ -227,37 +247,25 @@ class Text2ImageDatasetDreamBooth:
                     f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
-        if self.tokenizer:
-            raise NotImplementedError
-
     def __getitem__(self, idx):
         # images preprocess
         instance_image_path = self.instance_images[idx]
         instance_image = Image.open(instance_image_path)
+        instance_image = exif_transpose(instance_image)
         if not instance_image.mode == "RGB":
             instance_image = instance_image.convert("RGB")
         instance_image = np.array(instance_image).astype(np.uint8)
 
         class_image_path = random.choice(self.class_images)
         class_image = Image.open(class_image_path)
+        class_image = exif_transpose(class_image)
         if not class_image.mode == "RGB":
             class_image = class_image.convert("RGB")
         class_image = np.array(class_image).astype(np.uint8)
 
         # caption preprocess
-        instance_caption = (
-            self.instance_caption
-            if self.tokenizer is None
-            else np.array(self.tokenize(self.instance_caption), dtype=np.int32)
-        )
-        instance_caption = np.array(instance_caption)
-
-        class_caption = (
-            self.class_caption
-            if self.tokenizer is None
-            else np.array(self.tokenize(self.class_caption), dtype=np.int32)
-        )
-        class_caption = np.array(class_caption)
+        instance_caption = np.array(self.instance_caption)
+        class_caption = np.array(self.class_caption)
 
         instance_sample = {
             "image": instance_image,
@@ -319,7 +327,23 @@ class Text2ImageDatasetDreamBooth:
         class_batch_samples = {
             k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in class_batch_samples.items()
         }
-        return instance_batch_samples, class_batch_samples
+
+        if self.tokenizer:
+            instance_batch_samples = {
+                k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in instance_batch_samples.items()
+            }
+            instance_tokens, _ = self.tokenizer(instance_batch_samples)
+            instance_outs = (instance_batch_samples["image"],) + tuple(instance_tokens)
+
+            class_batch_samples = {
+                k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in class_batch_samples.items()
+            }
+            class_tokens, _ = self.tokenizer(class_batch_samples)
+            class_outs = (class_batch_samples["image"],) + tuple(class_tokens)
+            return instance_outs + class_outs
+
+        else:
+            return instance_batch_samples, class_batch_samples
 
     def __len__(self):
         return len(self.instance_images)
@@ -345,6 +369,98 @@ class Text2ImageDatasetDreamBooth:
     @staticmethod
     def repeat_data(data_list, repeats):
         return data_list * repeats
+
+
+class Text2ImageDatasetTextualInversion(Text2ImageDataset):
+    def __init__(
+        self,
+        data_path,
+        *args,
+        learnable_property="object",
+        placeholder_token="",
+        templates=None,
+        image_extensions=[".png", ".jpg", ".jpeg"],
+        **kwargs,
+    ):
+        self.placeholder_token = placeholder_token
+        self.learnable_property = learnable_property
+        self.image_extensions = image_extensions  # recognize images with these extensions only
+        if templates is not None:
+            assert (
+                isinstance(templates, (list, tuple)) and len(templates) > 0
+            ), "Expect to have non-empty templates as list or tuple."
+            templates = list(templates)
+            assert all(
+                ["{}" in x for x in templates]
+            ), "Expect to have templates list of strings such as 'a photo of {{}}'"
+        else:
+            if learnable_property.lower() == "object":
+                templates = TEMPLATES_OBJECT
+            elif learnable_property.lower() == "style":
+                templates = TEMPLATES_STYLE
+            elif learnable_property.lower() == "face":
+                templates = TEMPLATES_FACE
+            else:
+                raise ValueError(
+                    f"{learnable_property} learnable property is not supported! Only support ['object', 'style', 'face']"
+                )
+        self.templates = templates
+        super().__init__(data_path, *args, **kwargs)
+
+    def __getitem__(self, idx):
+        # images preprocess
+        image_path = self.local_images[idx]
+        image = Image.open(image_path)
+        image = exif_transpose(image)
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
+        image = np.array(image).astype(np.uint8)
+
+        # caption preprocess
+        placeholder_string = self.placeholder_token
+        caption = random.choice(self.templates).format(placeholder_string)
+        caption = caption if self.tokenizer is None else np.array(self.tokenize(caption), dtype=np.int32)
+        caption = np.array(caption)
+
+        sample = {
+            "image": image,
+            "txt": caption,
+            "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
+            "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
+            "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
+            "aesthetic_score": np.array(
+                [
+                    6.0,
+                ]
+            ),
+        }
+
+        for trans in self.transforms:
+            sample = trans(sample)
+
+        return sample
+
+    def list_image_files_captions_recursively(self, image_path):
+        assert os.path.exists(image_path), f"The given data path {image_path} does not exist!"
+        image_path_list = sorted(os.listdir(image_path))
+        img_extensions = self.image_extensions
+        all_images = [
+            os.path.join(image_path, f) for f in image_path_list if any([f.lower().endswith(e) for e in img_extensions])
+        ]
+        return all_images, None
+
+    @staticmethod
+    def filter_small_image(all_images, all_captions, image_filter_size):
+        assert all_captions is None
+        filted_images = []
+        for image in all_images:
+            w, h = imagesize.get(image)
+            if min(w, h) < image_filter_size:
+                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                continue
+            else:
+                filted_images.append(image)
+        return filted_images, None
 
 
 if __name__ == "__main__":
@@ -396,6 +512,13 @@ if __name__ == "__main__":
         for i, data in enumerate(dataset):
             print(data)
             break
-
+    elif args.target == "Text2ImageDatasetTextualInversion":
+        dataset = Text2ImageDatasetTextualInversion(
+            data_path=args.data_path,
+            learnable_property="style",
+            placeholder_token="<pokemon>",
+            target_size=1024,
+            transforms=transforms,
+        )
     else:
         ValueError("dataset only support Text2ImageDataset and Text2ImageDatasetDreamBooth")
