@@ -239,12 +239,13 @@ def main():
                 controlnet_tensors[new_k] = v
         tensors.update(controlnet_tensors)
 
-    print("Saving to MS checkpoints...")
+    print("Saving to MS checkpoint...")
     records = convert_to_ms(tensors)
 
     root = os.path.dirname(args.out)
     os.makedirs(root, exist_ok=True)
     ms.save_checkpoint(records, args.out)
+    print(f"Merged MS checkpoint is saved at `{args.out}`.")
 
 
 if __name__ == "__main__":

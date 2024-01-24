@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-IPAdapter SD Image to image generation (Controlnet condition)
+IPAdapter SD Image to image generation (ControlNet)
 """
 import argparse
 import logging
@@ -30,7 +30,7 @@ logger = logging.getLogger("controlnet")
 
 # naming: {sd_base_version}-{variation}
 _version_cfg = {
-    "1.5": ("sd_models/merged/sd_v1.5_ip_adapter.ckpt", "inference/sd_controlnet_v15.yaml", 512),
+    "1.5": ("sd_models/merged/sd_v1.5_ip_adapter.ckpt", "inference/sd_v15_controlnet.yaml", 512),
 }
 
 
@@ -238,13 +238,13 @@ def main(args):
                 tokenized_negative_prompts = model.tokenize(negative_prompts)
                 uc = model.get_learned_conditioning(tokenized_negative_prompts)
                 # concat text/img embedding
-                uc = ops.concat([uc, clip_img_uc], axis=1)
+                uc = ops.concat([uc.to(ms.float32), clip_img_uc.to(ms.float32)], axis=1)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             tokenized_prompts = model.tokenize(prompts)
             c = model.get_learned_conditioning(tokenized_prompts)
             # concat text/img embedding
-            c = ops.concat([c, clip_img_c], axis=1)
+            c = ops.concat([c.to(ms.float32), clip_img_c.to(ms.float32)], axis=1)
 
             shape = [4, H // 8, W // 8]
             samples_ddim, _ = sampler.sample(

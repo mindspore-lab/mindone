@@ -154,15 +154,27 @@ class EvalSaveCallback(Callback):
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
-                _logger.info(
-                    "epoch: %d step: %d, loss: %.3f, loss scale: %.1f, average step time (in %d step(s)): %.3f.",
-                    cb_params.cur_epoch_num,
-                    (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
-                    loss.asnumpy().item(),
-                    cb_params.train_network.scale_sense.asnumpy().item(),  # `loss_scale_manager.get_loss_scale()` will not work
-                    self.log_interval,
-                    train_time / self.log_interval,
-                )
+                if self.record_lr:
+                    _logger.info(
+                        "epoch: %d step: %d, lr: %.7f, loss: %.3f, loss scale: %d, average step time (in %d step(s)): %.3f.",
+                        cb_params.cur_epoch_num,
+                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                        cur_lr.asnumpy().item(),
+                        loss.asnumpy().item(),
+                        cb_params.train_network.scale_sense.asnumpy().item(),
+                        self.log_interval,
+                        train_time / self.log_interval,
+                    )
+                else:
+                    _logger.info(
+                        "epoch: %d step: %d, loss: %.3f, loss scale: %d, average step time (in %d step(s)): %.3f.",
+                        cb_params.cur_epoch_num,
+                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                        loss.asnumpy().item(),
+                        cb_params.train_network.scale_sense.asnumpy().item(),
+                        self.log_interval,
+                        train_time / self.log_interval,
+                    )
 
     def on_train_epoch_begin(self, run_context):
         """

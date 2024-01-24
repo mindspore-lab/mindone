@@ -139,7 +139,7 @@ python image_inpainting_sd.py --img assets/girl.png --ref_img assets/inpainting/
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/39818911-5162-4b40-a953-ddf9161255cb"/>
 <br><em>An example of image inpainting. (SD-1.5)</em></p>
 
-### Controlnet (SD-1.5)
+### ControlNet (SD-1.5)
 
 To run the controlnet task on SD-1.5, you can use the `controlnet_sd.py` script. First, download the controlnet checkpoint (in `.safetensors` format) from (https://huggingface.co/lllyasviel), save them under `checkpoints/sd_models`. Prepare the converted checkpoint by running
 

@@ -3,7 +3,7 @@ from ldm.modules.diffusionmodules.util import timestep_embedding
 from ldm.util import instantiate_from_config
 
 
-class IPAdapterControlnetUnetModel(IPAdapterUNetModel):
+class IPAdapterControlNetUnetModel(IPAdapterUNetModel):
     def __init__(self, control_stage_config, guess_mode=False, strength=1.0, sd_locked=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -17,7 +17,7 @@ class IPAdapterControlnetUnetModel(IPAdapterUNetModel):
             [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
         )
 
-    def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
+    def construct(self, x, timesteps=None, context=None, y=None, control=None, only_mid_control=False, **kwargs):
         """
         x: latent image in shape [bs, z, H//4, W//4]
         timesteps: in shape [bs]
@@ -29,6 +29,10 @@ class IPAdapterControlnetUnetModel(IPAdapterUNetModel):
         hs = []
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
+
+        if self.num_classes is not None:
+            emb = emb + self.label_emb(y)
+
         emb_c = self.controlnet.time_embed(t_emb)
 
         guided_hint = control

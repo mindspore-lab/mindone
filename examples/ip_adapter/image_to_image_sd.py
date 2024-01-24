@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-IPAdapter SD image to image generation (image2image)
+IPAdapter SD image to image generation (Image2Image)
 """
 import argparse
 import logging
@@ -253,13 +253,13 @@ def main(args):
                 tokenized_negative_prompts = model.tokenize(negative_prompts)
                 uc = model.get_learned_conditioning(tokenized_negative_prompts)
                 # concat text/img embedding
-                uc = ops.concat([uc, clip_img_uc], axis=1)
+                uc = ops.concat([uc.to(ms.float32), clip_img_uc.to(ms.float32)], axis=1)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             tokenized_prompts = model.tokenize(prompts)
             c = model.get_learned_conditioning(tokenized_prompts)
             # concat text/img embedding
-            c = ops.concat([c, clip_img_c], axis=1)
+            c = ops.concat([c.to(ms.float32), clip_img_c.to(ms.float32)], axis=1)
 
             start_code = model.q_sample(ref_img_latent, n_timestep, ops.randn(ref_img_latent.shape))
             shape = [4, ref_img_latent.shape[2], ref_img_latent.shape[3]]

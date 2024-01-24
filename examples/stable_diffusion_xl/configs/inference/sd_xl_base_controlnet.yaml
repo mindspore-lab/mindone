@@ -52,6 +52,9 @@ model:
             transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
             context_dim: 2048
             legacy: False
+            addition_embed_type: text_time
+            addition_time_embed_dim: 256
+            projection_class_embeddings_input_dim: 2816
 
     conditioner_config:
       target: gm.modules.GeneralConditioner

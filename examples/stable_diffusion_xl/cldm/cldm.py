@@ -115,6 +115,9 @@ class ControlNet(nn.Cell):
         num_attention_blocks=None,
         disable_middle_self_attn=False,
         use_linear_in_transformer=False,
+        addition_embed_type=None,
+        addition_time_embed_dim=None,
+        projection_class_embeddings_input_dim=None,
         # enable_flash_attention=False,
         # cross_frame_attention=False,
         # unet_chunk_size=2,
@@ -164,6 +167,21 @@ class ControlNet(nn.Cell):
             nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
+
+        # additional projection
+        self.addition_embed_type = addition_embed_type
+        self.addition_time_embed_dim = addition_time_embed_dim
+
+        if self.addition_embed_type == "text_time":
+            self.add_embed = nn.SequentialCell(
+                linear(projection_class_embeddings_input_dim, time_embed_dim, dtype=self.dtype),
+                nn.SiLU().to_float(self.dtype),
+                linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
+            )
+        elif self.addition_embed_type is None:
+            self.add_embed = None
+        else:
+            raise ValueError(f"Unsupported `addition_embed_type`: {self.addition_embed_type}")
 
         self.input_blocks = nn.CellList(
             [

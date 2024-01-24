@@ -4,8 +4,9 @@ model:
   pretrained_ckpt: ""
   params:
     unet_config:
-      target: adapter.controlnet.unet.IPAdapterControlnetUnetModel
+      target: adapter.controlnet.sdv2_unet.IPAdapterControlNetUnetModel
       params:
+        enable_flash_attention: False
         ip_scale: 1.0
         num_tokens: 4
 
