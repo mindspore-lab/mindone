@@ -22,7 +22,7 @@ Instruction on ffmpeg and decord install on EulerOS:
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
     wget wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
     tar -xvf ffmpeg-4.0.1.tar.bz2
-    mv ffmpeg-5.1.2 ffmpeg
+    mv ffmpeg-4.0.1 ffmpeg
     cd ffmpeg
     ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
     make -j 64
