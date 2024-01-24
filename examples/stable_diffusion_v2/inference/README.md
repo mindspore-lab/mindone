@@ -149,5 +149,6 @@ You can get images at "output/samples".
 | sd-2.0-base_fa | text2img | 1 | 512*512 | 50 | Ascend 910A | MindSpore | 5.49 s |
 | sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910A | Lite | 3.21 s |
 | sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910B | Lite | 2.7 s |
+| sd-1.5 | text2img | 1 | 512*512 | 50 | Ascend 910B | MindSpore | 4.57 s |
 
 The sampler schedule is DDIM.
