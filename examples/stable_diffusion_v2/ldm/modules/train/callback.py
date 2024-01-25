@@ -135,7 +135,7 @@ class EvalSaveCallback(Callback):
                     append_dict={
                         "epoch_num": cur_epoch,
                         "cur_step": cur_step,
-                        "loss_scale": cb_params.train_network.scale_sense.asnumpy().item(),
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
                     },
                 )
 
@@ -161,7 +161,7 @@ class EvalSaveCallback(Callback):
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         cur_lr.asnumpy().item(),
                         loss.asnumpy().item(),
-                        cb_params.train_network.scale_sense.asnumpy().item(),
+                        self._get_scaling_value_from_cbp(cb_params),
                         self.log_interval,
                         train_time / self.log_interval,
                     )
@@ -171,7 +171,7 @@ class EvalSaveCallback(Callback):
                         cb_params.cur_epoch_num,
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         loss.asnumpy().item(),
-                        cb_params.train_network.scale_sense.asnumpy().item(),
+                        self._get_scaling_value_from_cbp(cb_params),
                         self.log_interval,
                         train_time / self.log_interval,
                     )
@@ -213,7 +213,7 @@ class EvalSaveCallback(Callback):
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
                     append_dict={
                         "epoch_num": cur_epoch,
-                        "loss_scale": cb_params.train_network.scale_sense.asnumpy().item(),
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
                     },
                 )
 
@@ -239,6 +239,12 @@ class EvalSaveCallback(Callback):
         else:
             optimizer = cb_params.train_network.optimizer
         return optimizer
+
+    def _get_scaling_value_from_cbp(self, cb_params):
+        if cb_params.dataset_sink_mode:
+            return cb_params.train_network.network.scale_sense.asnumpy().item()
+        else:
+            return cb_params.train_network.scale_sense.asnumpy().item()
 
     def _fetch_optimizer_lr(self, cb_params):
         opt = self._get_optimizer_from_cbp(cb_params)
