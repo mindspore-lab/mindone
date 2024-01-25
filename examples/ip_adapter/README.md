@@ -111,7 +111,7 @@ python tools/merge_ckpts_sdxl.py \
     --controlnet path_of_the_controlnet_checkpoint
 ```
 
-The converted checkpoint `sd_xl_base_1.0_ms_ip_adapter.ckpt` will be saved under `checkpoints/sdxl_models/merged` directorly.  Then, prepare then input image and the control image, as an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864) and [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), saved them as `assets/statue.png` and `assets/structure_controls/depth.png` respectively. Then, run the following command in your terminal:
+The converted checkpoint `sd_xl_base_1.0_ms_ip_adapter.ckpt` will be saved under `checkpoints/sdxl_models/merged` directory. Then, prepare then input image and the control image, as an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864) and [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), saved them as `assets/statue.png` and `assets/structure_controls/depth.png` respectively. Then, run the following command in your terminal:
 ```bash
 python controlnet_sdxl.py --img path_of_the_image --control_image path_of_the_control_image --weight path_of_the_ckpt --num_cols 3
 ```
@@ -174,7 +174,7 @@ To run the ControlNet task on SD-1.5, you can use the `controlnet_sd.py` script.
 python tools/merge_ckpts_sd.py --controlnet path_of_the_controlnet_checkpoint
 ```
 
-The converted checkpoint `sd_v1.5_ip_adapter.ckpt` will be saved under `checkpoints/sd_models/merged` directorly.  Then, prepare then input image and the control image, as an example, you may download the [input image 1](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864), [input image 2](https://github.com/zhtmike/mindone/assets/8342575/e4837c29-40ef-468c-b94e-6df1e3485211), [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), and [openpose image](https://github.com/zhtmike/mindone/assets/8342575/0791217b-acf2-4c8f-aa41-da2911b8058d), saved them as `assets/statue.png`, `assets/girl`, `assets/structure_controls/depth.png`, `assets/structure_controls/openpose.png` respectively. Then, run the following command in your terminal:
+The converted checkpoint `sd_v1.5_ip_adapter.ckpt` will be saved under `checkpoints/sd_models/merged` directory. Then, prepare then input image and the control image, as an example, you may download the [input image 1](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864), [input image 2](https://github.com/zhtmike/mindone/assets/8342575/e4837c29-40ef-468c-b94e-6df1e3485211), [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), and [openpose image](https://github.com/zhtmike/mindone/assets/8342575/0791217b-acf2-4c8f-aa41-da2911b8058d), saved them as `assets/statue.png`, `assets/girl`, `assets/structure_controls/depth.png`, `assets/structure_controls/openpose.png` respectively. Then, run the following command in your terminal:
 ```bash
 python controlnet_sd.py --img path_of_the_image --control_image path_of_the_control_image --ckpt_path path_of_the_ckpt --n_samples 4
 ```
