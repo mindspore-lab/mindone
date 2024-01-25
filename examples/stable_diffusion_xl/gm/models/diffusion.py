@@ -100,16 +100,6 @@ class DiffusionEngine(nn.Cell):
         return z
 
     def openai_input_warpper(self, cond: dict) -> Dict:
-        # controlnet extra condition
-        if "controlnet_text_embeds" in cond and "controlnet_time_ids" in cond:
-            return {
-                "concat": cond.get("concat", None),
-                "context": cond.get("crossattn", None),
-                "y": cond.get("vector", None),
-                "add_text_embeds": cond["controlnet_text_embeds"],
-                "add_time_ids": cond["controlnet_time_ids"],
-            }
-
         return {
             "concat": cond.get("concat", None),
             "context": cond.get("crossattn", None),

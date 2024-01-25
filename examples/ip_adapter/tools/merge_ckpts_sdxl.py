@@ -80,8 +80,8 @@ def replace_all_controlnet(content: str) -> str:
     content = replace(content, "conv.bias", "op.bias")
     content = replace(content, "conv.weight", "op.weight")
 
-    content = replace(content, "add_embedding.linear_1", "add_embed.0")
-    content = replace(content, "add_embedding.linear_2", "add_embed.2")
+    content = replace(content, "add_embedding.linear_1", "label_emb.0.0")
+    content = replace(content, "add_embedding.linear_2", "label_emb.0.2")
     return content
 
 

@@ -31,6 +31,10 @@ class IPAdapterControlNetUnetModel(IPAdapterUNetModel):
         emb = self.time_embed(t_emb)
         emb_c = self.controlnet.time_embed(t_emb)
 
+        if self.num_classes is not None:
+            emb = emb + self.label_emb(y)
+            emb_c = emb_c + self.controlnet.label_emb(y)
+
         guided_hint = control
         # hint: [bs 3 H W] -> [bs Z H//4 W//4]
         for cell in self.controlnet.input_hint_block:

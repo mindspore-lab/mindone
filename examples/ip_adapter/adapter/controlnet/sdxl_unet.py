@@ -18,34 +18,16 @@ class IPAdapterControlNetUnetModel(IPAdatperUNetModel):
             [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
         )
 
-    def construct(
-        self,
-        x,
-        timesteps=None,
-        context=None,
-        y=None,
-        control=None,
-        add_text_embeds=None,
-        add_time_ids=None,
-        only_mid_control=False,
-        **kwargs
-    ):
+    def construct(self, x, timesteps=None, context=None, y=None, control=None, only_mid_control=False, **kwargs):
         hs = []
 
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
         emb_c = self.controlnet.time_embed(t_emb)
 
-        if self.controlnet.addition_embed_type == "text_time":
-            add_t_emb = timestep_embedding(
-                add_time_ids.flatten(), self.controlnet.addition_time_embed_dim, repeat_only=False
-            )
-            add_t_emb = ops.reshape(add_t_emb, (add_text_embeds.shape[0], -1))
-
-            add_emb = ops.concat([add_text_embeds.to(add_t_emb.dtype), add_t_emb], axis=-1)
-            add_emb = self.controlnet.add_embed(add_emb)
-            emb += add_emb
-            emb_c += add_emb
+        if self.num_classes is not None:
+            emb = emb + self.label_emb(y)
+            emb_c = emb_c + self.controlnet.label_emb(y)
 
         if control is not None:
             guided_hint = control

@@ -122,6 +122,9 @@ def run_text2img(
     clip_img = load_clip_image(args.img)
     control_img = load_control_image(args.control_img)
     control_img = ops.tile(control_img, (args.num_cols, 1, 1, 1))
+
+    # TODO: for conditional guidance, move to internal
+    control_img = ops.concat([control_img, control_img], axis=0)
     _, _, H, W = control_img.shape
 
     value_dict = {
