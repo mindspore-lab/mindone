@@ -313,7 +313,7 @@ def train(args):
             optimizer = optimizer1
             jit_config = None
 
-    elif args.ms_mode == 0 and args.parallel_mode == "OPTIMIZER_PATALLEL":
+    elif args.ms_mode == 0 and args.parallel_mode == "OPTIMIZER_PARALLEL":
         from gm.models.trainer_factory import TrainOneStepWithOPCell
 
         callback = [LossMonitor()]
@@ -349,7 +349,7 @@ def train(args):
         train_fn(
             args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config, ema=ema
         )
-    elif args.task == "txt2img" and args.parallel_mode == "OPTIMIZER_PATALLEL":
+    elif args.task == "txt2img" and args.parallel_mode == "OPTIMIZER_PARALLEL":
         total_step = dataloader.get_dataset_size()
         epochs = total_step // args.sink_size
         assert args.dataset_load_tokenizer

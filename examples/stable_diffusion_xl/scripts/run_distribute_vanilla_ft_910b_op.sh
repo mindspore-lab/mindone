@@ -18,6 +18,7 @@ export HCCL_CONNECT_TIMEOUT=7200
 export RANK_TABLE_FILE=$RANK_TABLE_FILE
 export RANK_SIZE=$RANK_SIZE
 export DEVICE_NUM=$(($END_DEVICE - $START_DEVICE))
+export GLOG_v=3
 
 test -d ./logs_for_distribute || mkdir ./logs_for_distribute
 env > logs_for_distribute/env.log

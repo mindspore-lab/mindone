@@ -699,7 +699,7 @@ class TrainOneStepWithOPCell(nn.Cell):
         clip_norm=1.0,
         data_cache=False,
     ):
-        super().__init__(TrainOneStepWithOPCell, self).__init__()
+        super(TrainOneStepWithOPCell, self).__init__()
         self.data_cache = data_cache
         # get conditioner trainable status
         trainable_conditioner = False
