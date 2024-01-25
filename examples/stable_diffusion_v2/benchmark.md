@@ -44,8 +44,6 @@ Note that the performance of SD2.1 should be similar to SD2.0 since they have th
 
 Note that SD1.x and SD2.x share the same UNet architecture, thus their performance on vanilla training are similar.
 
-Note that the single card parameter dataset_sink_mode is False, while the multi card parameter dataset_sink_mode is True.
-
 <!--
 TB tested:
 | 1.5           |    D910x1-MS2.1      |    ControlNet      |      4x1             |     512x512         | Graph, DS, FP16,  |                 |
