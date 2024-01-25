@@ -30,6 +30,7 @@ You can download the following models before running the inference
 - [SDXL-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) (required by SD-XL)
 - [IP-Adapter weight](https://huggingface.co/h94/IP-Adapter) (required by SD-1.5 & SD-XL)
 - [ControlNet](https://huggingface.co/lllyasviel) (optionally required by SD-1.5)
+- [ControlNet SDXL](https://huggingface.co/diffusers) (optionally required by SD-XL)
 
 ### Converting Models
 
@@ -51,7 +52,8 @@ checkpoints/
     ├── IP-Adapter
     │   ├── image_encoder
     │   │   └── model.safetensors
-    │   └── ip-adapter_sdxl.safetensors
+    │   ├── ip-adapter_sdxl.safetensors
+    │   └── ip-adapter_sdxl_vit-h.safetensors
     └── sd_xl_base_1.0_ms.ckpt
 ```
 
@@ -97,6 +99,31 @@ python image_variation_sdxl.py --img assets/woman.png --prompt "best quality, hi
 
 For more information on how to use this script, please run `python image_variation_sdxl.py -h`.
 
+### ControlNet (SD-XL)
+
+To run the ControlNet task on SD-XL, you can use the `controlnet_sdxl.py` script. First, download the SD-XL ControlNet checkpoint (in `.safetensors` format) from (https://huggingface.co/diffusers), save them under `checkpoints/sdxl_models`. Prepare the converted checkpoint by running
+
+```bash
+# we use vit-h-14 encoder here instead of vit-bigG/14 for image encoding
+python tools/merge_ckpts_sdxl.py \
+    --ip_adapter checkpoints/sdxl_models/IP-Adapter/ip-adapter_sdxl_vit-h.safetensors \
+    --open_clip_vit checkpoints/sd_models/IP-Adapter/image_encoder/model.safetensors \
+    --controlnet path_of_the_controlnet_checkpoint
+```
+
+The converted checkpoint `sd_xl_base_1.0_ms_ip_adapter.ckpt` will be saved under `checkpoints/sdxl_models/merged` directorly.  Then, prepare then input image and the control image, as an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864) and [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), saved them as `assets/statue.png` and `assets/structure_controls/depth.png` respectively. Then, run the following command in your terminal:
+```bash
+python controlnet_sdxl.py --img path_of_the_image --control_image path_of_the_control_image --weight path_of_the_ckpt --num_cols 3
+```
+The `--num_cols` flag denotes the number of output images in a single trial. The output images will be saved under `outputs/demo/SDXL-base-1.0` directory. Here are some examples (The leftmost images is the input image, the second one from left is the control image, while the remaining images are the outputs.):
+
+```bash
+python controlnet_sdxl.py --img assets/statue.png --control_img assets/structure_controls/depth.png --ncols 3 --seed 0
+```
+
+<p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/2f0134c1-1e67-42a9-ac8a-8f82d4f6ed66"/>
+<br><em>An example of ControlNet. (SD-XL, depth)</em></p>
+
 ### Image Variation (SD-1.5)
 
 To run the image variation task on SD-1.5, you can use the `image_variation_sd.py` script. First, prepare the input image and the converted checkpoint. As an example, you may download the [input image](https://github.com/zhtmike/mindone/assets/8342575/dd266d78-2b4b-4159-ad95-5a6afc138235) and saved it as `assets/woman.png`. Then, run the following command in your terminal:
@@ -141,13 +168,13 @@ python image_inpainting_sd.py --img assets/girl.png --ref_img assets/inpainting/
 
 ### ControlNet (SD-1.5)
 
-To run the controlnet task on SD-1.5, you can use the `controlnet_sd.py` script. First, download the controlnet checkpoint (in `.safetensors` format) from (https://huggingface.co/lllyasviel), save them under `checkpoints/sd_models`. Prepare the converted checkpoint by running
+To run the ControlNet task on SD-1.5, you can use the `controlnet_sd.py` script. First, download the SD-1.5 ControlNet checkpoint (in `.safetensors` format) from (https://huggingface.co/lllyasviel), save them under `checkpoints/sd_models`. Prepare the converted checkpoint by running
 
 ```bash
 python tools/merge_ckpts_sd.py --controlnet path_of_the_controlnet_checkpoint
 ```
 
-The converted checkpoint `sd_v1.5_ip_adapter.ckpt` will be saved under `checkpoints/sd_models/merged` directorly.  Then, prepare then input image and the control image, as an example, you may download the [input image 1](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864), [input image 2](https://github.com/zhtmike/mindone/assets/8342575/e4837c29-40ef-468c-b94e-6df1e3485211), [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), and [openpose image](https://github.com/zhtmike/mindone/assets/8342575/0791217b-acf2-4c8f-aa41-da2911b8058d) , saved them as `assets/statue.png`, `assets/girl`, `assets/structure_controls/depth.png`, `assets/structure_controls/openpose.png` respectively. Then, run the following command in your terminal:
+The converted checkpoint `sd_v1.5_ip_adapter.ckpt` will be saved under `checkpoints/sd_models/merged` directorly.  Then, prepare then input image and the control image, as an example, you may download the [input image 1](https://github.com/zhtmike/mindone/assets/8342575/e43ae863-1bfb-49b2-9a61-5b22ffbf4864), [input image 2](https://github.com/zhtmike/mindone/assets/8342575/e4837c29-40ef-468c-b94e-6df1e3485211), [depth image](https://github.com/zhtmike/mindone/assets/8342575/ac0e410f-5069-42a0-b5a8-45716c9d1254), and [openpose image](https://github.com/zhtmike/mindone/assets/8342575/0791217b-acf2-4c8f-aa41-da2911b8058d), saved them as `assets/statue.png`, `assets/girl`, `assets/structure_controls/depth.png`, `assets/structure_controls/openpose.png` respectively. Then, run the following command in your terminal:
 ```bash
 python controlnet_sd.py --img path_of_the_image --control_image path_of_the_control_image --ckpt_path path_of_the_ckpt --n_samples 4
 ```
@@ -158,13 +185,13 @@ python controlnet_sd.py --img assets/statue.png --control_img assets/structure_c
 ```
 
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/03590d89-a165-4063-bd4e-ac31458a573b"/>
-<br><em>An example of controlnet. (SD-1.5, depth)</em></p>
+<br><em>An example of ControlNet. (SD-1.5, depth)</em></p>
 
 ```bash
 python controlnet_sd.py --img assets/girl.png --control_img assets/structure_controls/openpose.png
 ```
 <p align="center"><img width="1200" src="https://github.com/zhtmike/mindone/assets/8342575/d1582945-dcb4-41d6-91dd-4bdb4e05a82d"/>
-<br><em>An example of controlnet. (SD-1.5, openpose)</em></p>
+<br><em>An example of ControlNet. (SD-1.5, openpose)</em></p>
 
 ## Model Training
 

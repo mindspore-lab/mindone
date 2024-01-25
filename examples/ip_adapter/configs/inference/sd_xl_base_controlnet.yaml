@@ -64,3 +64,4 @@ model:
         ip_scale: 1.0
         num_tokens: 4
         spatial_transformer_attn_type: vanilla
+        strength: 0.7
