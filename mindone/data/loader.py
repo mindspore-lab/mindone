@@ -7,7 +7,7 @@ from .dataset import BaseDataset
 
 
 def build_dataloader(
-    dataset: Type[BaseDataset],
+    dataset: BaseDataset,
     batch_size: int,
     transforms: Optional[Union[List[dict], dict]] = None,
     shuffle: bool = False,
