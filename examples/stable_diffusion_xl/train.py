@@ -6,6 +6,7 @@ from functools import partial
 
 from gm.data.loader import create_loader
 from gm.helpers import (
+    EMA,
     SD_XL_BASE_RATIOS,
     VERSION2SPECS,
     create_model,
@@ -45,6 +46,7 @@ def get_parser_train():
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
+    parser.add_argument("--use_ema", action="store_true", help="whether use ema")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -149,6 +151,11 @@ def train(args):
     else:
         optimizer, reducer = None, None
 
+    if args.use_ema:
+        ema = EMA(model, ema_decay=0.9999)
+    else:
+        ema = None
+
     if args.ms_mode == 1:
         # Pynative Mode
         assert isinstance(model.model, nn.Cell)
@@ -174,6 +181,7 @@ def train(args):
                 gradient_accumulation_steps=args.gradient_accumulation_steps,
                 clip_grad=args.clip_grad,
                 clip_norm=args.max_grad_norm,
+                ema=ema,
             )
             train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
             if model.disable_first_stage_amp:
@@ -211,14 +219,18 @@ def train(args):
         raise ValueError("args.max_num_ckpt must be None or a positive integer!")
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
-        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config)
+        train_fn(
+            args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config, ema=ema
+        )
     elif args.task == "img2img":
         raise NotImplementedError
     else:
         raise ValueError(f"Unknown task {args.task}")
 
 
-def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, **kwargs):  # for print  # for infer/ckpt
+def train_txt2img(
+    args, train_step_fn, dataloader, optimizer=None, model=None, ema=None, **kwargs
+):  # for print  # for infer/ckpt
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -266,7 +278,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
                 save_checkpoint(
-                    model,
+                    model if not ema else ema,
                     save_ckpt_dir,
                     ckpt_queue,
                     args.max_num_ckpt,
@@ -296,7 +308,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
 
 
 def train_txt2img_datasink(
-    args, train_step_fn, dataloader, optimizer=None, model=None, jit_config=None, **kwargs
+    args, train_step_fn, dataloader, optimizer=None, model=None, jit_config=None, ema=None, **kwargs
 ):  # for print  # for infer/ckpt
     total_step = dataloader.get_dataset_size()
     epochs = total_step // args.sink_size
@@ -337,7 +349,7 @@ def train_txt2img_datasink(
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
                 save_checkpoint(
-                    model,
+                    model if not ema else ema,
                     save_ckpt_dir,
                     ckpt_queue,
                     args.max_num_ckpt,
