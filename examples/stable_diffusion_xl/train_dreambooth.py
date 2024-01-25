@@ -94,6 +94,7 @@ def get_parser_train():
     parser.add_argument("--overflow_still_update", type=ast.literal_eval, default=True)
     parser.add_argument("--max_device_memory", type=str, default=None)
     parser.add_argument("--is_parallel", type=ast.literal_eval, default=False)
+    parser.add_argument("--parallel_mode", type=str, default="DATA_PARALLEL")
 
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
@@ -243,7 +244,7 @@ def train(args):
     optimizer = get_optimizer(
         config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
     )
-    reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+    reducer = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer.parameters)
 
     if args.ms_mode == 1:
         # Pynative Mode

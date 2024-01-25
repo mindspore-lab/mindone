@@ -656,8 +656,13 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         # take features from the eot embedding (eot_token is the highest number in each sequence)
         _dtype = x.dtype
 
-        # x = x[ops.arange(x.shape[0]), tokens.argmax(axis=-1)]
-        indices = ops.stack((ops.arange(x.shape[0]), tokens.argmax(axis=-1)), axis=-1)
+        x_range = ops.arange(x.shape[0])
+        tokens_max = tokens.argmax(axis=-1)
+
+        x_range = x_range.reshape(-1, 1)
+        tokens_max = tokens_max.reshape(-1, 1)
+        indices = ops.concat((x_range, tokens_max), axis=-1)
+
         x = ops.gather_nd(x, indices)
 
         x = ops.matmul(x, ops.cast(self.model.text_projection, x.dtype)).astype(_dtype)

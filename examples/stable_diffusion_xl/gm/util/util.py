@@ -1,5 +1,6 @@
 import importlib
 import random
+import time
 from inspect import isfunction
 from typing import List, Optional, Union
 
@@ -295,3 +296,26 @@ def get_text_index(
     )
     prompt_tokens = np.array(prompt_tokens, np.int32)
     return prompt_tokens, prompt_tokens_length
+
+
+class LossMonitor(ms.Callback):
+    def __init__(self):
+        self.s = time.time()
+        self.last_step = -1
+
+    def on_train_step_begin(self, run_context):
+        self.s = time.time()
+        cb_params = run_context.original_args()
+        self.last_step = cb_params.cur_step_num
+
+    def on_train_step_end(self, run_context):
+        t = time.time()
+
+        cb_params = run_context.original_args()
+        cur_epoch_num = cb_params.get("cur_epoch_num", 1)
+        cur_step_in_epoch = (cb_params.cur_step_num - 1) % cb_params.batch_num + 1
+        loss = cb_params.net_outputs[0]
+        print(
+            f"epoch: {cur_epoch_num} step: {cur_step_in_epoch}, loss is {loss}, average step time {(t-self.s)*10} ms.",
+            flush=True,
+        )

@@ -68,6 +68,7 @@ def get_parser_train():
     parser.add_argument("--overflow_still_update", type=ast.literal_eval, default=True)
     parser.add_argument("--max_device_memory", type=str, default=None)
     parser.add_argument("--is_parallel", type=ast.literal_eval, default=False)
+    parser.add_argument("--parallel_mode", type=str, default="DATA_PARALLEL")
 
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
@@ -143,7 +144,7 @@ def train(args):
         optimizer = get_optimizer(
             config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
         )
-        reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+        reducer = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer.parameters)
     else:
         optimizer, reducer = None, None
 
@@ -183,8 +184,8 @@ def train(args):
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
             )
             optimizer2 = get_optimizer(config.optim, lr, params=model.stage2.trainable_params())
-            reducer1 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer1.parameters)
-            reducer2 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer2.parameters)
+            reducer1 = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer1.parameters)
+            reducer2 = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer2.parameters)
             train_step_fn = TrainerMultiGraphTwoStage(
                 model,
                 (optimizer1, optimizer2),
