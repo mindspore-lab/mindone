@@ -1,4 +1,4 @@
-from typing import List, Optional, Type, Union
+from typing import List, Optional, Union
 
 import mindspore as ms
 from mindspore.communication import get_local_rank, get_local_rank_size
