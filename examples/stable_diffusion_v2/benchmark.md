@@ -16,9 +16,9 @@
 | 2.0           |    D910x1-MS2.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |          8.87       |
 | 2.0           |    D910x8-MS2.2.10       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |          70.58       |
 | 2.0           |    D910x1-MS2.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     2.18            |
-| 2.1-v           |    D910x1-MS2.2.10       |    Vanilla      |      1x1             |     768x768         | Graph, DS, FP16,  |       2.13          |
-| 2.1-v           |    D910x8-MS2.2.10       |    Vanilla      |      8x1             |     768x768         | Graph, DS, FP16,  |       17.01          |
-| 2.1-v           |    D910x1-MS2.2.10       |    LoRA      |      2x1                 |     768x768         | Graph, DS, FP16,  |       2.82          |
+| 2.1-v           |    D910x1-MS2.2.10       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16,  |       3.16          |
+| 2.1-v           |    D910x8-MS2.2.10       |    Vanilla      |      8x1             |     768x768         | Graph, DS, FP16,FA  |       17.01          |
+| 2.1-v           |    D910x1-MS2.2.10       |    LoRA      |      4x1                 |     768x768         | Graph, DS, FP16,FA  |       3.39          |
 | 2.1-v           |    D910x8-MS2.2.10       |    LoRA      |      16x1                 |     768x768         | Graph, DS, FP16,  |       22.40          |
 | 1.5           |    D910*x1-MS2.2.10      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |       9.22          |
 | 1.5           |    D910*x8-MS2.2.10      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |      52.30          |
@@ -36,7 +36,7 @@
 | 2.1-v           |    D910*x8-MS2.2.10       |    LoRA      |      32x1                 |     768x768         | Graph, DS, FP16,  |         52.57        |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 >
-> Acceleration: DS: data sink mode, FP16: float16 computation. Flash attention is not used in the test currently.
+> Acceleration: DS: data sink mode, FP16: float16 computation. FA: flash attention.
 >
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS
 
