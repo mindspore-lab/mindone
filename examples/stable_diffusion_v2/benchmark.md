@@ -11,9 +11,9 @@
 | 1.5           |    D910x1-MS2.1      |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |       8.25          |
 | 1.5           |    D910x8-MS2.1      |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |       63.85          |
 | 1.5           |    D910x1-MS2.1      |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     2.09            |
-| 2.0           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |       7.21          |
+| 2.0           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     512x512         | Graph, DS, FP16,  |       6.19          |
 | 2.0           |    D910x8-MS2.1       |    Vanilla      |      24x1             |     512x512         | Graph, DS, FP16,  |       33.50          |
-| 2.0           |    D910x1-MS2.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |          8.87       |
+| 2.0           |    D910x1-MS2.1       |    LoRA      |      4x1             |     512x512         | Graph, DS, FP16,  |          9.46       |
 | 2.0           |    D910x8-MS2.1       |    LoRA      |      32x1             |     512x512         | Graph, DS, FP16,  |          73.51       |
 | 2.0           |    D910x1-MS2.1       |    Dreambooth      |      1x1             |     512x512         | Graph, DS, FP16,  |     2.18            |
 | 2.1-v           |    D910x1-MS2.1       |    Vanilla      |      3x1             |     768x768         | Graph, DS, FP16, FA  |       3.16          |
