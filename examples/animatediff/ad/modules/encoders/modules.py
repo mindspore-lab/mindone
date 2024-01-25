@@ -57,7 +57,7 @@ class FrozenCLIPEmbedder(nn.Cell):
             return_overflowing_tokens=False,
             padding="max_length",
         )
-        tokens = ms.Tensor(batch_encoding["input_ids"], ms.int32)
+        tokens = np.array(batch_encoding["input_ids"], np.int64)
         return tokens
 
     def tokenize(self, texts):

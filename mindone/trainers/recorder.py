@@ -40,7 +40,7 @@ class PerfRecorder(object):
             if isinstance(m, ms.Tensor):
                 m = m.asnumpy()
 
-            if isinstance(m, float) or isinstance(m, np.float32):
+            if isinstance(m, float) or isinstance(m, np.ndarray):
                 line += f"{m:.4f}"
             elif m is None:
                 line += "NA"

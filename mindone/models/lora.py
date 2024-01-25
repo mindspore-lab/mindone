@@ -9,7 +9,7 @@ from mindspore.nn.layer.activation import get_activation
 from mindspore.ops.primitive import Primitive
 
 from ..utils.config import get_obj_from_str
-from ..utils.version_control import is_old_ms_version
+from ..utils.version_control import MSVersion
 
 __all__ = [
     "LoRADenseLayer",
@@ -53,7 +53,7 @@ class LoRADenseLayer(nn.Cell):
         self.lora_down = nn.Dense(in_features, rank, has_bias=False).to_float(dtype)
         self.lora_up = nn.Dense(rank, out_features, has_bias=False).to_float(dtype)
 
-        if is_old_ms_version():
+        if MSVersion <= "1.10.1":
             self.dropout = nn.Dropout(keep_prob=1 - dropout_p)
         else:
             self.dropout = nn.Dropout(p=dropout_p)
@@ -66,9 +66,9 @@ class LoRADenseLayer(nn.Cell):
             )
         self.activation_flag = self.activation is not None
 
-        self._init_weights()
+        self.init_weights()
 
-    def _init_weights(self):
+    def init_weights(self):
         self.lora_down.weight.set_data(
             init.initializer(
                 init.Normal(sigma=1.0 / self.rank), self.lora_down.weight.shape, self.lora_down.weight.dtype
@@ -104,7 +104,7 @@ def inject_trainable_lora(
     rank: int = 4,
     dropout_p: float = 0.0,
     scale: float = 1.0,
-    use_fp16: bool = False,
+    use_fp16: bool = True,
     verbose: int = 0,
 ):
     """

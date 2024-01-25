@@ -63,17 +63,17 @@ def create_optimizer(
     _logger.info(f"Parameter grouping result: weight decay {len(decay_params)}, no weight decay {len(other_params)}")
 
     if name.lower() == "adam":
-        OptimCls = Adam
+        optim_cls = Adam
     elif name.lower() == "adamw":
-        OptimCls = AdamWeightDecay
+        optim_cls = AdamWeightDecay
     elif name.lower() in ["sgd", "momentum"]:
-        OptimCls = Momentum
+        optim_cls = Momentum
     else:
         raise ValueError("invalid optimizer")
 
     if name.lower() in ["sgd", "momentum"]:
-        optimizer = OptimCls(group_params, learning_rate=lr, momentum=0.9)
+        optimizer = optim_cls(group_params, learning_rate=lr, momentum=0.9)
     else:
-        optimizer = OptimCls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1], eps=eps)
+        optimizer = optim_cls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1], eps=eps)
 
     return optimizer
