@@ -12,7 +12,7 @@ from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.data import build_dataloader, BaseDataset
-from mindone.env import init_env
+from mindone.env import init_train_env
 from mindone.utils import count_params, set_logger
 
 sys.path.append("../stable_diffusion_xl")
@@ -39,7 +39,7 @@ def mixed_precision(network):
 
 def main(args, initializer):
     # step 1: initialize environment
-    device_id, rank_id, device_num = init_env(**args.environment)
+    device_id, rank_id, device_num = init_train_env(**args.environment)
 
     output_dir = Path(args.train.output_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -173,7 +173,7 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_env, "environment")
+    parser.add_function_arguments(init_train_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--train.sink_size", type=int, default=-1, help="Number of steps in each data sinking.")
     parser.add_argument("--train.temporal_only", type=bool, default=True, help="Train temporal layers only.")
