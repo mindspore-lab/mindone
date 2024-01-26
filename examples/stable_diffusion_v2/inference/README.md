@@ -69,8 +69,8 @@ for MindSpore2.1
 
 | Device | Online Inference (MindSpore) | Offline Inference (Lite) |
 | ------ | ---------------------------- | ------------------------ |
-| Ascend 910A | ✅ | ✅ |
-| Ascend 910B | - | ✅ |
+| Ascend 910 | ✅ | ✅ |
+| Ascend 910* | - | ✅ |
 | Ascend 310P | - | ✅ |
 | GPU | ✅ | - |
 | CPU | ✅ | - |
