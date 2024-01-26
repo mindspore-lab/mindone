@@ -252,7 +252,7 @@ class ImageDataset:
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN])
+        result = np.zeros([CONTEXT_LEN]) + eot_token
         if len(tokens) > CONTEXT_LEN:
             tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
         result[: len(tokens)] = tokens

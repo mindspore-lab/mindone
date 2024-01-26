@@ -18,6 +18,8 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
+from mindone.utils.amp import auto_mixed_precision
+
 from ..attention import SpatialTransformer
 from .motion_module import VanillaTemporalModule, get_motion_module
 from .openaimodel import AttentionBlock, Downsample, ResBlock, Upsample
@@ -112,8 +114,9 @@ class UNet3DModel(nn.Cell):
         cross_frame_attention=False,
         unet_chunk_size=2,
         adm_in_channels=None,
+        use_recompute=False,
         # Additional
-        use_inflated_groupnorm=True,  # diff, default is to use inference_v2.yaml, more reasonal.
+        use_inflated_groupnorm=True,  # diff, default is to use in mm-v2, which is more reasonable.
         use_motion_module=False,
         motion_module_resolutions=(1, 2, 4, 8),  # used to identify which level to be injected with Motion Module
         motion_module_mid_block=False,
@@ -125,9 +128,9 @@ class UNet3DModel(nn.Cell):
     ):
         super().__init__()
 
-        assert (
-            use_inflated_groupnorm is True
-        ), "Only support use_inflated_groupnorm=True currently, please use configs/inference/inference_v2.yaml for --inference_config"
+        # assert (
+        #     use_inflated_groupnorm is True
+        # ), "Only support use_inflated_groupnorm=True currently, please use configs/inference/inference_v2.yaml for --inference_config"
         if use_motion_module:
             assert unet_use_cross_frame_attention is False, "not support"
             assert unet_use_temporal_attention is False, "not support"
@@ -135,6 +138,9 @@ class UNet3DModel(nn.Cell):
         else:
             print("D---: WARNING: not using motion module")
 
+        self.norm_in_5d = not use_inflated_groupnorm
+
+        print("D--: norm in 5d: ", self.norm_in_5d)
         print("D--: flash attention: ", enable_flash_attention)
 
         if use_spatial_transformer:
@@ -230,6 +236,7 @@ class UNet3DModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             dtype=self.dtype,
+                            norm_in_5d=self.norm_in_5d,
                         )
                     ]
                 )
@@ -271,10 +278,12 @@ class UNet3DModel(nn.Cell):
                 # add MotionModule 1) after SpatialTransformer in DownBlockWithAttn, 3*2 times, or 2) after ResBlock in DownBlockWithoutAttn, 1*2 time.
                 if use_motion_module:
                     layers.append(
+                        # TODO: set mm fp32/fp16 independently?
                         get_motion_module(  # return VanillaTemporalModule
                             in_channels=ch,
                             motion_module_type=motion_module_type,
                             motion_module_kwargs=motion_module_kwargs,
+                            dtype=self.dtype,
                         )
                     )
 
@@ -298,6 +307,7 @@ class UNet3DModel(nn.Cell):
                                 use_scale_shift_norm=use_scale_shift_norm,
                                 down=True,
                                 dtype=self.dtype,
+                                norm_in_5d=self.norm_in_5d,
                             )
                         ]
                     )
@@ -334,6 +344,7 @@ class UNet3DModel(nn.Cell):
                     use_checkpoint=use_checkpoint,
                     use_scale_shift_norm=use_scale_shift_norm,
                     dtype=self.dtype,
+                    norm_in_5d=self.norm_in_5d,
                 ),
                 AttentionBlock(
                     ch,
@@ -366,6 +377,7 @@ class UNet3DModel(nn.Cell):
                     in_channels=ch,
                     motion_module_type=motion_module_type,
                     motion_module_kwargs=motion_module_kwargs,
+                    dtype=self.dtype,
                 )
             )
         self.middle_block.append(
@@ -377,6 +389,7 @@ class UNet3DModel(nn.Cell):
                 use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
                 dtype=self.dtype,
+                norm_in_5d=self.norm_in_5d,
             )
         )
 
@@ -398,6 +411,7 @@ class UNet3DModel(nn.Cell):
                             use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             dtype=self.dtype,
+                            norm_in_5d=self.norm_in_5d,
                         )
                     ]
                 )
@@ -443,6 +457,7 @@ class UNet3DModel(nn.Cell):
                             in_channels=ch,
                             motion_module_type=motion_module_type,
                             motion_module_kwargs=motion_module_kwargs,
+                            dtype=self.dtype,
                         )
                     )
 
@@ -460,6 +475,7 @@ class UNet3DModel(nn.Cell):
                             use_scale_shift_norm=use_scale_shift_norm,
                             up=True,
                             dtype=self.dtype,
+                            norm_in_5d=self.norm_in_5d,
                         )
                         if resblock_updown
                         else Upsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
@@ -468,8 +484,10 @@ class UNet3DModel(nn.Cell):
                 self.output_blocks.append(layers)
                 self._feature_size += ch
 
+        self.conv_norm_out = normalization(ch, norm_in_5d=self.norm_in_5d)
+
         self.out = nn.SequentialCell(
-            normalization(ch),
+            # normalization(ch),
             nn.SiLU().to_float(self.dtype),
             zero_module(
                 conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
@@ -478,12 +496,42 @@ class UNet3DModel(nn.Cell):
             ),
         )
 
-        if self.predict_codebook_ids:
-            self.id_predictor = nn.SequentialCell(
-                normalization(ch),
-                conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode="pad").to_float(self.dtype),
-            )
         self.cat = ops.Concat(axis=1)
+
+        # TODO: optimize where to recompute & fix bug on cell list.
+        if use_recompute:
+            print("D--: recompute: ", use_recompute)
+            for iblock in self.input_blocks:
+                self.recompute(iblock)
+                # mblock.recompute()
+            for oblock in self.output_blocks:
+                self.recompute(oblock)
+                # oblock.recompute()
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
+
+    def set_mm_amp_level(self, amp_level):
+        # set motion module precision
+        print("D--: mm amp level: ", amp_level)
+        for i, celllist in enumerate(self.input_blocks, 1):
+            for cell in celllist:
+                if isinstance(cell, VanillaTemporalModule):
+                    cell = auto_mixed_precision(cell, amp_level)
+
+        for module in self.middle_block:
+            if isinstance(module, VanillaTemporalModule):
+                module = auto_mixed_precision(module, amp_level)
+
+        for celllist in self.output_blocks:
+            for cell in celllist:
+                if isinstance(cell, VanillaTemporalModule):
+                    cell = auto_mixed_precision(cell, amp_level)
 
     def construct(
         self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs
@@ -528,8 +576,8 @@ class UNet3DModel(nn.Cell):
         adapter_idx = 0
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
-                if isinstance(cell, VanillaTemporalModule):
-                    h = cell(h, temb=emb, encoder_hidden_states=context, video_length=F)
+                if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
+                    h = cell(h, emb, context, video_length=F)
                 else:
                     h = cell(h, emb, context)
 
@@ -545,8 +593,8 @@ class UNet3DModel(nn.Cell):
         # 2. middle block
         for module in self.middle_block:
             # h = module(h, emb, context)
-            if isinstance(module, VanillaTemporalModule):
-                h = module(h, temb=emb, encoder_hidden_states=context, video_length=F)
+            if isinstance(module, VanillaTemporalModule) or (isinstance(module, ResBlock) and self.norm_in_5d):
+                h = module(h, emb, context, video_length=F)
             else:
                 h = module(h, emb, context)
 
@@ -556,19 +604,19 @@ class UNet3DModel(nn.Cell):
             h = self.cat((h, hs[hs_index]))
             for cell in celllist:
                 # h = cell(h, emb, context)
-                if isinstance(cell, VanillaTemporalModule):
-                    h = cell(h, temb=emb, encoder_hidden_states=context, video_length=F)
+                if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
+                    h = cell(h, emb, context, video_length=F)
                 else:
                     h = cell(h, emb, context)
             hs_index -= 1
-
-        if self.predict_codebook_ids:
-            assert self.predict_codebook_ids, "Not impl yet"
-            return self.id_predictor(h)
+        if self.norm_in_5d:
+            h = self.conv_norm_out(h, video_length=F)
         else:
-            h = self.out(h)
+            h = self.conv_norm_out(h)
 
-            # rearrange back: (b*f c h w) -> (b c f h w)
-            h = rearrange_out(h, f=F)
+        h = self.out(h)
 
-            return h
+        # rearrange back: (b*f c h w) -> (b c f h w)
+        h = rearrange_out(h, f=F)
+
+        return h

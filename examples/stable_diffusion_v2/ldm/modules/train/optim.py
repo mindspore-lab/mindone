@@ -16,6 +16,7 @@ def build_optimizer(
     lr: Union[float, List[float]],
     betas: List[float] = None,
     weight_decay: float = 1e-6,
+    eps: float = 1e-6,
     group_strategy: Optional[str] = None,
 ) -> Optimizer:
     """
@@ -28,6 +29,7 @@ def build_optimizer(
         betas: Beta coefficients for computing running averages of gradient and its square.
             If not provided, [0.9, 0.999] is used as default.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
+        eps: epsilon in adam or adamw optimization, Default: 1e-6
         group_strategy: The specific grouping startegy for weight decay. If it is None,
             then only the weight decays for parameters in layernorm and all bias will be set to 0.
 
@@ -44,6 +46,9 @@ def build_optimizer(
         if group_strategy is not None and group_strategy.lower() == "unclip":
             # set decay of embedding to 0 should be beneficial for most of the cases
             filter_list = ["layernorm", "bias", "label_emb", "time_embed", "emb_layers"]
+        elif group_strategy.lower() == "norm_and_bias":
+            # filter norm and bias
+            filter_list = ["gamma", "beta", "bias"]
         else:
             filter_list = ["layernorm", "bias"]
         return all([x not in param.name.lower() for x in filter_list])
@@ -70,6 +75,6 @@ def build_optimizer(
     if name.lower() in ["sgd", "momentum"]:
         optimizer = OptimCls(group_params, learning_rate=lr, momentum=0.9)
     else:
-        optimizer = OptimCls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1])
+        optimizer = OptimCls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1], eps=eps)
 
     return optimizer
