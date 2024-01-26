@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-IPAdapter SD image to image generation (Image2Image)
+IPAdapter SD Image to image generation (ControlNet)
 """
 import argparse
 import logging
@@ -26,11 +26,11 @@ from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config
 from utils import model_utils
 
-logger = logging.getLogger("image_to_image")
+logger = logging.getLogger("controlnet")
 
 # naming: {sd_base_version}-{variation}
 _version_cfg = {
-    "1.5": ("sd_models/merged/sd_v1.5_ip_adapter.ckpt", "inference/sd_v15.yaml", 512),
+    "1.5": ("sd_models/merged/sd_v1.5_ip_adapter.ckpt", "inference/sd_v15_controlnet.yaml", 512),
 }
 
 
@@ -67,11 +67,6 @@ def load_model_from_config(config, ckpt):
     return model
 
 
-def _check_strength(val: float):
-    if val <= 0 or val > 1:
-        raise ValueError("`strength` must be in range (0, 1]`")
-
-
 def _cal_size(w: int, h: int, min_size: int = 512) -> Tuple[int, int]:
     if w < h:
         new_h = round(h / w * min_size)
@@ -91,7 +86,7 @@ def load_clip_image(image: str) -> ms.Tensor:
     return image
 
 
-def load_ref_image(image: str, scale_factor: int = 8, min_size: int = 512) -> ms.Tensor:
+def load_control_image(image: str, scale_factor: int = 8, min_size: int = 512) -> ms.Tensor:
     image = Image.open(image)
     image = ImageOps.exif_transpose(image)  # type: Image.Image
     image = image.convert("RGB")
@@ -102,7 +97,7 @@ def load_ref_image(image: str, scale_factor: int = 8, min_size: int = 512) -> ms
     image = np.array(image, dtype=np.float32)
     image = image[None, ...]
     image = image.transpose(0, 3, 1, 2)
-    image = image / 127.5 - 1.0
+    image = image / 255.0
     image = ms.Tensor(image, ms.float32)
     return image
 
@@ -182,11 +177,9 @@ def main(args):
 
     # read image
     clip_img = load_clip_image(args.img)
-    ref_img = load_ref_image(args.ref_img)
-
-    # get ref image latent
-    ref_img_latent = model.get_first_stage_encoding(model.encode_first_stage(ref_img))
-    ref_img_latent = ops.tile(ref_img_latent, (batch_size, 1, 1, 1))
+    control_img = load_control_image(args.control_img)
+    control_img = ops.tile(control_img, (batch_size, 1, 1, 1))
+    _, _, H, W = control_img.shape
 
     # get image conditioning
     clip_img_c = model.embedder(clip_img)
@@ -202,19 +195,6 @@ def main(args):
     sampler = DDIMSampler(model)
     sname = "ddim"
 
-    # determine total timesteps for q_forward
-    sampler.make_schedule(args.sampling_steps, verbose=False)  # create the ddim steps internally
-    sampling_steps = round(args.sampling_steps * args.strength)  # the real sampling steps
-    if sampling_steps < 1:
-        raise RuntimeError("`strength` must be large enougth such that at least one sampling step can be performed.")
-    start_sample_step = args.sampling_steps - sampling_steps
-    n_timestep = sampler.ddim_timesteps[::-1][None, start_sample_step, ...]
-
-    if sampling_steps == args.sampling_steps:
-        timesteps = None
-    else:
-        timesteps = sampling_steps + 1
-
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
@@ -229,7 +209,7 @@ def main(args):
             f"Precision: {model.model.diffusion_model.dtype}",
             f"Pretrained ckpt path: {args.ckpt_path}",
             f"Sampler: {sname}",
-            f"Sampling steps: {sampling_steps} ({args.sampling_steps} * {args.strength})",
+            f"Sampling steps: {args.sampling_steps}",
             f"Uncondition guidance scale: {args.scale}",
         ]
     )
@@ -237,6 +217,11 @@ def main(args):
     logger.info(key_info)
 
     # infer
+    start_code = None
+    if args.fixed_code:
+        stdnormal = ops.StandardNormal()
+        start_code = stdnormal((args.n_samples, 4, H // 8, W // 8))
+
     all_samples = list()
     for i, prompts in enumerate(data):
         negative_prompts = negative_data[i]
@@ -261,8 +246,7 @@ def main(args):
             # concat text/img embedding
             c = ops.concat([c.to(ms.float32), clip_img_c.to(ms.float32)], axis=1)
 
-            start_code = model.q_sample(ref_img_latent, n_timestep, ops.randn(ref_img_latent.shape))
-            shape = [4, ref_img_latent.shape[2], ref_img_latent.shape[3]]
+            shape = [4, H // 8, W // 8]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
                 conditioning=c,
@@ -273,7 +257,7 @@ def main(args):
                 unconditional_conditioning=uc,
                 eta=args.ddim_eta,
                 x_T=start_code,
-                timesteps=timesteps,
+                control=control_img,
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
@@ -311,6 +295,7 @@ if __name__ == "__main__":
         help="path to a file containing prompt list (each line in the file corresponds to a prompt to render).",
     )
     parser.add_argument("--img", required=True, help="Path of the image input.")
+    parser.add_argument("--control_img", required=True, help="Path of the control image input.")
     parser.add_argument(
         "--negative_data_path",
         type=str,
@@ -419,8 +404,7 @@ if __name__ == "__main__":
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    parser.add_argument("--strength", type=float, default=0.6, help="the extent to transform the reference image")
-    parser.add_argument("--ref_img", required=True, help="Path of the reference image")
+
     args = parser.parse_args()
 
     # check args
@@ -432,13 +416,13 @@ if __name__ == "__main__":
         ckpt_name = _version_cfg[args.version][0]
         args.ckpt_path = "checkpoints/" + ckpt_name
 
+        desire_size = _version_cfg[args.version][2]
+
     if args.config is None:
         args.config = os.path.join("configs", _version_cfg[args.version][1])
 
     if args.scale is None:
         args.scale = 9.0 if args.version.startswith("2.") else 7.5
-
-    _check_strength(args.strength)
 
     # core task
     main(args)

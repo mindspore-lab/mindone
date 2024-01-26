@@ -1,4 +1,4 @@
-base: ../stable_diffusion_xl/configs/inference/sd_xl_base.yaml
+base: ../stable_diffusion_xl/configs/inference/sd_xl_base_controlnet.yaml
 model:
   params:
     conditioner_config:
@@ -29,15 +29,15 @@ model:
             target: adapter.common.modules.embedders.modules.IPAdapterImageEmbedder
             params:
               freeze: True
-              embed_dim: 1280
+              embed_dim: 1024
               image_resolution: 224
-              vision_layers: 48
-              vision_width: 1664
+              vision_layers: 32
+              vision_width: 1280
               vision_patch_size: 14
-              vision_head_width: 104
+              vision_head_width: 80
               unet_cross_attention_dim: 2048
               num_tokens: 4
-              mlp_ratio: 4.9231
+              mlp_ratio: 4.0
               use_fp16: True
           # vector cond
           - is_trainable: False
@@ -59,8 +59,9 @@ model:
               outdim: 256  # multiplied by two
 
     network_config:
-      target: adapter.sdxl.modules.diffusionmodules.openaimodel.IPAdatperUNetModel
+      target: adapter.controlnet.sdxl_unet.IPAdapterControlNetUnetModel
       params:
         ip_scale: 1.0
         num_tokens: 4
         spatial_transformer_attn_type: vanilla
+        strength: 0.7
