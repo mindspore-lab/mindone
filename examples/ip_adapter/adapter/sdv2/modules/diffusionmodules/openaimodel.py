@@ -40,6 +40,8 @@ class IPAdapterUNetModel(UNetModel):
     :param resblock_updown: use residual blocks for up/downsampling.
     :param use_new_attention_order: use a different attention pattern for potentially
                                     increased efficiency.
+    :param fa_max_head_dim: the maximum head dimension to apply flash attention. In case of OOM,
+                            reduce this value.
     """
 
     def __init__(
@@ -70,6 +72,7 @@ class IPAdapterUNetModel(UNetModel):
         legacy=True,
         use_linear_in_transformer=False,
         enable_flash_attention=False,
+        fa_max_head_dim=256,
         adm_in_channels=None,
         upcast_attn=False,
         use_recompute=False,
@@ -204,6 +207,7 @@ class IPAdapterUNetModel(UNetModel):
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
                             upcast_attn=upcast_attn,
+                            fa_max_head_dim=fa_max_head_dim,
                             ip_scale=ip_scale,
                             num_tokens=num_tokens,
                         )
@@ -283,6 +287,7 @@ class IPAdapterUNetModel(UNetModel):
                     use_linear=use_linear_in_transformer,
                     enable_flash_attention=enable_flash_attention,
                     upcast_attn=upcast_attn,
+                    fa_max_head_dim=fa_max_head_dim,
                     ip_scale=ip_scale,
                     num_tokens=num_tokens,
                 ),
@@ -350,6 +355,7 @@ class IPAdapterUNetModel(UNetModel):
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
                             upcast_attn=upcast_attn,
+                            fa_max_head_dim=fa_max_head_dim,
                             ip_scale=ip_scale,
                             num_tokens=num_tokens,
                         )

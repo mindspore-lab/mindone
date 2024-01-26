@@ -26,7 +26,7 @@ from omegaconf import DictConfig, ListConfig
 from PIL import Image
 
 import mindspore as ms
-from mindspore import Tensor, context, nn, ops
+from mindspore import Parameter, Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
 
@@ -87,6 +87,14 @@ VERSION2SPECS = {
         "is_legacy": True,
     },
 }
+
+
+_ema_op = ops.MultitypeFuncGraph("grad_ema_op")
+
+
+@_ema_op.register("Tensor", "Tensor", "Tensor")
+def _ema_weights(factor, ema_weight, weight):
+    return ops.assign(ema_weight, ema_weight * factor + weight * (1 - factor))
 
 
 def set_default(args):
@@ -337,6 +345,29 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
         model.set_train(False)
 
     return model
+
+
+def load_checkpoint(model, ckpt, verbose=True, remove_prefix=None):
+    sd_dict = ms.load_checkpoint(ckpt)
+
+    if remove_prefix is not None:
+        new_sd_dict = {}
+        for k in sd_dict:
+            if k.startswith(remove_prefix):
+                new_k = k[len(remove_prefix) :]
+            else:
+                new_k = k[:]
+            new_sd_dict[new_k] = sd_dict[k]
+        sd_dict = new_sd_dict
+
+    m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
+
+    if len(m) > 0 and verbose:
+        print("missing keys:")
+        print(m)
+    if len(u) > 0 and verbose:
+        print("unexpected keys:")
+        print(u)
 
 
 def get_unique_embedder_keys_from_conditioner(conditioner):
@@ -630,19 +661,36 @@ def perform_save_locally(save_path, samples):
         base_count += 1
 
 
-def _build_lora_ckpt_path(ckpt_path):
-    return ckpt_path.replace(".ckpt", "_lora.ckpt")
+def _build_lora_ckpt_path(ckpt_path, save_ema_ckpt=False, save_lora_ckpt=True):
+    if save_lora_ckpt and not save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_lora.ckpt")
+    elif save_lora_ckpt and save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_lora_ema.ckpt")
+    elif not save_lora_ckpt and save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_ema.ckpt")
+    else:
+        path = ckpt_path
+
+    return path
 
 
 def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
-    ckpt, ckpt_lora = [], []
+    ckpt, ckpt_lora, ckpt_lora_ema, ckpt_ema = [], [], [], []
     for n, p in model.parameters_and_names():
         # FIXME: save checkpoint bug on mindspore 2.1.0
         if "._backbone" in n:
             _index = n.find("._backbone")
             n = n[:_index] + n[_index + len("._backbone") :]
-        if "lora_" in n:
+        if "lora_" in n and "ema." not in n:
             ckpt_lora.append({"name": n, "data": p})
+        elif "lora_" in n and "ema." in n:
+            _index = n.find("ema.")
+            n = n[:_index] + n[_index + len("ema.") :]
+            ckpt_lora_ema.append({"name": n, "data": p})
+        elif "lora_" not in n and "ema." in n:
+            _index = n.find("ema.")
+            n = n[:_index] + n[_index + len("ema.") :]
+            ckpt_ema.append({"name": n, "data": p})
         else:
             ckpt.append({"name": n, "data": p})
 
@@ -651,11 +699,19 @@ def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False)
     if not only_save_lora:
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
+        if len(ckpt_ema) > 0:
+            path_ema = _build_lora_ckpt_path(path, save_ema_ckpt=True, save_lora_ckpt=False)
+            ms.save_checkpoint(ckpt_ema, path_ema)
+            print(f"save ema checkpoint to {path_ema}")
 
     if len(ckpt_lora) > 0:
         path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+        if len(ckpt_lora_ema) > 0:
+            path_lora_ema = _build_lora_ckpt_path(path, save_ema_ckpt=True)
+            ms.save_checkpoint(ckpt_lora_ema, path_lora_ema)
+            print(f"save ema lora checkpoint to {path_lora_ema}")
 
 
 def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
@@ -665,10 +721,12 @@ def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
     if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
         del_ckpt = ckpt_queue.pop(0)
         del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
+        del_ckpt_ema = _build_lora_ckpt_path(del_ckpt, save_ema_ckpt=True, save_lora_ckpt=False)
+        del_ckpt_lora_ema = _build_lora_ckpt_path(del_ckpt, save_ema_ckpt=True)
         if only_save_lora:
-            del_ckpts = [del_ckpt_lora]
+            del_ckpts = [del_ckpt_lora, del_ckpt_lora_ema]
         else:
-            del_ckpts = [del_ckpt, del_ckpt_lora]
+            del_ckpts = [del_ckpt, del_ckpt_lora, del_ckpt_ema, del_ckpt_lora_ema]
 
         for to_del in del_ckpts:
             if os.path.isfile(to_del):
@@ -706,3 +764,31 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
+
+
+class EMA(nn.Cell):
+    """
+    Args:
+        updates: number of ema updates, which can be restored from resumed training.
+    """
+
+    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True):
+        super().__init__()
+        # TODO: net.trainable_params() is more reasonable?
+        if trainable_only:
+            self.net_weight = ms.ParameterTuple(network.trainable_params())
+        else:
+            self.net_weight = ms.ParameterTuple(network.get_parameters())
+        self.ema_weight = self.net_weight.clone(prefix="ema", init="same")
+        self.ema_decay = ema_decay
+        self.updates = Parameter(Tensor(updates, ms.float32), requires_grad=False)
+        self.hyper_map = ops.HyperMap()
+
+    def ema_update(self):
+        """Update EMA parameters."""
+        self.updates += 1
+        d = self.ema_decay * (1 - ops.exp(-self.updates / 2000))
+        # update trainable parameters
+        success = self.hyper_map(ops.partial(_ema_op, d), self.ema_weight, self.net_weight)
+        self.updates = ops.depend(self.updates, success)
+        return self.updates

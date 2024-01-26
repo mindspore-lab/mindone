@@ -139,12 +139,6 @@ class EvalSaveCallback(Callback):
         else:
             cur_epoch = cb_params.cur_epoch_num - 1
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
-
         if self.is_main_device:
             if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
                 if self.ema is not None:
@@ -165,7 +159,7 @@ class EvalSaveCallback(Callback):
                     append_dict={
                         "epoch_num": cur_epoch,
                         "cur_step": cur_step,
-                        "loss_scale": loss_scale_manager.get_loss_scale(),
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
                     },
                 )
 
@@ -184,13 +178,27 @@ class EvalSaveCallback(Callback):
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
-                _logger.info(
-                    "epoch: %d step: %d, loss is %.6f",
-                    cb_params.cur_epoch_num,
-                    (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
-                    loss.asnumpy().item(),
-                    # train_time / self.log_interval,  # TODO: divide by data sink size
-                )
+                if self.record_lr:
+                    _logger.info(
+                        "epoch: %d step: %d, lr: %.7f, loss: %.6f, loss scale: %d, average step time: %.6f.",
+                        cb_params.cur_epoch_num,
+                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                        cur_lr.asnumpy().item(),
+                        loss.asnumpy().item(),
+                        self._get_scaling_value_from_cbp(cb_params),
+                        self.log_interval,
+                        train_time / self.log_interval,
+                    )
+                else:
+                    _logger.info(
+                        "epoch: %d step: %d, loss: %.6f, loss scale: %d, average step time: %.6f.",
+                        cb_params.cur_epoch_num,
+                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                        loss.asnumpy().item(),
+                        self._get_scaling_value_from_cbp(cb_params),
+                        self.log_interval,
+                        train_time / self.log_interval,
+                    )
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -211,12 +219,6 @@ class EvalSaveCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
-
         if self.is_main_device and not self.step_mode:
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
                 if self.ema is not None:
@@ -233,7 +235,10 @@ class EvalSaveCallback(Callback):
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={"epoch_num": cur_epoch, "loss_scale": loss_scale_manager.get_loss_scale()},
+                    append_dict={
+                        "epoch_num": cur_epoch,
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                    },
                 )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
@@ -258,6 +263,12 @@ class EvalSaveCallback(Callback):
         else:
             optimizer = cb_params.train_network.optimizer
         return optimizer
+
+    def _get_scaling_value_from_cbp(self, cb_params):
+        if cb_params.dataset_sink_mode:
+            return cb_params.train_network.network.scale_sense.asnumpy().item()
+        else:
+            return cb_params.train_network.scale_sense.asnumpy().item()
 
     def _fetch_optimizer_lr(self, cb_params):
         opt = self._get_optimizer_from_cbp(cb_params)

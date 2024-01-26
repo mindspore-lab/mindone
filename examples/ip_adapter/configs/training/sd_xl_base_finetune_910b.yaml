@@ -65,6 +65,7 @@ model:
       params:
         ip_scale: 1.0
         num_tokens: 4
+        spatial_transformer_attn_type: vanilla
 
 optim:
   base_learning_rate: 1.0e-4

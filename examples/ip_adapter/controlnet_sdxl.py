@@ -1,20 +1,23 @@
 #!/usr/bin/env python
 """
-IPAdapter SDXL image to image generation (Image variation)
+IPAdapter SDXL image to image generation (ControlNet)
 """
 import argparse
 import ast
 import os
 import sys
 import time
+from typing import Tuple
 
 from PIL import Image, ImageOps
+
+import mindspore.ops as ops
 
 sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
 
 import numpy as np
-from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, perform_save_locally
+from gm.helpers import VERSION2SPECS, create_model, init_sampling, perform_save_locally
 from gm.util import seed_everything
 from omegaconf import OmegaConf
 from transformers import CLIPImageProcessor
@@ -25,7 +28,7 @@ import mindspore as ms
 def get_parser_sample():
     parser = argparse.ArgumentParser(description="sampling with sd-xl")
     parser.add_argument(
-        "--config", type=str, default="configs/inference/sd_xl_base.yaml", help="Path of the config file"
+        "--config", type=str, default="configs/inference/sd_xl_base_controlnet.yaml", help="Path of the config file"
     )
     parser.add_argument(
         "--weight",
@@ -45,7 +48,7 @@ def get_parser_sample():
         help="Negative prompt input",
     )
     parser.add_argument("--img", type=str, required=True, help="Path of the input image file")
-    parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
+    parser.add_argument("--control_img", required=True, help="Path of the control image input.")
     parser.add_argument("--orig_width", type=int, default=None)
     parser.add_argument("--orig_height", type=int, default=None)
     parser.add_argument("--target_width", type=int, default=None)
@@ -76,6 +79,16 @@ def get_parser_sample():
     return parser
 
 
+def _cal_size(w: int, h: int, min_size: int = 512) -> Tuple[int, int]:
+    if w < h:
+        new_h = round(h / w * min_size)
+        new_w = min_size
+    else:
+        new_w = round(w / h * min_size)
+        new_h = min_size
+    return new_w, new_h
+
+
 def load_clip_image(image: str) -> np.ndarray:
     image = Image.open(image)
     image = ImageOps.exif_transpose(image)
@@ -84,15 +97,35 @@ def load_clip_image(image: str) -> np.ndarray:
     return image.pixel_values
 
 
+def load_control_image(image: str, scale_factor: int = 8, min_size: int = 1024) -> ms.Tensor:
+    image = Image.open(image)
+    image = ImageOps.exif_transpose(image)  # type: Image.Image
+    image = image.convert("RGB")
+    w, h = image.size
+    w, h = _cal_size(w, h, min_size=min_size)
+    w, h = (x - x % scale_factor for x in (w, h))
+    image = image.resize((w, h), resample=Image.LANCZOS)
+    image = np.array(image, dtype=np.float32)
+    image = image[None, ...]
+    image = image.transpose(0, 3, 1, 2)
+    image = image / 255.0
+    image = ms.Tensor(image, ms.float32)
+    return image
+
+
 def run_text2img(
     args, model, version_dict, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"
 ):
-    assert args.sd_xl_base_ratios in SD_XL_BASE_RATIOS
-    W, H = SD_XL_BASE_RATIOS[args.sd_xl_base_ratios]
     C = version_dict["C"]
     F = version_dict["f"]
 
     clip_img = load_clip_image(args.img)
+    control_img = load_control_image(args.control_img)
+    control_img = ops.tile(control_img, (args.num_cols, 1, 1, 1))
+
+    # TODO: for conditional guidance, move to internal
+    control_img = ops.concat([control_img, control_img], axis=0)
+    _, _, H, W = control_img.shape
 
     value_dict = {
         "prompt": args.prompt,
@@ -133,6 +166,7 @@ def run_text2img(
             return_latents=return_latents,
             filter=filter,
             amp_level=amp_level,
+            control=control_img,
         )
     print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 

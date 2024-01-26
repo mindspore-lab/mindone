@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-IPAdapter SD image to image generation (Image2Image)
+IPAdapter SD image to image generation (Inpainting condition)
 """
 import argparse
 import logging
@@ -26,7 +26,7 @@ from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config
 from utils import model_utils
 
-logger = logging.getLogger("image_to_image")
+logger = logging.getLogger("image_inpainting")
 
 # naming: {sd_base_version}-{variation}
 _version_cfg = {
@@ -107,6 +107,24 @@ def load_ref_image(image: str, scale_factor: int = 8, min_size: int = 512) -> ms
     return image
 
 
+def load_ref_mask(mask: str, scale_factor: int = 8, min_size: int = 512) -> ms.Tensor:
+    mask = Image.open(mask)
+    mask = ImageOps.exif_transpose(mask)  # type: Image.Image
+    mask = mask.convert("L")
+    w, h = mask.size
+    w, h = _cal_size(w, h, min_size=min_size)
+    w, h = (x - x % scale_factor for x in (w, h))
+    # downsample as vae does
+    mask = mask.resize((w // scale_factor, h // scale_factor), resample=Image.NEAREST)
+    mask = np.array(mask, dtype=np.float32)
+    mask = mask[None, ...]
+    mask = np.tile(mask, (1, 4, 1, 1))
+    mask = mask / 255.0
+    mask = 1 - mask  # keep black, inpaint white
+    mask = ms.Tensor(mask, ms.float32)
+    return mask
+
+
 def main(args):
     # set logger
     set_logger(
@@ -183,10 +201,14 @@ def main(args):
     # read image
     clip_img = load_clip_image(args.img)
     ref_img = load_ref_image(args.ref_img)
+    ref_mask = load_ref_mask(args.ref_mask)
 
     # get ref image latent
     ref_img_latent = model.get_first_stage_encoding(model.encode_first_stage(ref_img))
     ref_img_latent = ops.tile(ref_img_latent, (batch_size, 1, 1, 1))
+
+    # mask
+    ref_mask = ops.tile(ref_mask, (batch_size, 1, 1, 1))
 
     # get image conditioning
     clip_img_c = model.embedder(clip_img)
@@ -261,7 +283,8 @@ def main(args):
             # concat text/img embedding
             c = ops.concat([c.to(ms.float32), clip_img_c.to(ms.float32)], axis=1)
 
-            start_code = model.q_sample(ref_img_latent, n_timestep, ops.randn(ref_img_latent.shape))
+            noise = ops.randn(ref_img_latent.shape)
+            start_code = model.q_sample(ref_img_latent, n_timestep, noise)
             shape = [4, ref_img_latent.shape[2], ref_img_latent.shape[3]]
             samples_ddim, _ = sampler.sample(
                 S=args.sampling_steps,
@@ -274,6 +297,9 @@ def main(args):
                 eta=args.ddim_eta,
                 x_T=start_code,
                 timesteps=timesteps,
+                mask=ref_mask,
+                x0=ref_img_latent,
+                noise=noise,
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
@@ -419,8 +445,9 @@ if __name__ == "__main__":
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    parser.add_argument("--strength", type=float, default=0.6, help="the extent to transform the reference image")
+    parser.add_argument("--strength", type=float, default=0.7, help="the extent to transform the reference image")
     parser.add_argument("--ref_img", required=True, help="Path of the reference image")
+    parser.add_argument("--ref_mask", required=True, help="Path of the mask of reference image")
     args = parser.parse_args()
 
     # check args

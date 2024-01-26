@@ -1,9 +1,10 @@
-base: ../stable_diffusion_v2/configs/v1-inference.yaml
+base: ../stable_diffusion_v2/inference/config/model/v1-inference-controlnet.yaml
 model:
   target: adapter.sdv2.models.diffusion.ddpm.IPAdapterLatentDiffusion
+  pretrained_ckpt: ""
   params:
     unet_config:
-      target: adapter.sdv2.modules.diffusionmodules.openaimodel.IPAdapterUNetModel
+      target: adapter.controlnet.sdv2_unet.IPAdapterControlNetUnetModel
       params:
         enable_flash_attention: False
         ip_scale: 1.0

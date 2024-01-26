@@ -239,6 +239,11 @@ class ImageDataset:
         return image
 
     def tokenize(self, text):
+        # a hack to determine if use transformers.CLIPTokenizer
+        # should handle it better
+        if type(self.tokenizer).__name__ == "CLIPTokenizer":
+            return self._clip_tokenize(text)
+
         SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
         EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
         CONTEXT_LEN = self.tokenizer.context_length
@@ -252,6 +257,18 @@ class ImageDataset:
         result[: len(tokens)] = tokens
 
         return result
+
+    def _clip_tokenize(self, texts):
+        batch_encoding = self.tokenizer(
+            texts,
+            truncation=True,
+            max_length=self.tokenizer.context_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = np.array(batch_encoding["input_ids"], dtype=np.int32)
+        return tokens
 
 
 class BatchSampler:

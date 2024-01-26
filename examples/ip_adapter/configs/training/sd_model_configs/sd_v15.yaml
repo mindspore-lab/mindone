@@ -1,4 +1,4 @@
-base: ../stable_diffusion_v2/configs/v1-inference.yaml
+base: ../stable_diffusion_v2/configs/v1-train.yaml
 model:
   target: adapter.sdv2.models.diffusion.ddpm.IPAdapterLatentDiffusion
   params:
@@ -23,6 +23,7 @@ model:
         num_tokens: 4
         mlp_ratio: 4.0
         use_fp16: True
+        embedding_dropout: 0.05
 
     cond_stage_config:
       target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
