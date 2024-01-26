@@ -29,7 +29,7 @@ do
   export DEVICE_ID=$((i-START_DEVICE))
   echo "start training for rank $RANK_ID, device $DEVICE_ID"
   python train.py \
-    --config configs/training/sd_xl_base_finetune_910b_op.yaml \
+    --config configs/training/sd_xl_base_finetune_910b_zero3.yaml \
     --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
     --data_path $DATASET_PATH \
     --save_path_with_time False \

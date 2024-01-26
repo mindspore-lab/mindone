@@ -37,9 +37,9 @@ class DiscreteSampling(nn.Cell):
         return self.idx_to_sigma(idx)
 
 
-class DiscreteSamplingForOp(DiscreteSampling):
+class DiscreteSamplingForZero3(DiscreteSampling):
     def __init__(self, discretization_config, num_idx, do_append_zero=False, flip=True, quantize_c_noise=True):
-        super(DiscreteSamplingForOp, self).__init__(discretization_config, num_idx, do_append_zero, flip)
+        super(DiscreteSamplingForZero3, self).__init__(discretization_config, num_idx, do_append_zero, flip)
         sigmas_np = instantiate_from_config(discretization_config)(num_idx, do_append_zero=do_append_zero, flip=flip)
         self.sigmas_np = sigmas_np
         self.quantize_c_noise = quantize_c_noise

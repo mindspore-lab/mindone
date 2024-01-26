@@ -314,10 +314,10 @@ def train(args):
             jit_config = None
 
     elif args.ms_mode == 0 and args.parallel_mode == "OPTIMIZER_PARALLEL":
-        from gm.models.trainer_factory import TrainOneStepWithOPCell
+        from gm.models.trainer_factory import TrainOneStepWithZero3Cell
 
         callback = [LossMonitor()]
-        train_step_fn = TrainOneStepWithOPCell(
+        train_step_fn = TrainOneStepWithZero3Cell(
             model,
             optimizer,
             reducer,
