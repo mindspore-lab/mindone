@@ -22,19 +22,21 @@ def ckpt_backbone_remove(distri_ckpt_dir, epoch_num, step_num):
     ckpts_dict = {}
     for root, dirs, files in os.walk(distri_ckpt_dir):
         device_dir = root.split("/")[-1]
-        print("remove _backbone of {}".format(device_dir))
-        ckpt_name = "checkpoint-{}_{}.ckpt".format(epoch_num, step_num)
-        ckpt_path = os.path.join(root, ckpt_name)
-        old_ckpt = ms.load_checkpoint(ckpt_path)
-        new_ckpt = {}
-        for k in old_ckpt:
-            if "._backbone" in k:
-                _index = k.find(".backbone")
-                new_k = k[:_index] + k[_index + len("._backbone") :]
-            else:
-                new_k = k[:]
-            new_ckpt[new_k] = old_ckpt[k]
-        ckpts_dict[device_dir] = new_ckpt
+        for file in files:
+            ckpt_name = "checkpoint-{}_{}.ckpt".format(epoch_num, step_num)
+            if file == ckpt_name:
+                print("remove _backbone of {}".format(device_dir))
+                ckpt_path = os.path.join(root, ckpt_name)
+                old_ckpt = ms.load_checkpoint(ckpt_path)
+                new_ckpt = {}
+                for k in old_ckpt:
+                    if "._backbone" in k:
+                        _index = k.find(".backbone")
+                        new_k = k[:_index] + k[_index + len("._backbone") :]
+                    else:
+                        new_k = k[:]
+                    new_ckpt[new_k] = old_ckpt[k]
+                ckpts_dict[device_dir] = new_ckpt
 
     return ckpts_dict
 
@@ -54,12 +56,12 @@ def combine(args):
                 if param.value().shape[0] == (rank_size * distri_first_ckpt[key].value().shape[0]):
                     for i in range(rank_size):
                         rank_name = "rank_{}".format(i)
-                        distri_param = ckpts_dict[rank_name]
+                        distri_ckpt = ckpts_dict[rank_name]
                         if key not in new_ckpt_data:
-                            new_ckpt_data[key] = distri_param.value()
+                            new_ckpt_data[key] = distri_ckpt[key].value()
                         else:
                             param_data = new_ckpt_data[key].value()
-                            param_data = ops.concat((param_data, distri_param.value()))
+                            param_data = ops.concat((param_data, distri_ckpt[key].value()))
                             new_ckpt_data[key] = param_data
 
                 elif param.value().shape[0] == distri_first_ckpt[key].value().shape[0]:

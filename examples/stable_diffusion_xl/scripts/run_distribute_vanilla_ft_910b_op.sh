@@ -34,7 +34,7 @@ do
     --data_path $DATASET_PATH \
     --save_path_with_time False \
     --max_device_memory "59GB" \
-    --parallel_mode "OPTIMIZER_PARALLEL"\
+    --parallel_mode "OPTIMIZER_PARALLEL" \
     --data_sink True \
     --sink_size 100 \
     --is_parallel True > logs_for_distribute/log_$i.txt 2>&1 &

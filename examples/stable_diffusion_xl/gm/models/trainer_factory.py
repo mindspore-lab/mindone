@@ -752,12 +752,12 @@ class TrainOneStepWithOPCell(nn.Cell):
         t = self.rand_t(x.shape[0])
         sigmas = self.sigma_sampler.sigmas[t]
         noise = ops.randn_like(x)
-        noise_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
         c_skip = self.sigma_sampler.c_skip[t].reshape(-1, 1, 1, 1)
         c_out = self.sigma_sampler.c_out[t].reshape(-1, 1, 1, 1)
         c_in = self.sigma_sampler.c_in[t].reshape(-1, 1, 1, 1)
-        noised_input_c = noise_input * c_in
+        noised_input_c = noised_input * c_in
         noised_input_c = ops.stop_gradient(noised_input_c)
         c_skip = ops.stop_gradient(c_skip)
         c_out = ops.stop_gradient(c_out)
@@ -765,7 +765,7 @@ class TrainOneStepWithOPCell(nn.Cell):
         if not self.trainable_conditioner:
             context = ops.stop_gradient(context)
             y = ops.stop_gradient(y)
-        return x, noised_input_c, t, context, y, c_out, noised_input_c * c_skip, w
+        return x, noised_input_c, t, context, y, c_out, noised_input * c_skip, w
 
     def forward(self, *inputs):
         x, noised_input_c, t, context, y, c_out, noised_input, w = self.get_input(*inputs)
