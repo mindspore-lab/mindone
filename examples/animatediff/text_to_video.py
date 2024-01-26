@@ -75,6 +75,8 @@ def main(args):
     seeds, steps, guidance_scale = ad_config.get("seed", 0), ad_config.steps, ad_config.guidance_scale
     prompts = ad_config.prompt
     n_prompts = ad_config.n_prompt
+    if args.prompt != "":
+        prompts[0] = args.prompt
     seeds = [seeds] * len(prompts) if isinstance(seeds, int) else seeds
 
     sd_config = OmegaConf.load(args.sd_config)
@@ -200,14 +202,20 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/prompts/v2/1-ToonYou.yaml")
+    parser.add_argument("--config", type=str, default="configs/prompts/v2/base_video.yaml")
+    parser.add_argument("--inference_config", type=str, default="configs/inference/inference-v2.yaml")
+    parser.add_argument("--sd_config", type=str, default="configs/stable_diffusion/v1-inference-mmv2.yaml")
     parser.add_argument(
         "--pretrained_model_path",
         type=str,
         default="models/stable_diffusion/sd_v1.5-d0ab7146.ckpt",
     )
-    parser.add_argument("--all_in_one_ckpt", type=str, default="", help="if not empty, load SD+mm from this file")
-    parser.add_argument("--inference_config", type=str, default="configs/inference/inference-v2.yaml")
+    parser.add_argument("--L", type=int, default=16)
+    parser.add_argument("--W", type=int, default=512)
+    parser.add_argument("--H", type=int, default=512)
+    parser.add_argument(
+        "--all_in_one_ckpt", type=str, default="", help="if not empty, load SD and motion modules from this file"
+    )
     parser.add_argument(
         "--motion_module_path",
         type=str,
@@ -226,12 +234,9 @@ if __name__ == "__main__":
         default=None,
         help="if not empty, overwrite the path in configs/prompts/{version}/{task}.yaml",
     )
-    # Use ldm config method instead of diffusers and transformers
-    parser.add_argument("--sd_config", type=str, default="configs/stable_diffusion/v1-inference-mmv2.yaml")
-
-    parser.add_argument("--L", type=int, default=16)
-    parser.add_argument("--W", type=int, default=512)
-    parser.add_argument("--H", type=int, default=512)
+    parser.add_argument(
+        "--prompt", type=str, default="", help="Input prompt text. If nt empty, it will overwite the prompt in yaml"
+    )
 
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")

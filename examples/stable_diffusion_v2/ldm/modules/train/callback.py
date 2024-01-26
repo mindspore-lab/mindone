@@ -186,7 +186,6 @@ class EvalSaveCallback(Callback):
                         cur_lr.asnumpy().item(),
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
-                        self.log_interval,
                         train_time / self.log_interval,
                     )
                 else:
@@ -196,7 +195,6 @@ class EvalSaveCallback(Callback):
                         (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
                         loss.asnumpy().item(),
                         self._get_scaling_value_from_cbp(cb_params),
-                        self.log_interval,
                         train_time / self.log_interval,
                     )
 

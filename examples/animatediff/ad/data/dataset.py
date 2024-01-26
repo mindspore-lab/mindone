@@ -21,7 +21,7 @@ def read_gif(gif_path, mode="RGB"):
     return frames
 
 
-def create_video_transforms(h, w, num_frames, interoplation="bicubic", backend="al", use_safer_augment=True):
+def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="al", use_safer_augment=True):
     """
     pipeline: flip -> resize -> crop
     h, w : target resize height, weight
@@ -36,7 +36,7 @@ def create_video_transforms(h, w, num_frames, interoplation="bicubic", backend="
         pixel_transforms = transforms.Compose(
             [
                 transforms.RandomHorizontalFlip(),
-                transforms.Resize(h, interpolation=mapping[interoplation]),
+                transforms.Resize(h, interpolation=mapping[interpolation]),
                 transforms.CenterCrop((h, w)),
             ]
         )
@@ -50,7 +50,7 @@ def create_video_transforms(h, w, num_frames, interoplation="bicubic", backend="
         if use_safer_augment:
             pixel_transforms = albumentations.Compose(
                 [
-                    SmallestMaxSize(max_size=h, interpolation=mapping[interoplation]),
+                    SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
                 additional_targets=targets,
@@ -61,7 +61,7 @@ def create_video_transforms(h, w, num_frames, interoplation="bicubic", backend="
             pixel_transforms = albumentations.Compose(
                 [
                     HorizontalFlip(p=0.5),
-                    Resize(h, h, interpolation=mapping[interoplation]),
+                    Resize(h, h, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
                 additional_targets=targets,
@@ -78,7 +78,7 @@ def create_video_transforms(h, w, num_frames, interoplation="bicubic", backend="
         pixel_transforms = transforms.Compose(
             [
                 vision.RandomHorizontalFlip(),
-                vision.Resize(h, interpolation=mapping[interoplation]),
+                vision.Resize(h, interpolation=mapping[interpolation]),
                 CenterCrop(h, w),
             ]
         )
@@ -118,7 +118,7 @@ class TextVideoDataset:
 
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
         self.pixel_transforms = create_video_transforms(
-            sample_size[0], sample_size[1], sample_n_frames, interoplation="bicubic", backend=transform_backend
+            sample_size[0], sample_size[1], sample_n_frames, interpolation="bicubic", backend=transform_backend
         )
         self.transform_backend = transform_backend
         self.tokenizer = tokenizer
