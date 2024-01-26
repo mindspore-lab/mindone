@@ -55,6 +55,9 @@ def build_dataloader(
     Returns:
         ms.dataset.BatchDataset: The DataLoader for the given dataset.
     """
+    if not hasattr(dataset, "output_columns"):
+        raise AttributeError(f"{type(dataset).__name__} must have `output_columns` attribute.")
+
     ms.dataset.config.set_prefetch_size(prefetch_size)
     ms.dataset.config.set_enable_shared_mem(True)
     ms.dataset.config.set_debug_mode(debug)
