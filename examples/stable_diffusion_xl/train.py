@@ -7,6 +7,7 @@ from functools import partial
 import numpy as np
 from gm.data.loader import create_loader
 from gm.helpers import (
+    EMA,
     SD_XL_BASE_RATIOS,
     VERSION2SPECS,
     create_model,
@@ -15,6 +16,7 @@ from gm.helpers import (
     get_learning_rate,
     get_loss_scaler,
     get_optimizer,
+    load_checkpoint,
     save_checkpoint,
     set_default,
 )
@@ -47,6 +49,7 @@ def get_parser_train():
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
+    parser.add_argument("--use_ema", action="store_true", help="whether use ema")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--per_batch_size", type=int, default=None)
 
@@ -63,6 +66,8 @@ def get_parser_train():
         default=None,
         help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
     )
+    parser.add_argument("--optimizer_weight", type=str, default=None, help="load optimizer weight")
+    parser.add_argument("--save_optimizer", type=ast.literal_eval, default=False, help="enable save optimizer")
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
     parser.add_argument(
@@ -163,8 +168,16 @@ def train(args):
     if isinstance(model.model, nn.Cell):
         optimizer = get_optimizer(config.optim, lr, params=trainable_params)
         reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+        if args.optimizer_weight:
+            print(f"Loading optimizer from {args.optimizer_weight}")
+            load_checkpoint(optimizer, args.optimizer_weight, remove_prefix="ldm_with_loss_grad.optimizer.")
     else:
         optimizer, reducer = None, None
+
+    if args.use_ema:
+        ema = EMA(model, ema_decay=0.9999)
+    else:
+        ema = None
 
     if args.ms_mode == 1:
         # Pynative Mode
@@ -193,6 +206,7 @@ def train(args):
                 clip_norm=args.max_grad_norm,
                 enable_first_stage_model=not args.cache_latent,
                 enable_conditioner=not args.cache_text_embedding,
+                ema=ema,
             )
             train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
             if model.disable_first_stage_amp and train_step_fn.first_stage_model is not None:
@@ -203,6 +217,7 @@ def train(args):
 
             assert args.version == "SDXL-base-1.0", "Only supports sdxl-base."
             assert args.task == "txt2img", "Only supports text2img task."
+            assert args.optimizer_weight is None, "Not supports load optimizer weight."
             assert (model.stage1 is not None) and (model.stage2 is not None)
             optimizer1 = get_optimizer(
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
@@ -229,14 +244,18 @@ def train(args):
         raise ValueError("args.max_num_ckpt must be None or a positive integer!")
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
-        train_fn(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config)
+        train_fn(
+            args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config, ema=ema
+        )
     elif args.task == "img2img":
         raise NotImplementedError
     else:
         raise ValueError(f"Unknown task {args.task}")
 
 
-def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, **kwargs):  # for print  # for infer/ckpt
+def train_txt2img(
+    args, train_step_fn, dataloader, optimizer=None, model=None, ema=None, **kwargs
+):  # for print  # for infer/ckpt
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -286,7 +305,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
                 save_checkpoint(
-                    model,
+                    model if not ema else ema,
                     save_ckpt_dir,
                     ckpt_queue,
                     args.max_num_ckpt,
@@ -298,6 +317,11 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             else:
                 model.save_checkpoint(save_ckpt_dir)
             ckpt_queue.append(save_ckpt_dir)
+
+            if args.save_optimizer:
+                save_optimizer_dir = os.path.join(args.save_path, "optimizer.ckpt")
+                ms.save_checkpoint(optimizer, save_optimizer_dir)
+                print(f"save optimizer weight to {save_optimizer_dir}")
 
         # Infer during train
         if (i + 1) % args.infer_interval == 0 and args.infer_during_train:
@@ -311,7 +335,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
 
 
 def train_txt2img_datasink(
-    args, train_step_fn, dataloader, optimizer=None, model=None, jit_config=None, **kwargs
+    args, train_step_fn, dataloader, optimizer=None, model=None, jit_config=None, ema=None, **kwargs
 ):  # for print  # for infer/ckpt
     total_step = dataloader.get_dataset_size()
     epochs = total_step // args.sink_size
@@ -355,7 +379,7 @@ def train_txt2img_datasink(
             if isinstance(model.model, nn.Cell):
                 model.model.set_train(False)  # only unet
                 save_checkpoint(
-                    model,
+                    model if not ema else ema,
                     save_ckpt_dir,
                     ckpt_queue,
                     args.max_num_ckpt,

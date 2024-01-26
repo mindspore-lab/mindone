@@ -3,9 +3,7 @@ import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
-import numpy as np
 from adapters import get_adapter
 from data.dataset_with_cond import CondDataset
 from jsonargparse import ActionConfigFile, ArgumentParser
@@ -13,35 +11,20 @@ from omegaconf import OmegaConf
 from pipelines.sd_pipeline import SDAdapterPipeline
 
 from mindspore import Model, nn
-from mindspore.dataset.vision import Resize, ToTensor
 from mindspore.train.callback import LossMonitor, TimeMonitor
+
+sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
+from mindone.data import build_dataloader
 
 sys.path.append("../stable_diffusion_v2/")
 from common import init_env
-from ldm.data.loader import build_dataloader
-from ldm.data.transforms import CannyRandomThreshold, TokenizerWrapper
+from ldm.data.transforms import TokenizerWrapper
 from ldm.modules.logger import set_logger
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.trainer import TrainOneStepWrapper
 from ldm.util import count_params
 from text_to_image import load_model_from_config
-
-
-def build_transforms(cond: str, tokenizer) -> List[dict]:
-    transforms = [
-        {"operations": TokenizerWrapper(tokenizer), "input_columns": ["caption"]},
-        {
-            "operations": [Resize((512, 512)), lambda x: (x / 127.5 - 1.0).astype(np.float32)],
-            "input_columns": ["image"],
-        },
-    ]
-
-    if cond == "canny":  # generate Canny conditions with dynamic thresholds during training
-        transforms.append({"operations": CannyRandomThreshold(), "input_columns": ["condition"]})
-
-    transforms.append({"operations": [Resize((512, 512)), ToTensor()], "input_columns": ["condition"]})
-    return transforms
 
 
 def main(args, initializer):
@@ -58,9 +41,10 @@ def main(args, initializer):
     sd_model = load_model_from_config(sd_config, args.sd_ckpt)
 
     # step 3: prepare train dataset and dataloader
-    transforms = build_transforms(args.adapter.condition, sd_model.cond_stage_model.tokenizer)
+    dataset = initializer.train.dataset
+    transforms = dataset.train_transforms(args.adapter.condition, TokenizerWrapper(sd_model.cond_stage_model.tokenizer))
     train_dataloader = build_dataloader(
-        initializer.train.dataset,
+        dataset,
         transforms=transforms,
         device_num=device_num,
         rank_id=rank_id,

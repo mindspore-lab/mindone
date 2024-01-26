@@ -1,0 +1,32 @@
+# task
+image_finetune: True
+output_path: outputs/img_ft_sdgen
+
+# model setting
+model_config: configs/stable_diffusion/v1-train.yaml
+pretrained_model_path: models/stable_diffusion/sd_v1.5-d0ab7146.ckpt
+unet_initialize_random: False
+
+# data setting
+data_path: ../videocomposer/datasets/webvid5
+image_size: 256
+
+dataset_sink_mode: False
+
+# training hyper-params
+start_learning_rate: 0.00001
+warmup_steps: 10
+train_batch_size: 1
+weight_decay: 0.01
+epochs: 1000
+
+use_ema: False
+clip_grad: True
+
+init_loss_scale: 65536
+
+betas: [0.9, 0.999]
+optim_eps: 1.e-6
+
+# training process
+ckpt_save_interval: 1000

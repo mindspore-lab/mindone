@@ -4,3 +4,4 @@ gdown
 einops
 omegaconf
 safetensors
+albumentations

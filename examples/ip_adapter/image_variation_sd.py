@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Text to image generation
+IPAdapter SD image to image generation (Image variation)
 """
 import argparse
 import logging
@@ -16,8 +16,8 @@ from transformers import CLIPImageProcessor
 import mindspore as ms
 import mindspore.ops as ops
 
-sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
+sys.path.append("../stable_diffusion_xl/")
 
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
@@ -53,7 +53,6 @@ def load_model_from_config(config, ckpt):
                             "Ckpt params not loaded: {}".format([p for p in ckpt_not_load if not p.startswith("adam")])
                         )
         else:
-            logger.error(f"!!!Error!!!: {ckpt_fp} doesn't exist")
             raise FileNotFoundError(f"{ckpt_fp} doesn't exist")
 
     logger.info(f"Loading model from {ckpt}")
@@ -129,7 +128,12 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
+    ms.set_context(
+        mode=args.ms_mode,
+        device_target="Ascend",
+        device_id=device_id,
+        ascend_config=dict(precision_mode="must_keep_origin_dtype"),
+    )
 
     set_random_seed(args.seed)
 
@@ -205,13 +209,13 @@ def main(args):
                 tokenized_negative_prompts = model.tokenize(negative_prompts)
                 uc = model.get_learned_conditioning(tokenized_negative_prompts)
                 # concat text/img embedding
-                uc = ops.concat([uc, clip_img_uc], axis=1)
+                uc = ops.concat([uc.to(ms.float32), clip_img_uc.to(ms.float32)], axis=1)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             tokenized_prompts = model.tokenize(prompts)
             c = model.get_learned_conditioning(tokenized_prompts)
             # concat text/img embedding
-            c = ops.concat([c, clip_img_c], axis=1)
+            c = ops.concat([c.to(ms.float32), clip_img_c.to(ms.float32)], axis=1)
 
             shape = [4, args.H // 8, args.W // 8]
             samples_ddim, _ = sampler.sample(
