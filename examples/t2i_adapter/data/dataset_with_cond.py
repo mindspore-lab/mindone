@@ -1,13 +1,18 @@
 import json
 import os
 from abc import ABC
-from typing import Tuple
+from typing import Callable, List, Tuple
 
 import cv2
 import numpy as np
+from ldm.data.transforms import CannyRandomThreshold
+
+from mindspore.dataset.vision import Resize, ToTensor
+
+from mindone.data import BaseDataset
 
 
-class CondDataset(ABC):
+class CondDataset(BaseDataset, ABC):
     """
     Base class for datasets with additional condition (e.g., depth, segmentation, canny, etc.).
     """
@@ -55,3 +60,19 @@ class COCOStuff(CondDataset):
             assert os.path.exists(mask_path), f"COCO-Stuff: Mask {mask_path} does not exist!"
 
             self._data.append({"image": image_path, "condition": mask_path, "caption": file["caption"]})
+
+    @staticmethod
+    def train_transforms(cond: str, tokenizer: Callable[[str], np.ndarray]) -> List[dict]:
+        transforms = [
+            {"operations": tokenizer, "input_columns": ["caption"]},
+            {
+                "operations": [Resize((512, 512)), lambda x: (x / 127.5 - 1.0).astype(np.float32)],
+                "input_columns": ["image"],
+            },
+        ]
+
+        if cond.lower() == "canny":  # generate Canny conditions with dynamic thresholds during training
+            transforms.append({"operations": CannyRandomThreshold(), "input_columns": ["condition"]})
+
+        transforms.append({"operations": [Resize((512, 512)), ToTensor()], "input_columns": ["condition"]})
+        return transforms
