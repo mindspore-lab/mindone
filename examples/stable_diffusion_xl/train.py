@@ -1,6 +1,7 @@
 import argparse
 import ast
 import os
+import random
 import time
 from functools import partial
 
@@ -153,6 +154,7 @@ def train(args):
         per_batch_size=per_batch_size,
         **config.data,
     )
+    random.seed(args.seed)  # for multi_aspect
 
     # 4. Create train step func
     assert "optim" in config
