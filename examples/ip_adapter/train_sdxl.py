@@ -144,7 +144,9 @@ def train(args):
         optimizer = get_optimizer(
             config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
         )
-        reducer = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer.parameters)
+        reducer = get_grad_reducer(
+            is_parallel=args.is_parallel, parameters=optimizer.parameters, parallel_mode=args.parallel_mode
+        )
     else:
         optimizer, reducer = None, None
 
@@ -184,8 +186,12 @@ def train(args):
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
             )
             optimizer2 = get_optimizer(config.optim, lr, params=model.stage2.trainable_params())
-            reducer1 = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer1.parameters)
-            reducer2 = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer2.parameters)
+            reducer1 = get_grad_reducer(
+                is_parallel=args.is_parallel, parameters=optimizer1.parameters, parallel_mode=args.parallel_mode
+            )
+            reducer2 = get_grad_reducer(
+                is_parallel=args.is_parallel, parameters=optimizer2.parameters, parallel_mode=args.parallel_mode
+            )
             train_step_fn = TrainerMultiGraphTwoStage(
                 model,
                 (optimizer1, optimizer2),

@@ -237,7 +237,9 @@ def train(args):
             trainable_params += model.conditioner.trainable_params()
     if isinstance(model.model, nn.Cell):
         optimizer = get_optimizer(config.optim, lr, params=trainable_params)
-        reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+        reducer = get_grad_reducer(
+            is_parallel=args.is_parallel, parameters=optimizer.parameters, parallel_mode=args.parallel_mode
+        )
         if args.optimizer_weight:
             print(f"Loading optimizer from {args.optimizer_weight}")
             load_checkpoint(optimizer, args.optimizer_weight, remove_prefix="ldm_with_loss_grad.optimizer.")
@@ -299,8 +301,12 @@ def train(args):
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
             )
             optimizer2 = get_optimizer(config.optim, lr, params=model.stage2.trainable_params())
-            reducer1 = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer1.parameters)
-            reducer2 = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer2.parameters)
+            reducer1 = get_grad_reducer(
+                is_parallel=args.is_parallel, parameters=optimizer1.parameters, parallel_mode=args.parallel_mode
+            )
+            reducer2 = get_grad_reducer(
+                is_parallel=args.is_parallel, parameters=optimizer2.parameters, parallel_mode=args.parallel_mode
+            )
             train_step_fn = TrainerMultiGraphTwoStage(
                 model,
                 (optimizer1, optimizer2),

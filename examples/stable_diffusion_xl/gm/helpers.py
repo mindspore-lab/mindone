@@ -309,8 +309,8 @@ def create_model(
     return model, None
 
 
-def get_grad_reducer(args, is_parallel, parameters):
-    if is_parallel and args.parallel_mode == "DATA_PARALLEL":
+def get_grad_reducer(is_parallel, parameters, parallel_mode="DATA_PARALLEL"):
+    if is_parallel and parallel_mode == "DATA_PARALLEL":
         mean = ms.context.get_auto_parallel_context("gradients_mean")
         degree = ms.context.get_auto_parallel_context("device_num")
         grad_reducer = nn.DistributedGradReducer(parameters, mean, degree)

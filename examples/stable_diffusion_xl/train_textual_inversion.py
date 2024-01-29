@@ -208,7 +208,9 @@ def train(args):
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
 
     optimizer = get_optimizer(config.optim, lr, params=model.trainable_params())
-    reducer = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer.parameters)
+    reducer = get_grad_reducer(
+        is_parallel=args.is_parallel, parameters=optimizer.parameters, parallel_mode=args.parallel_mode
+    )
 
     from gm.models.trainer_factory import TrainOneStepCell
 

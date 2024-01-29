@@ -244,7 +244,9 @@ def train(args):
     optimizer = get_optimizer(
         config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
     )
-    reducer = get_grad_reducer(args, is_parallel=args.is_parallel, parameters=optimizer.parameters)
+    reducer = get_grad_reducer(
+        is_parallel=args.is_parallel, parameters=optimizer.parameters, parallel_mode=args.parallel_mode
+    )
 
     if args.ms_mode == 1:
         # Pynative Mode
