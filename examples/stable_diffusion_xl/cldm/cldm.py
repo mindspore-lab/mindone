@@ -27,7 +27,6 @@ class ControlnetUnetModel(UNetModel):
             for param in self.get_parameters():
                 param.requires_grad = False
 
-        # add controlnet init
         self.controlnet = instantiate_from_config(control_stage_config)
         self.control_scales = (
             [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
