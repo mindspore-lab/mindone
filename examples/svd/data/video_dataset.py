@@ -73,7 +73,6 @@ class VideoDataset(BaseDataset):
         return len(self._data)
 
     def train_transforms(self, tokenizer: Callable[[str], np.ndarray]) -> List[dict]:
-        frames_num = self._frames
         return [
             {
                 "operations": [
@@ -102,11 +101,11 @@ class VideoDataset(BaseDataset):
                 "input_columns": ["cond_frames_without_noise"],
             },
             {
-                "operations": [lambda x: np.tile(x, (frames_num, 1)).astype(np.float32)],
+                "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
                 "input_columns": ["fps_id"],
             },
             {
-                "operations": [lambda x: np.tile(x, (frames_num, 1)).astype(np.float32)],
+                "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
                 "input_columns": ["motion_bucket_id"],
             },
             {
@@ -123,10 +122,7 @@ class VideoDataset(BaseDataset):
                 "input_columns": ["cond_frames", "cond_aug"],
             },
             {
-                "operations": [lambda x: np.tile(x, (frames_num, 1)).astype(np.float32)],
+                "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
                 "input_columns": ["cond_aug"],
             },
         ]
-
-    def val_transforms(self, **kwargs):
-        raise NotImplementedError("Validation transforms are not supported yet.")
