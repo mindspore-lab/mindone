@@ -199,7 +199,7 @@ python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" 
         --ckpt_path "models/sd_v1.5-d0ab7146.ckpt" \
         --use_parallel True
    ```
-   > Note: parallel inference only can be use for mutil prompts.
+   > Note: Parallel inference only can be used for mutilple-prompt.
 
 <details>
 
