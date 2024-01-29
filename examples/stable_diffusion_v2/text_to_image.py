@@ -338,8 +338,8 @@ def main(args):
                 f"{batch_size * (n + 1)}/{batch_size * args.n_iter} images generated, "
                 f"time cost for current trial: {end_time - start_time:.3f}s"
             )
-
-    logger.info(f"Done! All generated images are saved in: {outpath}/samples" f"\nEnjoy.")
+    if rank_id == 0:
+        logger.info(f"Done! All generated images are saved in: {outpath}/samples" f"\nEnjoy.")
 
 
 if __name__ == "__main__":
