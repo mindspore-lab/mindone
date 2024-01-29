@@ -187,12 +187,12 @@ Take SD 2.0 as an example:
 python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
 
-#####Distributed inference
+##### Distributed Inference
 
   For parallel inference, take SD1.5 on the Chinese art dataset as an example:
 
    ```shell
-   mpirun --allow-run-as-root -n 2 python train_text_to_image.py \
+   mpirun --allow-run-as-root -n 2 python text_to_image.py \
         --config "configs/v1-inference.yaml" \
         --data_path "datasets/chinese_art_blip/test/prompts.txt" \
         --output_path "output/chinese_art_inference/txt2img" \
