@@ -94,7 +94,9 @@ def train(args):
 
     # 2. Create LDM Engine
     config = OmegaConf.load(args.config)
-    config.model.params.sampler_config.params.guider_config.params.num_frames = 1  # FIXME
+    config.model.params.sampler_config.params.guider_config.params.num_frames = 2  # FIXME
+    config.model.params.conditioner_config.params.emb_models[3].params.n_copies = 2  # FIXME
+    config.model.params.conditioner_config.params.emb_models[0].params.n_copies = 2  # FIXME
     model, _ = create_model(
         config,
         checkpoints=args.weight,
@@ -107,16 +109,15 @@ def train(args):
         model.model.set_train(True)  # only unet
 
     # 3. Create dataloader
-    dataset = VideoDataset(data_dir='/data1/webvid-10m/dataset/2M_val/', metadata='videos.csv', frames=1)
+    dataset = VideoDataset(data_dir="/data1/webvid-10m/dataset/2M_val/", metadata="videos.csv", frames=2)
     dataloader = build_dataloader(
         dataset,
-        transforms=dataset.train_transforms(
-            model.conditioner.embedders[0].tokenize, 1
-        ),
+        transforms=dataset.train_transforms(model.conditioner.embedders[0].tokenize),
         batch_size=1,
         shuffle=True,
         drop_remainder=True,
-        debug=True)
+        debug=False,
+    )
 
     # 4. Create train step func
     assert "optim" in config
@@ -144,7 +145,7 @@ def train(args):
     elif args.ms_mode == 0:
         # Graph Mode
         if isinstance(model.model, nn.Cell):
-            from gm.models.trainer_factory import TrainOneStepCell
+            from utils.trainer import TrainOneStepCell
 
             train_step_fn = TrainOneStepCell(
                 model,

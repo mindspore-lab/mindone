@@ -69,7 +69,7 @@ class TrainOneStepCell(nn.Cell):
         self.timestep_bias_weighting = timestep_bias_weighting
         self.snr_gamma = snr_gamma
 
-    def construct(self, x, *tokens):
+    def construct(self, x, *tokens, **kwargs):
         # get latent target
         if self.enable_first_stage_model:
             x = self.first_stage_model.encode(x)
@@ -97,9 +97,9 @@ class TrainOneStepCell(nn.Cell):
                 # get condition
                 vector, crossattn, concat = self.conditioner(*tokens)
                 context, y = crossattn, vector
-                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, concat, context, y)
+                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, concat, context, y, **kwargs)
             else:
-                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, *tokens)
+                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, *tokens, **kwargs)
         else:
             vector, crossattn, concat = tokens[0], tokens[1], None
             context, y = crossattn, vector
@@ -116,7 +116,7 @@ class LatentDiffusionWithLoss(nn.Cell):
         self.loss_fn = model.loss_fn
         self.scaler = scaler
 
-    def construct(self, x, noised_input, sigmas, w, concat, context, y):
+    def construct(self, x, noised_input, sigmas, w, concat, context, y, **kwargs):
         c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
         model_output = self.model(
             ops.cast(noised_input * c_in, ms.float32),
@@ -124,6 +124,7 @@ class LatentDiffusionWithLoss(nn.Cell):
             concat=concat,
             context=context,
             y=y,
+            **kwargs,
         )
         model_output = model_output * c_out + noised_input * c_skip
         loss = self.loss_fn(model_output, x, w)
@@ -140,7 +141,7 @@ class LatentDiffusionWithConditionerAndLoss(nn.Cell):
         self.loss_fn = model.loss_fn
         self.scaler = scaler
 
-    def construct(self, x, noised_input, sigmas, w, *tokens):
+    def construct(self, x, noised_input, sigmas, w, *tokens, **kwargs):
         # get condition
         vector, crossattn, concat = self.conditioner(*tokens)
         context, y = crossattn, vector
@@ -152,6 +153,7 @@ class LatentDiffusionWithConditionerAndLoss(nn.Cell):
             concat=concat,
             context=context,
             y=y,
+            **kwargs,
         )
         model_output = model_output * c_out + noised_input * c_skip
         loss = self.loss_fn(model_output, x, w)
@@ -218,8 +220,8 @@ class LatentDiffusionWithLossGrad(nn.Cell):
 
         return loss
 
-    def construct(self, *inputs):
-        loss, grads = self.grad_fn(*inputs)
+    def construct(self, *inputs, **kwargs):
+        loss, grads = self.grad_fn(*inputs, **kwargs)
         grads = self.reducer(grads)
         unscaled_grads = self.scaler.unscale(grads)
         grads_finite = ms.amp.all_finite(unscaled_grads)

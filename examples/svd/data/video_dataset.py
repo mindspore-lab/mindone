@@ -72,8 +72,8 @@ class VideoDataset(BaseDataset):
     def __len__(self):
         return len(self._data)
 
-    @staticmethod
-    def train_transforms(tokenizer: Callable[[str], np.ndarray], frames_num: int) -> List[dict]:
+    def train_transforms(self, tokenizer: Callable[[str], np.ndarray]) -> List[dict]:
+        frames_num = self._frames
         return [
             {
                 "operations": [
