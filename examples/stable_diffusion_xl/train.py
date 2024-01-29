@@ -53,6 +53,7 @@ def get_parser_train():
     parser.add_argument("--use_ema", action="store_true", help="whether use ema")
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--per_batch_size", type=int, default=None)
+    parser.add_argument("--scale_lr", type=ast.literal_eval, default=False)
 
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -158,7 +159,12 @@ def train(args):
 
     # 4. Create train step func
     assert "optim" in config
-    lr = get_learning_rate(config.optim, config.data.total_step)
+    scaler = (
+        args.rank_size * dataloader.get_batch_size() * args.gradient_accumulation_steps
+        if args.scale_lr
+        else 1.0
+    )
+    lr = get_learning_rate(config.optim, config.data.total_step, scaler)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if args.ms_enable_allreduce_fusion and args.rank_size > 1:
         trainable_params, all_reduce_fusion_config = get_all_reduce_config(model)
