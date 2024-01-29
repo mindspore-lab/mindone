@@ -20,6 +20,10 @@ def create_loader(
     python_multiprocessing=False,
     tokenizer=None,
     token_nums=None,
+    return_sample_name=False,
+    cache_latent=False,
+    cache_text_embedding=False,
+    cache_path=None,
 ):
     r"""Creates dataloader.
 
@@ -42,9 +46,21 @@ def create_loader(
     Returns:
         BatchDataset, dataset batched.
     """
-    dataset = get_obj_from_str(dataset_config["target"])(
-        data_path=data_path, tokenizer=tokenizer, token_nums=token_nums, **dataset_config.get("params", dict())
-    )
+    if cache_latent and cache_text_embedding:
+        assert cache_path is not None
+        assert dataset_config["target"].split(".")[-1] in ("Text2ImageDataset",)
+        from gm.data.dataset_cache import Text2ImageCacheDataset
+
+        dataset = Text2ImageCacheDataset(data_path, cache_path)
+    else:
+        dataset = get_obj_from_str(dataset_config["target"])(
+            data_path=data_path,
+            tokenizer=tokenizer,
+            token_nums=token_nums,
+            return_sample_name=return_sample_name,
+            **dataset_config.get("params", dict()),
+        )
+
     batch_collate_fn, dataset_column_names, dataset_output_column_names = (
         dataset.collate_fn,
         dataset.dataset_column_names,

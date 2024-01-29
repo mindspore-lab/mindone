@@ -18,21 +18,30 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 ## Documentation
 
-1. Inference
-    - [Online Infer](./GETTING_STARTED.md)
+1. Preparation
+   - [Installation](./installation.md)
+   - [Weight Convert](./weight_convertion.md)
+   - [RankTable Generation](./tools/rank_table_generation/README.md)
+2. Inference
+    - [Online Infer](./inference.md)
     - [Offline Infer](./offline_inference/README.md)
-2. Finetune
-    - [Vanilla Finetune](./GETTING_STARTED.md)
+    - [LCM Infer](./inference_lcm.md)
+3. Finetune
+    - [Vanilla Finetune](./vanilla_finetune.md)
     - [LoRA Finetune](./GETTING_STARTED.md)
     - [DreamBooth Finetune](dreambooth_finetune.md)
     - [Textual Inversion Finetune](textual_inversion_finetune.md)
 
 ## What is New
+
+**Jan 18, 2024**
+1. Support latent/text-embedding cache.
+2. Support vanilla fine-tune with PerBatchSize of 6 on 910*.
+
 **Jan 10, 2024**
 1. Support [Textual Inversion](https://arxiv.org/abs/2208.01618) fine-tune.
 
 **Nov 22, 2023**
-
 1. Support [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune.
 2. Support [Offline Infer](./offline_inference/README.md) with MSLite.
 3. Support Vanilla fine-tune.
@@ -40,7 +49,6 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 5. Add [T2I-Adapters](../t2i_adapter/README.md) support for SDXL.
 
 **Sep 15, 2023**
-
 1. Support SDXL-1.0-Refiner model for image-to-image generation.
 2. Support SDXL-1.0-Refiner [LoRA](https://arxiv.org/abs/2106.09685) fine-tune.
 3. Support SDXL-1.0-PipeLine for txt-to-image generation.
@@ -49,7 +57,6 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 6. Adapted to [MindSpore 2.1.0](https://www.mindspore.cn/install).
 
 **Aug 30, 2023**
-
 1. Support SDXL-1.0-Base model for text-to-image generation.
 2. Support SDXL-1.0-Base [LoRA](https://arxiv.org/abs/2106.09685) fine-tune.
 3. Support Efficient Memory Sampling and Tuning.
@@ -60,7 +67,7 @@ See [GETTING STARTED](GETTING_STARTED.md) for details.
 
 ## Examples:
 
-Note: sampled 40 steps by SDXL-1.0-Base on Ascend 910A (online infer).
+Note: sampled 40 steps by SDXL-1.0-Base on Ascend 910 (online infer).
 
 <div align="center">
 <img src="https://github.com/mindspore-lab/mindone/assets/20476835/68d132e1-a954-418d-8cb8-5be4d8162342" width="240" />

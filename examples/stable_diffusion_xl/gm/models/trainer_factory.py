@@ -20,16 +20,19 @@ class TrainOneStepCell(nn.Cell):
         gradient_accumulation_steps=1,
         clip_grad=False,
         clip_norm=1.0,
+        enable_first_stage_model=True,
+        enable_conditioner=True,
         ema=None,
     ):
         super(TrainOneStepCell, self).__init__()
 
         # get conditioner trainable status
         trainable_conditioner = False
-        for embedder in model.conditioner.embedders:
-            if embedder.is_trainable:
-                trainable_conditioner = True
-                print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
+        if enable_conditioner:
+            for embedder in model.conditioner.embedders:
+                if embedder.is_trainable:
+                    trainable_conditioner = True
+                    print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
 
         # train net
         if not trainable_conditioner:
@@ -51,17 +54,20 @@ class TrainOneStepCell(nn.Cell):
         )
 
         # first stage model
-        self.scale_factor = model.scale_factor
         self.first_stage_model = model.first_stage_model
 
-        #
+        self.scale_factor = model.scale_factor
         self.sigma_sampler = model.sigma_sampler
         self.loss_fn = model.loss_fn
         self.denoiser = model.denoiser
 
+        self.enable_conditioner = enable_conditioner
+        self.enable_first_stage_model = enable_first_stage_model
+
     def construct(self, x, *tokens):
         # get latent target
-        x = self.first_stage_model.encode(x)
+        if self.enable_first_stage_model:
+            x = self.first_stage_model.encode(x)
         x = self.scale_factor * x
 
         # get noise and sigma
@@ -71,13 +77,18 @@ class TrainOneStepCell(nn.Cell):
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         # compute loss
-        if self.conditioner:
-            # get condition
-            vector, crossattn, concat = self.conditioner(*tokens)
+        if self.enable_conditioner:
+            if self.conditioner:
+                # get condition
+                vector, crossattn, concat = self.conditioner(*tokens)
+                context, y = crossattn, vector
+                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, concat, context, y)
+            else:
+                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, *tokens)
+        else:
+            vector, crossattn, concat = tokens[0], tokens[1], None
             context, y = crossattn, vector
             loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, concat, context, y)
-        else:
-            loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, *tokens)
 
         return loss, overflow
 

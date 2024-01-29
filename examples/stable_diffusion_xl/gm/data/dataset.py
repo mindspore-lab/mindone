@@ -21,11 +21,11 @@ class Text2ImageDataset:
         tokenizer=None,
         token_nums=None,
         image_filter_size=0,
-        random_crop=False,
         filter_small_size=False,
         multi_aspect=None,  # for multi_aspect
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
+        return_sample_name=False,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -39,11 +39,19 @@ class Text2ImageDataset:
                 "image",
             ] + [f"token{i}" for i in range(token_nums)]
 
+        self.return_sample_name = return_sample_name
+        if return_sample_name:
+            self.dataset_output_column_names.append("sample_name")
+
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
-        self.random_crop = random_crop
         self.filter_small_size = filter_small_size
 
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
+        if self.multi_aspect and len(self.multi_aspect) > 10:
+            random.seed(seed)
+            self.multi_aspect = random.sample(self.multi_aspect, 10)
+            print(f"Text2ImageDataset: modify multi_aspect sizes to {self.multi_aspect}")
+
         self.seed = seed
         self.per_batch_size = per_batch_size
 
@@ -101,14 +109,18 @@ class Text2ImageDataset:
         for trans in self.transforms:
             sample = trans(sample)
 
+        if self.return_sample_name:
+            sample["sample_name"] = np.array(os.path.basename(image_path).split(".")[0])
+
         return sample
 
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            cur_seed = epoch_num * 10 + batch_num
-            random.seed(cur_seed)
+            # FIXME: Unable to get the correct batch_info on MindSpore 2.2.10
+            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            # cur_seed = epoch_num * 10 + batch_num
+            # random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:
@@ -122,9 +134,11 @@ class Text2ImageDataset:
         data = {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
 
         if self.tokenizer:
-            data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
+            data = {k: (v.tolist() if k in ("txt", "sample_name") else v.astype(np.float32)) for k, v in data.items()}
             tokens, _ = self.tokenizer(data)
             outs = (data["image"],) + tuple(tokens)
+            if "sample_name" in data:
+                outs += (data["sample_name"],)
         else:
             outs = data
 
@@ -179,7 +193,6 @@ class Text2ImageDatasetDreamBooth:
         tokenizer=None,
         token_nums=None,
         image_filter_size=0,
-        random_crop=False,
         filter_small_size=False,
         multi_aspect=None,  # for multi_aspect
         seed=42,  # for multi_aspect
@@ -206,7 +219,6 @@ class Text2ImageDatasetDreamBooth:
             self.dataset_output_column_names.extend(class_l)
 
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
-        self.random_crop = random_crop
         self.filter_small_size = filter_small_size
 
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
@@ -304,9 +316,10 @@ class Text2ImageDatasetDreamBooth:
     def collate_fn(self, instance_samples, class_samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            cur_seed = epoch_num * 10 + batch_num
-            random.seed(cur_seed)
+            # FIXME: Unable to get the correct batch_info on MindSpore 2.2.10
+            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            # cur_seed = epoch_num * 10 + batch_num
+            # random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:

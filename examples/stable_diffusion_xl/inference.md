@@ -58,7 +58,7 @@ python demo/sampling_without_streamlit.py \
   --config configs/inference/sd_xl_refiner.yaml \
   --weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
   --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
-  --img /PATH TO/img.jpg \
+  --img /PATH TO/img.jpg
 
 # run pipeline without streamlit on Ascend
 python demo/sampling_without_streamlit.py \
@@ -68,7 +68,7 @@ python demo/sampling_without_streamlit.py \
   --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
   --add_pipeline True \
   --pipeline_config configs/inference/sd_xl_refiner.yaml \
-  --pipeline_weight checkpoints/sd_xl_refiner_1.0_ms.ckpt \
+  --pipeline_weight checkpoints/sd_xl_refiner_1.0_ms.ckpt
 ```
 
 ### 3. Inference with T2i-Adapter
