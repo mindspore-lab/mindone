@@ -159,15 +159,16 @@ def get_parser_sample():
     )
 
     # for controlnet
-    parser.add_argument("--controlnet_mode", type=str, choices=["canny"])
-    parser.add_argument("--image_path", type=str, help="path of original image for controlnet")
     parser.add_argument(
-        "--control_path",
+        "--controlnet_mode",
         type=str,
-        help="path of control image (canny edge) for controlnet, if not None, --image_path is not in effect, use --control_path as control.",
+        choices=["raw", "canny"],
+        help="'raw': use the image itself as control signal; 'canny': use canny edge detector to extract control signal from input image",
     )
+    parser.add_argument("--control_image_path", type=str, help="path of input image for controlnet")
     parser.add_argument("--low_threshold", type=int, default=100, help="param of cv2.Canny()")
     parser.add_argument("--high_threshold", type=int, default=200, help="param of cv2.Canny()")
+    parser.add_argument("--save_detected_map", type=ast.literal_eval, default=False, help="save detection map")
 
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
@@ -213,24 +214,7 @@ def run_txt2img(
     else:
         prompts = [args.prompt]
 
-    num_samples = args.num_rows * args.num_cols
-    control = None
-    if args.controlnet_mode is not None:
-        control, H, W = get_control(args, num_samples, min(H, W))
-
-    value_dict = {
-        "prompt": prompts[0],
-        "negative_prompt": args.negative_prompt,
-        "orig_width": args.orig_width if args.orig_width else W,
-        "orig_height": args.orig_height if args.orig_height else H,
-        "target_width": args.target_width if args.target_width else W,
-        "target_height": args.target_height if args.target_height else H,
-        "crop_coords_top": max(args.crop_coords_top if args.crop_coords_top else 0, 0),
-        "crop_coords_left": max(args.crop_coords_left if args.crop_coords_left else 0, 0),
-        "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
-        "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
-    }
-    sampler, _, _ = init_sampling(
+    sampler, num_rows, num_cols = init_sampling(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
@@ -245,6 +229,24 @@ def run_txt2img(
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
+    num_samples = num_rows * num_cols
+
+    control = None
+    if args.controlnet_mode is not None:
+        control, H, W = get_control(args, num_cols, save_detected_map=args.save_detected_map)
+
+    value_dict = {
+        "prompt": prompts[0],
+        "negative_prompt": args.negative_prompt,
+        "orig_width": args.orig_width if args.orig_width else W,
+        "orig_height": args.orig_height if args.orig_height else H,
+        "target_width": args.target_width if args.target_width else W,
+        "target_height": args.target_height if args.target_height else H,
+        "crop_coords_top": max(args.crop_coords_top if args.crop_coords_top else 0, 0),
+        "crop_coords_left": max(args.crop_coords_left if args.crop_coords_left else 0, 0),
+        "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
+        "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
+    }
 
     print("Txt2Img Sampling")
     outs = []

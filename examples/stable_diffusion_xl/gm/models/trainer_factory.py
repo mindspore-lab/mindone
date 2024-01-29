@@ -693,3 +693,114 @@ class LatentDiffusionStage2Grad(nn.Cell):
 
         overflow_tag = not grads_finite
         return self.scaler.unscale(loss), grads_i, unscaled_grads, overflow_tag
+
+
+class TrainOneStepCellControlNet(nn.Cell):
+    def __init__(
+        self,
+        model,
+        optimizer,
+        reducer,
+        scaler,
+        overflow_still_update=True,
+        gradient_accumulation_steps=1,
+        clip_grad=False,
+        clip_norm=1.0,
+        ema=None,
+    ):
+        super().__init__()
+
+        # get conditioner trainable status
+        trainable_conditioner = False
+        for embedder in model.conditioner.embedders:
+            if embedder.is_trainable:
+                trainable_conditioner = True
+                print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
+
+        # train net
+        if not trainable_conditioner:
+            ldm_with_loss = LatentDiffusionWithLossControlNet(model, scaler)
+            self.conditioner = model.conditioner
+        else:
+            ldm_with_loss = LatentDiffusionWithConditionerAndLossControlNet(model, scaler)
+            self.conditioner = None
+        self.ldm_with_loss_grad = LatentDiffusionWithLossGrad(
+            ldm_with_loss,
+            optimizer,
+            scaler,
+            reducer,
+            overflow_still_update,
+            gradient_accumulation_steps,
+            clip_grad,
+            clip_norm,
+            ema,
+        )
+
+        # first stage model
+        self.scale_factor = model.scale_factor
+        self.first_stage_model = model.first_stage_model
+
+        #
+        self.sigma_sampler = model.sigma_sampler
+        self.loss_fn = model.loss_fn
+        self.denoiser = model.denoiser
+
+    def construct(self, x, control, *tokens):
+        # get latent target
+        x = self.first_stage_model.encode(x)
+        x = self.scale_factor * x
+
+        # get noise and sigma
+        sigmas = self.sigma_sampler(x.shape[0])
+        noise = ops.randn_like(x)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
+
+        # compute loss
+        if self.conditioner:
+            # get condition
+            vector, crossattn, concat = self.conditioner(*tokens)
+            context, y = crossattn, vector
+            loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, control, concat, context, y)
+        else:
+            loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, control, *tokens)
+
+        return loss, overflow
+
+
+class LatentDiffusionWithLossControlNet(LatentDiffusionWithLoss):
+    def construct(self, x, noised_input, sigmas, w, control, concat, context, y):
+        c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
+        model_output = self.model(
+            ops.cast(noised_input * c_in, ms.float32),
+            ops.cast(c_noise, ms.int32),
+            concat=concat,
+            context=context,
+            y=y,
+            control=control,
+        )
+        model_output = model_output * c_out + noised_input * c_skip
+        loss = self.loss_fn(model_output, x, w)
+        loss = loss.mean()
+        return self.scaler.scale(loss)
+
+
+class LatentDiffusionWithConditionerAndLossControlNet(LatentDiffusionWithConditionerAndLoss):
+    def construct(self, x, noised_input, sigmas, w, control, *tokens):
+        # get condition
+        vector, crossattn, concat = self.conditioner(*tokens)
+        context, y = crossattn, vector
+
+        c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
+        model_output = self.model(
+            ops.cast(noised_input * c_in, ms.float32),
+            ops.cast(c_noise, ms.int32),
+            concat=concat,
+            context=context,
+            y=y,
+            control=control,
+        )
+        model_output = model_output * c_out + noised_input * c_skip
+        loss = self.loss_fn(model_output, x, w)
+        loss = loss.mean()
+        return self.scaler.scale(loss)
