@@ -139,6 +139,7 @@ def main(args):
         args.ms_mode,
         seed=args.seed,
         distributed=args.use_parallel,
+        device_target=args.device_target,
     )
 
     # set logger
