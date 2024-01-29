@@ -186,6 +186,21 @@ Take SD 2.0 as an example:
 # Use SD 2.0 instead and add negative prompt guidance to eliminate artifacts
 python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
+
+#####Distributed inference
+
+  For parallel inference, take SD1.5 on the Chinese art dataset as an example:
+
+   ```shell
+   mpirun --allow-run-as-root -n 2 python train_text_to_image.py \
+        --config "configs/v1-inference.yaml" \
+        --data_path "datasets/chinese_art_blip/test/prompts.txt" \
+        --output_path "output/chinese_art_inference/txt2img" \
+        --ckpt_path "models/sd_v1.5-d0ab7146.ckpt" \
+        --use_parallel True
+   ```
+   > Note: parallel inference only can be use for mutil prompts.
+
 <details>
 
   <summary>Long Prompts Support</summary>
@@ -203,22 +218,7 @@ python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" 
   ```
 </details>
 
-<details>
 
-  <summary>Distributed inference</summary>
-
-  For parallel inference, take SD1.5 on the Chinese art dataset as an example:
-
-   ```shell
-   mpirun --allow-run-as-root -n 2 python train_text_to_image.py \
-        --config "configs/v1-inference.yaml" \
-        --data_path "datasets/chinese_art_blip/test/prompts.txt" \
-        --output_path "output/chinese_art_inference/txt2img" \
-        --ckpt_path "models/sd_v1.5-d0ab7146.ckpt" \
-        --use_parallel True
-   ```
-   > Note: parallel inference only can be use for mutil prompts.
-</details>
 
 Here are some generation results.
 
