@@ -7,18 +7,19 @@ from tqdm import tqdm
 
 import mindspore as ms
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
+sys.path.append("./")
 from ad.data.dataset import TextVideoDataset, check_sanity, create_dataloader
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
 from mindone.utils.config import instantiate_from_config
 
-# csv_path = '../videocomposer/datasets/webvid5/video_caption.csv'
-# video_folder = '../videocomposer/datasets/webvid5'
-csv_path = "./datasets/zoom_in_dataset/video_caption.csv"
-video_folder = "./datasets/zoom_in_dataset"
-cfg_path = "configs/training/mmv2_train.yaml"
+csv_path = "../videocomposer/datasets/webvid5/video_caption.csv"
+video_folder = "../videocomposer/datasets/webvid5"
+# csv_path = "./datasets/zoom_in_dataset/video_caption.csv"
+# video_folder = "./datasets/zoom_in_dataset"
+cfg_path = "configs/stable_diffusion/v1-train-mmv2.yaml"
 
 
 def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
@@ -80,7 +81,18 @@ def test_loader(image_finetune=False):
     tokenizer = text_encoder.tokenize
 
     # data_config = cfg.train_data
-    dl = create_dataloader(cfg.train_data, tokenizer=tokenizer, is_image=image_finetune, device_num=1, rank_id=0)
+    data_config = dict(
+        video_folder=video_folder,
+        csv_path=csv_path,
+        sample_size=256,
+        sample_stride=4,
+        sample_n_frames=16,
+        batch_size=4,
+        shuffle=True,
+        num_parallel_workers=12,
+        max_rowsize=64,
+    )
+    dl = create_dataloader(data_config, tokenizer=tokenizer, is_image=image_finetune, device_num=1, rank_id=0)
 
     num_batches = dl.get_dataset_size()
     ms.set_context(mode=0)
@@ -114,5 +126,5 @@ def test_loader(image_finetune=False):
 
 
 if __name__ == "__main__":
-    # test_src_dataset('al', False, True)
+    # test_src_dataset('al', False, False)
     test_loader(False)
