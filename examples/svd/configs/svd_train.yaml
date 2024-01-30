@@ -6,11 +6,11 @@ environment:
   enable_modelarts: False
 
 train:
-  epochs: 10
+  epochs: 3
   temporal_only: True
   pretrained: /home/rustam/projects/mindone/models/videoldm/ms/svd_d19a808f.ckpt
   output_dir: output/
-  sink_size: 60
+  sink_size: -1
 
   dataset:
     class_path: data.video_dataset.VideoDataset
@@ -18,7 +18,7 @@ train:
       data_dir: /data1/webvid-10m/dataset/2M_val/
       metadata: videos.csv
       frames: 2
-      step: 10
+      step: 1
 
   dataloader:
     batch_size: 1

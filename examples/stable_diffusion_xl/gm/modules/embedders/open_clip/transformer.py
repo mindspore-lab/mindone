@@ -380,7 +380,7 @@ class VisionTransformer(nn.Cell):
 
         if self.proj is not None:
             # pooled = pooled @ self.proj
-            pooled = ops.matmul(pooled, self.proj)
+            pooled = ops.matmul(pooled, ops.cast(self.proj, pooled.dtype))
 
         return pooled
 

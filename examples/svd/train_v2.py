@@ -29,6 +29,7 @@ from mindone.data import build_dataloader
 def get_parser_train():
     parser = argparse.ArgumentParser(description="train with sd-xl")
     parser.add_argument("--config", type=str, default="configs/svd.yaml")
+    parser.add_argument("--train_config", type=str, default="configs/svd_train.yaml")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--clip_grad", default=False, type=ast.literal_eval, help="whether apply gradient clipping")
     parser.add_argument(
@@ -53,7 +54,7 @@ def get_parser_train():
     # args for env
     parser.add_argument("--device_target", type=str, default="Ascend", help="device target, Ascend/GPU/CPU")
     parser.add_argument(
-        "--ms_mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
+        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
     )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
@@ -93,11 +94,17 @@ def train(args):
     args = set_default(args)
 
     # 2. Create LDM Engine
-    config = OmegaConf.load(args.config)
-    config.model.params.conditioner_config.params.emb_models[3].params.n_copies = 2  # FIXME
-    config.model.params.conditioner_config.params.emb_models[0].params.n_copies = 2  # FIXME
+    model_config = OmegaConf.load(args.config)
+    train_config = OmegaConf.load(args.train_config)
+
+    model_config.model.params.conditioner_config.params.emb_models[
+        3
+    ].params.n_copies = train_config.train.dataset.init_args.frames  # FIXME
+    model_config.model.params.conditioner_config.params.emb_models[
+        0
+    ].params.n_copies = train_config.train.dataset.init_args.frames  # FIXME
     model, _ = create_model(
-        config,
+        model_config,
         checkpoints=args.weight,
         freeze=False,
         load_filter=False,
@@ -108,30 +115,33 @@ def train(args):
         model.model.set_train(True)  # only unet
 
     # 3. Create dataloader
-    dataset = VideoDataset(data_dir="/data1/webvid-10m/dataset/2M_val/", metadata="videos.csv", frames=2)
+    dataset = VideoDataset(
+        data_dir=train_config.train.dataset.init_args.data_dir,
+        metadata=train_config.train.dataset.init_args.metadata,
+        frames=train_config.train.dataset.init_args.frames,
+        step=train_config.train.dataset.init_args.step,
+    )
     dataloader = build_dataloader(
         dataset,
         transforms=dataset.train_transforms(model.conditioner.embedders[0].tokenize),
-        batch_size=1,
-        shuffle=True,
-        drop_remainder=True,
-        debug=False,
+        batch_size=train_config.train.dataloader.batch_size,
+        shuffle=train_config.train.dataloader.shuffle,
+        drop_remainder=train_config.train.dataloader.drop_remainder,
     )
 
     # 4. Create train step func
-    assert "optim" in config
-    lr = get_learning_rate(config.optim, 100)
+    assert "optim" in model_config
+    lr = get_learning_rate(model_config.optim, total_step=dataloader.get_dataset_size() * train_config.train.epochs)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if isinstance(model.model, nn.Cell):
         optimizer = get_optimizer(
-            config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
+            model_config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
         )
         reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
     else:
         optimizer, reducer = None, None
 
-    if args.ms_mode == 1:
-        # Pynative Mode
+    if args.ms_mode == 1:   # Pynative Mode
         assert isinstance(model.model, nn.Cell)
         train_step_fn = partial(
             model.train_step_pynative,
@@ -140,66 +150,39 @@ def train(args):
             ),
         )
         model = auto_mixed_precision(model, args.ms_amp_level)
-        jit_config = None
-    elif args.ms_mode == 0:
-        # Graph Mode
-        if isinstance(model.model, nn.Cell):
-            from utils.trainer import TrainOneStepCell
+        if model.disable_first_stage_amp:
+            model.first_stage_model.to_float(ms.float32)
+    elif args.ms_mode == 0: # Graph Mode
+        from utils.trainer import TrainOneStepCell
 
-            train_step_fn = TrainOneStepCell(
-                model,
-                optimizer,
-                reducer,
-                scaler,
-                overflow_still_update=args.overflow_still_update,
-                gradient_accumulation_steps=args.gradient_accumulation_steps,
-                clip_grad=args.clip_grad,
-                clip_norm=args.max_grad_norm,
-            )
-            train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
-            if model.disable_first_stage_amp:
-                train_step_fn.first_stage_model.to_float(ms.float32)
-            jit_config = ms.JitConfig()
-        else:
-            from gm.models.trainer_factory import TrainerMultiGraphTwoStage
-
-            assert args.version == "SDXL-base-1.0", "Only supports sdxl-base."
-            assert args.task == "txt2img", "Only supports text2img task."
-            assert (model.stage1 is not None) and (model.stage2 is not None)
-            optimizer1 = get_optimizer(
-                config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
-            )
-            optimizer2 = get_optimizer(config.optim, lr, params=model.stage2.trainable_params())
-            reducer1 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer1.parameters)
-            reducer2 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer2.parameters)
-            train_step_fn = TrainerMultiGraphTwoStage(
-                model,
-                (optimizer1, optimizer2),
-                (reducer1, reducer2),
-                scaler,
-                overflow_still_update=args.overflow_still_update,
-                amp_level=args.ms_amp_level,
-            )
-
-            optimizer = optimizer1
-            jit_config = None
+        train_step_fn = TrainOneStepCell(
+            model,
+            optimizer,
+            reducer,
+            scaler,
+            overflow_still_update=args.overflow_still_update,
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            clip_grad=args.clip_grad,
+            clip_norm=args.max_grad_norm,
+        )
+        train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+        if model.disable_first_stage_amp:
+            train_step_fn.first_stage_model.to_float(ms.float32)
     else:
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
-    train_txt2img(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config)
+    train_txt2img(args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, epochs=train_config.train.epochs)
 
 
-def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, **kwargs):  # for print  # for infer/ckpt
-    dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
+def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, epochs=1):  # for print  # for infer/ckpt
     total_step = dataloader.get_dataset_size()
-    loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
+    loader = dataloader.create_tuple_iterator(num_epochs=epochs)
     s_time = time.time()
 
     ckpt_queue = []
     for i, data in enumerate(loader):
         image, tokens = data[0], data[1:]
-        image, tokens = Tensor(image), [Tensor(t) for t in tokens]
 
         # Train a step
         if i == 0:
