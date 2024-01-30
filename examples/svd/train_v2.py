@@ -94,7 +94,6 @@ def train(args):
 
     # 2. Create LDM Engine
     config = OmegaConf.load(args.config)
-    config.model.params.sampler_config.params.guider_config.params.num_frames = 2  # FIXME
     config.model.params.conditioner_config.params.emb_models[3].params.n_copies = 2  # FIXME
     config.model.params.conditioner_config.params.emb_models[0].params.n_copies = 2  # FIXME
     model, _ = create_model(

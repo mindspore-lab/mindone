@@ -47,7 +47,6 @@ def main(args, initializer):
 
     # step 2: load SD model
     config = OmegaConf.load(args.svd_config.absolute)
-    config.model.params.sampler_config.params.guider_config.params.num_frames = args.train.dataset.init_args.frames  # FIXME
     ldm_with_loss, _ = create_model(config, checkpoints=args.train.pretrained.absolute, freeze=False, amp_level="O0")
     ldm_with_loss.model.set_train(True)  # only unet
 

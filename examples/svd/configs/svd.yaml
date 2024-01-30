@@ -143,7 +143,7 @@ model:
       target: gm.modules.diffusionmodules.loss.StandardDiffusionLoss
 
     sampler_config:
-      target: gm.modules.diffusionmodules.sampler.EulerEDMSampler
+      target: modules.diffusionmodules.sampler.EulerEDMSampler
       params:
         num_steps: 25
 
