@@ -69,7 +69,7 @@ def get_parser_sample():
     # system
     parser.add_argument("--device_target", type=str, default="Ascend", help="device target, Ascend/GPU/CPU")
     parser.add_argument(
-        "--ms_mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
+        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument("--ms_jit", type=ast.literal_eval, default=True, help="use jit or not")
     parser.add_argument("--ms_amp_level", type=str, default="O2")
@@ -114,7 +114,15 @@ def load_control_image(image: str, scale_factor: int = 8, min_size: int = 1024) 
 
 
 def run_text2img(
-    args, model, version_dict, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"
+    args,
+    model,
+    version_dict,
+    save_path,
+    is_legacy=False,
+    return_latents=False,
+    filter=None,
+    stage2strength=None,
+    amp_level="O0",
 ):
     C = version_dict["C"]
     F = version_dict["f"]
@@ -168,9 +176,8 @@ def run_text2img(
             amp_level=amp_level,
             control=control_img,
         )
-    print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
-
-    return out
+        print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+        perform_save_locally(save_path, out)
 
 
 def sample(args):
@@ -201,20 +208,16 @@ def sample(args):
     is_legacy = True  # to be consistent with IP Adapter
     args.negative_prompt = args.negative_prompt if is_legacy else ""
 
-    out = run_text2img(
+    run_text2img(
         args,
         model,
         version_dict,
+        save_path,
         is_legacy=is_legacy,
         filter=filter,
         stage2strength=None,
         amp_level=args.ms_amp_level,
     )
-
-    out = out if isinstance(out, (tuple, list)) else [out, None]
-    (samples, samples_z) = out
-
-    perform_save_locally(save_path, samples)
 
 
 if __name__ == "__main__":
