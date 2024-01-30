@@ -14,7 +14,7 @@ ControlNet controls pretrained large diffusion models to support additional inpu
 
 ## Dependency
 
-- AI framework: MindSpore >= 2.2 
+- AI framework: MindSpore >= 2.2
 - Hardware: Ascend 910*
 
 ```shell

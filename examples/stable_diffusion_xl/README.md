@@ -36,7 +36,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 ## What is New
 
 **Jan 30, 2024**
-1. Add [ControlNet](controlnet.md) inference support for SDXL 
+1. Add [ControlNet](controlnet.md) inference support for SDXL
 
 **Jan 18, 2024**
 1. Support latent/text-embedding cache.

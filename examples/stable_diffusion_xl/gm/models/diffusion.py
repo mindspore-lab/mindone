@@ -520,6 +520,7 @@ class DiffusionEngineControlNet(DiffusionEngine):
         loss_fn = self.loss_fn
         denoiser = self.denoiser
         model = self.model
+
         def _forward_func(x, noised_input, sigmas, w, control, concat, context, y):
             c_skip, c_out, c_in, c_noise = denoiser(sigmas, noised_input.ndim)
             model_output = model(
