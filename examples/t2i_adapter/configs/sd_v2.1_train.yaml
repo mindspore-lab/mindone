@@ -20,6 +20,7 @@ train:
     batch_size: 8
     shuffle: True
     drop_remainder: True
+    python_multiprocessing: False  # 910* doesn't support multiprocessing
 
   optimizer:
     name: adamw
