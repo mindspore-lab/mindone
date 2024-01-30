@@ -366,8 +366,8 @@ python tools/prepare_coco.py --label path_of_captions_train2017.json --image pat
 | 1.5      | D910*x1-MS2.2 | Image-To-Image   | DDIM      | 30    | 512x512    | 4          | 4.81           | 0.52        |
 | 1.5      | D910*x1-MS2.2 | Image Inpainting | DDIM      | 35    | 512x768    | 4          | 2.69           | 0.26        |
 | 1.5      | D910*x1-MS2.2 | ControlNet       | DDIM      | 50    | 512x512    | 4          | 2.87           | 0.22        |
-| XL       | D910*x1-MS2.2 | Image Variation  | Euler EM  | 30    | 1024x1024  | 4          | 1.24           | 0.15        |
-| XL       | D910*x1-MS2.2 | ControlNet       | Euler EM  | 30    | 1024x1024  | 3          | 2.55           | 0.25        |
+| XL       | D910*x1-MS2.2 | Image Variation  | Euler EDM | 30    | 1024x1024  | 4          | 1.24           | 0.15        |
+| XL       | D910*x1-MS2.2 | ControlNet       | Euler EDM | 30    | 1024x1024  | 3          | 2.55           | 0.25        |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Speed (ste/s): sampling speed measured in the number of sampling steps per second.
