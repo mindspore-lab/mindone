@@ -8,7 +8,7 @@ ControlNet controls pretrained large diffusion models to support additional inpu
    <img src="https://github.com/Gaohan123/mindone/assets/20148503/c5c27f00-3c20-479c-a540-70a0c8db0d48" width=500 />
 </p>
 <p align="center">
-  <em> Figure 1. Illustration of a ControlNet [<a href="#references">1</a>] </em>
+  <em> Fig 1. Illustration of a ControlNet [<a href="#references">1</a>] </em>
 </p>
 
 
@@ -28,11 +28,11 @@ pip install -r requirement.txt
 
 1. Convert trained weight from Diffusers, please refer to [here](tools/controlnet_conversion/README.md);
 
-2. Or train your controlnet using MindONE (coming soon).
+2. Or train your ControlNet using MindONE (coming soon).
 
 ### Prepare control signals
 
-Stable Diffusion XL with ControlNet can generate images following the input control signal (e.g. canny edge). You can either prepare (1) a raw image [1]() to be extracted control signal from, or (2) the control signal image itself [2]().
+Stable Diffusion XL with ControlNet can generate images following the input control signal (e.g. canny edge). You can either prepare (1) a raw image [[Fig 2]()] to be extracted control signal from, or (2) the control signal image itself [[Fig 3]()].
 
 
 
@@ -64,8 +64,8 @@ Key arguments:
 - `prompt`: positve text prompt for image generation
 - `negative_prompt`: negative text prompt for image generation
 
-> [!NOTE]
-> If `--control_path` is not None, it will be used as control signal, while `--image_path` is not in effect.
+
+⚠️ **If `--control_path` is not None, it will be used as control signal, while `--image_path` is not in effect.**
 
 You can check all arguments description by running `python demo/sampling_without_streamlit.py -h`.
 
@@ -74,4 +74,5 @@ You can check all arguments description by running `python demo/sampling_without
 
 
 
-
+## Reference
+[1] [ControlNet: Adding Conditional Control to Text-to-Image Diffusion Models](https://arxiv.org/pdf/2302.05543.pdf)
