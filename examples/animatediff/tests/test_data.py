@@ -98,7 +98,7 @@ def test_loader(image_finetune=False):
     ms.set_context(mode=0)
 
     steps = 50
-    iterator = dl.create_dict_iterator()
+    iterator = dl.create_dict_iterator(100)
     tot = 0
 
     progress_bar = tqdm(range(steps))
