@@ -134,7 +134,7 @@ def set_default(args):
             args.infer_interval = args.sink_size * max(1, (args.infer_interval // args.sink_size))
 
     # split weights path
-    args.weight = args.weight.split(",") if len(args.weight) > 0 else ""
+    args.weight = args.weight.split(",") if args.weight is not None and len(args.weight) > 0 else ""
 
     # cache
     if args.cache_latent != args.cache_text_embedding:

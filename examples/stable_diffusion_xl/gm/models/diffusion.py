@@ -510,6 +510,75 @@ class DiffusionEngineDreamBooth(DiffusionEngine):
         return loss, overflow
 
 
+class DiffusionEngineControlNet(DiffusionEngine):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_grad_func(self, optimizer, reducer, scaler, jit=True, overflow_still_update=True):
+        from mindspore.amp import all_finite
+
+        loss_fn = self.loss_fn
+        denoiser = self.denoiser
+        model = self.model
+        def _forward_func(x, noised_input, sigmas, w, control, concat, context, y):
+            c_skip, c_out, c_in, c_noise = denoiser(sigmas, noised_input.ndim)
+            model_output = model(
+                ops.cast(noised_input * c_in, ms.float32),
+                ops.cast(c_noise, ms.int32),
+                concat=concat,
+                context=context,
+                y=y,
+                control=control,
+                only_mid_control=False,
+            )
+            model_output = model_output * c_out + noised_input * c_skip
+            loss = loss_fn(model_output, x, w)
+            loss = loss.mean()
+            return scaler.scale(loss)
+
+        grad_fn = ops.value_and_grad(_forward_func, grad_position=None, weights=optimizer.parameters)
+
+        def grad_and_update_func(x, noised_input, sigmas, w, control, concat, context, y):
+            loss, grads = grad_fn(x, noised_input, sigmas, w, control, concat, context, y)
+            grads = reducer(grads)
+            unscaled_grads = scaler.unscale(grads)
+            grads_finite = all_finite(unscaled_grads)
+            if overflow_still_update:
+                loss = ops.depend(loss, optimizer(unscaled_grads))
+            else:
+                if grads_finite:
+                    loss = ops.depend(loss, optimizer(unscaled_grads))
+            overflow_tag = not grads_finite
+            return scaler.unscale(loss), unscaled_grads, overflow_tag
+
+        @ms.jit
+        def jit_warpper(*args, **kwargs):
+            return grad_and_update_func(*args, **kwargs)
+
+        return grad_and_update_func if not jit else jit_warpper
+
+    def train_step_pynative(self, x, control, *tokens, grad_func=None):
+        # get latent
+        x = self.encode_first_stage(x)
+
+        # get condition
+        vector, crossattn, concat = self.conditioner.embedding(*tokens)
+        cond = {"context": crossattn, "y": vector, "concat": concat}
+
+        # get noise and sigma
+        sigmas = self.sigma_sampler(x.shape[0])
+        noise = ops.randn_like(x)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
+
+        # compute loss
+        print("Compute Loss Starting...")
+        loss, _, overflow = grad_func(x, noised_input, sigmas, w, control, **cond)
+        print("Compute Loss Done...")
+
+        return loss, overflow
+
+
 class DiffusionEngineMultiGraph(DiffusionEngine):
     def __init__(self, **kwargs):
         network_config = kwargs.pop("network_config", None)

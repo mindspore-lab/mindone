@@ -2,6 +2,10 @@ model.diffusion_model.controlnet.time_embed.0.weight:time_embedding.linear_1.wei
 model.diffusion_model.controlnet.time_embed.0.bias:time_embedding.linear_1.bias
 model.diffusion_model.controlnet.time_embed.2.weight:time_embedding.linear_2.weight
 model.diffusion_model.controlnet.time_embed.2.bias:time_embedding.linear_2.bias
+model.diffusion_model.controlnet.label_emb.0.0.weight:add_embedding.linear_1.weight
+model.diffusion_model.controlnet.label_emb.0.0.bias:add_embedding.linear_1.bias
+model.diffusion_model.controlnet.label_emb.0.2.weight:add_embedding.linear_2.weight
+model.diffusion_model.controlnet.label_emb.0.2.bias:add_embedding.linear_2.bias
 model.diffusion_model.controlnet.input_blocks.0.0.weight:conv_in.weight
 model.diffusion_model.controlnet.input_blocks.0.0.bias:conv_in.bias
 model.diffusion_model.controlnet.input_blocks.1.0.in_layers.0.gamma:down_blocks.0.resnets.0.norm1.weight
