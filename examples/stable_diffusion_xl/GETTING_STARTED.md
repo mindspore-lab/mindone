@@ -281,6 +281,14 @@ mpirun --allow-run-as-root -n 8 python train.py \
   --param_fp16 True \
   --is_parallel True
 
+# sdxl-base fine-tune for long prompts and control the length of long prompts by max_embeddings_multiple
+python train.py \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --lpw True \
+  --max_embeddings_multiple 3 \
+
 # sdxl-base fine-tune with cache on Ascend
 bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
 bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
