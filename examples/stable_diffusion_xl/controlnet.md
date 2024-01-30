@@ -65,7 +65,7 @@ Key arguments:
 - `negative_prompt`: negative text prompt for image generation
 
 
-⚠️ **If `--control_path` is not None, it will be used as control signal, while `--image_path` is not in effect.**
+⚠️ **If `--control_path` (like [Fig 3]()) is not None, it will be used as control signal, while `--image_path` (like [Fig 2]()) is not in effect.**
 
 You can check all arguments description by running `python demo/sampling_without_streamlit.py -h`.
 
