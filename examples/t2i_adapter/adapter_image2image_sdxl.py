@@ -12,8 +12,6 @@ from omegaconf import OmegaConf
 from PIL import Image
 from t2i_utils import read_images
 
-from mindspore import ops
-
 sys.path.append("../stable_diffusion_v2/")
 sys.path.append("../stable_diffusion_xl/")
 from common import init_env

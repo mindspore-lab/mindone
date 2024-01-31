@@ -154,7 +154,7 @@ if __name__ == "__main__":
     parser.add_class_arguments(nn.DynamicLossScaleUpdateCell, "LossScale", instantiate=False, fail_untyped=False)
 
     cfg = parser.parse_args()
-    cfg.pop("config")   # not needed anymore after instantiation
+    cfg.pop("config")  # not needed anymore after instantiation
     init = parser.instantiate_classes(cfg)
 
     main(cfg, init)
