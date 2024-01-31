@@ -370,7 +370,7 @@ python tools/prepare_coco.py --label path_of_captions_train2017.json --image pat
 | XL       | D910*x1-MS2.2 | ControlNet       | Euler EDM | 30    | 1024x1024  | 3          | 2.55           | 0.25        |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Speed (ste/s): sampling speed measured in the number of sampling steps per second.
+> Speed (step/s): sampling speed measured in the number of sampling steps per second.
 > FPS (img/s): image generation throughput measured in the number of image generated per second.
 
 ## Acknowledgments

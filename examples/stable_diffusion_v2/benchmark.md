@@ -54,7 +54,7 @@ Flash Attention,
 | 2.0           |     D910*x1-MS2.2   |  DPM++       |   20       |    512x512         |       4          |      2.86     |         0.42      |
 | 2.1-v         |     D910*x1-MS2.2   |  DPM++       |   20       |    768x768         |       4          |      1.67     |         0.25      |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Speed (ste/s): sampling speed measured in the number of sampling steps per second.
+> Speed (step/s): sampling speed measured in the number of sampling steps per second.
 > FPS (img/s): image generation throughput measured in the number of image generated per second.
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
