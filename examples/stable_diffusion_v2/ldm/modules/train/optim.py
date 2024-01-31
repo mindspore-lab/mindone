@@ -46,7 +46,7 @@ def build_optimizer(
         if group_strategy is not None and group_strategy.lower() == "unclip":
             # set decay of embedding to 0 should be beneficial for most of the cases
             filter_list = ["layernorm", "bias", "label_emb", "time_embed", "emb_layers"]
-        elif group_strategy.lower() == "norm_and_bias":
+        elif group_strategy is not None and group_strategy.lower() == "norm_and_bias":
             # filter norm and bias
             filter_list = ["gamma", "beta", "bias"]
         else:
