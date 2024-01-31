@@ -159,11 +159,7 @@ def train(args):
 
     # 4. Create train step func
     assert "optim" in config
-    scaler = (
-        args.rank_size * dataloader.get_batch_size() * args.gradient_accumulation_steps
-        if args.scale_lr
-        else 1.0
-    )
+    scaler = args.rank_size * dataloader.get_batch_size() * args.gradient_accumulation_steps if args.scale_lr else 1.0
     lr = get_learning_rate(config.optim, config.data.total_step, scaler)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if args.ms_enable_allreduce_fusion and args.rank_size > 1:
