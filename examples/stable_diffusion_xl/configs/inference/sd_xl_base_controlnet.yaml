@@ -21,6 +21,7 @@ model:
       target: cldm.cldm.ControlnetUnetModel
       params:
         adm_in_channels: 2816
+        num_classes: sequential
         in_channels: 4
         out_channels: 4
         model_channels: 320
@@ -40,6 +41,8 @@ model:
         control_stage_config:
           target: cldm.cldm.ControlNet
           params:
+            adm_in_channels: 2816
+            num_classes: sequential
             in_channels: 4
             hint_channels: 3
             model_channels: 320

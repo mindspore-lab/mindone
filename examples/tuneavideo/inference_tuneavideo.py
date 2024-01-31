@@ -16,7 +16,8 @@ import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
-from ldm.data.dataset_tuneavideo import load_data
+sys.path.append("../stable_diffusion_v2")  # FIXME: loading modules from the stable_diffusion_v2 directory
+from data.dataset_tuneavideo import load_data
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler

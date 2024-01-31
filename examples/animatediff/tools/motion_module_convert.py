@@ -1,3 +1,6 @@
+"""
+python motion_module_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module -v v2
+"""
 import argparse
 import os
 
@@ -61,12 +64,25 @@ if __name__ == "__main__":
         type=str,
         default="/home/hyx/AnimateDiff/models/Motion_Module/mm_sd_v15_v2.ckpt",
     )
+    parser.add_argument(
+        "--version",
+        "-v",
+        type=str,
+        default="v2",
+    )
     parser.add_argument("--target", type=str, default="../models/motion_module")
     args = parser.parse_args()
 
     src_pt_ckpt = args.src
-    torch_names_txt = "./torch_mm_params.txt"
-    ms_names_txt = "./ms_mm_params.txt"
+    print("mm version: ", args.version)
+    if args.version == "v1":
+        torch_names_txt = "./torch_mmv1_params.txt"
+        ms_names_txt = "./ms_mmv1_params.txt"
+    elif args.version == "v2":
+        torch_names_txt = "./torch_mmv1_params.txt"
+        ms_names_txt = "./ms_mmv1_params.txt"
+    else:
+        raise ValueError
 
     output_dir = args.target
 

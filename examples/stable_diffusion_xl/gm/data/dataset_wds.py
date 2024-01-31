@@ -69,6 +69,7 @@ class T2I_BaseDataset:
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
         caption_key="caption",
+        prompt_empty_probability=0.0,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -90,6 +91,7 @@ class T2I_BaseDataset:
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
         self.seed = seed
         self.per_batch_size = per_batch_size
+        self.prompt_empty_probability = prompt_empty_probability
 
         self.caption_key = caption_key
         self.prev_ok_sample = None
@@ -120,6 +122,8 @@ class T2I_BaseDataset:
         image = np.array(image).astype(np.uint8)
 
         # caption preprocess
+        if self.prompt_empty_probability and random.random() < self.prompt_empty_probability:
+            caption = ""
         caption = np.array(caption)
 
         sample = {
@@ -248,6 +252,28 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         self.dataset = wids.ShardListDataset(shardlist)
         self._datalen = len(self.dataset)
 
+        # preload sample
+        for _ in range(100):
+            try:
+                _idx = random.randint(0, self._datalen - 1)
+                raw = self.dataset[_idx]
+                image, caption = self.parse_raw_data(raw)
+                sample = self.preprocess(image, caption)
+            except Exception as e:
+                print(
+                    f"=> WARNING: Fail to preload sample {_idx}. "
+                    f"The sample can be corrupted and will be replaced by previous normal sample."
+                )
+                print("\tError type: ", type(e).__name__)
+                print("\tError mg: {}".format(e), flush=True)
+                continue
+
+            if sample is not None:
+                self.prev_ok_sample = copy.deepcopy(sample)
+                break
+
+        assert self.prev_ok_sample is not None, "=> Error: Fail to preload sample."
+
     def parse_raw_data(self, raw_data):
         # parse webdataset reading result
         if ".jpg" in raw_data:
@@ -279,6 +305,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
             )
             print("\tError type: ", type(e).__name__)
             print("\tError mg: {}".format(e), flush=True)
+            assert self.prev_ok_sample is not None
             sample = self.prev_ok_sample  # unless the first sample is already not ok
             self.require_update_prev = True
 

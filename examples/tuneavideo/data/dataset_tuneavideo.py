@@ -14,9 +14,12 @@
 # ============================================================================
 
 import os
+import sys
 
 import cv2
 import numpy as np
+
+sys.path.append("../stable_diffusion_v2")  # FIXME: loading modules from the stable_diffusion_v2 directory
 from ldm.data.dataset import MetaLoader, build_dataloader_ft
 from ldm.data.t2i_collate import data_column, t2i_collate
 
@@ -107,7 +110,7 @@ class TuneAVideoDataset:
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN])
+        result = np.zeros([CONTEXT_LEN]) + eot_token
         if len(tokens) > CONTEXT_LEN:
             tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
         result[: len(tokens)] = tokens

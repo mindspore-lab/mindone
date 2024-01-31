@@ -1,0 +1,35 @@
+# task
+image_finetune: False
+output_path: outputs/mmv2_train_webvid5_256b4_recompute
+
+# model
+model_config: configs/stable_diffusion/v1-train-mmv2.yaml
+pretrained_model_path: models/stable_diffusion/sd_v1.5-d0ab7146.ckpt
+unet_initialize_random: False
+force_motion_module_amp_O2: True
+
+# data
+data_path: ../videocomposer/datasets/webvid5
+image_size: 256     # 256 used in paper
+num_frames: 16
+frame_stride: 4
+
+num_parallel_workers: 12
+dataset_sink_mode: False
+
+# training hyper-params
+start_learning_rate: 1.e-4
+scheduler: constant
+warmup_steps: 10
+train_batch_size: 4  # original: 4
+epochs: 16000
+weight_decay: 0.01
+
+init_loss_scale: 65536
+
+use_ema: False
+clip_grad: True
+
+# training process
+ckpt_save_interval: 2000
+save_mm_only: True

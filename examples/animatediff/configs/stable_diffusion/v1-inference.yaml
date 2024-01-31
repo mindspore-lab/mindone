@@ -28,31 +28,14 @@ model:
         attention_resolutions: [ 4, 2, 1 ]
         num_res_blocks: 2
         channel_mult: [ 1, 2, 4, 4 ]
-        num_heads: 8
+        num_heads: 8 # num of attention head, => head dim will be 320 / 8 = 40, not divisable by 16
         use_spatial_transformer: True
+        enable_flash_attention: False
         transformer_depth: 1
         context_dim: 768
         use_checkpoint: True
         legacy: False
         use_fp16: True
-        # Additional. from animatediff v2.yaml. TODO: support v1.yaml
-        use_inflated_groupnorm: true
-        unet_use_cross_frame_attention: false
-        unet_use_temporal_attention: false
-        use_motion_module: true
-        motion_module_resolutions: [1, 2, 4, 8]
-        motion_module_mid_block: true
-        motion_module_decoder_only: false
-        motion_module_type: Vanilla
-        motion_module_kwargs:
-          num_attention_heads: 8
-          num_transformer_block: 1
-          attention_block_types:
-            - Temporal_Self
-            - Temporal_Self
-          temporal_position_encoding: true
-          temporal_position_encoding_max_len: 32
-          temporal_attention_dim_div: 1
 
     first_stage_config:
       target: ldm.models.autoencoder.AutoencoderKL
@@ -87,5 +70,5 @@ model:
         width: 768
         layers: 12
         heads: 12
-        epsilon: 1e-7
+        epsilon: 1e-5
         use_quick_gelu: True

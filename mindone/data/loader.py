@@ -1,11 +1,13 @@
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import mindspore as ms
-from mindspore.communication.management import get_local_rank, get_local_rank_size
+from mindspore.communication import get_local_rank, get_local_rank_size
+
+from .dataset import BaseDataset
 
 
 def build_dataloader(
-    dataset: Any,
+    dataset: BaseDataset,
     batch_size: int,
     transforms: Optional[Union[List[dict], dict]] = None,
     shuffle: bool = False,
@@ -28,23 +30,23 @@ def build_dataloader(
         dataset: A dataset instance, must have `output_columns` member.
         batch_size: Number of samples per batch.
         transforms: Optional transformations to apply to the dataset. It can be a list of transform dictionaries or
-        a single transform dictionary. The dictionary must have the following structure:
-        {
-            "operations": [List of transform operations],               # Required
-            "input_columns": [List of columns to apply transforms to],  # Optional
-            "output_columns": [List of output columns]                  # Optional, only used if different from input columns
-        }
+                    a single transform dictionary. The dictionary must have the following structure:
+                    {
+                        "operations": [List of transform operations],               # Required
+                        "input_columns": [List of columns to apply transforms to],  # Optional
+                        "output_columns": [List of output columns]                  # Optional, only used if different from the `input columns`
+                    }
         shuffle: Whether to randomly sample data. Default is False.
         num_workers: The number of workers used for data transformations. Default is 4.
         num_workers_dataset: The number of workers used for reading data from the dataset. Default is 4.
         num_workers_batch: The number of workers used for batch aggregation. Default is 2.
         drop_remainder: Whether to drop the remainder of the dataset if it doesn't divide evenly by `batch_size`.
-            Default is True.
+                        Default is True.
         python_multiprocessing: Whether to use Python multiprocessing for data transformations. This option could be
-        beneficial if the Python operation is computational heavy. Default is True.
+                                beneficial if the Python operation is computational heavy. Default is True.
         prefetch_size: The number of samples to prefetch (per device). Default is 16.
         max_rowsize: Maximum size of row in MB that is used for shared memory allocation to copy data between processes.
-        This is only used if `python_multiprocessing` is set to `True`. Default is 64.
+                     This is only used if `python_multiprocessing` is set to `True`. Default is 64.
         device_num: The number of devices to distribute the dataset across. Default is 1.
         rank_id: The rank ID of the current device. Default is 0.
         debug: Whether to enable debug mode. Default is False.
@@ -53,6 +55,9 @@ def build_dataloader(
     Returns:
         ms.dataset.BatchDataset: The DataLoader for the given dataset.
     """
+    if not hasattr(dataset, "output_columns"):
+        raise AttributeError(f"{type(dataset).__name__} must have `output_columns` attribute.")
+
     ms.dataset.config.set_prefetch_size(prefetch_size)
     ms.dataset.config.set_enable_shared_mem(True)
     ms.dataset.config.set_debug_mode(debug)

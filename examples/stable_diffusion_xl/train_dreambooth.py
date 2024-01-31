@@ -65,6 +65,12 @@ def get_parser_train():
     parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
+    parser.add_argument(
+        "--max_num_ckpt",
+        type=int,
+        default=None,
+        help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
+    )
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
     parser.add_argument(
@@ -272,6 +278,8 @@ def train(args):
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
+    if args.max_num_ckpt is not None and args.max_num_ckpt <= 0:
+        raise ValueError("args.max_num_ckpt must be None or a positive integer!")
     if args.task == "txt2img":
         train_txt2img(
             args,
@@ -292,6 +300,8 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
     s_time = time.time()
+
+    ckpt_queue = []
     for i, data in enumerate(loader):
         # Get data, to tensor
         if not args.dataset_load_tokenizer:
@@ -348,10 +358,13 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             save_checkpoint(
                 model,
                 save_ckpt_dir,
+                ckpt_queue,
+                args.max_num_ckpt,
                 only_save_lora=False
                 if not hasattr(model.model.diffusion_model, "only_save_lora")
                 else model.model.diffusion_model.only_save_lora,
             )
+            ckpt_queue.append(save_ckpt_dir)
             model.model.set_train(True)
 
         # Infer during train

@@ -10,7 +10,7 @@ train:
   output_dir: output/t2i_adapter_v2.1/
 
   dataset:
-    class_path: examples.stable_diffusion_v2.ldm.data.dataset_with_cond.COCOStuff
+    class_path: data.dataset_with_cond.COCOStuff
     init_args:
       image_dir:
       masks_path:

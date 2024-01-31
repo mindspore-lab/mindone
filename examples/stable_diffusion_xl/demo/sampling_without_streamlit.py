@@ -71,6 +71,7 @@ def get_parser_sample():
     )
     parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
     parser.add_argument("--sample_step", type=int, default=40)
+    parser.add_argument("--num_rows", type=int, default=1)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
@@ -165,7 +166,7 @@ def run_txt2img(
         "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
         "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
     }
-    sampler, num_rows, num_cols = init_sampling(
+    sampler, _, _ = init_sampling(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
@@ -174,7 +175,7 @@ def run_txt2img(
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
-    num_samples = num_rows * num_cols
+    num_samples = args.num_rows * args.num_cols
 
     print("Txt2Img Sampling")
     outs = []
@@ -182,31 +183,34 @@ def run_txt2img(
     if args.controlnet_mode is not None:
         control, H, W = get_control(args, num_samples, min(H, W))
     for i, prompt in enumerate(prompts):
-        print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
-        value_dict["prompt"] = prompt
-        s_time = time.time()
-        sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
-        out = sampling_func(
-            sampler,
-            value_dict,
-            num_samples,
-            H,
-            W,
-            C,
-            F,
-            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-            return_latents=return_latents,
-            filter=filter,
-            amp_level=amp_level,
-            init_latent_path=args.init_latent_path,
-            control=control,
-        )
-        print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+        images = []
+        for j in range(num_samples):
+            print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"], f"({j+1}/{num_samples})")
+            value_dict["prompt"] = prompt
+            s_time = time.time()
+            sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
+            out = sampling_func(
+                sampler,
+                value_dict,
+                1,
+                H,
+                W,
+                C,
+                F,
+                force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+                return_latents=return_latents,
+                filter=filter,
+                amp_level=amp_level,
+                init_latent_path=args.init_latent_path,
+                control=control,
+            )
+            print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
-        out = out if isinstance(out, (tuple, list)) else [out, None]
-        (samples, samples_z) = out
+            out = out if isinstance(out, (tuple, list)) else [out, None]
+            (samples, samples_z) = out
+            images.append(samples)
 
-        perform_save_locally(save_path, samples)
+        perform_save_locally(save_path, images, args.num_cols)
 
         outs.append(out)
 

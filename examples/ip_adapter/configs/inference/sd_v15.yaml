@@ -5,6 +5,7 @@ model:
     unet_config:
       target: adapter.sdv2.modules.diffusionmodules.openaimodel.IPAdapterUNetModel
       params:
+        enable_flash_attention: False
         ip_scale: 1.0
         num_tokens: 4
 
