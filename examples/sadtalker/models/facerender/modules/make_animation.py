@@ -201,14 +201,6 @@ def make_animation(
 
         out = generator(source_image, kp_source=kp_source, kp_driving=kp_driving)
 
-        """
-        source_image_new = out['prediction'].squeeze(1)
-        kp_canonical_new =  kp_detector(source_image_new)
-        he_source_new = he_estimator(source_image_new)
-        kp_source_new = keypoint_transformation(kp_canonical_new, he_source_new, wo_exp=True)
-        kp_driving_new = keypoint_transformation(kp_canonical_new, he_driving, wo_exp=True)
-        out = generator(source_image_new, kp_source=kp_source_new, kp_driving=kp_driving_new)
-        """
         predictions.append(out)
     predictions_ts = ops.stack(predictions, axis=1)
     return predictions_ts

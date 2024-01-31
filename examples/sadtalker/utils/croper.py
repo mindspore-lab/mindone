@@ -9,7 +9,6 @@ from models.face3d.facexlib import init_detection_model, init_alignment_model
 
 import numpy as np
 from PIL import Image
-from tools.save_ms_params import save_params, set_params
 
 
 class Preprocesser:
@@ -66,16 +65,20 @@ class Preprocesser:
         # Choose oriented crop rectangle.
         # Addition of binocular difference and double mouth difference
         x = eye_to_eye - np.flipud(eye_to_mouth) * [-1, 1]
-        x /= np.hypot(*x)  # hypot函数计算直角三角形的斜边长，用斜边长对三角形两条直边做归一化
-        x *= max(np.hypot(*eye_to_eye) * 2.0, np.hypot(*eye_to_mouth) * 1.8)  # 双眼差和眼嘴差，选较大的作为基准尺度
+        x /= np.hypot(*x)  # The hypot func calculates the hypotenuse length of a right triangle
+        # and uses the hypotenuse length to normalize the two straight sides of the triangle.
+        x *= max(
+            np.hypot(*eye_to_eye) * 2.0, np.hypot(*eye_to_mouth) * 1.8
+        )  # For the difference between the eyes and mouth, choose the larger one as the reference scale.
         y = np.flipud(x) * [-1, 1]
         c = eye_avg + eye_to_mouth * 0.1
-        # 定义四边形，以面部基准位置为中心上下左右平移得到四个顶点
+        # Define a quadrilateral and translate up, down, left and right
+        # with the facial reference position as the center to obtain four vertices.
         quad = np.stack([c - x - y, c - x + y, c + x + y, c + x - y])
-        qsize = np.hypot(*x) * 2  # 定义四边形的大小（边长），为基准尺度的2倍
+        qsize = np.hypot(*x) * 2  # Define the size (side length) of the quadrilateral, which is twice the base scale
 
         # Shrink.
-        # 如果计算出的四边形太大了，就按比例缩小它
+        # If the calculated quad is too large, scale it down
         shrink = int(np.floor(qsize / output_size * 0.5))
         if shrink > 1:
             rsize = (

@@ -3,7 +3,6 @@ import numpy as np
 import mindspore as ms
 from mindspore import ops
 from scipy.io import savemat, loadmat
-from yacs.config import CfgNode as CN
 from scipy.signal import savgol_filter
 
 from models.audio2pose.audio2pose import Audio2Pose
@@ -11,7 +10,7 @@ from models.audio2exp.audio2exp import Audio2Exp
 from models.audio2exp.expnet import ExpNet
 
 
-def load_cpk(checkpoint_path, model):
+def load_ckpt(checkpoint_path, model):
     param_dict = ms.load_checkpoint(checkpoint_path)
     ms.load_param_into_net(model, param_dict)
 
@@ -29,13 +28,13 @@ class Audio2Coeff:
         netG = ExpNet()
         self.audio2exp_model = Audio2Exp(netG, cfg_exp)
         path_audio2exp_checkpoint = os.path.join(checkpoint_dir, cfg_exp.path.audio2exp_checkpoint)
-        load_cpk(path_audio2exp_checkpoint, model=self.audio2exp_model)
+        load_ckpt(path_audio2exp_checkpoint, model=self.audio2exp_model)
 
         # load audio2pose_model
         checkpoint_dir = cfg_pose.path.checkpoint_dir
         self.audio2pose_model = Audio2Pose(cfg_pose)
         path_audio2pose_checkpoint = os.path.join(checkpoint_dir, cfg_pose.path.audio2pose_checkpoint)
-        load_cpk(path_audio2pose_checkpoint, model=self.audio2pose_model)
+        load_ckpt(path_audio2pose_checkpoint, model=self.audio2pose_model)
 
         for param in self.audio2exp_model.get_parameters():
             param.requires_grad = False

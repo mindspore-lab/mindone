@@ -229,9 +229,9 @@ class CropAndExtract:
         save_path = dirname.replace(org_dir, save_dir) + "/" + video_name
         os.makedirs(save_path, exist_ok=True)
 
-        landmarks_path = os.path.join(save_path, video_name + "_landmarks.txt")  # 每一帧的图像landmark
-        img_path = save_path.replace("/pose/", "/images/")  # 最终的图像保存路径
-        os.makedirs(img_path, exist_ok=True)  # 图像保存路径
+        landmarks_path = os.path.join(save_path, video_name + "_landmarks.txt")  # landmark of each frame
+        img_path = save_path.replace("/pose/", "/images/")  # save path of generated image
+        os.makedirs(img_path, exist_ok=True)
         # info_path =  os.path.join(save_path, 'crop_info.mat')
 
         coeff_path = os.path.join(save_path, video_name + ".mat")
@@ -250,9 +250,9 @@ class CropAndExtract:
             while success:
                 success, frame = video_stream.read()
                 if success:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # 转换为RGB
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # transform to RGB
                     x_full_frames.append(frame)
-        print("读取视频完毕====>", video_path, "  ", os.getpid())
+        print("Video reading completed ====>", video_path, "  ", os.getpid())
 
         #### crop images as the
         if "crop" in crop_or_resize.lower():  # default crop
@@ -286,16 +286,18 @@ class CropAndExtract:
             )
             crop_info = ((ox2 - ox1, oy2 - oy1), None, None)
 
-        frames_pil = [Image.fromarray(cv2.resize(frame, (pic_size, pic_size))) for frame in x_full_frames]  # resize到256
+        frames_pil = [
+            Image.fromarray(cv2.resize(frame, (pic_size, pic_size))) for frame in x_full_frames
+        ]  # resize to 256
         if len(frames_pil) == 0:
             print("No face is detected in the input file")
             return None, None
 
-        # save crop info  保存crop的图像
+        # save crop info and images
         i = 1
         for frame in frames_pil:
             png_path = os.path.join(img_path, video_name + "_" + str(i).zfill(6) + ".png")
-            cv2.imwrite(png_path, cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))  # 保存crop的图像
+            cv2.imwrite(png_path, cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
             i += 1
 
         if not os.path.isfile(coeff_path):
@@ -306,7 +308,7 @@ class CropAndExtract:
                 mats_3dmm,
             )
 
-    # 检测landmark
+    # detect landmark
     def detect_lm(
         self,
         input_path,
@@ -333,11 +335,11 @@ class CropAndExtract:
             full_frames.append(frame)
             if source_image_flag:
                 break
-            break  # 只读取第一帧
+            break  # only read the 1st frame
 
         x_full_frames = [cv2.cvtColor(frame, cv2.COLOR_BGR2RGB) for frame in full_frames]
 
-        ####保存第一帧的landmarks
+        # sve the landmarks of the 1st frame
         if "crop" in crop_or_resize.lower():  # default crop
             lm = self.propress.detect_lm(
                 x_full_frames,
@@ -362,15 +364,13 @@ class CropAndExtract:
         save_path = dirname.replace(org_dir, save_dir) + "/" + pic_name
         os.makedirs(save_path, exist_ok=True)
         landmarks_path = os.path.join(save_path, "first_landmarks.mat")
-        if not os.path.exists(landmarks_path):  # 不存在return
-            # print('不存在:', input_path)
+        if not os.path.exists(landmarks_path):  # return if not exist
             return
-        img_path = save_path.replace("/pose/", "/images/")  # 图像保存路径
-        os.makedirs(img_path, exist_ok=True)  # 图像保存路径
+        img_path = save_path.replace("/pose/", "/images/")
+        os.makedirs(img_path, exist_ok=True)
         info_path = os.path.join(save_path, "crop_info.mat")
-        # if os.path.exists(info_path):
-        #     return   #不需要了
-        print("正在处理====>", input_path, "  ", os.getpid())
+
+        print("Processing ====>", input_path, "  ", os.getpid())
         # load input
         video_stream = cv2.VideoCapture(input_path)
         fps = video_stream.get(cv2.CAP_PROP_FPS)
@@ -383,14 +383,14 @@ class CropAndExtract:
             while success:
                 success, frame = video_stream.read()
                 if success:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # 转换为RGB
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # transform to RGB
                     x_full_frames.append(frame)
                     k += 1
-        print("读取视频完毕====>", input_path, "  ", os.getpid())
+        print("Video reading completed ====>", input_path, "  ", os.getpid())
         png_path = os.path.join(img_path, pic_name + "_" + str(k).zfill(6) + ".png")
         if os.path.exists(png_path):
             return
-        print("不完整====>", input_path, "  ", os.getpid())
+        print("Incomplete ====>", input_path, "  ", os.getpid())
 
         ####align
         lm_68 = loadmat(landmarks_path)["first_lm"]
@@ -406,21 +406,23 @@ class CropAndExtract:
             lx, ly, rx, ry = int(lx), int(ly), int(rx), int(ry)
             oy1, oy2, ox1, ox2 = cly + ly, cly + ry, clx + lx, clx + rx
             crop_info = ((ox2 - ox1, oy2 - oy1), crop, quad)
-        print("align视频完毕====>", input_path, "  ", os.getpid())
+        print("Align video completed ====>", input_path, "  ", os.getpid())
 
-        frames_pil = [Image.fromarray(cv2.resize(frame, (pic_size, pic_size))) for frame in x_full_frames]  # resize到256
+        frames_pil = [
+            Image.fromarray(cv2.resize(frame, (pic_size, pic_size))) for frame in x_full_frames
+        ]  # resize to 256
         if len(frames_pil) == 0:
             print("No face is detected in the input file")
             return None, None
 
-        # 保存crop的图像
+        # save the image after cropping
         i = 1
         for frame in frames_pil:
             png_path = os.path.join(img_path, pic_name + "_" + str(i).zfill(6) + ".png")
-            cv2.imwrite(png_path, cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))  # 保存crop的图像
+            cv2.imwrite(png_path, cv2.cvtColor(np.array(frame), cv2.COLOR_RGB2BGR))
             i += 1
         savemat(info_path, {"crop_info": crop_info})
-        print("保存视频完毕====>", input_path, "  ", os.getpid())
+        print("Video saved completed ====>", input_path, "  ", os.getpid())
 
     def align_256_final(
         self,
@@ -437,22 +439,23 @@ class CropAndExtract:
         save_path = dirname.replace(org_dir, save_dir) + "/" + pic_name
         os.makedirs(save_path, exist_ok=True)
         landmarks_path = os.path.join(save_path, "first_landmarks.mat")
-        if not os.path.exists(landmarks_path):  # 不存在return
-            # print('不存在:', input_path)
+        if not os.path.exists(landmarks_path):
             return
         info_path = os.path.join(save_path, "crop_info.mat")
-        print("正在处理====>", input_path, "  ", os.getpid())
+        print("Processing ====>", input_path, "  ", os.getpid())
 
-        coeff_path = os.path.join(save_path, pic_name + ".mat")  # 3d系数保存路径
-        if os.path.exists(coeff_path):  # 存在的话就return
+        coeff_path = os.path.join(save_path, pic_name + ".mat")  # 3d coefficient saving path
+        if os.path.exists(coeff_path):
             return
 
-        img_path = save_path.replace("/pose/", "/images/")  # 图像保存路径
-        os.makedirs(img_path, exist_ok=True)  # 图像保存路径
-        img_paths = glob(os.path.join(img_path, "*.png"))  # 得到路径下的所有图像
-        frames_pil = [Image.open(p) for p in img_paths]  # 打开
+        img_path = save_path.replace("/pose/", "/images/")
+        os.makedirs(img_path, exist_ok=True)
+        img_paths = glob(os.path.join(img_path, "*.png"))  # Get all images under the path
+        frames_pil = [Image.open(p) for p in img_paths]
 
-        landmarks_paths_256 = os.path.join(save_path, pic_name + "_landmarks.txt")  # 256图像对应的landmarks
+        landmarks_paths_256 = os.path.join(
+            save_path, pic_name + "_landmarks.txt"
+        )  # 256 landmarks corresponding to images
         if not os.path.isfile(landmarks_paths_256):
             lm = self.propress.predictor.extract_keypoint(frames_pil, landmarks_paths_256)
         else:
@@ -489,7 +492,7 @@ class CropAndExtract:
                         pred_coeff["exp"],
                         pred_coeff["angle"],
                         pred_coeff["trans"],
-                        trans_params[2:][None],  # 仿射变换参数
+                        trans_params[2:][None],  # Affine transformation parameters
                     ],
                     1,
                 )  # (1, 73)

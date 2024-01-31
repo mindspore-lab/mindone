@@ -1,11 +1,5 @@
 from tqdm import tqdm
-import cv2
-import copy
-import numpy as np
-import mindspore as ms
 from mindspore import nn, ops
-from utils.preprocess import split_coeff
-from models.face3d.bfm import ParametricFaceModel
 
 
 class Audio2Exp(nn.Cell):

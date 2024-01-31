@@ -384,12 +384,12 @@ class TrainFaceRenderDataset(TestFaceRenderDataset):
         data = {}
 
         img_folder, first_coeff_path, net_coeff_path = self.all_videos[idx].split(" ")
-        image_paths = glob(os.path.join(img_folder, "*.png"))  # 图像的路径
+        image_paths = glob(os.path.join(img_folder, "*.png"))
 
-        ##随机选取一帧,得到窗口并读取图片
+        # randomly sample a frame, get the window and read the picture
         valid_paths = list(sorted(image_paths))[: len(image_paths) - self.syncnet_T]
         src_img_path = valid_paths[0]
-        tgt_img_path = random.choice(valid_paths)  # 随机选取一帧
+        tgt_img_path = random.choice(valid_paths)  # random sample
         frame_id = int(os.path.basename(tgt_img_path).split("_")[-1].split(".")[0])
 
         # source

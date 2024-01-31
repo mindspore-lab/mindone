@@ -8,10 +8,6 @@ from mindspore import nn, ops
 from mindspore.common.initializer import Initializer, Constant
 from models.face3d.facexlib.resnet import conv1x1, resnet50
 
-from typing import Type, Any, Callable, Union, List, Optional
-
-# from kornia.geometry import warp_affine
-
 
 def resize_n_crop(image, M, dsize=112):
     # image: (b, c, h, w)
