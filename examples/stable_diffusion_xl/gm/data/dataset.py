@@ -26,6 +26,7 @@ class Text2ImageDataset:
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
         return_sample_name=False,
+        prompt_empty_probability=0.0,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -54,6 +55,7 @@ class Text2ImageDataset:
 
         self.seed = seed
         self.per_batch_size = per_batch_size
+        self.prompt_empty_probability = prompt_empty_probability
 
         all_images, all_captions = self.list_image_files_captions_recursively(data_path)
         if filter_small_size:
@@ -90,7 +92,11 @@ class Text2ImageDataset:
         image = np.array(image).astype(np.uint8)
 
         # caption preprocess
-        caption = self.local_captions[idx]
+        caption = (
+            ""
+            if self.prompt_empty_probability and random.random() < self.prompt_empty_probability
+            else self.local_captions[idx]
+        )
         caption = np.array(caption)
 
         sample = {
