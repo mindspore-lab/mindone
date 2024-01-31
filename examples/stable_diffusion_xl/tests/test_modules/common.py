@@ -1,6 +1,8 @@
-from mindspore import Profiler, nn
-import mindspore.dataset as de
 import numpy as np
+
+import mindspore.dataset as de
+from mindspore import nn
+
 
 def create_loader(
     total_batch_size,
