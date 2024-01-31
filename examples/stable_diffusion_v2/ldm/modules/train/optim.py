@@ -14,7 +14,7 @@ def build_optimizer(
     model: Cell,
     name: str,
     lr: Union[float, List[float]],
-    betas: List[float] = None,
+    betas: Optional[List[float]] = None,
     weight_decay: float = 1e-6,
     eps: float = 1e-6,
     group_strategy: Optional[str] = None,
@@ -43,14 +43,17 @@ def build_optimizer(
         _logger.info("Applying `%s` strategy for weight decay.", group_strategy)
 
     def decay_filter(param):
-        if group_strategy is not None and group_strategy.lower() == "unclip":
+        if group_strategy is None:
+            filter_list = ["layernorm", "bias"]
+        elif group_strategy.lower() == "unclip":
             # set decay of embedding to 0 should be beneficial for most of the cases
-            filter_list = ["layernorm", "bias", "label_emb", "time_embed", "emb_layers"]
+            filter_list = ["gamma", "beta", "bias", "label_emb", "time_embed", "emb_layers"]
         elif group_strategy.lower() == "norm_and_bias":
             # filter norm and bias
             filter_list = ["gamma", "beta", "bias"]
         else:
-            filter_list = ["layernorm", "bias"]
+            raise ValueError(f"Unsupported group_strategy: `{group_strategy}`")
+
         return all([x not in param.name.lower() for x in filter_list])
 
     param_optimizer = model.trainable_params()
