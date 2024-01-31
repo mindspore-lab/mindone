@@ -69,8 +69,8 @@ for MindSpore2.1
 
 | Device | Online Inference (MindSpore) | Offline Inference (Lite) |
 | ------ | ---------------------------- | ------------------------ |
-| Ascend 910A | ✅ | ✅ |
-| Ascend 910B | - | ✅ |
+| Ascend 910 | ✅ | ✅ |
+| Ascend 910* | - | ✅ |
 | Ascend 310P | - | ✅ |
 | GPU | ✅ | - |
 | CPU | ✅ | - |
@@ -146,8 +146,9 @@ You can get images at "output/samples".
 
 | Model | task | batch size | image size | sample step | device | engine | time per image |
 | ----  | ---  | ---------- | ---------- | ----------- | ------ | ------ | -------------- |
-| sd-2.0-base_fa | text2img | 1 | 512*512 | 50 | Ascend 910A | MindSpore | 5.49 s |
-| sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910A | Lite | 3.21 s |
-| sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910B | Lite | 2.7 s |
+| sd-2.0-base_fa | text2img | 1 | 512*512 | 50 | Ascend 910 | MindSpore | 5.49 s |
+| sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910 | Lite | 3.21 s |
+| sd-2.0-base-fa | text2img | 1 | 512*512 | 50 | Ascend 910* | Lite | 2.7 s |
+| sd-1.5 | text2img | 1 | 512*512 | 50 | Ascend 910* | MindSpore | 4.57 s |
 
 The sampler schedule is DDIM.
