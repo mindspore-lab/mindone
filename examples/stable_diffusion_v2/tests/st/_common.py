@@ -18,7 +18,7 @@ def gen_dummpy_data():
         Download().download_and_extract_archive(dataset_url, "./")
 
     # prepare dummy labels
-    label_path = "tests/st/dummy_labels/img_txt.csv"
+    label_path = "tests/test_modules/dummy_labels/img_txt.csv"
     image_dir = f"{data_dir}/val/dogs"
     new_label_path = f"{data_dir}/val/dogs/img_txt.csv"
     img_paths = glob.glob(os.path.join(image_dir, "*.JPEG"))

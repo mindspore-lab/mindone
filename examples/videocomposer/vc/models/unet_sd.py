@@ -565,7 +565,7 @@ class UNetSD_temporal(nn.Cell):
 
         # motion: 256x256
         if "motion" in self.video_compositions:
-            # ks, st = get_kernel_size_and_stride(256, 128)
+            # ks, test_modules = get_kernel_size_and_stride(256, 128)
             self.motion_embedding = nn.SequentialCell(
                 nn.Conv2d(2, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
                 SiLU(),
@@ -591,7 +591,7 @@ class UNetSD_temporal(nn.Cell):
             )
 
         # canny embedding: 384x384
-        # ks, st = get_kernel_size_and_stride(cfg.misc_size, 128)
+        # ks, test_modules = get_kernel_size_and_stride(cfg.misc_size, 128)
         if "canny" in self.video_compositions:
             self.canny_embedding = nn.SequentialCell(
                 nn.Conv2d(1, concat_dim * 4, 3, pad_mode="pad", padding=1, has_bias=True).to_float(self.dtype),
