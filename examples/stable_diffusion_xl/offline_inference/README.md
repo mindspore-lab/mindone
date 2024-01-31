@@ -124,10 +124,11 @@ You can get images at "output/samples".
 
 ## BenchMark (Offline Infer)
 
-| Model | task | batch size | image size | sample step | device | engine | time per image |
-| ----  | ---  | ---------- | ---------- | ----------- | ------ | ------ | -------------- |
-| sd_xl_base_1.0 | text2img | 1 | 1024*1024 | 40 | Ascend 910A | MindSpore | 17.20 s |
-| sd_xl_base_1.0 | text2img | 1 | 1024*1024 | 40 | Ascend 310P | MindSpore | 118 s |
+| Model Name     | Device      | MindSpore | MindSpore Lite | CANN | Task     | ImageSize | PerBatchSize | Sample Step | Time Per Image |
+|----------------|-------------|-----------|----------------|------|----------|-----------|--------------|-------------|----------------|
+| sd_xl_base_1.0 | Ascend 910* | 2.2.10    | 2.2.10         | C15  | text2img | 1024*1024 | 1            | 40          | 6.172 s        |
+| sd_xl_base_1.0 | Ascend 910  | 2.1.0     | 2.1.0          | C15  | text2img | 1024*1024 | 1            | 40          | 17.20 s        |
+| sd_xl_base_1.0 | Ascend 310P | 2.1.0     | 2.1.0          | C15  | text2img | 1024*1024 | 1            | 40          | 118 s          |
 
 The sampler schedule is euler_edm.
 
@@ -136,9 +137,8 @@ The sampler schedule is euler_edm.
 
 ### Device Inference Mode Support
 
-for MindSpore2.1
-
-| Device | Online Inference (MindSpore) | Offline Inference (Lite) |
-| ------ | ---------------------------- | ------------------------ |
-| Ascend 910A | ✅ | ✅ |
-| Ascend 310P | -  | ✅ |
+| Device      | Online Inference (MindSpore) | Offline Inference (Lite)  |
+|-------------|------------------------------|---------------------------|
+| Ascend 910* | ✅                            | ✅                         |
+| Ascend 910  | ✅                            | ✅                         |
+| Ascend 310P | -                            | ✅                         |
