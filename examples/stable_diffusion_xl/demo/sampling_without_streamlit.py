@@ -159,6 +159,11 @@ def run_txt2img(
     else:
         prompts = [args.prompt]
 
+    num_samples = args.num_rows * args.num_cols
+    control = None
+    if args.controlnet_mode is not None:
+        control, H, W = get_control(args, num_samples, min(H, W))
+
     value_dict = {
         "prompt": prompts[0],
         "negative_prompt": args.negative_prompt,
@@ -180,13 +185,9 @@ def run_txt2img(
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
-    num_samples = args.num_rows * args.num_cols
 
     print("Txt2Img Sampling")
     outs = []
-    control = None
-    if args.controlnet_mode is not None:
-        control, H, W = get_control(args, num_samples, min(H, W))
     for i, prompt in enumerate(prompts):
         images = []
         for j in range(num_samples):
