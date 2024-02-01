@@ -416,27 +416,3 @@ class ControlNet(nn.Cell):
         self.middle_block[1].recompute()
 
         print("Turn on recompute with StrategyV1.")
-
-    def construct(self, x, hint, timesteps, context, **kwargs):
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-        emb = self.time_embed(t_emb)
-        guided_hint = hint
-        for cell in self.input_hint_block:
-            guided_hint = cell(guided_hint)
-
-        outs = []
-
-        h = x
-        for celllist, zero_conv in zip(self.input_blocks, self.zero_convs):
-            for cell in celllist:
-                h = cell(h, emb, context)
-            if guided_hint is not None:
-                h += guided_hint
-                guided_hint = None
-            outs.append(zero_conv(h, emb, context))
-        for module in self.middle_block:
-            h = module(h, emb, context)
-
-        outs.append(self.middle_block_out(h, emb, context))
-
-        return outs

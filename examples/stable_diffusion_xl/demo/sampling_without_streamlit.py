@@ -155,10 +155,19 @@ def run_txt2img(
     else:
         prompts = [args.prompt]
 
-    num_samples = args.num_rows * args.num_cols
+    sampler, num_rows, num_cols = init_sampling(
+        sampler=args.sampler,
+        num_cols=args.num_cols,
+        guider=args.guider,
+        guidance_scale=args.guidance_scale,
+        discretization=args.discretization,
+        steps=args.sample_step,
+        stage2strength=stage2strength,
+    )
+
     control = None
     if args.controlnet_mode is not None:
-        control, H, W = get_control(args, num_samples, min(H, W))
+        control, H, W = get_control(args, num_cols, save_detected_map=args.save_detected_map)
 
     value_dict = {
         "prompt": prompts[0],
@@ -172,15 +181,7 @@ def run_txt2img(
         "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
         "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
     }
-    sampler, _, _ = init_sampling(
-        sampler=args.sampler,
-        num_cols=args.num_cols,
-        guider=args.guider,
-        guidance_scale=args.guidance_scale,
-        discretization=args.discretization,
-        steps=args.sample_step,
-        stage2strength=stage2strength,
-    )
+    num_samples = num_rows * num_cols
 
     print("Txt2Img Sampling")
     outs = []
