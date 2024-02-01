@@ -303,7 +303,7 @@ class DDIMSampler(object):
             )
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
-        if self.model.parameterization == "v":
+        if self.model.parameterization == "velocity":
             e_t = self.model.predict_eps_from_z_and_v(x, t, model_output)
         else:
             e_t = model_output
@@ -325,7 +325,7 @@ class DDIMSampler(object):
         sqrt_one_minus_at = ms.numpy.full((b, 1, 1, 1), sqrt_one_minus_alphas[index])
 
         # current prediction for x_0
-        if self.model.parameterization != "v":
+        if self.model.parameterization != "velocity":
             pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
         else:
             pred_x0 = self.model.predict_start_from_z_and_v(x, t, model_output)
