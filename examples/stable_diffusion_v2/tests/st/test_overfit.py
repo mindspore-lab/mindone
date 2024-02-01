@@ -86,7 +86,7 @@ def test_vanilla_8p(version):
     assert ret == 0, "Training fails"
 
     # check ending loss
-    result_log = os.path.join(output_path, "ckpt/result.log")
+    result_log = os.path.join(output_path, "result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
     converge_loss = np.mean(df["loss"][-100:])
 
@@ -159,7 +159,7 @@ def test_vanilla_lora(use_lora, version):
     assert ret == 0, "Training fails"
 
     # check ending loss
-    result_log = os.path.join(output_path, "ckpt/result.log")
+    result_log = os.path.join(output_path, "result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
     converge_loss = np.mean(df["loss"][-100:])
 
@@ -225,7 +225,7 @@ def test_db(version):
     assert ret == 0, "Training fails"
 
     # check ending loss
-    result_log = os.path.join(output_path, "ckpt/rank_0/result.log")
+    result_log = os.path.join(output_path, "rank_0/result.log")
     df = pd.read_csv(result_log, sep="\t")  # , lineterminator='\r')
     ending = max(1, epochs // 10)
     converge_loss = np.mean(df["loss"][-ending:])  # 200 steps
