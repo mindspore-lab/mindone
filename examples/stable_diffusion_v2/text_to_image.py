@@ -228,9 +228,10 @@ def main(args):
         sname = "dpm_solver_pp"
     if prediction_type == "v":
         assert sname in [
+            "ddim",
             "dpm_solver",
             "dpm_solver_pp",
-        ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
+        ], "Only ddim, dpm_solver and dpm_solver_pp support v-prediction currently."
 
     # create safety checker
     if args.check_safety:
