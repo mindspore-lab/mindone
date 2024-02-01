@@ -106,7 +106,12 @@ def get_parser_sample():
 
     # for controlnet
     parser.add_argument("--controlnet_mode", type=str, choices=["canny"])
-    parser.add_argument("--control_image_path", type=str, help="path of input image for controlnet")
+    parser.add_argument("--image_path", type=str, help="path of original image for controlnet")
+    parser.add_argument(
+        "--control_path",
+        type=str,
+        help="path of control image (canny edge) for controlnet, if not None, --image_path is not in effect, use --control_path as control.",
+    )
     parser.add_argument("--low_threshold", type=int, default=100, help="param of cv2.Canny()")
     parser.add_argument("--high_threshold", type=int, default=200, help="param of cv2.Canny()")
 
@@ -154,6 +159,11 @@ def run_txt2img(
     else:
         prompts = [args.prompt]
 
+    num_samples = args.num_rows * args.num_cols
+    control = None
+    if args.controlnet_mode is not None:
+        control, H, W = get_control(args, num_samples, min(H, W))
+
     value_dict = {
         "prompt": prompts[0],
         "negative_prompt": args.negative_prompt,
@@ -175,13 +185,9 @@ def run_txt2img(
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
-    num_samples = args.num_rows * args.num_cols
 
     print("Txt2Img Sampling")
     outs = []
-    control = None
-    if args.controlnet_mode is not None:
-        control, H, W = get_control(args, num_samples, min(H, W))
     for i, prompt in enumerate(prompts):
         images = []
         for j in range(num_samples):
