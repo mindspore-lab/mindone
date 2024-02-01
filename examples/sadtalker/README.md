@@ -20,42 +20,69 @@ To execute the inference pipeline of SadTalker, please first download the [pretr
 
 ### Pretrained checkpoints
 
-You can download the checkpoints from this link. !!!TODO!!!
+You can download the checkpoints from this [link](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/).
+The description of each model is as follows:
 
-After download, the checkpoint folder should be as follow:
+**1. Model Network Pretrained weights**
 
-<details>
-  <summary>data structure: </summary>
+| Model | Description | Required-by | MindSpore Checkpoint |
+| --- | --- | --- | --- |
+| ms_audio2exp.ckpt  | Pre-trained ExpNet in Sadtalker. | Infer / Finetune | [ms_audio2exp.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_audio2exp.ckpt)
+| ms_audio2pose.ckpt | Pre-trained PoseVAE in Sadtalker. | Infer / Finetune | [ms_audio2pose.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_audio2pose.ckpt) |
+| ms_mapping.ckpt | Pre-trained MappingNet for cropped image in Sadtalker. | Infer / Finetune | [ms_mapping.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_mapping.ckpt) |
+| ms_mapping_full.ckpt | Pre-trained MappingNet for full image in Sadtalker. | Infer / Finetune | [ms_mapping_full.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_mapping_full.ckpt) |
+| ms_kp_extractor.ckpt | Pre-trained KPDetector in face-vid2vid model from [the reappearance of face-vid2vid](https://github.com/zhanglonghao1992/One-Shot_Free-View_Neural_Talking_Head_Synthesis). | Infer / Finetune | [ms_kp_extractor.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_kp_extractor.ckpt) |
+| ms_he_estimator.ckpt | Pre-trained HEEstimator in face-vid2vid model from [the reappearance of face-vid2vid](https://github.com/zhanglonghao1992/One-Shot_Free-View_Neural_Talking_Head_Synthesis). | Infer / Finetune | [ms_he_estimator.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_he_estimator.ckpt) |
+| ms_generator.ckpt | Pre-trained OcclusionAwareSPADEGenerator in face-vid2vid model from [the reappearance of face-vid2vid](https://github.com/zhanglonghao1992/One-Shot_Free-View_Neural_Talking_Head_Synthesis). | Infer / Finetune | [ms_generator.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_generator.ckpt) |
+| ms_net_recon.ckpt | Pre-trained 3DMM extractor in [Deep3DFaceReconstruction](https://github.com/microsoft/Deep3DFaceReconstruction). | Infer / Finetune | [ms_net_recon.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_net_recon.ckpt) |
+| ms_wav2lip.ckpt | Pre-trained highly accurate lip-sync model in [Wav2Lip](https://github.com/Rudrabha/Wav2Lip) | Train / Finetune | [ms_wav2lip.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_wav2lip.ckpt) |
+| ms_vgg19.ckpt | Pre-trained VGG19 model | Train / Finetune | [ms_vgg19.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_vgg19.ckpt) |
+| ms_hopenet_robust_alpha1.ckpt | Pre-trained head pose estimation model in [Hopenet](https://github.com/natanielruiz/deep-head-pose/tree/master) | Train / Finetune | [ms_hopenet_robust_alpha1.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/ms/ms_hopenet_robust_alpha1.ckpt) |
 
-    ```bash
-    checkpoints/
-    ├── BFM_Fitting
-    │   ├── 01_MorphableModel.mat
-    │   ├── BFM09_model_info.mat
-    │   ├── BFM_exp_idx.mat
-    │   ├── BFM_front_idx.mat
-    │   ├── Exp_Pca.bin
-    │   ├── facemodel_info.mat
-    │   ├── select_vertex_id.mat
-    │   ├── similarity_Lm3D_all.mat
-    │   └── std_exp.txt
-    ├── ms
-    │   ├── ms_audio2exp.ckpt
-    │   ├── ms_audio2pose.ckpt
-    │   ├── ms_generator.ckpt
-    │   ├── ms_he_estimator.ckpt
-    │   ├── ms_kp_extractor.ckpt
-    │   ├── ms_mapping.ckpt
-    │   ├── ms_mapping_full.ckpt
-    │   └── ms_net_recon.ckpt
-    gfpgan/
-    └── weights
-        ├── alignment_WFLW_4HG.ckpt
-        ├── detection_Resnet50_Final.ckpt
-        ├── GFPGANv1.4.ckpt
-        └── parsing_parsenet.ckpt
-    ```
-</details>
+**2. 3DMM library files**
+
+| Model | Description | Required-by | Download link |
+| --- | --- | --- | --- |
+| BFM_Fitting/ | 3DMM library files. | Infer / Finetune / Train | [BFM_Fitting/](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/BFM_Fitting/) |
+
+
+**3. Face detection and alignment models**
+
+| Model | Description | Required-by | MindSpore Checkpoint |
+| --- | --- | --- | --- |
+| gfpgan_weights/ | Face detection and enhanced models used in `facexlib` and `gfpgan`. | Infer / Finetune / Train | [gfpgan_weights/](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/gfpgan_weights/) |
+
+
+Please download the required weights accordingly (infer/finetune/train). For example, to perform inference, download all weights tagged "finetune". After downloading, the folder should look like this (case-sensitive):
+
+  ```bash
+  checkpoints/
+  ├── BFM_Fitting
+  │   ├── 01_MorphableModel.mat
+  │   ├── BFM09_model_info.mat
+  │   ├── BFM_exp_idx.mat
+  │   ├── BFM_front_idx.mat
+  │   ├── Exp_Pca.bin
+  │   ├── facemodel_info.mat
+  │   ├── select_vertex_id.mat
+  │   ├── similarity_Lm3D_all.mat
+  │   └── std_exp.txt
+  ├── ms
+  │   ├── ms_audio2exp.ckpt
+  │   ├── ms_audio2pose.ckpt
+  │   ├── ms_generator.ckpt
+  │   ├── ms_he_estimator.ckpt
+  │   ├── ms_kp_extractor.ckpt
+  │   ├── ms_mapping.ckpt
+  │   ├── ms_mapping_full.ckpt
+  │   └── ms_net_recon.ckpt
+  gfpgan/
+  └── weights
+      ├── alignment_WFLW_4HG.ckpt
+      ├── detection_Resnet50_Final.ckpt
+      ├── GFPGANv1.4.ckpt
+      └── parsing_parsenet.ckpt
+  ```
 
 
 ### Training Data
@@ -92,17 +119,3 @@ https://github.com/hqkate/sadtalker/assets/26082447/a2ecbf7d-cde4-4fb7-b6d4-6301
 3. Singing
 
 https://github.com/hqkate/sadtalker/assets/26082447/2c713067-f64e-45a7-9ce2-bc57f340bdad
-
-4. Reference (videos by Pytorch)
-
-- PyTorch with `SynchronizedBatchNorm`:
-
-https://github.com/hqkate/sadtalker/assets/26082447/3de109c8-7231-42c6-9b3d-f150ecd251fa
-
-
-- PyTorch with `nn.BatchNorm`:
-
-https://github.com/hqkate/sadtalker/assets/26082447/731afe73-e69f-47b4-8e36-6da7be308046
-
-
-https://github.com/hqkate/sadtalker/assets/26082447/34071866-af30-4520-99d2-fd5a3262f976
