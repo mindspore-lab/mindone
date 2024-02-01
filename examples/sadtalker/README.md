@@ -116,7 +116,7 @@ Here are some generated videos with different inputs.
 
 1. Chinese audio + full character image
 
-(https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f8094c23662)
+https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f8094c23662
 
 
 2. English audio + full character image
