@@ -75,7 +75,10 @@ Please download the required weights accordingly (infer/finetune/train). For exa
   │   ├── ms_kp_extractor.ckpt
   │   ├── ms_mapping.ckpt
   │   ├── ms_mapping_full.ckpt
-  │   └── ms_net_recon.ckpt
+  │   ├── ms_net_recon.ckpt
+  │   ├── ms_vgg19.ckpt # only required for training
+  │   ├── ms_wav2lip.ckpt # only required for training
+  │   └── ms_hopenet_robust_alpha1.ckpt # only required for training
   gfpgan/
   └── weights
       ├── alignment_WFLW_4HG.ckpt
@@ -84,13 +87,15 @@ Please download the required weights accordingly (infer/finetune/train). For exa
       └── parsing_parsenet.ckpt
   ```
 
+ > _NOTE:_  The checkpoint filename or filepath is pre-defined in [sadtalker.yaml](examples\sadtalker\config\sadtalker.yaml). If you want to customize the file name or folder structure, modify the YAML file at the same time.
+
 
 ### Training Data
 
 We use [VoxCeleb](https://mm.kaist.ac.kr/datasets/voxceleb/) data to train SadTalker. Training codes is still under developement. We will release it when it's ready, thanks!
 
 
-### Example data for inference
+### Example input data for inference
 
 In the original github, there're some example audios and images under [SadTalker/examples](https://github.com/OpenTalker/SadTalker/tree/main/examples). You can download them to quickly start playing Sadtalker! :wink:
 
@@ -106,16 +111,19 @@ python inference.py --config ./config/sadtalker.yaml --source_image examples/sou
 ```
 
 ## Examples
-1. Chinese
+
+Here are some generated videos with different inputs.
+
+1. Chinese audio + full character image
+
+(https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f8094c23662)
 
 
-https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f8094c23662
-
-
-2. English
+2. English audio + full character image
 
 https://github.com/hqkate/sadtalker/assets/26082447/a2ecbf7d-cde4-4fb7-b6d4-6301b679e75b
 
-3. Singing
+
+3. Singing audio + character image with cropping preprocessing
 
 https://github.com/hqkate/sadtalker/assets/26082447/2c713067-f64e-45a7-9ce2-bc57f340bdad
