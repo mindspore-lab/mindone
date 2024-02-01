@@ -502,6 +502,8 @@ class Text2ImageControlNetDataset(Text2ImageDataset):
         multi_aspect=None,  # for multi_aspect
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
+        drop_text_prob=0.0,
+        **kwargs,
     ):
         self.tokenizer = tokenizer
         self.token_nums = token_nums
@@ -522,6 +524,7 @@ class Text2ImageControlNetDataset(Text2ImageDataset):
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
         self.seed = seed
         self.per_batch_size = per_batch_size
+        self.drop_text_prob = drop_text_prob
 
         all_images, all_control_images, all_captions = self.read_annotation(data_path)
         if filter_small_size:
@@ -568,7 +571,11 @@ class Text2ImageControlNetDataset(Text2ImageDataset):
         control_image = np.array(control_image, dtype=np.uint8)
 
         # caption preprocess
-        caption = self.local_captions[idx]
+        if random.random() < self.drop_text_prob:
+            caption = ""
+        else:
+            caption = self.local_captions[idx]
+
         caption = np.array(caption)
 
         sample = {

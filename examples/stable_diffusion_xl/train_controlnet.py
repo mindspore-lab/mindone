@@ -152,7 +152,7 @@ def train(args):
     # 4. Create train step func
     assert "optim" in config
     lr = get_learning_rate(config.optim, config.data.total_step)
-    scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
+    scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=65536)
     if isinstance(model.model, nn.Cell):
         optimizer = get_optimizer(
             config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
