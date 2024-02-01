@@ -38,6 +38,8 @@ model:
                 context_dim: 2048
                 spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
                 legacy: False
+                use_recompute: True
+
                 control_stage_config:
                     target: cldm.cldm.ControlNet
                     params:
@@ -54,7 +56,9 @@ model:
                         use_linear_in_transformer: True
                         transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
                         context_dim: 2048
+                        spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
                         legacy: False
+                        use_recompute: True
 
         conditioner_config:
             target: gm.modules.GeneralConditioner
@@ -143,7 +147,7 @@ optim:
 
 
 data:
-    per_batch_size: 1
+    per_batch_size: 2
     total_step: 100000
     num_parallel_workers: 2
     python_multiprocessing: False
