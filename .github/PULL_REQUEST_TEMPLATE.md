@@ -20,7 +20,6 @@ Adds # (feature)
 ## Before submitting
 - [ ] This PR fixes a typo or improves the docs (you can dismiss the other checks if that's the case).
 - [ ] Did you read the [contributor guideline](https://github.com/mindspore-lab/mindone/blob/master/CONTRIBUTING.md)?
-- [ ] Did you read our [doc writing guideline]() ?
 - [ ] Did you make sure to update the documentation with your changes? Here are the
       [documentation guidelines](https://github.com/mindspore-lab/mindcv/wiki/%E6%96%87%E6%A1%A3%E7%BC%96%E5%86%99%E8%A7%84%E8%8C%83)
 - [ ] Did you write any new necessary tests?
