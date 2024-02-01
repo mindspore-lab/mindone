@@ -18,6 +18,7 @@ from gm.helpers import (
     get_loss_scaler,
     get_optimizer,
     load_checkpoint,
+    pre_compile_graph,
     save_checkpoint,
     set_default,
 )
@@ -75,6 +76,8 @@ def get_parser_train():
     parser.add_argument(
         "--dataset_load_tokenizer", type=ast.literal_eval, default=True, help="create dataset with tokenizer"
     )
+    parser.add_argument("--lpw", type=ast.literal_eval, default=False)
+    parser.add_argument("--max_embeddings_multiples", type=int, default=4, help="control the length of long prompts")
 
     # args for infer
     parser.add_argument("--infer_during_train", type=ast.literal_eval, default=False)
@@ -153,6 +156,8 @@ def train(args):
         cache_text_embedding=args.cache_text_embedding,
         cache_path=args.cache_path,
         per_batch_size=per_batch_size,
+        lpw=args.lpw,
+        max_embeddings_multiples=args.max_embeddings_multiples,
         **config.data,
     )
     random.seed(args.seed)  # for multi_aspect
@@ -263,8 +268,12 @@ def train_txt2img(
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
-    s_time = time.time()
 
+    # pre compile graph
+    if args.lpw:
+        pre_compile_graph(args.config, args.per_batch_size, train_step_fn, args.rank, args.max_embeddings_multiples)
+
+    s_time = time.time()
     ckpt_queue = []
     for i, data in enumerate(loader):
         if args.dataset_load_tokenizer or args.cache_text_embedding:
@@ -275,7 +284,7 @@ def train_txt2img(
             data = {k: (Tensor(v, dtype) if k != "txt" else v.tolist()) for k, v in data.items()}
 
             image = data[model.input_key]
-            tokens, _ = model.conditioner.tokenize(data)
+            tokens, _ = model.conditioner.tokenize(data, lpw=args.lpw)
             tokens = [Tensor(t) for t in tokens]
 
         # Train a step
@@ -334,6 +343,7 @@ def train_txt2img(
                 model=model,
                 prompt="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
                 save_path=os.path.join(args.save_path, "txt2img/", f"step_{i+1}_rank_{args.rank}"),
+                lpw=args.lpw,
             )
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
@@ -407,7 +417,7 @@ def train_txt2img_datasink(
             print(f"Step {cur_step}/{total_step}, infer done.", flush=True)
 
 
-def infer_during_train(model, prompt, save_path):
+def infer_during_train(model, prompt, save_path, lpw=False):
     from gm.helpers import init_sampling, perform_save_locally
 
     version_dict = VERSION2SPECS.get(args.version)
@@ -442,6 +452,7 @@ def infer_during_train(model, prompt, save_path):
         return_latents=False,
         filter=None,
         amp_level="O2",
+        lpw=lpw,
     )
     perform_save_locally(save_path, out)
 

@@ -27,6 +27,8 @@ class Text2ImageDataset:
         per_batch_size=1,  # for multi_aspect
         return_sample_name=False,
         prompt_empty_probability=0.0,
+        lpw=False,
+        max_embeddings_multiples=4,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -63,6 +65,8 @@ class Text2ImageDataset:
             all_images, all_captions = self.filter_small_image(all_images, all_captions, image_filter_size)
         self.local_images = all_images
         self.local_captions = all_captions
+        self.lpw = lpw
+        self.max_embeddings_multiples = max_embeddings_multiples
 
         self.transforms = []
         if transforms:
@@ -141,7 +145,7 @@ class Text2ImageDataset:
 
         if self.tokenizer:
             data = {k: (v.tolist() if k in ("txt", "sample_name") else v.astype(np.float32)) for k, v in data.items()}
-            tokens, _ = self.tokenizer(data)
+            tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
             outs = (data["image"],) + tuple(tokens)
             if "sample_name" in data:
                 outs += (data["sample_name"],)

@@ -1,6 +1,7 @@
 import copy
 import logging
 import os
+import time
 from datetime import datetime
 from typing import List, Union
 
@@ -23,7 +24,7 @@ from gm.modules.diffusionmodules.sampler import (
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from PIL import Image
 
 import mindspore as ms
@@ -869,6 +870,42 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
+
+
+def pre_compile_graph(config_path, per_batch_size, train_step_fn, rank, max_embeddings_multiples):
+    config = OmegaConf.load(config_path)
+    dataset_config = config.data.dataset_config
+    per_batch_size = config.data.pop("per_batch_size") if per_batch_size is None else per_batch_size
+
+    if "target_size" in dataset_config["params"]:
+        img_size = dataset_config["params"]["target_size"]
+    else:
+        img_size = dataset_config["params"]["multi_aspect"]
+    for i in range(max_embeddings_multiples):
+        if isinstance(img_size, int):
+            h, w = img_size, img_size
+            s_time = time.time()
+            image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
+                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+            )
+            loss, overflow = train_step_fn(image, *tokens)
+            print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
+        else:
+            for h, w in img_size:
+                s_time = time.time()
+                image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
+                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                )
+                loss, overflow = train_step_fn(image, *tokens)
+                print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
 
 
 class EMA(nn.Cell):
