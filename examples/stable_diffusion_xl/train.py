@@ -55,6 +55,13 @@ def get_parser_train():
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
     parser.add_argument("--per_batch_size", type=int, default=None)
     parser.add_argument("--scale_lr", type=ast.literal_eval, default=False)
+    parser.add_argument(
+        "--snr_gamma",
+        default=None,
+        type=float,
+        help="SNR weighting gamma to be used if rebalancing the loss. Recommended value is 5.0. "
+        "More details here: https://arxiv.org/abs/2303.09556.",
+    )
 
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
@@ -190,6 +197,7 @@ def train(args):
 
     if args.ms_mode == 1:
         # Pynative Mode
+        assert args.snr_gamma is None, "Not supports snr_gamma."
         assert isinstance(model.model, nn.Cell)
         train_step_fn = partial(
             model.train_step_pynative,
@@ -216,6 +224,7 @@ def train(args):
                 enable_first_stage_model=not args.cache_latent,
                 enable_conditioner=not args.cache_text_embedding,
                 ema=ema,
+                snr_gamma=args.snr_gamma,
             )
             train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
             if model.disable_first_stage_amp and train_step_fn.first_stage_model is not None:
@@ -227,6 +236,7 @@ def train(args):
             assert args.version == "SDXL-base-1.0", "Only supports sdxl-base."
             assert args.task == "txt2img", "Only supports text2img task."
             assert args.optimizer_weight is None, "Not supports load optimizer weight."
+            assert args.snr_gamma is None, "Not supports snr_gamma."
             assert (model.stage1 is not None) and (model.stage2 is not None)
             optimizer1 = get_optimizer(
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
