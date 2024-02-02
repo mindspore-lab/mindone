@@ -371,20 +371,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_mindspore",
         default=True,
-        type=int,
-        help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
+        type=bool,
+        help="Save mindspore weights, default is mindspore.",
     )
     parser.add_argument(
         "--save_torch",
         default=False,
-        type=int,
-        help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
+        type=bool,
+        help="Save torch weights using .pth format, default is mindspore.",
     )
     parser.add_argument(
         "--save_safetensor",
         default=False,
-        type=int,
-        help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
+        type=bool,
+        help="Save torch weights using .safetensor format, default is mindspore.",
     )
 
     args = parser.parse_args()
@@ -471,7 +471,6 @@ if __name__ == "__main__":
         save_torch_path = args.output_path + ".pth"
         save_mindspore_path = args.output_path + ".ckpt"
 
-    # if args.use_safetensors:
     if args.save_safetensor:
         save_file(state_dict, save_safetensor_path)
     if args.save_torch:
