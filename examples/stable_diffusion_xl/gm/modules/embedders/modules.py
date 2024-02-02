@@ -625,7 +625,7 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
     def construct(self, tokens):
         max_embeddings_multiples = (tokens.shape[1] - 2) // (self.max_length - 2)
         if max_embeddings_multiples > 1:
-            z = self.get_unweighted_text_embeddings_SDXL2(self, tokens, max_embeddings_multiples)
+            z = self.get_unweighted_text_embeddings_SDXL2(tokens, max_embeddings_multiples)
             return z
         else:
             z = self.encode_with_transformer(tokens)
