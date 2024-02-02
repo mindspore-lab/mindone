@@ -288,14 +288,6 @@ mpirun --allow-run-as-root -n 8 python train.py \
   --param_fp16 True \
   --is_parallel True
 
-# sdxl-base fine-tune for long prompts and control the length of long prompts by max_embeddings_multiple
-python train.py \
-  --config configs/training/sd_xl_base_finetune_910b.yaml \
-  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
-  --data_path /PATH TO/YOUR DATASET/ \
-  --lpw True \
-  --max_embeddings_multiple 3 \
-
 # sdxl-base fine-tune with cache on Ascend
 bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
 bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
@@ -327,3 +319,18 @@ For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
 #### 4. Textual Inversion fine-tune
 
 For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
+
+#### 5. Long prompts support, example as:
+
+<details close>
+
+By default, SDXL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+
+To avoid information loss for long text prompts, we add the feature of long prompts training. Long prompts training is supported by `args.lpw` in `train.py`.
+
+```shell
+python train.py \
+  ...  \  # other arguments configurations
+  --lpw True \
+```
+</details>

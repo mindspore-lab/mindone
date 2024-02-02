@@ -84,7 +84,7 @@ def get_parser_train():
         "--dataset_load_tokenizer", type=ast.literal_eval, default=True, help="create dataset with tokenizer"
     )
     parser.add_argument("--lpw", type=ast.literal_eval, default=False)
-    parser.add_argument("--max_embeddings_multiples", type=int, default=4, help="control the length of long prompts")
+    parser.add_argument("--max_embeddings_multiples", type=int, default=3, help="control the length of long prompts")
 
     # args for infer
     parser.add_argument("--infer_during_train", type=ast.literal_eval, default=False)
@@ -294,7 +294,9 @@ def train_txt2img(
             data = {k: (Tensor(v, dtype) if k != "txt" else v.tolist()) for k, v in data.items()}
 
             image = data[model.input_key]
-            tokens, _ = model.conditioner.tokenize(data, lpw=args.lpw)
+            tokens, _ = model.conditioner.tokenize(
+                data, lpw=args.lpw, max_embeddings_multiples=args.max_embeddings_multiples
+            )
             tokens = [Tensor(t) for t in tokens]
 
         # Train a step
@@ -353,7 +355,6 @@ def train_txt2img(
                 model=model,
                 prompt="Astronaut in a jungle, cold color palette, muted colors, detailed, 8k",
                 save_path=os.path.join(args.save_path, "txt2img/", f"step_{i+1}_rank_{args.rank}"),
-                lpw=args.lpw,
             )
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
