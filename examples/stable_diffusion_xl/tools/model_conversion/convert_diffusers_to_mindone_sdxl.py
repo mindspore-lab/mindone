@@ -302,7 +302,7 @@ def convert_weight(pth, msname):
     ms_key = []
     for i in range(len(key_torch)):
         kt, kms = key_torch[i], key_ms[i]
-        newckpt.append({"name": kms, "data": Tensor(sd["state_dict"][kt].numpy(), ms.float32)})
+        newckpt.append({"name": kms, "data": Tensor(pth["state_dict"][kt].numpy(), ms.float32)})
         ms_key.append(kms)
     ms.save_checkpoint(newckpt, msname)
     print("convert Stable Diffusion checkpoint(torch) to MindOne Stable Diffusion checkpoint(mindspore) success!")
@@ -356,8 +356,12 @@ if __name__ == "__main__":
         "--text_encoder_2_path", default="model.fp16.safetensors", type=str, help="Path to the text_encoder_2 model."
     )
     parser.add_argument("--sdxl_base_ckpt", default=None, type=str, help="Path to the sd_xl_base model.")
-    parser.add_argument("--save_type", default=2, type=int, help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt")
-
+    parser.add_argument(
+        "--save_type",
+        default=2,
+        type=int,
+        help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
+    )
 
     args = parser.parse_args()
 
@@ -382,35 +386,32 @@ if __name__ == "__main__":
     text_enc_2_dict = {}
 
     if osp.exists(args.unet_path):
-        if args.unet_path.endswith('bin'):
+        if args.unet_path.endswith("bin"):
             unet_state_dict = torch.load(args.unet_bin_path, map_location="cpu")
         else:
             unet_state_dict = load_file(args.unet_path, device="cpu")
         print("load unet from unet_path: ", args.unet_path)
 
-
     if osp.exists(args.vae_path):
-        if args.vae_path.endswith('bin'):
+        if args.vae_path.endswith("bin"):
             vae_state_dict = torch.load(args.vae_path, map_location="cpu")
         else:
             vae_state_dict = load_file(args.vae_path, device="cpu")
         print("load vae from vae_path ", args.vae_path)
 
-
     if osp.exists(args.text_encoder_path):
-        if args.text_encoder_path.endswith('bin'):
+        if args.text_encoder_path.endswith("bin"):
             text_enc_dict = torch.load(args.text_encoder_path, map_location="cpu")
         else:
             text_enc_dict = load_file(args.text_encoder_path, device="cpu")
         print("load text encoder from text_enc_path ", args.text_encoder_path)
 
     if osp.exists(args.text_encoder_2_path):
-        if args.args.text_encoder_2_path.endswith('bin'):
+        if args.args.text_encoder_2_path.endswith("bin"):
             text_enc_2_dict = torch.load(args.args.text_encoder_2_path, map_location="cpu")
         else:
             text_enc_2_dict = load_file(args.args.text_encoder_2_path, device="cpu")
         print("load text encoder 2 from text_enc_2_path ", args.text_encoder_2_path)
-
 
     # Convert the UNet model
     unet_state_dict = convert_unet_state_dict(unet_state_dict)
@@ -432,7 +433,7 @@ if __name__ == "__main__":
     if args.half:
         state_dict = {k: v.half() for k, v in state_dict.items()}
 
-    #if args.use_safetensors:
+    # if args.use_safetensors:
     if args.save_type == 0:
         save_file(state_dict, args.output_path)
     elif args.save_type == 1:
@@ -450,8 +451,9 @@ if __name__ == "__main__":
 
         # If you have obtained all the keys, you do not need to run the insertion operation
         if len(key_list) == line_count or not args.sdxl_base_ckpt:
-            print("You have either obtained all the keys, or you did not supply the 'sdxl_base_ckpt' argument; hence, the insertion operation was not executed.")
-
+            print(
+                "You have either obtained all the keys, or you did not supply the 'sdxl_base_ckpt' argument; hence, the insertion operation was not executed."
+            )
 
         if len(key_list) < line_count:
             print("The MindSpore checkpoint (.ckpt) file that we have obtained contains ", str(len(key_list)), "keys.")
@@ -463,9 +465,12 @@ if __name__ == "__main__":
             # insert these ckpt to mindspore sdxl base ckpt
             else:
                 print(
-                    "you have added sdxl_base_ckpt argument,so it will run merge operation(Integrate the retrieved MindSpore checkpoint into the sdxl base model checkpoint)"
+                    "you have added sdxl_base_ckpt argument,so it will run merge operation(Integrate the retrieved "
+                    "MindSpore checkpoint into the sdxl base model checkpoint)"
                 )
                 merge_weight(args.output_path, args.sdxl_base_ckpt)
 
         if len(key_list) > line_count:
-            raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
+            raise ValueError(
+                "The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed."
+            )
