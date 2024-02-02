@@ -278,8 +278,8 @@ def convert_openai_text_enc_state_dict(text_enc_dict):
     return text_enc_dict
 
 
-def convert_weight(pth, msname):
-    key_torch = list(pth["state_dict"].keys())
+def convert_weight(state_dict, msname):
+    key_torch = list(state_dict["state_dict"].keys())
     key_ms = copy.deepcopy(key_torch)
     for i in range(len(key_torch)):
         if ("norm" in key_torch[i]) or ("ln_" in key_torch[i]) or ("model.diffusion_model.out.0." in key_torch[i]):
@@ -302,7 +302,7 @@ def convert_weight(pth, msname):
     ms_key = []
     for i in range(len(key_torch)):
         kt, kms = key_torch[i], key_ms[i]
-        newckpt.append({"name": kms, "data": Tensor(pth["state_dict"][kt].numpy(), ms.float32)})
+        newckpt.append({"name": kms, "data": Tensor(state_dict["state_dict"][kt].numpy(), ms.float32)})
         ms_key.append(kms)
     ms.save_checkpoint(newckpt, msname)
     print("convert Stable Diffusion checkpoint(torch) to MindOne Stable Diffusion checkpoint(mindspore) success!")
@@ -325,7 +325,7 @@ def merge_weight(part_ckpt, base_ckpt):
     print("insert Stable Diffusion checkpoint(mindspore) to sd_xl_base_1.0_ms.ckpt success!")
 
 
-def compare_missing_key(key_list):
+def compare_missing_key(key_list, reverse=False):
     # get the sdxl base ckpt's key
     base_key = []
     with open("mindspore_key_base.yaml", "r", encoding="utf-8") as file:
@@ -334,7 +334,10 @@ def compare_missing_key(key_list):
             base_key.append(key)
     base_key = set(base_key)
     key_list = set(key_list)
-    difference = base_key - key_list
+    if not reverse:
+        difference = base_key - key_list
+    else:
+        difference = key_list - base_key
     return list(difference)
 
 
@@ -344,21 +347,42 @@ if __name__ == "__main__":
     parser.add_argument("--half", action="store_true", help="Save weights in half precision.")
     parser.add_argument("--use_safetensors", action="store_true", help="Save weights use safetensors, default is ckpt.")
     parser.add_argument(
-        "--unet_path", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Path to the unet model."
+        "--unet_path",
+        default="./unet/diffusion_pytorch_model.fp16.safetensors",
+        type=str,
+        help="Path to the unet model.",
     )
     parser.add_argument(
-        "--vae_path", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Path to the vae model."
+        "--vae_path", default="./vae/diffusion_pytorch_model.fp16.safetensors", type=str, help="Path to the vae model."
     )
     parser.add_argument(
-        "--text_encoder_path", default="model.fp16.safetensors", type=str, help="Path to the text_encoder model."
+        "--text_encoder_path",
+        default="./text_encoder/model.fp16.safetensors",
+        type=str,
+        help="Path to the text_encoder model.",
     )
     parser.add_argument(
-        "--text_encoder_2_path", default="model.fp16.safetensors", type=str, help="Path to the text_encoder_2 model."
+        "--text_encoder_2_path",
+        default="./text_encoder_2/model.fp16.safetensors",
+        type=str,
+        help="Path to the text_encoder_2 model.",
     )
     parser.add_argument("--sdxl_base_ckpt", default=None, type=str, help="Path to the sd_xl_base model.")
     parser.add_argument(
-        "--save_type",
-        default=2,
+        "--save_mindspore",
+        default=True,
+        type=int,
+        help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
+    )
+    parser.add_argument(
+        "--save_torch",
+        default=False,
+        type=int,
+        help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
+    )
+    parser.add_argument(
+        "--save_safetensor",
+        default=False,
         type=int,
         help="Output weight type: 0 for Torch SafeTensors, 1 for Torch .pth, 2 for MindSpore .ckpt",
     )
@@ -369,49 +393,46 @@ if __name__ == "__main__":
 
     assert args.output_path is not None, "Must provide a checkpoint path!"
 
-    # Path for safetensors
-    # unet_path = osp.join(args.model_path, "unet", args.unet_path)
-    # vae_path = osp.join(args.model_path, "vae", args.vae_path)
-    # text_enc_path = osp.join(args.model_path, "text_encoder", args.text_encoder_path)
-    # text_enc_2_path = osp.join(args.model_path, "text_encoder_2", args.text_encoder_2_path)
-    #
-    # # Load models from safetensors if it exists, if it doesn't pytorch
-    # unet_bin_path = osp.join(args.model_path, "unet", "diffusion_pytorch_model.bin")
-    # vae_bin_path = osp.join(args.model_path, "vae", "diffusion_pytorch_model.bin")
-    # text_enc_bin_path = osp.join(args.model_path, "text_encoder", "pytorch_model.bin")
-    # text_enc_2_bin_path = osp.join(args.model_path, "text_encoder_2", "pytorch_model.bin")
     unet_state_dict = {}
     vae_state_dict = {}
     text_enc_dict = {}
     text_enc_2_dict = {}
 
     if osp.exists(args.unet_path):
-        if args.unet_path.endswith("bin"):
+        if args.unet_path.endswith(".bin"):
             unet_state_dict = torch.load(args.unet_bin_path, map_location="cpu")
         else:
             unet_state_dict = load_file(args.unet_path, device="cpu")
         print("load unet from unet_path: ", args.unet_path)
+    else:
+        print("unet_path is not valid, please double-check it!")
 
     if osp.exists(args.vae_path):
-        if args.vae_path.endswith("bin"):
+        if args.vae_path.endswith(".bin"):
             vae_state_dict = torch.load(args.vae_path, map_location="cpu")
         else:
             vae_state_dict = load_file(args.vae_path, device="cpu")
         print("load vae from vae_path ", args.vae_path)
+    else:
+        print("vae_path is not valid, please double-check it!")
 
     if osp.exists(args.text_encoder_path):
-        if args.text_encoder_path.endswith("bin"):
+        if args.text_encoder_path.endswith(".bin"):
             text_enc_dict = torch.load(args.text_encoder_path, map_location="cpu")
         else:
             text_enc_dict = load_file(args.text_encoder_path, device="cpu")
         print("load text encoder from text_enc_path ", args.text_encoder_path)
+    else:
+        print("text_encoder_path is not valid, please double-check it!")
 
     if osp.exists(args.text_encoder_2_path):
-        if args.args.text_encoder_2_path.endswith("bin"):
+        if args.args.text_encoder_2_path.endswith(".bin"):
             text_enc_2_dict = torch.load(args.args.text_encoder_2_path, map_location="cpu")
         else:
             text_enc_2_dict = load_file(args.args.text_encoder_2_path, device="cpu")
         print("load text encoder 2 from text_enc_2_path ", args.text_encoder_2_path)
+    else:
+        print("text_encoder_2_path is not valid, please double-check it!")
 
     # Convert the UNet model
     unet_state_dict = convert_unet_state_dict(unet_state_dict)
@@ -433,15 +454,32 @@ if __name__ == "__main__":
     if args.half:
         state_dict = {k: v.half() for k, v in state_dict.items()}
 
+    if args.output_path.endswith(".ckpt"):
+        save_safetensor_path = args.output_path[:-5] + ".safetensors"
+        save_torch_path = args.output_path[:-5] + ".pth"
+        save_mindspore_path = args.output_path
+    elif args.output_path.endswith(".pth"):
+        save_safetensor_path = args.output_path[:-4] + ".safetensors"
+        save_torch_path = args.output_path
+        save_mindspore_path = args.output_path[:-4] + ".ckpt"
+    elif args.output_path.endswith(".safetensors"):
+        save_safetensor_path = args.output_path
+        save_torch_path = args.output_path[:-12] + ".pth"
+        save_mindspore_path = args.output_path[:-12] + ".ckpt"
+    else:
+        save_safetensor_path = args.output_path + ".safetensors"
+        save_torch_path = args.output_path + ".pth"
+        save_mindspore_path = args.output_path + ".ckpt"
+
     # if args.use_safetensors:
-    if args.save_type == 0:
-        save_file(state_dict, args.output_path)
-    elif args.save_type == 1:
+    if args.save_safetensor:
+        save_file(state_dict, save_safetensor_path)
+    if args.save_torch:
         state_dict = {"state_dict": state_dict}
-        torch.save(state_dict, args.output_path)
-    elif args.save_type == 2:
+        torch.save(state_dict, save_torch_path)
+    if args.save_mindspore:
         # Convert the torch ckpt to mindspore ckpt and return mindspore key list
-        key_list = convert_weight(state_dict, args.output_path)
+        key_list = convert_weight(state_dict, save_mindspore_path)
 
         if osp.exists("mindspore_key_base.yaml"):
             with open("mindspore_key_base.yaml", "r") as file:
@@ -449,13 +487,14 @@ if __name__ == "__main__":
         else:
             line_count = 2514
 
-        # If you have obtained all the keys, you do not need to run the insertion operation
-        if len(key_list) == line_count or not args.sdxl_base_ckpt:
-            print(
-                "You have either obtained all the keys, or you did not supply the 'sdxl_base_ckpt' argument; hence, the insertion operation was not executed."
-            )
+        if not args.sdxl_base_ckpt:
+            print("you did not supply the 'sdxl_base_ckpt' argument; hence, the insertion operation was not executed.")
 
-        if len(key_list) < line_count:
+        # If you have obtained all the keys, you do not need to run the insertion operation
+        elif len(key_list) == line_count and len(compare_missing_key(key_list)) == 0:
+            print("You have obtained all the keys, hence, the insertion operation was not executed.")
+
+        if len(key_list) <= line_count:
             print("The MindSpore checkpoint (.ckpt) file that we have obtained contains ", str(len(key_list)), "keys.")
             print(str(line_count - len(key_list)), " fewer parameters than sdxl base ckpt")
             if osp.exists("mindspore_key_base.yaml"):
@@ -471,6 +510,12 @@ if __name__ == "__main__":
                 merge_weight(args.output_path, args.sdxl_base_ckpt)
 
         if len(key_list) > line_count:
+            print("The MindSpore checkpoint (.ckpt) file that we have obtained contains ", str(len(key_list)), "keys.")
+            print(str(len(key_list) - line_count), " more parameters than sdxl base ckpt")
+            if osp.exists("mindspore_key_base.yaml"):
+                more_key_list = compare_missing_key(key_list, True)
+                print("The first 20 more parameters are: ", str(more_key_list[:20]))
+
             raise ValueError(
                 "The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed."
             )
