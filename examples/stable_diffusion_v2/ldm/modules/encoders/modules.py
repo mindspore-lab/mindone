@@ -68,7 +68,9 @@ class FrozenCLIPEmbedder(nn.Cell):
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         all_tokens = [[sot_token] + self.tokenizer.encode(text) + [eot_token] for text in texts]
-        result = np.zeros((len(all_tokens), CONTEXT_LEN), np.int64)
+        result = (
+            np.zeros((len(all_tokens), CONTEXT_LEN), np.int64) + eot_token
+        )  # +eot_koen to align with CLIPTokenizer padding method
 
         for i, tokens in enumerate(all_tokens):
             if len(tokens) > CONTEXT_LEN:
@@ -193,6 +195,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.context_length = context_length
         self.tokenizer = get_tokenizer(tokenizer_name)
+        self.tokenizer_name = tokenizer_name
         setattr(self.tokenizer, "context_length", context_length)
 
         self.model = OpenClipTextEncoder(

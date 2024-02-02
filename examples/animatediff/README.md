@@ -16,7 +16,27 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 pip install -r requirements.txt
 ```
 
-In case `decord` package is not available in your environment, try `pip install eva-decord`
+In case `decord` package is not available in your environment, try `pip install eva-decord`.
+Instruction on ffmpeg and decord install on EulerOS:
+```
+1. install ffmpeg 4, referring to https://ffmpeg.org/releases
+    wget wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
+    tar -xvf ffmpeg-4.0.1.tar.bz2
+    mv ffmpeg-4.0.1 ffmpeg
+    cd ffmpeg
+    ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
+    make -j 64
+    make install
+2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
+    git clone --recursive https://github.com/dmlc/decord
+    cd decord
+    rm build && mkdir build && cd build
+    cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+    make -j 64
+    make install
+    cd ../python
+    python3 setup.py install --user
+```
 
 
 ## Prepare Model Weights
@@ -64,7 +84,7 @@ Results:
 
 - Running on GPU:
 ```
-python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 256 --W 256 --target_device GPU
+python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 256 --W 256 --device_target GPU
 ```
 
 ### Motion LoRA
@@ -86,5 +106,60 @@ Results using Zoom-In motion lora:
 
 - Running on GPU:
 ```
-python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 256 --W 256 --target_device GPU
+python text_to_video.py --config configs/prompts/v2/1-ToonYou-MotionLoRA.yaml --L 16 --H 256 --W 256 --device_target GPU
+```
+
+## Training
+
+### Image Finetuning
+
+```
+python train.py --config configs/training/image_finetune.yaml
+```
+> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+
+
+### Motion Module Training
+
+```
+python train.py --config configs/training/mmv2_train.yaml
+```
+> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+
+You may change the arguments including data path, output directory, lr, etc in the yaml config file. You can also change by command line arguments referring to `args_train.py` or `python train.py --help`
+
+- Evaluation
+Inference with the trained model:
+```
+python text_to_video.py --config configs/prompt/v2/base_video.yaml \
+    --motion_module_path {path to saved checkpoint} \
+    --prompt  {text prompt}  \
+```
+
+You can also create a new config yaml to specify the prompts to test and the motion moduel path based on `configs/prompt/v2/base_video.yaml`.
+
+
+### Motion LoRA Training
+
+```
+python train.py --config configs/training/mmv2_lora.yaml
+```
+> For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+
+
+- Inference with the trained model:
+```
+python text_to_video.py --config configs/prompt/v2/base_video.yaml \
+    --motion_lora_path {path to saved checkpoint} \
+    --prompt  {text prompt}  \
+```
+
+
+### Training on GPU
+
+Please add `--device_target GPU` in the above training commands and adjust `image_size`/`num_frames`/`train_batch_size` to fit your device memory, if you wan to run on GPUs. Below is an example for 3090.
+
+```
+# reduce num frames and batch size to avoid OOM in 3090
+python train.py --config configs/training/mmv2_train.yaml --data_path ../videocomposer/datasets/webvid5 --image_size 256 --num_frames=4 --device_target GPU --train_batch_size=1
 ```

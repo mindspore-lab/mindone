@@ -69,6 +69,7 @@ class T2I_BaseDataset:
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
         caption_key="caption",
+        prompt_empty_probability=0.0,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -90,6 +91,7 @@ class T2I_BaseDataset:
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
         self.seed = seed
         self.per_batch_size = per_batch_size
+        self.prompt_empty_probability = prompt_empty_probability
 
         self.caption_key = caption_key
         self.prev_ok_sample = None
@@ -120,6 +122,8 @@ class T2I_BaseDataset:
         image = np.array(image).astype(np.uint8)
 
         # caption preprocess
+        if self.prompt_empty_probability and random.random() < self.prompt_empty_probability:
+            caption = ""
         caption = np.array(caption)
 
         sample = {

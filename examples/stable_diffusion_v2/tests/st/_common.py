@@ -3,7 +3,7 @@ import glob
 import os
 import sys
 
-sys.path.append(".")
+sys.path.insert(0, ".")
 
 from tools.eval.fid.utils import Download
 

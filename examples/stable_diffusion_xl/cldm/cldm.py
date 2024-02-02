@@ -5,6 +5,7 @@ from gm.modules.diffusionmodules.openaimodel import (
     AttentionBlock,
     Downsample,
     ResBlock,
+    Timestep,
     TimestepEmbedSequential,
     UNetModel,
 )
@@ -19,20 +20,35 @@ _logger = logging.getLogger(__name__)
 
 
 class ControlnetUnetModel(UNetModel):
-    def __init__(self, control_stage_config, guess_mode=False, strength=1.0, *args, **kwargs):
+    def __init__(self, control_stage_config, guess_mode=False, strength=1.0, sd_locked=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        if sd_locked:
+            for param in self.get_parameters():
+                param.requires_grad = False
+
+        # add controlnet init
         self.controlnet = instantiate_from_config(control_stage_config)
         self.control_scales = (
             [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
         )
 
-    def construct(self, x, timesteps=None, context=None, control=None, only_mid_control=False, **kwargs):
+    def construct(self, x, timesteps=None, context=None, y=None, control=None, only_mid_control=False, **kwargs):
+        """
+        x: latent image in shape [bs, z, H//4, W//4]
+        timesteps: in shape [bs]
+        context: text embedding [bs, seq_len, f]
+        control: control signal [bs, 3, H, W]
+        """
         hs = []
 
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
         emb_c = self.controlnet.time_embed(t_emb)
+
+        if self.num_classes is not None:
+            emb = emb + self.label_emb(y)
+            emb_c = emb_c + self.controlnet.label_emb(y)
 
         if control is not None:
             guided_hint = control
@@ -51,6 +67,7 @@ class ControlnetUnetModel(UNetModel):
         ):
             if control is not None:
                 h_c = c_celllist(h_c, emb_c, context)
+                # add encoded hint with latent image encoded projected with conv2d
                 if guided_hint is not None:
                     h_c += guided_hint
                     guided_hint = None
@@ -98,7 +115,7 @@ class ControlNet(nn.Cell):
         channel_mult=(1, 2, 4, 8),
         conv_resample=True,
         dims=2,
-        # use_checkpoint=False,
+        num_classes=None,
         use_fp16=False,
         num_heads=-1,
         num_head_channels=-1,
@@ -111,13 +128,9 @@ class ControlNet(nn.Cell):
         context_dim=None,  # custom transformer support
         n_embed=None,  # custom support for prediction of discrete ids into codebook of first stage vq model
         legacy=True,
-        disable_self_attentions=None,
         num_attention_blocks=None,
-        disable_middle_self_attn=False,
         use_linear_in_transformer=False,
-        # enable_flash_attention=False,
-        # cross_frame_attention=False,
-        # unet_chunk_size=2,
+        adm_in_channels=None,
     ):
         super().__init__()
 
@@ -157,6 +170,7 @@ class ControlNet(nn.Cell):
         self.num_head_channels = num_head_channels
         self.num_heads_upsample = num_heads_upsample
         self.predict_codebook_ids = n_embed is not None
+        self.num_classes = num_classes
 
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
@@ -164,6 +178,41 @@ class ControlNet(nn.Cell):
             nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
+
+        if self.num_classes is not None:
+            if isinstance(self.num_classes, int):
+                self.label_emb = nn.Embedding(num_classes, time_embed_dim)
+            elif self.num_classes == "continuous":
+                print("setting up linear c_adm embedding layer")
+                self.label_emb = nn.Dense(1, time_embed_dim)
+            elif self.num_classes == "timestep":
+                self.label_emb = nn.SequentialCell(
+                    [
+                        Timestep(model_channels),
+                        nn.SequentialCell(
+                            [
+                                linear(model_channels, time_embed_dim),
+                                nn.SiLU().to_float(self.dtype),
+                                linear(time_embed_dim, time_embed_dim),
+                            ]
+                        ),
+                    ]
+                )
+            elif self.num_classes == "sequential":
+                assert adm_in_channels is not None
+                self.label_emb = nn.SequentialCell(
+                    [
+                        nn.SequentialCell(
+                            [
+                                linear(adm_in_channels, time_embed_dim),
+                                nn.SiLU().to_float(self.dtype),
+                                linear(time_embed_dim, time_embed_dim),
+                            ]
+                        )
+                    ]
+                )
+            else:
+                raise ValueError()
 
         self.input_blocks = nn.CellList(
             [
@@ -214,9 +263,7 @@ class ControlNet(nn.Cell):
                             self.dropout,
                             out_channels=mult * model_channels,
                             dims=dims,
-                            # use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
-                            # dtype=self.dtype,
                         )
                     ]
                 )
@@ -234,7 +281,6 @@ class ControlNet(nn.Cell):
                         layers.append(
                             AttentionBlock(
                                 ch,
-                                # use_checkpoint=use_checkpoint,
                                 num_heads=num_heads,
                                 num_head_channels=dim_head,
                                 use_new_attention_order=use_new_attention_order,
@@ -246,13 +292,8 @@ class ControlNet(nn.Cell):
                                 dim_head,
                                 depth=transformer_depth[level],
                                 context_dim=context_dim,
-                                # use_checkpoint=use_checkpoint,
-                                # dtype=self.dtype,
                                 dropout=self.dropout,
                                 use_linear=use_linear_in_transformer,
-                                # enable_flash_attention=enable_flash_attention,
-                                # cross_frame_attention=cross_frame_attention,
-                                # unet_chunk_size=unet_chunk_size,
                             )
                         )
                 self.input_blocks.append(TimestepEmbedSequential(*layers))
@@ -269,10 +310,8 @@ class ControlNet(nn.Cell):
                             self.dropout,
                             out_channels=out_ch,
                             dims=dims,
-                            # use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             down=True,
-                            # dtype=self.dtype,
                         )
                         if resblock_updown
                         else Downsample(ch, conv_resample, dims=dims, out_channels=out_ch)
@@ -304,13 +343,10 @@ class ControlNet(nn.Cell):
                 time_embed_dim,
                 self.dropout,
                 dims=dims,
-                # use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
-                # dtype=self.dtype,
             ),
             AttentionBlock(
                 ch,
-                # use_checkpoint=use_checkpoint,
                 num_heads=num_heads,
                 num_head_channels=dim_head,
                 use_new_attention_order=use_new_attention_order,
@@ -322,22 +358,15 @@ class ControlNet(nn.Cell):
                 dim_head,
                 depth=transformer_depth[level],
                 context_dim=context_dim,
-                # use_checkpoint=use_checkpoint,
-                # dtype=self.dtype,
                 dropout=self.dropout,
                 use_linear=use_linear_in_transformer,
-                # enable_flash_attention=enable_flash_attention,
-                # cross_frame_attention=cross_frame_attention,
-                # unet_chunk_size=unet_chunk_size,
             ),
             ResBlock(
                 ch,
                 time_embed_dim,
                 self.dropout,
                 dims=dims,
-                # use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
-                # dtype=self.dtype,
             ),
         )
         self.middle_block_out = self.make_zero_conv(ch)
@@ -349,27 +378,3 @@ class ControlNet(nn.Cell):
                 conv_nd(self.dims, channels, channels, 1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype)
             )
         )
-
-    def construct(self, x, hint, timesteps, context, **kwargs):
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
-        emb = self.time_embed(t_emb)
-        guided_hint = hint
-        for cell in self.input_hint_block:
-            guided_hint = cell(guided_hint)
-
-        outs = []
-
-        h = x
-        for celllist, zero_conv in zip(self.input_blocks, self.zero_convs):
-            for cell in celllist:
-                h = cell(h, emb, context)
-            if guided_hint is not None:
-                h += guided_hint
-                guided_hint = None
-            outs.append(zero_conv(h, emb, context))
-        for module in self.middle_block:
-            h = module(h, emb, context)
-
-        outs.append(self.middle_block_out(h, emb, context))
-
-        return outs

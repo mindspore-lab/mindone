@@ -186,6 +186,21 @@ Take SD 2.0 as an example:
 # Use SD 2.0 instead and add negative prompt guidance to eliminate artifacts
 python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
+
+##### Distributed Inference
+
+  For parallel inference, take SD1.5 on the Chinese art dataset as an example:
+
+   ```shell
+   mpirun --allow-run-as-root -n 2 python text_to_image.py \
+        --config "configs/v1-inference.yaml" \
+        --data_path "datasets/chinese_art_blip/test/prompts.txt" \
+        --output_path "output/chinese_art_inference/txt2img" \
+        --ckpt_path "models/sd_v1.5-d0ab7146.ckpt" \
+        --use_parallel True
+   ```
+   > Note: Parallel inference only can be used for mutilple-prompt.
+
 <details>
 
   <summary>Long Prompts Support</summary>
@@ -201,6 +216,24 @@ python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" 
   ...  \  # other arguments configurations
   --support_long_prompts True \  # allow long text prompts
   ```
+</details>
+
+<details>
+
+  <summary>Flash-Attention Support</summary>
+
+  MindONE supports flash attention by setting the argument `enable_flash_attention` as `True` in `configs/v1-inference.yaml` or `configs/v2-inference.yaml`. For example, in `configs/v1-inference.yaml`:
+
+  ```
+      unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        ...
+        enable_flash_attention: False
+        fa_max_head_dim: 256  # max head dim of flash attention. In case of oom, reduce it to 128
+  ```
+  One can set `enable_flash_attention` to `True`. In case of OOM (out of memory) error, please reduce the `fa_max_head_dim` to 128.
+
 </details>
 
 Here are some generation results.

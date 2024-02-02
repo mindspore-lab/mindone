@@ -124,7 +124,13 @@ class ResBlock(nn.Cell):
         up=False,
         down=False,
         dtype=ms.float32,
+        norm_in_5d=False,
     ):
+        """
+        norm_in_5d: If True, normalize the input of shape (b c f h w), i.e. reduce mean and variance to the first 2 axis (b c),
+            which is equal to use_inflated_groupnorm=False in torch AnimateDiff. If false, normalize the input of shape (b*f c h w),
+            i.e. reduce mean and var to the first 2 axis (b*f c), equal to use_inflated_groupnorm=True.
+        """
         super().__init__()
         self.channels = channels
         self.emb_channels = emb_channels
@@ -139,7 +145,9 @@ class ResBlock(nn.Cell):
         self.identity = Identity()
         self.split = ops.Split(1, 2)
 
-        self.in_layers_norm = normalization(channels)
+        self.in_layers_norm = normalization(
+            channels, norm_in_5d=norm_in_5d
+        )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
         self.in_layers_silu = nn.SiLU().to_float(self.dtype)
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
@@ -161,7 +169,7 @@ class ResBlock(nn.Cell):
             ),
         )
 
-        self.out_layers_norm = normalization(self.out_channels)
+        self.out_layers_norm = normalization(self.out_channels, norm_in_5d=norm_in_5d)
         self.out_layers_silu = nn.SiLU().to_float(self.dtype)
 
         if is_old_ms_version():
@@ -186,15 +194,18 @@ class ResBlock(nn.Cell):
                 dims, channels, self.out_channels, 1, has_bias=True, pad_mode="pad"
             ).to_float(self.dtype)
 
-    def construct(self, x, emb, context=None):
+    def construct(self, x, emb, context=None, video_length=None):
+        """
+        x: (b*f c h w)
+        """
         if self.updown:
-            h = self.in_layers_norm(x)
+            h = self.in_layers_norm(x, video_length)
             h = self.in_layers_silu(h)
             h = self.h_upd(h, emb, context)
             x = self.x_upd(x, emb, context)
             h = self.in_layers_conv(h, emb, context)
         else:
-            h = self.in_layers_norm(x)
+            h = self.in_layers_norm(x, video_length)
             h = self.in_layers_silu(h)
             h = self.in_layers_conv(h, emb, context)
 
@@ -204,14 +215,14 @@ class ResBlock(nn.Cell):
 
         if self.use_scale_shift_norm:
             scale, shift = self.split(emb_out)
-            h = self.out_layers_norm(h) * (1 + scale) + shift
+            h = self.out_layers_norm(h, video_length) * (1 + scale) + shift
             h = self.out_layers_silu(h)
             h = self.out_layers_drop(h)
             h = self.out_layers_conv(h, emb, context)
 
         else:
             h = h + emb_out
-            h = self.out_layers_norm(h)
+            h = self.out_layers_norm(h, video_length)
             h = self.out_layers_silu(h)
             h = self.out_layers_drop(h)
             h = self.out_layers_conv(h, emb, context)

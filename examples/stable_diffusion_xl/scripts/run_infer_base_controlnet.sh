@@ -5,6 +5,6 @@ python demo/sampling_without_streamlit.py \
   --guidance_scale 9.0 \
   --device_target Ascend \
   --controlnet_mode canny \
-  --control_image_path /PATH TO/dog2.png \
   --prompt "cute dog, best quality, extremely detailed"   \
-  --negative_prompt "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"
+  --image_path /PATH TO/dog2.png \
+  # --control_path /PATH TO/dog2_canny_edge.png  \

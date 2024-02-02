@@ -32,6 +32,7 @@ class FrozenCLIPEmbedder(nn.Cell):
         super(FrozenCLIPEmbedder, self).__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.context_length = context_length
+        self.tokenizer_name = tokenizer_name
         self.tokenizer = get_tokenizer(tokenizer_name)
         setattr(self.tokenizer, "context_length", context_length)
 
@@ -47,7 +48,22 @@ class FrozenCLIPEmbedder(nn.Cell):
             dtype=self.dtype,
         )
 
+    def _clip_tokenize(self, texts):
+        batch_encoding = self.tokenizer(
+            texts,
+            truncation=True,
+            max_length=self.context_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = np.array(batch_encoding["input_ids"], np.int64)
+        return tokens
+
     def tokenize(self, texts):
+        if self.tokenizer_name == "CLIPTokenizer":
+            return self._clip_tokenize(texts)
+
         SOT_TEXT = self.tokenizer.sot_text
         EOT_TEXT = self.tokenizer.eot_text
         CONTEXT_LEN = self.context_length
@@ -58,7 +74,10 @@ class FrozenCLIPEmbedder(nn.Cell):
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
         all_tokens = [[sot_token] + self.tokenizer.encode(text) + [eot_token] for text in texts]
-        result = np.zeros((len(all_tokens), CONTEXT_LEN), np.int64)
+        result = (
+            np.zeros((len(all_tokens), CONTEXT_LEN), np.int64) + eot_token
+        )  # +eot_koen to align with CLIPTokenizer padding method
+        # result = np.zeros((len(all_tokens), CONTEXT_LEN), np.int64) # prev
 
         for i, tokens in enumerate(all_tokens):
             if len(tokens) > CONTEXT_LEN:
@@ -66,7 +85,7 @@ class FrozenCLIPEmbedder(nn.Cell):
 
             result[i, : len(tokens)] = np.array(tokens, np.int64)
 
-        return Tensor(result)
+        return result
 
     def encode(self, tokenized_text):
         outputs = self.transformer(tokenized_text)
