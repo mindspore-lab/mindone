@@ -21,6 +21,8 @@ def create_loader(
     tokenizer=None,
     token_nums=None,
     return_sample_name=False,
+    lpw=False,
+    max_embeddings_multiples=4,
     cache_latent=False,
     cache_text_embedding=False,
     cache_path=None,
@@ -58,6 +60,8 @@ def create_loader(
             tokenizer=tokenizer,
             token_nums=token_nums,
             return_sample_name=return_sample_name,
+            lpw=lpw,
+            max_embeddings_multiples=max_embeddings_multiples,
             **dataset_config.get("params", dict()),
         )
 

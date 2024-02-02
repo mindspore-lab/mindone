@@ -218,7 +218,23 @@ python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" 
   ```
 </details>
 
+<details>
 
+  <summary>Flash-Attention Support</summary>
+
+  MindONE supports flash attention by setting the argument `enable_flash_attention` as `True` in `configs/v1-inference.yaml` or `configs/v2-inference.yaml`. For example, in `configs/v1-inference.yaml`:
+
+  ```
+      unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        ...
+        enable_flash_attention: False
+        fa_max_head_dim: 256  # max head dim of flash attention. In case of oom, reduce it to 128
+  ```
+  One can set `enable_flash_attention` to `True`. In case of OOM (out of memory) error, please reduce the `fa_max_head_dim` to 128.
+
+</details>
 
 Here are some generation results.
 

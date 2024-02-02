@@ -211,6 +211,8 @@ class DiffusionEngine(nn.Cell):
         amp_level="O0",
         init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
         control: Optional[Tensor] = None,
+        lpw=False,
+        max_embeddings_multiples=4,
     ):
         print("Sampling")
 
@@ -239,6 +241,8 @@ class DiffusionEngine(nn.Cell):
             batch,
             batch_uc=batch_uc,
             force_uc_zero_embeddings=force_uc_zero_embeddings,
+            lpw=lpw,
+            max_embeddings_multiples=max_embeddings_multiples,
         )
         print("Embedding Done.")
 
@@ -296,6 +300,8 @@ class DiffusionEngine(nn.Cell):
         filter=None,
         add_noise=True,
         amp_level="O0",
+        lpw=False,
+        max_embeddings_multiples=4,
     ):
         dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
 
@@ -316,6 +322,8 @@ class DiffusionEngine(nn.Cell):
             batch,
             batch_uc=batch_uc,
             force_uc_zero_embeddings=force_uc_zero_embeddings,
+            lpw=lpw,
+            max_embeddings_multiples=max_embeddings_multiples,
         )
         print("Embedding Done.")
 

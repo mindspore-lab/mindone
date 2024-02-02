@@ -23,6 +23,8 @@ class TrainOneStepCell(nn.Cell):
         enable_first_stage_model=True,
         enable_conditioner=True,
         ema=None,
+        timestep_bias_weighting=None,
+        snr_gamma=None,
     ):
         super(TrainOneStepCell, self).__init__()
 
@@ -64,6 +66,9 @@ class TrainOneStepCell(nn.Cell):
         self.enable_conditioner = enable_conditioner
         self.enable_first_stage_model = enable_first_stage_model
 
+        self.timestep_bias_weighting = timestep_bias_weighting
+        self.snr_gamma = snr_gamma
+
     def construct(self, x, *tokens):
         # get latent target
         if self.enable_first_stage_model:
@@ -71,10 +76,18 @@ class TrainOneStepCell(nn.Cell):
         x = self.scale_factor * x
 
         # get noise and sigma
-        sigmas = self.sigma_sampler(x.shape[0])
+        if self.timestep_bias_weighting is None:
+            sigmas = self.sigma_sampler(x.shape[0])
+        else:
+            timesteps = ops.multinomial(self.timestep_bias_weighting, x.shape[0], replacement=True).long()
+            sigmas = self.sigma_sampler(x.shape[0], rand=timesteps)
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
+
+        if self.snr_gamma is not None:
+            snr_gamma = ops.ones_like(w) * self.snr_gamma
+            w = ops.stack((w, snr_gamma), axis=0).min(axis=0)
 
         # compute loss
         if self.enable_conditioner:
