@@ -23,12 +23,19 @@ class ControlnetUnetModel(UNetModel):
             for param in self.get_parameters():
                 param.requires_grad = False
 
+        # add controlnet init
         self.controlnet = instantiate_from_config(control_stage_config)
         self.control_scales = (
             [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)
         )
 
     def construct(self, x, timesteps=None, context=None, y=None, control=None, only_mid_control=False, **kwargs):
+        """
+        x: latent image in shape [bs, z, H//4, W//4]
+        timesteps: in shape [bs]
+        context: text embedding [bs, seq_len, f]
+        control: control signal [bs, 3, H, W]
+        """
         hs = []
 
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
@@ -56,6 +63,7 @@ class ControlnetUnetModel(UNetModel):
         ):
             if control is not None:
                 h_c = c_celllist(h_c, emb_c, context)
+                # add encoded hint with latent image encoded projected with conv2d
                 if guided_hint is not None:
                     h_c += guided_hint
                     guided_hint = None

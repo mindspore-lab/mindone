@@ -147,7 +147,7 @@ optim:
 
 
 data:
-    per_batch_size: 2
+    per_batch_size: 3
     total_step: 100000
     num_parallel_workers: 2
     python_multiprocessing: False
