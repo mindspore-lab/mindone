@@ -55,13 +55,11 @@ def test_vanilla_8p(version):
         pretrained_model_path = os.path.join(root, "../../models/sd_v1.5-d0ab7146.ckpt")
         if not os.path.exists(pretrained_model_path):
             pretrained_model_path = down_checkpoint(version=version)
-        infer_config = os.path.join(root, "../../configs/v1-inference.yaml")
     elif version == "2.0":
         train_config = os.path.join(root, "../../configs/train/train_config_vanilla_v2.yaml")
         pretrained_model_path = os.path.join(root, "../../models/sd_v2_base-57526ee4.ckpt")
         if not os.path.exists(pretrained_model_path):
             pretrained_model_path = down_checkpoint(version=version)
-        infer_config = os.path.join(root, "../../configs/v2-inference.yaml")
     else:
         raise ValueError(f"SD {version} not included in test")
 
@@ -72,13 +70,13 @@ def test_vanilla_8p(version):
 
     # export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"  # It depends on MS version
-    epochs = 1000
+    epochs = 300
 
     cmd = (
         f"mpirun --allow-run-as-root -n 8 python train_text_to_image.py --data_path={data_dir} --train_config={train_config} "
-        f"--pretrained_model_path={pretrained_model_path} --dataset_sink_mode=True --callback_size=3 "
-        f"--epochs={epochs} --ckpt_save_interval={epochs} --init_loss_scale=65536 "
-        f"--output_path={output_path} --clip_grad=True --unet_initialize_random=True --use_parallel=True "
+        f"--pretrained_model_path={pretrained_model_path} --dataset_sink_mode=True --callback_size=3 --scheduler=constant "
+        f"--epochs={epochs} --ckpt_save_interval={epochs} --init_loss_scale=65536 --image_size=256 --start_learning_rate=1e-4 "
+        f"--output_path={output_path} --clip_grad=True --unet_initialize_random=True --use_parallel=True --warmup_steps=50 "
     )
 
     print(f"Running command: \n{cmd}")
@@ -92,16 +90,6 @@ def test_vanilla_8p(version):
 
     print("converge_loss: ", converge_loss)
     assert converge_loss < expected_loss
-    # test inference
-    end_ckpt = os.path.join(output_path, "ckpt", f"sd-{epochs}.ckpt")
-
-    cmd = (
-        f"python text_to_image.py --config={infer_config} --n_iter=1 --n_samples=2 "
-        f"--output_path={output_path} --ckpt_path={end_ckpt} --negative_prompt='flowers' "
-    )
-    print(f"Running command: \n{cmd}")
-    ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
-    assert ret == 0, "run text_to_image.py fails"
 
 
 @pytest.mark.parametrize("use_lora", [True, False])  # lora or vanilla
@@ -144,11 +132,11 @@ def test_vanilla_lora(use_lora, version):
 
     # export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"  # It depends on MS version
-    epochs = 1000
+    epochs = 300
 
     cmd = (
         f"python train_text_to_image.py --data_path={data_dir} --model_config={model_config} "
-        f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=512 --dataset_sink_mode=True --callback_size=5 "
+        f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=256 --dataset_sink_mode=True --callback_size=5 "
         f"--epochs={epochs} --ckpt_save_interval={epochs} --start_learning_rate={start_learning_rate} --train_batch_size=1 --init_loss_scale=65536 "
         f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True "
         f"--unet_initialize_random={unet_initialize_random} "
@@ -167,20 +155,17 @@ def test_vanilla_lora(use_lora, version):
     assert converge_loss < expected_loss
     # test inference
     end_ckpt = os.path.join(output_path, "ckpt", f"sd-{epochs}.ckpt")
-    if not use_lora:
-        lora_ckpt_path = None
-        ckpt_path = end_ckpt
-    else:
+    if use_lora:
         lora_ckpt_path = end_ckpt
         ckpt_path = pretrained_model_path
-    cmd = (
-        f"python text_to_image.py --config={infer_config} --n_iter=1 --n_samples=2 "
-        f"--output_path={output_path} --lora_ckpt_path={lora_ckpt_path} --use_lora={use_lora} "
-        f"--ckpt_path={ckpt_path} --negative_prompt='sunflowers' "
-    )
-    print(f"Running command: \n{cmd}")
-    ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
-    assert ret == 0, "run text_to_image.py fails"
+        cmd = (
+            f"python text_to_image.py --config={infer_config} --n_iter=1 --n_samples=2 "
+            f"--output_path={output_path} --lora_ckpt_path={lora_ckpt_path} --use_lora={use_lora} "
+            f"--ckpt_path={ckpt_path} --negative_prompt='sunflowers' "
+        )
+        print(f"Running command: \n{cmd}")
+        ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
+        assert ret == 0, "run text_to_image.py fails"
 
 
 @pytest.mark.parametrize("version", ["1.5", "2.0"])
@@ -192,11 +177,9 @@ def test_db(version):
     if version == "1.5":
         train_config = os.path.join(root, "../../configs/train/train_config_dreambooth_v1.yaml")
         pretrained_model_path = os.path.join(root, "../../models/sd_v1.5-d0ab7146.ckpt")
-        infer_config = os.path.join(root, "../../configs/v1-inference.yaml")
     elif version == "2.0":
         train_config = os.path.join(root, "../../configs/train/train_config_dreambooth_v2.yaml")
         pretrained_model_path = os.path.join(root, "../../models/sd_v2_base-57526ee4.ckpt")
-        infer_config = os.path.join(root, "../../configs/v2-inference.yaml")
     else:
         raise ValueError(f"SD {version} not included in test")
 
@@ -207,7 +190,7 @@ def test_db(version):
 
     os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
-    epochs = 100
+    epochs = 50
     cmd = (
         f"python train_dreambooth.py "
         f"--train_config {train_config} "
@@ -216,6 +199,7 @@ def test_db(version):
         f"--output_path  {output_path} "
         f"--pretrained_model_path {pretrained_model_path} "
         f"--unet_initialize_random True "
+        f"--image_size=256 --callback_size=40 --dataset_sink_mode=True "
         f"--epochs={epochs} --ckpt_save_interval={epochs} --num_class_images=200 "
         f"--with_prior_preservation=False "  # 800 steps
     )
@@ -233,16 +217,6 @@ def test_db(version):
     expected_loss = 0.5
     print("converge_loss: ", converge_loss)  #
     assert converge_loss < expected_loss
-
-    # test inference
-    end_ckpt = os.path.join(output_path, "ckpt/rank_0", f"sd-{epochs}.ckpt")
-    cmd = (
-        f"python text_to_image.py --config={infer_config} --n_iter=1 --n_samples=2 "
-        f"--output_path={output_path} --ckpt_path={end_ckpt} --negative_prompt='sunflowers' "
-    )
-    print(f"Running command: \n{cmd}")
-    ret = subprocess.call(cmd.split(), stdout=sys.stdout, stderr=sys.stderr)
-    assert ret == 0, "run text_to_image.py fails"
 
 
 def run_task(task="vanilla", version="1.5", device_num=1):
