@@ -77,6 +77,13 @@ def seed_everything(seed):
     ms.set_seed(seed)
 
 
+@ms.constexpr
+def get_timestep_multinomial(p, size=1):
+    p = p.asnumpy()
+    out = np.random.multinomial(1, p / p.sum(), size=size).argmax(-1)
+    return Tensor(out, ms.int64)
+
+
 clip_grad = C.MultitypeFuncGraph("clip_grad")
 
 
