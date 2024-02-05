@@ -10,6 +10,40 @@ We provide the script `train.py` for full parameter training of sdxl.
 
 Download the official pre-train weights from huggingface, convert the weights from `.safetensors` format to Mindspore `.ckpt` format, and put them to `./checkpoints/` folder. Please refer to SDXL [weight_convertion.md](./weight_convertion.md) for detailed steps.
 
+### Script parameters
+
+The training script provides many parameters to help you customize your training run. All of the parameters and their descriptions are found in the [`parse_args()`](https://github.com/huggingface/diffusers/blob/aab6de22c33cc01fb7bc81c0807d6109e2c998c9/examples/text_to_image/train_text_to_image_sdxl.py#L129) function. This function provides default values for each parameter, such as the training batch size and learning rate, but you can also set your own values in the training command if you'd like.
+
+#### TimeStep Bias weighting
+
+- `--timestep_bias_strategy`: where (earlier vs. later) in the timestep to apply a bias, which can encourage the model to either learn low or high frequency details
+- `--timestep_bias_multiplier`: the weight of the bias to apply to the timestep
+- `--timestep_bias_begin`: the timestep to begin applying the bias
+- `--timestep_bias_end`: the timestep to end applying the bias
+- `--timestep_bias_portion`: the proportion of timesteps to apply the bias to
+
+```shell
+python train.py \
+  ...
+  --timestep_bias_multiplier 2 \
+  --timestep_bias_strategy range \
+  --timestep_bias_begin 200 \
+  --timestep_bias_end 500 \
+  --timestep_bias_portion 0.25
+```
+
+#### Min-SNR weighting
+
+The [Min-SNR](https://huggingface.co/papers/2303.09556) weighting strategy can help with training by rebalancing the loss to achieve faster convergence.
+
+Add the `--snr_gamma` parameter and set it to the recommended value of 5.0:
+
+```shell
+python train.py \
+  ...
+  --snr_gamma 5.0
+```
+
 ### 1. vanilla fine-tune
 
 ```shell

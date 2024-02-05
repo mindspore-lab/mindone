@@ -1,6 +1,6 @@
 # This file only applies to static graph mode
 
-from gm.util import append_dims, clip_grad_, clip_grad_global_
+from gm.util import append_dims, clip_grad_, clip_grad_global_, get_timestep_multinomial
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -79,7 +79,9 @@ class TrainOneStepCell(nn.Cell):
         if self.timestep_bias_weighting is None:
             sigmas = self.sigma_sampler(x.shape[0])
         else:
-            timesteps = ops.multinomial(self.timestep_bias_weighting, x.shape[0], replacement=True).long()
+            # FIXME: Bug on MindSpore 2.2.10
+            # timesteps = ops.multinomial(self.timestep_bias_weighting, x.shape[0], replacement=True).long()
+            timesteps = get_timestep_multinomial(self.timestep_bias_weighting, x.shape[0])
             sigmas = self.sigma_sampler(x.shape[0], rand=timesteps)
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)

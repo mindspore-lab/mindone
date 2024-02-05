@@ -220,7 +220,7 @@ def train(args):
 
     # 4. Create train step func
     assert "sigma_sampler_config" in config.model.params
-    num_timesteps = config.model.params.sigma_sampler_config.num_idx
+    num_timesteps = config.model.params.sigma_sampler_config.params.num_idx
     timestep_bias_weighting = generate_timestep_weights(args, num_timesteps)
 
     assert "optim" in config
