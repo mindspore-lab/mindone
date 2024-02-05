@@ -59,17 +59,18 @@ Flash Attention,
 
 | SD Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Batch Size     |  Speed (step/s)     | FPS (img/s)     |
 |---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| 1.5           |     D910x1-MS2.0    |  DPM++       |   20       |    512x512         |       4          |    2.50        |           0.40   |
-| 2.0           |     D910x1-MS2.0    |  DPM++       |   20       |    512x512         |       4          |    2.86       |        0.44       |
-| 2.1-v         |     D910x1-MS2.0    |  DPM++       |   20       |    768x768         |       4          |     1.18      |         0.19      |
-| 1.5           |     D910*x1-MS2.2   |  DPM++       |   20       |    512x512         |       4          |       2.50     |         0.39      |
-| 2.0           |     D910*x1-MS2.2   |  DPM++       |   20       |    512x512         |       4          |      2.86     |         0.42      |
-| 2.1-v         |     D910*x1-MS2.2   |  DPM++       |   20       |    768x768         |       4          |      1.67     |         0.25      |
+| 1.5           |     D910x1-MS2.2.10    |  DDIM       |   20       |    512x512         |       4          |    3.27        |       0.58       |
+| 2.0           |     D910x1-MS2.2.10    |  DDIM       |   20       |    512x512         |       4          |    4.23       |        0.73       |
+| 2.1-v         |     D910x1-MS2.2.10    |  DDIM       |   20       |    768x768         |       4          |     1.09     |         0.20      |
+| 1.5           |     D910*x1-MS2.2.10   |  DDIM       |   20       |    512x512         |       4          |       5.56     |         0.87      |
+| 2.0           |     D910*x1-MS2.2.10   |  DDIM       |   20       |    512x512         |       4          |      7.80     |         1.14      |
+| 2.1-v         |     D910*x1-MS2.2.10   |  DDIM       |   20       |    768x768         |       4          |      2.51     |         0.40      |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Speed (step/s): sampling speed measured in the number of sampling steps per second.
 > FPS (img/s): image generation throughput measured in the number of image generated per second.
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
+Multi card parallel performance is the same as single card performance.
 
 
 <!--
