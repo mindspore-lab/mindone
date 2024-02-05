@@ -228,6 +228,9 @@ def main(args):
             logger.info("Num MM trainable params {}".format(num_mm_trainable))
             # assert num_mm_trainable in [546, 520], "Expect 546 trainable params for MM-v2 or 520 for MM-v1."
 
+    if args.train_data_type == "npz" or args.train_data_type == "mindrecord":
+        latent_diffusion_with_loss.emb_cache = True
+
     # count total params and trainable params
     tot_params, trainable_params = count_params(latent_diffusion_with_loss.model)
     logger.info("UNet3D: total param size {:,}, trainable {:,}".format(tot_params, trainable_params))
@@ -248,6 +251,7 @@ def main(args):
             shuffle=True,
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=32,
+            train_data_type=args.train_data_type,
         )
     else:
         data_config = dict(
@@ -260,6 +264,7 @@ def main(args):
             shuffle=True,
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=64,
+            train_data_type=args.train_data_type,
         )
 
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenize

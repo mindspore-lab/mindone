@@ -102,6 +102,8 @@ class TextVideoDataset:
         tokenizer=None,
         video_column="video",
         caption_column="caption",
+        train_data_type="video_file",
+        embedding_path_column="embedding_path",
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -124,6 +126,8 @@ class TextVideoDataset:
         self.tokenizer = tokenizer
         self.video_column = video_column
         self.caption_column = caption_column
+        self.train_data_type = train_data_type
+        self.embedding_path_column = embedding_path_column
 
     def get_batch(self, idx):
         # get video raw pixel
@@ -154,6 +158,26 @@ class TextVideoDataset:
 
         return pixel_values, caption
 
+    def get_batch_cache_npz(self, idx):
+        video_dict = self.dataset[idx]
+        emb_data_name = video_dict[self.embedding_path_column]
+        emb_data_path = os.path.join(self.video_folder, emb_data_name)
+        emb_data = np.load(emb_data_path)
+        video_latent = emb_data["video_latent"]
+        text_emb = emb_data["text_emb"]
+        video_length = len(video_latent)
+
+        if not self.is_image:
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = random.randint(0, video_length - clip_length)
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        else:
+            batch_index = [random.randint(0, video_length - 1)]
+
+        video_emb_train = video_latent[batch_index]
+
+        return video_emb_train, text_emb
+
     def __len__(self):
         return self.length
 
@@ -166,6 +190,9 @@ class TextVideoDataset:
         """
         # while True:
         #    try:
+        if self.train_data_type == "npz":
+            video_emb_train, text_emb = self.get_batch_cache_npz(idx)
+            return video_emb_train, text_emb
         pixel_values, caption = self.get_batch(idx)
         #        break
         #    except Exception as e:
@@ -217,34 +244,60 @@ class TextVideoDataset:
 
 # TODO: parse in config dict
 def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0):
-    dataset = TextVideoDataset(
-        config["csv_path"],
-        config["video_folder"],
-        sample_size=config["sample_size"],
-        sample_stride=config["sample_stride"],
-        sample_n_frames=config["sample_n_frames"],
-        is_image=is_image,
-        tokenizer=tokenizer,
-    )
-    print("Total number of samples: ", len(dataset))
+    if config["train_data_type"] == "video_file" or config["train_data_type"] == "npz":
+        dataset = TextVideoDataset(
+            config["csv_path"],
+            config["video_folder"],
+            sample_size=config["sample_size"],
+            sample_stride=config["sample_stride"],
+            sample_n_frames=config["sample_n_frames"],
+            is_image=is_image,
+            tokenizer=tokenizer,
+            train_data_type=config["train_data_type"],
+        )
+        print("Total number of samples: ", len(dataset))
 
-    # Larger value leads to more memory consumption. Default: 16
-    # prefetch_size = config.get("prefetch_size", 16)
-    # ms.dataset.config.set_prefetch_size(prefetch_size)
+        # Larger value leads to more memory consumption. Default: 16
+        # prefetch_size = config.get("prefetch_size", 16)
+        # ms.dataset.config.set_prefetch_size(prefetch_size)
 
-    dataloader = ms.dataset.GeneratorDataset(
-        source=dataset,
-        column_names=[
-            "video",
-            "caption",
-        ],
-        num_shards=device_num,
-        shard_id=rank_id,
-        python_multiprocessing=True,
-        shuffle=config["shuffle"],
-        num_parallel_workers=config["num_parallel_workers"],
-        max_rowsize=config["max_rowsize"],  # video data require larger rowsize
-    )
+        dataloader = ms.dataset.GeneratorDataset(
+            source=dataset,
+            column_names=[
+                "video",
+                "caption",
+            ],
+            num_shards=device_num,
+            shard_id=rank_id,
+            python_multiprocessing=True,
+            shuffle=config["shuffle"],
+            num_parallel_workers=config["num_parallel_workers"],
+            max_rowsize=config["max_rowsize"],  # video data require larger rowsize
+        )
+
+    elif config["train_data_type"] == "mindrecord":
+        data_files = []
+        for file in os.listdir(config["video_folder"]):
+            file_path = os.path.join(config["video_folder"], file)
+            if os.path.isfile(file_path):
+                if file.split(".")[-1] == "mindrecord":
+                    data_files.append(file_path)
+
+        dataloader = ms.dataset.MindDataset(
+            dataset_files=data_files,
+            columns_list=["video_latent", "text_emb"],
+            num_shards=device_num,
+            shard_id=rank_id,
+            shuffle=config["shuffle"],
+            num_parallel_workers=config["num_parallel_workers"],
+        )
+        select_frames_map = SelectFrameMap(
+            is_image=is_image, sample_n_frames=config["sample_n_frames"], sample_stride=config["sample_stride"]
+        )
+        dataloader = dataloader.map(operations=select_frames_map, input_columns=["video_latent"])
+
+    else:
+        raise ValueError("Train data type {} is not supprted!".format(config["train_data_type"]))
 
     dl = dataloader.batch(
         config["batch_size"],
@@ -265,3 +318,22 @@ def check_sanity(x, save_fp="./tmp.gif"):
     x = (x * 255).astype(np.uint8)
 
     imageio.mimsave(save_fp, x, duration=1 / 8.0, loop=1)
+
+
+class SelectFrameMap:
+    def __init__(self, is_image=False, sample_n_frames=16, sample_stride=4):
+        self.is_image = is_image
+        self.sample_n_frames = sample_n_frames
+        self.sample_stride = sample_stride
+
+    def __call__(self, video_latent):
+        video_length = len(video_latent)
+        if not self.is_image:
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = random.randint(0, video_length - clip_length)
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        else:
+            batch_index = [random.randint(0, video_length - 1)]
+
+        video_emb_train = video_latent[batch_index]
+        return video_emb_train
