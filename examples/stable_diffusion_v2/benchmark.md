@@ -71,8 +71,7 @@ Flash Attention,
 >
 > FPS (img/s): image generation throughput measured in the number of image generated per second.
 
-Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
-performance per NPU in multi-NPU parallel mode is the same as performance of single NPU mode.
+Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture. Performance per NPU in multi-NPU parallel mode is the same as performance of single NPU mode.
 
 
 <!--
