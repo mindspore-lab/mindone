@@ -170,7 +170,7 @@ def parse_args():
     parser.add_argument(
         "--motion_module_path", default="", type=str, help="path to pretrained motion mdule. Load it if not empty"
     )
-    parser.parse_args("--train_data_type", default="video_file", type=str, help="type of data for training")
+    parser.add_argument("--train_data_type", default="video_file", type=str, help="type of data for training")
     parser.add_argument("--motion_lora_finetune", default=False, type=str2bool, help="True if finetune motion lora.")
     parser.add_argument("--motion_lora_rank", default=64, type=int, help="motion lora rank.")
     parser.add_argument(
@@ -178,13 +178,13 @@ def parse_args():
     )
 
     # For embedding cache
-    parser.parse_args("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
-    parser.parse_args(
+    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument(
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
-    parser.parse_args("--save_data_type", default="float32", type=str, help="data type when saving embedding cache")
+    parser.add_argument("--save_data_type", default="float32", type=str, help="data type when saving embedding cache")
 
-    parser.parse_args("--cache_folder", default="", type=str, help="directory to save embedding cache")
+    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()

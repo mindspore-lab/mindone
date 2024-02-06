@@ -19,7 +19,9 @@ from mindspore.mindrecord import FileWriter
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+animatediff_path = os.path.abspath(os.path.join(__dir__, "../"))
 sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, animatediff_path)
 
 from ad.data.dataset import create_video_transforms, read_gif
 
@@ -202,7 +204,7 @@ def main(args):
         schema = {
             "video": {"type": "string"},
             "caption": {"type": "string"},
-            "vidoe_latent": {"type": args.save_data_type, "shape": [-1, 4, args.image_size // 8, args.image_size // 8]},
+            "video_latent": {"type": args.save_data_type, "shape": [-1, 4, args.image_size // 8, args.image_size // 8]},
             "text_emb": {"type": args.save_data_type, "shape": [77, 768]},
         }
         count = 0
@@ -274,17 +276,17 @@ def main(args):
                 text_emb=text_emb.asnumpy().copy()[0].astype(save_data_type),
             )
         elif train_data_type == "mindrecord":
-            mindrecord_size = os.stat(file_path).st_size
-            mindrecord_size = mindrecord_size / 1024 / 1024 / 1024
-            if mindrecord_size > 19:
-                writer.close()  # close last filewriter when it exceeds 19GB
-
-                count += 1
-                filename = dataset_name + str(count) + ".mindrecord"
-                file_path = os.path.join(cache_folder, filename)
-                writer = FileWriter(file_path, shard_num=1, overwrite=True)
-                writer.set_page_size(1 << 26)
-                writer.add_schema(schema, "Preprocessed {} dataset.".format(dataset_name))
+            if os.path.isfile(file_path):
+                mindrecord_size = os.stat(file_path).st_size
+                mindrecord_size = mindrecord_size / 1024 / 1024 / 1024
+                if mindrecord_size > 19:
+                    # close last filewriter when it exceeds 19GB
+                    count += 1
+                    filename = dataset_name + str(count) + ".mindrecord"
+                    file_path = os.path.join(cache_folder, filename)
+                    writer = FileWriter(file_path, shard_num=1, overwrite=True)
+                    writer.set_page_size(1 << 26)
+                    writer.add_schema(schema, "Preprocessed {} dataset.".format(dataset_name))
 
             sample = {
                 "video": video_dict[video_column],
@@ -305,7 +307,6 @@ def main(args):
     if data and train_data_type == "mindrecord":
         writer.write_raw_data(data)
         writer.commit()
-        writer.close()
 
     with open(new_csv_path, mode="w", newline="") as f:
         field_name = ["video", "caption", "embedding_path"]
