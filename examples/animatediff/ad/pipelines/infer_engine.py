@@ -101,7 +101,7 @@ class AnimateDiffText2Video(ABC):
         controlnet_conditioning_scale=1.0,
     ):
         input_blocks_additional_residuals, middle_blocks_additional_residuals = None, None
-        if (getattr(self, "controlnet", None) is not None) and (controlnet_images is not None):
+        if (self.controlnet is not None) and (controlnet_images is not None):
             assert (
                 controlnet_images.dim() == 5
             ), f"Expect to receive 5 dims for controlnet_images, but got {controlnet_images.dim()}"  # (b, c, f, h, w)
@@ -127,7 +127,7 @@ class AnimateDiffText2Video(ABC):
             )
         return input_blocks_additional_residuals, middle_blocks_additional_residuals
 
-    # @ms.jit
+    @ms.jit
     def predict_noise(
         self,
         x,
