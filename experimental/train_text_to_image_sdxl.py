@@ -397,7 +397,7 @@ def parse_args(input_args=None):
             " flag passed with the `accelerate.launch` command. Use this argument to override the accelerate config."
         ),
     )
-    parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
+    parser.add_argument("--distributed", default=False, action="store_true", help="Enable distributed training")
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
@@ -407,10 +407,6 @@ def parse_args(input_args=None):
         args = parser.parse_args(input_args)
     else:
         args = parser.parse_args()
-
-    env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
-    if env_local_rank != -1 and env_local_rank != args.local_rank:
-        args.local_rank = env_local_rank
 
     # Sanity checks
     if args.dataset_name is None and args.train_data_dir is None:
@@ -443,13 +439,12 @@ def encode_prompt(batch, text_encoders, tokenizers, proportion_empty_prompts, ca
             padding="max_length",
             max_length=tokenizer.model_max_length,
             truncation=True,
-            return_tensors="pt",
+            return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
         prompt_embeds = text_encoder(
-            text_input_ids.to(text_encoder.device),
+            Tensor(text_input_ids),
             output_hidden_states=True,
-            return_dict=False,
         )
 
         # We are only ALWAYS interested in the pooled output of the final text encoder
@@ -461,18 +456,17 @@ def encode_prompt(batch, text_encoders, tokenizers, proportion_empty_prompts, ca
 
     prompt_embeds = ops.concat(prompt_embeds_list, axis=-1)
     pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
-    return {"prompt_embeds": prompt_embeds.cpu(), "pooled_prompt_embeds": pooled_prompt_embeds.cpu()}
+    return {"prompt_embeds": prompt_embeds.numpy(), "pooled_prompt_embeds": pooled_prompt_embeds.numpy()}
 
 
 def compute_vae_encodings(batch, vae):
-    images = batch.pop("pixel_values")
-    pixel_values = ops.stack(list(images))
+    images = batch.pop("pixel_values")  # tuple of np.array
+    pixel_values = Tensor(images)
     pixel_values = pixel_values.float()
-    pixel_values = pixel_values.to(dtype=vae.dtype)
 
-    model_input = vae.encode(pixel_values).latent_dist.sample()
+    model_input = vae.encode(pixel_values)[0].sample()
     model_input = model_input * vae.config.scaling_factor
-    return {"model_input": model_input.cpu()}
+    return {"model_input": model_input.numpy()}
 
 
 def generate_timestep_weights(args, num_timesteps):
@@ -621,7 +615,7 @@ def main():
         )
 
     # Optimizer creation
-    params_to_optimize = unet.trainable_parameters()
+    params_to_optimize = unet.trainable_params()
     optimizer = nn.AdamWeightDecay(  # will silently filter bn and bias
         params_to_optimize,
         learning_rate=args.learning_rate,
@@ -642,7 +636,6 @@ def main():
             args.dataset_name,
             args.dataset_config_name,
             cache_dir=args.cache_dir,
-            data_dir=args.train_data_dir,
         )
     else:
         data_files = {}
@@ -682,15 +675,25 @@ def main():
     # Preprocessing the datasets.
     train_resize = vision.Resize(args.resolution, interpolation=vision.Inter.BILINEAR)
     train_crop = vision.CenterCrop(args.resolution) if args.center_crop else vision.RandomCrop(args.resolution)
-    train_flip = vision.RandomHorizontalFlip(p=1.0)
+    train_flip = vision.RandomHorizontalFlip(prob=1.0)
     train_transforms = transforms.Compose([vision.ToTensor(), vision.Normalize([0.5], [0.5], is_hwc=False)])
 
     def preprocess_train(examples):
         images = [image.convert("RGB") for image in examples[image_column]]
+
+        # time ids
+        def compute_time_ids(original_size, crops_coords_top_left):
+            # Adapted from pipeline.StableDiffusionXLPipeline._get_add_time_ids
+            target_size = (args.resolution, args.resolution)
+            add_time_ids = list(original_size + crops_coords_top_left + target_size)
+            add_time_ids = np.array(add_time_ids)
+            return add_time_ids
+
         # image aug
         original_sizes = []
         all_images = []
         crop_top_lefts = []
+        add_time_ids = []
         for image in images:
             original_sizes.append((image.height, image.width))
             image = train_resize(image)
@@ -702,15 +705,19 @@ def main():
                 x1 = max(0, int(round((image.width - args.resolution) / 2.0)))
                 image = train_crop(image)
             else:
+                # todo: we cannot get params of random cropping, maybe we need to reimplemented RandomCrop
                 y1, x1, h, w = train_crop.get_params(image, (args.resolution, args.resolution))
                 image = image.crop((x1, y1, x1 + w, y1 + h))
             crop_top_left = (y1, x1)
             crop_top_lefts.append(crop_top_left)
-            image = train_transforms(image)
+            add_time_id = compute_time_ids(original_sizes[-1], crop_top_lefts[-1])
+            add_time_ids.append(add_time_id)
+            image = train_transforms(image)[0]
             all_images.append(image)
 
         examples["original_sizes"] = original_sizes
         examples["crop_top_lefts"] = crop_top_lefts
+        examples["add_time_ids"] = add_time_ids
         examples["pixel_values"] = all_images
         return examples
 
@@ -747,31 +754,31 @@ def main():
         new_fingerprint=new_fingerprint_for_vae,
     )
 
-    del text_encoders, tokenizers, vae
-    gc.collect()  # this might not work...
+    # todo: delete used text_encoder& vae to saving memory. this might not work...
+    # del text_encoders, tokenizers, vae
+    # gc.collect()
 
-    def collate_fn(examples):
-        model_input = ops.stack([Tensor(example["model_input"]) for example in examples])
-        original_sizes = [example["original_sizes"] for example in examples]
-        crop_top_lefts = [example["crop_top_lefts"] for example in examples]
-        prompt_embeds = ops.stack([Tensor(example["prompt_embeds"]) for example in examples])
-        pooled_prompt_embeds = ops.stack([Tensor(example["pooled_prompt_embeds"]) for example in examples])
+    class UnravelDataset:
+        columns = ["model_input", "prompt_embeds", "pooled_prompt_embeds", "add_time_ids"]
 
-        return {
-            "model_input": model_input,
-            "prompt_embeds": prompt_embeds,
-            "pooled_prompt_embeds": pooled_prompt_embeds,
-            "original_sizes": original_sizes,
-            "crop_top_lefts": crop_top_lefts,
-        }
+        def __init__(self, data):
+            self.data = data
+
+        def __getitem__(self, idx):
+            idx = idx.item() if isinstance(idx, np.integer) else idx  # what the fuck?
+            example = self.data[idx]  # todo: members are list? why?
+            return (np.array(example[column], dtype=np.float32) for column in self.columns)
+
+        def __len__(self):
+            return len(self.data)
 
     # DataLoaders creation:
     train_dataloader = GeneratorDataset(
-        train_dataset,
+        UnravelDataset(train_dataset),
+        column_names=UnravelDataset.columns,
         shuffle=True,
         num_parallel_workers=args.dataloader_num_workers,
     ).batch(
-        per_batch_map=collate_fn,
         batch_size=args.train_batch_size,
     )
 
@@ -866,17 +873,12 @@ def main():
     )
 
     for epoch in range(first_epoch, args.num_train_epochs):
-        train_loss = 0.0
-        for step, batch in enumerate(train_dataloader):
+        for step, (model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids) in enumerate(train_dataloader):
             # with accelerator.accumulate(unet): todo: support accumulation
-            loss = train_step(batch)
-            # Gather the losses across all processes for logging (if we use distributed training).
-            avg_loss = ops.AllGather()(loss.repeat(args.train_batch_size)).mean()
-            train_loss += avg_loss.item() / args.gradient_accumulation_steps
+            loss = train_step(model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids)
 
             progress_bar.update(1)
             global_step += 1
-            train_loss = 0.0
 
             if is_master(args):
                 if global_step % args.checkpointing_steps == 0:
@@ -904,7 +906,7 @@ def main():
                     ms.save_checkpoint(unet, save_path)  # todo: save trainer?
                     logger.info(f"Saved state to {save_path}")
 
-            logs = {"step_loss": loss.numpy().item(), "lr": lr_scheduler.get_last_lr()[0]}
+            logs = {"step_loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}
             progress_bar.set_postfix(**logs)
 
             if global_step >= args.max_train_steps:
@@ -948,51 +950,29 @@ class TrainStep(nn.Cell):
         self.clip_grad = grad_clip_norm is not None
         self.clip_value = grad_clip_norm
 
-        def forward_fn(batch):
+        def forward_fn(model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
             # Sample noise that we'll add to the latents
-            model_input = batch["model_input"]
             noise = ops.randn_like(model_input)
             if args.noise_offset:
                 # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-                noise += args.noise_offset * ops.randn(
-                    (model_input.shape[0], model_input.shape[1], 1, 1), device=model_input.device
-                )
+                noise += args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
 
             bsz = model_input.shape[0]
             if args.timestep_bias_strategy == "none":
                 # Sample a random timestep for each image without bias.
-                timesteps = ops.randint(
-                    0, noise_scheduler.config.num_train_timesteps, (bsz,), device=model_input.device
-                )
+                timesteps = ops.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,))
             else:
                 # Sample a random timestep for each image, potentially biased by the timestep weights.
                 # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
-                weights = generate_timestep_weights(args, noise_scheduler.config.num_train_timesteps).to(
-                    model_input.device
-                )
+                weights = generate_timestep_weights(args, noise_scheduler.config.num_train_timesteps)
                 timesteps = ops.multinomial(weights, bsz, replacement=True).long()
 
             # Add noise to the model input according to the noise magnitude at each timestep
             # (this is the forward diffusion process)
             noisy_model_input = noise_scheduler.add_noise(model_input, noise, timesteps)
 
-            # time ids
-            def compute_time_ids(original_size, crops_coords_top_left):
-                # Adapted from pipeline.StableDiffusionXLPipeline._get_add_time_ids
-                target_size = (args.resolution, args.resolution)
-                add_time_ids = list(original_size + crops_coords_top_left + target_size)
-                add_time_ids = Tensor([add_time_ids])
-                add_time_ids = add_time_ids.to(dtype=weight_dtype)
-                return add_time_ids
-
-            add_time_ids = ops.cat(
-                [compute_time_ids(s, c) for s, c in zip(batch["original_sizes"], batch["crop_top_lefts"])]
-            )
-
             # Predict the noise residual
-            unet_added_conditions = {"time_ids": add_time_ids}
-            prompt_embeds = batch["prompt_embeds"]
-            pooled_prompt_embeds = batch["pooled_prompt_embeds"]
+            unet_added_conditions = {"time_ids": add_time_ids.to(dtype=weight_dtype)}
             unet_added_conditions.update({"text_embeds": pooled_prompt_embeds})
             model_pred = unet(
                 noisy_model_input,
@@ -1027,7 +1007,7 @@ class TrainStep(nn.Cell):
                 # This is discussed in Section 4.2 of the same paper.
                 snr = compute_snr(noise_scheduler, timesteps)
                 mse_loss_weights = ops.stack([snr, args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(
-                    dim=1
+                    axis=1
                 )[0]
                 if noise_scheduler.config.prediction_type == "epsilon":
                     mse_loss_weights = mse_loss_weights / snr
@@ -1035,11 +1015,11 @@ class TrainStep(nn.Cell):
                     mse_loss_weights = mse_loss_weights / (snr + 1)
 
                 loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
-                loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+                loss = loss.mean(axis=list(range(1, len(loss.shape)))) * mse_loss_weights
                 loss = loss.mean()
 
             loss = scaler.scale(loss)
-            return loss
+            return loss, model_pred
 
         self.grad_fn = ops.value_and_grad(forward_fn, grad_position=None, weights=self.weights, has_aux=True)
 
@@ -1051,7 +1031,7 @@ class TrainStep(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        (loss,), grads = self.grad_fn(*inputs)
+        (loss, model_pred), grads = self.grad_fn(*inputs)
         grads = self.grad_reducer(grads)
         loss = self.scaler.unscale(loss)
         grads = self.scaler.unscale(grads)

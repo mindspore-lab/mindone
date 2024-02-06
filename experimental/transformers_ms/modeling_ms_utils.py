@@ -187,6 +187,10 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
         """
         pass
 
+    @property
+    def dtype(self):
+        return self.trainable_params()[0].dtype
+
     @classmethod
     def from_pretrained(
         cls,

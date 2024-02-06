@@ -17,12 +17,17 @@ import mindspore as ms
 from mindspore import nn, ops
 
 
+class SiLU(nn.Cell):
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        return x * ops.sigmoid(ops.clamp(x, -64, 64))
+
+
 ACTIVATION_FUNCTIONS = {
-    "swish": nn.SiLU(),
-    "silu": nn.SiLU(),
-    "mish": nn.Mish(),
-    "gelu": nn.GELU(),
-    "relu": nn.ReLU(),
+    "swish": SiLU,
+    "silu": SiLU,
+    "mish": nn.Mish,
+    "gelu": nn.GELU,
+    "relu": nn.ReLU,
 }
 
 

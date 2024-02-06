@@ -183,9 +183,7 @@ class Attention(nn.Cell):
             self.add_k_proj = linear_cls(added_kv_proj_dim, self.inner_dim)
             self.add_v_proj = linear_cls(added_kv_proj_dim, self.inner_dim)
 
-        self.to_out = nn.CellList([])
-        self.to_out.append(linear_cls(self.inner_dim, self.out_dim, has_bias=out_bias))
-        self.to_out.append(nn.Dropout(p=dropout))
+        self.to_out = nn.CellList([linear_cls(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(p=dropout)])
 
         # set attention processor
         # We use the AttnProcessor2_0 by default when torch 2.x is used which uses

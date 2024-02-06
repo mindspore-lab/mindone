@@ -262,7 +262,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         # input
         conv_in_padding = (conv_in_kernel - 1) // 2
         self.conv_in = nn.Conv2d(
-            in_channels, block_out_channels[0], kernel_size=conv_in_kernel, pad_mode="pad", padding=conv_in_padding
+            in_channels, block_out_channels[0], kernel_size=conv_in_kernel, pad_mode="pad", padding=conv_in_padding, has_bias=True
         )
 
         # time
@@ -355,10 +355,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         if time_embedding_act_fn is None:
             self.time_embed_act = None
         else:
-            self.time_embed_act = get_activation(time_embedding_act_fn)
-
-        self.down_blocks = nn.CellList([])
-        self.up_blocks = nn.CellList([])
+            self.time_embed_act = get_activation(time_embedding_act_fn)()
 
         if isinstance(only_cross_attention, bool):
             if mid_block_only_cross_attention is None:
@@ -393,6 +390,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             blocks_time_embed_dim = time_embed_dim
 
         # down
+        down_blocks = []
         output_channel = block_out_channels[0]
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
@@ -425,7 +423,8 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
                 attention_head_dim=attention_head_dim[i] if attention_head_dim[i] is not None else output_channel,
                 dropout=dropout,
             )
-            self.down_blocks.append(down_block)
+            down_blocks.append(down_block)
+        self.down_blocks = nn.CellList(down_blocks)
 
         # mid
         if mid_block_type == "UNetMidBlock2DCrossAttn":
@@ -470,6 +469,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         self.num_upsamplers = 0
 
         # up
+        up_blocks = []
         reversed_block_out_channels = list(reversed(block_out_channels))
         reversed_num_attention_heads = list(reversed(num_attention_heads))
         reversed_layers_per_block = list(reversed(layers_per_block))
@@ -523,8 +523,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
                 attention_head_dim=attention_head_dim[i] if attention_head_dim[i] is not None else output_channel,
                 dropout=dropout,
             )
-            self.up_blocks.append(up_block)
+            up_blocks.append(up_block)
             prev_output_channel = output_channel
+        self.up_blocks = nn.CellList(up_blocks)
 
         # out
         if norm_num_groups is not None:
@@ -532,7 +533,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
                 num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
             )
 
-            self.conv_act = get_activation(act_fn)
+            self.conv_act = get_activation(act_fn)()
 
         else:
             self.conv_norm_out = None
@@ -540,7 +541,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
 
         conv_out_padding = (conv_out_kernel - 1) // 2
         self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, kernel_size=conv_out_kernel, pad_mode="pad", padding=conv_out_padding
+            block_out_channels[0], out_channels, kernel_size=conv_out_kernel, pad_mode="pad", padding=conv_out_padding, has_bias=True
         )
 
         if attention_type in ["gated", "gated-text-image"]:
@@ -670,7 +671,8 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = timesteps.tile(sample.shape[0])
+        if timesteps.shape[0] == 1:
+            timesteps = timesteps.tile((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 

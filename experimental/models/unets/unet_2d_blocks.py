@@ -265,16 +265,16 @@ class AutoencoderTinyBlock(nn.Cell):
 
     def __init__(self, in_channels: int, out_channels: int, act_fn: str):
         super().__init__()
-        act_fn = get_activation(act_fn)
+        act_fn = get_activation(act_fn)()
         self.conv = nn.SequentialCell(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, has_bias=True),
             act_fn,
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, has_bias=True),
             act_fn,
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, has_bias=True),
         )
         self.skip = (
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+            nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=False)
             if in_channels != out_channels
             else nn.Identity()
         )

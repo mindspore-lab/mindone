@@ -109,12 +109,7 @@ class BasicTransformerBlock(nn.Cell):
         super().__init__()
         self.only_cross_attention = only_cross_attention
 
-        if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
-            raise ValueError(
-                f"`norm_type` is set to {norm_type}, but `num_embeds_ada_norm` is not defined. Please make sure to"
-                f" define `num_embeds_ada_norm` if setting `norm_type` to {norm_type}."
-            )
-
+        assert norm_type == "layer_norm", f"Only layer_norm not supported, but got {norm_type}!"
         self.norm_type = norm_type
         self.num_embeds_ada_norm = num_embeds_ada_norm
 
@@ -130,15 +125,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        if norm_type == "ada_norm":
-            raise NotImplementedError("AdaLayerNorm is not implemented")
-        elif norm_type == "ada_norm_zero":
-            raise NotImplementedError("AdaLayerNormZero is not implemented")
-        elif norm_type == "ada_norm_continuous":
-            raise NotImplementedError("AdaLayerNormContinuous is not implemented")
-        else:
-            self.norm1 = nn.LayerNorm((dim,), epsilon=norm_eps)  # elementwise_affine=norm_elementwise_affine
-
+        self.norm1 = nn.LayerNorm((dim,), epsilon=norm_eps)  # elementwise_affine=norm_elementwise_affine
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
@@ -155,13 +142,7 @@ class BasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            if norm_type == "ada_norm":
-                raise NotImplementedError("AdaLayerNorm is not implemented")
-            elif norm_type == "ada_norm_continuous":
-                raise NotImplementedError("AdaLayerNormContinuous is not implemented")
-            else:
-                self.norm2 = nn.LayerNorm((dim,), epsilon=norm_eps)  # norm_elementwise_affine
-
+            self.norm2 = nn.LayerNorm((dim,), epsilon=norm_eps)  # norm_elementwise_affine
             self.attn2 = Attention(
                 query_dim=dim,
                 cross_attention_dim=cross_attention_dim if not double_self_attention else None,
@@ -177,13 +158,7 @@ class BasicTransformerBlock(nn.Cell):
             self.attn2 = None
 
         # 3. Feed-forward
-        if norm_type == "ada_norm_continuous":
-            raise NotImplementedError("AdaLayerNormContinuous is not implemented")
-        elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm", "ada_norm_continuous"]:
-            self.norm3 = nn.LayerNorm((dim,), epsilon=norm_eps)  # norm_elementwise_affine
-        elif norm_type == "layer_norm_i2vgen":
-            self.norm3 = None
-
+        self.norm3 = nn.LayerNorm((dim,), epsilon=norm_eps)  # norm_elementwise_affine
         self.ff = FeedForward(
             dim,
             dropout=dropout,
@@ -196,10 +171,6 @@ class BasicTransformerBlock(nn.Cell):
         # 4. Fuser
         if attention_type == "gated" or attention_type == "gated-text-image":
             raise NotImplementedError("GatedSelfAttentionDense is not implemented")
-
-        # 5. Scale-shift for PixArt-Alpha.
-        if norm_type == "ada_norm_single":
-            self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5)
 
         # let chunk size default to None
         self._chunk_size = None
@@ -223,10 +194,7 @@ class BasicTransformerBlock(nn.Cell):
     ) -> ms.Tensor:
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Self-Attention
-        if self.norm_type in ["layer_norm", "layer_norm_i2vgen"]:
-            norm_hidden_states = self.norm1(hidden_states)
-        else:
-            raise ValueError("Incorrect norm used")
+        norm_hidden_states = self.norm1(hidden_states)
 
         if self.pos_embed is not None:
             norm_hidden_states = self.pos_embed(norm_hidden_states)
@@ -255,10 +223,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # 3. Cross-Attention
         if self.attn2 is not None:
-            if self.norm_type in ["ada_norm_zero", "layer_norm", "layer_norm_i2vgen"]:
-                norm_hidden_states = self.norm2(hidden_states)
-            else:
-                raise ValueError("Incorrect norm")
+            norm_hidden_states = self.norm2(hidden_states)
 
             if self.pos_embed is not None and self.norm_type != "ada_norm_single":
                 norm_hidden_states = self.pos_embed(norm_hidden_states)
@@ -272,6 +237,8 @@ class BasicTransformerBlock(nn.Cell):
             hidden_states = attn_output + hidden_states
 
         # 4. Feed-forward
+        norm_hidden_states = self.norm3(hidden_states)
+
         if self._chunk_size is not None:
             # "feed_forward_chunk_size" can be used to save memory
             ff_output = _chunked_feed_forward(
@@ -327,16 +294,17 @@ class FeedForward(nn.Cell):
         elif activation_fn == "geglu-approximate":
             act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
 
-        self.net = nn.CellList([])
+        net = []
         # project in
-        self.net.append(act_fn)
+        net.append(act_fn)
         # project dropout
-        self.net.append(nn.Dropout(p=dropout))
+        net.append(nn.Dropout(p=dropout))
         # project out
-        self.net.append(linear_cls(inner_dim, dim_out, has_bias=bias))
+        net.append(linear_cls(inner_dim, dim_out, has_bias=bias))
         # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
         if final_dropout:
-            self.net.append(nn.Dropout(p=dropout))
+            net.append(nn.Dropout(p=dropout))
+        self.net = nn.CellList(net)
 
     def construct(self, hidden_states: ms.Tensor, scale: float = 1.0) -> ms.Tensor:
         for module in self.net:

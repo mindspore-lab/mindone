@@ -402,7 +402,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         timestep: int,
         sample: ms.Tensor,
         generator=None,  # todo: maybe change to seed here?
-        return_dict: bool = True,
+        return_dict: bool = False,
     ) -> Union[DDPMSchedulerOutput, Tuple]:
         """
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
@@ -417,7 +417,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 A current instance of a sample created by the diffusion process.
             generator (`torch.Generator`, *optional*):
                 A random number generator.
-            return_dict (`bool`, *optional*, defaults to `True`):
+            return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~schedulers.scheduling_ddpm.DDPMSchedulerOutput`] or `tuple`.
 
         Returns:

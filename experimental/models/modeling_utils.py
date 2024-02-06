@@ -48,8 +48,8 @@ from ..safetensors_ms import save_file as safe_save_file
 logger = logging.get_logger(__name__)
 
 
-def get_parameter_dtype(parameter: nn.Cell) -> ms.Type:
-    params = tuple(parameter.parameters())
+def get_parameter_dtype(module: nn.Cell) -> ms.Type:
+    params = module.trainable_params()
     if len(params) > 0:
         return params[0].dtype
 

@@ -20,6 +20,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...utils import BaseOutput
+from ..activations import SiLU
 from ..unets.unet_2d_blocks import (
     UNetMidBlock2D,
     get_down_block,
@@ -86,10 +87,11 @@ class Encoder(nn.Cell):
             stride=1,
             pad_mode="pad",
             padding=1,
+            has_bias=True,
         )
 
         # down
-        self.down_blocks = nn.CellList([])
+        down_blocks = []
         output_channel = block_out_channels[0]
         for i, down_block_type in enumerate(down_block_types):
             input_channel = output_channel
@@ -109,7 +111,8 @@ class Encoder(nn.Cell):
                 attention_head_dim=output_channel,
                 temb_channels=None,
             )
-            self.down_blocks.append(down_block)
+            down_blocks.append(down_block)
+        self.down_blocks = nn.CellList(down_blocks)
 
         # mid
         self.mid_block = UNetMidBlock2D(
@@ -126,10 +129,10 @@ class Encoder(nn.Cell):
 
         # out
         self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        self.conv_act = SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
-        self.conv_out = nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, pad_mode="pad", padding=1)
+        self.conv_out = nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
         self.gradient_checkpointing = False
 
@@ -201,6 +204,7 @@ class Decoder(nn.Cell):
             stride=1,
             pad_mode="pad",
             padding=1,
+            has_bias=True,
         )
 
         temb_channels = in_channels if norm_type == "spatial" else None
@@ -219,7 +223,7 @@ class Decoder(nn.Cell):
         )
 
         # up
-        self.up_blocks = nn.CellList([])
+        up_blocks = []
         reversed_block_out_channels = list(reversed(block_out_channels))
         output_channel = reversed_block_out_channels[0]
         for i, up_block_type in enumerate(up_block_types):
@@ -242,16 +246,17 @@ class Decoder(nn.Cell):
                 temb_channels=temb_channels,
                 resnet_time_scale_shift=norm_type,
             )
-            self.up_blocks.append(up_block)
+            up_blocks.append(up_block)
             prev_output_channel = output_channel
+        self.up_blocks = nn.CellList(up_blocks)
 
         # out
         if norm_type == "spatial":
             raise NotImplementedError("SpatialNorm is not implemented.")
         else:
             self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
-        self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1)
+        self.conv_act = SiLU()
+        self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
         self.gradient_checkpointing = False
 

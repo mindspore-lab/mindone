@@ -140,7 +140,7 @@ class TimestepEmbedding(nn.Cell):
         else:
             self.cond_proj = None
 
-        self.act = get_activation(act_fn)
+        self.act = get_activation(act_fn)()
 
         if out_dim is not None:
             time_embed_dim_out = out_dim
@@ -151,7 +151,7 @@ class TimestepEmbedding(nn.Cell):
         if post_act_fn is None:
             self.post_act = None
         else:
-            self.post_act = get_activation(post_act_fn)
+            self.post_act = get_activation(post_act_fn)()
 
     def construct(self, sample, condition=None):
         if condition is not None:

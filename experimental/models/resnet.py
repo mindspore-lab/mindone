@@ -107,7 +107,7 @@ class ResnetBlock2D(nn.Cell):
 
         self.norm1 = nn.GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
-        self.conv1 = conv_cls(in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1)
+        self.conv1 = conv_cls(in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
 
         if temb_channels is not None:
             if self.time_embedding_norm == "default":
@@ -123,9 +123,9 @@ class ResnetBlock2D(nn.Cell):
 
         self.dropout = nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = conv_cls(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1)
+        self.conv2 = conv_cls(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
 
-        self.nonlinearity = get_activation(non_linearity)
+        self.nonlinearity = get_activation(non_linearity)()
 
         self.upsample = self.downsample = None
         if self.up:

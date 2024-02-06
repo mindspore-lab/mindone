@@ -21,7 +21,6 @@ import inspect
 import json
 import os
 import re
-import logging
 from collections import OrderedDict
 from pathlib import PosixPath
 from typing import Any, Dict, Tuple, Union
@@ -38,9 +37,8 @@ from requests import HTTPError
 
 from . import __version__
 from .utils import (
-    deprecate,
     HUGGINGFACE_CO_RESOLVE_ENDPOINT,
-    # DummyObject,
+    deprecate,
     extract_commit_hash,
     http_user_agent,
     logging,
@@ -476,7 +474,7 @@ class ConfigMixin:
         diffusers_library = importlib.import_module(__name__.split(".")[0])
 
         if cls.has_compatibles:
-            compatible_classes = [c for c in cls._get_compatibles() if not isinstance(c, DummyObject)]
+            compatible_classes = [c for c in cls._get_compatibles()]  # todo: check backend using DummyObject
         else:
             compatible_classes = []
 

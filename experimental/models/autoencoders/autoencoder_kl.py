@@ -98,8 +98,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
             act_fn=act_fn,
         )
 
-        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
-        self.post_quant_conv = nn.Conv2d(latent_channels, latent_channels, 1)
+        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
+        self.post_quant_conv = nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True)
 
         self.use_slicing = False
         self.use_tiling = False

@@ -144,7 +144,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
             if use_linear_projection:
                 self.proj_in = linear_cls(in_channels, inner_dim)
             else:
-                self.proj_in = conv_cls(in_channels, inner_dim, kernel_size=1, stride=1, padding=0)
+                self.proj_in = conv_cls(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True)
         elif self.is_input_vectorized:
             raise NotImplementedError("ImagePositionalEmbeddings is not implemented")
         elif self.is_input_patches:
@@ -181,7 +181,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
             if use_linear_projection:
                 self.proj_out = linear_cls(inner_dim, in_channels)
             else:
-                self.proj_out = conv_cls(inner_dim, in_channels, kernel_size=1, stride=1, padding=0)
+                self.proj_out = conv_cls(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
 
         # 5. PixArt-Alpha blocks.
         self.adaln_single = None
