@@ -280,6 +280,10 @@ def main(args):
                 mindrecord_size = os.stat(file_path).st_size
                 mindrecord_size = mindrecord_size / 1024 / 1024 / 1024
                 if mindrecord_size > 19:
+                    if data:
+                        writer.write_raw_data(data)
+                        data = []
+                    writer.commit()
                     # close last filewriter when it exceeds 19GB
                     count += 1
                     filename = dataset_name + str(count) + ".mindrecord"

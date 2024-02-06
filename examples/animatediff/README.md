@@ -230,7 +230,7 @@ You may change the arguments including data path, output directory, lr, etc in t
 - Evaluation
 Inference with the trained model:
 ```
-python text_to_video.py --config configs/prompt/v2/base_video.yaml \
+python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --motion_module_path {path to saved checkpoint} \
     --prompt  {text prompt}  \
 ```
@@ -248,7 +248,7 @@ python train.py --config configs/training/mmv2_lora.yaml
 
 - Inference with the trained model:
 ```
-python text_to_video.py --config configs/prompt/v2/base_video.yaml \
+python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --motion_lora_path {path to saved checkpoint} \
     --prompt  {text prompt}  \
 ```
