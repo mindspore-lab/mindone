@@ -13,6 +13,7 @@
 # limitations under the License.
 # ============================================================================
 import logging
+from typing import Optional, Tuple
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -22,8 +23,8 @@ from mindone.utils.amp import auto_mixed_precision
 
 from ..attention import SpatialTransformer
 from .motion_module import VanillaTemporalModule, get_motion_module
-from .openaimodel import AttentionBlock, Downsample, ResBlock, Upsample
-from .util import conv_nd, linear, normalization, timestep_embedding, zero_module
+from .openaimodel import AttentionBlock, Downsample, ResBlock
+from .util import conv_nd, linear, timestep_embedding, zero_module
 
 _logger = logging.getLogger(__name__)
 
@@ -51,7 +52,88 @@ def rearrange_out(x, f):
     return x
 
 
-class UNet3DModel(nn.Cell):
+class SparseControlNetConditioningEmbedding(nn.Cell):
+    def __init__(
+        self,
+        conditioning_embedding_channels: int,
+        conditioning_channels: int = 3,
+        block_out_channels: Tuple[int] = (16, 32, 96, 256),
+        dims: int = 2,
+        dtype=ms.float32,
+    ):
+        super().__init__()
+        self.dtype = dtype
+
+        self.conv_in = nn.CellList(
+            [
+                conv_nd(
+                    dims, conditioning_channels, block_out_channels[0], 3, padding=1, has_bias=True, pad_mode="pad"
+                ).to_float(self.dtype),
+                nn.SiLU().to_float(self.dtype),
+            ]
+        )
+
+        self.blocks = nn.CellList([])
+
+        for i in range(len(block_out_channels) - 1):
+            channel_in = block_out_channels[i]
+            channel_out = block_out_channels[i + 1]
+            self.blocks.append(
+                nn.CellList(
+                    [
+                        conv_nd(
+                            dims, channel_in, channel_in, kernel_size=3, padding=1, has_bias=True, pad_mode="pad"
+                        ).to_float(self.dtype),
+                        nn.SiLU().to_float(self.dtype),
+                    ]
+                )
+            )
+            self.blocks.append(
+                nn.CellList(
+                    [
+                        conv_nd(
+                            dims,
+                            channel_in,
+                            channel_out,
+                            kernel_size=3,
+                            padding=1,
+                            stride=2,
+                            has_bias=True,
+                            pad_mode="pad",
+                        ).to_float(self.dtype),
+                        nn.SiLU().to_float(self.dtype),
+                    ]
+                )
+            )
+
+        self.conv_out = nn.CellList(
+            [
+                zero_module(
+                    conv_nd(
+                        dims,
+                        block_out_channels[-1],
+                        conditioning_embedding_channels,
+                        kernel_size=3,
+                        padding=1,
+                        has_bias=True,
+                        pad_mode="pad",
+                    ).to_float(self.dtype)
+                )
+            ]
+        )
+
+    def forward(self, conditioning):
+        embedding = self.conv_in(conditioning)
+
+        for block in self.blocks:
+            embedding = block(embedding)
+
+        embedding = self.conv_out(embedding)
+
+        return embedding
+
+
+class SparseControlNetModel(nn.Cell):
     """
     The full UNet model with attention and timestep embedding.
     :param in_channels: channels in the input Tensor. channels of image feature encoded by vae, i.e. 4 for SD1.5.
@@ -86,6 +168,7 @@ class UNet3DModel(nn.Cell):
     def __init__(
         self,
         image_size,
+        conditioning_channels,
         in_channels,
         model_channels,
         out_channels,
@@ -104,6 +187,12 @@ class UNet3DModel(nn.Cell):
         use_scale_shift_norm=False,
         resblock_updown=False,
         use_new_attention_order=False,
+        # conditioning
+        conditioning_embedding_out_channels: Optional[Tuple[int]] = (16, 32, 96, 256),
+        global_pool_conditions: bool = False,
+        concate_conditioning_mask: bool = True,
+        use_simplified_condition_embedding: bool = False,
+        set_noisy_sample_input_to_zero: bool = False,
         use_spatial_transformer=False,  # custom transformer support
         transformer_depth=1,  # custom transformer support
         context_dim=None,  # custom transformer support
@@ -117,7 +206,7 @@ class UNet3DModel(nn.Cell):
         use_recompute=False,
         # Additional
         use_inflated_groupnorm=True,  # diff, default is to use in mm-v2, which is more reasonable.
-        use_motion_module=False,
+        use_motion_module=True,  # TODO: why set it True by default
         motion_module_resolutions=(1, 2, 4, 8),  # used to identify which level to be injected with Motion Module
         motion_module_mid_block=False,
         motion_module_decoder_only=False,
@@ -202,8 +291,37 @@ class UNet3DModel(nn.Cell):
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
+
             else:
                 raise ValueError("`num_classes` must be an integer or string of 'continuous' or `sequential`")
+
+        self.set_noisy_sample_input_to_zero = set_noisy_sample_input_to_zero
+        self.global_pool_conditions = global_pool_conditions
+
+        self.use_simplified_condition_embedding = use_simplified_condition_embedding
+        # conditioning
+        if concate_conditioning_mask:
+            conditioning_channels = conditioning_channels + 1
+        self.concate_conditioning_mask = concate_conditioning_mask
+
+        # control net conditioning embedding
+        if use_simplified_condition_embedding:
+            self.controlnet_cond_embedding = zero_module(
+                conv_nd(
+                    dims, conditioning_channels, model_channels, 3, padding=1, has_bias=True, pad_mode="pad"
+                ).to_float(self.dtype)
+            )
+        else:
+            self.controlnet_cond_embedding = SparseControlNetConditioningEmbedding(
+                conditioning_embedding_channels=model_channels,
+                block_out_channels=conditioning_embedding_out_channels,
+                conditioning_channels=conditioning_channels,
+                dtype=self.dtype,
+            )
+        controlnet_block = zero_module(
+            conv_nd(dims, model_channels, model_channels, 1, padding=0, has_bias=True).to_float(self.dtype)
+        )
+        self.controlnet_input_blocks = nn.CellList([controlnet_block])
 
         self.input_blocks = nn.CellList(
             [
@@ -319,6 +437,14 @@ class UNet3DModel(nn.Cell):
                 ds *= 2
                 self._feature_size += ch
 
+            # controlnet
+            for _ in range(num_res_blocks):
+                controlnet_block = zero_module(conv_nd(dims, ch, ch, 1, padding=0, has_bias=True).to_float(self.dtype))
+                self.controlnet_input_blocks.append(controlnet_block)
+            if level != len(channel_mult) - 1:
+                controlnet_block = zero_module(conv_nd(dims, ch, ch, 1, padding=0, has_bias=True).to_float(self.dtype))
+                self.controlnet_input_blocks.append(controlnet_block)
+
         if num_head_channels == -1:
             dim_head = ch // num_heads
         else:
@@ -332,8 +458,12 @@ class UNet3DModel(nn.Cell):
                 ch, num_heads, num_head_channels, dim_head
             )
         )
+        # controlnet
+        controlnet_block = conv_nd(dims, ch, ch, 1, padding=0, has_bias=True).to_float(self.dtype)
+        controlnet_block = zero_module(controlnet_block)
+        # self.controlnet_middle_block = nn.CellList([controlnet_block])
+        self.controlnet_middle_block = controlnet_block
 
-        # middle block, add 1 MM
         self.middle_block = nn.CellList(
             [
                 ResBlock(
@@ -395,107 +525,6 @@ class UNet3DModel(nn.Cell):
 
         self._feature_size += ch
 
-        # up blocks
-        self.output_blocks = nn.CellList([])
-        for level, mult in list(enumerate(channel_mult))[::-1]:  # run 4 times
-            for i in range(num_res_blocks + 1):  # run 3 times
-                ich = input_block_chans.pop()
-                layers = nn.CellList(
-                    [
-                        ResBlock(
-                            ch + ich,
-                            time_embed_dim,
-                            self.dropout,
-                            out_channels=model_channels * mult,
-                            dims=dims,
-                            use_checkpoint=use_checkpoint,
-                            use_scale_shift_norm=use_scale_shift_norm,
-                            dtype=self.dtype,
-                            norm_in_5d=self.norm_in_5d,
-                        )
-                    ]
-                )
-                ch = model_channels * mult
-                if ds in attention_resolutions:
-                    if num_head_channels == -1:
-                        dim_head = ch // num_heads
-                    else:
-                        num_heads = ch // num_head_channels
-                        dim_head = num_head_channels
-                    if legacy:
-                        # num_heads = 1
-                        dim_head = ch // num_heads if use_spatial_transformer else num_head_channels
-                    layers.append(
-                        AttentionBlock(
-                            ch,
-                            use_checkpoint=use_checkpoint,
-                            num_heads=num_heads_upsample,
-                            num_head_channels=dim_head,
-                            use_new_attention_order=use_new_attention_order,
-                        )
-                        if not use_spatial_transformer
-                        else SpatialTransformer(
-                            ch,
-                            num_heads,
-                            dim_head,
-                            depth=transformer_depth,
-                            context_dim=context_dim,
-                            use_checkpoint=use_checkpoint,
-                            dtype=self.dtype,
-                            dropout=self.dropout,
-                            use_linear=use_linear_in_transformer,
-                            enable_flash_attention=enable_flash_attention,
-                            cross_frame_attention=cross_frame_attention,
-                            unet_chunk_size=unet_chunk_size,
-                        )
-                    )
-
-                # Add MM after ResBlock in UpBlockWithoutAttn (1*3), or after SpatialTransformer in UpBlockWithAttn (3*3)
-                if use_motion_module:
-                    layers.append(
-                        get_motion_module(
-                            in_channels=ch,
-                            motion_module_type=motion_module_type,
-                            motion_module_kwargs=motion_module_kwargs,
-                            dtype=self.dtype,
-                        )
-                    )
-
-                # Upsample except for the last level
-                if level and i == num_res_blocks:
-                    out_ch = ch
-                    layers.append(
-                        ResBlock(
-                            ch,
-                            time_embed_dim,
-                            self.dropout,
-                            out_channels=out_ch,
-                            dims=dims,
-                            use_checkpoint=use_checkpoint,
-                            use_scale_shift_norm=use_scale_shift_norm,
-                            up=True,
-                            dtype=self.dtype,
-                            norm_in_5d=self.norm_in_5d,
-                        )
-                        if resblock_updown
-                        else Upsample(ch, conv_resample, dims=dims, out_channels=out_ch, dtype=self.dtype)
-                    )
-                    ds //= 2
-                self.output_blocks.append(layers)
-                self._feature_size += ch
-
-        self.conv_norm_out = normalization(ch, norm_in_5d=self.norm_in_5d)
-
-        self.out = nn.SequentialCell(
-            # normalization(ch),
-            nn.SiLU().to_float(self.dtype),
-            zero_module(
-                conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
-                    self.dtype
-                )
-            ),
-        )
-
         self.cat = ops.Concat(axis=1)
 
         # TODO: optimize where to recompute & fix bug on cell list.
@@ -504,9 +533,13 @@ class UNet3DModel(nn.Cell):
             for iblock in self.input_blocks:
                 self.recompute(iblock)
                 # mblock.recompute()
-            for oblock in self.output_blocks:
-                self.recompute(oblock)
-                # oblock.recompute()
+        self.correct_param_name()
+
+    def correct_param_name(self):
+        # for some reason unknown, the param.name is not matched with name, param in model.parameters_and_names()
+        for pname, param in self.parameters_and_names():
+            if pname != param.name:
+                param.name = pname
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -528,21 +561,18 @@ class UNet3DModel(nn.Cell):
             if isinstance(module, VanillaTemporalModule):
                 module = auto_mixed_precision(module, amp_level)
 
-        for celllist in self.output_blocks:
-            for cell in celllist:
-                if isinstance(cell, VanillaTemporalModule):
-                    cell = auto_mixed_precision(cell, amp_level)
-
     def construct(
         self,
         x,
+        controlnet_cond,
+        conditioning_mask: Optional[ms.Tensor] = None,
+        conditioning_scale: float = 1.0,
         timesteps=None,
         context=None,
         y=None,
         features_adapter: list = None,
         append_to_context=None,
-        input_blocks_additional_residuals=None,
-        middle_blocks_additional_residuals=None,
+        guess_mode: bool = False,
         **kwargs,
     ):
         """
@@ -553,6 +583,9 @@ class UNet3DModel(nn.Cell):
         :param y: an [N] Tensor of labels, if class-conditional.
         :return: (b c f h w), an [N x C x ...] Tensor of outputs.
         """
+
+        if self.set_noisy_sample_input_to_zero:
+            x = ops.zeros_like(x)
         assert len(x.shape) == 5, f"UNet3D expect x in shape (b c f h w). but got {x.shape}"
         assert (y is not None) == (
             self.num_classes is not None
@@ -570,6 +603,11 @@ class UNet3DModel(nn.Cell):
         if append_to_context is not None:
             context = ops.cat([context, append_to_context], axis=1)
 
+        if self.concate_conditioning_mask:
+            controlnet_cond = self.cat([controlnet_cond, conditioning_mask])
+        # controlnet_cond: (b c f h w) -> (b*f c h w)
+        controlnet_cond = rearrange_in(controlnet_cond)
+        controlnet_cond = self.controlnet_cond_embedding(controlnet_cond)
         # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
         B, C, F, H, W = x.shape
         # x: (b c f h w) -> (b*f c h w)
@@ -581,12 +619,16 @@ class UNet3DModel(nn.Cell):
 
         h = x
 
-        # 1. conv_in and downblocks
+        # 1. conv_in and inputblocks
+        input_block_res_samples = []
         adapter_idx = 0
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
                     h = cell(h, emb, context, video_length=F)
+                elif isinstance(cell, conv_nd):
+                    h = cell(h, emb, context)  # conv_in
+                    h = h + controlnet_cond
                 else:
                     h = cell(h, emb, context)
 
@@ -596,15 +638,9 @@ class UNet3DModel(nn.Cell):
 
             hs.append(h)
 
+        input_block_res_samples = hs
         if features_adapter:
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
-        # support controlnet
-
-        if input_blocks_additional_residuals is not None:
-            for i, in_res in enumerate(input_blocks_additional_residuals):
-                # if in_res.dim() == 4: # boardcast
-                #     in_res = in_res.unsqueeze(2)
-                hs[i] = hs[i] + in_res  # add with unet input blocks residuals
 
         # 2. middle block
         for module in self.middle_block:
@@ -614,31 +650,33 @@ class UNet3DModel(nn.Cell):
             else:
                 h = module(h, emb, context)
 
-        # support controlnet
-        if middle_blocks_additional_residuals is not None:
-            # if middle_blocks_additional_residuals.dim() == 4: # boardcast
-            #     middle_blocks_additional_residuals = middle_blocks_additional_residuals.unsqueeze(2)
-            h = h + middle_blocks_additional_residuals
+        # 3. controlnet blocks
+        controlnet_input_block_res_samples = ()
 
-        # 3. up blocks
-        hs_index = -1
-        for celllist in self.output_blocks:
-            h = self.cat((h, hs[hs_index]))
-            for cell in celllist:
-                # h = cell(h, emb, context)
-                if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
-                    h = cell(h, emb, context, video_length=F)
-                else:
-                    h = cell(h, emb, context)
-            hs_index -= 1
-        if self.norm_in_5d:
-            h = self.conv_norm_out(h, video_length=F)
+        for input_block_res_sample, controlnet_block in zip(input_block_res_samples, self.controlnet_input_blocks):
+            input_block_res_sample = controlnet_block(input_block_res_sample)
+            controlnet_input_block_res_samples = controlnet_input_block_res_samples + (input_block_res_sample,)
+
+        input_block_res_samples = controlnet_input_block_res_samples
+
+        mid_block_res_sample = self.controlnet_middle_block(h)
+
+        # 6. scaling
+        if guess_mode and not self.global_pool_conditions:
+            scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
+
+            scales = scales * conditioning_scale
+            input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
+            mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
         else:
-            h = self.conv_norm_out(h)
+            input_block_res_samples = [sample * conditioning_scale for sample in input_block_res_samples]
+            mid_block_res_sample = mid_block_res_sample * conditioning_scale
 
-        h = self.out(h)
+        if self.global_pool_conditions:
+            input_block_res_samples = [
+                ops.mean(sample, (2, 3), True)
+                for sample in input_block_res_samples  # change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
+            ]
+            mid_block_res_sample = ops.mean(mid_block_res_sample, (2, 3), True)
 
-        # rearrange back: (b*f c h w) -> (b c f h w)
-        h = rearrange_out(h, f=F)
-
-        return h
+        return (input_block_res_samples, mid_block_res_sample)

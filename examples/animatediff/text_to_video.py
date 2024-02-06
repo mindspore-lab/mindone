@@ -2,6 +2,7 @@
 AnimateDiff inference pipeline
 """
 import argparse
+import copy
 import datetime
 import logging
 import os
@@ -20,7 +21,8 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from ad.pipelines.infer_engine import AnimateDiffText2Video
-from ad.utils.load_models import build_model_from_config, load_motion_modules
+from ad.utils.cond_data import transform_conditional_images
+from ad.utils.load_models import build_model_from_config, load_adapter_lora, load_controlnet, load_motion_modules
 
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
@@ -56,6 +58,8 @@ def main(args):
     ad_config = config[task_name]
 
     dreambooth_path = ad_config.get("dreambooth_path", "")
+    adapter_lora_path = ad_config.get("adapter_lora_path", "")
+    controlnet_path = ad_config.get("controlnet_path", "")
     # lora_model_path = ad_config.get("lora_model_path", "")
     # style_lora_alpha = lora_scale = ad_config.get("lora_alpha", 0.8)
 
@@ -74,10 +78,16 @@ def main(args):
 
     seeds, steps, guidance_scale = ad_config.get("seed", 0), ad_config.steps, ad_config.guidance_scale
     prompts = ad_config.prompt
-    n_prompts = ad_config.n_prompt
+    n_prompts = list(ad_config.n_prompt) * len(prompts) if len(ad_config.n_prompt) == 1 else ad_config.n_prompt
     if args.prompt != "":
         prompts[0] = args.prompt
     seeds = [seeds] * len(prompts) if isinstance(seeds, int) else seeds
+    assert len(n_prompts) == len(
+        prompts
+    ), f"Expect that the negative prompts length is the same as the positive prompts length, but got {len(n_prompts)} and {len(prompts)}"
+    assert len(seeds) == len(
+        prompts
+    ), f"Expect that the seeds length is the same as thepositive prompts length, but got {len(seeds)} and {len(prompts)}"
 
     sd_config = OmegaConf.load(args.sd_config)
     sd_model_path = args.pretrained_model_path
@@ -90,24 +100,42 @@ def main(args):
         else:
             logger.warning(f"dreambooth path {dreambooth_path} not exist.")
     # use_lora = True if lora_model_path != "" else False
+    if adapter_lora_path != "":
+        if not os.path.exists(adapter_lora_path):
+            logger.warning(f"domain adapter path {adapter_lora_path} not exist. Will not apply adapter lora model.")
+        adapter_lora_scale = ad_config.get("domain_lora_scale", 1.0)
+    controlnet_images, controlnet = None, None
+    if controlnet_path != "":
+        if not os.path.exists(controlnet_path):
+            logger.warning(f"sparse control encoder path {controlnet_path} not exist. Will not use controlnet.")
+        controlnet_images = ad_config.get("controlnet_images", "")
+        controlnet_config = ad_config.get("controlnet_config", "")
+        assert controlnet_images != "", "controlnet_images must be provided when using controlnet"
+        assert controlnet_config != "", "controlnet_config must be provided when using controlnet"
+        controlnet_config = OmegaConf.load(controlnet_config)
 
     # TODO: merge unet addition kwargs to sd_confg
     inference_config = OmegaConf.load(ad_config.get("inference_config", args.inference_config))
     # unet_additional_kwargs = inference_config.unet_additional_kwargs
     noise_scheduler_kwargs = inference_config.noise_scheduler_kwargs
     use_motion_module = sd_config.model.params.unet_config.params.use_motion_module
+    use_controlnet = controlnet_path != "" and os.path.exists(controlnet_path)
+    use_adapter_lora = adapter_lora_path != "" and os.path.exists(adapter_lora_path)
 
     # 1. init env
     init_env(args)
     set_random_seed(42)
 
     # 2. build model and load weights
-    # 1)  create vae, text encoder, and unet and load weights
+    # 1)  create vae, text encoder, and unet and load sd weights
     sd_model = build_model_from_config(
         sd_config,
         ckpt=sd_model_path,
         use_motion_module=use_motion_module,  # indicate unet 2d->3d param name changes
     )
+    # load lora to sd if applicable
+    if use_adapter_lora:
+        sd_model = load_adapter_lora(sd_model, adapter_lora_path, adapter_lora_scale)
 
     text_encoder = sd_model.cond_stage_model
     unet = sd_model.model
@@ -131,6 +159,30 @@ def main(args):
         # mm_amp_level = args.mm_amp_level
         # unet.diffusion_model = unet.diffusion_model.set_mm_amp_level(mm_amp_level)
 
+    # 3) initiate controlnet and load controlnet ckpt
+    ad_config.W = ad_config.get("W", args.W)
+    ad_config.H = ad_config.get("H", args.H)
+    ad_config.L = ad_config.get("L", args.L)
+
+    if use_controlnet:
+        sparsectrl_config_additional = controlnet_config.controlnet_additional_kwargs
+        sparsectrl_config = copy.copy(sd_config.model.params.unet_config)
+        sparsectrl_config.target = "ad.modules.diffusionmodules.sparse_controlnet.SparseControlNetModel"
+        OmegaConf.update(sparsectrl_config, "params", sparsectrl_config_additional, merge=True)
+        controlnet = instantiate_from_config(sparsectrl_config)
+        controlnet = load_controlnet(controlnet, controlnet_path)
+        image_paths = controlnet_images
+        if isinstance(image_paths, str):
+            image_paths = [image_paths]
+        assert (
+            len(image_paths) <= ad_config.L
+        ), f"The length of provided image paths must be equal to the number of frames L={ad_config.L}"
+
+        controlnet_images = transform_conditional_images(
+            image_paths, ad_config.H, ad_config.W, random_crop=True, normalize=False, save_dir=save_dir
+        )  # （b f c h w)
+        controlnet_images = ms.Tensor(controlnet_images).transpose((0, 2, 1, 3, 4))  # （b f c h w) -> (b c f h w)
+
     # ddim sampler
     # TODO: merge noise_scheduler_kwargs and ddim.yaml
     sampler_config = OmegaConf.load("configs/inference/scheduler/ddim.yaml")  # base template
@@ -148,9 +200,21 @@ def main(args):
         unet,
         vae,
         scheduler,
+        controlnet=controlnet,
         scale_factor=sd_model.scale_factor,
         num_inference_steps=steps,
     )
+
+    if use_controlnet and sparsectrl_config_additional.use_simplified_condition_embedding:
+        b, c, f, h, w = controlnet_images.shape
+        controlnet_images = controlnet_images.transpose((0, 2, 1, 3, 4)).reshape(
+            (b * f, c, h, w)
+        )  # (b c f h w) -> (b*f c h w)
+        controlnet_images = pipeline.vae_encode(controlnet_images)
+        _, c, h, w = controlnet_images.shape
+        controlnet_images = controlnet_images.reshape((b, f, c, h, w)).transpose(
+            (0, 2, 1, 3, 4)
+        )  # （b f c h w) -> (b c f h w)
 
     # 4. run sampling for multiple samples
     num_prompts = len(prompts)
@@ -171,8 +235,11 @@ def main(args):
         inputs["scale"] = ms.Tensor(guidance_scale, ms.float16)
 
         # latent noisy frames: b c f h w
-        noise = np.random.randn(bs, 4, args.L, args.H // 8, args.W // 8)
+        noise = np.random.randn(bs, 4, ad_config.L, ad_config.H // 8, ad_config.W // 8)
         inputs["noise"] = ms.Tensor(noise, ms.float16)
+
+        # control images
+        inputs["controlnet_images"] = controlnet_images
 
         logger.info(f"Sampling prompt: {prompts[i]}")
         start_time = time.time()

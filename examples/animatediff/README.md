@@ -55,13 +55,29 @@ cd ../examples/animatediff/tools
 python motion_module_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module
 ```
 
+If converting the animatediff v3 motion module checkpoint,
+```
+cd ../examples/animatediff/tools
+python motion_module_convert.py -v v3 --src ../torch_ckpts/v3_sd15_mm.ckpt  --tar ../models/motion_module
+```
+
 - Convert Motion LoRA
 ```
 cd ../examples/animatediff/tools
 python motion_lora_convert.py --src ../torch_ckpts/.ckpt --tar ../models/motion_lora
 ```
 
+- Convert Domain Adapter LoRA
+```
+cd ../examples/animatediff/tools
+python domain_adapter_lora_convert.py --src ../torch_ckpts/v3_sd15_adapter.ckpt --tar ../models/domain_adapter_lora
+```
 
+- Convert SparseCtrl Encoder
+```
+cd ../examples/animatediff/tools
+python sparsectrl_encoder_convert.py --src ../torch_ckpts/v3_sd15_sparsectrl_{}.ckpt --tar ../models/sparsectrl_encoder
+```
 ## Inference
 
 ### Text-to-Video
