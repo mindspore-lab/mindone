@@ -314,21 +314,21 @@ def merge_weight(part_ckpt, base_ckpt):
     al = ms.load_checkpoint(base_ckpt)
     partkey = list(part.keys())
     alkey = list(al.keys())
-    newckpt = {}
+    newckpt = []
     for i in range(len(al)):
         key = alkey[i]
         if key in partkey:
-            newckpt[key] = part[key]
+            newckpt.append({"name": key, "data": part[key]})
         else:
-            newckpt[key] = al[key]
+            newckpt.append({"name": key, "data": al[key]})
     ms.save_checkpoint(newckpt, args.output_path)
     print("insert Stable Diffusion checkpoint(mindspore) to sd_xl_base_1.0_ms.ckpt success!")
 
 
-def compare_missing_key(key_list, reverse=False):
+def compare_missing_key(key_list, reverse=False, ms_key_base_path="mindspore_key_base.yaml"):
     # get the sdxl base ckpt's key
     base_key = []
-    with open("mindspore_key_base.yaml", "r", encoding="utf-8") as file:
+    with open(ms_key_base_path, "r", encoding="utf-8") as file:
         for line in file:
             key = line.split(":", 1)[0].strip()
             base_key.append(key)
@@ -366,6 +366,12 @@ if __name__ == "__main__":
         default="./text_encoder_2/model.fp16.safetensors",
         type=str,
         help="Path to the text_encoder_2 model.",
+    )
+    parser.add_argument(
+        "--ms_key_base_path",
+        default="./mindspore_key_base.yaml",
+        type=str,
+        help="Path to the mindspore_key_base.yaml.",
     )
     parser.add_argument("--sdxl_base_ckpt", default=None, type=str, help="Path to the sd_xl_base model.")
     parser.add_argument(
@@ -477,9 +483,10 @@ if __name__ == "__main__":
     if args.save_mindspore:
         # Convert the torch ckpt to mindspore ckpt and return mindspore key list
         key_list = convert_weight(state_dict, save_mindspore_path)
+        exist_ms_key_base_path = osp.exists(args.ms_key_base_path)
 
-        if osp.exists("mindspore_key_base.yaml"):
-            with open("mindspore_key_base.yaml", "r") as file:
+        if exist_ms_key_base_path:
+            with open(args.ms_key_base_path, "r") as file:
                 line_count = len(file.readlines())
         else:
             line_count = 2514
@@ -488,31 +495,31 @@ if __name__ == "__main__":
             print("you did not supply the 'sdxl_base_ckpt' argument; hence, the insertion operation was not executed.")
 
         # If you have obtained all the keys, you do not need to run the insertion operation
-        elif len(key_list) == line_count and len(compare_missing_key(key_list)) == 0:
+        elif (
+            len(key_list) == line_count
+            and exist_ms_key_base_path
+            and len(compare_missing_key(key_list, ms_key_base_path=args.ms_key_base_path)) == 0
+        ):
             print("You have obtained all the keys, hence, the insertion operation was not executed.")
 
-        if len(key_list) <= line_count:
+        else:
             print("The MindSpore checkpoint (.ckpt) file that we have obtained contains ", str(len(key_list)), "keys.")
-            print(str(line_count - len(key_list)), " fewer parameters than sdxl base ckpt")
-            if osp.exists("mindspore_key_base.yaml"):
-                missing_key_list = compare_missing_key(key_list)
-                print("The first 20 missing parameters are: ", str(missing_key_list[:20]))
-
-            # insert these ckpt to mindspore sdxl base ckpt
-            else:
+            print("The sdxl base checkpoint contains ", str(line_count), "keys.")
+            if exist_ms_key_base_path:
+                missing_key_list = compare_missing_key(key_list, ms_key_base_path=args.ms_key_base_path)
+                print("There are ", len(missing_key_list), " Missing Parameters.")
                 print(
-                    "you have added sdxl_base_ckpt argument,so it will run merge operation(Integrate the retrieved "
-                    "MindSpore checkpoint into the sdxl base model checkpoint)"
+                    "Missing Parameters indicate parameters that are included in the base ckpt but not included in the current ckpt."
                 )
-                merge_weight(args.output_path, args.sdxl_base_ckpt)
-
-        if len(key_list) > line_count:
-            print("The MindSpore checkpoint (.ckpt) file that we have obtained contains ", str(len(key_list)), "keys.")
-            print(str(len(key_list) - line_count), " more parameters than sdxl base ckpt")
-            if osp.exists("mindspore_key_base.yaml"):
-                more_key_list = compare_missing_key(key_list, True)
+                print("The first 20 missing parameters are: ", str(missing_key_list[:20]))
+                more_key_list = compare_missing_key(key_list, True, args.ms_key_base_path)
+                print("There are ", len(more_key_list), " More Parameters.")
+                print(
+                    "More Parameters indicate parameters that are included in the current ckpt but not included in the base ckpt."
+                )
                 print("The first 20 more parameters are: ", str(more_key_list[:20]))
 
-            raise ValueError(
-                "The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed."
+            print(
+                "......Begin to Integrate the retrieved MindSpore checkpoint into the sdxl base model checkpoint......"
             )
+            merge_weight(args.output_path, args.sdxl_base_ckpt)
