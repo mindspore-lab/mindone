@@ -389,8 +389,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    assert args.model_path is not None, "Must provide a model path!"
-
     assert args.output_path is not None, "Must provide a checkpoint path!"
 
     unet_state_dict = {}
@@ -435,18 +433,19 @@ if __name__ == "__main__":
         print("text_encoder_2_path is not valid, please double-check it!")
 
     # Convert the UNet model
-    unet_state_dict = convert_unet_state_dict(unet_state_dict)
-    unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
-
+    if unet_state_dict != {}:
+        unet_state_dict = convert_unet_state_dict(unet_state_dict)
+        unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
     # Convert the VAE model
-    vae_state_dict = convert_vae_state_dict(vae_state_dict)
-    vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
-
-    text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
-    text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
-
-    text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
-    text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
+    if vae_state_dict != {}:
+        vae_state_dict = convert_vae_state_dict(vae_state_dict)
+        vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
+    if text_enc_dict != {}:
+        text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
+        text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
+    if text_enc_2_dict != {}:
+        text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
+        text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
 
     # Put together new checkpoint
     state_dict = {**unet_state_dict, **vae_state_dict, **text_enc_dict, **text_enc_2_dict}
@@ -470,11 +469,10 @@ if __name__ == "__main__":
         save_safetensor_path = args.output_path + ".safetensors"
         save_torch_path = args.output_path + ".pth"
         save_mindspore_path = args.output_path + ".ckpt"
-
+    state_dict = {"state_dict": state_dict}
     if args.save_safetensor:
         save_file(state_dict, save_safetensor_path)
     if args.save_torch:
-        state_dict = {"state_dict": state_dict}
         torch.save(state_dict, save_torch_path)
     if args.save_mindspore:
         # Convert the torch ckpt to mindspore ckpt and return mindspore key list
