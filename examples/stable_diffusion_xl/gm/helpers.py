@@ -138,8 +138,10 @@ def set_default(args):
     args.weight = args.weight.split(",") if args.weight is not None and len(args.weight) > 0 else ""
 
     # cache
-    if args.cache_latent != args.cache_text_embedding:
-        raise ValueError("Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent")
+    if "cache_latent" in args and "cache_text_embedding" in args:
+        assert (
+            args.cache_latent == args.cache_text_embedding
+        ), "Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent"
 
     # Directories and Save run settings
     if args.save_path_with_time:
