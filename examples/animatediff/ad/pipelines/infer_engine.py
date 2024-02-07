@@ -90,43 +90,6 @@ class AnimateDiffText2Video(ABC):
     def scale_model_input(self, latents, t):
         return self.scheduler.scale_model_input(latents, t)
 
-    def get_controlnet_residuals(
-        self,
-        x_in,
-        t_in,
-        c_crossattn,
-        # support controlnet
-        controlnet_images,
-        controlnet_image_index=[0],
-        controlnet_conditioning_scale=1.0,
-    ):
-        input_blocks_additional_residuals, middle_blocks_additional_residuals = None, None
-        if (self.controlnet is not None) and (controlnet_images is not None):
-            assert (
-                controlnet_images.dim() == 5
-            ), f"Expect to receive 5 dims for controlnet_images, but got {controlnet_images.dim()}"  # (b, c, f, h, w)
-
-            b, c, f, h, w = controlnet_images.shape
-            assert f >= len(
-                controlnet_image_index
-            ), f"the video length must be greater than or equal to the length of controlnet_image_index, but got {f} and {len(controlnet_image_index)}"
-            controlnet_cond = ops.zeros_like(controlnet_images)
-            controlnet_conditioning_mask = ops.zeros((b, 1, f, h, w), dtype=controlnet_images.dtype)
-
-            controlnet_cond[:, :, controlnet_image_index] = controlnet_images[:, :, : len(controlnet_image_index)]
-            controlnet_conditioning_mask[:, :, controlnet_image_index] = 1
-
-            input_blocks_additional_residuals, middle_blocks_additional_residuals = self.controlnet(
-                x_in,
-                timesteps=t_in,
-                context=c_crossattn,
-                controlnet_cond=controlnet_cond,
-                conditioning_mask=controlnet_conditioning_mask,
-                conditioning_scale=controlnet_conditioning_scale,
-                guess_mode=False,
-            )
-        return input_blocks_additional_residuals, middle_blocks_additional_residuals
-
     @ms.jit
     def predict_noise(
         self,
@@ -148,15 +111,31 @@ class AnimateDiffText2Video(ABC):
         t_in = ops.concat([t_continuous] * 2, axis=0)
         if c_concat is not None:
             c_concat = ops.concat([c_concat] * 2, axis=0)
-        # controlnet residuals
-        input_ctrl_res, mid_ctrl_res = self.get_controlnet_residuals(
-            x_in, t_in, c_crossattn, controlnet_images, controlnet_image_index, controlnet_conditioning_scale
-        )
-        ctrl_kwargs = {
-            "input_blocks_additional_residuals": input_ctrl_res,
-            "middle_blocks_additional_residuals": mid_ctrl_res,
-        }
-        noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn, **ctrl_kwargs)
+        if controlnet_images is not None:
+            # controlnet
+            assert (
+                controlnet_images.dim() == 5
+            ), f"Expect to receive 5 dims for controlnet_images, but got {controlnet_images.dim()}"  # (b, c, f, h, w)
+
+            b, c, f, h, w = controlnet_images.shape
+            assert f >= len(
+                controlnet_image_index
+            ), f"the video length must be greater than or equal to the length of controlnet_image_index, but got {f} and {len(controlnet_image_index)}"
+            controlnet_cond = ops.zeros_like(controlnet_images)
+            controlnet_conditioning_mask = ops.zeros((b, 1, f, h, w), dtype=controlnet_images.dtype)
+
+            controlnet_cond[:, :, controlnet_image_index] = controlnet_images[:, :, : len(controlnet_image_index)]
+            controlnet_conditioning_mask[:, :, controlnet_image_index] = 1
+
+            ctrl_kwargs = {
+                "controlnet_cond": controlnet_images,
+                "conditioning_mask": controlnet_conditioning_mask,
+                "conditioning_scale": controlnet_conditioning_scale,
+                "guess_mode": False,
+            }
+            noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn, **ctrl_kwargs)
+        else:
+            noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)
         # print("D--: noise pred shape: ", noise_pred.shape, noise_pred.dtype)
         noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)

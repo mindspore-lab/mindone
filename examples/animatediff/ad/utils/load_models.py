@@ -189,21 +189,21 @@ def load_adapter_lora(unet, adapter_lora_path, adapter_lora_alpha):
     return unet
 
 
-def load_controlnet(controlnet, controlnet_path, verbose=True):
+def load_controlnet(sd_model, controlnet_path, verbose=True):
     logger.info("Loading sparse control encoder from {}".format(controlnet_path))
     controlnet_state_dict = ms.load_checkpoint(controlnet_path)
     controlnet_state_dict = (
         controlnet_state_dict["controlnet"] if "controlnet" in controlnet_state_dict else controlnet_state_dict
     )
-
-    param_not_load, ckpt_not_load = load_param_into_net_with_filter(controlnet, controlnet_state_dict, filter=None)
+    filter_list = list(controlnet_state_dict.keys())
+    param_not_load, ckpt_not_load = load_param_into_net_with_filter(sd_model, controlnet_state_dict, filter=filter_list)
     assert (
         len(ckpt_not_load) == 0
     ), f"All params in SD checkpoint must be loaded. but got these not loaded {ckpt_not_load}"
     if verbose:
         if len(param_not_load) > 0:
             logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")]))
-    return controlnet
+    return sd_model
 
 
 def build_model_from_config(config, ckpt: str, is_training=False, use_motion_module=True):

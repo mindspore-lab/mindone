@@ -534,16 +534,7 @@ class UNet3DModel(nn.Cell):
                     cell = auto_mixed_precision(cell, amp_level)
 
     def construct(
-        self,
-        x,
-        timesteps=None,
-        context=None,
-        y=None,
-        features_adapter: list = None,
-        append_to_context=None,
-        input_blocks_additional_residuals=None,
-        middle_blocks_additional_residuals=None,
-        **kwargs,
+        self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs
     ):
         """
         Apply the model to an input batch.
@@ -598,13 +589,6 @@ class UNet3DModel(nn.Cell):
 
         if features_adapter:
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
-        # support controlnet
-
-        if input_blocks_additional_residuals is not None:
-            for i, in_res in enumerate(input_blocks_additional_residuals):
-                # if in_res.dim() == 4: # boardcast
-                #     in_res = in_res.unsqueeze(2)
-                hs[i] = hs[i] + in_res  # add with unet input blocks residuals
 
         # 2. middle block
         for module in self.middle_block:
@@ -613,12 +597,6 @@ class UNet3DModel(nn.Cell):
                 h = module(h, emb, context, video_length=F)
             else:
                 h = module(h, emb, context)
-
-        # support controlnet
-        if middle_blocks_additional_residuals is not None:
-            # if middle_blocks_additional_residuals.dim() == 4: # boardcast
-            #     middle_blocks_additional_residuals = middle_blocks_additional_residuals.unsqueeze(2)
-            h = h + middle_blocks_additional_residuals
 
         # 3. up blocks
         hs_index = -1

@@ -24,6 +24,7 @@ from mindone.utils.amp import auto_mixed_precision
 from ..attention import SpatialTransformer
 from .motion_module import VanillaTemporalModule, get_motion_module
 from .openaimodel import AttentionBlock, Downsample, ResBlock
+from .unet3d import UNet3DModel
 from .util import conv_nd, linear, timestep_embedding, zero_module
 
 _logger = logging.getLogger(__name__)
@@ -228,9 +229,7 @@ class SparseControlNetModel(nn.Cell):
             print("D---: WARNING: not using motion module")
 
         self.norm_in_5d = not use_inflated_groupnorm
-
-        print("D--: norm in 5d: ", self.norm_in_5d)
-        print("D--: flash attention: ", enable_flash_attention)
+        print("Sparse Control Encoder Initializing...")
 
         if use_spatial_transformer:
             assert (
@@ -564,14 +563,14 @@ class SparseControlNetModel(nn.Cell):
     def construct(
         self,
         x,
-        controlnet_cond,
-        conditioning_mask: Optional[ms.Tensor] = None,
-        conditioning_scale: float = 1.0,
         timesteps=None,
         context=None,
         y=None,
         features_adapter: list = None,
         append_to_context=None,
+        controlnet_cond: Optional[ms.Tensor] = None,
+        conditioning_mask: Optional[ms.Tensor] = None,
+        conditioning_scale: float = 1.0,
         guess_mode: bool = False,
         **kwargs,
     ):
@@ -675,8 +674,129 @@ class SparseControlNetModel(nn.Cell):
         if self.global_pool_conditions:
             input_block_res_samples = [
                 ops.mean(sample, (2, 3), True)
-                for sample in input_block_res_samples  # change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
+                for sample in input_block_res_samples  # FIXME: change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
             ]
             mid_block_res_sample = ops.mean(mid_block_res_sample, (2, 3), True)
 
         return (input_block_res_samples, mid_block_res_sample)
+
+
+class SparseCtrlUNet3D(UNet3DModel):
+    def __init__(self, control_additional_config, sd_locked=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if sd_locked:
+            for param in self.get_parameters():
+                param.requires_grad = False
+
+        # the controlnet has all args and kwargs as UNet3DModel, in addition to controlnet related arguments.
+        kwargs.update(control_additional_config)
+        self.controlnet = SparseControlNetModel(*args, **kwargs)
+
+    def construct(
+        self,
+        x,
+        timesteps=None,
+        context=None,
+        y=None,
+        features_adapter: list = None,
+        append_to_context=None,
+        controlnet_cond: Optional[ms.Tensor] = None,
+        conditioning_mask: Optional[ms.Tensor] = None,
+        conditioning_scale: float = 1.0,
+        guess_mode: bool = False,
+        **kwargs,
+    ):
+        # get controlnet residuals ahead
+        input_blocks_additional_residuals, middle_blocks_additional_residuals = self.controlnet(
+            x,
+            timesteps=timesteps,
+            context=context,
+            controlnet_cond=controlnet_cond,
+            conditioning_mask=conditioning_mask,
+            conditioning_scale=conditioning_scale,
+            guess_mode=guess_mode,
+        )
+
+        # run UNet3D
+        assert len(x.shape) == 5, f"UNet3D expect x in shape (b c f h w). but got {x.shape}"
+        assert (y is not None) == (
+            self.num_classes is not None
+        ), "must specify y if and only if the model is class-conditional"
+
+        # time embedding
+        hs = []
+        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
+        emb = self.time_embed(t_emb)
+
+        if self.num_classes is not None:
+            assert y.shape[0] == x.shape[0]
+            emb = emb + self.label_emb(y)
+
+        if append_to_context is not None:
+            context = ops.cat([context, append_to_context], axis=1)
+
+        # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
+        B, C, F, H, W = x.shape
+        # x: (b c f h w) -> (b*f c h w)
+        x = rearrange_in(x)
+        # time mixed with other embedding: (b dim_emb) -> (b*f dim_emb)
+        emb = emb.repeat_interleave(repeats=F, dim=0)
+        # context: (b max_length dim_clip) -> (b*f dim_emb)
+        context = context.repeat_interleave(repeats=F, dim=0)
+
+        h = x
+
+        # 1. conv_in and downblocks
+        adapter_idx = 0
+        for i, celllist in enumerate(self.input_blocks, 1):
+            for cell in celllist:
+                if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
+                    h = cell(h, emb, context, video_length=F)
+                else:
+                    h = cell(h, emb, context)
+
+            if features_adapter and i % 3 == 0:
+                h = h + features_adapter[adapter_idx]
+                adapter_idx += 1
+
+            hs.append(h)
+
+        if features_adapter:
+            assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
+        # support controlnet
+        for i, in_res in enumerate(input_blocks_additional_residuals):
+            hs[i] = hs[i] + in_res  # add with unet input blocks residuals
+
+        # 2. middle block
+        for module in self.middle_block:
+            # h = module(h, emb, context)
+            if isinstance(module, VanillaTemporalModule) or (isinstance(module, ResBlock) and self.norm_in_5d):
+                h = module(h, emb, context, video_length=F)
+            else:
+                h = module(h, emb, context)
+
+        h = h + middle_blocks_additional_residuals
+
+        # 3. up blocks
+        hs_index = -1
+        for celllist in self.output_blocks:
+            h = self.cat((h, hs[hs_index]))
+            for cell in celllist:
+                # h = cell(h, emb, context)
+                if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
+                    h = cell(h, emb, context, video_length=F)
+                else:
+                    h = cell(h, emb, context)
+            hs_index -= 1
+        if self.norm_in_5d:
+            h = self.conv_norm_out(h, video_length=F)
+        else:
+            h = self.conv_norm_out(h)
+
+        h = self.out(h)
+
+        # rearrange back: (b*f c h w) -> (b c f h w)
+        h = rearrange_out(h, f=F)
+
+        return h

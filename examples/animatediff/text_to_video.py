@@ -2,7 +2,6 @@
 AnimateDiff inference pipeline
 """
 import argparse
-import copy
 import datetime
 import logging
 import os
@@ -89,7 +88,7 @@ def main(args):
         prompts
     ), f"Expect that the seeds length is the same as thepositive prompts length, but got {len(seeds)} and {len(prompts)}"
 
-    sd_config = OmegaConf.load(args.sd_config)
+    sd_config = OmegaConf.load(ad_config.get("sd_config", args.sd_config))
     sd_model_path = args.pretrained_model_path
 
     # mm_zero_initialize = sd_config.model.params.unet_config.params.motion_module_kwargs.get("zero_initialize", True)
@@ -109,10 +108,10 @@ def main(args):
         if not os.path.exists(controlnet_path):
             logger.warning(f"sparse control encoder path {controlnet_path} not exist. Will not use controlnet.")
         controlnet_images = ad_config.get("controlnet_images", "")
-        controlnet_config = ad_config.get("controlnet_config", "")
+        # control_unet_config = ad_config.get("control_unet_config", "")
         assert controlnet_images != "", "controlnet_images must be provided when using controlnet"
-        assert controlnet_config != "", "controlnet_config must be provided when using controlnet"
-        controlnet_config = OmegaConf.load(controlnet_config)
+        # assert control_unet_config != "", "control_unet_config must be provided when using controlnet"
+        # control_unet_config = OmegaConf.load(control_unet_config)
 
     # TODO: merge unet addition kwargs to sd_confg
     inference_config = OmegaConf.load(ad_config.get("inference_config", args.inference_config))
@@ -136,6 +135,9 @@ def main(args):
     # load lora to sd if applicable
     if use_adapter_lora:
         sd_model = load_adapter_lora(sd_model, adapter_lora_path, adapter_lora_scale)
+    # load sparse control encoder to sd if applicable
+    if use_controlnet:
+        sd_model = load_controlnet(sd_model, controlnet_path)
 
     text_encoder = sd_model.cond_stage_model
     unet = sd_model.model
@@ -165,12 +167,6 @@ def main(args):
     ad_config.L = ad_config.get("L", args.L)
 
     if use_controlnet:
-        sparsectrl_config_additional = controlnet_config.controlnet_additional_kwargs
-        sparsectrl_config = copy.copy(sd_config.model.params.unet_config)
-        sparsectrl_config.target = "ad.modules.diffusionmodules.sparse_controlnet.SparseControlNetModel"
-        OmegaConf.update(sparsectrl_config, "params", sparsectrl_config_additional, merge=True)
-        controlnet = instantiate_from_config(sparsectrl_config)
-        controlnet = load_controlnet(controlnet, controlnet_path)
         image_paths = controlnet_images
         if isinstance(image_paths, str):
             image_paths = [image_paths]
@@ -205,7 +201,7 @@ def main(args):
         num_inference_steps=steps,
     )
 
-    if use_controlnet and sparsectrl_config_additional.use_simplified_condition_embedding:
+    if use_controlnet and unet.diffusion_model.controlnet.use_simplified_condition_embedding:
         b, c, f, h, w = controlnet_images.shape
         controlnet_images = controlnet_images.transpose((0, 2, 1, 3, 4)).reshape(
             (b * f, c, h, w)
