@@ -1,7 +1,9 @@
 import os
 import sys
+from pathlib import Path
 
-sys.path.append("../stable_diffusion_v2")
+grandparent_path = Path(__file__).resolve().parents[2]
+sys.path.append(os.path.join(grandparent_path, "stable_diffusion_v2"))
 
 import cv2
 import numpy as np
