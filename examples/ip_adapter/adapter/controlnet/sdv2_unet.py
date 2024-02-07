@@ -4,8 +4,22 @@ from ldm.util import instantiate_from_config
 
 
 class IPAdapterControlNetUnetModel(IPAdapterUNetModel):
-    def __init__(self, control_stage_config, guess_mode=False, strength=1.0, sd_locked=True, *args, **kwargs):
+    def __init__(
+        self,
+        control_stage_config,
+        context_length=77,
+        context_mode="all",
+        guess_mode=False,
+        strength=1.0,
+        sd_locked=True,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        self.context_length = context_length
+        self.context_mode = context_mode
+        if self.context_mode not in ["text", "image", "all"]:
+            raise ValueError(f"unsupported context condition: `{self.context_mode}`")
 
         if sd_locked:
             for param in self.get_parameters():
@@ -27,6 +41,18 @@ class IPAdapterControlNetUnetModel(IPAdapterUNetModel):
         assert control is not None
 
         hs = []
+
+        if context is not None:
+            if self.context_mode == "text":
+                context_c = context[:, : self.context_length]
+            elif self.context_mode == "image":
+                context_c = context[:, self.context_length :]
+            else:
+                # use whole context as controlnet condition
+                context_c = context
+        else:
+            context_c = None
+
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
         emb_c = self.controlnet.time_embed(t_emb)
@@ -49,24 +75,24 @@ class IPAdapterControlNetUnetModel(IPAdapterUNetModel):
             self.controlnet.input_blocks, self.input_blocks, self.controlnet.zero_convs
         ):
             for cell in c_celllist:
-                h_c = cell(h_c, emb_c, context)
+                h_c = cell(h_c, emb_c, context_c)
 
             # add encoded hint with latent image encoded projected with conv2d
             if guided_hint is not None:
                 h_c += guided_hint
                 guided_hint = None
 
-            control_list.append(zero_convs(h_c, emb_c, context))
+            control_list.append(zero_convs(h_c, emb_c, context_c))
 
             for cell in celllist:
                 h = cell(h, emb, context)
             hs.append(h)
 
         for c_module, module in zip(self.controlnet.middle_block, self.middle_block):
-            h_c = c_module(h_c, emb_c, context)
+            h_c = c_module(h_c, emb_c, context_c)
             h = module(h, emb, context)
 
-        control_list.append(self.controlnet.middle_block_out(h_c, emb_c, context))
+        control_list.append(self.controlnet.middle_block_out(h_c, emb_c, context_c))
         control_list = [c * scale for c, scale in zip(control_list, self.control_scales)]
 
         control_index = -1

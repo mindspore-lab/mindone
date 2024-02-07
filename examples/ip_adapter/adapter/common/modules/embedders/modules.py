@@ -1,6 +1,5 @@
 from typing import Optional
 
-import numpy as np
 from gm.modules.embedders.modules import AbstractEmbModel
 from ldm.modules.encoders.modules import FrozenOpenCLIPImageEmbedder
 from tools._common.clip.clip_modules import LayerNorm
@@ -86,9 +85,6 @@ class IPAdapterImageEmbedder(AbstractEmbModel):
         self.image_encoder.set_grad(False)
         for _, p in self.image_encoder.parameters_and_names():
             p.requires_grad = False
-
-    def tokenize(self, img: Optional[np.ndarray] = None):
-        return img, None
 
     def get_image_embeds(self, image_tensor: Optional[Tensor] = None) -> Tensor:
         if image_tensor is None:

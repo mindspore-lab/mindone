@@ -177,7 +177,7 @@ def run_text2img(
             control=control_img,
         )
         print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
-        perform_save_locally(save_path, out)
+        perform_save_locally(save_path, [out])
 
 
 def sample(args):

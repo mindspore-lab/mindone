@@ -3,8 +3,9 @@ import argparse
 import os
 import re
 
+import torch
 from safetensors import safe_open
-from util import append_prefix, convert_to_ms, create_ip_mapping, merge_qkv, misc_ops, replace, replace_all
+from util import append_prefix, convert_to_ms, create_ip_mapping, replace, replace_all
 
 import mindspore as ms
 
@@ -88,23 +89,18 @@ def replace_all_controlnet(content: str) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Merging the checkpoint of SDXL for training/inference")
     parser.add_argument(
-        "--open_clip_vit",
-        default="checkpoints/sdxl_models/IP-Adapter/image_encoder/model.safetensors",
-        help="Path of the image encoder checkpoint",
-    )
-    parser.add_argument(
         "--ip_adapter",
-        default="checkpoints/sdxl_models/IP-Adapter/ip-adapter_sdxl.safetensors",
+        default="checkpoints/ip-adapter.bin",
         help="Path of the IP-Adapter checkpoint",
     )
     parser.add_argument(
         "--sd_xl_base",
-        default="checkpoints/sdxl_models/sd_xl_base_1.0_ms.ckpt",
+        default="checkpoints/sd_xl_base_1.0_ms.ckpt",
         help="Path of the Mindspore SD-XL Base",
     )
     parser.add_argument(
         "--out",
-        default="checkpoints/sdxl_models/merged/sd_xl_base_1.0_ms_ip_adapter.ckpt",
+        default="checkpoints/merged/sd_xl_base_1.0_ms_instantid.ckpt",
         help="Path of the output checkpoint.",
     )
     parser.add_argument(
@@ -117,21 +113,17 @@ def main():
         default="tools/ip_names_sdxl.txt",
         help="Path of the IP mapping text file of SDXL",
     )
-    parser.add_argument("--controlnet", help="Path of the controlnet")
+    parser.add_argument(
+        "--controlnet",
+        default="checkpoints/controlnet/diffusion_pytorch_model.safetensors",
+        help="Path of the controlnet",
+    )
     args = parser.parse_args()
 
     print("Create IP Adapter naming mapping...")
     ip_mapping = create_ip_mapping(args.ip_map)
 
-    # openclip ViT
-    print("Converting openclip ViT...")
     tensors = dict()
-    with safe_open(args.open_clip_vit, framework="pt", device="cpu") as f:
-        for k in f.keys():
-            tensors[append_prefix(replace_all(k), "conditioner.embedders.2.")] = f.get_tensor(k)
-
-    merge_qkv(tensors)
-    misc_ops(tensors)
 
     # ip adapter proj
     if args.ip_adapter.endswith(".safetensors"):
@@ -143,6 +135,14 @@ def main():
                     ip_tensors[append_prefix(replace_all(k), "conditioner.embedders.2.")] = f.get_tensor(k)
                 else:
                     ip_tensors[ip_mapping[k]] = f.get_tensor(k)
+    elif args.ip_adapter.endswith(".bin"):
+        ip_tensors = dict()
+        for k, v in torch.load(args.ip_adapter, map_location="cpu").items():
+            for v0, v1 in v.items():
+                if "to_k_ip" not in v0 and "to_v_ip" not in v0:
+                    ip_tensors[append_prefix(replace_all(v0), "conditioner.embedders.2.image_proj.")] = v1
+                else:
+                    ip_tensors[ip_mapping[f"ip_adapter.{v0}"]] = v1
     else:
         print("Loading IP Adatper...")
         ip_tensors = ms.load_checkpoint(args.ip_adapter)

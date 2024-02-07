@@ -191,7 +191,7 @@ def main():
     misc_ops(tensors)
 
     # ip adapter proj
-    if args.ip_adapter.endswith("safetensors"):
+    if args.ip_adapter.endswith(".safetensors"):
         print("Converting IP Adatper...")
         ip_tensors = dict()
         with safe_open(args.ip_adapter, framework="pt", device="cpu") as f:

@@ -9,6 +9,8 @@ model:
         enable_flash_attention: False
         ip_scale: 1.0
         num_tokens: 4
+        context_length: 77
+        context_mode: all
 
     embedder_config:
       target: adapter.common.modules.embedders.modules.IPAdapterImageEmbedder

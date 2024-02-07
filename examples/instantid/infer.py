@@ -1,23 +1,29 @@
 #!/usr/bin/env python
 """
-IPAdapter SDXL image to image generation (Image variation)
+Insant ID Inference
 """
 import argparse
 import ast
 import os
 import sys
 import time
+from typing import Tuple
 
+import cv2
+import numpy as np
 from PIL import Image, ImageOps
 
+import mindspore.ops as ops
+
+sys.path.append("../ip_adapter/")
 sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
 
-import numpy as np
-from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, perform_save_locally
+from gm.helpers import VERSION2SPECS, create_model, init_sampling, perform_save_locally
 from gm.util import seed_everything
+from insightface.app import FaceAnalysis
+from instantid.util import draw_kps
 from omegaconf import OmegaConf
-from transformers import CLIPImageProcessor
 
 import mindspore as ms
 
@@ -25,27 +31,28 @@ import mindspore as ms
 def get_parser_sample():
     parser = argparse.ArgumentParser(description="sampling with sd-xl")
     parser.add_argument(
-        "--config", type=str, default="configs/inference/sd_xl_base.yaml", help="Path of the config file"
+        "--config", type=str, default="configs/inference/sd_xl_base_controlnet.yaml", help="Path of the config file"
     )
     parser.add_argument(
         "--weight",
         type=str,
-        default="checkpoints/sdxl_models/merged/sd_xl_base_1.0_ms_ip_adapter.ckpt",
+        default="checkpoints/merged/sd_xl_base_1.0_ms_instantid.ckpt",
         help="Path of the checkpoint",
     )
     parser.add_argument(
-        "--ip_scale", type=float, default=1.0, help="IP Scale, control the attention of the image input."
+        "--ip_scale", type=float, default=0.8, help="IP Scale, control the attention strength of the image input."
     )
     parser.add_argument("--guidance_scale", type=float, default=5.0, help="Guidance scale")
     parser.add_argument("--prompt", type=str, default="best quality, high quality", help="Prompt input")
     parser.add_argument(
         "--negative_prompt",
         type=str,
-        default="monochrome, lowres, bad anatomy, worst quality, low quality",
+        default="(lowres, low quality, worst quality:1.2), (text:1.2), watermark, painting, drawing, illustration, "
+        "glitch, deformed, mutated, cross-eyed, ugly, disfigured (lowres, low quality, worst quality:1.2), (text:1.2), "
+        "watermark, painting, drawing, illustration, glitch,deformed, mutated, cross-eyed, ugly, disfigured",
         help="Negative prompt input",
     )
     parser.add_argument("--img", type=str, required=True, help="Path of the input image file")
-    parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     parser.add_argument("--orig_width", type=int, default=None)
     parser.add_argument("--orig_height", type=int, default=None)
     parser.add_argument("--target_width", type=int, default=None)
@@ -76,12 +83,63 @@ def get_parser_sample():
     return parser
 
 
-def load_clip_image(image: str) -> np.ndarray:
+def _cal_size(w: int, h: int, min_size: int = 512) -> Tuple[int, int]:
+    if w < h:
+        new_h = round(h / w * min_size)
+        new_w = min_size
+    else:
+        new_w = round(w / h * min_size)
+        new_h = min_size
+    return new_w, new_h
+
+
+def _process_image_emb(face_emb: np.ndarray) -> ms.Tensor:
+    face_emb = face_emb[None, None, ...]
+    face_emb = ms.Tensor(face_emb, dtype=ms.float32)
+    return face_emb
+
+
+def _process_control_image(image: Image.Image, scale_factor: int = 8, min_size: int = 1024) -> ms.Tensor:
+    image = image.convert("RGB")
+    w, h = image.size
+    w, h = _cal_size(w, h, min_size=min_size)
+    w, h = (x - x % scale_factor for x in (w, h))
+    image = image.resize((w, h), resample=Image.LANCZOS)
+    image = np.array(image, dtype=np.float32)
+    image = image[None, ...]
+    image = image.transpose(0, 3, 1, 2)
+    image = image / 255.0
+    image = ms.Tensor(image, ms.float32)
+    return image
+
+
+def _resize_img(input_image, max_side=1280, min_side=1024, mode=Image.BILINEAR, base_pixel_number=64):
+    w, h = input_image.size
+    ratio = min_side / min(h, w)
+    w, h = round(ratio * w), round(ratio * h)
+    ratio = max_side / min(h, w)
+    w_resize_new = (round(ratio * w) // base_pixel_number) * base_pixel_number
+    h_resize_new = (round(ratio * h) // base_pixel_number) * base_pixel_number
+    input_image = input_image.resize([w_resize_new, h_resize_new], mode)
+    return input_image
+
+
+def load_and_process_image(image: str) -> Image.Image:
     image = Image.open(image)
     image = ImageOps.exif_transpose(image)
     image = image.convert("RGB")
-    image = CLIPImageProcessor()(image)
-    return image.pixel_values
+    image = _resize_img(image)
+    # TODO: implement face model
+    app = FaceAnalysis(name="antelopev2", root="./", providers=["CPUExecutionProvider"])
+    app.prepare(ctx_id=0, det_size=(640, 640))
+    face_info = app.get(cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR))
+    face_info = sorted(face_info, key=lambda x: (x["bbox"][2] - x["bbox"][0]) * (x["bbox"][3] - x["bbox"][1]))[-1]
+    face_emb = face_info["embedding"]
+    face_kps = draw_kps(image, face_info["kps"])
+
+    face_emb = _process_image_emb(face_emb)
+    face_kps = _process_control_image(face_kps)
+    return face_emb, face_kps
 
 
 def run_text2img(
@@ -95,17 +153,20 @@ def run_text2img(
     stage2strength=None,
     amp_level="O0",
 ):
-    assert args.sd_xl_base_ratios in SD_XL_BASE_RATIOS
-    W, H = SD_XL_BASE_RATIOS[args.sd_xl_base_ratios]
     C = version_dict["C"]
     F = version_dict["f"]
 
-    clip_img = load_clip_image(args.img)
+    img_emb, face_kps = load_and_process_image(args.img)
+    face_kps = ops.tile(face_kps, (args.num_cols, 1, 1, 1))
+
+    # TODO: for conditional guidance, move to internal
+    face_kps = ops.concat([face_kps, face_kps], axis=0)
+    _, _, H, W = face_kps.shape
 
     value_dict = {
         "prompt": args.prompt,
         "negative_prompt": args.negative_prompt,
-        "clip_img": clip_img,
+        "clip_img": img_emb,
         "orig_width": args.orig_width if args.orig_width else W,
         "orig_height": args.orig_height if args.orig_height else H,
         "target_width": args.target_width if args.target_width else W,
@@ -141,6 +202,7 @@ def run_text2img(
             return_latents=return_latents,
             filter=filter,
             amp_level=amp_level,
+            control=face_kps,
         )
         print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
         perform_save_locally(save_path, [out])
