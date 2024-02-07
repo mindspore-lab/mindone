@@ -693,120 +693,6 @@ class SparseCtrlUNet3D(UNet3DModel):
         kwargs.update(control_additional_config)
         self.controlnet = SparseControlNetModel(*args, **kwargs)
 
-    def run_sparse_controlnet(
-        self,
-        x,
-        timesteps=None,
-        context=None,
-        y=None,
-        features_adapter: list = None,
-        append_to_context=None,
-        controlnet_cond: Optional[ms.Tensor] = None,
-        conditioning_mask: Optional[ms.Tensor] = None,
-        conditioning_scale: float = 1.0,
-        guess_mode: bool = False,
-        **kwargs,
-    ):
-        controlnet = self.controlnet
-        if controlnet.set_noisy_sample_input_to_zero:
-            x = ops.zeros_like(x)
-        assert len(x.shape) == 5, f"UNet3D expect x in shape (b c f h w). but got {x.shape}"
-        assert (y is not None) == (
-            controlnet.num_classes is not None
-        ), "must specify y if and only if the model is class-conditional"
-
-        # time embedding
-        hs = []
-        t_emb = timestep_embedding(timesteps, controlnet.model_channels, repeat_only=False)
-        emb = controlnet.time_embed(t_emb)
-
-        if controlnet.num_classes is not None:
-            assert y.shape[0] == x.shape[0]
-            emb = emb + controlnet.label_emb(y)
-
-        if append_to_context is not None:
-            context = ops.cat([context, append_to_context], axis=1)
-
-        if controlnet.concate_conditioning_mask:
-            controlnet_cond = controlnet.cat([controlnet_cond, conditioning_mask])
-        # controlnet_cond: (b c f h w) -> (b*f c h w)
-        controlnet_cond = rearrange_in(controlnet_cond)
-        controlnet_cond = controlnet.controlnet_cond_embedding(controlnet_cond)
-        # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
-        B, C, F, H, W = x.shape
-        # x: (b c f h w) -> (b*f c h w)
-        x = rearrange_in(x)
-        # time mixed with other embedding: (b dim_emb) -> (b*f dim_emb)
-        emb = emb.repeat_interleave(repeats=F, dim=0)
-        # context: (b max_length dim_clip) -> (b*f dim_emb)
-        context = context.repeat_interleave(repeats=F, dim=0)
-
-        h = x
-
-        # 1. conv_in and inputblocks
-        input_block_res_samples = []
-        adapter_idx = 0
-        for i, celllist in enumerate(controlnet.input_blocks, 1):
-            for cell in celllist:
-                if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and controlnet.norm_in_5d):
-                    h = cell(h, emb, context, video_length=F)
-                elif isinstance(cell, conv_nd):
-                    h = cell(h, emb, context)  # conv_in
-                    h = h + controlnet_cond
-                else:
-                    h = cell(h, emb, context)
-
-            if features_adapter and i % 3 == 0:
-                h = h + features_adapter[adapter_idx]
-                adapter_idx += 1
-
-            hs.append(h)
-
-        input_block_res_samples = hs
-        if features_adapter:
-            assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
-
-        # 2. middle block
-        for module in controlnet.middle_block:
-            # h = module(h, emb, context)
-            if isinstance(module, VanillaTemporalModule) or (isinstance(module, ResBlock) and controlnet.norm_in_5d):
-                h = module(h, emb, context, video_length=F)
-            else:
-                h = module(h, emb, context)
-
-        # 3. controlnet blocks
-        controlnet_input_block_res_samples = ()
-
-        for input_block_res_sample, controlnet_block in zip(
-            input_block_res_samples, controlnet.controlnet_input_blocks
-        ):
-            input_block_res_sample = controlnet_block(input_block_res_sample)
-            controlnet_input_block_res_samples = controlnet_input_block_res_samples + (input_block_res_sample,)
-
-        input_block_res_samples = controlnet_input_block_res_samples
-
-        mid_block_res_sample = controlnet.controlnet_middle_block(h)
-
-        # 6. scaling
-        if guess_mode and not controlnet.global_pool_conditions:
-            scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
-
-            scales = scales * conditioning_scale
-            input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
-            mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
-        else:
-            input_block_res_samples = [sample * conditioning_scale for sample in input_block_res_samples]
-            mid_block_res_sample = mid_block_res_sample * conditioning_scale
-
-        if controlnet.global_pool_conditions:
-            input_block_res_samples = [
-                ops.mean(sample, (2, 3), True)
-                for sample in input_block_res_samples  # FIXME: change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
-            ]
-            mid_block_res_sample = ops.mean(mid_block_res_sample, (2, 3), True)
-
-        return (input_block_res_samples, mid_block_res_sample)
-
     def construct(
         self,
         x,
@@ -821,18 +707,10 @@ class SparseCtrlUNet3D(UNet3DModel):
         guess_mode: bool = False,
         **kwargs,
     ):
-        # get controlnet residuals ahead
-        input_blocks_additional_residuals, middle_blocks_additional_residuals = self.run_sparse_controlnet(
-            x,
-            timesteps=timesteps,
-            context=context,
-            controlnet_cond=controlnet_cond,
-            conditioning_mask=conditioning_mask,
-            conditioning_scale=conditioning_scale,
-            guess_mode=guess_mode,
-        )
-
-        # run UNet3D
+        if self.controlnet.set_noisy_sample_input_to_zero:
+            x_c = ops.zeros_like(x)
+        else:
+            x_c = x
         assert len(x.shape) == 5, f"UNet3D expect x in shape (b c f h w). but got {x.shape}"
         assert (y is not None) == (
             self.num_classes is not None
@@ -840,29 +718,42 @@ class SparseCtrlUNet3D(UNet3DModel):
 
         # time embedding
         hs = []
+        hs_c = []
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False)
         emb = self.time_embed(t_emb)
+        emb_c = self.controlnet.time_embed(t_emb)
 
         if self.num_classes is not None:
             assert y.shape[0] == x.shape[0]
             emb = emb + self.label_emb(y)
+        if self.controlnet.num_classes is not None:
+            assert y.shape[0] == x_c.shape[0]
+            emb_c = emb_c + self.controlnet.label_emb(y)
 
         if append_to_context is not None:
             context = ops.cat([context, append_to_context], axis=1)
-
+        if self.controlnet.concate_conditioning_mask:
+            controlnet_cond = self.controlnet.cat([controlnet_cond, conditioning_mask])
+        controlnet_cond = rearrange_in(controlnet_cond)
+        controlnet_cond = self.controlnet.controlnet_cond_embedding(controlnet_cond)
         # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
         B, C, F, H, W = x.shape
         # x: (b c f h w) -> (b*f c h w)
         x = rearrange_in(x)
+        x_c = rearrange_in(x_c)
         # time mixed with other embedding: (b dim_emb) -> (b*f dim_emb)
         emb = emb.repeat_interleave(repeats=F, dim=0)
+        emb_c = emb_c.repeat_interleave(repeats=F, dim=0)
         # context: (b max_length dim_clip) -> (b*f dim_emb)
         context = context.repeat_interleave(repeats=F, dim=0)
 
         h = x
+        h_c = x_c
+        input_block_res_samples = []
 
         # 1. conv_in and downblocks
         adapter_idx = 0
+        # 1.1 unet input_blocks
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
@@ -875,24 +766,82 @@ class SparseCtrlUNet3D(UNet3DModel):
                 adapter_idx += 1
 
             hs.append(h)
+        # 1.2 sparse control encoder input_blocks
+        for i, c_cellist in enumerate(self.controlnet.input_blocks, 1):
+            for c_cell in c_cellist:
+                if isinstance(c_cell, VanillaTemporalModule) or (
+                    isinstance(c_cell, ResBlock) and self.controlnet.norm_in_5d
+                ):
+                    h_c = c_cell(h_c, emb_c, context, video_length=F)
+                elif isinstance(c_cell, conv_nd):
+                    h_c = c_cell(h_c, emb_c, context)  # conv_in
+                    h_c = h_c + controlnet_cond
+                else:
+                    h_c = c_cell(h_c, emb_c, context)
+
+            hs_c.append(h_c)
+
+        input_block_res_samples = hs_c
 
         if features_adapter:
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
-        # support controlnet
-        for i, in_res in enumerate(input_blocks_additional_residuals):
-            hs[i] = hs[i] + in_res  # add with unet input blocks residuals
 
         # 2. middle block
+        # 2.1 unet middle block
         for module in self.middle_block:
             # h = module(h, emb, context)
             if isinstance(module, VanillaTemporalModule) or (isinstance(module, ResBlock) and self.norm_in_5d):
                 h = module(h, emb, context, video_length=F)
             else:
                 h = module(h, emb, context)
+        # 2.2 sparse control encoder middle block
+        for module in self.controlnet.middle_block:
+            if isinstance(module, VanillaTemporalModule) or (
+                isinstance(module, ResBlock) and self.controlnet.norm_in_5d
+            ):
+                h_c = module(h_c, emb_c, context, video_length=F)
+            else:
+                h_c = module(h_c, emb_c, context)
 
-        h = h + middle_blocks_additional_residuals
+        # 3. controlnet residuals
+        # 3.1 residuals
+        controlnet_input_block_res_samples = ()
 
-        # 3. up blocks
+        for input_block_res_sample, controlnet_block in zip(
+            input_block_res_samples, self.controlnet.controlnet_input_blocks
+        ):
+            input_block_res_sample = controlnet_block(input_block_res_sample)
+            controlnet_input_block_res_samples = controlnet_input_block_res_samples + (input_block_res_sample,)
+
+        input_block_res_samples = controlnet_input_block_res_samples
+
+        mid_block_res_sample = self.controlnet.controlnet_middle_block(h_c)
+
+        # 3.2 scaling
+        if guess_mode and not self.controlnet.global_pool_conditions:
+            scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
+
+            scales = scales * conditioning_scale
+            input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
+            mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
+        else:
+            input_block_res_samples = [sample * conditioning_scale for sample in input_block_res_samples]
+            mid_block_res_sample = mid_block_res_sample * conditioning_scale
+
+        if self.controlnet.global_pool_conditions:
+            input_block_res_samples = [
+                ops.mean(sample, (2, 3), True)
+                for sample in input_block_res_samples  # FIXME: change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
+            ]
+            mid_block_res_sample = ops.mean(mid_block_res_sample, (2, 3), True)
+
+        # support controlnet
+        for i, in_res in enumerate(input_block_res_samples):
+            hs[i] = hs[i] + in_res  # add with unet input blocks residuals
+
+        h = h + mid_block_res_sample
+
+        # 4. up blocks
         hs_index = -1
         for celllist in self.output_blocks:
             h = self.cat((h, hs[hs_index]))
