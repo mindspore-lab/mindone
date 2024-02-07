@@ -106,12 +106,12 @@ cd tools/model_conversion
 
 python convert_diffusers_to_original_sdxl.py \
   --model_path /PATH_TO_THE_MODEL_TO_CONVERT \
-  --checkpoint_path /PATH_TO_THE_OUTPUT_MODEL/sd_xl_base_1.0.safetensors \
+  --output_path /PATH_TO_THE_OUTPUT_MODEL/sd_xl_base_1.0.safetensors \
   --use_safetensors \
-  --unet_name "diffusion_pytorch_model.fp16.safetensors" \
-  --vae_name "diffusion_pytorch_model.fp16.safetensors" \
-  --text_encoder_name "model.fp16.safetensors" \
-  --text_encoder_2_name "model.fp16.safetensors"
+  --unet_path "diffusion_pytorch_model.fp16.safetensors" \
+  --vae_path "diffusion_pytorch_model.fp16.safetensors" \
+  --text_encoder_path "model.fp16.safetensors" \
+  --text_encoder_2_path "model.fp16.safetensors"
 ```
 
 ## Convert diffusers pipeline of XL to MindOne stable diffusion
@@ -124,11 +124,10 @@ Notes: if you want to save weights in half precision, you can add `--half`. Only
 cd tools/model_conversion
 
 python convert_diffusers_to_mindone_sdxl.py \
-  --model_path /PATH_TO_THE_MODEL_TO_CONVERT \
-  --checkpoint_path /PATH_TO_THE_OUTPUT_MODEL/converted_sd_xl_base_1.0.ckpt  \
-  --unet_name "diffusion_pytorch_model.fp16.safetensors" \
-  --vae_name "diffusion_pytorch_model.fp16.safetensors" \
-  --text_encoder_name "model.fp16.safetensors" \
-  --text_encoder_2_name "model.fp16.safetensors" \
+  --output_path /PATH_TO_THE_OUTPUT_MODEL/converted_sd_xl_base_1.0.ckpt  \
+  --unet_path "diffusion_pytorch_model.fp16.safetensors" \
+  --vae_path "diffusion_pytorch_model.fp16.safetensors" \
+  --text_encoder_path "model.fp16.safetensors" \
+  --text_encoder_2_path "model.fp16.safetensors" \
   --sdxl_base_ckpt "/PATH_TO_THE_BASE_MINDONE_CKPT/sd_xl_base_1.0_ms.ckpt"
 ```
