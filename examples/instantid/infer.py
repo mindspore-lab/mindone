@@ -84,6 +84,9 @@ def get_parser_sample():
 
 
 def _cal_size(w: int, h: int, min_size: int = 512) -> Tuple[int, int]:
+    if w >= min_size and h >= min_size:
+        return w, h
+
     if w < h:
         new_h = round(h / w * min_size)
         new_w = min_size
