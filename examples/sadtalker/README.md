@@ -5,14 +5,11 @@ A Mindspore implementation of [SadTalker](https://arxiv.org/pdf/2211.12194.pdf) 
 ## Introduction
 SadTalker is a novel system for a stylized audio-driven single image talking head videos animation using the generated realistic 3D motion coefficients (head pose, expression) of the 3DMM.
 
-
 <p align="center">
 <img src="https://github.com/hqkate/sadtalker/assets/26082447/d9d3b2d5-1e80-4304-84b4-768ce2b9814c" title="SadTalke" width="50%"/>
 
 <br>
-
 <b>TL;DR: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; single portrait image 🙎‍♂️  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; audio 🎤  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; talking head video 🎞.</b>
-
 <br>
 
 </p>
@@ -63,7 +60,7 @@ The description of each model is as follows:
 | gfpgan_weights/ | Face detection and enhanced models used in `facexlib` and `gfpgan`. | Infer / Finetune / Train | [gfpgan_weights/](https://download-mindspore.osinfra.cn/toolkits/mindone/sadtalker/gfpgan_weights/) |
 
 
-Please download the required weights accordingly (infer/finetune/train). For example, to perform inference, download all weights tagged "finetune". After downloading, the folder should look like this (case-sensitive):
+Please download the required weights accordingly (infer/finetune/train). For example, to perform inference, download all weights tagged "Infer". After downloading, the folder should look like this (case-sensitive):
 
   ```bash
   checkpoints/
