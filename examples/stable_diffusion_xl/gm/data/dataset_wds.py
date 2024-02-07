@@ -70,6 +70,7 @@ class T2I_BaseDataset:
         per_batch_size=1,  # for multi_aspect
         caption_key="caption",
         prompt_empty_probability=0.0,
+        **kwargs,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -234,7 +235,7 @@ class T2I_Webdataset(T2I_BaseDataset):
 
 class T2I_Webdataset_RndAcs(T2I_BaseDataset):
     # random access
-    def __init__(self, shardlist_desc=None, *args, **kwargs):
+    def __init__(self, shardlist_desc=None, cache_dir=None, *args, **kwargs):
         # shardlist_desc: path to a json file describing sample num for each tar
         super().__init__(*args, **kwargs)
         if shardlist_desc is None:
@@ -249,7 +250,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
 
         with open(shardlist_desc, "r") as fp:
             shardlist = json.load(fp)["shardlist"]
-        self.dataset = wids.ShardListDataset(shardlist)
+        self.dataset = wids.ShardListDataset(shardlist, cache_dir=cache_dir)
         self._datalen = len(self.dataset)
 
         # preload sample

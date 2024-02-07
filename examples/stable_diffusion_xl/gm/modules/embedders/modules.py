@@ -502,7 +502,7 @@ class FrozenCnCLIPEmbedder(AbstractEmbModel):
         for _, p in self.parameters_and_names():
             p.requires_grad = False
 
-    def tokenize(self, text):
+    def tokenize(self, text, **kwargs):
         batch_encoding = self.tokenizer(
             text,
             truncation=True,
@@ -878,7 +878,7 @@ class FrozenOpenCLIPEmbedder2_CLIPTokenizer(FrozenOpenCLIPEmbedder2):
         ), f"Expect FrozenOpenCLIPEmbedder2 pads with zeros, not {self.tokenizer.pad_token_id}"
 
     # rewrite the tokenize function
-    def tokenize(self, text):
+    def tokenize(self, text, **kwargs):
         batch_encoding = self.tokenizer(
             text,
             truncation=True,
