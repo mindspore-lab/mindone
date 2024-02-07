@@ -144,27 +144,18 @@ def extract_ms_sparsectrl_encoder(control_type="image"):
     sys.path.insert(0, mindone_lib_path)
     from mindone.utils.config import instantiate_from_config
 
-    model_config_path = "configs/stable_diffusion/v1-inference-mmv2.yaml"
-
     if control_type == "image":
-        sparsectrl_additional_config_path = "configs/inference/sparsectrl/image_condition.yaml"
+        sparse_control_unet_config = "configs/stable_diffusion/v3-inference-mmv2-image-condition.yaml"
     elif control_type == "latent":
-        sparsectrl_additional_config_path = "configs/inference/sparsectrl/latent_condition.yaml"
+        sparse_control_unet_config = "configs/stable_diffusion/v3-inference-mmv2-latent-condition.yaml"
 
-    sd_config = OmegaConf.load(model_config_path)
-    sparsectrl_config_additional = OmegaConf.load(sparsectrl_additional_config_path).controlnet_additional_kwargs
-    sparsectrl_config = sd_config.model.params.unet_config
-    # change target to sparse control encoder
-    sparsectrl_config.target = "ad.modules.diffusionmodules.sparse_controlnet.SparseControlNetModel"
-    OmegaConf.update(sparsectrl_config, "params", sparsectrl_config_additional, merge=True)
-    model = instantiate_from_config(sparsectrl_config)
+    sd_config = OmegaConf.load(sparse_control_unet_config).model
+    model = instantiate_from_config(sd_config).model.diffusion_model.controlnet
 
     cnt = 0
     # for param in model.get_parameters():
     for name, param in model.parameters_and_names():
-        if name != param.name:
-            print(f"mismathc {name} vs {param.name}")
-        print(f"{name}#{param.shape}#{param.dtype}")
+        print(f"{param.name}#{param.shape}#{param.dtype}")
         cnt += 1
     print(f"params count : {cnt}")
 
