@@ -45,8 +45,12 @@ def gen_camera_pose(camera_degree_list, frame_num, batch_size):
     degree_per_frame = degree_sum / (frame_num - 1)
     for i, degree in enumerate(camera_degree_list[1:]):
         degree_last = camera_degree_list[i]
-        degree_step = degree_per_frame * abs(degree - degree_last) / (degree - degree_last)
-        new_degree_list = new_degree_list + list(np.arange(degree_last, degree, degree_step))
+        degree_step = (
+            degree_per_frame * abs(degree - degree_last) / (degree - degree_last)
+        )
+        new_degree_list = new_degree_list + list(
+            np.arange(degree_last, degree, degree_step)
+        )
     if len(new_degree_list) > frame_num:
         new_degree_list = new_degree_list[:frame_num]
     elif len(new_degree_list) < frame_num:
@@ -91,21 +95,29 @@ class Transform:
         datatype = frame.dtype
         grid = make_coordinate_grid_2d(frame.shape[1:], type=datatype).unsqueeze(0)
         grid = grid.view(frame.shape[1] * frame.shape[2], 2)
-        grid = self.warp_coordinates(grid).view(frame.shape[1], frame.shape[2], 2)
+        grid = self.warp_coordinates(grid).view(
+            frame.shape[1], frame.shape[2], 2
+        )
         res_frame = ops.grid_sample(frame.unsqueeze(0), grid.unsqueeze(0), padding_mode="reflection").squeeze(0)
         return res_frame
 
     def warp_coordinates(self, coordinates):
+
         datatype = coordinates.dtype
         theta = self.theta.astype(datatype)
         theta = theta.unsqueeze(0)
-        transformed = ops.matmul(theta[:, :, :2], coordinates.unsqueeze(-1)) + theta[:, :, 2:]
+        transformed = (
+            ops.matmul(theta[:, :, :2], coordinates.unsqueeze(-1))
+            + theta[:, :, 2:]
+        )
         transformed = transformed.squeeze(-1)
 
         if self.tps:
             control_points = self.control_points.astype(datatype)
             control_params = self.control_params.astype(datatype)
-            distances = coordinates.view(-1, 1, 2) - control_points.view(1, -1, 2)
+            distances = coordinates.view(
+                -1, 1, 2
+            ) - control_points.view(1, -1, 2)
             distances = ops.abs(distances).sum(-1)
 
             result = distances**2
@@ -126,15 +138,11 @@ class Transform:
         return jacobian
 
 
-class TestFaceRenderDataset:
+class FaceRenderDataset:
     def __init__(
         self,
         args,
         config,
-        coeff_path,
-        pic_path,
-        first_coeff_path,
-        audio_path,
         batch_size,
         expression_scale=1.0,
         still_mode=False,
@@ -144,10 +152,6 @@ class TestFaceRenderDataset:
     ) -> None:
         self.args = args
         self.cfg = config
-        self.coeff_path = coeff_path
-        self.pic_path = pic_path
-        self.first_coeff_path = first_coeff_path
-        self.audio_path = audio_path
         self.batch_size = batch_size
         self.expression_scale = expression_scale
         self.still_mode = still_mode
@@ -174,7 +178,9 @@ class TestFaceRenderDataset:
         else:
             source_semantics = source_semantics_dict["coeff_3dmm"][:1, :73]  # 1 70
 
-        source_semantics_new = transform_semantic_1(source_semantics, self.semantic_radius)
+        source_semantics_new = transform_semantic_1(
+            source_semantics, self.semantic_radius
+        )
         source_semantics_new = np.asarray(source_semantics_new).astype("float32")
 
         if not is_train:
@@ -189,7 +195,8 @@ class TestFaceRenderDataset:
         return source_image_ts, source_semantics, source_semantics_ts, img1
 
     def prepare_target_features(self, coeff_path, source_semantics, frame_idx=None, tgt_img_path=None):
-        """prepare the driving audio features"""
+        """prepare the driving audio features
+        """
         txt_path = os.path.splitext(coeff_path)[0]
 
         generated_dict = scio.loadmat(coeff_path)
@@ -200,13 +207,17 @@ class TestFaceRenderDataset:
             generated_3dmm = np.concatenate(
                 [
                     generated_3dmm,
-                    np.repeat(source_semantics[:, 70:], generated_3dmm.shape[0], axis=0),
+                    np.repeat(
+                        source_semantics[:, 70:], generated_3dmm.shape[0], axis=0
+                    ),
                 ],
                 axis=1,
             )
 
         if self.still_mode:
-            generated_3dmm[:, 64:] = np.repeat(source_semantics[:, 64:], generated_3dmm.shape[0], axis=0)
+            generated_3dmm[:, 64:] = np.repeat(
+                source_semantics[:, 64:], generated_3dmm.shape[0], axis=0
+            )
 
         with open(txt_path + ".txt", "w") as f:
             for coeff in generated_3dmm:
@@ -217,9 +228,11 @@ class TestFaceRenderDataset:
         target_semantics_list = []
         frame_num = generated_3dmm.shape[0]
 
-        if frame_idx is None:  # test
+        if frame_idx is None: # test
             for frame_idx in range(frame_num):
-                target_semantics = transform_semantic_target(generated_3dmm, frame_idx, self.semantic_radius)
+                target_semantics = transform_semantic_target(
+                    generated_3dmm, frame_idx, self.semantic_radius
+                )
                 target_semantics_list.append(target_semantics)
 
             remainder = frame_num % self.batch_size
@@ -239,13 +252,15 @@ class TestFaceRenderDataset:
             target_semantics_np = np.asarray(target_semantics_np).astype("float32")
             target_semantics_ts = ms.Tensor(target_semantics_np)
 
-        else:  # train
-            target_semantics = transform_semantic_target(generated_3dmm, frame_idx, self.semantic_radius)
+        else: # train
+            target_semantics = transform_semantic_target(
+                generated_3dmm, frame_idx, self.semantic_radius
+            )
             target_semantics_np = np.array(target_semantics)
             target_semantics_np = np.asarray(target_semantics_np).astype("float32")
             target_semantics_ts = ms.Tensor(target_semantics_np)
 
-        if tgt_img_path is not None:  # train
+        if tgt_img_path is not None: # train
             tgt_img = Image.open(tgt_img_path)
             target_image = np.array(tgt_img)
             target_image = img_as_float32(target_image)
@@ -253,23 +268,12 @@ class TestFaceRenderDataset:
             target_image = target_image.transpose((2, 0, 1))
             target_image_ts = ms.Tensor(target_image)
 
-        else:  # test
+        else: # test
             target_image_ts = None
 
         return frame_num, target_semantics_ts, target_image_ts
 
-    def __next__(self):
-        if self._index >= 1:
-            raise StopIteration
-        else:
-            item = self.__getitem__(self._index)
-            self._index += 1
-            return item
-
-    def __len__(self):
-        return 1
-
-    def __getitem__(self, idx):
+    def process_data(self, image_path, audio_path, first_coeff_path, coeff_path):
         data = {}
 
         # source
@@ -277,20 +281,22 @@ class TestFaceRenderDataset:
             source_image_ts,
             source_semantics,
             source_semantics_ts,
-            source_image_binary,
-        ) = self.prepare_source_features(self.pic_path, self.first_coeff_path)
+            _,
+        ) = self.prepare_source_features(image_path, first_coeff_path)
         data["source_image"] = source_image_ts
         data["source_semantics"] = source_semantics_ts
 
         # target
-        frame_num, target_semantics_ts, _ = self.prepare_target_features(self.coeff_path, source_semantics)
+        frame_num, target_semantics_ts, _ = self.prepare_target_features(
+            coeff_path, source_semantics
+        )
 
-        video_name = os.path.splitext(os.path.split(self.coeff_path)[-1])[0]
+        video_name = os.path.splitext(os.path.split(coeff_path)[-1])[0]
 
         data["target_semantics"] = target_semantics_ts
         data["frame_num"] = frame_num
         data["video_name"] = video_name
-        data["audio_path"] = self.audio_path
+        data["audio_path"] = audio_path
 
         input_yaw_list = self.args.input_yaw
         input_pitch_list = self.args.input_pitch
@@ -309,7 +315,7 @@ class TestFaceRenderDataset:
         return data
 
 
-class TrainFaceRenderDataset(TestFaceRenderDataset):
+class TrainFaceRenderDataset(FaceRenderDataset):
     def __init__(
         self,
         args,
@@ -328,10 +334,6 @@ class TrainFaceRenderDataset(TestFaceRenderDataset):
             args,
             config,
             batch_size=batch_size,
-            coeff_path=None,
-            pic_path=None,
-            first_coeff_path=None,
-            audio_path=None,
             expression_scale=expression_scale,
             still_mode=still_mode,
             preprocess=preprocess,
@@ -358,15 +360,20 @@ class TrainFaceRenderDataset(TestFaceRenderDataset):
         return self.output_columns
 
     def transform_equivariance(self, image_binary):
+
         len_coeff = 70 if "full" not in self.preprocess.lower() else 73
 
         transformed_frame = self.equi_transform.transform_frame(
             ms.Tensor(image_binary, ms.float32)
         )  # (bs, 256, 256, 3)
         coeff_dict = self.extractor.extract_3dmm([transformed_frame])
-        transformed_semantics = coeff_dict["coeff_3dmm"][:, :len_coeff]
-        transformed_semantics = ms.Tensor(transformed_semantics, ms.float32).unsqueeze(-1)
-        transformed_semantics = transformed_semantics.repeat(self.semantic_radius * 2 + 1, axis=-1)
+        transformed_semantics = coeff_dict["coeff_3dmm"][:, : len_coeff]
+        transformed_semantics = ms.Tensor(transformed_semantics, ms.float32).unsqueeze(
+            -1
+        )
+        transformed_semantics = transformed_semantics.repeat(
+            self.semantic_radius * 2 + 1, axis=-1
+        )
         return transformed_semantics.squeeze(0)
 
     def __next__(self):
@@ -386,10 +393,10 @@ class TrainFaceRenderDataset(TestFaceRenderDataset):
         img_folder, first_coeff_path, net_coeff_path = self.all_videos[idx].split(" ")
         image_paths = glob(os.path.join(img_folder, "*.png"))
 
-        # randomly sample a frame, get the window and read the picture
+        # randomly select a frame, get the window and read the picture
         valid_paths = list(sorted(image_paths))[: len(image_paths) - self.syncnet_T]
         src_img_path = valid_paths[0]
-        tgt_img_path = random.choice(valid_paths)  # random sample
+        tgt_img_path = random.choice(valid_paths)
         frame_id = int(os.path.basename(tgt_img_path).split("_")[-1].split(".")[0])
 
         # source

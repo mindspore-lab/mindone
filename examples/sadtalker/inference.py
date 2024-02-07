@@ -9,14 +9,16 @@ from mindspore import context
 from mindspore.amp import auto_mixed_precision
 
 from utils.preprocess import CropAndExtract
-from datasets.dataset_audio2coeff import TestDataset
-from datasets.dataset_facerender import TestFaceRenderDataset
+from datasets.dataset_audio2coeff import AudioCoeffDataset
+from datasets.dataset_facerender import FaceRenderDataset
 from models.audio2coeff import Audio2Coeff
 from models.facerender.animate import AnimateFromCoeff
 
 
 def main(args, config):
-    context.set_context(mode=config.system.mode, device_target="Ascend", device_id=int(args.device_id))
+    context.set_context(
+        mode=config.system.mode, device_target="Ascend", device_id=int(args.device_id)
+    )
 
     pic_path = args.source_image
     audio_path = args.driven_audio
@@ -34,28 +36,28 @@ def main(args, config):
     auto_mixed_precision(audio_to_coeff.audio2pose_model, amp_level)
     auto_mixed_precision(animate_from_coeff.generator, amp_level)
 
-    testdataset = TestDataset(
+    # audio2coeff
+    ds_audiocoeff = AudioCoeffDataset(
         args=args,
         preprocessor=preprocess_model,
         save_dir=save_dir,
     )
 
-    batch = testdataset.__getitem__(0)
-    ref_pose_coeff_path = batch["ref_pose_coeff_path"]
-    crop_pic_path = batch["crop_pic_path"]
-    first_coeff_path = batch["first_coeff_path"]
-    crop_info = batch["crop_info"]
+    data_audiocoeff = ds_audiocoeff.process_data(pic_path, audio_path)
 
-    coeff_path = audio_to_coeff.generate(batch, save_dir, pose_style, ref_pose_coeff_path)
+    ref_pose_coeff_path = data_audiocoeff["ref_pose_coeff_path"]
+    crop_pic_path = data_audiocoeff["crop_pic_path"]
+    first_coeff_path = data_audiocoeff["first_coeff_path"]
+    crop_info = data_audiocoeff["crop_info"]
+
+    coeff_path = audio_to_coeff.generate(
+        data_audiocoeff, save_dir, pose_style, ref_pose_coeff_path
+    )
 
     # coeff2video
-    facerender_dataset = TestFaceRenderDataset(
+    ds_facerender = FaceRenderDataset(
         args=args,
         config=config,
-        coeff_path=coeff_path,
-        pic_path=crop_pic_path,
-        first_coeff_path=first_coeff_path,
-        audio_path=args.driven_audio,
         batch_size=args.batch_size,
         expression_scale=args.expression_scale,
         still_mode=args.still,
@@ -63,9 +65,11 @@ def main(args, config):
         size=args.size,
     )
 
-    data = facerender_dataset.__getitem__(0)
+    data_facerender = ds_facerender.process_data(
+        crop_pic_path, args.driven_audio, first_coeff_path, coeff_path
+    )
     result = animate_from_coeff.generate(
-        data,
+        data_facerender,
         save_dir,
         pic_path,
         crop_info,

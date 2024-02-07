@@ -107,21 +107,3 @@ facerender:
         layer: 3
         num_kp: 15
         num_bins: 66
-
-  train:
-    pretrained_vgg: /disk1/katekong/sadtalker/checkpoints/ms/ms_vgg19.ckpt
-    pretrained_hopenet: /disk1/katekong/sadtalker/checkpoints/ms/ms_hopenet_robust_alpha1.ckpt
-    transform_params:
-      sigma_affine: 0.05
-      sigma_tps: 0.005
-      points_tps: 5
-    loss_weights:
-      generator_gan: 1
-      discriminator_gan: 1
-      feature_matching: [10, 10, 10, 10]
-      perceptual: [10, 10, 10, 10, 10]
-      equivariance_value: 10
-      equivariance_jacobian: 0    # 10
-      keypoint: 10
-      headpose: 20
-      expression: 5

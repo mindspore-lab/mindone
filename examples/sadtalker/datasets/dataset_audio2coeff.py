@@ -11,7 +11,9 @@ def crop_pad_audio(wav, audio_length):
     if len(wav) > audio_length:
         wav = wav[:audio_length]
     elif len(wav) < audio_length:
-        wav = np.pad(wav, [0, audio_length - len(wav)], mode="constant", constant_values=0)
+        wav = np.pad(
+            wav, [0, audio_length - len(wav)], mode="constant", constant_values=0
+        )
     return wav
 
 
@@ -86,7 +88,7 @@ def read_filelist(input_path):
     return audios, images
 
 
-class TestDataset:
+class AudioCoeffDataset:
     def __init__(
         self,
         args,
@@ -110,14 +112,6 @@ class TestDataset:
         self.length_of_audio = length_of_audio
         self.use_blink = use_blink
 
-        # read files
-        if args.train_list is not None:
-            self.audios, self.src_images = read_filelist(args.train_list)
-
-        else:
-            self.audios = [args.driven_audio]
-            self.src_images = [args.source_image]
-
     def crop_and_extract(self, source_image):
         os.makedirs(self.first_frame_dir, exist_ok=True)
         print("3DMM Extraction for source image")
@@ -135,7 +129,9 @@ class TestDataset:
             return
 
         if self.args.ref_eyeblink is not None:
-            ref_eyeblink_videoname = os.path.splitext(os.path.split(self.args.ref_eyeblink)[-1])[0]
+            ref_eyeblink_videoname = os.path.splitext(
+                os.path.split(self.args.ref_eyeblink)[-1]
+            )[0]
             ref_eyeblink_frame_dir = os.path.join(self.save_dir, ref_eyeblink_videoname)
             os.makedirs(ref_eyeblink_frame_dir, exist_ok=True)
             print("3DMM Extraction for the reference video providing eye blinking")
@@ -152,7 +148,9 @@ class TestDataset:
             if self.args.ref_pose == self.args.ref_eyeblink:
                 ref_pose_coeff_path = ref_eyeblink_coeff_path
             else:
-                ref_pose_videoname = os.path.splitext(os.path.split(self.args.ref_pose)[-1])[0]
+                ref_pose_videoname = os.path.splitext(
+                    os.path.split(self.args.ref_pose)[-1]
+                )[0]
                 ref_pose_frame_dir = os.path.join(self.save_dir, ref_pose_videoname)
                 os.makedirs(ref_pose_frame_dir, exist_ok=True)
                 print("3DMM Extraction for the reference video providing pose")
@@ -173,20 +171,21 @@ class TestDataset:
             ref_pose_coeff_path,
         )
 
-    def __next__(self):
-        if self._index >= len(self.audios):
-            raise StopIteration
-        else:
-            item = self.__getitem__(self._index)
-            self._index += 1
-            return item
+    def get_output_columns(self):
+        return [
+            "indiv_mels",
+            "ref",
+            "num_frames",
+            "ratio_gt",
+            "audio_name",
+            "pic_name",
+            "ref_pose_coeff_path",
+            "first_coeff_path",
+            "crop_pic_path",
+            "crop_info",
+        ]
 
-    def __len__(self):
-        return len(self.audios)
-
-    def __getitem__(self, idx):
-        image = self.src_images[idx]
-        driven_audio = self.audios[idx]
+    def process_data(self, image_path, audio_path):
 
         # 1. crop and extract 3dMM coefficients
         (
@@ -195,17 +194,17 @@ class TestDataset:
             crop_info,
             ref_eyeblink_coeff_path,
             ref_pose_coeff_path,
-        ) = self.crop_and_extract(image)
+        ) = self.crop_and_extract(image_path)
 
         # 2. process audio
-        pic_name = os.path.splitext(os.path.split(image)[-1])[0]
-        audio_name = os.path.splitext(os.path.split(driven_audio)[-1])[0]
+        pic_name = os.path.splitext(os.path.split(image_path)[-1])[0]
+        audio_name = os.path.splitext(os.path.split(audio_path)[-1])[0]
 
         if self.idlemode:
             num_frames = int(self.length_of_audio * self.fps)
             indiv_mels = np.zeros((num_frames, num_frames, self.syncnet_mel_step_size))
         else:
-            wav = audio.load_wav(driven_audio, 16000)
+            wav = audio.load_wav(audio_path, 16000)
             wav_length, num_frames = parse_audio_length(len(wav), 16000, self.fps)
             wav = crop_pad_audio(wav, wav_length)
             orig_mel = audio.melspectrogram(wav).T
@@ -222,7 +221,9 @@ class TestDataset:
                 indiv_mels.append(m.T)
             indiv_mels = np.asarray(indiv_mels)  # T 80 16
 
-        indiv_mels = ms.Tensor(indiv_mels, ms.float32).unsqueeze(1).unsqueeze(0)  # bs T 1 80 16
+        indiv_mels = (
+            ms.Tensor(indiv_mels, ms.float32).unsqueeze(1).unsqueeze(0)
+        )  # bs T 1 80 16
 
         # 3. generate ref coeffs
 

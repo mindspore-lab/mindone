@@ -1,11 +1,21 @@
 # SadTalker :sob:
 
-A Mindspore implementation of SadTalker based on its [original github](https://github.com/OpenTalker/SadTalker).
+A Mindspore implementation of [SadTalker](https://arxiv.org/pdf/2211.12194.pdf)  based on its original implemetation.
 
 ## Introduction
 SadTalker is a novel system for a stylized audio-driven single image talking head videos animation using the generated realistic 3D motion coefficients (head pose, expression) of the 3DMM.
 
-![sadtalker_1](https://github.com/hqkate/sadtalker/assets/26082447/f1239f9f-f434-4b2c-8ed0-3f07287eb7f3)
+
+<p align="center">
+<img src="https://github.com/hqkate/sadtalker/assets/26082447/d9d3b2d5-1e80-4304-84b4-768ce2b9814c" title="SadTalke" width="50%"/>
+
+<br>
+
+<b>TL;DR: &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; single portrait image 🙎‍♂️  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; audio 🎤  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; =  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; talking head video 🎞.</b>
+
+<br>
+
+</p>
 
 
 ## Installation
@@ -16,7 +26,7 @@ pip install -r requirements.txt
 
 ## Data and Preparation
 
-To execute the inference pipeline of SadTalker, please first download the [pretrained checkpoints](#pretrained-checkpoints) and setup the path in [config file](./config/sadtalker.yaml).
+To execute the inference pipeline of SadTalker, please first download the [pretrained checkpoints](#pretrained-checkpoints) and setup the path in [config file](./config/sadtalker-infer.yaml).
 
 ### Pretrained checkpoints
 
@@ -87,7 +97,7 @@ Please download the required weights accordingly (infer/finetune/train). For exa
       └── parsing_parsenet.ckpt
   ```
 
- > _NOTE:_  The checkpoint filename or filepath is pre-defined in [sadtalker.yaml](examples\sadtalker\config\sadtalker.yaml). If you want to customize the file name or folder structure, modify the YAML file at the same time.
+ > _NOTE:_  The checkpoint filename or filepath is pre-defined in [sadtalker-infer.yaml](examples\sadtalker\config\sadtalker-infer.yaml). If you want to customize the file name or folder structure, modify the YAML file at the same time.
 
 
 ### Training Data
@@ -107,23 +117,11 @@ To generate a talker head video, you have to specify a single portrait image usi
 As reference, you can run the following commands to execute inference process. There're also some arguments to customize the animation, please refer to [input arguments](./utils/arg_parser.py).
 
 ```bash
-python inference.py --config ./config/sadtalker.yaml --source_image examples/source_image/people_0.png --driven_audio examples/driven_audio/imagine.wav
+python inference.py --config ./config/sadtalker-infer.yaml --source_image examples/source_image/people_0.png --driven_audio examples/driven_audio/imagine.wav
 ```
 
-## Examples
+Here are some generated videos with different inputs:
 
-Here are some generated videos with different inputs.
-
-1. Chinese audio + full character image
-
-https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f8094c23662
-
-
-2. English audio + full character image
-
-https://github.com/hqkate/sadtalker/assets/26082447/a2ecbf7d-cde4-4fb7-b6d4-6301b679e75b
-
-
-3. Singing audio + character image with cropping preprocessing
-
-https://github.com/hqkate/sadtalker/assets/26082447/2c713067-f64e-45a7-9ce2-bc57f340bdad
+| Chinese audio + full character image   | English audio + full character image       |   Singing audio + character image with cropping preprocessing |
+|:--------------------: |:--------------------: | :----: |
+| <video  src="https://github.com/hqkate/sadtalker/assets/26082447/fc20924f-9d42-4432-8f7a-2f8094c23662" title="" type="video/mp4"> </video> | <video  src="https://github.com/hqkate/sadtalker/assets/26082447/a2ecbf7d-cde4-4fb7-b6d4-6301b679e75b" type="video/mp4"> </video>  | <video src="https://github.com/hqkate/sadtalker/assets/26082447/2c713067-f64e-45a7-9ce2-bc57f340bdad" type="video/mp4"> </video> |
