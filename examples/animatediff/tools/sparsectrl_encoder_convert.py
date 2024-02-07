@@ -95,7 +95,9 @@ def convert_pt_ms_state_dict(
             assert (
                 pt_unet_pshapes[tar_idx] == ms_unet_pshapes[tar_idx]
             ), f"pt and ms param shape mismatch, please check order correspondance. pt: {pt_dict_pname}, ms: {ms_dict_pname} "
-            ms_dict_pname = ms_dict_pname[len("model.diffusion_model.") :]  # remove "model.diffusion_model."
+            ms_dict_pname = (
+                "model.diffusion_model.controlnet." + ms_dict_pname[len("model.diffusion_model.") :]
+            )  # remove "model.diffusion_model."
         elif "controlnet" in pt_dict_pname:
             # controlnet params are all conv layers
             # change conv layer name
@@ -104,6 +106,7 @@ def convert_pt_ms_state_dict(
             ms_dict_pname = ms_dict_pname.replace("controlnet_down_blocks", "controlnet_input_blocks").replace(
                 "controlnet_mid_block", "controlnet_middle_block"
             )
+            ms_dict_pname = "model.diffusion_model.controlnet." + ms_dict_pname
         elif "temporal_transformer" in pt_dict_pname:
             # motion module params
             tar_idx = pt_mm_pnames.index(pt_dict_pname)
@@ -112,7 +115,9 @@ def convert_pt_ms_state_dict(
             assert (
                 pt_mm_pshapes[tar_idx] == ms_mm_pshapes[tar_idx]
             ), f"pt and ms param shape mismatch, please check order correspondance. pt: {pt_dict_pname}, ms: {ms_dict_pname} "
-            ms_dict_pname = ms_dict_pname[len("model.diffusion_model.") :]  # remove "model.diffusion_model."
+            ms_dict_pname = (
+                "model.diffusion_model.controlnet." + ms_dict_pname[len("model.diffusion_model.") :]
+            )  # remove "model.diffusion_model."
         else:
             raise ValueError(f"incorrect pname {pt_dict_pname}")
         print("PT Param Name: ", pt_dict_pname)
