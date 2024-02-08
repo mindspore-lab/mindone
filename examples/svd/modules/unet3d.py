@@ -61,19 +61,19 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
         context=None,
         image_only_indicator: Optional[Tensor] = None,
         time_context: Optional[int] = None,
-        num_video_frames: Optional[int] = None,
+        num_frames: Optional[int] = None,
     ):
         for cell in self.cell_list:
             if isinstance(cell, TimestepBlock) and not isinstance(cell, TemporalResBlock):
                 x = cell(x, emb)
             elif isinstance(cell, TemporalResBlock):
-                x = cell(x, emb, num_video_frames, image_only_indicator)
+                x = cell(x, emb, num_frames, image_only_indicator)
             elif isinstance(cell, TemporalTransformer):
                 x = cell(
                     x,
                     context,
                     time_context,
-                    num_video_frames,
+                    num_frames,
                     image_only_indicator,
                 )
             elif isinstance(cell, SpatialTransformer):
@@ -375,14 +375,14 @@ class TemporalResBlock(ResBlock):
         self,
         x: Tensor,
         emb: Tensor,
-        num_video_frames: int,
+        num_frames: int,
         image_only_indicator: Optional[Tensor] = None,
     ) -> Tensor:
         x_spat = super().construct(x, emb)
         # (b t) c h w -> b c t h w
-        x_spat = x_spat.reshape(-1, num_video_frames, x_spat.shape[1], x_spat.shape[2], x_spat.shape[3]).swapaxes(1, 2)
+        x_spat = x_spat.reshape(-1, num_frames, x_spat.shape[1], x_spat.shape[2], x_spat.shape[3]).swapaxes(1, 2)
 
-        emb = emb.reshape(-1, num_video_frames, *emb.shape[1:])  # (b t) ... -> b t ...
+        emb = emb.reshape(-1, num_frames, *emb.shape[1:])  # (b t) ... -> b t ...
         x_temp = self.time_stack(x_spat, emb)
         x = self.time_mixer(x_spatial=x_spat, x_temporal=x_temp, image_only_indicator=image_only_indicator)
 
@@ -737,7 +737,7 @@ class VideoUNet(nn.Cell):
         context: Optional[Tensor] = None,
         y: Optional[Tensor] = None,
         time_context: Optional[Tensor] = None,
-        num_video_frames: Optional[int] = None,
+        num_frames: Optional[int] = None,
         image_only_indicator: Optional[Tensor] = None,
     ):
         assert (y is not None) == (
@@ -759,7 +759,7 @@ class VideoUNet(nn.Cell):
                 context=context,
                 image_only_indicator=image_only_indicator,
                 time_context=time_context,
-                num_video_frames=num_video_frames,
+                num_frames=num_frames,
             )
             hs.append(h)
         h = self.middle_block(
@@ -768,7 +768,7 @@ class VideoUNet(nn.Cell):
             context=context,
             image_only_indicator=image_only_indicator,
             time_context=time_context,
-            num_video_frames=num_video_frames,
+            num_frames=num_frames,
         )
         for i, module in enumerate(self.output_blocks, start=1):
             h = ops.cat([h, hs[-i]], axis=1)
@@ -778,7 +778,7 @@ class VideoUNet(nn.Cell):
                 context=context,
                 image_only_indicator=image_only_indicator,
                 time_context=time_context,
-                num_video_frames=num_video_frames,
+                num_frames=num_frames,
             )
         h = h.to(x.dtype)
         return self.out(h)

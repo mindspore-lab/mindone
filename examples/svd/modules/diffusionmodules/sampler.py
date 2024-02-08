@@ -5,7 +5,7 @@ from mindspore import dtype as ms_dtype
 
 class EulerEDMSampler(EulerEDMSamplerOriginal):
     def denoise(self, x, model, sigma, cond, uc, **kwargs):
-        num_frames = kwargs.pop("num_frames")
+        num_frames = kwargs["num_frames"]
 
         noised_input, sigmas, cond = self.guider.prepare_inputs(x, sigma, cond, uc)
         cond = model.openai_input_warpper(cond)

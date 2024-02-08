@@ -75,8 +75,8 @@ class LinearPredictionGuider(nn.Cell):
         x_u, x_c = x.chunk(2)
 
         # (b t) ... -> b t ...
-        x_u = x_u.reshape(-1, self.num_frames, *x_u.shape[1:])
-        x_c = x_c.reshape(-1, self.num_frames, *x_c.shape[1:])
+        x_u = x_u.reshape(-1, num_frames, *x_u.shape[1:])
+        x_c = x_c.reshape(-1, num_frames, *x_c.shape[1:])
 
         scale = ops.linspace(self.min_scale, self.max_scale, num_frames)[None, :]
         scale = scale.repeat(x_u.shape[0], axis=0)  # 1 t -> b t

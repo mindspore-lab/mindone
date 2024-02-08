@@ -110,7 +110,7 @@ class VideoDiffusionEngine(DiffusionEngine):
             concat=concat,
             context=crossattn,
             y=vector,
-            num_video_frames=num_frames,
+            num_frames=num_frames,
         )
         model_output = model_output * c_out + noised_input * c_skip
         loss = self.loss_fn(model_output, x, w)

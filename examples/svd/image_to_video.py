@@ -73,15 +73,14 @@ class SVDInferPipeline(nn.Cell):
             )
 
         config = OmegaConf.load(config.absolute)
-        config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
         if sampling_steps:
             config.model.params.sampler_config.params.num_steps = sampling_steps
 
-        model, _ = create_model(config, checkpoints=checkpoint.absolute, freeze=True, amp_level=amp_level)
-        self.model = model
+        self.model, _ = create_model(config, checkpoints=checkpoint.absolute, freeze=True, amp_level=amp_level)
+        self.model.first_stage_model.to_float(ms.float32)
 
         self._num_frames = num_frames
-        self._f = 2 ** (model.first_stage_model.encoder.num_resolutions - 1)
+        self._f = 2 ** (self.model.first_stage_model.encoder.num_resolutions - 1)
 
         # dtype = ms.float16 if amp_level in ["O2", "O3"] else ms.float32
         self._fps_id = Tensor(fps - 1, dtype=ms.float32)
@@ -138,7 +137,7 @@ class SVDInferPipeline(nn.Cell):
 
         additional_model_inputs = {
             "image_only_indicator": ops.zeros((2, self._num_frames)),
-            "num_video_frames": self._num_frames,
+            "num_frames": self._num_frames,
         }
 
         samples_z = self.model.sampler(self.model, noise, cond=c, uc=uc, **additional_model_inputs)
