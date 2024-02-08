@@ -7,7 +7,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr, path_type
 from omegaconf import OmegaConf
 
-from mindspore import Model, amp, load_checkpoint, load_param_into_net, nn
+from mindspore import Model, amp, load_checkpoint, load_param_into_net, nn, float32
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
@@ -66,14 +66,14 @@ def main(args, initializer):
     #             param.requires_grad = False
 
     ldm_with_loss = mixed_precision(ldm_with_loss)
+    ldm_with_loss.first_stage_model.to_float(float32)
+    ldm_with_loss.loss_fn.to_float(float32)
 
     # step 3: prepare train dataset and dataloader
     dataset = initializer.train.dataset
     train_dataloader = build_dataloader(
         dataset,
-        transforms=dataset.train_transforms(
-            ldm_with_loss.conditioner.embedders[0].tokenize, args.train.dataset.init_args.frames
-        ),
+        transforms=dataset.train_transforms(ldm_with_loss.conditioner.embedders[0].tokenize),
         device_num=device_num,
         rank_id=rank_id,
         debug=args.environment.debug,
@@ -145,6 +145,7 @@ def main(args, initializer):
                 f"Num epochs: {args.train.epochs} {f'(adjusted to sink size {args.train.sink_size})' if not args.environment.debug else ''}",
                 f"Learning rate: {args.train.scheduler.lr}",
                 f"Batch size: {args.train.dataloader.batch_size}",
+                f"Number of frames: {args.train.dataset.init_args.frames}",
                 f"Weight decay: {args.train.optimizer.weight_decay}",
                 f"Grad accumulation steps: {args.train.settings.gradient_accumulation_steps}",
                 f"Grad clipping: {args.train.settings.clip_grad}",
