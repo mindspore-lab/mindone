@@ -360,7 +360,7 @@ def _scale_lr(group_params, lr):
         new_groups.append(
             {
                 "params": scale_params,
-                "weight_decay": 0,
+                "weight_decay": group["weight_decay"],
                 "lr": lr * 10,
             }
         )
