@@ -152,7 +152,7 @@ def train(args):
     # 4. Create train step func
     assert "optim" in config
     lr = get_learning_rate(config.optim, config.data.total_step)
-    scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=65536)
+    scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if isinstance(model.model, nn.Cell):
         optimizer = get_optimizer(
             config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
@@ -278,12 +278,8 @@ def train_txt2img(
 
         # Print meg
         if (i + 1) % args.log_interval == 0 and args.rank % 8 == 0:
-            if optimizer.dynamic_lr:
-                cur_lr = optimizer.learning_rate(Tensor(i, ms.int32)).asnumpy().item()
-            else:
-                cur_lr = optimizer.learning_rate.asnumpy().item()
             print(
-                f"Step {i + 1}/{total_step}, size: {image.shape[:]}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
+                f"Step {i + 1}/{total_step}, size: {image.shape[:]}, loss: {loss.asnumpy():.6f}"
                 f", time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
                 flush=True,
             )

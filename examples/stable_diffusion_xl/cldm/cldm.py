@@ -18,8 +18,7 @@ class ControlnetUnetModel(UNetModel):
     def __init__(self, control_stage_config, guess_mode=False, strength=1.0, sd_locked=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.sd_locked = sd_locked
-        if self.sd_locked:
+        if sd_locked:
             for param in self.get_parameters():
                 param.requires_grad = False
 
@@ -76,10 +75,6 @@ class ControlnetUnetModel(UNetModel):
             h_c = self.controlnet.middle_block(h_c, emb_c, context)
 
         h = self.middle_block(h, emb, context)
-
-        if self.sd_locked:
-            # may save some computation time
-            h = ops.stop_gradient(h)
 
         if control is not None:
             control_list.append(self.controlnet.middle_block_out(h_c, emb_c, context))
