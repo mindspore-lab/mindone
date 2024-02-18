@@ -76,7 +76,7 @@ def create_loader(
 
     de.config.set_seed(1236517205 + rank)
     cores = multiprocessing.cpu_count()
-    num_parallel_workers = min(int(cores / rank_size), num_parallel_workers)
+    num_parallel_workers = min(int(cores / min(rank_size, 8)), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
     if rank_size > 1:
         ds = de.GeneratorDataset(
@@ -153,7 +153,7 @@ def create_loader_dreambooth(
 
     de.config.set_seed(1236517205 + rank)
     cores = multiprocessing.cpu_count()
-    num_parallel_workers = min(int(cores / rank_size), num_parallel_workers)
+    num_parallel_workers = min(int(cores / min(rank_size, 8)), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
     if rank_size > 1:
         ds = de.GeneratorDataset(
