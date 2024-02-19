@@ -131,7 +131,7 @@ data:
     shuffle: True
 
     dataset_config:
-        target: gm.data.dataset_wds.T2I_Webdataset
+        target: gm.data.dataset_wds.T2I_Webdataset_RndAcs
         params:
             caption_key: 'text_english'
             target_size: 1024

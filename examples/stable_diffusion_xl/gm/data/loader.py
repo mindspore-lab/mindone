@@ -1,6 +1,7 @@
 import math
 import multiprocessing
 
+from gm.data.dataset_wds import T2I_Webdataset
 from gm.util import get_obj_from_str
 
 import mindspore.dataset as de
@@ -64,7 +65,6 @@ def create_loader(
             max_embeddings_multiples=max_embeddings_multiples,
             **dataset_config.get("params", dict()),
         )
-
     batch_collate_fn, dataset_column_names, dataset_output_column_names = (
         dataset.collate_fn,
         dataset.dataset_column_names,
@@ -78,7 +78,7 @@ def create_loader(
     cores = multiprocessing.cpu_count()
     num_parallel_workers = min(int(cores / rank_size), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
-    if rank_size > 1:
+    if (rank_size > 1) and (not isinstance(dataset, T2I_Webdataset)):
         ds = de.GeneratorDataset(
             dataset,
             column_names=dataset_column_names,
@@ -155,7 +155,7 @@ def create_loader_dreambooth(
     cores = multiprocessing.cpu_count()
     num_parallel_workers = min(int(cores / rank_size), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
-    if rank_size > 1:
+    if (rank_size > 1) and (not isinstance(dataset, T2I_Webdataset)):
         ds = de.GeneratorDataset(
             dataset,
             column_names=dataset_column_names,
