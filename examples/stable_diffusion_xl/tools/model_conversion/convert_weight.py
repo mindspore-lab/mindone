@@ -42,8 +42,8 @@ def ms_to_pt(args):
     _new_sd_dict = {}
     for k in sd:
         if "._backbone" in k:
-             _index = k.find("._backbone")
-             new_k = k[:_index] + k[_index + len("._backbone") :]
+            _index = k.find("._backbone")
+            new_k = k[:_index] + k[_index + len("._backbone") :]
         else:
             new_k = k[:]
         _new_sd_dict[new_k] = sd[k]
