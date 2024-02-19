@@ -732,6 +732,7 @@ class SparseCtrlUNet3D(UNet3DModel):
 
         if append_to_context is not None:
             context = ops.cat([context, append_to_context], axis=1)
+        assert controlnet_cond is not None, "The input control must not be None for SparseCtrlUNet3D!"
         if self.controlnet.concate_conditioning_mask:
             controlnet_cond = self.controlnet.cat([controlnet_cond, conditioning_mask])
         controlnet_cond = rearrange_in(controlnet_cond)
@@ -749,25 +750,18 @@ class SparseCtrlUNet3D(UNet3DModel):
 
         h = x
         h_c = x_c
-        input_block_res_samples = []
 
         # 1. conv_in and downblocks
         adapter_idx = 0
         # 1.1 unet input_blocks
-        for i, celllist in enumerate(self.input_blocks, 1):
+        for i, (c_cellist, celllist, zero_convs) in enumerate(
+            zip(self.controlnet.input_blocks, self.input_blocks, self.controlnet.controlnet_input_blocks), 1
+        ):
             for cell in celllist:
                 if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
                     h = cell(h, emb, context, video_length=F)
                 else:
                     h = cell(h, emb, context)
-
-            if features_adapter and i % 3 == 0:
-                h = h + features_adapter[adapter_idx]
-                adapter_idx += 1
-
-            hs.append(h)
-        # 1.2 sparse control encoder input_blocks
-        for i, c_cellist in enumerate(self.controlnet.input_blocks, 1):
             for c_cell in c_cellist:
                 if isinstance(c_cell, VanillaTemporalModule) or (
                     isinstance(c_cell, ResBlock) and self.controlnet.norm_in_5d
@@ -779,9 +773,12 @@ class SparseCtrlUNet3D(UNet3DModel):
                 else:
                     h_c = c_cell(h_c, emb_c, context)
 
-            hs_c.append(h_c)
+            if features_adapter and i % 3 == 0:
+                h = h + features_adapter[adapter_idx]
+                adapter_idx += 1
 
-        input_block_res_samples = hs_c
+            hs.append(h)
+            hs_c.append(zero_convs(h_c))
 
         if features_adapter:
             assert len(features_adapter) == adapter_idx, "Wrong features_adapter"
@@ -803,18 +800,7 @@ class SparseCtrlUNet3D(UNet3DModel):
             else:
                 h_c = module(h_c, emb_c, context)
 
-        # 3. controlnet residuals
-        # 3.1 residuals
-        controlnet_input_block_res_samples = ()
-
-        for input_block_res_sample, controlnet_block in zip(
-            input_block_res_samples, self.controlnet.controlnet_input_blocks
-        ):
-            input_block_res_sample = controlnet_block(input_block_res_sample)
-            controlnet_input_block_res_samples = controlnet_input_block_res_samples + (input_block_res_sample,)
-
-        input_block_res_samples = controlnet_input_block_res_samples
-
+        input_block_res_samples = hs_c
         mid_block_res_sample = self.controlnet.controlnet_middle_block(h_c)
 
         # 3.2 scaling
