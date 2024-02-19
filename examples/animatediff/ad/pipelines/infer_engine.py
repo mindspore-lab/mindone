@@ -27,7 +27,6 @@ class AnimateDiffText2Video(ABC):
         unet,
         vae,
         scheduler,
-        controlnet=None,
         scale_factor=1.0,
         guidance_rescale=0.0,
         num_inference_steps=50,
@@ -36,7 +35,6 @@ class AnimateDiffText2Video(ABC):
         self.text_encoder = text_encoder
         self.unet = unet
         self.vae = vae
-        self.controlnet = controlnet
         self.scheduler = scheduler
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
@@ -99,8 +97,7 @@ class AnimateDiffText2Video(ABC):
         guidance_scale,
         c_concat=None,
         controlnet_images=None,
-        controlnet_image_index=[0],
-        controlnet_conditioning_scale=1.0,
+        controlnet_image_index=None,
     ):
         """
         The noise predicition model function that is used for DPM-Solver.
@@ -118,6 +115,8 @@ class AnimateDiffText2Video(ABC):
             ), f"Expect to receive 5 dims for controlnet_images, but got {controlnet_images.dim()}"  # (b, c, f, h, w)
 
             b, c, f, h, w = controlnet_images.shape
+            if controlnet_image_index is None:
+                controlnet_image_index = ms.Tensor([0])
             assert f >= len(
                 controlnet_image_index
             ), f"the video length must be greater than or equal to the length of controlnet_image_index, but got {f} and {len(controlnet_image_index)}"
@@ -127,12 +126,7 @@ class AnimateDiffText2Video(ABC):
             controlnet_cond[:, :, controlnet_image_index] = controlnet_images[:, :, : len(controlnet_image_index)]
             controlnet_conditioning_mask[:, :, controlnet_image_index] = 1
 
-            ctrl_kwargs = {
-                "controlnet_cond": controlnet_images,
-                "conditioning_mask": controlnet_conditioning_mask,
-                "conditioning_scale": controlnet_conditioning_scale,
-                "guess_mode": False,
-            }
+            ctrl_kwargs = {"controlnet_cond": controlnet_images, "conditioning_mask": controlnet_conditioning_mask}
             noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn, **ctrl_kwargs)
         else:
             noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)
@@ -183,8 +177,7 @@ class AnimateDiffText2Video(ABC):
         timesteps = self.scheduler.timesteps
         iterator = tqdm(timesteps, desc="Sampling", total=len(timesteps))
         controlnet_images = inputs.get("controlnet_images", None)
-        controlnet_image_index = inputs.get("controlnet_image_index", [0])
-        controlnet_conditioning_scale = inputs.get("controlnet_conditioning_scale", 1.0)
+        controlnet_image_index = inputs.get("controlnet_image_index", ms.Tensor([0]))
         for i, t in enumerate(iterator):
             ts = ms.Tensor(t, ms.int32)
             latents = self.scale_model_input(latents, ts)
@@ -196,7 +189,6 @@ class AnimateDiffText2Video(ABC):
                 c_concat,
                 controlnet_images,
                 controlnet_image_index,
-                controlnet_conditioning_scale,
             )
             latents = self.scheduler(noise_pred, ts, latents, self.num_inference_steps)
 

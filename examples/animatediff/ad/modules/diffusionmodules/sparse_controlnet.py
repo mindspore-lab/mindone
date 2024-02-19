@@ -215,6 +215,8 @@ class SparseControlNetModel(nn.Cell):
         motion_module_kwargs={},  #
         unet_use_cross_frame_attention=None,
         unet_use_temporal_attention=None,
+        guess_mode: bool = False,
+        conditioning_scale: float = 1.0,
     ):
         super().__init__()
 
@@ -270,6 +272,8 @@ class SparseControlNetModel(nn.Cell):
         self.num_head_channels = num_head_channels
         self.num_heads_upsample = num_heads_upsample
         self.predict_codebook_ids = n_embed is not None
+        self.guess_mode = guess_mode
+        self.conditioning_scale = conditioning_scale
 
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
@@ -570,8 +574,6 @@ class SparseControlNetModel(nn.Cell):
         append_to_context=None,
         controlnet_cond: Optional[ms.Tensor] = None,
         conditioning_mask: Optional[ms.Tensor] = None,
-        conditioning_scale: float = 1.0,
-        guess_mode: bool = False,
         **kwargs,
     ):
         """
@@ -661,15 +663,15 @@ class SparseControlNetModel(nn.Cell):
         mid_block_res_sample = self.controlnet_middle_block(h)
 
         # 6. scaling
-        if guess_mode and not self.global_pool_conditions:
+        if self.guess_mode and not self.global_pool_conditions:
             scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
 
-            scales = scales * conditioning_scale
+            scales = scales * self.conditioning_scale
             input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
             mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
         else:
-            input_block_res_samples = [sample * conditioning_scale for sample in input_block_res_samples]
-            mid_block_res_sample = mid_block_res_sample * conditioning_scale
+            input_block_res_samples = [sample * self.conditioning_scale for sample in input_block_res_samples]
+            mid_block_res_sample = mid_block_res_sample * self.conditioning_scale
 
         if self.global_pool_conditions:
             input_block_res_samples = [
@@ -703,8 +705,6 @@ class SparseCtrlUNet3D(UNet3DModel):
         append_to_context=None,
         controlnet_cond: Optional[ms.Tensor] = None,
         conditioning_mask: Optional[ms.Tensor] = None,
-        conditioning_scale: float = 1.0,
-        guess_mode: bool = False,
         **kwargs,
     ):
         if self.controlnet.set_noisy_sample_input_to_zero:
@@ -804,15 +804,17 @@ class SparseCtrlUNet3D(UNet3DModel):
         mid_block_res_sample = self.controlnet.controlnet_middle_block(h_c)
 
         # 3.2 scaling
-        if guess_mode and not self.controlnet.global_pool_conditions:
+        if self.controlnet.guess_mode and not self.controlnet.global_pool_conditions:
             scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
 
-            scales = scales * conditioning_scale
+            scales = scales * self.controlnet.conditioning_scale
             input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
             mid_block_res_sample = mid_block_res_sample * scales[-1]  # last one
         else:
-            input_block_res_samples = [sample * conditioning_scale for sample in input_block_res_samples]
-            mid_block_res_sample = mid_block_res_sample * conditioning_scale
+            input_block_res_samples = [
+                sample * self.controlnet.conditioning_scale for sample in input_block_res_samples
+            ]
+            mid_block_res_sample = mid_block_res_sample * self.controlnet.conditioning_scale
 
         if self.controlnet.global_pool_conditions:
             input_block_res_samples = [

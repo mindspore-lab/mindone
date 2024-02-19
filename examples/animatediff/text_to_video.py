@@ -103,7 +103,7 @@ def main(args):
         if not os.path.exists(adapter_lora_path):
             logger.warning(f"domain adapter path {adapter_lora_path} not exist. Will not apply adapter lora model.")
         adapter_lora_scale = ad_config.get("domain_lora_scale", 1.0)
-    controlnet_images, controlnet = None, None
+    controlnet_images = None
     if controlnet_path != "":
         if not os.path.exists(controlnet_path):
             logger.warning(f"sparse control encoder path {controlnet_path} not exist. Will not use controlnet.")
@@ -196,7 +196,6 @@ def main(args):
         unet,
         vae,
         scheduler,
-        controlnet=controlnet,
         scale_factor=sd_model.scale_factor,
         num_inference_steps=steps,
     )
