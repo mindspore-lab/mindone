@@ -45,7 +45,7 @@ def ms_to_pt(args):
         assert k_ms in sd, f"Keys '{k_ms}' not found in {args.key_ms}"
         new_ckpt[k_t] = torch.from_numpy(sd[k_ms].data.asnumpy())
 
-    ms.save_checkpoint(new_ckpt, args.weight_safetensors)
+    torch.save(new_ckpt, args.weight_safetensors)
     print(f"Convert '{args.weight_ms}' to '{args.weight_safetensors}' Done.")
 
 
