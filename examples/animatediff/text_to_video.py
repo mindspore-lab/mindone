@@ -205,7 +205,7 @@ def main(args):
         controlnet_images = controlnet_images.transpose((0, 2, 1, 3, 4)).reshape(
             (b * f, c, h, w)
         )  # (b c f h w) -> (b*f c h w)
-        controlnet_images = pipeline.vae_encode(controlnet_images)
+        controlnet_images = pipeline.vae_encode(controlnet_images * 2.0 - 1.0)
         _, c, h, w = controlnet_images.shape
         controlnet_images = controlnet_images.reshape((b, f, c, h, w)).transpose(
             (0, 2, 1, 3, 4)

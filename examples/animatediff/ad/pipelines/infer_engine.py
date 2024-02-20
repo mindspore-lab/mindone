@@ -113,20 +113,21 @@ class AnimateDiffText2Video(ABC):
             assert (
                 controlnet_images.dim() == 5
             ), f"Expect to receive 5 dims for controlnet_images, but got {controlnet_images.dim()}"  # (b, c, f, h, w)
-
-            b, c, f, h, w = controlnet_images.shape
+            video_length = x.shape[2]
+            b, c, _, h, w = controlnet_images.shape
             if controlnet_image_index is None:
                 controlnet_image_index = ms.Tensor([0])
-            assert f >= len(
-                controlnet_image_index
-            ), f"the video length must be greater than or equal to the length of controlnet_image_index, but got {f} and {len(controlnet_image_index)}"
-            controlnet_cond = ops.zeros_like(controlnet_images)
-            controlnet_conditioning_mask = ops.zeros((b, 1, f, h, w), dtype=controlnet_images.dtype)
+            assert video_length >= len(controlnet_image_index), (
+                f"the video length must be greater than or equal to the length of controlnet_image_index, "
+                f"but got {video_length} and {len(controlnet_image_index)}"
+            )
+            controlnet_cond = ops.zeros((b, c, video_length, h, w), dtype=controlnet_images.dtype)
+            controlnet_conditioning_mask = ops.zeros((b, 1, video_length, h, w), dtype=controlnet_images.dtype)
 
             controlnet_cond[:, :, controlnet_image_index] = controlnet_images[:, :, : len(controlnet_image_index)]
             controlnet_conditioning_mask[:, :, controlnet_image_index] = 1
 
-            ctrl_kwargs = {"controlnet_cond": controlnet_images, "conditioning_mask": controlnet_conditioning_mask}
+            ctrl_kwargs = {"controlnet_cond": controlnet_cond, "conditioning_mask": controlnet_conditioning_mask}
             noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn, **ctrl_kwargs)
         else:
             noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)

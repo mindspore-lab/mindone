@@ -675,10 +675,9 @@ class SparseControlNetModel(nn.Cell):
 
         if self.global_pool_conditions:
             input_block_res_samples = [
-                ops.mean(sample, (2, 3), True)
-                for sample in input_block_res_samples  # FIXME: change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
+                rearrange_in(ops.mean(rearrange_out(sample, f=F), (2, 3), True)) for sample in input_block_res_samples
             ]
-            mid_block_res_sample = ops.mean(mid_block_res_sample, (2, 3), True)
+            mid_block_res_sample = rearrange_in(ops.mean(rearrange_out(mid_block_res_sample, f=F), (2, 3), True))
 
         return (input_block_res_samples, mid_block_res_sample)
 
@@ -735,10 +734,13 @@ class SparseCtrlUNet3D(UNet3DModel):
         assert controlnet_cond is not None, "The input control must not be None for SparseCtrlUNet3D!"
         if self.controlnet.concate_conditioning_mask:
             controlnet_cond = self.controlnet.cat([controlnet_cond, conditioning_mask])
-        controlnet_cond = rearrange_in(controlnet_cond)
-        controlnet_cond = self.controlnet.controlnet_cond_embedding(controlnet_cond)
         # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
         B, C, F, H, W = x.shape
+        if controlnet_cond.shape[0] == 1:
+            # broadcast to batch size of x
+            controlnet_cond = controlnet_cond.repeat_interleave(repeats=B, dim=0)
+        controlnet_cond = rearrange_in(controlnet_cond)
+        controlnet_cond = self.controlnet.controlnet_cond_embedding(controlnet_cond)
         # x: (b c f h w) -> (b*f c h w)
         x = rearrange_in(x)
         x_c = rearrange_in(x_c)
@@ -818,10 +820,9 @@ class SparseCtrlUNet3D(UNet3DModel):
 
         if self.controlnet.global_pool_conditions:
             input_block_res_samples = [
-                ops.mean(sample, (2, 3), True)
-                for sample in input_block_res_samples  # FIXME: change code: shape (b*f, c, h, w) diff from torch shape (b, c, f, h, w)
+                rearrange_in(ops.mean(rearrange_out(sample, f=F), (2, 3), True)) for sample in input_block_res_samples
             ]
-            mid_block_res_sample = ops.mean(mid_block_res_sample, (2, 3), True)
+            mid_block_res_sample = rearrange_in(ops.mean(rearrange_out(mid_block_res_sample, f=F), (2, 3), True))
 
         # support controlnet
         for i, in_res in enumerate(input_block_res_samples):
