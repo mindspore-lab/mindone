@@ -88,7 +88,6 @@ class AnimateDiffText2Video(ABC):
     def scale_model_input(self, latents, t):
         return self.scheduler.scale_model_input(latents, t)
 
-    @ms.jit
     def predict_noise(
         self,
         x,
@@ -121,6 +120,9 @@ class AnimateDiffText2Video(ABC):
                 f"the video length must be greater than or equal to the length of controlnet_image_index, "
                 f"but got {video_length} and {len(controlnet_image_index)}"
             )
+            # replace negative index by positive index
+            neg_mask = controlnet_image_index < 0
+            controlnet_image_index[neg_mask] = controlnet_image_index[neg_mask] + video_length
             controlnet_cond = ops.zeros((b, c, video_length, h, w), dtype=controlnet_images.dtype)
             controlnet_conditioning_mask = ops.zeros((b, 1, video_length, h, w), dtype=controlnet_images.dtype)
 
