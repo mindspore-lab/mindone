@@ -39,7 +39,9 @@ def transform_conditional_images(image_paths, H, W, random_crop=True, normalize=
     if save_dir is not None:
         assert os.path.exists(save_dir), f"save_dir {save_dir} does not exist!"
         os.makedirs(os.path.join(save_dir, "control_images"), exist_ok=True)
-        for i, image in enumerate(controlnet_images):
+        my_save_dir = os.path.join(save_dir, "control_images")
+        existing_files = [f for f in os.listdir(my_save_dir) if os.path.isfile(os.path.join(my_save_dir, f))]
+        for i, image in enumerate(controlnet_images, len(existing_files)):
             Image.fromarray((255.0 * (image.transpose(1, 2, 0))).astype(np.uint8)).save(
                 f"{save_dir}/control_images/{i}.png"
             )
