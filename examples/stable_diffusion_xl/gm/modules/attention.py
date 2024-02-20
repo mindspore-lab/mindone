@@ -22,6 +22,7 @@ try:
     FLASH_IS_AVAILABLE = True
     print("flash attention is available.")
 except ImportError:
+    FlashAttention = None
     FLASH_IS_AVAILABLE = False
     print("flash attention is unavailable.")
 

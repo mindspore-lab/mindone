@@ -2,11 +2,11 @@ import logging
 import os
 import random
 import sys
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 
 import numpy as np
 
-from mindspore.dataset.vision import CenterCrop, Resize, HWC2CHW
+from mindspore.dataset.vision import CenterCrop, Resize
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.data import BaseDataset
@@ -17,21 +17,12 @@ _logger = logging.getLogger(__name__)
 
 
 class VideoDataset(BaseDataset):
-    def __init__(self, data_dir: str, metadata: str, frames: int, step: int = 1, output_columns: List[str] = None):
+    def __init__(self, data_dir: str, metadata: str, frames: int, step: int = 1):
         self._data = self._read_data(data_dir, metadata)
         self._frames = frames
         self._step = step
         self._filter_videos()
-        # self.output_columns = output_columns or ["frames", "caption"]
-        # self.output_columns = ["frames", "txt", "fps_id", "motion_bucket_id", "cond_aug"]
-        self.output_columns = [
-            "frames",
-            "cond_frames_without_noise",
-            "fps_id",
-            "motion_bucket_id",
-            "cond_frames",
-            "cond_aug",
-        ]
+        self.output_columns = ["frames", "fps_id", "motion_bucket_id", "cond_aug"]
 
     @staticmethod
     def _read_data(data_dir: str, metadata: str) -> List[dict]:
@@ -62,26 +53,33 @@ class VideoDataset(BaseDataset):
 
         noise_strength = np.random.lognormal(-3.0, 0.5**2)
 
-        cond_frames_without_noise = data["frames"][0]
-        cond_frames = cond_frames_without_noise  # FIXME
-
-        # return tuple(data[col] for col in self.output_columns)
-        # return data["frames"], data["caption"], data["fps"], 127, noise_strength
-        return data["frames"], cond_frames_without_noise, data["fps"], 127, cond_frames, noise_strength
+        return data["frames"], data["fps"] - 1, 127, noise_strength
 
     def __len__(self):
         return len(self._data)
 
-    def train_transforms(self, tokenizer: Callable[[str], np.ndarray]) -> List[dict]:
+    def train_transforms(self, tokenizer: Optional[Callable[[str], np.ndarray]] = None) -> List[dict]:
         return [
             {
                 "operations": [
-                    Resize(384),
-                    CenterCrop((384, 640)),
+                    Resize(576),
+                    CenterCrop((576, 1024)),
                     lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
                     lambda x: (x / 127.5 - 1.0).astype(np.float32),
                 ],
                 "input_columns": ["frames"],
+            },
+            {
+                "operations": [
+                    lambda frames, aug: (
+                        frames,
+                        frames[0],
+                        frames[0] + aug * np.random.randn(*frames[0].shape).astype(np.float32),
+                        aug,
+                    )
+                ],
+                "input_columns": ["frames", "cond_aug"],
+                "output_columns": ["frames", "cond_frames_without_noise", "cond_frames", "cond_aug"],
             },
             # {
             #     "operations": [
@@ -92,34 +90,12 @@ class VideoDataset(BaseDataset):
             #     "input_columns": ["txt"],
             # },
             {
-                "operations": [
-                    Resize(384),
-                    CenterCrop((384, 640)),
-                    HWC2CHW(),
-                    lambda x: (x / 127.5 - 1.0).astype(np.float32),
-                ],
-                "input_columns": ["cond_frames_without_noise"],
-            },
-            {
                 "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
                 "input_columns": ["fps_id"],
             },
             {
                 "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
                 "input_columns": ["motion_bucket_id"],
-            },
-            {
-                "operations": [
-                    Resize(384),
-                    CenterCrop((384, 640)),
-                    HWC2CHW(),
-                    lambda x: (x / 127.5 - 1.0).astype(np.float32),
-                ],
-                "input_columns": ["cond_frames"],
-            },
-            {
-                "operations": [lambda frames, aug: (frames + aug * np.random.randn(*frames.shape), aug)],
-                "input_columns": ["cond_frames", "cond_aug"],
             },
             {
                 "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],

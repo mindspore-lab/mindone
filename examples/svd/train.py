@@ -1,3 +1,4 @@
+import logging
 import shutil
 import sys
 from datetime import datetime
@@ -5,13 +6,14 @@ from pathlib import Path
 
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr, path_type
+from modules.encoders.modules import VideoPredictionEmbedderWithEncoder
 from omegaconf import OmegaConf
 
-from mindspore import Model, amp, load_checkpoint, load_param_into_net, nn, float32
+from mindspore import Model, amp, float32, load_checkpoint, load_param_into_net, nn
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import build_dataloader, BaseDataset
+from mindone.data import BaseDataset, build_dataloader
 from mindone.env import init_train_env
 from mindone.utils import count_params, set_logger
 
@@ -24,6 +26,7 @@ from ldm.modules.train.lr_schedule import create_scheduler
 from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.trainer import TrainOneStepWrapper
 
+logging.basicConfig(level=logging.INFO)
 
 Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
 
@@ -34,7 +37,7 @@ def mixed_precision(network):
     from mindspore.nn import GroupNorm, SiLU
 
     black_list = amp.get_black_list() + [SiLU, GroupNorm, GroupNorm3D]
-    return amp.custom_mixed_precision(network, black_list=black_list)._backbone     # FIXME
+    return amp.custom_mixed_precision(network, black_list=black_list)
 
 
 def main(args, initializer):
@@ -65,15 +68,22 @@ def main(args, initializer):
     #         if param.name not in temporal_param_names:
     #             param.requires_grad = False
 
-    ldm_with_loss = mixed_precision(ldm_with_loss)
-    ldm_with_loss.first_stage_model.to_float(float32)
-    ldm_with_loss.loss_fn.to_float(float32)
+    # Set mixed precision on certain modules only
+    cells = ldm_with_loss.name_cells()
+    for cell in cells:
+        if not cells[cell] is ldm_with_loss.loss_fn and not (
+            config.model.params.disable_first_stage_amp and cells[cell] is ldm_with_loss.first_stage_model
+        ):
+            setattr(ldm_with_loss, cell, mixed_precision(cells[cell]))
+    for emb in ldm_with_loss.conditioner._backbone.embedders:
+        if isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_amp:
+            emb.to_float(float32)
 
     # step 3: prepare train dataset and dataloader
     dataset = initializer.train.dataset
     train_dataloader = build_dataloader(
         dataset,
-        transforms=dataset.train_transforms(ldm_with_loss.conditioner.embedders[0].tokenize),
+        transforms=dataset.train_transforms(),
         device_num=device_num,
         rank_id=rank_id,
         debug=args.environment.debug,
@@ -123,11 +133,12 @@ def main(args, initializer):
                     ckpt_save_interval=ckpt_save_interval,
                     ckpt_save_policy="latest_k",
                     ckpt_max_keep=10,
+                    record_lr=False,
                 ),
             ]
         )
 
-        num_params_unet, _ = count_params(ldm_with_loss.model.diffusion_model)
+        # num_params_unet, _ = count_params(ldm_with_loss.model.diffusion_model)
         num_params_text_encoder, _ = count_params(ldm_with_loss.conditioner)
         num_params_vae, _ = count_params(ldm_with_loss.first_stage_model)
         num_params, num_trainable_params = count_params(ldm_with_loss)
@@ -139,7 +150,7 @@ def main(args, initializer):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.environment.mode}",
                 f"Distributed mode: {args.environment.distributed}",
                 "Model: StableDiffusion v2.1",
-                f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                # f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision SD: {args.train.amp_level}",
                 f"Num epochs: {args.train.epochs} {f'(adjusted to sink size {args.train.sink_size})' if not args.environment.debug else ''}",
@@ -165,7 +176,7 @@ def main(args, initializer):
         args.train.epochs,
         train_dataloader,
         callbacks=callbacks,
-        dataset_sink_mode=not args.environment.debug,
+        dataset_sink_mode=False,
         sink_size=args.train.sink_size,
     )
 
