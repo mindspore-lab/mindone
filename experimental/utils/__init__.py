@@ -22,3 +22,4 @@ from .hub_utils import (
 )
 from .logging import get_logger
 from .outputs import BaseOutput
+from .pil_utils import PIL_INTERPOLATION, make_image_grid, numpy_to_pil, pt_to_pil

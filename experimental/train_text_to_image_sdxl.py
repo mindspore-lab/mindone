@@ -37,6 +37,7 @@ from mindspore.dataset import vision, transforms, GeneratorDataset
 
 from .models import AutoencoderKL, UNet2DConditionModel
 from .schedulers import DDPMScheduler
+from .pipelines import StableDiffusionXLPipeline
 from .optimization import get_scheduler
 from .training_utils import compute_snr, set_seed, is_master, init_distributed_device
 
@@ -911,6 +912,41 @@ def main():
 
             if global_step >= args.max_train_steps:
                 break
+
+        if args.validation_prompt is not None and (epoch+1) % args.validation_epochs == 0:
+            logger.info(
+                f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
+                f" {args.validation_prompt}."
+            )
+
+            # create pipeline
+            pipeline = StableDiffusionXLPipeline(
+                vae=vae,
+                text_encoder=text_encoder_one,
+                text_encoder_2=text_encoder_two,
+                tokenizer=tokenizer_one,
+                tokenizer_2=tokenizer_two,
+                unet=unet,
+                scheduler=noise_scheduler,
+            )
+            if args.prediction_type is not None:
+                scheduler_args = {"prediction_type": args.prediction_type}
+                pipeline.scheduler = pipeline.scheduler.from_config(pipeline.scheduler.config, **scheduler_args)
+
+            pipeline.set_progress_bar_config(disable=True)
+
+            # run inference
+            pipeline_args = {"prompt": args.validation_prompt}
+            images = [
+                pipeline(**pipeline_args, num_inference_steps=25)[0][0]
+                for _ in range(args.num_validation_images)
+            ]
+
+            if is_master(args):
+                val_output_dir = os.path.join(args.output_dir, "validation", f"epoch{epoch+1}")
+                os.makedirs(val_output_dir, exist_ok=True)
+                for idx, img in enumerate(images):
+                    img.save(os.path.join(val_output_dir, f"{idx:04d}.jpg"))
 
 
 class TrainStep(nn.Cell):
