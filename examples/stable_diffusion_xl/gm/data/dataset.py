@@ -29,6 +29,7 @@ class Text2ImageDataset:
         prompt_empty_probability=0.0,
         lpw=False,
         max_embeddings_multiples=4,
+        max_pixels=18000000,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -67,6 +68,7 @@ class Text2ImageDataset:
         self.local_captions = all_captions
         self.lpw = lpw
         self.max_embeddings_multiples = max_embeddings_multiples
+        self.max_pixels = max_pixels
 
         self.transforms = []
         if transforms:
@@ -90,6 +92,8 @@ class Text2ImageDataset:
         # images preprocess
         image_path = self.local_images[idx]
         image = Image.open(image_path)
+        original_size = [image.height, image.width]
+        image = self.shrink_pixels(image, self.max_pixels)
         image = exif_transpose(image)
         if not image.mode == "RGB":
             image = image.convert("RGB")
@@ -106,7 +110,7 @@ class Text2ImageDataset:
         sample = {
             "image": image,
             "txt": caption,
-            "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
+            "original_size_as_tuple": np.array(original_size, np.int32),  # original h, original w
             "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
             "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
             "aesthetic_score": np.array(
@@ -187,6 +191,21 @@ class Text2ImageDataset:
                 filted_images.append(image)
                 filted_captions.append(caption)
         return filted_images, filted_captions
+
+    @staticmethod
+    def shrink_pixels(image, max_pixels):
+        max_pixels = max(max_pixels, 16)
+        h, w = image.height, image.width
+
+        need_shrink = False
+        while h * w > max_pixels:
+            h //= 2
+            w //= 2
+            need_shrink = True
+            
+        image = image.resize(size=(w, h)) if need_shrink else image
+
+        return image
 
 
 class Text2ImageDatasetDreamBooth:
