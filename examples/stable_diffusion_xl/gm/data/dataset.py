@@ -202,7 +202,7 @@ class Text2ImageDataset:
             h //= 2
             w //= 2
             need_shrink = True
-            
+
         image = image.resize(size=(w, h)) if need_shrink else image
 
         return image
