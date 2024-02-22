@@ -142,5 +142,5 @@ if __name__ == "__main__":
     rank_size = int(os.environ.get("RANK_SIZE", 1))
 
     # test_src_dataset(target="T2I_Webdataset")
-    test_src_dataset(target="T2I_Webdataset_RndAcs")
-    # test_loader(rank_id, rank_size)
+    # test_src_dataset(target="T2I_Webdataset_RndAcs")
+    test_loader(rank_id, rank_size)

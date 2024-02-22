@@ -272,14 +272,18 @@ class T2I_Webdataset(T2I_BaseDataset):
         super().__init__(*args, **kwargs)
 
         data_path = kwargs.get("data_path")
-        # num_samples = kwargs.get("num_samples")
+        num_samples = kwargs.get("num_samples", -1)
 
         tar_files = get_tar_file_list(data_path)
         print(f"Get {len(tar_files)} tar files")
 
-        # get number of samples in shard
+        # get number of samples
+        if num_samples == -1:
+            tot_samples = get_num_samples(shardlist_desc, data_path)
+        else:
+            tot_samples = num_samples
+
         # Change the epoch to return the given number of samples, determine by total samples and rank
-        tot_samples = get_num_samples(shardlist_desc, data_path)
         rank_id, device_num = get_device_rank_info()
         samples_per_rank = math.ceil(tot_samples / device_num)
         print(

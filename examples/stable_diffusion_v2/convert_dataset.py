@@ -8,8 +8,9 @@ The conversion is run serially and is slow now.
 import os
 
 import pandas as pd
-from datasets import load_dataset
 from tqdm import tqdm
+
+from datasets import load_dataset
 
 DATASET_NAME_MAPPING = {
     "lambdalabs/pokemon-blip-captions": ("image", "text"),

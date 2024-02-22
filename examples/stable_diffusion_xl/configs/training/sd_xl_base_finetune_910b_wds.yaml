@@ -135,6 +135,7 @@ data:
         params:
             caption_key: 'text_english'
             target_size: 1024
+            num_samples: -1     # total number of samples. If -1, will scan tar files or read shard info json if existed. You may specify detailed value to save scanning time.
             transforms:
                 - target: gm.data.mappers.Resize
                   params:
