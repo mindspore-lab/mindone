@@ -168,12 +168,12 @@ The shardlist description file used here shares the same format as wids.
             target: gm.data.dataset_wds.T2I_Webdataset
             params:
                 caption_key: 'text_english'
-                num_samples: 10000  # specify total number of samples 
-        ``` 
+                num_samples: 10000  # specify total number of samples
+        ```
         If `num_samples` is not specify or -1, the following 2 ways will be used to get dataset size.
 
-    2. Get total number of samples from shardlist record 
-        If shardlist description file is provided in source dataset (see format above), the datsat size will be obtained from the description file. Shardlist description file default path is `{dataset_dir/data_info.json}`. 
+    2. Get total number of samples from shardlist record
+        If shardlist description file is provided in source dataset (see format above), the datsat size will be obtained from the description file. Shardlist description file default path is `{dataset_dir/data_info.json}`.
 
     3. Scan tar files to record number of samples
         If neither the total number of samples or the shardlist record is provided, we will scanning all tar files to generate the sharlist description file and get the dataset size. It can be time-consuming for larget dataset.
