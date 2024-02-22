@@ -154,6 +154,9 @@ def get_parser_train():
     parser.add_argument("--max_device_memory", type=str, default=None)
     parser.add_argument("--is_parallel", type=ast.literal_eval, default=False)
     parser.add_argument("--parallel_mode", type=str, default="DATA_PARALLEL")
+    parser.add_argument(
+        "--optimizer_weight_shard_size", type=int, default=-1, help="num of shards when using optimizer parallel"
+    )
 
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
@@ -320,10 +323,10 @@ def train(args):
             jit_config = None
 
     elif args.ms_mode == 0 and args.parallel_mode == "OPTIMIZER_PARALLEL":
-        from gm.models.trainer_factory import TrainOneStepWithZero3Cell
+        from gm.models.trainer_factory import TrainOneStepWithZeRO3Cell
 
         callback = [LossMonitor()]
-        train_step_fn = TrainOneStepWithZero3Cell(
+        train_step_fn = TrainOneStepWithZeRO3Cell(
             model,
             optimizer,
             reducer,

@@ -102,7 +102,7 @@ model:
                     target: mindspore.nn.Identity
 
         sigma_sampler_config:
-            target: gm.modules.diffusionmodules.sigma_sampling.DiscreteSamplingForZero3
+            target: gm.modules.diffusionmodules.sigma_sampling.DiscreteSamplingForZeRO3
             params:
                 num_idx: 1000
                 discretization_config:

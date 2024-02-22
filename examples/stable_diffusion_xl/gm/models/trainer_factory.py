@@ -686,7 +686,7 @@ class LatentDiffusionStage2Grad(nn.Cell):
         return self.scaler.unscale(loss), grads_i, unscaled_grads, overflow_tag
 
 
-class TrainOneStepWithZero3Cell(nn.Cell):
+class TrainOneStepWithZeRO3Cell(nn.Cell):
     def __init__(
         self,
         model,
@@ -699,7 +699,7 @@ class TrainOneStepWithZero3Cell(nn.Cell):
         clip_norm=1.0,
         data_cache=False,
     ):
-        super(TrainOneStepWithZero3Cell, self).__init__()
+        super(TrainOneStepWithZeRO3Cell, self).__init__()
         self.data_cache = data_cache
         # get conditioner trainable status
         trainable_conditioner = False

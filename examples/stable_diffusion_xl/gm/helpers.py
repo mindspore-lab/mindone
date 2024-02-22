@@ -121,7 +121,10 @@ def set_default(args):
             parallel_mode = context.ParallelMode.DATA_PARALLEL
         elif args.parallel_mode == "OPTIMIZER_PARALLEL":
             parallel_mode = context.ParallelMode.SEMI_AUTO_PARALLEL
-            context.set_auto_parallel_context(enable_parallel_optimizer=True)
+            context.set_auto_parallel_context(
+                parallel_optimizer_config={"optimizer_weight_shard_size": args.optimizer_weight_shard_size},
+                enable_parallel_optimizer=True,
+            )
         else:
             raise ValueError("Parallel mode {} is not supported!".format(args.parallel_mode))
         context.set_auto_parallel_context(device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True)
