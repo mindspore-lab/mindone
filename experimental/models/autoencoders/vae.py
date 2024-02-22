@@ -290,55 +290,64 @@ class Decoder(nn.Cell):
         return sample
 
 
+@ms.jit_class
 class DiagonalGaussianDistribution(object):
-    def __init__(self, parameters: ms.Tensor, deterministic: bool = False):
-        self.parameters = parameters
-        self.mean, self.logvar = ops.chunk(parameters, 2, axis=1)
-        self.logvar = ops.clamp(self.logvar, -30.0, 20.0)
+    def __init__(self, deterministic: bool = False):
         self.deterministic = deterministic
-        self.std = ops.exp(0.5 * self.logvar)
-        self.var = ops.exp(self.logvar)
-        if self.deterministic:
-            self.var = self.std = ops.zeros_like(
-                self.mean, dtype=self.parameters.dtype
-            )
 
-    def sample(self, generator=None) -> ms.Tensor:
+    def init(self, parameters: ms.Tensor) -> Tuple[ms.Tensor, ...]:
+        mean, logvar = ops.chunk(parameters, 2, axis=1)
+        logvar = ops.clamp(logvar, -30.0, 20.0)
+        if self.deterministic:
+            var = std = ops.zeros_like(
+                mean, dtype=parameters.dtype
+            )
+        else:
+            var = ops.exp(logvar)
+            std = ops.exp(0.5 * logvar)
+        return mean, logvar, var, std
+
+    def sample(self, parameters: ms.Tensor) -> ms.Tensor:
+        mean, logvar, var, std = self.init(parameters)
         # make sure sample is on the same device as the parameters and has same dtype
         sample = ops.randn(
-            self.mean.shape,
-            dtype=self.parameters.dtype,
+            mean.shape,
+            dtype=parameters.dtype,
         )
-        x = self.mean + self.std * sample
+        x = mean + std * sample
         return x
 
-    def kl(self, other: "DiagonalGaussianDistribution" = None) -> ms.Tensor:
+    def kl(self, parameters: ms.Tensor, other: ms.Tensor = None) -> ms.Tensor:
+        mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
             return ms.Tensor([0.0])
         else:
             if other is None:
                 return 0.5 * ops.sum(
-                    ops.pow(self.mean, 2) + self.var - 1.0 - self.logvar,
+                    ops.pow(mean, 2) + var - 1.0 - logvar,
                     dim=[1, 2, 3],
                 )
             else:
+                other_mean, other_logvar, other_var, other_std = self.init(other)
                 return 0.5 * ops.sum(
-                    ops.pow(self.mean - other.mean, 2) / other.var
-                    + self.var / other.var
+                    ops.pow(mean - other_mean, 2) / other_var
+                    + var / other_var
                     - 1.0
-                    - self.logvar
-                    + other.logvar,
+                    - logvar
+                    + other_logvar,
                     dim=[1, 2, 3],
                 )
 
-    def nll(self, sample: ms.Tensor, dims: Tuple[int, ...] = (1, 2, 3)) -> ms.Tensor:
+    def nll(self, parameters: ms.Tensor, sample: ms.Tensor, dims: Tuple[int, ...] = (1, 2, 3)) -> ms.Tensor:
+        mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
             return ms.Tensor([0.0])
         logtwopi = np.log(2.0 * np.pi)
         return 0.5 * ops.sum(
-            logtwopi + self.logvar + ops.pow(sample - self.mean, 2) / self.var,
+            logtwopi + logvar + ops.pow(sample - mean, 2) / var,
             dim=dims,
         )
 
-    def mode(self) -> ms.Tensor:
-        return self.mean
+    def mode(self, parameters: ms.Tensor) -> ms.Tensor:
+        mean, logvar, var, std = self.init(parameters)
+        return mean

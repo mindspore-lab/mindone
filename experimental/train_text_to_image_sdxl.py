@@ -465,7 +465,7 @@ def compute_vae_encodings(batch, vae):
     pixel_values = Tensor(images)
     pixel_values = pixel_values.float()
 
-    model_input = vae.encode(pixel_values)[0].sample()
+    model_input = vae.diag_gauss_dist.sample(vae.encode(pixel_values)[0])
     model_input = model_input * vae.config.scaling_factor
     return {"model_input": model_input.numpy()}
 
@@ -513,6 +513,7 @@ def generate_timestep_weights(args, num_timesteps):
 
 def main():
     args = parse_args()
+    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
     init_distributed_device(args)  # read attr distributed, writer attrs rank/local_rank/world_size
 
     # Make one log on every process with the configuration for debugging.
@@ -986,6 +987,21 @@ class TrainStep(nn.Cell):
         self.clip_grad = grad_clip_norm is not None
         self.clip_value = grad_clip_norm
 
+        # Get the target for loss depending on the prediction type
+        if args.prediction_type is not None:
+            # set prediction_type of scheduler if defined
+            noise_scheduler.register_to_config(prediction_type=args.prediction_type)
+
+        @ms.jit_class
+        class JitWrapper:
+            def __init__(self, **kwargs):
+                for name in kwargs:
+                    setattr(self, name, kwargs[name])
+
+        args = JitWrapper(**vars(args))
+        noise_scheduler_config_num_train_timesteps = noise_scheduler.config.num_train_timesteps
+        noise_scheduler_config_prediction_type = noise_scheduler.config.prediction_type
+
         def forward_fn(model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
             # Sample noise that we'll add to the latents
             noise = ops.randn_like(model_input)
@@ -996,11 +1012,11 @@ class TrainStep(nn.Cell):
             bsz = model_input.shape[0]
             if args.timestep_bias_strategy == "none":
                 # Sample a random timestep for each image without bias.
-                timesteps = ops.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,))
+                timesteps = ops.randint(0, noise_scheduler_config_num_train_timesteps, (bsz,))
             else:
                 # Sample a random timestep for each image, potentially biased by the timestep weights.
                 # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
-                weights = generate_timestep_weights(args, noise_scheduler.config.num_train_timesteps)
+                weights = generate_timestep_weights(args, noise_scheduler_config_num_train_timesteps)
                 timesteps = ops.multinomial(weights, bsz, replacement=True).long()
 
             # Add noise to the model input according to the noise magnitude at each timestep
@@ -1018,22 +1034,17 @@ class TrainStep(nn.Cell):
                 return_dict=False,
             )[0]
 
-            # Get the target for loss depending on the prediction type
-            if args.prediction_type is not None:
-                # set prediction_type of scheduler if defined
-                noise_scheduler.register_to_config(prediction_type=args.prediction_type)
-
-            if noise_scheduler.config.prediction_type == "epsilon":
+            if noise_scheduler_config_prediction_type == "epsilon":
                 target = noise
-            elif noise_scheduler.config.prediction_type == "v_prediction":
+            elif noise_scheduler_config_prediction_type == "v_prediction":
                 target = noise_scheduler.get_velocity(model_input, noise, timesteps)
-            elif noise_scheduler.config.prediction_type == "sample":
+            elif noise_scheduler_config_prediction_type == "sample":
                 # We set the target to latents here, but the model_pred will return the noise sample prediction.
                 target = model_input
                 # We will have to subtract the noise residual from the prediction to get the target sample.
                 model_pred = model_pred - noise
             else:
-                raise ValueError(f"Unknown prediction type {noise_scheduler.config.prediction_type}")
+                raise ValueError(f"Unknown prediction type {noise_scheduler_config_prediction_type}")
 
             if args.snr_gamma is None:
                 loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
@@ -1045,9 +1056,9 @@ class TrainStep(nn.Cell):
                 mse_loss_weights = ops.stack([snr, args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(
                     axis=1
                 )[0]
-                if noise_scheduler.config.prediction_type == "epsilon":
+                if noise_scheduler_config_prediction_type == "epsilon":
                     mse_loss_weights = mse_loss_weights / snr
-                elif noise_scheduler.config.prediction_type == "v_prediction":
+                elif noise_scheduler_config_prediction_type == "v_prediction":
                     mse_loss_weights = mse_loss_weights / (snr + 1)
 
                 loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")

@@ -335,7 +335,7 @@ class Attention(nn.Cell):
         if attention_mask is None:
             return attention_mask
 
-        current_length: int = attention_mask.shape[-1]
+        current_length = attention_mask.shape[-1]
         if current_length != target_length:
             # TODO: for pipelines such as stable-diffusion, padding cross-attn mask:
             #       we want to instead pad by (0, remaining_length), where remaining_length is:
@@ -382,6 +382,7 @@ class Attention(nn.Cell):
         return encoder_hidden_states
 
 
+@ms.jit_class
 class AttnProcessor:
     r"""
     Default processor for performing attention-related computations.
@@ -406,6 +407,8 @@ class AttnProcessor:
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
 
         batch_size, sequence_length, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape

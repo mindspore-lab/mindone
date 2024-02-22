@@ -100,6 +100,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
 
         self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
         self.post_quant_conv = nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True)
+        self.diag_gauss_dist = DiagonalGaussianDistribution()
 
         self.use_slicing = False
         self.use_tiling = False
@@ -116,7 +117,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
 
     def encode(
         self, x: ms.Tensor, return_dict: bool = False
-    ) -> Union[AutoencoderKLOutput, Tuple[DiagonalGaussianDistribution]]:
+    ) -> Union[AutoencoderKLOutput, Tuple[ms.Tensor]]:
         """
         Encode a batch of images into latents.
 
@@ -132,12 +133,13 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
         h = self.encoder(x)
 
         moments = self.quant_conv(h)
-        posterior = DiagonalGaussianDistribution(moments)
+        # we cannot use class in graph mode, even for jit_class or subclass of Tensor. :-(
+        # posterior = DiagonalGaussianDistribution(moments)
 
         if not return_dict:
-            return (posterior,)
+            return (moments,)
 
-        return AutoencoderKLOutput(latent_dist=posterior)
+        return AutoencoderKLOutput(latent=moments)
 
     def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         z = self.post_quant_conv(z)
@@ -149,7 +151,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
         return DecoderOutput(sample=dec)
 
     def decode(
-        self, z: ms.Tensor, return_dict: bool = False, generator=None
+        self, z: ms.Tensor, return_dict: bool = False
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         """
         Decode a batch of images.
@@ -177,7 +179,6 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
         sample: ms.Tensor,
         sample_posterior: bool = False,
         return_dict: bool = False,
-        generator = None,
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         r"""
         Args:
@@ -188,11 +189,11 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
                 Whether or not to return a [`DecoderOutput`] instead of a plain tuple.
         """
         x = sample
-        posterior = self.encode(x)[0]
+        latent = self.encode(x)[0]
         if sample_posterior:
-            z = posterior.sample(generator=generator)
+            z = self.diag_gauss_dist.sample(latent)
         else:
-            z = posterior.mode()
+            z = self.diag_gauss_dist.mode(latent)
         dec = self.decode(z)[0]
 
         if not return_dict:

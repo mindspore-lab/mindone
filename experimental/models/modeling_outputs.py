@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import mindspore as ms
+
 from ..utils import BaseOutput
 
 
@@ -9,9 +11,9 @@ class AutoencoderKLOutput(BaseOutput):
     Output of AutoencoderKL encoding method.
 
     Args:
-        latent_dist (`DiagonalGaussianDistribution`):
+        latent (`ms.Tensor`):
             Encoded outputs of `Encoder` represented as the mean and logvar of `DiagonalGaussianDistribution`.
             `DiagonalGaussianDistribution` allows for sampling latents from the distribution.
     """
 
-    latent_dist: "DiagonalGaussianDistribution"  # noqa: F821
+    latent: ms.Tensor

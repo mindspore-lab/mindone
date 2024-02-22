@@ -334,6 +334,7 @@ class UNetMidBlock2D(nn.Cell):
         super().__init__()
         resnet_groups = resnet_groups if resnet_groups is not None else min(in_channels // 4, 32)
         self.add_attention = add_attention
+        self.has_cross_attention = False
 
         if attn_groups is None:
             attn_groups = resnet_groups if resnet_time_scale_shift == "default" else None
@@ -676,6 +677,8 @@ class DownBlock2D(nn.Cell):
         super().__init__()
         resnets = []
 
+        self.has_cross_attention = False
+
         for i in range(num_layers):
             in_channels = in_channels if i == 0 else out_channels
             resnets.append(
@@ -748,6 +751,8 @@ class DownEncoderBlock2D(nn.Cell):
     ):
         super().__init__()
         resnets = []
+
+        self.has_cross_attention = False
 
         for i in range(num_layers):
             in_channels = in_channels if i == 0 else out_channels
@@ -946,6 +951,8 @@ class UpBlock2D(nn.Cell):
         super().__init__()
         resnets = []
 
+        self.has_cross_attention = False
+
         for i in range(num_layers):
             res_skip_channels = in_channels if (i == num_layers - 1) else out_channels
             resnet_in_channels = prev_output_channel if i == 0 else out_channels
@@ -1032,6 +1039,8 @@ class UpDecoderBlock2D(nn.Cell):
     ):
         super().__init__()
         resnets = []
+
+        self.has_cross_attention = False
 
         for i in range(num_layers):
             input_channels = in_channels if i == 0 else out_channels

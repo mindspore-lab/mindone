@@ -68,9 +68,14 @@ class Downsample2D(nn.Cell):
             conv = nn.Conv2d(
                 self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, pad_mode="pad", padding=padding, has_bias=bias
             )
+            if padding == 0:
+                self.pad = nn.Pad(paddings=((0, 0), (0, 0), (0, 1), (0, 1)))
+            else:
+                self.pad = nn.Identity()
         else:
             assert self.channels == self.out_channels
             conv = nn.AvgPool2d(kernel_size=stride, stride=stride)
+            self.pad = nn.Identity()
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if name == "conv":
@@ -87,8 +92,7 @@ class Downsample2D(nn.Cell):
             hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
         if self.use_conv and self.padding == 0:
-            pad = (0, 1, 0, 1)
-            hidden_states = ops.pad(hidden_states, pad, mode="constant", value=0)
+            hidden_states = self.pad(hidden_states)
 
         assert hidden_states.shape[1] == self.channels
 

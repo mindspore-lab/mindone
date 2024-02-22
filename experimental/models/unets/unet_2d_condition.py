@@ -470,6 +470,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
 
         # up
         up_blocks = []
+        layers_per_resnet_in_up_blocks = []
         reversed_block_out_channels = list(reversed(block_out_channels))
         reversed_num_attention_heads = list(reversed(num_attention_heads))
         reversed_layers_per_block = list(reversed(layers_per_block))
@@ -525,7 +526,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             )
             up_blocks.append(up_block)
             prev_output_channel = output_channel
+            layers_per_resnet_in_up_blocks.append(len(up_block.resnets))
         self.up_blocks = nn.CellList(up_blocks)
+        self.layers_per_resnet_in_up_blocks = layers_per_resnet_in_up_blocks
 
         # out
         if norm_num_groups is not None:
@@ -546,6 +549,12 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
 
         if attention_type in ["gated", "gated-text-image"]:
             raise NotImplementedError("GLIGENTextBoundingboxProjection is not implemented")
+
+        self.center_input_sample = self.config.center_input_sample
+        self.class_embed_type = self.config.class_embed_type
+        self.class_embeddings_concat = self.config.class_embeddings_concat
+        self.addition_embed_type = self.config.addition_embed_type
+        self.encoder_hid_dim_type = self.config.encoder_hid_dim_type
 
     def construct(
         self,
@@ -655,7 +664,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
         # 0. center input if necessary
-        if self.config.center_input_sample:
+        if self.center_input_sample:
             sample = 2 * sample - 1.0
 
         # 1. time
@@ -688,7 +697,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             if class_labels is None:
                 raise ValueError("class_labels should be provided when num_class_embeds > 0")
 
-            if self.config.class_embed_type == "timestep":
+            if self.class_embed_type == "timestep":
                 class_labels = self.time_proj(class_labels)
 
                 # `Timesteps` does not contain any weights and will always return f32 tensors
@@ -697,14 +706,14 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
 
             class_emb = self.class_embedding(class_labels).to(dtype=sample.dtype)
 
-            if self.config.class_embeddings_concat:
+            if self.class_embeddings_concat:
                 emb = ops.cat([emb, class_emb], axis=-1)
             else:
                 emb = emb + class_emb
 
-        if self.config.addition_embed_type == "text":
+        if self.addition_embed_type == "text":
             aug_emb = self.add_embedding(encoder_hidden_states)
-        elif self.config.addition_embed_type == "text_image":
+        elif self.addition_embed_type == "text_image":
             # Kandinsky 2.1 - style
             if "image_embeds" not in added_cond_kwargs:
                 raise ValueError(
@@ -714,7 +723,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             image_embs = added_cond_kwargs.get("image_embeds")
             text_embs = added_cond_kwargs.get("text_embeds", encoder_hidden_states)
             aug_emb = self.add_embedding(text_embs, image_embs)
-        elif self.config.addition_embed_type == "text_time":
+        elif self.addition_embed_type == "text_time":
             # SDXL - style
             if "text_embeds" not in added_cond_kwargs:
                 raise ValueError(
@@ -731,7 +740,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
             add_embeds = ops.concat([text_embeds, time_embeds], axis=-1)
             add_embeds = add_embeds.to(emb.dtype)
             aug_emb = self.add_embedding(add_embeds)
-        elif self.config.addition_embed_type == "image":
+        elif self.addition_embed_type == "image":
             # Kandinsky 2.2 - style
             if "image_embeds" not in added_cond_kwargs:
                 raise ValueError(
@@ -739,7 +748,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
                 )
             image_embs = added_cond_kwargs.get("image_embeds")
             aug_emb = self.add_embedding(image_embs)
-        elif self.config.addition_embed_type == "image_hint":
+        elif self.addition_embed_type == "image_hint":
             # Kandinsky 2.2 - style
             if "image_embeds" not in added_cond_kwargs or "hint" not in added_cond_kwargs:
                 raise ValueError(
@@ -755,9 +764,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         if self.time_embed_act is not None:
             emb = self.time_embed_act(emb)
 
-        if self.encoder_hid_proj is not None and self.config.encoder_hid_dim_type == "text_proj":
+        if self.encoder_hid_proj is not None and self.encoder_hid_dim_type == "text_proj":
             encoder_hidden_states = self.encoder_hid_proj(encoder_hidden_states)
-        elif self.encoder_hid_proj is not None and self.config.encoder_hid_dim_type == "text_image_proj":
+        elif self.encoder_hid_proj is not None and self.encoder_hid_dim_type == "text_image_proj":
             # Kadinsky 2.1 - style
             if "image_embeds" not in added_cond_kwargs:
                 raise ValueError(
@@ -766,7 +775,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
 
             image_embeds = added_cond_kwargs.get("image_embeds")
             encoder_hidden_states = self.encoder_hid_proj(encoder_hidden_states, image_embeds)
-        elif self.encoder_hid_proj is not None and self.config.encoder_hid_dim_type == "image_proj":
+        elif self.encoder_hid_proj is not None and self.encoder_hid_dim_type == "image_proj":
             # Kandinsky 2.2 - style
             if "image_embeds" not in added_cond_kwargs:
                 raise ValueError(
@@ -774,7 +783,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
                 )
             image_embeds = added_cond_kwargs.get("image_embeds")
             encoder_hidden_states = self.encoder_hid_proj(image_embeds)
-        elif self.encoder_hid_proj is not None and self.config.encoder_hid_dim_type == "ip_image_proj":
+        elif self.encoder_hid_proj is not None and self.encoder_hid_dim_type == "ip_image_proj":
             if "image_embeds" not in added_cond_kwargs:
                 raise ValueError(
                     f"{self.__class__} has the config param `encoder_hid_dim_type` set to 'ip_image_proj' which requires the keyword argument `image_embeds` to be passed in  `added_conditions`"
@@ -801,20 +810,20 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         #       T2I-Adapter and ControlNet both use down_block_additional_residuals arg
         #       but can only use one or the other
         if not is_adapter and mid_block_additional_residual is None and down_block_additional_residuals is not None:
-            deprecate(
-                "T2I should not use down_block_additional_residuals",
-                "1.3.0",
-                "Passing intrablock residual connections with `down_block_additional_residuals` is deprecated \
-                       and will be removed in diffusers 1.3.0.  `down_block_additional_residuals` should only be used \
-                       for ControlNet. Please make sure use `down_intrablock_additional_residuals` instead. ",
-                standard_warn=False,
-            )
+            # deprecate(
+            #     "T2I should not use down_block_additional_residuals",
+            #     "1.3.0",
+            #     "Passing intrablock residual connections with `down_block_additional_residuals` is deprecated \
+            #            and will be removed in diffusers 1.3.0.  `down_block_additional_residuals` should only be used \
+            #            for ControlNet. Please make sure use `down_intrablock_additional_residuals` instead. ",
+            #     standard_warn=False,
+            # )
             down_intrablock_additional_residuals = down_block_additional_residuals
             is_adapter = True
 
         down_block_res_samples = (sample,)
         for downsample_block in self.down_blocks:
-            if hasattr(downsample_block, "has_cross_attention") and downsample_block.has_cross_attention:
+            if downsample_block.has_cross_attention:
                 # For t2i-adapter CrossAttnDownBlock2D
                 additional_residuals = {}
                 if is_adapter and len(down_intrablock_additional_residuals) > 0:
@@ -849,7 +858,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
 
         # 4. mid
         if self.mid_block is not None:
-            if hasattr(self.mid_block, "has_cross_attention") and self.mid_block.has_cross_attention:
+            if self.mid_block.has_cross_attention:
                 sample = self.mid_block(
                     sample,
                     emb,
@@ -876,15 +885,15 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         for i, upsample_block in enumerate(self.up_blocks):
             is_final_block = i == len(self.up_blocks) - 1
 
-            res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
-            down_block_res_samples = down_block_res_samples[: -len(upsample_block.resnets)]
+            res_samples = down_block_res_samples[-self.layers_per_resnet_in_up_blocks[i] :]
+            down_block_res_samples = down_block_res_samples[: -self.layers_per_resnet_in_up_blocks[i]]
 
             # if we have not reached the final block and need to forward the
             # upsample size, we do it here
             if not is_final_block and forward_upsample_size:
                 upsample_size = down_block_res_samples[-1].shape[2:]
 
-            if hasattr(upsample_block, "has_cross_attention") and upsample_block.has_cross_attention:
+            if upsample_block.has_cross_attention:
                 sample = upsample_block(
                     hidden_states=sample,
                     temb=emb,

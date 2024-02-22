@@ -204,7 +204,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # 2. Prepare GLIGEN inputs
         cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
-        gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
+        gligen_kwargs = cross_attention_kwargs.get("gligen", None)
 
         attn_output = self.attn1(
             norm_hidden_states,

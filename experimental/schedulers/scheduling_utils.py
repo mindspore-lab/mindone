@@ -62,6 +62,7 @@ class SchedulerOutput(BaseOutput):
     prev_sample: ms.Tensor
 
 
+@ms.jit_class
 class SchedulerMixin(PushToHubMixin):
     """
     Base class for all schedulers.
