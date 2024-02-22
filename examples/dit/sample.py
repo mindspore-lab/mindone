@@ -6,8 +6,9 @@ import sys
 import time
 
 import numpy as np
+import yaml
 from PIL import Image
-from utils.model_utils import load_dit_ckpt_params, str2bool
+from utils.model_utils import _check_cfgs_in_parser, load_dit_ckpt_params, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -42,7 +43,13 @@ def init_env(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-
+    parser.add_argument(
+        "--config",
+        "-c",
+        default="",
+        type=str,
+        help="path to load a config yaml file that describes the setting which will override the default arguments",
+    )
     parser.add_argument(
         "--image_size",
         type=int,
@@ -82,18 +89,26 @@ def parse_args():
         type=str2bool,
         help="whether enable flash attention. Default is False",
     )
+    default_args = parser.parse_args()
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+    if default_args.config:
+        logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
+        default_args.config = os.path.join(abs_path, default_args.config)
+        with open(default_args.config, "r") as f:
+            cfg = yaml.safe_load(f)
+            _check_cfgs_in_parser(cfg, parser)
+            parser.set_defaults(**cfg)
     args = parser.parse_args()
-
     return args
 
 
 if __name__ == "__main__":
-    args = parse_args()
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     save_dir = f"samples/{time_str}"
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
     # 1. init env
+    args = parse_args()
     init_env(args)
     set_random_seed(args.seed)
 

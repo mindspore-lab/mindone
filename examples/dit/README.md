@@ -33,15 +33,15 @@ models/
 
 To run inference of `DiT-XL/2` model with the `512x512` image size on Ascend devices, you can use:
 ```bash
-python sample.py --image_size 512 --dit_checkpoint models/DiT-XL-2-512x512.ckpt --seed 42
+python sample.py -c configs/inference/dit-xl-2-512x512.yaml
 ```
 To run inference of `DiT-XL/2` model with the `256x256` image size on Ascend devices, you can use:
 ```bash
-python sample.py --image_size 256 --dit_checkpoint models/DiT-XL-2-256x256.ckpt --seed 42
+python sample.py -c configs/inference/dit-xl-2-256x256.yaml
 ```
 To run the same inference on GPU devices, simply set `--device_target GPU` for the commands above.
 
-You can also adjust the classifier-free guidance scale by setting `--guidance_scale`. The default guidance scale is $8.5$.
+You can also adjust the classifier-free guidance scale by setting `guidance_scale`. The default guidance scale is $8.5$. Check details in the yaml files under `configs/inference/`.
 
 
 ## Training
