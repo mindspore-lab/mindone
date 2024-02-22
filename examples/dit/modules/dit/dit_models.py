@@ -23,6 +23,7 @@ class DiT(nn.Cell):
         num_classes=1000,
         learn_sigma=True,
         dtype=ms.float32,
+        block_kwargs={},
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -40,7 +41,10 @@ class DiT(nn.Cell):
         # Will use fixed sin-cos embedding:
         self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=self.dtype), requires_grad=False)
         self.blocks = nn.CellList(
-            [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, dtype=self.dtype) for _ in range(depth)]
+            [
+                DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, dtype=self.dtype, **block_kwargs)
+                for _ in range(depth)
+            ]
         )
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels, dtype=self.dtype)
         self.initialize_weights()

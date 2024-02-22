@@ -7,7 +7,7 @@ import time
 
 import numpy as np
 from PIL import Image
-from utils.model_utils import load_dit_ckpt_params
+from utils.model_utils import load_dit_ckpt_params, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -76,7 +76,12 @@ def parse_args():
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
-
+    parser.add_argument(
+        "--enable_flash_attention",
+        default=False,
+        type=str2bool,
+        help="whether enable flash attention. Default is False",
+    )
     args = parser.parse_args()
 
     return args
@@ -96,7 +101,9 @@ if __name__ == "__main__":
     # 2.1 dit
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
-    dit_model = DiT_models[args.model_name](input_size=latent_size, num_classes=1000)
+    dit_model = DiT_models[args.model_name](
+        input_size=latent_size, num_classes=1000, block_kwargs={"enable_flash_attention": args.enable_flash_attention}
+    )
     dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
 
     # 2.2 vae

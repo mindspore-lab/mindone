@@ -15,3 +15,11 @@ def load_dit_ckpt_params(model, ckpt_fp):
         ckpt_not_load, len(ckpt_not_load), param_not_load, len(param_not_load)
     )
     return model
+
+
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
