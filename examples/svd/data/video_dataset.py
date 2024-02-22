@@ -49,7 +49,7 @@ class VideoDataset(BaseDataset):
         with VideoReader(data["path"]) as reader:
             start_pos = random.randint(0, len(reader) - self._frames * self._step)
             data["frames"] = reader.fetch_frames(num=self._frames, start_pos=start_pos, step=self._step)
-            data.update({"fps": reader.fps, "width": reader.shape[0], "height": reader.shape[1]})
+            data.update({"fps": reader.fps / self._step, "width": reader.shape[0], "height": reader.shape[1]})
 
         noise_strength = np.random.lognormal(-3.0, 0.5**2)
 

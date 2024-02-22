@@ -762,6 +762,7 @@ class VideoUNet(nn.Cell):
                 num_frames=num_frames,
             )
             hs.append(h)
+
         h = self.middle_block(
             h,
             emb,
@@ -770,6 +771,7 @@ class VideoUNet(nn.Cell):
             time_context=time_context,
             num_frames=num_frames,
         )
+
         for i, module in enumerate(self.output_blocks, start=1):
             h = ops.cat([h, hs[-i]], axis=1)
             h = module(
@@ -780,5 +782,5 @@ class VideoUNet(nn.Cell):
                 time_context=time_context,
                 num_frames=num_frames,
             )
-        h = h.to(x.dtype)
+
         return self.out(h)
