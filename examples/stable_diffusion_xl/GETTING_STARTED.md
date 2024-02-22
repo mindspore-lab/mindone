@@ -109,6 +109,7 @@ data_dir
 └── ...
 ```
 
+##### WIDS
 We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compatible with minddata GeneratorDataset.
 
 1. Set the training YAML config as follows to use the T2I_Webdataset loader.
@@ -118,6 +119,8 @@ We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compati
             params:
                 caption_key: 'text_english'
     ```
+
+    A reference config file is shown in `configs/training/sd_xl_base_finetune_910b_wids.yaml`
 
 2. Set `--data_path` in the training script with the path to the data root of the whole training dataset, e.g. `data_dir` in the above example.
 
@@ -134,9 +137,8 @@ A shardlist decription obeys the following format.
         {"url": "data_dir/part01/00002.tar", "nsamples": 10000},
     ]
 }
-```
 
-For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`. For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json` to save scanning time.
+```
 
 You can manually specify a new shardlist description file in the config yaml via the `shardlist_desc` argument, for example.
 
@@ -148,9 +150,38 @@ You can manually specify a new shardlist description file in the config yaml via
             shardlist_desc: 'data_dir/data_info.json'
 ```
 
+For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
+
+
+##### Original Webdataset
+
+We also provide a dataloader for original webdataset (`T2I_Webdataset`) that is compatible with minddata GeneratorDataset.
+
+A reference config file is shown in `configs/training/sd_xl_base_finetune_910b_wds.yaml`.
+
+The shardlist description file used here shares the same format as wids.
+
+**Caustion!!** Since we need to know the total number of samples for data parallel training, we provides three ways to get the dataset size of webdataset:
+
+    1. Specify the total number of samples via training config yaml
+        ```yaml
+        dataset_config:
+            target: gm.data.dataset_wds.T2I_Webdataset
+            params:
+                caption_key: 'text_english'
+                num_samples: 10000  # specify total number of samples
+        ```
+        If `num_samples` is not specify or -1, the following 2 ways will be used to get dataset size.
+
+    2. Get total number of samples from shardlist record
+        If shardlist description file is provided in source dataset (see format above), the datsat size will be obtained from the description file. Shardlist description file default path is `{dataset_dir/data_info.json}`.
+
+    3. Scan tar files to record number of samples
+        If neither the total number of samples or the shardlist record is provided, we will scanning all tar files to generate the sharlist description file and get the dataset size. It can be time-consuming for larget dataset.
+
+
 > Note that if you have updated the training data, you should either specify a new shardlist description file or **remove the existing shardlist file** `{data_dir}/data_info.json` for auto re-generation.
 
-For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
 
 </details>
 
