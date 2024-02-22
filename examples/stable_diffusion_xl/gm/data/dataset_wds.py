@@ -6,7 +6,6 @@ import math
 import os
 import random
 import time
-from tqdm import tqdm
 from itertools import islice
 
 import numpy as np
@@ -14,6 +13,7 @@ import webdataset as wds
 import wids
 from gm.util import instantiate_from_config
 from PIL import Image
+from tqdm import tqdm
 
 from mindspore.communication import get_group_size, get_rank
 
@@ -60,7 +60,7 @@ def generate_sharlist(data_dir):
         else:
             with open(tar_info_fp, "r") as fp:
                 nsamples = int(fp.read())
-                
+
         out["shardlist"].append({"url": tf, "nsamples": nsamples})
     save_fp = os.path.join(data_dir, "data_info.json")
     with open(save_fp, "w") as fp:
