@@ -7,6 +7,7 @@ import time
 
 import numpy as np
 from PIL import Image
+from utils.model_utils import load_dit_ckpt_params
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -19,7 +20,6 @@ sys.path.insert(0, mindone_lib_path)
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 from modules.dit.dit_models import DiT_models
 from pipelines.infer_image_pipeline import DiTInferImage
-from utils.model_utils import load_dit_ckpt_params
 
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed

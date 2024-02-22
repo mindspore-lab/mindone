@@ -2,7 +2,7 @@ import logging
 
 import mindspore as ms
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def load_dit_ckpt_params(model, ckpt_fp):
