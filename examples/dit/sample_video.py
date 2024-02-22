@@ -5,10 +5,8 @@ import os
 import sys
 import time
 
-import numpy as np
 import yaml
-from PIL import Image
-from utils.model_utils import _check_cfgs_in_parser, load_dit_ckpt_params, str2bool
+from utils.model_utils import _check_cfgs_in_parser, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -19,11 +17,12 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
-from modules.dit.dit_models import DiT_models
+from modules.dit.video_dit_models import VideoDiT_models
 
 from examples.dit.pipelines.infer_pipeline import DiTInferPipeline
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
+from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,13 @@ def parse_args():
         "--image_size",
         type=int,
         default=256,
-        help="path to source torch checkpoint, which ends with .pt",
+        help="image size in [256, 512]",
+    )
+    parser.add_argument(
+        "--num_frames",
+        type=int,
+        default=16,
+        help="number of frames",
     )
     parser.add_argument(
         "--model_name",
@@ -116,10 +121,10 @@ if __name__ == "__main__":
     # 2.1 dit
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
-    dit_model = DiT_models[args.model_name](
+    dit_model = VideoDiT_models[args.model_name](
         input_size=latent_size, num_classes=1000, block_kwargs={"enable_flash_attention": args.enable_flash_attention}
     )
-    dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+    dit_model.load_params_from_dit_ckpt(args.dit_checkpoint)
 
     # 2.2 vae
     logger.info("vae init")
@@ -134,10 +139,10 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     # Labels to condition the model with (feel free to change):
-    class_labels = [207, 360, 387, 974, 88, 979, 417, 279]
+    class_labels = [207]
     # Create sampling noise:
     n = len(class_labels)
-    z = ops.randn((n, 4, latent_size, latent_size), dtype=ms.float32)
+    z = ops.randn((n, args.num_frames, 4, latent_size, latent_size), dtype=ms.float32)
     y = Tensor(class_labels)
     y_null = ops.ones_like(y) * dit_model.num_classes
 
@@ -168,7 +173,6 @@ if __name__ == "__main__":
 
     # save result
     for i, class_label in enumerate(class_labels, 0):
-        save_fp = f"{save_dir}/class-{class_label}.png"
-        img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
-        img.save(save_fp)
+        save_fp = f"{save_dir}/class-{class_label}.gif"
+        save_videos(x_samples, save_fp, loop=0)
         logger.info(f"save to {save_fp}")

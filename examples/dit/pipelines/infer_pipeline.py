@@ -6,7 +6,7 @@ import mindspore as ms
 from mindspore import ops
 
 
-class DiTInferImage(ABC):
+class DiTInferPipeline(ABC):
     """
 
     Args:
@@ -60,6 +60,22 @@ class DiTInferImage(ABC):
 
         return y
 
+    def vae_decode_video(self, x):
+        """
+        Args:
+            x: (b f c h w), denoised latent
+        Return:
+            y: (b f H W 3), batch of images, normalized to [0, 1]
+        """
+        b, f, c, h, w = x.shape
+        x = x.reshape((b * f, c, h, w))
+
+        y = self.vae_decode(x)
+        _, h, w, c = y.shape
+        y = y.reshape((b, f, h, w, c))
+
+        return y
+
     def data_prepare(self, inputs):
         x = inputs["noise"]
         y = ops.cat([inputs["y"], inputs["y_null"]], axis=0)
@@ -81,6 +97,11 @@ class DiTInferImage(ABC):
             self.dit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
         )
         latents, _ = latents.chunk(2, axis=0)
-        # latents: (b c h w)
-        images = self.vae_decode(latents)
+        if latents.dim() == 4:
+            # latents: (b c h w)
+            images = self.vae_decode(latents)
+        else:
+            # latents: (b f c h w)
+            images = self.vae_decode_video(latents)
+            # output (b, f, h, w, 3)
         return images

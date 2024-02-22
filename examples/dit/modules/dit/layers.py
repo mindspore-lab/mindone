@@ -435,6 +435,11 @@ class PatchEmbed(nn.Cell):
 # https://github.com/facebookresearch/mae/blob/main/util/pos_embed.py
 
 
+def get_1d_sincos_temp_embed(embed_dim, length):
+    pos = np.arange(0, length).reshape((-1, 1))
+    return get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
+
+
 def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=0):
     """
     grid_size: int of the grid height and width
