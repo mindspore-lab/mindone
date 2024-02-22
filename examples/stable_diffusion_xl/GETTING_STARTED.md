@@ -162,6 +162,7 @@ A reference config file is shown in `configs/training/sd_xl_base_finetune_910b_w
 The shardlist description file used here shares the same format as wids.
 
 **Caustion!!** Since we need to know the total number of samples for data parallel training, we provides three ways to get the dataset size of webdataset:
+
     1. Specify the total number of samples via training config yaml
         ```yaml
         dataset_config:
