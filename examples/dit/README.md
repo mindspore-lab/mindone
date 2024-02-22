@@ -33,11 +33,11 @@ models/
 
 To run inference of `DiT-XL/2` model with the `512x512` image size on Ascend devices, you can use:
 ```bash
-python sample.py --image-size 512 --dit_checkpoint models/DiT-XL-2-512x512.ckpt --seed 42
+python sample.py --image_size 512 --dit_checkpoint models/DiT-XL-2-512x512.ckpt --seed 42
 ```
 To run inference of `DiT-XL/2` model with the `256x256` image size on Ascend devices, you can use:
 ```bash
-python sample.py --image-size 256 --dit_checkpoint models/DiT-XL-2-256x256.ckpt --seed 42
+python sample.py --image_size 256 --dit_checkpoint models/DiT-XL-2-256x256.ckpt --seed 42
 ```
 To run the same inference on GPU devices, simply set `--device_target GPU` for the commands above.
 
