@@ -6,6 +6,7 @@ import math
 import os
 import random
 import time
+from tqdm import tqdm
 from itertools import islice
 
 import numpy as np
@@ -46,8 +47,20 @@ def generate_sharlist(data_dir):
         "wids_version": 1,
         "shardlist": [],
     }
-    for tf in tar_files:
-        nsamples = get_tar_nsample(tf)
+    print("INFO: Start to scan tar files...")
+    # TODO: 1) use multi-process. 2) consider multiple machine access.
+    for tf in tqdm(tar_files):
+        tar_info_fp = tf.replace(".tar", ".txt")
+        if not os.path.exists(tar_info_fp):
+            # scan
+            nsamples = get_tar_nsample(tf)
+
+            with open(tar_info_fp, "w") as fp:
+                fp.write(str(nsamples))
+        else:
+            with open(tar_info_fp, "r") as fp:
+                nsamples = int(fp.read())
+                
         out["shardlist"].append({"url": tf, "nsamples": nsamples})
     save_fp = os.path.join(data_dir, "data_info.json")
     with open(save_fp, "w") as fp:
