@@ -27,6 +27,21 @@ def convert(state_dict, module_map):
     return new_state_dict
 
 
+def vae_convert(new_state_dict, module_map):
+    mapping = {value: key for key, value in module_map.items()}
+    weights_to_convert = ["q", "k", "v", "proj_out"]
+    for hf_name, v in new_state_dict.items():
+        for weight_name in weights_to_convert:
+            if f"mid.attn_1.{weight_name}.weight" in mapping[hf_name]:  # mapping[hf_name] 表示对应的torch的key
+                print(f"Reshaping {hf_name} for diffusers format")
+                new_state_dict[hf_name] = reshape_weight_for_hf(v)
+    return new_state_dict
+
+
+def reshape_weight_for_hf(w):
+    return w.reshape(w.shape[:-2])
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", default=None, type=str, required=True, help="Path to the model to convert.")
@@ -52,7 +67,7 @@ if __name__ == "__main__":
         print("model_path is not valid, please double-check it!")
 
     unet = convert(state_dict, unet_map)
-    vae = convert(state_dict, vae_map)
+    vae = vae_convert(convert(state_dict, vae_map), vae_map)
     text1 = convert(state_dict, text1_map)
     text2 = convert(state_dict, text2_map)
 
