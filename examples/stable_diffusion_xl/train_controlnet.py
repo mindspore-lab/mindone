@@ -47,6 +47,7 @@ def get_parser_train():
         ],
     )
 
+    parser.add_argument("--group_lr_scaler", default=10.0, type=float, help="scaler for lr of a particular group of params")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--clip_grad", default=False, type=ast.literal_eval, help="whether apply gradient clipping")
     parser.add_argument(
@@ -63,7 +64,7 @@ def get_parser_train():
     parser.add_argument("--save_path", type=str, default="./runs")
     parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
-    parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
+    parser.add_argument("--save_ckpt_interval", type=int, default=10000, help="save ckpt interval")
     parser.add_argument(
         "--max_num_ckpt",
         type=int,
@@ -76,6 +77,18 @@ def get_parser_train():
     parser.add_argument("--sink_size", type=int, default=1000)
     parser.add_argument(
         "--dataset_load_tokenizer", type=ast.literal_eval, default=True, help="create dataset with tokenizer"
+    )
+    parser.add_argument(
+        "--total_step",
+        type=int,
+        default=None,
+        help="The number of training steps. If not provided, will use the `total_step` in training yaml file.",
+    )
+    parser.add_argument(
+        "--per_batch_size",
+        type=int,
+        default=None,
+        help="The batch size for training. If not provided, will use `per_batch_size` in training yaml file.",
     )
 
     # args for infer
@@ -131,15 +144,20 @@ def train(args):
         param_fp16=args.param_fp16,
         amp_level=args.ms_amp_level,
     )
-    if isinstance(model.model, nn.Cell):
-        if config.model.params.network_config.params.sd_locked:
-            model.model.set_train(False)
-            model.model.diffusion_model.controlnet.set_train(True)
-        else:
-            model.model.set_train(True)
+    assert isinstance(model.model, nn.Cell)
+
+    if config.model.params.network_config.params.sd_locked:
+        model.model.set_train(False)
+        model.model.diffusion_model.controlnet.set_train(True)
+    else:
+        model.model.set_train(True)
 
     # 3. Create dataloader
     assert "data" in config
+    if args.total_step is not None:
+        config.data["total_step"] = args.total_step
+    if args.per_batch_size is not None:
+        config.data["per_batch_size"] = args.per_batch_size
     dataloader = create_loader(
         data_path=args.data_path,
         rank=args.rank,
@@ -153,16 +171,13 @@ def train(args):
     assert "optim" in config
     lr = get_learning_rate(config.optim, config.data.total_step)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
-    if isinstance(model.model, nn.Cell):
-        optimizer = get_optimizer(
-            config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params()
-        )
-        reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
-        if args.optimizer_weight:
-            print(f"Loading optimizer from {args.optimizer_weight}")
-            load_checkpoint(optimizer, args.optimizer_weight, remove_prefix="ldm_with_loss_grad.optimizer.")
-    else:
-        optimizer, reducer = None, None
+    optimizer = get_optimizer(
+        config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params(), group_lr_scaler=args.group_lr_scaler
+    )
+    reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+    if args.optimizer_weight:
+        print(f"Loading optimizer from {args.optimizer_weight}")
+        load_checkpoint(optimizer, args.optimizer_weight, remove_prefix="ldm_with_loss_grad.optimizer.")
 
     if args.use_ema:
         ema = EMA(model, ema_decay=0.9999)
@@ -171,7 +186,6 @@ def train(args):
 
     if args.ms_mode == 1:
         # Pynative Mode
-        assert isinstance(model.model, nn.Cell)
         train_step_fn = partial(
             model.train_step_pynative,
             grad_func=model.get_grad_func(
@@ -182,48 +196,23 @@ def train(args):
         jit_config = None
     elif args.ms_mode == 0:
         # Graph Mode
-        if isinstance(model.model, nn.Cell):
-            from gm.models.trainer_factory import TrainOneStepCellControlNet
+        from gm.models.trainer_factory import TrainOneStepCellControlNet
 
-            train_step_fn = TrainOneStepCellControlNet(
-                model,
-                optimizer,
-                reducer,
-                scaler,
-                overflow_still_update=args.overflow_still_update,
-                gradient_accumulation_steps=args.gradient_accumulation_steps,
-                clip_grad=args.clip_grad,
-                clip_norm=args.max_grad_norm,
-                ema=ema,
-            )
-            train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
-            if model.disable_first_stage_amp:
-                train_step_fn.first_stage_model.to_float(ms.float32)
-            jit_config = ms.JitConfig()
-        else:
-            from gm.models.trainer_factory import TrainerMultiGraphTwoStage
-
-            assert args.version == "SDXL-base-1.0", "Only supports sdxl-base."
-            assert args.task == "txt2img", "Only supports text2img task."
-            assert args.optimizer_weight is None, "Not supports load optimizer weight."
-            assert (model.stage1 is not None) and (model.stage2 is not None)
-            optimizer1 = get_optimizer(
-                config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
-            )
-            optimizer2 = get_optimizer(config.optim, lr, params=model.stage2.trainable_params())
-            reducer1 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer1.parameters)
-            reducer2 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer2.parameters)
-            train_step_fn = TrainerMultiGraphTwoStage(
-                model,
-                (optimizer1, optimizer2),
-                (reducer1, reducer2),
-                scaler,
-                overflow_still_update=args.overflow_still_update,
-                amp_level=args.ms_amp_level,
-            )
-
-            optimizer = optimizer1
-            jit_config = None
+        train_step_fn = TrainOneStepCellControlNet(
+            model,
+            optimizer,
+            reducer,
+            scaler,
+            overflow_still_update=args.overflow_still_update,
+            gradient_accumulation_steps=args.gradient_accumulation_steps,
+            clip_grad=args.clip_grad,
+            clip_norm=args.max_grad_norm,
+            ema=ema,
+        )
+        train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+        if model.disable_first_stage_amp:
+            train_step_fn.first_stage_model.to_float(ms.float32)
+        jit_config = ms.JitConfig()
     else:
         raise ValueError("args.ms_mode value must in [0, 1]")
 

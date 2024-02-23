@@ -346,12 +346,14 @@ def get_learning_rate(optim_config, total_step, scaler=1.0):
     return lr
 
 
-def _scale_lr(group_params, lr):
+def _scale_lr(group_params, lr, scaler):
+    """scale lr of a particular group of params"""
     new_groups = list()
     for group in group_params:
         scale_params, unscale_params = list(), list()
         for params in group["params"]:
             name = params.name.lower()
+            # keys below are adapted for ControlNet training
             if "zero_conv" in name or "input_hint_block" in name or "middle_block_out" in name:
                 scale_params.append(params)
             else:
@@ -361,7 +363,7 @@ def _scale_lr(group_params, lr):
             {
                 "params": scale_params,
                 "weight_decay": group["weight_decay"],
-                "lr": lr * 10,
+                "lr": lr * scaler,
             }
         )
         new_groups.append(
@@ -374,7 +376,7 @@ def _scale_lr(group_params, lr):
     return new_groups
 
 
-def get_optimizer(optim_config, lr, params, filtering=True):
+def get_optimizer(optim_config, lr, params, filtering=True, group_lr_scaler=None):
     optimizer_config = optim_config.get("optimizer_config", {"target": "mindspore.nn.SGD"})
 
     def decay_filter(x):
@@ -396,7 +398,8 @@ def get_optimizer(optim_config, lr, params, filtering=True):
             f"no decay params num: {len(other_params)}, "
             f"full params num: {len(decay_params) + len(other_params)}"
         )
-        group_params = _scale_lr(group_params, lr)
+        if isinstance(group_lr_scaler, float) or isinstance(group_lr_scaler, int):
+            group_params = _scale_lr(group_params, lr, group_lr_scaler)
         group_params.append({"order_params": params})
         params = group_params
 
