@@ -52,8 +52,8 @@ class DiT_Factorised_Encoder(nn.Cell):
         num_patches = self.x_embedder.num_patches
         # TODO: Text Embedding Projection
         # Will use fixed sin-cos embedding:
-        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=self.dtype), requires_grad=False)
-        self.temp_embed = ms.Parameter(ops.zeros((1, num_frames, hidden_size), dtype=self.dtype), requires_grad=False)
+        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
+        self.temp_embed = ms.Parameter(ops.zeros((1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
 
         self.blocks = nn.CellList(
             [

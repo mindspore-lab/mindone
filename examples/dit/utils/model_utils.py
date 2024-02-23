@@ -26,6 +26,15 @@ def str2bool(b):
     return True
 
 
+def count_params(model, verbose=False):
+    total_params = sum([param.size for param in model.get_parameters()])
+    trainable_params = sum([param.size for param in model.get_parameters() if param.requires_grad])
+
+    if verbose:
+        print(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
+    return total_params, trainable_params
+
+
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     actions_dest = [action.dest for action in parser._actions]
     defaults_key = parser._defaults.keys()

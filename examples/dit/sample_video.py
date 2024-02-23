@@ -6,7 +6,7 @@ import sys
 import time
 
 import yaml
-from utils.model_utils import _check_cfgs_in_parser, str2bool
+from utils.model_utils import _check_cfgs_in_parser, count_params, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -92,7 +92,13 @@ def parse_args():
         "--enable_flash_attention",
         default=False,
         type=str2bool,
-        help="whether enable flash attention. Default is False",
+        help="whether to enable flash attention. Default is False",
+    )
+    parser.add_argument(
+        "--use_fp16",
+        default=True,
+        type=str2bool,
+        help="whether to use fp16 for DiT mode. Default is True",
     )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -112,6 +118,7 @@ if __name__ == "__main__":
     save_dir = f"samples/{time_str}"
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
+
     # 1. init env
     args = parse_args()
     init_env(args)
@@ -122,9 +129,15 @@ if __name__ == "__main__":
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
     dit_model = VideoDiT_models[args.model_name](
-        input_size=latent_size, num_classes=1000, block_kwargs={"enable_flash_attention": args.enable_flash_attention}
+        input_size=latent_size,
+        num_classes=1000,
+        dtype=ms.float16 if args.use_fp16 else ms.float32,
+        block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
     dit_model.load_params_from_dit_ckpt(args.dit_checkpoint)
+    dit_model = dit_model.set_train(False)
+    for param in dit_model.get_parameters():  # freeze dit_model
+        param.requires_grad = False
 
     # 2.2 vae
     logger.info("vae init")
@@ -154,6 +167,24 @@ if __name__ == "__main__":
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
     )
+
+    # 4. print key info
+    num_params_vae, num_params_vae_trainable = count_params(vae)
+    num_params_dit, num_params_dit_trainable = count_params(dit_model)
+    num_params = num_params_vae + num_params_dit
+    num_params_trainable = num_params_vae_trainable + num_params_dit_trainable
+    key_info = "Key Settings:\n" + "=" * 50 + "\n"
+    key_info += "\n".join(
+        [
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.ms_mode}",
+            f"Class Labels: {class_labels}",
+            f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
+            f"Num trainable params: {num_params_trainable:,}",
+            f"Precision: {dit_model.dtype}",
+        ]
+    )
+    key_info += "\n" + "=" * 50
+    logger.info(key_info)
 
     # init inputs
     inputs = {}

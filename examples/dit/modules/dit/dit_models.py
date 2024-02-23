@@ -39,7 +39,7 @@ class DiT(nn.Cell):
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob, dtype=self.dtype)
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
-        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=self.dtype), requires_grad=False)
+        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
         self.blocks = nn.CellList(
             [
                 DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, dtype=self.dtype, **block_kwargs)
