@@ -104,5 +104,73 @@ You can check all arguments description by running `python demo/sampling_without
 <em> Prompt: "beautiful bird standing on a trunk, natural color, best quality, extremely detailed". </em>
 </p>
 
+## Training
+
+### Prepare init model weight
+
+Please refer to `tools/controlnet_conversion/init_weight.py`.
+
+Parameters of SDXL is from sd_xl_base_1.0_ms.ckpt
+
+TBD
+
+### Prepare dataset
+
+We use [Fill50k dataset](https://huggingface.co/datasets/HighCWu/fill50k) to train the model to generate images following the edge control. The directory struture of Fill50k dataset is shown below.
+
+```text
+DATA_PATH
+  ├── prompt.json
+  ├── source
+  │   ├── 0.png
+  │   ├── 1.png
+  │   └── ...
+  └── target
+      ├── 0.png
+      ├── 1.png
+      └── ...
+```
+
+Images in `target/` are raw images. Images in `source/` are the canny edge/segementation/other control images extracted from the corresponding raw images. For example, `source/img0.png` is the canny edge image of `target/img0.png`.
+
+`prompt.json` is the annotation file with the following format.
+
+```json
+{"source": "source/0.png", "target": "target/0.png", "prompt": "pale golden rod circle with old lace background"}
+{"source": "source/1.png", "target": "target/1.png", "prompt": "light coral circle with white background"}
+{"source": "source/2.png", "target": "target/2.png", "prompt": "aqua circle with light pink background"}
+{"source": "source/3.png", "target": "target/3.png", "prompt": "cornflower blue circle with light golden rod yellow background"}
+...
+```
+
+Note that if you want to use your own dataset for training, please follow the directory and file structure shown above.
+
+### Launch training
+
+Please refer to `script/run_train_base_controlnet_910b.sh`.
+
+```shell
+nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
+    --data_path DATA_PATH \
+    --weight PATH TO/sd_xl_base_1.0_ms_controlnet_init.ckpt \
+    --config configs/training/sd_xl_base_finetune_controlnet_910b.yaml \
+    --total_step 300000 \
+    --per_batch_size 2 \
+    --group_lr_scaler 10.0 \
+    --save_ckpt_interval 10000 \
+    --max_num_ckpt 5 \
+    > train.log 2>&1 &
+```
+
+⚠️ Some key points about ControlNet + SDXL training:
+- The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` are randomly initialized in ControlNet, which are very hard to train. We scale up (x10 by default) the base learning rate for training parameters specifically. You can set the scale value by `args.group_lr_scaler`.
+- As mentioned in ControlNet paper[1] and [repo](https://github.com/lllyasviel/ControlNet/blob/main/docs/train.md#more-consideration-sudden-converge-phenomenon-and-gradient-accumulation), there is a sudden convergence phenomenon in ControlNet training, which means the training steps should be large enough to let the training converge SUDDENLY and then generate images following the control signals. For ControlNet + SDXL, the training steps are even much more larger. We train xx steps with global batch size xx (x cards x bs 2). The sudden convergence happens at ~xx step.
+- As mentioned in ControlNet paper[1], randomly dropping 50% text prompt during training is very helpful for ControlNet to learn the control signals. Don't miss that.
+
+### Training results
+
+
+
+
 ## Reference
 [1] [ControlNet: Adding Conditional Control to Text-to-Image Diffusion Models](https://arxiv.org/pdf/2302.05543.pdf)

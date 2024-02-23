@@ -47,7 +47,9 @@ def get_parser_train():
         ],
     )
 
-    parser.add_argument("--group_lr_scaler", default=10.0, type=float, help="scaler for lr of a particular group of params")
+    parser.add_argument(
+        "--group_lr_scaler", default=10.0, type=float, help="scaler for lr of a particular group of params"
+    )
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--clip_grad", default=False, type=ast.literal_eval, help="whether apply gradient clipping")
     parser.add_argument(
@@ -172,7 +174,10 @@ def train(args):
     lr = get_learning_rate(config.optim, config.data.total_step)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     optimizer = get_optimizer(
-        config.optim, lr, params=model.model.trainable_params() + model.conditioner.trainable_params(), group_lr_scaler=args.group_lr_scaler
+        config.optim,
+        lr,
+        params=model.model.trainable_params() + model.conditioner.trainable_params(),
+        group_lr_scaler=args.group_lr_scaler,
     )
     reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
     if args.optimizer_weight:
