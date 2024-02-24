@@ -2,6 +2,9 @@ import mindspore as ms
 
 
 def init_and_save_weight(ckpt_path: str) -> None:
+    """
+    ckpt_path: path to SDXL pretrained ckpt (sd_xl_base_1.0_ms.ckpt)
+    """
     data = ms.load_checkpoint(ckpt_path)
     records = list()
     for k, v in data.items():

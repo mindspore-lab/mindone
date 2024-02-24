@@ -1,9 +1,11 @@
-# ControlNet + SDXL model weight conversion from Diffusers to MindONE
+# ControlNet + SDXL model weight preparation
 
-**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint).
+## Convert model weight from Diffusers to MindONE
+
+**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
 
 **Step2**: Since ControlNet acts like a plug-in to the SDXL, we convert the ControlNet weight `diffusion_pytorch_model.safetensors` from [diffusers/controlnet-canny-sdxl-1.0](https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0/tree/main)
-to MindSpore version and then merge it into the SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_ms.ckpt`, by default). Eventually, we get the ControlNet + SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_controlnet_canny_ms.ckpt`, by default).
+to MindSpore version and then merge it into the SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_ms.ckpt`). Eventually, we get the ControlNet + SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_controlnet_canny_ms.ckpt`).
 
 
 ```shell
@@ -16,3 +18,14 @@ python convert_weight.py  \
 ```
 
 > Note: The ControlNet weight parameters name mapping between Diffusers and MindONE is prepared: `tools/controlnet_conversion/controlnet_ms2torch_mapping.yaml`.
+
+## Initialize your own model weight for training in MindONE
+
+**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
+
+**Step2**:
+
+```shell
+python init_weight.py
+```
+The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet. Other parameters of ControlNet are copied from SDXL pretrained weight `sd_xl_base_1.0_ms.ckpt`.

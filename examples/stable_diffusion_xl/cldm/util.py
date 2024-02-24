@@ -19,7 +19,7 @@ def get_control(args, num_samples, min_size=1024, save_detected_map=False):
     if args.controlnet_mode == "canny":
         detected_map = CannyDetector()(img, args.low_threshold, args.high_threshold)
     elif args.controlnet_mode == "raw":
-        # use the image itself as detection input
+        # use the image itself as control signal
         detected_map = img
     else:
         raise NotImplementedError(f"mode {args.controlnet_mode} not supported")

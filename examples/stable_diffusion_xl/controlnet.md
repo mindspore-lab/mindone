@@ -24,11 +24,11 @@ pip install -r requirement.txt
 
 ## Inferece
 
-### Prepare model weights
+### Prepare model weight
 
 1. Convert trained weight from Diffusers, please refer to [here](tools/controlnet_conversion/README.md);
 
-2. Or train your ControlNet using MindONE (coming soon).
+2. Or train your ControlNet using MindONE, check [Training](#training) section below.
 
 ### Prepare control signals
 
@@ -51,31 +51,25 @@ Stable Diffusion XL with ControlNet can generate images following the input cont
 
 ### Generate images
 
+Please refer to [`scripts/run_infer_base_controlnet.sh`](scripts/run_infer_base_controlnet.sh).
+
 ```shell
 python demo/sampling_without_streamlit.py \
   --task txt2img \
   --config configs/inference/sd_xl_base_controlnet.yaml \
   --weight checkpoints/sd_xl_base_1.0_controlnet_canny_ms.ckpt \
   --guidance_scale 9.0 \
-  --device_target Ascend \
   --controlnet_mode canny \
+  --control_image_path /PATH TO/dog2.png \
   --prompt "cute dog, best quality, extremely detailed"   \
-  --image_path /PATH TO/dog2.png \
-  # --control_path /PATH TO/dog2_canny_edge.png  \
 ```
 
-The above script is provided in [`script/run_infer_base_controlnet.sh`](scripts/run_infer_base_controlnet.sh).
-
 Key arguments:
-- `weight`: path to the model weights, refer to [Prepare model weights](#prepare-model-weights) chapter.
-- `guidance_scale`: the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (uncond - cond). Note that this scale could heavily impact the inference result.
-- `controlnet_mode`: Control mode for controlnet, supported mode: "canny".
-- `image_path`: a raw image to be extracted control signal from.
-- `control_path`: the control signal image itself.
+- `weight`: path to the model weight, refer to [Prepare model weight](#prepare-model-weight) section.
+- `guidance_scale`: the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (uncond - cond). **Note that this scale could heavily impact the inference result.**
+- `controlnet_mode`: Control mode for controlnet, supported mode: 'raw': use the image itself as control signal; 'canny': use canny edge detector to extract control signal from input image.
+- `control_image_path`: path of input image for controlnet.
 - `prompt`: positve text prompt for image generation.
-
-
-⚠️ **If `--control_path` (like Fig 3) is not None, it will be used as control signal, while `--image_path` (like Fig 2) is not in effect.**
 
 You can check all arguments description by running `python demo/sampling_without_streamlit.py -h`.
 
@@ -108,11 +102,9 @@ You can check all arguments description by running `python demo/sampling_without
 
 ### Prepare init model weight
 
-Please refer to `tools/controlnet_conversion/init_weight.py`.
+Model weight initialization script [`tools/controlnet_conversion/init_weight.py`](tools/controlnet_conversion/init_weight.py) is provided.
 
-Parameters of SDXL is from sd_xl_base_1.0_ms.ckpt
-
-TBD
+The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet. Other parameters of ControlNet are copied from SDXL pretrained weight `sd_xl_base_1.0_ms.ckpt` (referring to [here](GETTING_STARTED.md#convert-pretrained-checkpoint)).
 
 ### Prepare dataset
 
@@ -140,14 +132,13 @@ Images in `target/` are raw images. Images in `source/` are the canny edge/segem
 {"source": "source/1.png", "target": "target/1.png", "prompt": "light coral circle with white background"}
 {"source": "source/2.png", "target": "target/2.png", "prompt": "aqua circle with light pink background"}
 {"source": "source/3.png", "target": "target/3.png", "prompt": "cornflower blue circle with light golden rod yellow background"}
-...
 ```
 
 Note that if you want to use your own dataset for training, please follow the directory and file structure shown above.
 
 ### Launch training
 
-Please refer to `script/run_train_base_controlnet_910b.sh`.
+Please refer to [`scripts/run_train_base_controlnet.sh`](scripts/run_train_base_controlnet.sh).
 
 ```shell
 nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
@@ -163,7 +154,7 @@ nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
 ```
 
 ⚠️ Some key points about ControlNet + SDXL training:
-- The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` are randomly initialized in ControlNet, which are very hard to train. We scale up (x10 by default) the base learning rate for training parameters specifically. You can set the scale value by `args.group_lr_scaler`.
+- The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet, which are very hard to train. We scale up (x10 by default) the base learning rate for training parameters specifically. You can set the scale value by `args.group_lr_scaler`.
 - As mentioned in ControlNet paper[1] and [repo](https://github.com/lllyasviel/ControlNet/blob/main/docs/train.md#more-consideration-sudden-converge-phenomenon-and-gradient-accumulation), there is a sudden convergence phenomenon in ControlNet training, which means the training steps should be large enough to let the training converge SUDDENLY and then generate images following the control signals. For ControlNet + SDXL, the training steps are even much more larger. We train xx steps with global batch size xx (x cards x bs 2). The sudden convergence happens at ~xx step.
 - As mentioned in ControlNet paper[1], randomly dropping 50% text prompt during training is very helpful for ControlNet to learn the control signals. Don't miss that.
 

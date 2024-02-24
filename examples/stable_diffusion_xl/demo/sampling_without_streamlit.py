@@ -105,7 +105,12 @@ def get_parser_sample():
     )
 
     # for controlnet
-    parser.add_argument("--controlnet_mode", type=str, choices=["canny", "raw"])
+    parser.add_argument(
+        "--controlnet_mode",
+        type=str,
+        choices=["raw", "canny"],
+        help="'raw': use the image itself as control signal; 'canny': use canny edge detector to extract control signal from input image",
+    )
     parser.add_argument("--control_image_path", type=str, help="path of input image for controlnet")
     parser.add_argument("--low_threshold", type=int, default=100, help="param of cv2.Canny()")
     parser.add_argument("--high_threshold", type=int, default=200, help="param of cv2.Canny()")
