@@ -26,9 +26,26 @@ pip install -r requirement.txt
 
 ### Prepare model weight
 
-1. Convert trained weight from Diffusers, please refer to [here](tools/controlnet_conversion/README.md);
+**1. Convert trained weight from Diffusers**
 
-2. Or train your ControlNet using MindONE, check [Training](#training) section below.
+  **Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
+
+  **Step2**: Since ControlNet acts like a plug-in to the SDXL, we convert the ControlNet weight `diffusion_pytorch_model.safetensors` from [diffusers/controlnet-canny-sdxl-1.0](https://huggingface.co/diffusers/controlnet-canny-sdxl-1.0/tree/main)
+  to MindSpore version and then merge it into the SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_ms.ckpt`). Eventually, we get the ControlNet + SDXL-base-1.0 MindONE model weight (`sd_xl_base_1.0_controlnet_canny_ms.ckpt`).
+
+
+  ```shell
+  cd tools/controlnet_conversion
+
+  python convert_weight.py  \
+      --weight_torch_controlnet /PATH TO/diffusion_pytorch_model.safetensors  \
+      --weight_ms_sdxl /PATH TO/sd_xl_base_1.0_ms.ckpt  \
+      --output_ms_ckpt_path /PATH TO/sd_xl_base_1.0_controlnet_canny_ms.ckpt
+  ```
+
+  > Note: The ControlNet weight parameters name mapping between Diffusers and MindONE is prepared: `tools/controlnet_conversion/controlnet_ms2torch_mapping.yaml`.
+
+**2. Or train your ControlNet using MindONE, check [Training](#training) section below.**
 
 ### Prepare control signals
 
@@ -101,8 +118,14 @@ You can check all arguments description by running `python demo/sampling_without
 ## Training
 
 ### Prepare init model weight
+**Step1**: Convert SDXL-base-1.0 model weight from Diffusers to MindONE, refer to [here](../../GETTING_STARTED.md#convert-pretrained-checkpoint). Get `sd_xl_base_1.0_ms.ckpt`.
 
-Model weight initialization script [`tools/controlnet_conversion/init_weight.py`](tools/controlnet_conversion/init_weight.py) is provided.
+**Step2**:
+
+```shell
+cd tools/controlnet_conversion
+python init_weight.py
+```
 
 The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet. Other parameters of ControlNet are copied from SDXL pretrained weight `sd_xl_base_1.0_ms.ckpt` (referring to [here](GETTING_STARTED.md#convert-pretrained-checkpoint)).
 
@@ -134,7 +157,7 @@ Images in `target/` are raw images. Images in `source/` are the canny edge/segem
 {"source": "source/3.png", "target": "target/3.png", "prompt": "cornflower blue circle with light golden rod yellow background"}
 ```
 
-Note that if you want to use your own dataset for training, please follow the directory and file structure shown above.
+> Note: if you want to use your own dataset for training, please follow the directory and file structure shown above.
 
 ### Launch training
 
@@ -160,7 +183,8 @@ nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
 
 ### Training results
 
-
+Training settings:
+xxx
 
 
 ## Reference
