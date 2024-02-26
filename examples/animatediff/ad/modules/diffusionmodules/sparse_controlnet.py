@@ -65,7 +65,7 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
         super().__init__()
         self.dtype = dtype
 
-        self.conv_in = nn.CellList(
+        self.conv_in = nn.SequentialCell(
             [
                 conv_nd(
                     dims, conditioning_channels, block_out_channels[0], 3, padding=1, has_bias=True, pad_mode="pad"
@@ -107,7 +107,7 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
                 )
             )
 
-        self.conv_out = nn.CellList(
+        self.conv_out = nn.SequentialCell(
             [
                 zero_module(
                     conv_nd(
@@ -123,11 +123,12 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
             ]
         )
 
-    def forward(self, conditioning):
+    def construct(self, conditioning):
         embedding = self.conv_in(conditioning)
 
-        for block in self.blocks:
-            embedding = block(embedding)
+        for blocks in self.blocks:
+            for block in blocks:
+                embedding = block(embedding)
 
         embedding = self.conv_out(embedding)
 

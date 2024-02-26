@@ -102,6 +102,10 @@ def convert_pt_ms_state_dict(
             # controlnet params are all conv layers
             # change conv layer name
             ms_dict_pname = pt_dict_pname.replace(".weight", ".conv.weight").replace(".bias", ".conv.bias")
+            if "controlnet_cond_embedding." in ms_dict_pname:
+                ms_dict_pname = ms_dict_pname.replace(".conv.weight", ".0.conv.weight").replace(
+                    ".conv.bias", ".0.conv.bias"
+                )
             # change blocks names
             ms_dict_pname = ms_dict_pname.replace("controlnet_down_blocks", "controlnet_input_blocks").replace(
                 "controlnet_mid_block", "controlnet_middle_block"

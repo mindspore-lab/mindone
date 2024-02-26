@@ -6,9 +6,9 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 
 - [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
 - [x] MotionLoRA inference
+- [x] AnimateDiff v3
 - [ ] Motion Module Training
 - [ ] Motion LoRA Training
-- [ ] AnimateDiff v3
 
 ## Requirements
 
@@ -44,10 +44,18 @@ Instruction on ffmpeg and decord install on EulerOS:
 First, download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
 
 - Convert SD dreambooth model
+
+To download ToonYou-Beta3 dreambooth model, please refer to this [civitai website](https://civitai.com/models/30240?modelVersionId=78775), or use the following command:
+```
+wget https://civitai.com/api/download/models/78755 -P models/ --content-disposition --no-check-certificate
+```
+After downloading this dreambooth checkpoint and putting it under `animatediff/models/torch_ckpts/`, convert the dreambooth checkpoint using:
 ```
 cd ../examples/stable_diffusion_v2
 python tools/model_conversion/convert_weights.py  --source ../animatediff/models/torch_ckpts/toonyou_beta3.safetensors   --target models/toonyou_beta3.ckpt  --model sdv1  --source_version pt
 ```
+
+In addition, please download [RealisticVision V5.1](https://civitai.com/models/4201?modelVersionId=130072) dreambooth checkpoint and convert it similarly.
 
 - Convert Motion Module
 ```
@@ -78,7 +86,60 @@ python domain_adapter_lora_convert.py --src ../torch_ckpts/v3_sd15_adapter.ckpt 
 cd ../examples/animatediff/tools
 python sparsectrl_encoder_convert.py --src ../torch_ckpts/v3_sd15_sparsectrl_{}.ckpt --tar ../models/sparsectrl_encoder
 ```
-## Inference
+
+## Inference (AnimateDiff v3 and SparseCtrl)
+
+- Running On Ascend 910\*:
+```
+# under general T2V setting
+python text_to_video.py --config configs/prompts/v3/v3-1-T2V.yaml
+
+# image animation (on RealisticVision)
+python text_to_video.py --config configs/prompts/v3/v3-2-animation-RealisticVision.yaml
+
+# sketch-to-animation and storyboarding (on RealisticVision)
+python text_to_video.py --config configs/prompts/v3/v3-3-sketch-RealisticVision.yaml
+```
+
+By default, DDIM sampling is used, and the sampling speed is s/iter.
+
+Results:
+
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=25% style="border: none; text-align: center">Input (by RealisticVision)</td>
+    <td width=25% style="border: none; text-align: center">Animation</td>
+    <td width=25% style="border: none; text-align: center">Input</td>
+    <td width=25% style="border: none; text-align: center">Animation</td>
+    </tr>
+    <tr>
+    <td width=25% style="border: none"><img src="__assets__/demos/image/RealisticVision_firework.png" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="__assets__/demos/image/RealisticVision_sunset.png" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    </tr>
+</table>
+
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=25% style="border: none; text-align: center">Input Scribble</td>
+    <td width=25% style="border: none; text-align: center">Output</td>
+    <td width=25% style="border: none; text-align: center">Input Scribbles</td>
+    <td width=25% style="border: none; text-align: center">Output</td>
+    </tr>
+    <tr>
+      <td width=25% style="border: none"><img src="__assets__/demos/scribble/scribble_1.png" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="__assets__/demos/scribble/scribble_2_readme.png" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    </tr>
+</table>
+
+- Running on GPU:
+
+Please append `--device_target GPU` to the end of the commands above.
+
+## Inference (AnimateDiff v2)
 
 ### Text-to-Video
 
