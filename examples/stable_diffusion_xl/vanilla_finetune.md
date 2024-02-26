@@ -118,14 +118,18 @@ python demo/sampling_without_streamlit.py \
 
 ### 4. Support List
 
+[MindSpore 2.2.11](https://www.mindspore.cn/versions#2.2.11)
+
 <div align="center">
 
-| Model Name | Device      | Cards  | MindSpore        | CANN | ImageSize | Compile Cost | PerBatchSize | FlashAttention | Cache | DataSink | Step Time |
-|------------|-------------|--------|------------------|------|-----------|--------------|--------------|----------------|-------|----------|-----------|
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 1            | False          | False | False    | 1.10s     |
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 1            | True           | True  | True     | 0.74s     |
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 6            | True           | False | False    | 2.70s     |
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 6            | True           | True  | True     | 2.15s     |
+| model name | device | cards | imagesize | graph compile | bs  | amp fp16 | fa  | cache | sink | step time |  fps  |
+|:----------:|:------:|:-----:|:---------:|:-------------:|:---:|:--------:|:---:|:-----:|:----:|:---------:|:-----:|
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 1*8 |    on    | off |  off  | off  |   1.10s   | 7.27  |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 1*8 |    on    | on  |  on   |  on  |   0.74s   | 10.81 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 2*8 |    on    | on  |  on   |  on  |   0.87s   | 18.39 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 4*8 |    on    | on  |  on   |  on  |   1.38s   | 23.18 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 6*8 |    on    | on  |  on   |  on  |   1.96s   | 24.48 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 8*8 |    on    | on  |  on   |  on  |   2.51s   | 25.52 |
 
 </div>
 <br>
