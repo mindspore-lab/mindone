@@ -36,6 +36,7 @@ class DiT_Factorised_Encoder(nn.Cell):
         learn_sigma=True,
         dtype=ms.float32,
         block_kwargs={},
+        condition="class",
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -45,10 +46,22 @@ class DiT_Factorised_Encoder(nn.Cell):
         self.num_heads = num_heads
         self.num_classes = num_classes
         self.dtype = dtype
+        if condition is not None:
+            assert isinstance(condition, str), f"Expect that the condition type is a string, but got {type(condition)}"
+            self.condition = condition.lower()
+        else:
+            self.condition = condition
 
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True, dtype=self.dtype)
         self.t_embedder = TimestepEmbedder(hidden_size, dtype=self.dtype)
-        self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob, dtype=self.dtype)
+        assert self.condition in [None, "text", "class"], f"Unsupported condition type! {self.condition}"
+        if self.condition == "class":
+            self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob, dtype=self.dtype)
+        elif self.condition == "text":
+            self.text_embedder = nn.SequentialCell(
+                nn.SiLU().to_float(self.dtype),
+                nn.Dense(77 * 768, hidden_size, has_bias=True).to_float(self.dtype),
+            )
         num_patches = self.x_embedder.num_patches
         # TODO: Text Embedding Projection
         # Will use fixed sin-cos embedding:
@@ -161,6 +174,9 @@ class DiT_Factorised_Encoder(nn.Cell):
         t_temp = t.repeat_interleave(repeats=self.pos_embed.shape[1], dim=0)
 
         if y is not None:
+            assert (
+                self.condition == "class"
+            ), f"When input y is not None, expect that the condition type equals to `class`, but got {self.condition}"
             y = self.y_embedder(y, self.training)  # (N, D)
             # (N, D) -> (N*num_frames, D)
             y_spatial = y.repeat_interleave(repeats=self.temp_embed.shape[1], dim=0)
@@ -171,7 +187,10 @@ class DiT_Factorised_Encoder(nn.Cell):
 
         # text embedding
         if text_embed is not None:
-            text_embed = self.text_embed_proj(text_embed.reshape(bs, -1))  # (N, L*D)
+            assert (
+                self.condition == "text"
+            ), f"When input y is not None, expect that the condition type equals to `class`, but got {self.condition}"
+            text_embed = self.text_embedder(text_embed.reshape(bs, -1))  # (N, L*D)
             # (N, D) -> (N*num_frames, D)
             text_embed_spatial = text_embed.repeat_interleave(repeats=self.temp_embed.shape[1], dim=0)
             # (N, D) -> (N*T, D)
