@@ -65,14 +65,9 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
         super().__init__()
         self.dtype = dtype
 
-        self.conv_in = nn.SequentialCell(
-            [
-                conv_nd(
-                    dims, conditioning_channels, block_out_channels[0], 3, padding=1, has_bias=True, pad_mode="pad"
-                ).to_float(self.dtype),
-                nn.SiLU().to_float(self.dtype),
-            ]
-        )
+        self.conv_in = conv_nd(
+            dims, conditioning_channels, block_out_channels[0], 3, padding=1, has_bias=True, pad_mode="pad"
+        ).to_float(self.dtype)
 
         self.blocks = nn.CellList([])
 
@@ -80,55 +75,42 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
             channel_in = block_out_channels[i]
             channel_out = block_out_channels[i + 1]
             self.blocks.append(
-                nn.CellList(
-                    [
-                        conv_nd(
-                            dims, channel_in, channel_in, kernel_size=3, padding=1, has_bias=True, pad_mode="pad"
-                        ).to_float(self.dtype),
-                        nn.SiLU().to_float(self.dtype),
-                    ]
-                )
+                conv_nd(dims, channel_in, channel_in, kernel_size=3, padding=1, has_bias=True, pad_mode="pad").to_float(
+                    self.dtype
+                ),
             )
             self.blocks.append(
-                nn.CellList(
-                    [
-                        conv_nd(
-                            dims,
-                            channel_in,
-                            channel_out,
-                            kernel_size=3,
-                            padding=1,
-                            stride=2,
-                            has_bias=True,
-                            pad_mode="pad",
-                        ).to_float(self.dtype),
-                        nn.SiLU().to_float(self.dtype),
-                    ]
-                )
+                conv_nd(
+                    dims,
+                    channel_in,
+                    channel_out,
+                    kernel_size=3,
+                    padding=1,
+                    stride=2,
+                    has_bias=True,
+                    pad_mode="pad",
+                ).to_float(self.dtype),
             )
 
-        self.conv_out = nn.SequentialCell(
-            [
-                zero_module(
-                    conv_nd(
-                        dims,
-                        block_out_channels[-1],
-                        conditioning_embedding_channels,
-                        kernel_size=3,
-                        padding=1,
-                        has_bias=True,
-                        pad_mode="pad",
-                    ).to_float(self.dtype)
-                )
-            ]
+        self.conv_out = zero_module(
+            conv_nd(
+                dims,
+                block_out_channels[-1],
+                conditioning_embedding_channels,
+                kernel_size=3,
+                padding=1,
+                has_bias=True,
+                pad_mode="pad",
+            ).to_float(self.dtype)
         )
 
     def construct(self, conditioning):
         embedding = self.conv_in(conditioning)
+        embedding = ops.silu(embedding)
 
-        for blocks in self.blocks:
-            for block in blocks:
-                embedding = block(embedding)
+        for block in self.blocks:
+            embedding = block(embedding)
+            embedding = ops.silu(embedding)
 
         embedding = self.conv_out(embedding)
 
