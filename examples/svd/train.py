@@ -53,7 +53,7 @@ def main(args, initializer):
     ldm_with_loss, _ = create_model(config, checkpoints=args.train.pretrained.absolute, freeze=False, amp_level="O0")
     ldm_with_loss.model.set_train(True)  # only unet
 
-    # temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_params(prefix="model.diffusion_model.")
+    temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_param_names(prefix="model.diffusion_model.")
     # new_weights_map = ldm_with_loss.model.diffusion_model.get_weights_map(prefix="model.diffusion_model.")
 
     # if param_not_load:
@@ -63,10 +63,10 @@ def main(args, initializer):
     #     else:
     #         logger.warning(f"Failed to load parameters: {diff}")
 
-    # if args.train.temporal_only:
-    #     for param in ldm_with_loss.trainable_params():
-    #         if param.name not in temporal_param_names:
-    #             param.requires_grad = False
+    if args.train.temporal_only:
+        for param in ldm_with_loss.trainable_params():
+            if param.name not in temporal_param_names:
+                param.requires_grad = False
 
     # Set mixed precision on certain modules only
     cells = ldm_with_loss.name_cells()

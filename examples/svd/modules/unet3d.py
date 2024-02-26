@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union
 
 try:
     from typing import Literal
@@ -10,9 +10,7 @@ except ImportError:
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor
-from mindspore import dtype as ms_dtype
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
 from gm.modules.attention import (
@@ -220,7 +218,6 @@ class TemporalTransformer(SpatialTransformer):
             use_linear=use_linear,
             disable_self_attn=disable_self_attn,
         )
-        self.depth = depth
         self.max_time_embed_period = max_time_embed_period
         # self._pe = Tensor(_positional_encoding(num_frames, in_channels), dtype=ms_dtype.float32)  # FIXME: check this
 
@@ -248,7 +245,7 @@ class TemporalTransformer(SpatialTransformer):
                     disable_self_attn=disable_self_attn,
                     disable_temporal_crossattention=disable_temporal_crossattention,
                 )
-                for _ in range(self.depth)
+                for _ in range(depth)
             ]
         )
 
@@ -729,6 +726,13 @@ class VideoUNet(nn.Cell):
             nn.SiLU(),
             zero_module(conv_nd(dims, model_channels, out_channels, 3, pad_mode="same")),
         )
+
+    def get_temporal_param_names(self, prefix: str = "") -> Set[str]:
+        return {
+            prefix + name
+            for name, _ in self.parameters_and_names()
+            if any([n in name for n in ["time_stack", "time_mixer", "time_pos_embed"]])
+        }
 
     def construct(
         self,
