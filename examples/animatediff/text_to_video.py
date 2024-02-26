@@ -26,6 +26,7 @@ from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
+from mindone.utils.config import str2bool
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,8 @@ def main(args):
     # unet_additional_kwargs = inference_config.unet_additional_kwargs
     noise_scheduler_kwargs = inference_config.noise_scheduler_kwargs
     use_motion_module = sd_config.model.params.unet_config.params.use_motion_module
+
+    sd_config.model.params.first_stage_config.params.use_fp16 = args.vae_fp16
 
     # 1. init env
     init_env(args)
@@ -208,6 +211,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--all_in_one_ckpt", type=str, default="", help="if not empty, load SD+mm from this file")
     parser.add_argument("--inference_config", type=str, default="configs/inference/inference-v2.yaml")
+    parser.add_argument("--vae_fp16", type=str2bool, default=True, help="use fp16 precision in vae. If unet is trained with vae fp16, then it should be True. Otherwise, it should keep False for better generation result.")
     parser.add_argument(
         "--motion_module_path",
         type=str,

@@ -93,10 +93,9 @@ def parse_args():
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
-        default=10,
-        type=int,
-        help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
+        default=100, type=int, help="iterate the whole dataset for this much epochs in training. If -1, apply `train_steps`",
     )
+    parser.add_argument("--train_steps", default=-1, type=int, help="number of training steps")
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
@@ -126,11 +125,12 @@ def parse_args():
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
 
-    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this data sink epochs (if dataset sink mode is ON )or steps")
+    parser.add_argument("--ckpt_save_epochs", default=100, type=int, help="save checkpoint every this epochs")
+    parser.add_argument("--ckpt_save_steps", default=-1, type=int, help="save checkpoint every this steps")
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
         "--step_mode",
-        default=False,
+        default=None,
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
