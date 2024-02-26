@@ -47,9 +47,9 @@ First, download the torch pretrained weights referring to [torch animatediff che
 
 To download ToonYou-Beta3 dreambooth model, please refer to this [civitai website](https://civitai.com/models/30240?modelVersionId=78775), or use the following command:
 ```
-wget https://civitai.com/api/download/models/78755 -P models/ --content-disposition --no-check-certificate
+wget https://civitai.com/api/download/models/78755 -P models/torch_ckpts/ --content-disposition --no-check-certificate
 ```
-After downloading this dreambooth checkpoint and putting it under `animatediff/models/torch_ckpts/`, convert the dreambooth checkpoint using:
+After downloading this dreambooth checkpoint under `animatediff/models/torch_ckpts/`, convert the dreambooth checkpoint using:
 ```
 cd ../examples/stable_diffusion_v2
 python tools/model_conversion/convert_weights.py  --source ../animatediff/models/torch_ckpts/toonyou_beta3.safetensors   --target models/toonyou_beta3.ckpt  --model sdv1  --source_version pt
@@ -87,6 +87,26 @@ cd ../examples/animatediff/tools
 python sparsectrl_encoder_convert.py --src ../torch_ckpts/v3_sd15_sparsectrl_{}.ckpt --tar ../models/sparsectrl_encoder
 ```
 
+The full tree of expected checkpoints is shown below:
+```
+models
+├── domain_adapter_lora
+│   └── v3_sd15_adapter.ckpt
+├── dreambooth_lora
+│   ├── realisticVisionV51_v51VAE.ckpt
+│   └── toonyou_beta3.ckpt
+├── motion_lora
+│   └── v2_lora_ZoomIn.ckpt
+├── motion_module
+│   ├── mm_sd_v15.ckpt
+│   ├── mm_sd_v15_v2.ckpt
+│   └── v3_sd15_mm.ckpt
+├── sparsectrl_encoder
+│   ├── v3_sd15_sparsectrl_rgb.ckpt
+│   └── v3_sd15_sparsectrl_scribble.ckpt
+└── stable_diffusion
+    └── sd_v1.5-d0ab7146.ckpt
+```
 ## Inference (AnimateDiff v3 and SparseCtrl)
 
 - Running On Ascend 910\*:
