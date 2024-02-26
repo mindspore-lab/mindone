@@ -115,6 +115,7 @@ class UNet3DModel(nn.Cell):
         unet_chunk_size=2,
         adm_in_channels=None,
         use_recompute=False,
+        recompute_strategy='down_up',
         # Additional
         use_inflated_groupnorm=True,  # diff, default is to use in mm-v2, which is more reasonable.
         use_motion_module=False,
@@ -500,13 +501,22 @@ class UNet3DModel(nn.Cell):
 
         # TODO: optimize where to recompute & fix bug on cell list.
         if use_recompute:
-            print("D--: recompute: ", use_recompute)
-            for iblock in self.input_blocks:
-                self.recompute(iblock)
-                # mblock.recompute()
-            for oblock in self.output_blocks:
-                self.recompute(oblock)
-                # oblock.recompute()
+            # print("D--: recompute strategy: ", recompute_strategy)
+            if recompute_strategy == 'down_mm':
+                for iblock in self.input_blocks:
+                    for cell in iblock:
+                        if isinstance(cell, VanillaTemporalModule):
+                            self.recompute(cell)
+            elif recompute_strategy == 'up_mm':
+                for oblock in self.output_blocks:
+                    for cell in oblock:
+                        if isinstance(cell, VanillaTemporalModule):
+                            self.recompute(cell)
+            else: # up and down
+                for iblock in self.input_blocks:
+                    self.recompute(iblock)
+                for oblock in self.output_blocks:
+                    self.recompute(oblock)
 
     def recompute(self, b):
         if not b._has_config_recompute:

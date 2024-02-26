@@ -1,6 +1,6 @@
 # task
 image_finetune: False
-output_path: outputs/mmv2_train_webvid5_256b4_recompute
+output_path: outputs/mmv2_train_webvid
 
 # model
 model_config: configs/stable_diffusion/v1-train-mmv2.yaml

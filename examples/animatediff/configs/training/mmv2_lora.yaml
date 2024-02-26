@@ -40,3 +40,5 @@ clip_grad: True
 # training process
 ckpt_save_interval: 2000
 ckpt_max_keep: 20
+
+use_recompute: True

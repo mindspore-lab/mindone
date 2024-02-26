@@ -1,0 +1,17 @@
+ToonYou:
+  motion_module:
+    - "models/motion_module/mm_sd_v15_v2.ckpt"
+    # - "outputs/mmv2_train_webvid5/2024-01-11T22-38-19/ckpt/ad-16000.ckpt"
+
+  dreambooth_path: ""
+  lora_model_path: ""
+
+  seed:           [1024, 434, 431, 42]
+  steps:          30
+  guidance_scale: 7.5
+
+  prompt:
+    - "Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect."
+
+  n_prompt:
+    - ""

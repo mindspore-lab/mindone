@@ -189,8 +189,8 @@ class CrossAttention(nn.Cell):
         head_dim = q.shape[-1] // self.heads
 
         if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
-        ):  # TODO: why restrict head_dim?
+            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 128 
+        ):  # FIXME: now restrict head_dim to 128 to avoid 160 bug. revert to 256 once FA bug is fixed.
             # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
@@ -307,9 +307,11 @@ class Attention(nn.Cell):
             mask = mask.repeat(self.heads, axis=0)
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
-
+        
+        # TODO: testing use fp16 instead
         # use fp32 for exponential inside
-        attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+        # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+        attn = self.softmax(sim)
 
         out = ops.matmul(attn, v)
 
