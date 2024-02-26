@@ -180,7 +180,7 @@ nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
 
 ### Training results
 
-Key settings: 
+Key settings:
 
 |base_learning_rate |group_lr_scaler | global batch size (#NPUs * bs per NPU)| total_step | inference guidance_scale |
 |-----------|----------------|--------------|----------------|------------|
