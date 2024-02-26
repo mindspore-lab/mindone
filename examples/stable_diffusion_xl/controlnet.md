@@ -45,22 +45,19 @@ pip install -r requirement.txt
 
   > Note: The ControlNet weight parameters name mapping between Diffusers and MindONE is prepared: `tools/controlnet_conversion/controlnet_ms2torch_mapping.yaml`.
 
-**2. Or train your ControlNet using MindONE, check [Training](#training) section below.**
+**2. Or train your ControlNet using MindONE, check [Training](#training) section below**
 
 ### Prepare control signals
 
 Stable Diffusion XL with ControlNet can generate images following the input control signal (e.g. canny edge). You can either prepare (1) a raw image (Fig 2) to be extracted control signal from, or (2) the control signal image itself (Fig 3).
 
 <div align="center">
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/f8a7ef86-3d4a-4d07-b99e-46156c356e73" width=350 />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/7eaff4e2-d9a4-44e6-a059-e8e1074f2301" width=350 />
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/f8a7ef86-3d4a-4d07-b99e-46156c356e73" width=30% />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://github.com/HaoyangLee/mindone/assets/20376974/7eaff4e2-d9a4-44e6-a059-e8e1074f2301" width=30% />
 </div>
 <p align="center">
 <em> Fig 2. raw image to be extracted control signal </em>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 <em> Fig 3. control signal image (canny edge) </em>
 </p>
@@ -96,7 +93,7 @@ You can check all arguments description by running `python demo/sampling_without
 <div align="center">
 <img src="https://github.com/HaoyangLee/mindone/assets/20376974/f8a7ef86-3d4a-4d07-b99e-46156c356e73" width=30% />
 <img src="https://github.com/HaoyangLee/mindone/assets/20376974/7eaff4e2-d9a4-44e6-a059-e8e1074f2301" width=30% />
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/13c84292-5bdb-4048-97aa-683112b04f34" width=30% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/9501f7e9-5bd0-45ac-8662-6866d27fc645" width=30% />
 </div>
 <p align="center">
 <em> Fig 4. From left to right: raw image - extracted canny edge - inference result. </em>
@@ -107,7 +104,7 @@ You can check all arguments description by running `python demo/sampling_without
 <div align="center">
 <img src="https://github.com/HaoyangLee/mindone/assets/20376974/ecdc18c9-36bf-4d49-b7b2-6216400f1d5a" width=30% />
 <img src="https://github.com/HaoyangLee/mindone/assets/20376974/00f0ed2c-c078-4ed3-bee6-cb8c66fb36fd" width=30% />
-<img src="https://github.com/HaoyangLee/mindone/assets/20376974/31da3e94-4633-4506-b2eb-cfd65001d3e8" width=30% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/28cf7e42-3f4c-4ee8-b4e0-e9a0f8244c43" width=30% />
 </div>
 <p align="center">
 <em> Fig 5. From left to right: raw image - extracted canny edge - inference result. </em>
@@ -178,14 +175,51 @@ nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
 
 ⚠️ Some key points about ControlNet + SDXL training:
 - The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet, which are very hard to train. We scale up (x10 by default) the base learning rate for training parameters specifically. You can set the scale value by `args.group_lr_scaler`.
-- As mentioned in ControlNet paper[1] and [repo](https://github.com/lllyasviel/ControlNet/blob/main/docs/train.md#more-consideration-sudden-converge-phenomenon-and-gradient-accumulation), there is a sudden convergence phenomenon in ControlNet training, which means the training steps should be large enough to let the training converge SUDDENLY and then generate images following the control signals. For ControlNet + SDXL, the training steps are even much more larger. We train xx steps with global batch size xx (x cards x bs 2). The sudden convergence happens at ~xx step.
+- As mentioned in ControlNet paper[1] and [repo](https://github.com/lllyasviel/ControlNet/blob/main/docs/train.md#more-consideration-sudden-converge-phenomenon-and-gradient-accumulation), there is a sudden convergence phenomenon in ControlNet training, which means the training steps should be large enough to let the training converge SUDDENLY and then generate images following the control signals. For ControlNet + SDXL, the training steps should be even much more larger.
 - As mentioned in ControlNet paper[1], randomly dropping 50% text prompt during training is very helpful for ControlNet to learn the control signals. Don't miss that.
 
 ### Training results
 
-Training settings:
-xxx
+Key settings: 
 
+|base_learning_rate |group_lr_scaler | global batch size (#NPUs * bs per NPU)| total_step | inference guidance_scale |
+|-----------|----------------|--------------|----------------|------------|
+|  4.0e-5   |    10.0        |  64 (32 x 2) |   220k         |  15.0      |
+
+<br>
+Ground truth:
+
+<div align="center">
+<kbd>
+<img src="https://github.com/zhtmike/mindone/assets/20376974/db6e42cf-63db-44f6-afeb-691f65ab991d" width=24% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/dc34013e-d7a5-4d6f-a54b-28310e8cc252" width=24% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/b6a68ace-641c-4bef-96ab-8f8ad09babd5" width=24% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/122095f1-338b-4d73-bc48-065c9f41e070" width=24% />
+</kbd>
+</div>
+
+
+<br>
+Our prediction:
+
+<div align="center">
+<kbd>
+<img src="https://github.com/zhtmike/mindone/assets/20376974/580eca17-160f-430c-952e-9b1373acf952" width=24% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/d612328d-4520-4ada-8c55-76d3a7b164bc" width=24% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/1f685df0-7095-40cd-b353-7655073977c3" width=24% />
+<img src="https://github.com/zhtmike/mindone/assets/20376974/442238fc-2c5d-4d26-a3db-ea3dcbc7d72b" width=24% />
+</kbd>
+</div>
+
+<br>
+Prompts (correspond to the images above from left to right):
+
+```
+"light coral circle with white background"
+"light sea green circle with dark salmon background"
+"medium sea green circle with black background"
+"dark turquoise circle with medium spring green background"
+```
 
 ## Reference
 [1] [ControlNet: Adding Conditional Control to Text-to-Image Diffusion Models](https://arxiv.org/pdf/2302.05543.pdf)
