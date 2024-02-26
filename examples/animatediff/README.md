@@ -121,7 +121,6 @@ python text_to_video.py --config configs/prompts/v3/v3-2-animation-RealisticVisi
 python text_to_video.py --config configs/prompts/v3/v3-3-sketch-RealisticVision.yaml
 ```
 
-By default, DDIM sampling is used, and the sampling speed is s/iter.
 
 Results:
 
@@ -134,9 +133,9 @@ Results:
     </tr>
     <tr>
     <td width=25% style="border: none"><img src="__assets__/demos/image/RealisticVision_firework.png" style="width:100%"></td>
-    <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-closeup-face-photo-of-man-in-black-clothes%2C-night-city.gif" style="width:100%"></td>
     <td width=25% style="border: none"><img src="__assets__/demos/image/RealisticVision_sunset.png" style="width:100%"></td>
-    <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-masterpiece%2C-bestquality%2C-highlydetailed%2C-ultradetailed%2C-sunset%2C-orange-sky%2C-warm-lighting%2C-fishing.gif" style="width:100%"></td>
     </tr>
 </table>
 
@@ -149,9 +148,9 @@ Results:
     </tr>
     <tr>
       <td width=25% style="border: none"><img src="__assets__/demos/scribble/scribble_1.png" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-a-back-view-of-a-boy%2C-standing-on-the-ground%2C.gif" style="width:100%"></td>
       <td width=25% style="border: none"><img src="__assets__/demos/scribble/scribble_2_readme.png" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-an-aerial-view-of-a-modern-city%2C-sunlight%2C-day-time%2C.gif" style="width:100%"></td>
     </tr>
 </table>
 
