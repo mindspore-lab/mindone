@@ -228,9 +228,6 @@ def main(args):
             logger.info("Num MM trainable params {}".format(num_mm_trainable))
             # assert num_mm_trainable in [546, 520], "Expect 546 trainable params for MM-v2 or 520 for MM-v1."
 
-    if args.train_data_type == "npz" or args.train_data_type == "mindrecord":
-        latent_diffusion_with_loss.emb_cache = True
-
     # count total params and trainable params
     tot_params, trainable_params = count_params(latent_diffusion_with_loss.model)
     logger.info("UNet3D: total param size {:,}, trainable {:,}".format(tot_params, trainable_params))

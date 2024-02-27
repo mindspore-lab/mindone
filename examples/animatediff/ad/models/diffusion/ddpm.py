@@ -305,19 +305,14 @@ class LatentDiffusion(DDPM):
     def get_latents(self, x):
         # "b f c h w -> (b f) c h w"
         B, F, C, H, W = x.shape
-        if self.emb_cache:
-            z = ops.stop_gradient(self.scale_factor * x)
-        else:
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = ops.reshape(x, (-1, C, H, W))
+        if C != 3:
+            raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
+        x = ops.reshape(x, (-1, C, H, W))
 
-            z = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
+        z = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
 
-            # (b*f c h w) -> (b f c h w)
-            z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-
-        # (b f c h w) -> (b c f h w )
+        # (b*f c h w) -> (b f c h w) -> (b c f h w )
+        z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
         z = ops.transpose(z, (0, 2, 1, 3, 4))
 
         return z
@@ -325,13 +320,10 @@ class LatentDiffusion(DDPM):
     def get_condition_embeddings(self, text_tokens, control=None):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
-        if not self.emb_cache:
-            if self.cond_stage_trainable:
-                text_emb = self.cond_stage_model(text_tokens)
-            else:
-                text_emb = ops.stop_gradient(self.cond_stage_model(text_tokens))
+        if self.cond_stage_trainable:
+            text_emb = self.cond_stage_model(text_tokens)
         else:
-            text_emb = ops.stop_gradient(text_tokens)
+            text_emb = ops.stop_gradient(self.cond_stage_model(text_tokens))
         cond = {"c_crossattn": text_emb}
 
         return cond
@@ -412,6 +404,28 @@ class LatentDiffusion(DDPM):
     def reduce_loss(self, loss):
         # model output/loss shape: (b c f h w)
         return loss.mean([1, 2, 3, 4])
+
+
+class LatentDiffusionWithEmbedding(LatentDiffusion):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_latents(self, x):
+        B, F, C, H, W = x.shape
+        if C != 4:
+            raise ValueError("Expect input shape (b f 4 h w), but get {}".format(x.shape))
+        z = ops.stop_gradient(self.scale_factor * x)
+
+        # (b f c h w) -> (b c f h w )
+        z = ops.transpose(z, (0, 2, 1, 3, 4))
+        return z
+
+    def get_condition_embeddings(self, text_tokens):
+        # text conditions embedding inputs for cross-attention
+        text_emb = ops.stop_gradient(text_tokens)
+        cond = {"c_crossattn": text_emb}
+
+        return cond
 
 
 # latent diffusion (unet) forward based on input noised latent and encoded conditions
