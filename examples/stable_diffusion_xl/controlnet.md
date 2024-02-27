@@ -38,9 +38,9 @@ pip install -r requirement.txt
   cd tools/controlnet_conversion
 
   python convert_weight.py  \
-      --weight_torch_controlnet /PATH TO/diffusion_pytorch_model.safetensors  \
-      --weight_ms_sdxl /PATH TO/sd_xl_base_1.0_ms.ckpt  \
-      --output_ms_ckpt_path /PATH TO/sd_xl_base_1.0_controlnet_canny_ms.ckpt
+      --weight_torch_controlnet PATH_TO/diffusion_pytorch_model.safetensors  \
+      --weight_ms_sdxl PATH_TO/sd_xl_base_1.0_ms.ckpt  \
+      --output_ms_ckpt_path PATH_TO/sd_xl_base_1.0_controlnet_canny_ms.ckpt
   ```
 
   > Note: The ControlNet weight parameters name mapping between Diffusers and MindONE is prepared: `tools/controlnet_conversion/controlnet_ms2torch_mapping.yaml`.
@@ -74,7 +74,7 @@ python demo/sampling_without_streamlit.py \
   --weight checkpoints/sd_xl_base_1.0_controlnet_canny_ms.ckpt \
   --guidance_scale 9.0 \
   --controlnet_mode canny \
-  --control_image_path /PATH TO/dog2.png \
+  --control_image_path PATH_TO/dog2.png \
   --prompt "cute dog, best quality, extremely detailed"   \
 ```
 
@@ -128,7 +128,7 @@ The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks 
 
 ### Prepare dataset
 
-We use [Fill50k dataset](https://huggingface.co/datasets/HighCWu/fill50k) to train the model to generate images following the edge control. The directory struture of Fill50k dataset is shown below.
+We use [Fill50k dataset](https://huggingface.co/lllyasviel/ControlNet/blob/main/training/fill50k.zip) to train the model to generate images following the edge control. The directory struture of Fill50k dataset is shown below.
 
 ```text
 DATA_PATH
@@ -143,7 +143,7 @@ DATA_PATH
       └── ...
 ```
 
-Images in `target/` are raw images. Images in `source/` are the canny edge/segementation/other control images extracted from the corresponding raw images. For example, `source/img0.png` is the canny edge image of `target/img0.png`.
+Images in `target/` are raw images. Images in `source/` are the canny edge/segementation/other control images extracted from the corresponding raw images. For example, `source/0.png` is the canny edge image of `target/0.png`.
 
 `prompt.json` is the annotation file with the following format.
 
@@ -156,21 +156,36 @@ Images in `target/` are raw images. Images in `source/` are the canny edge/segem
 
 > Note: if you want to use your own dataset for training, please follow the directory and file structure shown above.
 
+Fill50k image example:
+
+<div align="center">
+<img src="https://github.com/zhtmike/mindone/assets/20376974/6a931ac2-f905-4929-b3ed-39ef88ed9687" width=30% />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img src="https://github.com/zhtmike/mindone/assets/20376974/93ac9597-fb06-4615-b134-b6cecb0aefca" width=30% />
+</div>
+<p align="center">
+<em> source/0.png </em>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<em> target/0.png </em>
+</p>
+
 ### Launch training
 
 Please refer to [`scripts/run_train_base_controlnet.sh`](scripts/run_train_base_controlnet.sh).
 
 ```shell
-nohup mpirun -n 8 --allow-run-as-root python train_controlnet.py \
+mpirun -n 8 --allow-run-as-root python train_controlnet.py \
     --data_path DATA_PATH \
-    --weight PATH TO/sd_xl_base_1.0_ms_controlnet_init.ckpt \
+    --weight PATH_TO/sd_xl_base_1.0_ms_controlnet_init.ckpt \
     --config configs/training/sd_xl_base_finetune_controlnet_910b.yaml \
     --total_step 300000 \
     --per_batch_size 2 \
     --group_lr_scaler 10.0 \
     --save_ckpt_interval 10000 \
     --max_num_ckpt 5 \
-    > train.log 2>&1 &
 ```
 
 ⚠️ Some key points about ControlNet + SDXL training:
@@ -221,5 +236,18 @@ Prompts (correspond to the images above from left to right):
 "dark turquoise circle with medium spring green background"
 ```
 
+<br>
+Prediction command example:
+
+```shell
+python demo/sampling_without_streamlit.py \
+  --task txt2img \
+  --config configs/inference/sd_xl_base_controlnet.yaml \
+  --weight PATH_TO_CKPT \
+  --guidance_scale 15.0 \
+  --controlnet_mode raw \
+  --control_image_path DATA_PATH/source/1.png \
+  --prompt "light coral circle with white background"   \
+```
 ## Reference
 [1] [ControlNet: Adding Conditional Control to Text-to-Image Diffusion Models](https://arxiv.org/pdf/2302.05543.pdf)
