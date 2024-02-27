@@ -111,6 +111,9 @@ models
 
 - Running On Ascend 910\*:
 ```
+# download demo images
+bash scripts/download_demo_images.sh
+
 # under general T2V setting
 python text_to_video.py --config configs/prompts/v3/v3-1-T2V.yaml
 
