@@ -420,7 +420,7 @@ class LatentDiffusionWithEmbedding(LatentDiffusion):
         z = ops.transpose(z, (0, 2, 1, 3, 4))
         return z
 
-    def get_condition_embeddings(self, text_tokens):
+    def get_condition_embeddings(self, text_tokens, control=None):
         # text conditions embedding inputs for cross-attention
         text_emb = ops.stop_gradient(text_tokens)
         cond = {"c_crossattn": text_emb}
