@@ -15,7 +15,7 @@ python train.py --config configs/training/mmv2_lora.yaml \
     --image_size 512 \
     --train_batch_size 1 \
 
-:' Uncommet 
+:' Uncommet
 # slower
 python train.py --config configs/training/mmv2_lora.yaml \
     --data_path "/mnt/disk3/datasets/webvid/2M_train/part5/00000"  \

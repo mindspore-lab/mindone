@@ -4,8 +4,8 @@ AnimateDiff training pipeline
 - Motion module training
 """
 import datetime
-import math
 import logging
+import math
 import os
 import shutil
 import sys
@@ -37,14 +37,13 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
+
+# from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import get_obj_from_str
 from mindone.utils.logger import set_logger
-from mindone.utils.params import count_params
+from mindone.utils.params import count_params, load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
 from mindone.utils.version_control import is_old_ms_version
-from mindone.utils.params import load_param_into_net_with_filter
-
-from mindone.utils.amp import auto_mixed_precision
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
@@ -93,7 +92,7 @@ def load_pretrained_model(
             param_not_load = load_param_into_net(net, param_dict, filter=param_dict.keys())
         else:
             param_not_load, ckpt_not_load = load_param_into_net_with_filter(net, param_dict, filter=param_dict.keys())
-            
+
         logger.info(
             "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
         )
@@ -134,7 +133,7 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"}, # TODO: tune
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
         init()
         device_num = get_group_size()
@@ -182,7 +181,11 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. build model
-    unet_config_update = dict(enable_flash_attention=args.enable_flash_attention, use_recompute=args.use_recompute, recompute_strategy=args.recompute_strategy)
+    unet_config_update = dict(
+        enable_flash_attention=args.enable_flash_attention,
+        use_recompute=args.use_recompute,
+        recompute_strategy=args.recompute_strategy,
+    )
     latent_diffusion_with_loss = build_model_from_config(args.model_config, unet_config_update)
     # 1) load sd pretrained weight
     load_pretrained_model(
@@ -193,7 +196,7 @@ def main(args):
         unet3d_type="adv1" if "mmv1" in args.model_config else "adv2",  # TODO: better not use filename to judge version
     )
 
-    # TODO: debugging 
+    # TODO: debugging
     # latent_diffusion_with_loss = auto_mixed_precision(latent_diffusion_with_loss, "O2")
 
     if not args.image_finetune:
@@ -286,30 +289,37 @@ def main(args):
         total_train_steps = args.epochs * dataset_size
     else:
         total_train_steps = args.train_steps
-    
+
     if args.dataset_sink_mode and args.sink_size != -1:
-        steps_per_sink = args.sink_size 
+        steps_per_sink = args.sink_size
     else:
-        steps_per_sink = dataset_size 
+        steps_per_sink = dataset_size
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)
-    
+
     if args.ckpt_save_steps == -1:
         ckpt_save_interval = args.ckpt_save_epochs
         step_mode = False
-    else: 
+    else:
         step_mode = not args.dataset_sink_mode
         if not args.dataset_sink_mode:
-            ckpt_save_interval = args.ckpt_save_steps 
+            ckpt_save_interval = args.ckpt_save_steps
         else:
             # still need to count interval in sink epochs
             ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
             if args.ckpt_save_steps % steps_per_sink != 0:
-                logger.warning(f"`ckpt_save_steps` must be times of sink size or dataset_size when dataset sink mode is enabled. Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps.") 
+                logger.warning(
+                    f"`ckpt_save_steps` must be times of sink size or dataset_size under dataset sink mode."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                )
     step_mode = step_mode if args.step_mode is None else args.step_mode
 
     logger.info(f"train_steps: {total_train_steps}, train_epochs: {args.epochs}, sink_size: {args.sink_size}")
     logger.info(f"total train steps: {total_train_steps}, sink epochs: {sink_epochs}")
-    logger.info("ckpt_save_interval: {} {}".format(ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"))
+    logger.info(
+        "ckpt_save_interval: {} {}".format(
+            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+        )
+    )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
@@ -321,7 +331,6 @@ def main(args):
                 f"Will force decay_steps to be set to 1."
             )
             args.decay_steps = 1
-
 
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
@@ -460,7 +469,7 @@ def main(args):
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
-    # TODO: start_epoch already recorded in sink size? 
+    # TODO: start_epoch already recorded in sink size?
     model.train(
         sink_epochs,
         dataset,

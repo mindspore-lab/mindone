@@ -112,7 +112,6 @@ class EvalSaveCallback(Callback):
 
         self.use_step_unit = use_step_unit
 
-
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
@@ -133,20 +132,21 @@ class EvalSaveCallback(Callback):
         if self.is_main_device:
             # if data sink, train step callback will not be invokded
             if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
-                ckpt_name = f"{self.model_name}-s{cur_step}.ckpt" if self.use_step_unit else f"{self.model_name}-e{cur_epoch}.ckpt"
+                ckpt_name = (
+                    f"{self.model_name}-s{cur_step}.ckpt"
+                    if self.use_step_unit
+                    else f"{self.model_name}-e{cur_epoch}.ckpt"
+                )
                 if self.ema is not None:
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                self.ckpt_manager.save(
-                    self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict
-                )
+                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 # TODO: resume training for step.
                 # print("D--: ckpt saved in step end cb")
-                c
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
@@ -209,7 +209,11 @@ class EvalSaveCallback(Callback):
 
         if self.is_main_device and (not self.step_mode):
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
-                ckpt_name = f"{self.model_name}-s{cur_step}.ckpt" if self.use_step_unit else f"{self.model_name}-e{cur_epoch}.ckpt"
+                ckpt_name = (
+                    f"{self.model_name}-s{cur_step}.ckpt"
+                    if self.use_step_unit
+                    else f"{self.model_name}-e{cur_epoch}.ckpt"
+                )
                 if self.ema is not None:
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
@@ -217,9 +221,7 @@ class EvalSaveCallback(Callback):
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                self.ckpt_manager.save(
-                    self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict
-                )
+                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 ms.save_checkpoint(
                     cb_params.train_network,

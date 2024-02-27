@@ -83,7 +83,12 @@ def parse_args():
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
-    parser.add_argument("--log_interval", default=1, type=int, help="log interval in the unit of data sink size.. E.g. if data sink size = 10, log_inteval=2, log every 20 steps")
+    parser.add_argument(
+        "--log_interval",
+        default=1,
+        type=int,
+        help="log interval in the unit of data sink size.. E.g. if data sink size = 10, log_inteval=2, log every 20 steps",
+    )
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
@@ -93,7 +98,9 @@ def parse_args():
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
-        default=100, type=int, help="iterate the whole dataset for this much epochs in training. If -1, apply `train_steps`",
+        default=100,
+        type=int,
+        help="iterate the whole dataset for this much epochs in training. If -1, apply `train_steps`",
     )
     parser.add_argument("--train_steps", default=-1, type=int, help="number of training steps")
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
@@ -109,7 +116,9 @@ def parse_args():
         type=str2bool,
         help="whether use recompute. If None, controlled by unet config.",
     )
-    parser.add_argument("--recompute_strategy", default=None, type=str, help="options: down_blocks, down_mm, up_mm, down_up")
+    parser.add_argument(
+        "--recompute_strategy", default=None, type=str, help="options: down_blocks, down_mm, up_mm, down_up"
+    )
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
@@ -167,7 +176,9 @@ def parse_args():
     parser.add_argument("--image_size", default=256, type=int, help="image size")
     parser.add_argument("--num_frames", default=16, type=int, help="num frames")
     parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
-    parser.add_argument("--random_drop_text", default=True, type=str2bool, help="set caption to empty string randomly if enabled")
+    parser.add_argument(
+        "--random_drop_text", default=True, type=str2bool, help="set caption to empty string randomly if enabled"
+    )
     parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(

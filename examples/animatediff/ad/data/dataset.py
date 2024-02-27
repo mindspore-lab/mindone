@@ -1,8 +1,8 @@
+import copy
 import csv
 import logging
 import os
 import random
-import copy
 
 import albumentations
 import cv2
@@ -43,7 +43,7 @@ def create_video_transforms(h, w, num_frames, interoplation="bicubic", backend="
         )
     elif backend == "al":
         # expect rgb image in range 0-255, shape (h w c)
-        from albumentations import CenterCrop, HorizontalFlip, Resize, SmallestMaxSize
+        from albumentations import CenterCrop, HorizontalFlip, SmallestMaxSize
 
         # NOTE: to ensure augment all frames in a video in the same way.
         targets = {"image{}".format(i): "image" for i in range(num_frames)}
@@ -137,8 +137,7 @@ class TextVideoDataset:
         self.prev_ok_sample = self.get_replace_data(max_attempts)
         self.require_update_prev = False
 
-
-    def get_replace_data(self,max_attempts=100):
+    def get_replace_data(self, max_attempts=100):
         replace_data = None
         attempts = min(max_attempts, self.length)
         for idx in range(attempts):
@@ -151,15 +150,14 @@ class TextVideoDataset:
 
         assert replace_data is not None, f"Fail to preload sample in {attempts} attempts."
 
-        return replace_data 
-        
+        return replace_data
 
     def get_batch(self, idx):
         # get video raw pixels (batch of frame) and its caption
         video_dict = self.dataset[idx]
         video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
         video_path = os.path.join(self.video_folder, video_fn)
-        
+
         # TODO: Add error data replacement!!!
         if video_path.endswith(".gif"):
             video_reader = read_gif(video_path, mode="RGB")
@@ -201,8 +199,7 @@ class TextVideoDataset:
                 self.prev_ok_sample = copy.deepcopy((pixel_values, caption))
                 self.require_update_prev = False
         except Exception as e:
-            logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced."
-            )
+            logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced.")
             print("\tError msg: {}".format(e), flush=True)
             assert self.prev_ok_sample is not None
             pixel_values, caption = self.prev_ok_sample  # unless the first sample is already not ok
@@ -244,7 +241,7 @@ class TextVideoDataset:
         if self.random_drop_text:
             if random.random() <= self.random_drop_text_ratio:
                 caption = ""
-                
+
         if self.tokenizer is not None:
             tokens = self.tokenizer(caption)
             # print("D--: ", type(text_data))

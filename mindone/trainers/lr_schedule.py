@@ -51,7 +51,7 @@ def create_scheduler(
         decay_rate: LR decay rate (default: 0.9)
         milestones: list of steps milestones for 'multi_step_decay' scheduler. Must be increasing.
         num_epochs: number of total epochs.
-        total_steps: total steps to schedule. If -1, lr will be scheduled in num_epochs * steps_per_epoch steps. 
+        total_steps: total steps to schedule. If -1, lr will be scheduled in num_epochs * steps_per_epoch steps.
     Returns:
         A list of float numbers indicating the learning rate at every step
     """

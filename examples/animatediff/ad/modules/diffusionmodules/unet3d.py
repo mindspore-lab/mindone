@@ -115,7 +115,7 @@ class UNet3DModel(nn.Cell):
         unet_chunk_size=2,
         adm_in_channels=None,
         use_recompute=False,
-        recompute_strategy='down_up',
+        recompute_strategy="down_up",
         # Additional
         use_inflated_groupnorm=True,  # diff, default is to use in mm-v2, which is more reasonable.
         use_motion_module=False,
@@ -502,24 +502,23 @@ class UNet3DModel(nn.Cell):
         # TODO: optimize where to recompute & fix bug on cell list.
         if use_recompute:
             # print("D--: recompute strategy: ", recompute_strategy)
-            if recompute_strategy in ['down_mm', 'down_mm_half', 'down_blocks']:
+            if recompute_strategy in ["down_mm", "down_mm_half", "down_blocks"]:
                 for iblock in self.input_blocks:
-                    if recompute_strategy == 'down_blocks':
+                    if recompute_strategy == "down_blocks":
                         self.recompute(iblock)
                     else:
                         # 12 input blocks
                         for idx, cell in enumerate(iblock, 1):
                             # recompute level 1 blocks (whose activations are very large), i.e. block 2-4
-                            if (recompute_strategy == 'down_mm_half' and idx <= 4) or \
-                                (recompute_strategy == 'down_mm'):
+                            if (recompute_strategy == "down_mm_half" and idx <= 4) or (recompute_strategy == "down_mm"):
                                 if isinstance(cell, VanillaTemporalModule):
                                     self.recompute(cell)
-            elif recompute_strategy == 'up_mm':
+            elif recompute_strategy == "up_mm":
                 for oblock in self.output_blocks:
                     for cell in oblock:
                         if isinstance(cell, VanillaTemporalModule):
                             self.recompute(cell)
-            elif recompute_strategy == 'up_down':
+            elif recompute_strategy == "up_down":
                 for iblock in self.input_blocks:
                     self.recompute(iblock)
                 for oblock in self.output_blocks:
