@@ -680,7 +680,8 @@ class GaussianDiffusion:
             x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
         )
         assert decoder_nll.shape == x_start.shape
-        decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+        decoder_nll = mean_flat(decoder_nll) / Tensor(np.log(2.0))
+        decoder_nll = decoder_nll.to(kl.dtype)
 
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
@@ -704,7 +705,14 @@ class GaussianDiffusion:
         if noise is None:
             noise = ops.randn_like(x_start)
         x_t = self.q_sample(x_start, t, noise=noise)
-
+        video_input = False
+        if x_t.dim() == 4:
+            B, C = x_t.shape[:2]
+        elif x_t.dim() == 5:
+            B, F, C = x_t.shape[:3]
+            video_input = True
+        else:
+            raise ValueError(f"Incorrect input shape. Expect to get 4 or 5 dimensional inputs, but got {x_t.dim()}")
         terms = {}
 
         if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
@@ -725,12 +733,16 @@ class GaussianDiffusion:
                 ModelVarType.LEARNED,
                 ModelVarType.LEARNED_RANGE,
             ]:
-                B, C = x_t.shape[:2]
-                assert model_output.shape == (B, C * 2, *x_t.shape[2:])
-                model_output, model_var_values = ops.split(model_output, C, axis=1)
+                if not video_input:
+                    assert model_output.shape == (B, C * 2, *x_t.shape[2:])
+                    model_output, model_var_values = ops.split(model_output, C, axis=1)
+                    frozen_out = ops.cat([model_output.copy(), model_var_values], axis=1)
+                else:
+                    assert model_output.shape == (B, F, C * 2, *x_t.shape[3:])
+                    model_output, model_var_values = ops.split(model_output, C, axis=2)
+                    frozen_out = ops.cat([model_output.copy(), model_var_values], axis=2)
                 # Learn the variance using the variational bound, but don't let
                 # it affect our mean prediction.
-                frozen_out = ops.cat([model_output.detach(), model_var_values], axis=1)
                 terms["vb"] = self._vb_terms_bpd(
                     model=lambda *args, r=frozen_out: r,
                     x_start=x_start,

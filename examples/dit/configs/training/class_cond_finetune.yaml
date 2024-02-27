@@ -1,0 +1,37 @@
+# task
+condition: "class"
+output_path: outputs/class_ft_video_dit
+
+# model setting
+image_size: 256
+num_frames: 2
+model_name: "DiT-XL/2"
+dit_checkpoint: "models/DiT-XL-2-256x256.ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+use_fp16: True
+
+# data setting
+data_path: ../videocomposer/demo_video/
+
+dataset_sink_mode: False
+
+# training hyper-params
+start_learning_rate: 0.00001
+warmup_steps: 10
+train_batch_size: 1
+weight_decay: 0.01
+epochs: 1000
+
+use_ema: False
+clip_grad: True
+
+init_loss_scale: 65536
+
+betas: [0.9, 0.999]
+optim_eps: 1.e-6
+
+# training process
+log_interval: 1
+ckpt_save_interval: 1000
