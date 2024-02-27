@@ -502,11 +502,14 @@ class UNet3DModel(nn.Cell):
         # TODO: optimize where to recompute & fix bug on cell list.
         if use_recompute:
             # print("D--: recompute strategy: ", recompute_strategy)
-            if recompute_strategy == 'down_mm':
+            if recompute_strategy in ['down_mm', 'down_blocks']:
                 for iblock in self.input_blocks:
-                    for cell in iblock:
-                        if isinstance(cell, VanillaTemporalModule):
-                            self.recompute(cell)
+                    if recompute_strategy == 'down_blocks':
+                        self.recompute(iblock)
+                    else:
+                        for cell in iblock:
+                            if isinstance(cell, VanillaTemporalModule):
+                                self.recompute(cell)
             elif recompute_strategy == 'up_mm':
                 for oblock in self.output_blocks:
                     for cell in oblock:

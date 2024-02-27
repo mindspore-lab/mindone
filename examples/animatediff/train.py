@@ -294,10 +294,10 @@ def main(args):
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)
     
     if args.ckpt_save_steps == -1:
-        step_mode = False
         ckpt_save_interval = args.ckpt_save_epochs
+        step_mode = False
     else: 
-        step_mode = True
+        step_mode = not args.dataset_sink_mode
         if not args.dataset_sink_mode:
             ckpt_save_interval = args.ckpt_save_steps 
         else:
@@ -309,12 +309,12 @@ def main(args):
 
     logger.info(f"train_steps: {total_train_steps}, train_epochs: {args.epochs}, sink_size: {args.sink_size}")
     logger.info(f"total train steps: {total_train_steps}, sink epochs: {sink_epochs}")
-    logger.info("ckpt_save_interval: {} {}".format(ckpt_save_interval, "step" if (not args.dataset_sink_mode and step_mode) else "epoch"))
+    logger.info("ckpt_save_interval: {} {}".format(ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"))
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
     if not args.decay_steps:
-        args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
+        args.decay_steps = total_train_steps - args.warmup_steps  # fix lr scheduling
         if args.decay_steps <= 0:
             logger.warning(
                 f"decay_steps is {args.decay_steps}, please check epochs, dataset_size and warmup_steps. "
@@ -403,6 +403,7 @@ def main(args):
             ckpt_save_policy="latest_k",
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=step_mode,
+            use_step_unit=(args.ckpt_save_steps != -1),
             ckpt_save_interval=ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,

@@ -109,7 +109,7 @@ def parse_args():
         type=str2bool,
         help="whether use recompute. If None, controlled by unet config.",
     )
-    parser.add_argument("--recompute_strategy", default=None, type=str, help="options: down_mm, up_mm, down_up")
+    parser.add_argument("--recompute_strategy", default=None, type=str, help="options: down_blocks, down_mm, up_mm, down_up")
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
@@ -132,7 +132,7 @@ def parse_args():
         "--step_mode",
         default=None,
         type=str2bool,
-        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+        help="whether save ckpt by steps. If False, save ckpt by epochs.If None, it will set True if ckpt_save_steps>0 and dataset sink mode is disabled",
     )
     parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
     parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
