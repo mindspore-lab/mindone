@@ -334,6 +334,8 @@ For details, please refer to [vanilla_finetune.md](./vanilla_finetune.md)
 
 #### 2. LoRA fine-tune, example as:
 
+<details close>
+
 ```shell
 # sdxl-base lora fine-tune with 1p on Ascend
 python train.py \
@@ -342,6 +344,9 @@ python train.py \
   --data_path /PATH TO/YOUR DATASET/ \
   --gradient_accumulation_steps 4 \
 ```
+</details>
+
+For details, please refer to [lora_finetune.md](./lora_finetune.md)
 
 #### 3. DreamBooth fine-tune
 

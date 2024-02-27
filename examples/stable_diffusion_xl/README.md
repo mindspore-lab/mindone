@@ -29,7 +29,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
     - [LCM Infer](./inference_lcm.md)
 3. Finetune
     - [Vanilla Finetune](./vanilla_finetune.md)
-    - [LoRA Finetune](./GETTING_STARTED.md)
+    - [LoRA Finetune](./lora_finetune.md)
     - [DreamBooth Finetune](dreambooth_finetune.md)
     - [Textual Inversion Finetune](textual_inversion_finetune.md)
 
