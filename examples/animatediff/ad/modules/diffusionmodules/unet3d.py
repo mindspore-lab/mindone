@@ -137,12 +137,9 @@ class UNet3DModel(nn.Cell):
             assert unet_use_temporal_attention is False, "not support"
             assert motion_module_type == "Vanilla", "not support"
         else:
-            print("D---: WARNING: not using motion module")
+            print("WARNING: not using motion module")
 
         self.norm_in_5d = not use_inflated_groupnorm
-
-        print("D--: norm in 5d: ", self.norm_in_5d)
-        print("D--: flash attention: ", enable_flash_attention)
 
         if use_spatial_transformer:
             assert (
@@ -536,7 +533,6 @@ class UNet3DModel(nn.Cell):
 
     def set_mm_amp_level(self, amp_level):
         # set motion module precision
-        print("D--: mm amp level: ", amp_level)
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 if isinstance(cell, VanillaTemporalModule):
