@@ -216,8 +216,8 @@ class TextVideoDataset:
 
 
 class TextVideoDatasetWithEmbeddingNpz(TextVideoDataset):
-    def __init__(self, embedding_path_column="embedding_path", *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, csv_path, video_folder, embedding_path_column="embedding_path", *args, **kwargs):
+        super().__init__(csv_path, video_folder, *args, **kwargs)
         self.embedding_path_column = embedding_path_column
 
     def get_batch_cache_npz(self, idx):
