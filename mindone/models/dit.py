@@ -575,7 +575,7 @@ class DiT(nn.Cell):
         return ops.cat([eps, rest], axis=1)
 
     def construct(self, x, t, y, cfg_scale=None):
-        if cfg_scale is None:
+        if cfg_scale is None or cfg_scale == 0.0:
             return self.forward(x, t, y)
         else:
             return self.forward_with_cfg(x, t, y, cfg_scale)
@@ -944,7 +944,7 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
         return ops.cat([eps, rest], axis=2)
 
     def construct(self, x, t, y=None, text_embed=None, cfg_scale=None):
-        if cfg_scale is None:
+        if cfg_scale is None or cfg_scale == 0.0:
             return self.forward(x, t, y, text_embed)
         else:
             return self.forward_with_cfg(x, t, y, text_embed, cfg_scale)
