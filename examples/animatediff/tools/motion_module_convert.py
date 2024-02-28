@@ -81,7 +81,11 @@ if __name__ == "__main__":
     elif args.version == "v2":
         torch_names_txt = "./torch_mmv1_params.txt"
         ms_names_txt = "./ms_mmv1_params.txt"
+    elif args.version == "v3":
+        torch_names_txt = "./torch_mmv1_params.txt"
+        ms_names_txt = "./ms_mmv1_params.txt"
     else:
+        print(f"Unsupported version {args.version}")
         raise ValueError
 
     output_dir = args.target
