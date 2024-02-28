@@ -19,9 +19,10 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
-from modules.dit.dit_models import DiT_models
 
 from examples.dit.pipelines.infer_pipeline import DiTInferPipeline
+from mindone.models.dit import DiT_models
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 
@@ -126,9 +127,10 @@ if __name__ == "__main__":
     dit_model = DiT_models[args.model_name](
         input_size=latent_size,
         num_classes=1000,
-        dtype=ms.float16 if args.use_fp16 else ms.float32,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
+    amp_level = "O2" if args.use_fp16 else "O1"
+    dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
     dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
     dit_model = dit_model.set_train(False)
     for param in dit_model.get_parameters():  # freeze dit_model
@@ -152,7 +154,7 @@ if __name__ == "__main__":
     n = len(class_labels)
     z = ops.randn((n, 4, latent_size, latent_size), dtype=ms.float32)
     y = Tensor(class_labels)
-    y_null = ops.ones_like(y) * dit_model.num_classes
+    y_null = ops.ones_like(y) * 1000
 
     # 3. build inference pipeline
     pipeline = DiTInferPipeline(
@@ -175,7 +177,7 @@ if __name__ == "__main__":
             f"Class Labels: {class_labels}",
             f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Precision: {dit_model.dtype}",
+            f"AMP Level: {amp_level}",
         ]
     )
     key_info += "\n" + "=" * 50
