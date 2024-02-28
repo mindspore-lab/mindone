@@ -4,11 +4,12 @@ import numbers
 from typing import Optional, Tuple
 
 import numpy as np
-from utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import Constant, Normal, One, XavierNormal, XavierUniform, Zero, initializer
+
+from ..utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
 
 logger = logging.getLogger(__name__)
 FLASH_IS_AVAILABLE = check_valid_flash_attention()
@@ -16,6 +17,23 @@ if FLASH_IS_AVAILABLE:
     from mindspore.nn.layer.flash_attention import FlashAttention
 
     logger.info("Flash attention is available.")
+
+__all__ = [
+    "DiT",
+    "DiT_models",
+    "DiT_XL_2",
+    "DiT_XL_4",
+    "DiT_XL_8",
+    "DiT_L_2",
+    "DiT_L_4",
+    "DiT_L_8",
+    "DiT_B_2",
+    "DiT_B_4",
+    "DiT_B_8",
+    "DiT_S_2",
+    "DiT_S_4",
+    "DiT_S_8",
+]
 
 
 def normal_(tensor: Tensor, mean: float = 0.0, std: float = 1.0):
