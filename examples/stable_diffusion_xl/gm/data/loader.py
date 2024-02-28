@@ -52,6 +52,11 @@ def create_loader(
     if cache_latent and cache_text_embedding:
         assert cache_path is not None
         assert dataset_config["target"].split(".")[-1] in ("Text2ImageDataset",)
+
+        if data_path != cache_path:
+            print(f"train with cache, modify data_path `{data_path}` to `{cache_path}`")
+            data_path = cache_path
+
         from gm.data.dataset_cache import Text2ImageCacheDataset
 
         dataset = Text2ImageCacheDataset(data_path, cache_path)

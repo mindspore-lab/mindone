@@ -117,7 +117,10 @@ def set_default(args):
     if args.is_parallel:
         init()
         args.rank, args.rank_size, parallel_mode = get_rank(), get_group_size(), context.ParallelMode.DATA_PARALLEL
-        context.set_auto_parallel_context(device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True)
+        if args.task != "cache":
+            context.set_auto_parallel_context(
+                device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True
+            )
     else:
         args.rank, args.rank_size = 0, 1
 
