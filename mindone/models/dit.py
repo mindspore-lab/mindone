@@ -74,13 +74,14 @@ class LayerNorm(nn.Cell):
             self.gamma = Parameter(initializer("ones", normalized_shape, dtype=dtype))
             self.beta = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
         else:
-            self.gamma = Tensor(initializer("ones", normalized_shape, dtype=dtype))
-            self.beta = Tensor(initializer("zeros", normalized_shape, dtype=dtype))
+            self.gamma = ops.ones(normalized_shape, dtype=dtype)
+            self.beta = ops.zeros(normalized_shape, dtype=dtype)
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma.to(x.dtype), self.beta.to(x.dtype))
-        return x
+        oridtype = x.dtype
+        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
+        return x.to(oridtype)
 
 
 class GELU(nn.GELU):
