@@ -116,7 +116,20 @@ python demo/sampling_without_streamlit.py \
   --prompt "your prompt"
 ```
 
-### 4. Support List
+### 4. resume vanilla fine-tune
+
+```shell
+# resume sdxl-base fine-tune from specified training step
+python train.py \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --optimizer_weight /PATH/TO/SAVED/OPTIMIZER/WEIGHT \
+  --resume_step 1000
+```
+
+
+### 5. Support List
 
 [MindSpore 2.2.11](https://www.mindspore.cn/versions#2.2.11)
 
