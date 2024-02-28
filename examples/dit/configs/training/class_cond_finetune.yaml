@@ -4,7 +4,7 @@ output_path: outputs/class_ft_video_dit
 
 # model setting
 image_size: 256
-num_frames: 2
+num_frames: 16
 model_name: "DiT-XL/2"
 dit_checkpoint: "models/DiT-XL-2-256x256.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"

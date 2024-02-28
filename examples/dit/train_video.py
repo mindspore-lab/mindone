@@ -14,10 +14,11 @@ from args_train import parse_args
 from data.dataset import create_dataloader
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor
 from mindspore.amp import StaticLossScaler
 from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
+
+# from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -26,9 +27,9 @@ sys.path.insert(0, mindone_lib_path)
 
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
-from modules.dit.video_dit_models import VideoDiT_models
 
 from examples.dit.pipelines.train_pipeline import TrainStep
+from mindone.models.dit import VideoDiT_models
 
 # load training modules
 # from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -37,6 +38,7 @@ from mindone.trainers.checkpoint import resume_train_network
 # from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -136,11 +138,12 @@ def main(args):
     dit_model = VideoDiT_models[args.model_name](
         input_size=latent_size,
         num_classes=1000,
-        dtype=ms.float16 if args.use_fp16 else ms.float32,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         condition=args.condition,
         num_frames=args.num_frames,
     )
+    amp_level = "O2" if args.use_fp16 else "O1"
+    dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
     dit_model.load_params_from_dit_ckpt(args.dit_checkpoint)
     # set temp_blocks  train
     set_temp_blocks(dit_model, train=True)
@@ -172,9 +175,6 @@ def main(args):
     # else:
     #     text_encoder = None
 
-    # dit_model_with_loss = DiTWithLoss(
-    #     dit_model, vae, text_encoder=text_encoder, scale_factor=args.sd_scale_factor, condition=args.condition
-    # )
     # video dataset
     data_config = dict(
         video_folder=args.data_path,
@@ -230,14 +230,14 @@ def main(args):
         lr=lr,
     )
 
-    if args.loss_scaler_type == "dynamic":
-        loss_scaler = DynamicLossScaleUpdateCell(
-            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
-        )
-    elif args.loss_scaler_type == "static":
-        loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
-    else:
-        raise ValueError
+    # if args.loss_scaler_type == "dynamic":
+    #     loss_scaler = DynamicLossScaleUpdateCell(
+    #         loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
+    #     )
+    # elif args.loss_scaler_type == "static":
+    #     loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
+    # else:
+    #     raise ValueError
 
     # resume ckpt
     ckpt_dir = os.path.join(args.output_path, "ckpt")
@@ -246,9 +246,9 @@ def main(args):
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
         start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(dit_model, optimizer, resume_ckpt)
-        loss_scaler.loss_scale_value = loss_scale
-        loss_scaler.cur_iter = cur_iter
-        loss_scaler.last_overflow_iter = last_overflow_iter
+        # loss_scaler.loss_scale_value = loss_scale
+        # loss_scaler.cur_iter = cur_iter
+        # loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
     # ema = (
@@ -317,7 +317,7 @@ def main(args):
                 f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Precision: {dit_model.dtype}",
+                f"AMP Level: {amp_level}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",
