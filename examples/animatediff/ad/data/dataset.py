@@ -102,8 +102,6 @@ class TextVideoDataset:
         tokenizer=None,
         video_column="video",
         caption_column="caption",
-        train_data_type="video_file",
-        embedding_path_column="embedding_path",
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -126,8 +124,6 @@ class TextVideoDataset:
         self.tokenizer = tokenizer
         self.video_column = video_column
         self.caption_column = caption_column
-        self.train_data_type = train_data_type
-        self.embedding_path_column = embedding_path_column
 
     def get_batch(self, idx):
         # get video raw pixel
@@ -158,26 +154,6 @@ class TextVideoDataset:
 
         return pixel_values, caption
 
-    def get_batch_cache_npz(self, idx):
-        video_dict = self.dataset[idx]
-        emb_data_name = video_dict[self.embedding_path_column]
-        emb_data_path = os.path.join(self.video_folder, emb_data_name)
-        emb_data = np.load(emb_data_path)
-        video_latent = emb_data["video_latent"]
-        text_emb = emb_data["text_emb"]
-        video_length = len(video_latent)
-
-        if not self.is_image:
-            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-            start_idx = random.randint(0, video_length - clip_length)
-            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
-        else:
-            batch_index = [random.randint(0, video_length - 1)]
-
-        video_emb_train = video_latent[batch_index]
-
-        return video_emb_train, text_emb
-
     def __len__(self):
         return self.length
 
@@ -190,9 +166,6 @@ class TextVideoDataset:
         """
         # while True:
         #    try:
-        if self.train_data_type == "npz":
-            video_emb_train, text_emb = self.get_batch_cache_npz(idx)
-            return video_emb_train, text_emb
         pixel_values, caption = self.get_batch(idx)
         #        break
         #    except Exception as e:
@@ -242,19 +215,65 @@ class TextVideoDataset:
         return pixel_values, text_data
 
 
+class TextVideoDatasetWithEmbeddingNpz(TextVideoDataset):
+    def __init__(self, embedding_path_column="embedding_path", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.embedding_path_column = embedding_path_column
+
+    def get_batch_cache_npz(self, idx):
+        video_dict = self.dataset[idx]
+        emb_data_name = video_dict[self.embedding_path_column]
+        emb_data_path = os.path.join(self.video_folder, emb_data_name)
+        emb_data = np.load(emb_data_path)
+        video_latent = emb_data["video_latent"]
+        text_emb = emb_data["text_emb"]
+        video_length = len(video_latent)
+
+        if not self.is_image:
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = random.randint(0, video_length - clip_length)
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        else:
+            batch_index = [random.randint(0, video_length - 1)]
+
+        video_emb_train = video_latent[batch_index]
+
+        return video_emb_train, text_emb
+
+    def __getitem__(self, idx):
+        """
+        Returns:
+            tuple (video latent, text embedding)
+                - video latent: preprocessed video latents by VAE in shape (f, c, h, w)
+                - text embedding: preprocessed by CLIP in shape (context_max_len, embedding_len)
+        """
+        video_emb_train, text_emb = self.get_batch_cache_npz(idx)
+        return video_emb_train, text_emb
+
+
 # TODO: parse in config dict
 def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0):
     if config["train_data_type"] == "video_file" or config["train_data_type"] == "npz":
-        dataset = TextVideoDataset(
-            config["csv_path"],
-            config["video_folder"],
-            sample_size=config["sample_size"],
-            sample_stride=config["sample_stride"],
-            sample_n_frames=config["sample_n_frames"],
-            is_image=is_image,
-            tokenizer=tokenizer,
-            train_data_type=config["train_data_type"],
-        )
+        if config["train_data_type"] == "video_file":
+            dataset = TextVideoDataset(
+                config["csv_path"],
+                config["video_folder"],
+                sample_size=config["sample_size"],
+                sample_stride=config["sample_stride"],
+                sample_n_frames=config["sample_n_frames"],
+                is_image=is_image,
+                tokenizer=tokenizer,
+            )
+        else:
+            dataset = TextVideoDatasetWithEmbeddingNpz(
+                config["csv_path"],
+                config["video_folder"],
+                sample_size=config["sample_size"],
+                sample_stride=config["sample_stride"],
+                sample_n_frames=config["sample_n_frames"],
+                is_image=is_image,
+                tokenizer=tokenizer,
+            )
         print("Total number of samples: ", len(dataset))
 
         # Larger value leads to more memory consumption. Default: 16
