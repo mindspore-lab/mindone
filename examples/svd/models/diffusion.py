@@ -1,7 +1,28 @@
-from gm.models.diffusion import DiffusionEngine
-from gm.util.util import append_dims
+from typing import List, Optional
 
-from mindspore import Tensor, ops
+from gm.models.diffusion import DiffusionEngine
+from gm.util.util import append_dims, get_obj_from_str
+from omegaconf import DictConfig
+
+import mindspore as ms
+from mindspore import Tensor, nn, ops
+
+
+def net_to_dtype(net: nn.Cell, dtype: ms.dtype, exclude_layers: Optional[List[nn.Cell]] = None):
+    """
+    Converts the data type of a neural network except for the layers specified in `filter_layers`.
+
+    Args:
+        net: The network to be converted.
+        dtype: The data type to convert the neural network to.
+        exclude_layers: A list of specific layers to exclude from the conversion. Default is None.
+    """
+    if net.cells():
+        for cell in net.cells():
+            net_to_dtype(cell, dtype, exclude_layers)
+    else:
+        if exclude_layers is None or type(net) not in exclude_layers:
+            net.to_float(dtype)
 
 
 class VideoDiffusionEngine(DiffusionEngine):
@@ -9,6 +30,15 @@ class VideoDiffusionEngine(DiffusionEngine):
         super().__init__(*args, **kwargs)
         self.en_and_decode_n_samples_a_time = en_and_decode_n_samples_a_time
         self.weighting = self.denoiser.weighting
+
+        self._force_fp16 = None
+        if isinstance(self.disable_first_stage_amp, DictConfig):
+            if "force_fp16" in self.disable_first_stage_amp:
+                self._force_fp16 = [get_obj_from_str(item) for item in self.disable_first_stage_amp["force_fp16"]]
+            self.disable_first_stage_amp = self.disable_first_stage_amp["enable"]
+
+    def first_stage_fp32(self):
+        net_to_dtype(self.first_stage_model, ms.float32, exclude_layers=self._force_fp16)
 
     def decode_first_stage(self, z):
         z = 1.0 / self.scale_factor * z

@@ -1,6 +1,6 @@
 environment:
   mode: 0
-  debug: True
+  debug: False
   seed: 42
   distributed: False
   enable_modelarts: False
@@ -26,9 +26,9 @@ train:
     drop_remainder: True
 
   scheduler:
-    scheduler: cosine_decay
+    name: cosine_decay
     lr: 3.0e-5
-    min_lr: 1.0e-7
+    end_lr: 1.0e-7
     warmup_steps: 120
 
   optimizer:

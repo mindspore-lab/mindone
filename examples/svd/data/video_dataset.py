@@ -75,7 +75,7 @@ class VideoDataset(BaseDataset):
                         frames,
                         frames[0],
                         frames[0] + aug * np.random.randn(*frames[0].shape).astype(np.float32),
-                        aug,
+                        np.tile(aug, (self._frames, 1)).astype(np.float32),
                     )
                 ],
                 "input_columns": ["frames", "cond_aug"],
@@ -90,15 +90,12 @@ class VideoDataset(BaseDataset):
             #     "input_columns": ["txt"],
             # },
             {
-                "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
-                "input_columns": ["fps_id"],
-            },
-            {
-                "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
-                "input_columns": ["motion_bucket_id"],
-            },
-            {
-                "operations": [lambda x: np.tile(x, (self._frames, 1)).astype(np.float32)],
-                "input_columns": ["cond_aug"],
+                "operations": [
+                    lambda fps_id, motion_bucket_id: (
+                        np.tile(fps_id, (self._frames, 1)).astype(np.float32),
+                        np.tile(motion_bucket_id, (self._frames, 1)).astype(np.float32),
+                    )
+                ],
+                "input_columns": ["fps_id", "motion_bucket_id"],
             },
         ]

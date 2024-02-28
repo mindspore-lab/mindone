@@ -80,7 +80,7 @@ class SVDInferPipeline(nn.Cell):
 
         self.model, _ = create_model(config, checkpoints=checkpoint.absolute, freeze=True, amp_level=amp_level)
         if self.model.disable_first_stage_amp:
-            self.model.first_stage_model.to_float(ms.float32)
+            self.model.first_stage_fp32()
         for emb in self.model.conditioner.embedders:
             if isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_amp:
                 emb.to_float(ms.float32)

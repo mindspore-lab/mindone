@@ -9,12 +9,13 @@ from jsonargparse.typing import Path_fr, path_type
 from modules.encoders.modules import VideoPredictionEmbedderWithEncoder
 from omegaconf import OmegaConf
 
-from mindspore import Model, amp, float32, load_checkpoint, load_param_into_net, nn
+from mindspore import Model, amp, float32, load_checkpoint, load_param_into_net, nn, Callback
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.data import BaseDataset, build_dataloader
 from mindone.env import init_train_env
+from mindone.trainers import create_optimizer, create_scheduler
 from mindone.utils import count_params, set_logger
 
 sys.path.append("../stable_diffusion_xl")
@@ -22,13 +23,19 @@ from gm.helpers import create_model
 
 sys.path.append("../stable_diffusion_v2")
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
-from ldm.modules.train.lr_schedule import create_scheduler
-from ldm.modules.train.optim import build_optimizer
 from ldm.modules.train.trainer import TrainOneStepWrapper
 
 logging.basicConfig(level=logging.INFO)
 
 Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist
+
+
+class SetTrainCallback(Callback):
+    # TODO: is it necessary?
+    def on_train_begin(self, run_context):
+        cb_params = run_context.original_args()
+        cb_params["network"].network.set_train(False)
+        cb_params["network"].network.model.set_train(True)
 
 
 def mixed_precision(network):
@@ -51,7 +58,6 @@ def main(args, initializer):
     # step 2: load SD model
     config = OmegaConf.load(args.svd_config.absolute)
     ldm_with_loss, _ = create_model(config, checkpoints=args.train.pretrained.absolute, freeze=False, amp_level="O0")
-    ldm_with_loss.model.set_train(True)  # only unet
 
     temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_param_names(prefix="model.diffusion_model.")
     # new_weights_map = ldm_with_loss.model.diffusion_model.get_weights_map(prefix="model.diffusion_model.")
@@ -99,7 +105,7 @@ def main(args, initializer):
     lr = create_scheduler(
         steps_per_epoch=train_dataloader.get_dataset_size(), num_epochs=args.train.epochs, **args.train.scheduler
     )
-    optimizer = build_optimizer(ldm_with_loss, lr=lr, **args.train.optimizer)
+    optimizer = create_optimizer(ldm_with_loss.trainable_params(), lr=lr, **args.train.optimizer)
 
     loss_scaler = nn.DynamicLossScaleUpdateCell(**args.LossScale)
 
@@ -115,7 +121,7 @@ def main(args, initializer):
             )
         args.train.epochs = args.train.epochs * train_dataloader.get_dataset_size() // args.train.sink_size
 
-    callbacks = [OverflowMonitor()]
+    callbacks = [OverflowMonitor(), SetTrainCallback()]
 
     if rank_id == 0:
         ckpt_save_interval = (
@@ -138,7 +144,7 @@ def main(args, initializer):
             ]
         )
 
-        # num_params_unet, _ = count_params(ldm_with_loss.model.diffusion_model)
+        num_params_unet, _ = count_params(ldm_with_loss.model._backbone.diffusion_model)
         num_params_text_encoder, _ = count_params(ldm_with_loss.conditioner)
         num_params_vae, _ = count_params(ldm_with_loss.first_stage_model)
         num_params, num_trainable_params = count_params(ldm_with_loss)
@@ -150,7 +156,7 @@ def main(args, initializer):
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.environment.mode}",
                 f"Distributed mode: {args.environment.distributed}",
                 "Model: StableDiffusion v2.1",
-                # f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num params SD: {num_params:,} (unet: {num_params_unet:,}, text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_trainable_params:,}",
                 f"Precision SD: {args.train.amp_level}",
                 f"Num epochs: {args.train.epochs} {f'(adjusted to sink size {args.train.sink_size})' if not args.environment.debug else ''}",
@@ -168,8 +174,8 @@ def main(args, initializer):
 
         logger.info("Start training...")
         # backup config files
-        # shutil.copyfile(args.svd_config.absolute, output_dir / "sd_config.yaml")  # SD's parameters are not modified
-        # ArgumentParser().save(args, output_dir / "svd_config.yaml", format="yaml", skip_check=True)
+        shutil.copyfile(args.svd_config.absolute, output_dir / "svd.yaml")
+        parser.save(args, output_dir / "svd_train.yaml", format="yaml")     # FIXME
 
     model = Model(net_with_grads)
     model.train(
@@ -205,7 +211,7 @@ if __name__ == "__main__":
         skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )
     parser.add_function_arguments(create_scheduler, "train.scheduler", skip={"steps_per_epoch", "num_epochs"})
-    parser.add_function_arguments(build_optimizer, "train.optimizer", skip={"model", "lr"})
+    parser.add_function_arguments(create_optimizer, "train.optimizer", skip={"params", "lr"})
     parser.add_class_arguments(
         TrainOneStepWrapper, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}, instantiate=False
     )
