@@ -539,7 +539,7 @@ class DiT(nn.Cell):
         imgs = x.reshape((x.shape[0], c, h * p, h * p))
         return imgs
 
-    def forward(self, x, t, y):
+    def construct(self, x: Tensor, t: Tensor, y: Tensor):
         """
         Forward pass of DiT.
         x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
@@ -556,7 +556,7 @@ class DiT(nn.Cell):
         x = self.unpatchify(x)  # (N, out_channels, H, W)
         return x
 
-    def forward_with_cfg(self, x, t, y, cfg_scale):
+    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
@@ -573,12 +573,6 @@ class DiT(nn.Cell):
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)
-
-    def construct(self, x, t, y, cfg_scale=None):
-        if cfg_scale is None or cfg_scale == 0.0:
-            return self.forward(x, t, y)
-        else:
-            return self.forward_with_cfg(x, t, y, cfg_scale)
 
 
 #################################################################################
@@ -848,7 +842,7 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
         else:
             raise ValueError("Incorrect embedding!")
 
-    def forward(self, x, t, y=None, text_embed=None):
+    def construct(self, x, t, y=None, text_embed=None):
         """
         Forward pass of DiT.
         x: (N, F, C, H, W) tensor of spatial inputs (images or latent representations of images)
@@ -925,7 +919,7 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
         x = x.reshape((bs, num_frames, channels, h, w))
         return x
 
-    def forward_with_cfg(self, x, t, y=None, text_embed=None, cfg_scale=4.0):
+    def construct_with_cfg(self, x, t, y=None, text_embed=None, cfg_scale=4.0):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
@@ -942,12 +936,6 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=2)
-
-    def construct(self, x, t, y=None, text_embed=None, cfg_scale=None):
-        if cfg_scale is None or cfg_scale == 0.0:
-            return self.forward(x, t, y, text_embed)
-        else:
-            return self.forward_with_cfg(x, t, y, text_embed, cfg_scale)
 
     def load_params_from_dit_ckpt(self, dit_ckpt):
         logger.info(f"Loading {dit_ckpt} params into VideoDiT model...")
