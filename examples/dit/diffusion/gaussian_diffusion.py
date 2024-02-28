@@ -17,6 +17,7 @@ from mindspore import ops
 from .diffusion_utils import ModelMeanType, ModelVarType, _extract_into_tensor
 
 
+@ms.jit_class
 class GaussianDiffusion:
     """
     Utilities for training and sampling diffusion models.
@@ -35,6 +36,7 @@ class GaussianDiffusion:
         loss_type,
         use_fp16=False,
     ):
+        super().__init__()
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
         self.loss_type = loss_type
@@ -115,12 +117,12 @@ class GaussianDiffusion:
         )
         posterior_variance = _extract_into_tensor(self.posterior_variance, t, x_t.shape)
         posterior_log_variance_clipped = _extract_into_tensor(self.posterior_log_variance_clipped, t, x_t.shape)
-        assert (
-            posterior_mean.shape[0]
-            == posterior_variance.shape[0]
-            == posterior_log_variance_clipped.shape[0]
-            == x_start.shape[0]
-        )
+        # assert (
+        #     posterior_mean.shape[0]
+        #     == posterior_variance.shape[0]
+        #     == posterior_log_variance_clipped.shape[0]
+        #     == x_start.shape[0]
+        # )
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None):
@@ -217,6 +219,9 @@ class GaussianDiffusion:
             _extract_into_tensor(self.sqrt_recip_alphas_cumprod, t, x_t.shape) * x_t
             - _extract_into_tensor(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
         )
+
+    def predict_xstart_from_eps(self, x_t, t, eps):
+        return self._predict_xstart_from_eps(x_t, t, eps)
 
     def _predict_eps_from_xstart(self, x_t, t, pred_xstart):
         return (

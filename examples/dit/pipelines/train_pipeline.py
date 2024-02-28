@@ -89,7 +89,7 @@ class TrainStep(nn.Cell):
             # The model_var_values is [-1, 1] for [min_var, max_var].
             frac = (model_var_values + 1) / 2
             model_log_variance = frac * max_log + (1 - frac) * min_log
-            pred_xstart = diffusion._predict_xstart_from_eps(x_t=x_t, t=t, eps=ops.stop_gradient(model_output))
+            pred_xstart = diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=ops.stop_gradient(model_output))
             model_mean, _, _ = diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
             # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
             # p_mean_variance end
