@@ -15,6 +15,7 @@ from data.dataset import create_dataloader
 
 import mindspore as ms
 from mindspore import Tensor, nn
+from mindspore.amp import StaticLossScaler
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
@@ -23,22 +24,25 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 
+from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 from modules.dit.video_dit_models import VideoDiT_models
-from modules.encoders import FrozenCLIPEmbedder
 
-from examples.dit.pipelines.train_pipeline import DiTWithLoss
+from examples.dit.pipelines.train_pipeline import TrainStep
 
 # load training modules
 # from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
-from mindone.trainers.ema import EMA
+
+# from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
-from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
+
+# from modules.encoders import FrozenCLIPEmbedder
+
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
@@ -152,24 +156,25 @@ def main(args):
     vae = vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
-    if args.condition == "text":
-        text_encoder = FrozenCLIPEmbedder(
-            use_fp16=True,
-            tokenizer_name="BpeTokenizer",
-            context_length=77,
-            vocab_size=49408,
-            output_dim=768,
-            width=768,
-            layers=12,
-            heads=12,
-            epsilon=1e-5,
-            use_quick_gelu=True,
-        )
-    else:
-        text_encoder = None
-    dit_model_with_loss = DiTWithLoss(
-        dit_model, vae, text_encoder=text_encoder, scale_factor=args.sd_scale_factor, condition=args.condition
-    )
+    # if args.condition == "text":
+    #     text_encoder = FrozenCLIPEmbedder(
+    #         use_fp16=True,
+    #         tokenizer_name="BpeTokenizer",
+    #         context_length=77,
+    #         vocab_size=49408,
+    #         output_dim=768,
+    #         width=768,
+    #         layers=12,
+    #         heads=12,
+    #         epsilon=1e-5,
+    #         use_quick_gelu=True,
+    #     )
+    # else:
+    #     text_encoder = None
+
+    # dit_model_with_loss = DiTWithLoss(
+    #     dit_model, vae, text_encoder=text_encoder, scale_factor=args.sd_scale_factor, condition=args.condition
+    # )
     # video dataset
     data_config = dict(
         video_folder=args.data_path,
@@ -216,7 +221,7 @@ def main(args):
 
     # build optimizer
     optimizer = create_optimizer(
-        dit_model_with_loss.trainable_params(),
+        dit_model.trainable_params(),
         name=args.optim,
         betas=args.betas,
         eps=args.optim_eps,
@@ -246,25 +251,28 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    ema = (
-        EMA(
-            dit_model,
-            ema_decay=0.9999,
-        )
-        if args.use_ema
-        else None
-    )
+    # ema = (
+    #     EMA(
+    #         dit_model,
+    #         ema_decay=0.9999,
+    #     )
+    #     if args.use_ema
+    #     else None
+    # )
 
-    net_with_grads = TrainOneStepWrapper(
-        dit_model_with_loss,
-        optimizer=optimizer,
-        scale_sense=loss_scaler,
-        drop_overflow_update=args.drop_overflow_update,
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        clip_grad=args.clip_grad,
-        clip_norm=args.max_grad_norm,
-        ema=ema,
-    )
+    # net_with_grads = TrainOneStepWrapper(
+    #     dit_model_with_loss,
+    #     optimizer=optimizer,
+    #     scale_sense=loss_scaler,
+    #     drop_overflow_update=args.drop_overflow_update,
+    #     gradient_accumulation_steps=args.gradient_accumulation_steps,
+    #     clip_grad=args.clip_grad,
+    #     clip_norm=args.max_grad_norm,
+    #     ema=ema,
+    # )
+    scaler = StaticLossScaler(128)
+    diffusion = create_diffusion(timestep_respacing="")
+    train_one_step = TrainStep(dit_model, vae, diffusion, optimizer, scaler, scale_factor=args.sd_scale_factor)
 
     # model = Model(net_with_grads)
     # callbacks
@@ -345,7 +353,7 @@ def main(args):
     if args.dataset_sink_mode:
         raise ValueError("dataset sink = True not supported now!")
     # use training for loop
-    train_class2video(dit_model, args, net_with_grads, dataset, rank_id, optimizer=optimizer)
+    train_class2video(dit_model, args, train_one_step, dataset, rank_id, optimizer=optimizer)
 
 
 def train_class2video(
@@ -393,16 +401,17 @@ def train_one_epoch(
         i_step = i + i_epoch * len(dataloader) + 1
         image, cond = data
         if args.condition == "text":
-            model_args = [cond, None]
+            model_args = {"text_tokens": cond}
         elif args.condition == "class":
-            model_args = [None, cond]
+            model_args = {"labels": cond}
         # Train a step
-        loss, overflow, _ = train_step_fn(image, *model_args)
-        if overflow:
-            if not args.drop_overflow_update:
-                logger.info(f"Step {i_step}/{total_step}, overflow, still update.")
-            else:
-                logger.info(f"Step {i_step}/{total_step}, overflow, skip.")
+        # $ loss, overflow, _ = train_step_fn(image, *model_args)
+        loss = train_step_fn(image, **model_args)
+        # if overflow:
+        #     if not args.drop_overflow_update:
+        #         logger.info(f"Step {i_step}/{total_step}, overflow, still update.")
+        #     else:
+        #         logger.info(f"Step {i_step}/{total_step}, overflow, skip.")
 
         set_temp_blocks(model, train=False)
         # Print meg
@@ -412,7 +421,7 @@ def train_one_epoch(
             else:
                 cur_lr = optimizer.learning_rate.asnumpy().item()
             logger.info(
-                f"Step {i_step}/{total_step}, lr: {cur_lr}, loss: {loss.asnumpy()[0]:.6f}"
+                f"Step {i_step}/{total_step}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
                 f", time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
             )
             s_time = time.time()
