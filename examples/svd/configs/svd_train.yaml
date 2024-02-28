@@ -15,8 +15,8 @@ train:
   dataset:
     class_path: data.video_dataset.VideoDataset
     init_args:
-      data_dir: /mnt/disk4/rustam/data/text_to_image/InternVid_tiny
-      metadata: /mnt/disk4/rustam/data/text_to_image/InternVid_tiny/videos.csv
+      data_dir: /mnt/disk4/rustam/data/text_to_video/InternVid_tiny
+      metadata: /mnt/disk4/rustam/data/text_to_video/InternVid_tiny/videos.csv
       frames: 4
       step: 5
 
