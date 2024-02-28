@@ -6,19 +6,19 @@ environment:
   enable_modelarts: False
 
 train:
-  epochs: 3
+  epochs: 1000
   temporal_only: True
-  pretrained: /home/rustam/projects/mindone/models/videoldm/ms/svd_d19a808f.ckpt
+  pretrained: /mnt/disk4/rustam/mindone/models/svd.ckpt
   output_dir: output/
   sink_size: -1
 
   dataset:
     class_path: data.video_dataset.VideoDataset
     init_args:
-      data_dir: /data1/webvid-10m/dataset/2M_val/
-      metadata: videos.csv
-      frames: 2
-      step: 1
+      data_dir: /mnt/disk4/rustam/data/text_to_image/InternVid_tiny
+      metadata: /mnt/disk4/rustam/data/text_to_image/InternVid_tiny/videos.csv
+      frames: 4
+      step: 5
 
   dataloader:
     batch_size: 1
@@ -27,9 +27,9 @@ train:
 
   scheduler:
     name: cosine_decay
-    lr: 3.0e-5
+    lr: 5.0e-6
     end_lr: 1.0e-7
-    warmup_steps: 120
+    warmup_steps: 50
 
   optimizer:
     name: adamw
@@ -38,11 +38,11 @@ train:
 
   settings:
     drop_overflow_update: False
-    gradient_accumulation_steps: 3
-    clip_grad: False
+    gradient_accumulation_steps: 5
+    clip_grad: True
     clip_norm: 1.0
 
 LossScale:
   loss_scale_value: 1
   scale_factor: 2
-  scale_window: 1000
+  scale_window: 10
