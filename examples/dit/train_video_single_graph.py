@@ -3,23 +3,21 @@ VideoDiT training pipeline
 - Image finetuning
 """
 import datetime
-import glob
 import logging
 import os
 import sys
-import time
 from typing import Tuple
 
 import yaml
 from args_train import parse_args
 from data.dataset import create_dataloader
+from pipelines.train_pipeline import NetworkWithLoss
 
 import mindspore as ms
-from mindspore import Tensor
-from mindspore.amp import StaticLossScaler
+from mindspore import Model, nn
 from mindspore.communication.management import get_group_size, get_rank, init
-
-# from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
+from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
+from mindspore.train.callback import TimeMonitor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -28,24 +26,21 @@ sys.path.insert(0, mindone_lib_path)
 
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
+from modules.encoders import FrozenCLIPEmbedder
 
-from examples.dit.pipelines.train_pipeline import TrainStep
 from mindone.models.dit import VideoDiT_models
 
 # load training modules
-# from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
-
-# from mindone.trainers.ema import EMA
+from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
+from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
-
-# from modules.encoders import FrozenCLIPEmbedder
-
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
@@ -110,9 +105,7 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-def set_dit_trainable_params(
-    dit_model, trainable_param_names=["temp_blocks.", "temp_embed."], train=True, condition="class"
-):
+def set_dit_trainable_params(dit_model, trainable_param_names=["temp_blocks."], train=True, condition="class"):
     if condition is not None:
         if condition == "class":
             trainable_param_names += ["y_embedder."]
@@ -169,21 +162,21 @@ def main(args):
     vae = vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
-    # if args.condition == "text":
-    #     text_encoder = FrozenCLIPEmbedder(
-    #         use_fp16=True,
-    #         tokenizer_name="BpeTokenizer",
-    #         context_length=77,
-    #         vocab_size=49408,
-    #         output_dim=768,
-    #         width=768,
-    #         layers=12,
-    #         heads=12,
-    #         epsilon=1e-5,
-    #         use_quick_gelu=True,
-    #     )
-    # else:
-    #     text_encoder = None
+    if args.condition == "text":
+        text_encoder = FrozenCLIPEmbedder(
+            use_fp16=True,
+            tokenizer_name="BpeTokenizer",
+            context_length=77,
+            vocab_size=49408,
+            output_dim=768,
+            width=768,
+            layers=12,
+            heads=12,
+            epsilon=1e-5,
+            use_quick_gelu=True,
+        )
+    else:
+        text_encoder = None
 
     # video dataset
     data_config = dict(
@@ -240,14 +233,14 @@ def main(args):
         lr=lr,
     )
 
-    # if args.loss_scaler_type == "dynamic":
-    #     loss_scaler = DynamicLossScaleUpdateCell(
-    #         loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
-    #     )
-    # elif args.loss_scaler_type == "static":
-    #     loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
-    # else:
-    #     raise ValueError
+    if args.loss_scaler_type == "dynamic":
+        loss_scaler = DynamicLossScaleUpdateCell(
+            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
+        )
+    elif args.loss_scaler_type == "static":
+        loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
+    else:
+        raise ValueError
 
     # resume ckpt
     ckpt_dir = os.path.join(args.output_path, "ckpt")
@@ -256,61 +249,64 @@ def main(args):
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
         start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(dit_model, optimizer, resume_ckpt)
-        # loss_scaler.loss_scale_value = loss_scale
-        # loss_scaler.cur_iter = cur_iter
-        # loss_scaler.last_overflow_iter = last_overflow_iter
+        loss_scaler.loss_scale_value = loss_scale
+        loss_scaler.cur_iter = cur_iter
+        loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    # ema = (
-    #     EMA(
-    #         dit_model,
-    #         ema_decay=0.9999,
-    #     )
-    #     if args.use_ema
-    #     else None
-    # )
-
-    # net_with_grads = TrainOneStepWrapper(
-    #     dit_model_with_loss,
-    #     optimizer=optimizer,
-    #     scale_sense=loss_scaler,
-    #     drop_overflow_update=args.drop_overflow_update,
-    #     gradient_accumulation_steps=args.gradient_accumulation_steps,
-    #     clip_grad=args.clip_grad,
-    #     clip_norm=args.max_grad_norm,
-    #     ema=ema,
-    # )
-    scaler = StaticLossScaler(128)
+    ema = (
+        EMA(
+            dit_model,
+            ema_decay=0.9999,
+        )
+        if args.use_ema
+        else None
+    )
     diffusion = create_diffusion(timestep_respacing="")
-    train_one_step = TrainStep(dit_model, vae, diffusion, optimizer, scaler, scale_factor=args.sd_scale_factor)
+    dit_model_with_loss = NetworkWithLoss(
+        dit_model,
+        vae,
+        diffusion,
+        args.sd_scale_factor,
+        args.condition,
+        text_encoder=text_encoder,
+        cond_stage_trainable=False,
+    )
+    net_with_grads = TrainOneStepWrapper(
+        dit_model_with_loss,
+        optimizer=optimizer,
+        scale_sense=loss_scaler,
+        drop_overflow_update=args.drop_overflow_update,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        clip_grad=args.clip_grad,
+        clip_norm=args.max_grad_norm,
+        ema=ema,
+    )
 
-    # model = Model(net_with_grads)
+    model = Model(net_with_grads)
     # callbacks
-    # callback = [TimeMonitor(args.callback_size)]
-    # ofm_cb = OverflowMonitor()
-    # callback.append(ofm_cb)
+    callback = [TimeMonitor(args.callback_size)]
+    ofm_cb = OverflowMonitor()
+    callback.append(ofm_cb)
 
-    # if rank_id == 0:
-    #     save_cb = EvalSaveCallback(
-    #         network=dit_model,
-    #         rank_id=rank_id,
-    #         ckpt_save_dir=ckpt_dir,
-    #         ema=ema,
-    #         ckpt_save_policy="latest_k",
-    #         ckpt_max_keep=args.ckpt_max_keep,
-    #         step_mode=args.step_mode,
-    #         ckpt_save_interval=args.ckpt_save_interval,
-    #         log_interval=args.callback_size,
-    #         start_epoch=start_epoch,
-    #         model_name="sd" if args.image_finetune else "ad",
-    #         use_lora=args.motion_lora_finetune,
-    #         lora_rank=args.motion_lora_rank,
-    #         param_save_filter=[".temporal_transformer."] if args.save_mm_only else None,
-    #         record_lr=False,  # TODO: check LR retrival for new MS on 910b
-    #     )
-    #     callback.append(save_cb)
-    #     if args.profile:
-    #         callback.append(ProfilerCallback())
+    if rank_id == 0:
+        save_cb = EvalSaveCallback(
+            network=dit_model,
+            rank_id=rank_id,
+            ckpt_save_dir=ckpt_dir,
+            ema=ema,
+            ckpt_save_policy="latest_k",
+            ckpt_max_keep=args.ckpt_max_keep,
+            step_mode=args.step_mode,
+            ckpt_save_interval=args.ckpt_save_interval,
+            log_interval=args.callback_size,
+            start_epoch=start_epoch,
+            model_name="VideoDiT",
+            record_lr=False,  # TODO: check LR retrival for new MS on 910b
+        )
+        callback.append(save_cb)
+        if args.profile:
+            callback.append(ProfilerCallback())
 
     # 5. log and save config
     if rank_id == 0:
@@ -341,6 +337,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"Enable flash attention: {args.enable_flash_attention}",
+                f"Dataset Sink: {args.dataset_sink_mode}",
             ]
         )
         key_info += "\n" + "=" * 50
@@ -352,90 +349,14 @@ def main(args):
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
-    # model.train(
-    #     args.epochs,
-    #     dataset,
-    #     callbacks=callback,
-    #     dataset_sink_mode=args.dataset_sink_mode,
-    #     sink_size=args.sink_size,
-    #     initial_epoch=start_epoch,
-    # )
-    if args.dataset_sink_mode:
-        raise ValueError("dataset sink = True not supported now!")
-    # use training for loop
-    train_class2video(dit_model, args, train_one_step, dataset, rank_id, optimizer=optimizer)
-
-
-def train_class2video(
-    model,
-    args,
-    train_step_fn,
-    dataloader,
-    rank_id,
-    start_epoch=0,
-    optimizer=None,
-):
-    total_step = len(dataloader) * args.epochs
-    # 3. training loop
-    if args.mode == 0:
-        logger.info(
-            "The first step will compile the graph, which may take longer time; " "You can come back later :)",
-        )
-    for i_epoch in range(start_epoch, args.epochs):
-        # 3.1 train one epoch
-        train_one_epoch(
-            model,
-            i_epoch,
-            args,
-            train_step_fn,
-            dataloader,
-            optimizer,
-            total_step,
-            rank_id,
-        )
-
-
-def train_one_epoch(
-    model,
-    i_epoch,
-    args,
-    train_step_fn,
-    dataloader,
-    optimizer,
-    total_step,
-    rank_id,
-):
-    s_time = time.time()
-    for i, data in enumerate(dataloader):
-        set_dit_trainable_params(model, train=True, condition=args.condition)
-        i_step = i + i_epoch * len(dataloader) + 1
-        image, text_tokens, labels = data
-        loss = train_step_fn(image, text_tokens, labels)
-
-        set_dit_trainable_params(model, train=False, condition=args.condition)
-        # Print meg
-        if i_step % args.log_interval == 0 and rank_id % 8 == 0:
-            if optimizer.dynamic_lr:
-                cur_lr = optimizer.learning_rate(Tensor(i_step - 1, ms.int32)).asnumpy().item()
-            else:
-                cur_lr = optimizer.learning_rate.asnumpy().item()
-            logger.info(
-                f"Step {i_step}/{total_step}, lr: {cur_lr}, loss: {loss.asnumpy():.6f}"
-                f", time cost: {(time.time()-s_time) * 1000 / args.log_interval:.2f} ms",
-            )
-            s_time = time.time()
-
-        # Save checkpoint
-        if i_step % args.ckpt_save_interval == 0 and rank_id % 8 == 0:
-            save_ckpt_dir = os.path.join(args.output_path, "ckpt")
-            if not os.path.exists(save_ckpt_dir):
-                os.makedirs(save_ckpt_dir)
-            save_filename = f"VideoDiT-{i_step}.ckpt"
-            exist_ckpts = sorted(glob.glob(os.path.join(save_ckpt_dir, "*.ckpt")))
-            if len(exist_ckpts) >= args.ckpt_max_keep:
-                cmd = f"rm {exist_ckpts[0]}"
-                os.system(cmd)
-            ms.save_checkpoint(model, os.path.join(save_ckpt_dir, save_filename))
+    model.train(
+        args.epochs,
+        dataset,
+        callbacks=callback,
+        dataset_sink_mode=args.dataset_sink_mode,
+        sink_size=args.sink_size,
+        initial_epoch=start_epoch,
+    )
 
 
 if __name__ == "__main__":

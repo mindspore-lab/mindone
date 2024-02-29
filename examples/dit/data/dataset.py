@@ -155,8 +155,9 @@ class TextVideoDataset:
         del video_reader
         if self.condition_column is not None:
             class_label = int(video_dict[self.condition_column])
-            return pixel_values, class_label
-        return pixel_values, caption
+        else:
+            class_label = 0  # a dummy class label as a placeholder
+        return pixel_values, caption, class_label
 
     def __len__(self):
         return self.length
@@ -168,7 +169,7 @@ class TextVideoDataset:
                 - video: preprocessed video frames in shape (f, c, h, w)
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
-        pixel_values, caption = self.get_batch(idx)
+        pixel_values, caption, class_label = self.get_batch(idx)
         if self.transform_backend == "pt":
             import torch
 
@@ -206,8 +207,8 @@ class TextVideoDataset:
                 tokens = tokens[0]
             text_data = tokens
         else:
-            text_data = caption
-        return pixel_values, text_data
+            text_data = [49407]  # dummy token ids as a placeholder. Do not return a string.
+        return pixel_values, text_data, class_label
 
 
 # TODO: parse in config dict
@@ -233,6 +234,7 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
         column_names=[
             "video",
             "caption",
+            "label",
         ],
         num_shards=device_num,
         shard_id=rank_id,
