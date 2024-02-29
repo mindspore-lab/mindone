@@ -6,6 +6,7 @@ import math
 import os
 import random
 import time
+from functools import partial
 from itertools import islice
 
 import numpy as np
@@ -219,10 +220,13 @@ def get_device_rank_info():
     return rank_id, device_num
 
 
-def split_by_node(src, group=None):
-    # rank, world_size, worker, num_workers = utils.pytorch_worker_info(group=group)
+def split_by_node(src, group=None, rank_id=None, rank_size=None):
     assert group is None, "currently only support group is None"
     rank, world_size = get_device_rank_info()
+    if rank_id is not None:
+        rank = rank_id
+    if rank_size is not None:
+        world_size = rank_size
 
     if world_size > 1:
         yield from islice(src, rank, None, world_size)
@@ -290,10 +294,21 @@ class T2I_Webdataset(T2I_BaseDataset):
             f"INFO: Total samples in dataset {tot_samples}, device num {device_num}, rank id {rank_id}, num samples per device: {samples_per_rank}"
         )
 
+        if device_num > len(tar_files):
+            print(
+                f"WARNING: RankSize {device_num} greater than WebDataset tar files num {len(tar_files)}, "
+                f"tar files will be sampled repeatedly.",
+            )
+            device_num = len(tar_files)
+            rank_id %= device_num
+
         # webdataset with shard split
         # self.wds_iterator = wds.WebDataset(tar_files, resampled=True, cache_dir=cache_dir, nodesplitter=split_by_node)
         self.wds_iterator = wds.WebDataset(
-            tar_files, cache_dir=None, nodesplitter=split_by_node, workersplitter=split_by_worker
+            tar_files,
+            cache_dir=None,
+            nodesplitter=partial(split_by_node, rank_id=rank_id, rank_size=device_num),
+            workersplitter=split_by_worker,
         )
         self.wds_iterator = self.wds_iterator.with_epoch(samples_per_rank)
         self.num_samples = samples_per_rank
@@ -312,7 +327,7 @@ class T2I_Webdataset(T2I_BaseDataset):
                 if sample is not None:
                     self.prev_ok_sample = copy.deepcopy(sample)
                     break
-                assert trials > max_attempts, f"Cannot get normal samples in {max_attempts} attempts"
+                assert trials < max_attempts, f"Cannot get normal samples in {max_attempts} attempts"
             except StopIteration:
                 raise StopIteration
             except Exception as e:
