@@ -11,10 +11,15 @@ def get_map(key_file, value_file):
         keys = key_file.readlines()
         values = value_file.readlines()
 
-        for key, value in zip(keys, values):
+        for key, value in zip(keys, values):  # key是sd
             key = key.strip()
             value = value.strip()
-            key_map[key] = value
+            if key not in key_map:
+                key_map[key] = value
+            else:
+                if isinstance(key_map[key], str):
+                    key_map[key] = [key_map[key]]
+                key_map[key].append(value)
     return key_map
 
 
@@ -42,14 +47,11 @@ def text2_convert(state_dict, module_map):
     mapping = module_map
     new_state_dict = {}
     for sd_name, hf_name in mapping.items():
-        if ("attn.in_proj_weight" in sd_name) or ("attn.in_proj_bias" in sd_name):
+        if "attn.in_proj" in sd_name:
             chunks = torch.chunk(state_dict[sd_name], 3, dim=0)
-            if "q_proj" in hf_name:
-                new_state_dict[hf_name] = chunks[0]
-            if "self_attn.k_proj.weight" in hf_name:
-                new_state_dict[hf_name] = chunks[1]
-            if "v_proj.weight" in hf_name:
-                new_state_dict[hf_name] = chunks[2]
+            new_state_dict[hf_name[0]] = chunks[0]
+            new_state_dict[hf_name[1]] = chunks[1]
+            new_state_dict[hf_name[2]] = chunks[2]
         elif sd_name in state_dict:
             new_state_dict[hf_name] = state_dict[sd_name]
     return new_state_dict

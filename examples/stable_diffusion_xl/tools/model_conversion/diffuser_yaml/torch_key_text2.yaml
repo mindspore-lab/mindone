@@ -322,7 +322,7 @@ conditioner.embedders.1.model.transformer.resblocks.9.attn.out_proj.bias
 conditioner.embedders.1.model.transformer.resblocks.9.attn.out_proj.weight
 conditioner.embedders.1.model.ln_final.bias
 conditioner.embedders.1.model.ln_final.weight
-conditioner.embedders.1.model.text_projection.weight
+conditioner.embedders.1.model.text_projection
 conditioner.embedders.1.model.transformer.resblocks.0.attn.in_proj_weight
 conditioner.embedders.1.model.transformer.resblocks.0.attn.in_proj_weight
 conditioner.embedders.1.model.transformer.resblocks.0.attn.in_proj_weight
