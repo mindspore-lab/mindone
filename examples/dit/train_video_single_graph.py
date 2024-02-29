@@ -162,6 +162,7 @@ def main(args):
     vae = vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
+
     if args.condition == "text":
         text_encoder = FrozenCLIPEmbedder(
             use_fp16=True,
@@ -177,7 +178,16 @@ def main(args):
         )
     else:
         text_encoder = None
-
+    diffusion = create_diffusion(timestep_respacing="")
+    latent_diffusion_with_loss = NetworkWithLoss(
+        dit_model,
+        vae,
+        diffusion,
+        args.sd_scale_factor,
+        args.condition,
+        text_encoder=text_encoder,
+        cond_stage_trainable=False,
+    )
     # video dataset
     data_config = dict(
         video_folder=args.data_path,
@@ -224,7 +234,7 @@ def main(args):
 
     # build optimizer
     optimizer = create_optimizer(
-        dit_model.trainable_params(),
+        latent_diffusion_with_loss.trainable_params(),
         name=args.optim,
         betas=args.betas,
         eps=args.optim_eps,
@@ -256,24 +266,15 @@ def main(args):
     # trainer (standalone and distributed)
     ema = (
         EMA(
-            dit_model,
+            latent_diffusion_with_loss.network,
             ema_decay=0.9999,
         )
         if args.use_ema
         else None
     )
-    diffusion = create_diffusion(timestep_respacing="")
-    dit_model_with_loss = NetworkWithLoss(
-        dit_model,
-        vae,
-        diffusion,
-        args.sd_scale_factor,
-        args.condition,
-        text_encoder=text_encoder,
-        cond_stage_trainable=False,
-    )
+
     net_with_grads = TrainOneStepWrapper(
-        dit_model_with_loss,
+        latent_diffusion_with_loss,
         optimizer=optimizer,
         scale_sense=loss_scaler,
         drop_overflow_update=args.drop_overflow_update,
@@ -291,7 +292,7 @@ def main(args):
 
     if rank_id == 0:
         save_cb = EvalSaveCallback(
-            network=dit_model,
+            network=latent_diffusion_with_loss.network,  # save dit only
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
@@ -323,7 +324,7 @@ def main(args):
                 f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"AMP Level: {amp_level}",
+                f"AMP level: {amp_level}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",
@@ -337,7 +338,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"Enable flash attention: {args.enable_flash_attention}",
-                f"Dataset Sink: {args.dataset_sink_mode}",
+                f"Dataset sink: {args.dataset_sink_mode}",
             ]
         )
         key_info += "\n" + "=" * 50

@@ -36,5 +36,5 @@ optim_eps: 1.e-6
 
 # training process
 log_interval: 1
-ckpt_save_interval: 5000  # save ckpt every n steps
-step_mode: True
+ckpt_save_interval: 200  # save ckpt every n epochs
+step_mode: False
