@@ -204,7 +204,7 @@ def main(args):
         is_image=False,
         device_num=device_num,
         rank_id=rank_id,
-        condition_column=args.condition,
+        class_column="class" if args.condition == "class" else None,
     )
     dataset_size = dataset.get_dataset_size()
 

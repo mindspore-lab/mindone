@@ -170,7 +170,7 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     # Labels to condition the model with (feel free to change):
-    class_labels = [207]
+    class_labels = [1, 13, 404]
     # Create sampling noise:
     n = len(class_labels)
     z = ops.randn((n, args.num_frames, 4, latent_size, latent_size), dtype=ms.float32)

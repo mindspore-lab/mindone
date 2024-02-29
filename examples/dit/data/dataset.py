@@ -102,7 +102,7 @@ class TextVideoDataset:
         tokenizer=None,
         video_column="video",
         caption_column="caption",
-        condition_column=None,
+        class_column=None,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -125,7 +125,7 @@ class TextVideoDataset:
         self.tokenizer = tokenizer
         self.video_column = video_column
         self.caption_column = caption_column
-        self.condition_column = condition_column
+        self.class_column = class_column
 
     def get_batch(self, idx):
         # get video raw pixel
@@ -153,8 +153,8 @@ class TextVideoDataset:
         # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
         # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
         del video_reader
-        if self.condition_column is not None:
-            class_label = int(video_dict[self.condition_column])
+        if self.class_column is not None:
+            class_label = int(video_dict[self.class_column])
         else:
             class_label = 0  # a dummy class label as a placeholder
         return pixel_values, caption, class_label
@@ -212,7 +212,7 @@ class TextVideoDataset:
 
 
 # TODO: parse in config dict
-def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0, condition_column=None):
+def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0, class_column=None):
     dataset = TextVideoDataset(
         config["csv_path"],
         config["video_folder"],
@@ -221,7 +221,7 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
         sample_n_frames=config["sample_n_frames"],
         is_image=is_image,
         tokenizer=tokenizer,
-        condition_column=condition_column,
+        class_column=class_column,
     )
     print("Total number of samples: ", len(dataset))
 
