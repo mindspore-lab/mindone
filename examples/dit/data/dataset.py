@@ -199,7 +199,7 @@ class TextVideoDataset:
         pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
         if self.tokenizer is not None:
-            tokens = self.tokenizer(caption)
+            tokens = self.tokenize(caption)
             # print("D--: ", type(text_data))
             if isinstance(tokens, list):
                 tokens = np.array(tokens, dtype=np.int64)
@@ -207,8 +207,40 @@ class TextVideoDataset:
                 tokens = tokens[0]
             text_data = tokens
         else:
-            text_data = [49407]  # dummy token ids as a placeholder. Do not return a string.
+            text_data = np.array([49407], dtype=np.int64)  # dummy token ids as a placeholder. Do not return a string.
         return pixel_values, text_data, class_label
+
+    def tokenize(self, text):
+        # a hack to determine if use transformers.CLIPTokenizer
+        # should handle it better
+        if type(self.tokenizer).__name__ == "CLIPTokenizer":
+            return self._clip_tokenize(text)
+
+        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
+        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
+        CONTEXT_LEN = self.tokenizer.context_length
+
+        sot_token = self.tokenizer.encoder[SOT_TEXT]
+        eot_token = self.tokenizer.encoder[EOT_TEXT]
+        tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
+        result = np.zeros([CONTEXT_LEN]) + eot_token
+        if len(tokens) > CONTEXT_LEN:
+            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
+        result[: len(tokens)] = tokens
+
+        return result.astype(np.int64)
+
+    def _clip_tokenize(self, texts):
+        batch_encoding = self.tokenizer(
+            texts,
+            truncation=True,
+            max_length=self.tokenizer.context_length,
+            return_length=True,
+            return_overflowing_tokens=False,
+            padding="max_length",
+        )
+        tokens = np.array(batch_encoding["input_ids"], dtype=np.int32)
+        return tokens
 
 
 # TODO: parse in config dict
