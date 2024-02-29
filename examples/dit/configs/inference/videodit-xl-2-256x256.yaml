@@ -1,0 +1,14 @@
+# model
+image_size: 256
+model_name: "DiT-XL/2"
+videodit_checkpoint: ""  # if specified, videodit_checkpoint will be loaded instead of dit_checkpoint
+dit_checkpoint: "models/DiT-XL-2-256x256.ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+use_fp16: True
+
+# sampling
+sampling_steps: 50
+guidance_scale: 8.5
+seed: 42
