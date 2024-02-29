@@ -38,6 +38,23 @@ def vae_convert(new_state_dict, module_map):
     return new_state_dict
 
 
+def text2_convert(state_dict, module_map):
+    mapping = module_map
+    new_state_dict = {}
+    for sd_name, hf_name in mapping.items():
+        if ("attn.in_proj_weight" in sd_name) or ("attn.in_proj_bias" in sd_name):
+            chunks = torch.chunk(state_dict[sd_name], 3, dim=0)
+            if "q_proj" in hf_name:
+                new_state_dict[hf_name] = chunks[0]
+            if "self_attn.k_proj.weight" in hf_name:
+                new_state_dict[hf_name] = chunks[1]
+            if "v_proj.weight" in hf_name:
+                new_state_dict[hf_name] = chunks[2]
+        elif sd_name in state_dict:
+            new_state_dict[hf_name] = state_dict[sd_name]
+    return new_state_dict
+
+
 def reshape_weight_for_hf(w):
     return w.reshape(w.shape[:-2])
 
@@ -69,7 +86,7 @@ if __name__ == "__main__":
     unet = convert(state_dict, unet_map)
     vae = vae_convert(convert(state_dict, vae_map), vae_map)
     text1 = convert(state_dict, text1_map)
-    text2 = convert(state_dict, text2_map)
+    text2 = text2_convert(state_dict, text2_map)
 
     if args.half:
         unet = {k: v.half() for k, v in unet.items()}
@@ -80,8 +97,8 @@ if __name__ == "__main__":
     if args.use_safetensors:
         save_file(unet, args.output_path + "/unet.safetensors")
         save_file(vae, args.output_path + "/vae.safetensors")
-        save_file(text1, args.output_path + "/text1.safetensors")
-        save_file(text2, args.output_path + "/text2.safetensors")
+        save_file(text1, args.output_path + "/text1.safetensors", metadata={"format": "pt"})
+        save_file(text2, args.output_path + "/text2.safetensors", metadata={"format": "pt"})
     else:
         torch.save({"state_dict": unet}, args.output_path + "/unet.pth")
         torch.save({"state_dict": vae}, args.output_path + "/vae.pth")
