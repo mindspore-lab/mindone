@@ -147,7 +147,7 @@ def main(args):
     )
     amp_level = "O2" if args.use_fp16 else "O1"
     dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
-    dit_model.load_params_from_dit_ckpt(args.dit_checkpoint)
+    dit_model.load_params_from_ckpt(args.dit_checkpoint)
     # set temp_blocks  train
     set_dit_trainable_params(dit_model, train=True, condition=args.condition)
 

@@ -749,9 +749,8 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
         self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         assert self.condition in [None, "text", "class"], f"Unsupported condition type! {self.condition}"
-        if self.condition == "class":
-            self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
-        elif self.condition == "text":
+        self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)  # original dit param
+        if self.condition == "text":
             self.text_embedder = nn.SequentialCell(
                 nn.SiLU(),
                 nn.Dense(77 * 768, hidden_size, has_bias=True),
@@ -941,7 +940,7 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
     def load_params_from_ckpt(self, ckpt):
         # load param from a ckpt file path or a parameter dictionary
         if isinstance(ckpt, str):
-            assert os.path.exist(ckpt), f"{ckpt} does not exist!"
+            assert os.path.exists(ckpt), f"{ckpt} does not exist!"
             logger.info(f"Loading {ckpt} params into VideoDiT model...")
             param_dict = ms.load_checkpoint(ckpt)
         elif isinstance(ckpt, dict):
