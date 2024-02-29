@@ -248,6 +248,7 @@ def main(args):
             shuffle=True,
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=32,
+            train_data_type=args.train_data_type,
         )
     else:
         data_config = dict(
@@ -260,6 +261,7 @@ def main(args):
             shuffle=True,
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=64,
+            train_data_type=args.train_data_type,
         )
 
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenize
