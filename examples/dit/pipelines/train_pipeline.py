@@ -257,6 +257,10 @@ class NetworkWithLoss(nn.Cell):
         self.scale_factor = scale_factor
         self.cond_stage_trainable = cond_stage_trainable
 
+        if self.cond_stage_trainable:
+            self.text_encoder.set_train(True)
+            self.text_encoder.set_grad(True)
+
     def get_condition_embeddings(self, text_tokens):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding

@@ -1,6 +1,7 @@
 import logging
 import math
 import numbers
+import os
 from typing import Optional, Tuple
 
 import numpy as np
@@ -937,9 +938,16 @@ class VideoDiT_Factorised_Encoder(nn.Cell):
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=2)
 
-    def load_params_from_dit_ckpt(self, dit_ckpt):
-        logger.info(f"Loading {dit_ckpt} params into VideoDiT model...")
-        param_dict = ms.load_checkpoint(dit_ckpt)
+    def load_params_from_ckpt(self, ckpt):
+        # load param from a ckpt file path or a parameter dictionary
+        if isinstance(ckpt, str):
+            assert os.path.exist(ckpt), f"{ckpt} does not exist!"
+            logger.info(f"Loading {ckpt} params into VideoDiT model...")
+            param_dict = ms.load_checkpoint(ckpt)
+        elif isinstance(ckpt, dict):
+            param_dict = ckpt
+        else:
+            raise ValueError("Expect to receive a ckpt path or parameter dictionary as input!")
         _, ckpt_not_load = ms.load_param_into_net(
             self,
             param_dict,

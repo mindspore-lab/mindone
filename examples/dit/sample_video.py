@@ -41,6 +41,18 @@ def init_env(args):
     return device_id
 
 
+def remove_pname_prefix(param_dict, prefix="network."):
+    # replace "network." prefix by ""
+    new_param_dict = {}
+    for pname in param_dict:
+        if pname.startswith(prefix):
+            new_pname = pname[len(prefix) :]
+        else:
+            new_pname = pname
+        new_param_dict[new_pname] = param_dict[pname]
+    return new_param_dict
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -71,6 +83,12 @@ def parse_args():
     )
     parser.add_argument(
         "--dit_checkpoint", type=str, default="models/DiT-XL-2-256x256.ckpt", help="the path to the DiT checkpoint."
+    )
+    parser.add_argument(
+        "--videodit_checkpoint",
+        type=str,
+        default="",
+        help="videodit checkpoint path. If specified, will load from args.videodit_checkpoint, instead of args.dit_checkpoint",
     )
     parser.add_argument(
         "--vae_checkpoint",
@@ -136,7 +154,17 @@ if __name__ == "__main__":
     )
     amp_level = "O2" if args.use_fp16 else "O1"
     dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
-    dit_model.load_params_from_dit_ckpt(args.dit_checkpoint)
+
+    if len(args.videodit_checkpoint) > 0:
+        logger.info(f"Loading {args.videodit_checkpoint} params into VideoDiT model...")
+        param_dict = ms.load_checkpoint(args.videodit_checkpoint)
+        param_dict = remove_pname_prefix(param_dict, prefix="network.")
+        dit_model.load_params_from_ckpt(param_dict)
+    elif len(args.dit_checkpoint) > 0:
+        dit_model.load_params_from_ckpt(args.dit_checkpoint)
+    else:
+        raise ValueError("VideoDiT or DiT ckpt file must be provided!")
+
     dit_model = dit_model.set_train(False)
     for param in dit_model.get_parameters():  # freeze dit_model
         param.requires_grad = False
@@ -207,5 +235,5 @@ if __name__ == "__main__":
     # save result
     for i, class_label in enumerate(class_labels, 0):
         save_fp = f"{save_dir}/class-{class_label}.gif"
-        save_videos(x_samples, save_fp, loop=0)
+        save_videos(x_samples[i : i + 1], save_fp, loop=0)
         logger.info(f"save to {save_fp}")
