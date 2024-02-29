@@ -36,6 +36,7 @@ class TrainStep(nn.Cell):
         ema_decay: Optional[float] = 0.9999,
         grad_clip_norm: Optional[float] = None,
         scale_factor=0.18215,
+        condition: str = "class",
     ):
         super().__init__()
         self.network = network.set_grad()
@@ -68,6 +69,7 @@ class TrainStep(nn.Cell):
         self.grad_clip_norm = grad_clip_norm
         self.hyper_map = ops.HyperMap()
         self.scale_factor = scale_factor
+        self.condition = condition
 
         def forward_fn(x, y, text_embed):
             t = ops.randint(0, diffusion.num_timesteps, (x.shape[0],))

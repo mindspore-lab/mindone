@@ -362,6 +362,8 @@ def main(args):
     # )
     if args.dataset_sink_mode:
         raise ValueError("dataset sink = True not supported now!")
+    if args.gradient_accumulation_steps > 1:
+        print("gradient_accumulation is not supported now. Degrade to gradient_accumulation_steps = 1.")
     # use training for loop
     train_class2video(dit_model, args, train_one_step, dataset, rank_id, optimizer=optimizer)
 
