@@ -3,6 +3,7 @@ VideoDiT training pipeline
 - Image finetuning
 """
 import datetime
+import glob
 import logging
 import os
 import sys
@@ -109,9 +110,18 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-def set_temp_blocks(dit_model, train=True):
+def set_dit_trainable_params(
+    dit_model, trainable_param_names=["temp_blocks.", "temp_embed."], train=True, condition="class"
+):
+    if condition is not None:
+        if condition == "class":
+            trainable_param_names += ["y_embedder."]
+        elif condition == "text":
+            trainable_param_names += ["text_embedder."]
+        else:
+            raise ValueError(f"Incorrect condition type : {condition}")
     for param in dit_model.get_parameters():  # freeze vae
-        if "temp_blocks." in param.name:
+        if any([n in param.name for n in trainable_param_names]):
             param.requires_grad = train
         else:
             param.requires_grad = False
@@ -146,7 +156,7 @@ def main(args):
     dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
     dit_model.load_params_from_dit_ckpt(args.dit_checkpoint)
     # set temp_blocks  train
-    set_temp_blocks(dit_model, train=True)
+    set_dit_trainable_params(dit_model, train=True, condition=args.condition)
 
     # 2.2 vae
     logger.info("vae init")
@@ -397,7 +407,7 @@ def train_one_epoch(
 ):
     s_time = time.time()
     for i, data in enumerate(dataloader):
-        set_temp_blocks(model, train=True)
+        set_dit_trainable_params(model, train=True, condition=args.condition)
         i_step = i + i_epoch * len(dataloader) + 1
         image, cond = data
         if args.condition == "text":
@@ -413,7 +423,7 @@ def train_one_epoch(
         #     else:
         #         logger.info(f"Step {i_step}/{total_step}, overflow, skip.")
 
-        set_temp_blocks(model, train=False)
+        set_dit_trainable_params(model, train=False, condition=args.condition)
         # Print meg
         if i_step % args.log_interval == 0 and rank_id % 8 == 0:
             if optimizer.dynamic_lr:
@@ -432,6 +442,10 @@ def train_one_epoch(
             if not os.path.exists(save_ckpt_dir):
                 os.makedirs(save_ckpt_dir)
             save_filename = f"VideoDiT-{i_step}.ckpt"
+            exist_ckpts = sorted(glob.glob(os.path.join(save_ckpt_dir, "*.ckpt")))
+            if len(exist_ckpts) >= args.ckpt_max_keep:
+                cmd = f"rm {exist_ckpts[0]}"
+                os.system(cmd)
             ms.save_checkpoint(model, os.path.join(save_ckpt_dir, save_filename))
 
 
