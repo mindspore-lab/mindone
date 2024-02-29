@@ -26,8 +26,8 @@ sys.path.insert(0, mindone_lib_path)
 
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
-from modules.encoders import FrozenCLIPEmbedder
 
+from examples.dit.modules.text_encoders import initiate_clip_text_encoder
 from mindone.models.dit import VideoDiT_models
 
 # load training modules
@@ -164,20 +164,14 @@ def main(args):
         param.requires_grad = False
 
     if args.condition == "text":
-        text_encoder = FrozenCLIPEmbedder(
-            use_fp16=True,
-            tokenizer_name="BpeTokenizer",
-            context_length=77,
-            vocab_size=49408,
-            output_dim=768,
-            width=768,
-            layers=12,
-            heads=12,
-            epsilon=1e-5,
-            use_quick_gelu=True,
+        text_encoder = initiate_clip_text_encoder(
+            use_fp16=args.use_fp16,
+            ckpt_path=args.clip_checkpoint,
+            trainable=False,
         )
+        tokenizer = text_encoder.tokenizer
     else:
-        text_encoder = None
+        text_encoder, tokenizer = None, None
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = NetworkWithLoss(
         dit_model,
@@ -203,7 +197,7 @@ def main(args):
 
     dataset = create_dataloader(
         data_config,
-        tokenizer=None,
+        tokenizer=tokenizer,
         is_image=False,
         device_num=device_num,
         rank_id=rank_id,

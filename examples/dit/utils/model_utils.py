@@ -6,6 +6,18 @@ import mindspore as ms
 logger = logging.getLogger(__name__)
 
 
+def remove_pname_prefix(param_dict, prefix="network."):
+    # replace the prefix of param dict
+    new_param_dict = {}
+    for pname in param_dict:
+        if pname.startswith(prefix):
+            new_pname = pname[len(prefix) :]
+        else:
+            new_pname = pname
+        new_param_dict[new_pname] = param_dict[pname]
+    return new_param_dict
+
+
 def load_dit_ckpt_params(model, ckpt_fp):
     logger.info(f"Loading {ckpt_fp} params into DiT model...")
     param_dict = ms.load_checkpoint(ckpt_fp)

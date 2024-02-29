@@ -6,7 +6,7 @@ import sys
 import time
 
 import yaml
-from utils.model_utils import _check_cfgs_in_parser, count_params, str2bool
+from utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -39,18 +39,6 @@ def init_env(args):
     )
 
     return device_id
-
-
-def remove_pname_prefix(param_dict, prefix="network."):
-    # replace "network." prefix by ""
-    new_param_dict = {}
-    for pname in param_dict:
-        if pname.startswith(prefix):
-            new_pname = pname[len(prefix) :]
-        else:
-            new_pname = pname
-        new_param_dict[new_pname] = param_dict[pname]
-    return new_param_dict
 
 
 def parse_args():

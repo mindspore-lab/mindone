@@ -123,6 +123,12 @@ def parse_args():
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
+        "--clip_checkpoint",
+        type=str,
+        default=None,
+        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
+    )
+    parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument(
