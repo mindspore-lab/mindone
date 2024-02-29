@@ -734,6 +734,37 @@ class VideoUNet(nn.Cell):
             if any([n in name for n in ["time_stack", "time_mixer", "time_pos_embed"]])
         }
 
+    def recompute(self):
+        # embed
+        self.time_embed.recompute()
+        self.label_emb.recompute()
+
+        # input blocks
+        self.input_blocks[4][0].recompute()
+        self.input_blocks[5][0].recompute()
+        self.input_blocks[7][0].recompute()
+        self.input_blocks[8][0].recompute()
+        self.input_blocks[10][0].recompute()
+        self.input_blocks[11][0].recompute()
+
+        # middle block
+        self.middle_block[0].recompute()
+        self.middle_block[1].recompute()
+
+        # output blocks
+        self.output_blocks[2][1].recompute()
+        self.output_blocks[3][1].recompute()
+        self.output_blocks[4][1].recompute()
+        self.output_blocks[5][1].recompute()
+        self.output_blocks[5][2].recompute()
+        self.output_blocks[6][1].recompute()
+        self.output_blocks[7][1].recompute()
+        self.output_blocks[8][1].recompute()
+        self.output_blocks[8][2].recompute()
+        self.output_blocks[9][1].recompute()
+        self.output_blocks[10][1].recompute()
+        self.output_blocks[11][1].recompute()
+
     def construct(
         self,
         x: Tensor,
