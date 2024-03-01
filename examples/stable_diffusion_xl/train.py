@@ -216,6 +216,7 @@ def train(args):
         max_embeddings_multiples=args.max_embeddings_multiples,
         **config.data,
     )
+    total_step = config.data.total_step if hasattr(config.data, "total_step") else dataloader.get_dataset_size()
     random.seed(args.seed)  # for multi_aspect
 
     # 4. Create train step func
@@ -225,7 +226,7 @@ def train(args):
 
     assert "optim" in config
     scaler = args.rank_size * dataloader.get_batch_size() * args.gradient_accumulation_steps if args.scale_lr else 1.0
-    lr = get_learning_rate(config.optim, config.data.total_step, scaler)
+    lr = get_learning_rate(config.optim, total_step, scaler)
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if args.ms_enable_allreduce_fusion and args.rank_size > 1:
         trainable_params, all_reduce_fusion_config = get_all_reduce_config(model)

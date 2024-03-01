@@ -44,15 +44,29 @@ Instruction on ffmpeg and decord install on EulerOS:
 First, download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
 
 - Convert SD dreambooth model
+
+To download ToonYou-Beta3 dreambooth model, please refer to this [civitai website](https://civitai.com/models/30240?modelVersionId=78775), or use the following command:
+```
+wget https://civitai.com/api/download/models/78755 -P models/torch_ckpts/ --content-disposition --no-check-certificate
+```
+After downloading this dreambooth checkpoint under `animatediff/models/torch_ckpts/`, convert the dreambooth checkpoint using:
 ```
 cd ../examples/stable_diffusion_v2
 python tools/model_conversion/convert_weights.py  --source ../animatediff/models/torch_ckpts/toonyou_beta3.safetensors   --target models/toonyou_beta3.ckpt  --model sdv1  --source_version pt
 ```
 
+In addition, please download [RealisticVision V5.1](https://civitai.com/models/4201?modelVersionId=130072) dreambooth checkpoint and convert it similarly.
+
 - Convert Motion Module
 ```
 cd ../examples/animatediff/tools
 python motion_module_convert.py --src ../torch_ckpts/mm_sd_v15_v2.ckpt --tar ../models/motion_module
+```
+
+If converting the animatediff v3 motion module checkpoint,
+```
+cd ../examples/animatediff/tools
+python motion_module_convert.py -v v3 --src ../torch_ckpts/v3_sd15_mm.ckpt  --tar ../models/motion_module
 ```
 
 - Convert Motion LoRA
@@ -61,8 +75,93 @@ cd ../examples/animatediff/tools
 python motion_lora_convert.py --src ../torch_ckpts/.ckpt --tar ../models/motion_lora
 ```
 
+- Convert Domain Adapter LoRA
+```
+cd ../examples/animatediff/tools
+python domain_adapter_lora_convert.py --src ../torch_ckpts/v3_sd15_adapter.ckpt --tar ../models/domain_adapter_lora
+```
 
-## Inference
+- Convert SparseCtrl Encoder
+```
+cd ../examples/animatediff/tools
+python sparsectrl_encoder_convert.py --src ../torch_ckpts/v3_sd15_sparsectrl_{}.ckpt --tar ../models/sparsectrl_encoder
+```
+
+The full tree of expected checkpoints is shown below:
+```
+models
+├── domain_adapter_lora
+│   └── v3_sd15_adapter.ckpt
+├── dreambooth_lora
+│   ├── realisticVisionV51_v51VAE.ckpt
+│   └── toonyou_beta3.ckpt
+├── motion_lora
+│   └── v2_lora_ZoomIn.ckpt
+├── motion_module
+│   ├── mm_sd_v15.ckpt
+│   ├── mm_sd_v15_v2.ckpt
+│   └── v3_sd15_mm.ckpt
+├── sparsectrl_encoder
+│   ├── v3_sd15_sparsectrl_rgb.ckpt
+│   └── v3_sd15_sparsectrl_scribble.ckpt
+└── stable_diffusion
+    └── sd_v1.5-d0ab7146.ckpt
+```
+## Inference (AnimateDiff v3 and SparseCtrl)
+
+- Running On Ascend 910\*:
+```
+# download demo images
+bash scripts/download_demo_images.sh
+
+# under general T2V setting
+python text_to_video.py --config configs/prompts/v3/v3-1-T2V.yaml
+
+# image animation (on RealisticVision)
+python text_to_video.py --config configs/prompts/v3/v3-2-animation-RealisticVision.yaml
+
+# sketch-to-animation and storyboarding (on RealisticVision)
+python text_to_video.py --config configs/prompts/v3/v3-3-sketch-RealisticVision.yaml
+```
+
+
+Results:
+
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=25% style="border: none; text-align: center">Input (by RealisticVision)</td>
+    <td width=25% style="border: none; text-align: center">Animation</td>
+    <td width=25% style="border: none; text-align: center">Input</td>
+    <td width=25% style="border: none; text-align: center">Animation</td>
+    </tr>
+    <tr>
+    <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/__assets__/demos/image/RealisticVision_firework.png" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-closeup-face-photo-of-man-in-black-clothes%2C-night-city.gif" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/__assets__/demos/image/RealisticVision_sunset.png" style="width:100%"></td>
+    <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-masterpiece%2C-bestquality%2C-highlydetailed%2C-ultradetailed%2C-sunset%2C-orange-sky%2C-warm-lighting%2C-fishing.gif" style="width:100%"></td>
+    </tr>
+</table>
+
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=25% style="border: none; text-align: center">Input Scribble</td>
+    <td width=25% style="border: none; text-align: center">Output</td>
+    <td width=25% style="border: none; text-align: center">Input Scribbles</td>
+    <td width=25% style="border: none; text-align: center">Output</td>
+    </tr>
+    <tr>
+      <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/__assets__/demos/scribble/scribble_1.png" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-a-back-view-of-a-boy%2C-standing-on-the-ground%2C.gif" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/__assets__/demos/scribble/scribble_2_readme.png" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/animatediff/v3/0-an-aerial-view-of-a-modern-city%2C-sunlight%2C-day-time%2C.gif" style="width:100%"></td>
+    </tr>
+</table>
+
+- Running on GPU:
+
+Please append `--device_target GPU` to the end of the commands above.
+
+## Inference (AnimateDiff v2)
 
 ### Text-to-Video
 
@@ -131,7 +230,7 @@ You may change the arguments including data path, output directory, lr, etc in t
 - Evaluation
 Inference with the trained model:
 ```
-python text_to_video.py --config configs/prompt/v2/base_video.yaml \
+python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --motion_module_path {path to saved checkpoint} \
     --prompt  {text prompt}  \
 ```
@@ -149,7 +248,7 @@ python train.py --config configs/training/mmv2_lora.yaml
 
 - Inference with the trained model:
 ```
-python text_to_video.py --config configs/prompt/v2/base_video.yaml \
+python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --motion_lora_path {path to saved checkpoint} \
     --prompt  {text prompt}  \
 ```

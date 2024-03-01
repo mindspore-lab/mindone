@@ -261,6 +261,7 @@ def main(args):
             max_rowsize=32,
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
+            train_data_type=args.train_data_type,
         )
     else:
         data_config = dict(
@@ -275,6 +276,7 @@ def main(args):
             max_rowsize=64,
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
+            train_data_type=args.train_data_type,
         )
 
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenize
