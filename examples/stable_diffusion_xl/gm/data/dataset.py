@@ -1,3 +1,4 @@
+import copy
 import os
 import random
 import time
@@ -68,6 +69,9 @@ class Text2ImageDataset:
         self.lpw = lpw
         self.max_embeddings_multiples = max_embeddings_multiples
 
+        self.prev_ok_sample = None
+        self.require_update_prev = True
+
         self.transforms = []
         if transforms:
             for i, trans_config in enumerate(transforms):
@@ -86,43 +90,76 @@ class Text2ImageDataset:
                     f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
+        # prepare normal sample for replacement
+        max_attempts = min(100, len(self))
+        for i in range(max_attempts):
+            try:
+                sample = self[i]
+                if sample is not None:
+                    self.prev_ok_sample = copy.deepcopy(sample)
+                    break
+            except Exception as e:
+                print("\tError mg: {}".format(e), flush=True)
+                continue
+        assert self.prev_ok_sample is not None, "=> Error: Fail to preload sample."
+
     def __getitem__(self, idx):
-        # images preprocess
-        image_path = self.local_images[idx]
-        image = Image.open(image_path)
-        image = exif_transpose(image)
-        if not image.mode == "RGB":
-            image = image.convert("RGB")
-        image = np.array(image).astype(np.uint8)
+        try:
+            # images preprocess
+            image_path = self.local_images[idx]
+            image = Image.open(image_path)
+            image = exif_transpose(image)
+            if not image.mode == "RGB":
+                image = image.convert("RGB")
+            image = np.array(image).astype(np.uint8)
 
-        # caption preprocess
-        caption = (
-            ""
-            if self.prompt_empty_probability and random.random() < self.prompt_empty_probability
-            else self.local_captions[idx]
-        )
-        caption = np.array(caption)
+            # caption preprocess
+            caption = (
+                ""
+                if self.prompt_empty_probability and random.random() < self.prompt_empty_probability
+                else self.local_captions[idx]
+            )
+            caption = np.array(caption)
 
-        sample = {
-            "image": image,
-            "txt": caption,
-            "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
-            "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
-            "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
-            "aesthetic_score": np.array(
-                [
-                    6.0,
-                ]
-            ),
-        }
+            sample = {
+                "image": image,
+                "txt": caption,
+                "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
+                "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
+                "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
+                "aesthetic_score": np.array(
+                    [
+                        6.0,
+                    ]
+                ),
+            }
 
-        for trans in self.transforms:
-            sample = trans(sample)
+            for trans in self.transforms:
+                sample = trans(sample)
 
-        if self.return_sample_name:
-            sample["sample_name"] = np.array(os.path.basename(image_path).split(".")[0])
+            if self.return_sample_name:
+                sample["sample_name"] = np.array(os.path.basename(image_path).split(".")[0])
 
-        return sample
+            if (self.prev_ok_sample is None) or (self.require_update_prev):
+                self.prev_ok_sample = copy.deepcopy(sample)
+                self.require_update_prev = False
+
+            return sample
+
+        except Exception as e:
+            print(
+                f"=> WARNING: Fail to get sample {idx}. The sample can be corrupted and will be replaced by previous normal sample."
+            )
+            print("\tError type: ", type(e).__name__, flush=True)
+            print("\tError mg: {}".format(e), flush=True)
+            assert self.prev_ok_sample is not None
+            sample = self.prev_ok_sample  # unless the first sample is already not ok
+            self.require_update_prev = True
+
+            if idx >= len(self):
+                raise IndexError  # needed for checking the end of dataset iteration
+
+            return sample
 
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
