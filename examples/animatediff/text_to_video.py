@@ -23,7 +23,7 @@ from ad.pipelines.infer_engine import AnimateDiffText2Video
 from ad.utils.cond_data import transform_conditional_images
 from ad.utils.load_models import build_model_from_config, load_adapter_lora, load_controlnet, load_motion_modules
 
-from mindone.utils.config import instantiate_from_config
+from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
@@ -53,6 +53,7 @@ def main(args):
     # 0. parse and merge config
     # 1) sd config, 2) db ckpt path, 3) lora ckpt path, 4) mm ckpt path, 5) unet additional args, 6) noise schedule args
     config = OmegaConf.load(args.config)
+
     # support multiple tasks
     for task_name in config.keys():
         ad_config = config[task_name]
@@ -121,6 +122,8 @@ def main(args):
         use_motion_module = sd_config.model.params.unet_config.params.use_motion_module
         use_controlnet = controlnet_path != "" and os.path.exists(controlnet_path)
         use_adapter_lora = adapter_lora_path != "" and os.path.exists(adapter_lora_path)
+
+        sd_config.model.params.first_stage_config.params.use_fp16 = args.vae_fp16
 
         # 1. init env
         init_env(args)
@@ -266,19 +269,20 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/prompts/v2/base_video.yaml")
-    parser.add_argument("--inference_config", type=str, default="configs/inference/inference-v2.yaml")
-    parser.add_argument("--sd_config", type=str, default="configs/stable_diffusion/v1-inference-mmv2.yaml")
+    parser.add_argument("--config", type=str, default="configs/prompts/v2/1-ToonYou.yaml")
     parser.add_argument(
         "--pretrained_model_path",
         type=str,
         default="models/stable_diffusion/sd_v1.5-d0ab7146.ckpt",
     )
-    parser.add_argument("--L", type=int, default=16)
-    parser.add_argument("--W", type=int, default=512)
-    parser.add_argument("--H", type=int, default=512)
+    parser.add_argument("--all_in_one_ckpt", type=str, default="", help="if not empty, load SD+mm from this file")
+    parser.add_argument("--inference_config", type=str, default="configs/inference/inference-v2.yaml")
     parser.add_argument(
-        "--all_in_one_ckpt", type=str, default="", help="if not empty, load SD and motion modules from this file"
+        "--vae_fp16",
+        type=str2bool,
+        default=None,
+        help="whether use fp16 on vae. If None, will use the precision defined in `sd_config`. Should keep it same as vae precision set in training."
+        "For inference with checkpoints coverted from torch, should set it True.",
     )
     parser.add_argument(
         "--motion_module_path",
@@ -298,9 +302,12 @@ if __name__ == "__main__":
         default=None,
         help="if not empty, overwrite the path in configs/prompts/{version}/{task}.yaml",
     )
-    parser.add_argument(
-        "--prompt", type=str, default="", help="Input prompt text. If nt empty, it will overwite the prompt in yaml"
-    )
+    # Use ldm config method instead of diffusers and transformers
+    parser.add_argument("--sd_config", type=str, default="configs/stable_diffusion/v1-inference-mmv2.yaml")
+
+    parser.add_argument("--L", type=int, default=16)
+    parser.add_argument("--W", type=int, default=512)
+    parser.add_argument("--H", type=int, default=512)
 
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")

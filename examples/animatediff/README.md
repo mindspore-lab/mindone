@@ -2,13 +2,15 @@
 
 This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.org/abs/2307.04725).
 
-## Features
+## Key Features
 
 - [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
 - [x] MotionLoRA inference
-- [x] AnimateDiff v3
-- [ ] Motion Module Training
-- [ ] Motion LoRA Training
+- [x] Motion Module Training
+- [X] Motion LoRA Training
+- [X] AnimateDiff v3 Inference
+- [ ] AnimateDiff v3 Training
+- [ ] SDXL support
 
 ## Requirements
 
@@ -20,7 +22,7 @@ In case `decord` package is not available in your environment, try `pip install 
 Instruction on ffmpeg and decord install on EulerOS:
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
-    wget wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
+    wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
     tar -xvf ffmpeg-4.0.1.tar.bz2
     mv ffmpeg-4.0.1 ffmpeg
     cd ffmpeg
@@ -161,6 +163,8 @@ Results:
 
 Please append `--device_target GPU` to the end of the commands above.
 
+If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
+
 ## Inference (AnimateDiff v2)
 
 ### Text-to-Video
@@ -185,6 +189,8 @@ Results:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 256 --W 256 --device_target GPU
 ```
+
+If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
 
 ### Motion LoRA
 - Running On Ascend 910\*:

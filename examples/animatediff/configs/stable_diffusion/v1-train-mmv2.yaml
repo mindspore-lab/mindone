@@ -35,7 +35,9 @@ model:
         legacy: False
         use_fp16: True
         dropout: 0.1
-        use_recompute: False # debug
+        use_recompute: False
+        recompute_strategy: "down_blocks"
+        enable_flash_attention: False
         # Additional args for mm v2
         use_inflated_groupnorm: true
         unet_use_cross_frame_attention: false
@@ -61,7 +63,7 @@ model:
       params:
         embed_dim: 4
         monitor: val/rec_loss
-        use_fp16: False
+        use_fp16: True
         ddconfig:
           double_z: true
           z_channels: 4
