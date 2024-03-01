@@ -125,6 +125,7 @@ def get_parser_train():
         default=None,
         help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
     )
+    parser.add_argument("--resume_step", type=int, default=0, help="resume from step_n")
     parser.add_argument("--optimizer_weight", type=str, default=None, help="load optimizer weight")
     parser.add_argument("--save_optimizer", type=ast.literal_eval, default=False, help="enable save optimizer")
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
@@ -227,6 +228,9 @@ def train(args):
     assert "optim" in config
     scaler = args.rank_size * dataloader.get_batch_size() * args.gradient_accumulation_steps if args.scale_lr else 1.0
     lr = get_learning_rate(config.optim, total_step, scaler)
+    if "scheduler_config" in config.optim and args.resume_step:
+        lr = lr[args.resume_step :]
+
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if args.ms_enable_allreduce_fusion and args.rank_size > 1:
         trainable_params, all_reduce_fusion_config = get_all_reduce_config(model)
@@ -343,6 +347,9 @@ def train_txt2img(
     s_time = time.time()
     ckpt_queue = []
     for i, data in enumerate(loader):
+        if i > total_step - args.resume_step:
+            break
+        i += args.resume_step
         if args.dataset_load_tokenizer or args.cache_text_embedding:
             image, tokens = data[0], data[1:]
             image, tokens = Tensor(image), [Tensor(t) for t in tokens]
