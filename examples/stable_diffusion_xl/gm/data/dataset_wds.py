@@ -11,6 +11,7 @@ from itertools import islice
 import numpy as np
 import webdataset as wds
 import wids
+from gm.data.util import _is_valid_text_input
 from gm.util import instantiate_from_config
 from PIL import Image
 from tqdm import tqdm
@@ -142,6 +143,20 @@ class T2I_BaseDataset:
         # caption preprocess
         if self.prompt_empty_probability and random.random() < self.prompt_empty_probability:
             caption = ""
+
+        if not _is_valid_text_input(caption):
+            print(
+                f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+            )
+
+            caption = str(caption)
+
+            if _is_valid_text_input(caption):
+                print("WARNING: convert caption type to string success.", flush=True)
+            else:
+                caption = " "
+                print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
+
         caption = np.array(caption)
 
         sample = {
@@ -182,7 +197,14 @@ class T2I_BaseDataset:
 
         if self.tokenizer:
             data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
-            tokens, _ = self.tokenizer(data)
+
+            try:
+                tokens, _ = self.tokenizer(data)
+            except Exception as e:
+                print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
+                data["txt"] = [" " for _ in range(len(data["txt"]))]
+                tokens, _ = self.tokenizer(data)
+
             outs = (data["image"],) + tuple(tokens)
         else:
             outs = data
