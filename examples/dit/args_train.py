@@ -132,6 +132,14 @@ def parse_args():
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument(
+        "--ft_dit_all_params",
+        type=str2bool,
+        default=False,
+        help="Whether to finetune DiT all parameters. If False, will select trainable params based on condition types"
+        "When condition=='class', finetune label embedder (e.g., y_embedder), temporal_blocks"
+        "When condition=='text', finetune text embedder, temporal_blocks",
+    )
+    parser.add_argument(
         "--enable_flash_attention",
         default=None,
         type=str2bool,

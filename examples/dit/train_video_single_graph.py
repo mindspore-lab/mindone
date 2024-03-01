@@ -113,11 +113,23 @@ def set_dit_trainable_params(dit_model, trainable_param_names=["temp_blocks."], 
             trainable_param_names += ["text_embedder."]
         else:
             raise ValueError(f"Incorrect condition type : {condition}")
-    for param in dit_model.get_parameters():  # freeze vae
+    for param in dit_model.get_parameters():
         if any([n in param.name for n in trainable_param_names]):
             param.requires_grad = train
         else:
             param.requires_grad = False
+
+
+def set_dit_all_params(dit_model, train=True, **kwargs):
+    for param in dit_model.get_parameters():
+        param.requires_grad = train
+
+
+def set_dit_params(dit_model, ft_all_params, **kwargs):
+    if ft_all_params:
+        set_dit_all_params(dit_model, **kwargs)
+    else:
+        set_dit_trainable_params(dit_model, **kwargs)
 
 
 def main(args):
@@ -149,7 +161,7 @@ def main(args):
     dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
     dit_model.load_params_from_ckpt(args.dit_checkpoint)
     # set temp_blocks  train
-    set_dit_trainable_params(dit_model, train=True, condition=args.condition)
+    set_dit_params(dit_model, args.ft_dit_all_params, train=True, condition=args.condition)
 
     # 2.2 vae
     logger.info("vae init")
