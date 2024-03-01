@@ -123,7 +123,8 @@ class Text2ImageDataset:
 
             if not _is_valid_text_input(caption):
                 print(
-                    f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+                    f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}",
+                    flush=True,
                 )
 
                 caption = str(caption)
