@@ -2,13 +2,15 @@
 
 This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.org/abs/2307.04725).
 
-## Features
+## Key Features
 
 - [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
 - [x] MotionLoRA inference
 - [x] Motion Module Training
-- [x] Motion LoRA Training
-- [ ] AnimateDiff v3
+- [X] Motion LoRA Training
+- [X] AnimateDiff v3 Inference
+- [ ] AnimateDiff v3 Training
+- [ ] SDXL support
 
 ## Requirements
 
