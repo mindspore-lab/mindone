@@ -19,7 +19,6 @@ _logger = logging.getLogger(__name__)
 class VideoDataset(BaseDataset):
     def __init__(self, data_dir: str, metadata: str, frames: int, step: int = 1):
         self._data = self._read_data(data_dir, metadata)
-        self._data = [self._data[5], self._data[12], self._data[21], self._data[51], self._data[82]]  # FIXME: delete
         self._frames = frames
         self._step = step
         self._filter_videos()
