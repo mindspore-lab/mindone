@@ -122,7 +122,7 @@ def main(args):
         use_motion_module = sd_config.model.params.unet_config.params.use_motion_module
         use_controlnet = controlnet_path != "" and os.path.exists(controlnet_path)
         use_adapter_lora = adapter_lora_path != "" and os.path.exists(adapter_lora_path)
-          
+
         sd_config.model.params.first_stage_config.params.use_fp16 = args.vae_fp16
 
         # 1. init env
@@ -282,7 +282,7 @@ if __name__ == "__main__":
         type=str2bool,
         default=None,
         help="whether use fp16 on vae. If None, will use the precision defined in `sd_config`. Should keep it same as vae precision set in training."
-             "For inference with checkpoints coverted from torch, should set it True.",
+        "For inference with checkpoints coverted from torch, should set it True.",
     )
     parser.add_argument(
         "--motion_module_path",

@@ -20,7 +20,7 @@ In case `decord` package is not available in your environment, try `pip install 
 Instruction on ffmpeg and decord install on EulerOS:
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
-    wget wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
+    wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
     tar -xvf ffmpeg-4.0.1.tar.bz2
     mv ffmpeg-4.0.1 ffmpeg
     cd ffmpeg
@@ -161,6 +161,8 @@ Results:
 
 Please append `--device_target GPU` to the end of the commands above.
 
+If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
+
 ## Inference (AnimateDiff v2)
 
 ### Text-to-Video
@@ -185,6 +187,8 @@ Results:
 ```
 python text_to_video.py --config configs/prompts/v2/1-ToonYou.yaml --L 16 --H 256 --W 256 --device_target GPU
 ```
+
+If you use the checkpoint converted from torch for inference, please also append `--vae_fp16=False` to the command above.
 
 ### Motion LoRA
 - Running On Ascend 910\*:
