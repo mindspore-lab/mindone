@@ -69,7 +69,7 @@ def get_parser_sample():
         "--guidance_scale",
         type=float,
         default=5.0,
-        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (uncond - cond).",
+        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (cond - uncond).",
     )
     parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
     parser.add_argument("--sample_step", type=int, default=40)

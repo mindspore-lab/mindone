@@ -6,12 +6,16 @@ ToonYou:
   dreambooth_path: ""
   lora_model_path: ""
 
-  seed:           [1024, 434, 431, 42]
+  seed:           [1024, 434, 431, 42, 42]
   steps:          30
   guidance_scale: 7.5
 
   prompt:
     - "Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect."
+    - "Cloudy moscow kremlin time lapse"
+    - "Sharp knife to cut delicious smoked fish"
+    - "The girl received flowers as a gift. a gift for my birthday. the guy gave a girl flowers"
+    - "A baker turns freshly baked loaves of sourdough bread"
 
   n_prompt:
     - ""

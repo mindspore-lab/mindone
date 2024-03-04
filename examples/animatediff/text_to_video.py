@@ -86,9 +86,9 @@ def main(args):
         assert len(n_prompts) == len(
             prompts
         ), f"Expect that the negative prompts length is the same as the positive prompts length, but got {len(n_prompts)} and {len(prompts)}"
-        assert len(seeds) == len(
+        assert len(seeds) >= len(
             prompts
-        ), f"Expect that the seeds length is the same as thepositive prompts length, but got {len(seeds)} and {len(prompts)}"
+        ), f"Expect int seed or seed list of length no smamller than number of positive prompts, but got {len(seeds)} and {len(prompts)}"
 
         sd_config = OmegaConf.load(ad_config.get("sd_config", args.sd_config))
         sd_model_path = args.pretrained_model_path
@@ -308,6 +308,12 @@ if __name__ == "__main__":
     parser.add_argument("--L", type=int, default=16)
     parser.add_argument("--W", type=int, default=512)
     parser.add_argument("--H", type=int, default=512)
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default="",
+        help="text prompt. If not empty, it will overwrite the prompt defined in `config` yaml",
+    )
 
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
