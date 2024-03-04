@@ -339,7 +339,7 @@ python train.py --config configs/training/mmv2_train.yaml --data_path ../videoco
 | AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM training w/ Embed. cached |      1x1             |    512x512  |  16 |  0.75     |
 | AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora w/ Embed. cached |      1x1           |    512x512  |  16 |  0.71       |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> 
+>
 > MM training: Motion Module training
-> 
+>
 > Embed. cached: The video embedding (VAE-encoder outputs) and text embedding are pre-computed and stored before diffusion training.
