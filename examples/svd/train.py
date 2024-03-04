@@ -9,7 +9,7 @@ from jsonargparse.typing import Path_fr, path_type
 from modules.encoders.modules import VideoPredictionEmbedderWithEncoder
 from omegaconf import OmegaConf
 
-from mindspore import Model, amp, float32, load_checkpoint, load_param_into_net, nn, Callback
+from mindspore import Callback, Model, amp, float32, load_checkpoint, load_param_into_net, nn
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
@@ -41,9 +41,9 @@ class SetTrainCallback(Callback):
 def mixed_precision(network):
     from gm.modules.diffusionmodules.util import GroupNorm as GroupNorm3D
 
-    from mindspore.nn import GroupNorm, SiLU
+    from mindspore.nn import GroupNorm, SiLU, Softmax
 
-    black_list = amp.get_black_list() + [SiLU, GroupNorm, GroupNorm3D]
+    black_list = amp.get_black_list() + [SiLU, GroupNorm, GroupNorm3D, Softmax]
     return amp.custom_mixed_precision(network, black_list=black_list)
 
 
@@ -77,13 +77,13 @@ def main(args, initializer):
     # Set mixed precision on certain modules only
     cells = ldm_with_loss.name_cells()
     for cell in cells:
-        if not cells[cell] is ldm_with_loss.loss_fn and not (
+        if not cells[cell] is ldm_with_loss.loss_fn and not cells[cell] is ldm_with_loss.conditioner and not (
             config.model.params.disable_first_stage_amp and cells[cell] is ldm_with_loss.first_stage_model
         ):
             setattr(ldm_with_loss, cell, mixed_precision(cells[cell]))
-    for emb in ldm_with_loss.conditioner._backbone.embedders:
-        if isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_amp:
-            emb.to_float(float32)
+    for emb in ldm_with_loss.conditioner.embedders:
+        if not (isinstance(emb, VideoPredictionEmbedderWithEncoder) and emb.disable_encoder_amp):
+            mixed_precision(emb)
 
     # step 3: prepare train dataset and dataloader
     dataset = initializer.train.dataset
