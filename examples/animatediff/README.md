@@ -234,7 +234,9 @@ python train.py --config configs/training/mmv2_train.yaml
 You may change the arguments including data path, output directory, lr, etc in the yaml config file. You can also change by command line arguments referring to `args_train.py` or `python train.py --help`
 
 - Evaluation
-Inference with the trained model:
+
+To infer with the trained model, run
+
 ```
 python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --motion_module_path {path to saved checkpoint} \
@@ -242,6 +244,25 @@ python text_to_video.py --config configs/prompts/v2/base_video.yaml \
 ```
 
 You can also create a new config yaml to specify the prompts to test and the motion moduel path based on `configs/prompt/v2/base_video.yaml`.
+
+
+Here are some generation results after training with 512x512 resolution and 16 frame data.
+
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=25% style="border: none; text-align: center">Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect</td>
+    <td width=25% style="border: none; text-align: center">Cloudy moscow kremlin time lapse</td>
+    <td width=25% style="border: none; text-align: center">Sharp knife to cut delicious smoked fish</td>
+    <td width=25% style="border: none; text-align: center">A baker turns freshly baked loaves of sourdough bread</td>
+    </tr>
+    <tr>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    </tr>
+</table>
+
 
 
 ### Motion LoRA Training
@@ -252,12 +273,32 @@ python train.py --config configs/training/mmv2_lora.yaml
 > For 910B, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
 
 
-- Inference with the trained model:
+- Evaluation
+
+To infer with the trained model, run
+
 ```
 python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --motion_lora_path {path to saved checkpoint} \
     --prompt  {text prompt}  \
 ```
+
+Here are some generation results after training with 512x512 resolution and 16 frame data.
+
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=25% style="border: none; text-align: center">Disco light leaks disco ball light reflections shaped rectangular and line with motion blur effect</td>
+    <td width=25% style="border: none; text-align: center">Cloudy moscow kremlin time lapse</td>
+    <td width=25% style="border: none; text-align: center">Sharp knife to cut delicious smoked fish</td>
+    <td width=25% style="border: none; text-align: center">A baker turns freshly baked loaves of sourdough bread</td>
+    </tr>
+    <tr>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+    </tr>
+</table>
 
 
 ### Training on GPU
@@ -268,3 +309,24 @@ Please add `--device_target GPU` in the above training commands and adjust `imag
 # reduce num frames and batch size to avoid OOM in 3090
 python train.py --config configs/training/mmv2_train.yaml --data_path ../videocomposer/datasets/webvid5 --image_size 256 --num_frames=4 --device_target GPU --train_batch_size=1
 ```
+
+## Performance
+
+### Inference
+
+| Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Frame |  Speed (step/s)     | Time(s/video)     |
+|---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| AnimateDiff v2    |     D910*x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       16          |      1.2      |       25       |
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+
+
+### Training
+
+
+| Model      |   Context   |  Task | Local BS x Grad. Accu.  |   Resolution  | Frame      |   Step T. (s/step)  |
+|---------------|---------------|--------------|:----------------:|:----------:|:--------:|:----------------:|:----------------:|
+| AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM train  |      1x1             |    512x512  |  16 |  1.29     |
+| AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora |      1x1             |    512x512  |  16 |  1.26       |
+| AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM train w/ Embed. cached |      1x1             |    512x512  |  16 |  0.75     |
+| AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora w/ Embed. cached |      1x1           |    512x512  |  16 |  0.71       |
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
