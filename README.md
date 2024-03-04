@@ -7,10 +7,10 @@ ONE is short for "ONE for all" and "Optimal generators with No Exception" (credi
 - 2024.03.04
     1. New generative models released!
         - [AnimateDiff](examples/animatediff) v1, v2, and v3
-        - [Pangu Draw v3](examples/pangu_draw_v3)
+        - [Pangu Draw v3](examples/pangu_draw_v3) for Chinese text-to-image generation
         - [Stable Video Diffusion(SVD)](examples/svd) for image-to-video generation
         - [Tune-a-Video](examples/tuneavideo) for one-shot video tuning.
-    2. More add-ons for Stable Diffusion and Stable Diffusion XL, including ControlNet, T2I-Adaptoer, and IP-Adapter.
+    2. Enhanced Stable Diffusion and Stable Diffusion XL with more add-ons: ControlNet, T2I-Adapter, and IP-Adapter.
 - 2023.07.01 stable diffusion 2.0 lora fine-tune example can be found [here](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/lora_finetune.md)
 
 ## Playground
