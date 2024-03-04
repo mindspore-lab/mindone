@@ -93,6 +93,8 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 
 #### Training with Webdataset
 
+> Please run `tools/data_check/get_wds_num_samples.py` on the new dataset to get the sample size of new dataset.
+
 <details onclose>
 
 Image-text pair data are archived into `tar` files in webdataset. A training dataset is like
