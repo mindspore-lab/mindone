@@ -110,19 +110,27 @@ def set_dit_trainable_params(dit_model, trainable_param_names=["temp_blocks."], 
         if condition == "class":
             trainable_param_names += ["y_embedder."]
         elif condition == "text":
-            trainable_param_names += ["text_embedder."]
+            trainable_param_names += ["text_embedding_projection."]
         else:
             raise ValueError(f"Incorrect condition type : {condition}")
+    n_params_trainable = 0
     for param in dit_model.get_parameters():
         if any([n in param.name for n in trainable_param_names]):
             param.requires_grad = train
+            if train:
+                n_params_trainable += 1
         else:
             param.requires_grad = False
+    logger.info(f"Set {n_params_trainable} params to train.")
 
 
 def set_dit_all_params(dit_model, train=True, **kwargs):
+    n_params_trainable = 0
     for param in dit_model.get_parameters():
         param.requires_grad = train
+        if train:
+            n_params_trainable += 1
+    logger.info(f"Set {n_params_trainable} params to train.")
 
 
 def set_dit_params(dit_model, ft_all_params, **kwargs):
@@ -151,6 +159,7 @@ def main(args):
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
     dit_model = VideoDiT_models[args.model_name](
+        factorised_module=args.factorised_module,
         input_size=latent_size,
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},

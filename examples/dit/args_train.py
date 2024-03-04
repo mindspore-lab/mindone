@@ -140,6 +140,12 @@ def parse_args():
         "When condition=='text', finetune text embedder, temporal_blocks",
     )
     parser.add_argument(
+        "--factorised_module",
+        type=str,
+        default="attention",
+        help="Apply factorised xx inside VideoDit model. Now support ['attention', 'encoder']",
+    )
+    parser.add_argument(
         "--enable_flash_attention",
         default=None,
         type=str2bool,
