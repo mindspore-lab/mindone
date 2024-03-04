@@ -88,10 +88,10 @@ def parse_args():
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument(
-        "--factorised_module",
+        "--identifier",
         type=str,
         default="attention",
-        help="Apply factorised xx inside VideoDit model. Now support ['attention', 'encoder']",
+        help="Applies for VideoDit model. Now support ['attention', 'encoder', 'sd']",
     )
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
     dit_model = VideoDiT_models[args.model_name](
-        factorised_module=args.factorised_module,
+        identifier=args.identifier,
         input_size=latent_size,
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},

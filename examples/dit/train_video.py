@@ -159,7 +159,7 @@ def main(args):
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
     dit_model = VideoDiT_models[args.model_name](
-        factorised_module=args.factorised_module,
+        identifier=args.identifier,
         input_size=latent_size,
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
