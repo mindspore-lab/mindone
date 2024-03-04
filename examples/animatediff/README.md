@@ -2,7 +2,7 @@
 
 This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.org/abs/2307.04725).
 
-## Key Features
+## Features
 
 - [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910B, 16 frames @256x256 resolution on GPU 3090
 - [x] MotionLoRA inference
@@ -18,8 +18,11 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 pip install -r requirements.txt
 ```
 
-In case `decord` package is not available in your environment, try `pip install eva-decord`.
-Instruction on ffmpeg and decord install on EulerOS:
+In case `decord` package is not available, try `pip install eva-decord`.
+For EulerOS, instructions on ffmpeg and decord installation are as follows.
+
+<details onclose>
+
 ```
 1. install ffmpeg 4, referring to https://ffmpeg.org/releases
     wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
@@ -40,8 +43,11 @@ Instruction on ffmpeg and decord install on EulerOS:
     python3 setup.py install --user
 ```
 
+</details>
 
 ## Prepare Model Weights
+
+<details onclose>
 
 First, download the torch pretrained weights referring to [torch animatediff checkpoints](https://github.com/guoyww/AnimateDiff/blob/main/__assets__/docs/animatediff.md#download-base-t2i--motion-module-checkpoints).
 
@@ -109,6 +115,9 @@ models
 └── stable_diffusion
     └── sd_v1.5-d0ab7146.ckpt
 ```
+
+</details>
+
 ## Inference (AnimateDiff v3 and SparseCtrl)
 
 - Running On Ascend 910\*:
@@ -246,7 +255,7 @@ python text_to_video.py --config configs/prompts/v2/base_video.yaml \
 You can also create a new config yaml to specify the prompts to test and the motion moduel path based on `configs/prompt/v2/base_video.yaml`.
 
 
-Here are some generation results after training with 512x512 resolution and 16 frame data.
+Here are some generation results after MM training on 512x512 resolution and 16-frame data.
 
 <table class="center">
     <tr style="line-height: 0">
@@ -256,10 +265,10 @@ Here are some generation results after training with 512x512 resolution and 16 f
     <td width=25% style="border: none; text-align: center">A baker turns freshly baked loaves of sourdough bread</td>
     </tr>
     <tr>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/22fe1fcf-9dbd-4db4-8082-bcec5ce4cc7a" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/01856c0c-cfa9-4445-9c3d-7abc1af245e6" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/eb53baa6-1fb7-44f5-aced-bd7609fca9a2" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/135b552a-7331-478d-9590-f201b1145dff" style="width:100%"></td>
     </tr>
 </table>
 
@@ -283,7 +292,7 @@ python text_to_video.py --config configs/prompts/v2/base_video.yaml \
     --prompt  {text prompt}  \
 ```
 
-Here are some generation results after training with 512x512 resolution and 16 frame data.
+Here are some generation results after lora fine-tuning on 512x512 resolution and 16-frame data.
 
 <table class="center">
     <tr style="line-height: 0">
@@ -293,17 +302,17 @@ Here are some generation results after training with 512x512 resolution and 16 f
     <td width=25% style="border: none; text-align: center">A baker turns freshly baked loaves of sourdough bread</td>
     </tr>
     <tr>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
-      <td width=25% style="border: none"><img src="" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/03d4d494-9ee4-473a-82c4-2d95fecf28f6" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/72075086-6f14-43ec-9a1b-3f27adc3ad4f" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/a4a5ee37-81df-4498-972b-ab454de77fc4" style="width:100%"></td>
+      <td width=25% style="border: none"><img src="https://github.com/SamitHuang/mindone/assets/8156835/93b3ba6a-350d-4d35-8e44-d0445d8f3089" style="width:100%"></td>
     </tr>
 </table>
 
 
 ### Training on GPU
 
-Please add `--device_target GPU` in the above training commands and adjust `image_size`/`num_frames`/`train_batch_size` to fit your device memory, if you wan to run on GPUs. Below is an example for 3090.
+Please add `--device_target GPU` in the above training commands and adjust `image_size`/`num_frames`/`train_batch_size` to fit your device memory. Below is an example for 3090.
 
 ```
 # reduce num frames and batch size to avoid OOM in 3090
@@ -315,7 +324,7 @@ python train.py --config configs/training/mmv2_train.yaml --data_path ../videoco
 ### Inference
 
 | Model      |     Context |  Scheduler   | Steps              |  Resolution   |      Frame |  Speed (step/s)     | Time(s/video)     |
-|---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+|:---------------|:-----------|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
 | AnimateDiff v2    |     D910*x1-MS2.2.10    |  DDIM       |   30       |    512x512         |       16          |      1.2      |       25       |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 
@@ -323,10 +332,11 @@ python train.py --config configs/training/mmv2_train.yaml --data_path ../videoco
 ### Training
 
 
-| Model      |   Context   |  Task | Local BS x Grad. Accu.  |   Resolution  | Frame      |   Step T. (s/step)  |
-|---------------|---------------|--------------|:----------------:|:----------:|:--------:|:----------------:|:----------------:|
+| Model          |   Context   |  Task         | Local BS x Grad. Accu.  |   Resolution  | Frame      |   Step T. (s/step)  |
+|:---------------|:---------------|:--------------|:-----------------------:|:----------:|:------------:|:----------------:|
 | AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM train  |      1x1             |    512x512  |  16 |  1.29     |
 | AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora |      1x1             |    512x512  |  16 |  1.26       |
 | AnimateDiff v2    |    D910*x1-MS2.2.10       |   MM train w/ Embed. cached |      1x1             |    512x512  |  16 |  0.75     |
 | AnimateDiff v2    |    D910*x1-MS2.2.10       |   Motion Lora w/ Embed. cached |      1x1           |    512x512  |  16 |  0.71       |
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+> Embed. cached: The video embedding (VAE-encoder outputs) and text embedding are pre-computed and stored before diffusion training.
