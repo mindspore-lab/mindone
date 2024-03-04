@@ -294,6 +294,7 @@ def main(args):
 
     if args.dataset_sink_mode and args.sink_size != -1:
         steps_per_sink = args.sink_size
+        total_train_steps = args.epochs * steps_per_sink
     else:
         steps_per_sink = dataset_size
     sink_epochs = math.ceil(total_train_steps / steps_per_sink)

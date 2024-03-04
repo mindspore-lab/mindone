@@ -315,6 +315,10 @@ if __name__ == "__main__":
         help="text prompt. If not empty, it will overwrite the prompt defined in `config` yaml",
     )
 
+    parser.add_argument(
+        "--prompt", type=str, default="", help="Input prompt text. If not empty, it will overwrite the prompt in yaml"
+    )
+
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(

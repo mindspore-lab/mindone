@@ -6,7 +6,7 @@ ToonYou:
   dreambooth_path: ""
   lora_model_path: ""
 
-  seed:           [1024, 434, 431, 42]
+  seed:           [1024]
   steps:          30
   guidance_scale: 7.5
 
