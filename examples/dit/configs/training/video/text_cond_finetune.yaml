@@ -15,7 +15,7 @@ use_fp16: True
 
 # data setting
 data_path: imagenet_samples/images/
-sample_stride: 1   # because videos in the toy dataset are short. Change it to 4 for regular length videos.
+frame_stride: 1   # because videos in the toy dataset are short. Change it to 4 for regular length videos.
 dataset_sink_mode: True
 
 # training hyper-params
@@ -25,7 +25,7 @@ warmup_steps: 10
 train_batch_size: 1
 gradient_accumulation_steps: 2
 weight_decay: 0.01
-epochs: 5000
+epochs: 3000
 
 use_ema: False
 clip_grad: True
