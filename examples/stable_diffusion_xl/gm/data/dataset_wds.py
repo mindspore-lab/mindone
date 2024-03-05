@@ -88,9 +88,18 @@ class T2I_BaseDataset:
         per_batch_size=1,  # for multi_aspect
         caption_key="caption",
         prompt_empty_probability=0.0,
+        lpw=False,
+        max_embeddings_multiples=4,
         **kwargs,
     ):
         super().__init__()
+
+        if kwargs:
+            print(
+                "WARNING: Some key arguments are fed but not supported in the T2I_BaseDataset"
+                " ".join(list(kwargs.keys()))
+            )
+
         self.tokenizer = tokenizer
         self.token_nums = token_nums
         self.dataset_column_names = ["samples"]
@@ -115,6 +124,9 @@ class T2I_BaseDataset:
         self.caption_key = caption_key
         self.prev_ok_sample = None
         self.require_update_prev = True
+
+        self.lpw = lpw
+        self.max_embeddings_multiples = max_embeddings_multiples
 
         self.transforms = []
         if transforms:
@@ -199,11 +211,11 @@ class T2I_BaseDataset:
             data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
 
             try:
-                tokens, _ = self.tokenizer(data)
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
             except Exception as e:
                 print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
                 data["txt"] = [" " for _ in range(len(data["txt"]))]
-                tokens, _ = self.tokenizer(data)
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
 
             outs = (data["image"],) + tuple(tokens)
         else:
