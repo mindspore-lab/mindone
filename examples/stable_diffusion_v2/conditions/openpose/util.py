@@ -141,26 +141,24 @@ def draw_handpose(canvas, all_hand_peaks, show_number=False):
         [19, 20],
     ]
 
-    # cong TODO: why?? oficial repo is the same
-    # for peaks in all_hand_peaks:
-    peaks = all_hand_peaks
-    for ie, e in enumerate(edges):
-        if np.sum(np.all(peaks[e], axis=1) == 0) == 0:
-            x1, y1 = peaks[e[0]]
-            x2, y2 = peaks[e[1]]
-            cv2.line(
-                canvas,
-                (x1, y1),
-                (x2, y2),
-                matplotlib.colors.hsv_to_rgb([ie / float(len(edges)), 1.0, 1.0]) * 255,
-                thickness=2,
-            )
+    for peaks in all_hand_peaks:
+        for ie, e in enumerate(edges):
+            if np.sum(np.all(peaks[e], axis=1) == 0) == 0:
+                x1, y1 = peaks[e[0]]
+                x2, y2 = peaks[e[1]]
+                cv2.line(
+                    canvas,
+                    (x1, y1),
+                    (x2, y2),
+                    matplotlib.colors.hsv_to_rgb([ie / float(len(edges)), 1.0, 1.0]) * 255,
+                    thickness=2,
+                )
 
-    for i, keyponit in enumerate(peaks):
-        x, y = keyponit
-        cv2.circle(canvas, (x, y), 4, (0, 0, 255), thickness=-1)
-        if show_number:
-            cv2.putText(canvas, str(i), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), lineType=cv2.LINE_AA)
+        for i, keyponit in enumerate(peaks):
+            x, y = keyponit
+            cv2.circle(canvas, (x, y), 4, (0, 0, 255), thickness=-1)
+            if show_number:
+                cv2.putText(canvas, str(i), (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 0, 0), lineType=cv2.LINE_AA)
     return canvas
 
 

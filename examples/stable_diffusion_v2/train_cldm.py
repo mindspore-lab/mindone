@@ -93,7 +93,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--train_config",
-        default="configs/train/sd15_controlnet.yaml",
+        default="configs/train/sd15_controlnet_canny.yaml",
         type=str,
         help="train config path to load a yaml file that override the default arguments",
     )
@@ -189,6 +189,12 @@ def parse_args():
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
+    parser.add_argument(
+        "--controlnet_mode",
+        type=str,
+        default="canny",
+        help="control mode for controlnet, should be in [canny, segmentation, openpose]",
+    )
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
@@ -241,6 +247,7 @@ def main(args):
         device_num=device_num,
         rank_id=rank_id,
         filter_small_size=args.filter_small_size,
+        control_type=args.controlnet_mode,
     )
 
     # lora injection
@@ -314,7 +321,6 @@ def main(args):
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
-
         start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
             latent_diffusion_with_loss, optimizer, resume_ckpt
         )

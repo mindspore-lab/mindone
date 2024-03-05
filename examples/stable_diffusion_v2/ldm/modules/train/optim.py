@@ -56,6 +56,33 @@ def build_optimizer(
 
         return all([x not in param.name.lower() for x in filter_list])
 
+    def scale_lr(group_params, lr):
+        new_groups = list()
+        for group in group_params:
+            scale_params, unscale_params = list(), list()
+            for params in group["params"]:
+                name = params.name.lower()
+                if "zero_conv" in name or "input_hint_block" in name or "middle_block_out" in name:
+                    scale_params.append(params)
+                else:
+                    unscale_params.append(params)
+
+            new_groups.append(
+                {
+                    "params": scale_params,
+                    "weight_decay": group["weight_decay"],
+                    "lr": [i * 5 for i in lr],
+                }
+            )
+            new_groups.append(
+                {
+                    "params": unscale_params,
+                    "weight_decay": group["weight_decay"],
+                    "lr": lr,
+                }
+            )
+        return new_groups
+
     param_optimizer = model.trainable_params()
     decay_params = list(filter(decay_filter, param_optimizer))
     other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
@@ -64,6 +91,19 @@ def build_optimizer(
         group_params.append({"params": decay_params, "weight_decay": weight_decay})  # 1e-6})
     if len(other_params) > 0:
         group_params.append({"params": other_params, "weight_decay": 0.0})
+
+    _info = "\n".join(
+        [
+            f"Enable optimizer group param, "
+            f"decay params num: {len(decay_params)}, "
+            f"no decay params num: {len(other_params)}, "
+            f"full params num: {len(decay_params) + len(other_params)}"
+        ]
+    )
+    _logger.info(_info)
+
+    # set different lr for zero_conv layers of cldm
+    group_params = scale_lr(group_params, lr)
     group_params.append({"order_params": param_optimizer})
 
     if name.lower() == "adam":

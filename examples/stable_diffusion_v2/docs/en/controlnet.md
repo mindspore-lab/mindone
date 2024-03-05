@@ -276,7 +276,7 @@ Here are some inference results after training Fill50k dataset (lr=5e-4, bs=2, e
 ![controlnet_train_validate](https://github.com/congw729/mindone/assets/115451386/62ad40a3-0510-4606-84cb-780c72989b36)
 
 Comparing the results with ground truth:
-![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/644e436c-4ac9-4b23-81ff-6c0f0dbef9f8)
+![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/b0e5740c-2488-4924-842f-72afcfc0abea)
 
 
 Control:

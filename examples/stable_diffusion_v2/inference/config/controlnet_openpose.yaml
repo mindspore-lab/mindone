@@ -8,6 +8,7 @@ W: 512  # Image width, in pixel space
 image_resolution: 512
 strength: 1
 guess_mode: False
+condition_ckpt_path: "path/to/detection_model" # where the ms_body_pose_model.ckpt and ms_hand_pose_model.ckpt is stored.
 data_prepare_model: data_prepare_model  # For export and  lite inference. The path of MindSpore Lite MindIR for data_prepare_model, see libs/infer_engine/export_modules.py for details.
 scheduler_preprocess: scheduler_preprocess   # For export and  lite inference. The path of MindSpore Lite MindIR for scheduler_preprocess, see libs/infer_engine/export_modules.py for details.
 predict_noise_model: predict_noise_model  # For export and  lite inference. The path of MindSpore Lite MindIR for predict_noise_model, see libs/infer_engine/export_modules.py for details.
