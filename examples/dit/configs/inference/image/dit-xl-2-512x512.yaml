@@ -9,5 +9,5 @@ use_fp16: True
 
 # sampling
 sampling_steps: 50
-guidance_scale: 8.5
-seed: 42
+guidance_scale: 10.0
+seed: 12
