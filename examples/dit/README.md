@@ -4,13 +4,13 @@
 Previous common practices of diffusion models (e.g., stable diffusion models) used U-Net backbone, which lacks scalability. DiT is a new class diffusion models based on transformer architecture. The authors designed Diffusion Transformers (DiTs), which adhere to the best practices of Vision Transformers (ViTs) [<a href="#references">1</a>]. It accepts the visual inputs as a sequence of visual tokens through "patchify", and then processed the inputs  by a sequence of transformer blocks (DiT blocks). The structure of DiT model and DiT blocks is shown below:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/DiT_structure.PNG" width=350 />
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/DiT_structure.PNG" width=550 />
 </p>
 <p align="center">
   <em> Figure 1. The Structure of DiT and DiT blocks. [<a href="#references">2</a>] </em>
 </p>
 
-DiTs are scalable architectures for diffusion models. The authors found that there is a strong correlation between the network complexity (measured by Gflops) vs. sample quality (measured by FID). In other words, the more complexity the DiT model is, the better it performs on image generation.
+DiTs are scalable architectures for diffusion models. The authors found that there is a strong correlation between the network complexity (measured by Gflops) vs. sample quality (measured by FID). In other words, the more complex the DiT model is, the better it performs on image generation.
 
 ## Get Started
 In this tutorial, we will introduce how to run inference and finetuning experiments using MindONE.
@@ -81,8 +81,6 @@ To run the same inference on GPU devices, simply set `--device_target GPU` for t
 
 You can also adjust the classifier-free guidance scale by setting `guidance_scale`. The default guidance scale is $8.5$. Check details in the yaml files under `configs/inference/`.
 
-To run inference on GPU devices, simply append `--target_device GPU` to the commands above.
-
 Some generated example images are shown below:
 <p float="center">
 <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/class-207.png" width="25%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/class-88.png" width="25%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/class-974.png" width="25%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/class-979.png" width="25%" />
@@ -90,7 +88,7 @@ Some generated example images are shown below:
 
 ## Training
 
-Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images from ImageNet and corresponding class labels. To run finetuning experiments on Ascend devices, use:
+Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. To run finetuning experiments on Ascend devices, use:
 ```bash
 python train.py --config configs/training/image/class_cond_finetune.yaml
 ```
@@ -117,5 +115,4 @@ python train_video.py --config configs/training/video/class_cond_finetune.yaml
 # References
 
 [1] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, et al. An image is worth 16x16 words: Transformers for image recognition at scale. In ICLR, 2020. 1, 2, 4, 5
-
 [2] W. Peebles and S. Xie, “Scalable diffusion models with transformers,” in Proceedings of the IEEE/CVF International Conference on Computer Vision, pp. 4195–4205, 2023
