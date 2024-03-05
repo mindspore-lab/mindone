@@ -362,8 +362,6 @@ class NetworkWithLoss(nn.Cell):
         loss = self.compute_loss(x, y, text_embed)
         return loss
 
-    # def apply_model(self, x_t, t, y=None, text_embed=None):
-    #     return self.network(x_t, t, y=y, text_embed=text_embed)
     def apply_model(self, *args, **kwargs):
         return self.network(*args, **kwargs)
 

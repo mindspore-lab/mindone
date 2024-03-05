@@ -3,7 +3,7 @@ condition: "class"
 output_path: outputs/class_ft_dit
 
 # model setting
-image_size: 256
+image_size: 256 # or 512
 model_name: "DiT-XL/2"
 dit_checkpoint: "models/DiT-XL-2-256x256.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
@@ -16,15 +16,15 @@ data_path: imagenet_samples/images/
 dataset_sink_mode: True
 
 # training hyper-params
-start_learning_rate: 5e-5
+start_learning_rate: 1e-4 # same to offical repo
 scheduler: "constant"
 warmup_steps: 10
-train_batch_size: 2
+train_batch_size: 2  # adjust batch size and epochs
 gradient_accumulation_steps: 1
 weight_decay: 0.01
 epochs: 5000
 
-use_ema: False
+use_ema: True  # same to offical repo
 clip_grad: True
 ckpt_max_keep: 3
 init_loss_scale: 65536
