@@ -106,7 +106,7 @@ epochs: 5000
 
 **Experimental Features**:
 
-- We also support finetuning VideoDiT model on a toy dataset `imagenet_samples/videos/`. It consists of three videos generated using `examples/svd` based on the three images in `imagenet_samples/images/`. To run finetuning experiments on Ascend devices, use:
+- We also support finetuning VideoDiT model on a toy dataset `imagenet_samples/videos/`. It consists of three videos generated using VideoLDM (`examples/svd`) based on the three images in `imagenet_samples/images/`. To run finetuning experiments on Ascend devices, use:
 ```bash
 python train_video.py --config configs/training/video/class_cond_finetune.yaml
 ```
@@ -115,4 +115,5 @@ python train_video.py --config configs/training/video/class_cond_finetune.yaml
 # References
 
 [1] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner, Mostafa Dehghani, Matthias Minderer, Georg Heigold, Sylvain Gelly, et al. An image is worth 16x16 words: Transformers for image recognition at scale. In ICLR, 2020. 1, 2, 4, 5
+
 [2] W. Peebles and S. Xie, “Scalable diffusion models with transformers,” in Proceedings of the IEEE/CVF International Conference on Computer Vision, pp. 4195–4205, 2023
