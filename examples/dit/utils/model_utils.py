@@ -18,10 +18,13 @@ def remove_pname_prefix(param_dict, prefix="network."):
     return new_param_dict
 
 
-def load_dit_ckpt_params(model, ckpt_fp):
-    logger.info(f"Loading {ckpt_fp} params into DiT model...")
-    param_dict = ms.load_checkpoint(ckpt_fp)
-    param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
+def load_dit_ckpt_params(model, ckpt):
+    if isinstance(ckpt, str):
+        logger.info(f"Loading {ckpt} params into DiT model...")
+        param_dict = ms.load_checkpoint(ckpt)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
+    else:
+        param_dict = ckpt
     assert (
         len(param_not_load) == len(ckpt_not_load) == 0
     ), "Exist ckpt params not loaded: {} (total: {})\nor net params not loaded: {} (total: {})".format(

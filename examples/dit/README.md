@@ -88,6 +88,7 @@ Some generated example images are shown below:
 <p float="center">
 <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-207.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-279.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-360.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-387.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-417.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-88.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-974.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-979.png" width="12.5%" />
 </p>
+
 ## Training
 
 Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. To run finetuning experiments on Ascend devices, use:
@@ -97,7 +98,7 @@ python train.py --config configs/training/image/class_cond_finetune.yaml
 You can adjust the hyper-parameters in the yaml file:
 ```yaml
 # training hyper-params
-start_learning_rate: 1e-4
+start_learning_rate: 5e-5  # small lr for finetuing exps. Change it to 1e-4 for regular training tasks.
 scheduler: "constant"
 warmup_steps: 10
 train_batch_size: 2

@@ -8,7 +8,7 @@ import time
 import numpy as np
 import yaml
 from PIL import Image
-from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, str2bool
+from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -130,7 +130,12 @@ if __name__ == "__main__":
     )
     amp_level = "O2" if args.use_fp16 else "O1"
     dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
-    dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+    try:
+        dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+    except Exception:
+        param_dict = ms.load_checkpoint(args.dit_checkpoint)
+        param_dict = remove_pname_prefix(param_dict, prefix="network.")
+        dit_model = load_dit_ckpt_params(dit_model, param_dict)
     dit_model = dit_model.set_train(False)
     for param in dit_model.get_parameters():  # freeze dit_model
         param.requires_grad = False

@@ -16,7 +16,7 @@ data_path: imagenet_samples/images/
 dataset_sink_mode: True
 
 # training hyper-params
-start_learning_rate: 1e-4 # same to offical repo
+start_learning_rate: 5e-5  # small lr for finetuing exps. Change it to 1e-4 for regular training tasks.
 scheduler: "constant"
 warmup_steps: 10
 train_batch_size: 2  # adjust batch size and epochs
