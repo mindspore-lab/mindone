@@ -104,8 +104,19 @@ warmup_steps: 10
 train_batch_size: 2
 gradient_accumulation_steps: 1
 weight_decay: 0.01
-epochs: 5000
+epochs: 3000
 ```
+
+After training, the checkpoints will be saved under `output_folder/ckpt/`.
+
+To run inference with a certain checkpoint file, please first revise `dit_checkpoint` path in the yaml files under `configs/inference/image/`, for example,
+```
+# dit-xl-2-256x256.yaml
+dit_checkpoint: "outputs/ckpt/DiT-3000.ckpt"
+```
+
+Then run `python sample.py -c config-file-path`.
+
 
 **Experimental Features**:
 

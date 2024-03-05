@@ -22,7 +22,7 @@ warmup_steps: 10
 train_batch_size: 2  # adjust batch size and epochs
 gradient_accumulation_steps: 1
 weight_decay: 0.01
-epochs: 5000
+epochs: 3000
 
 use_ema: True  # same to offical repo
 clip_grad: True

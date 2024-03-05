@@ -22,9 +22,9 @@ def load_dit_ckpt_params(model, ckpt):
     if isinstance(ckpt, str):
         logger.info(f"Loading {ckpt} params into DiT model...")
         param_dict = ms.load_checkpoint(ckpt)
-        param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
     else:
         param_dict = ckpt
+    param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
     assert (
         len(param_not_load) == len(ckpt_not_load) == 0
     ), "Exist ckpt params not loaded: {} (total: {})\nor net params not loaded: {} (total: {})".format(
