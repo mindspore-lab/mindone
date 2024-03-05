@@ -25,6 +25,7 @@ class DiTInferPipeline(ABC):
         scale_factor=1.0,
         guidance_rescale=0.0,
         num_inference_steps=50,
+        ddim_sampling=True,
     ):
         super().__init__()
         self.dit = dit
@@ -34,7 +35,10 @@ class DiTInferPipeline(ABC):
         self.guidance_rescale = guidance_rescale
         self.text_encoder = text_encoder
         self.diffusion = create_diffusion(str(num_inference_steps))
-        self.num_inference_steps = ms.Tensor(num_inference_steps, ms.int32)
+        if ddim_sampling:
+            self.sampling_func = self.diffusion.ddim_sample_loop
+        else:
+            self.sampling_func = self.diffusion.p_sample_loop
 
     @ms.jit
     def vae_encode(self, x):
@@ -93,7 +97,7 @@ class DiTInferPipeline(ABC):
         """
         z, y = self.data_prepare(inputs)
         model_kwargs = dict(y=y, cfg_scale=self.guidance_rescale)
-        latents = self.diffusion.p_sample_loop(
+        latents = self.sampling_func(
             self.dit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
         )
         latents, _ = latents.chunk(2, axis=0)

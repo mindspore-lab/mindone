@@ -79,7 +79,7 @@ python sample.py -c configs/inference/image/dit-xl-2-512x512.yaml
 
 To run the same inference on GPU devices, simply set `--device_target GPU` for the commands above.
 
-You can also adjust the classifier-free guidance scale by setting `guidance_scale`. The default guidance scale is $8.5$. Check details in the yaml files under `configs/inference/`.
+For diffusion sampling, the default sampler is the DDIM sampler, and the default number of sampling steps is 50. For classifier-free guidance, the default guidance scale is $4.0$. Check more details in the yaml files under `configs/inference/image/`.
 
 Some generated example images are shown below:
 <p float="center">
@@ -95,7 +95,7 @@ python train.py --config configs/training/image/class_cond_finetune.yaml
 You can adjust the hyper-parameters in the yaml file:
 ```yaml
 # training hyper-params
-start_learning_rate: 5e-5
+start_learning_rate: 1e-4
 scheduler: "constant"
 warmup_steps: 10
 train_batch_size: 2

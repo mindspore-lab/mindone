@@ -111,6 +111,7 @@ def parse_args():
         type=str2bool,
         help="whether to use fp16 for DiT mode. Default is True",
     )
+    parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -189,6 +190,7 @@ if __name__ == "__main__":
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
+        ddim_sampling=args.ddim_sampling,
     )
 
     # 4. print key info
@@ -200,10 +202,13 @@ if __name__ == "__main__":
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-            f"Class Labels: {class_labels}",
+            f"Class labels: {class_labels}",
             f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"AMP Level: {amp_level}",
+            f"AMP level: {amp_level}",
+            f"Sampling steps {args.sampling_steps}",
+            f"DDIM sampling: {args.ddim_sampling}",
+            f"CFG guidance scale: {args.guidance_scale}",
         ]
     )
     key_info += "\n" + "=" * 50

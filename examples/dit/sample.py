@@ -31,10 +31,10 @@ logger = logging.getLogger(__name__)
 
 def init_env(args):
     # no parallel mode currently
-    ms.set_context(mode=args.ms_mode)  # needed for MS2.0
+    ms.set_context(mode=args.mode)  # needed for MS2.0
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(
-        mode=args.ms_mode,
+        mode=args.mode,
         device_target=args.device_target,
         device_id=device_id,
     )
@@ -80,9 +80,7 @@ def parse_args():
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument(
-        "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
-    )
+    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
@@ -96,6 +94,7 @@ def parse_args():
         type=str2bool,
         help="whether to use fp16 for DiT mode. Default is True",
     )
+    parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -163,6 +162,7 @@ if __name__ == "__main__":
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
+        ddim_sampling=args.ddim_sampling,
     )
 
     # 4. print key info
@@ -173,11 +173,14 @@ if __name__ == "__main__":
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
-            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.ms_mode}",
-            f"Class Labels: {class_labels}",
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+            f"Class labels: {class_labels}",
             f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"AMP Level: {amp_level}",
+            f"AMP level: {amp_level}",
+            f"Sampling steps {args.sampling_steps}",
+            f"DDIM sampling: {args.ddim_sampling}",
+            f"CFG guidance scale: {args.guidance_scale}",
         ]
     )
     key_info += "\n" + "=" * 50
