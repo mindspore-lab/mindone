@@ -100,9 +100,6 @@ if __name__ == "__main__":
         processor = CLIPImageProcessor()
         text_processor = CLIPTokenizer(args.tokenizer_path, pad_token="!")
 
-        # def process_text(text):
-        #     return Tensor(text_processor(text, padding="max_length", max_length=77)["input_ids"]).reshape(1, -1)
-
     else:
         raise NotImplementedError(args.backend)
 
