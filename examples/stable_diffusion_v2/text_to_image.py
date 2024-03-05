@@ -16,6 +16,7 @@ import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+sys.path.append("../../")
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
@@ -23,11 +24,12 @@ from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
 from ldm.util import instantiate_from_config, str2bool
-from tools.safety_checker import SafetyChecker
 from tools.watermark import WatermarkEmbedder
 from utils import model_utils
 from utils.download import download_checkpoint
 from utils.long_prompt import get_text_embeddings
+
+from mindone.tools.safety_checker import SafetyChecker
 
 logger = logging.getLogger("text_to_image")
 

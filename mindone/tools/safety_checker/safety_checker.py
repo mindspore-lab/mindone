@@ -4,28 +4,28 @@ diffusion 1/2, respectively
 """
 import argparse
 import os
-import sys
 
 import numpy as np
 import yaml
 from PIL import Image
-
-# # equivalent to no-check-certificate flag in wget
-# os.environ["CURL_CA_BUNDLE"] = ""
-# add current working dir to path to prevent ModuleNotFoundError
-sys.path.insert(0, os.getcwd())
-
-from tools._common import L2_norm_ops, load_images
-from tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
-from tools.safety_checker.nsfw_model import NSFWModel
-from tools.safety_checker.utils import locate_model
+from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import load_checkpoint, load_param_into_net, ops
 
+from examples.stable_diffusion_v2.tools._common import L2_norm_ops, load_images
+from examples.stable_diffusion_v2.tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
+from mindone.tools.safety_checker.nsfw_model import NSFWModel
+from mindone.tools.safety_checker.utils import locate_model
+
+# # equivalent to no-check-certificate flag in wget
+# os.environ["CURL_CA_BUNDLE"] = ""
+
+
 try:
     import torch
-    from tools.safety_checker.nsfw_model_pt import NSFWModelPT
+
+    from mindone.tools.safety_checker.nsfw_model_pt import NSFWModelPT
 
     is_torch_available = True
 except ImportError:
@@ -39,6 +39,29 @@ try:
 except ImportError:
     is_transformers_available = False
 
+try:
+    import av
+
+    is_av_available = True
+except ImportError:
+    is_av_available = False
+
+
+def get_video_path(paths):
+    if os.path.isdir(paths) and os.path.exists(paths):
+        paths = [
+            os.path.join(root, file)
+            for root, _, file_list in os.walk(os.path.join(paths))
+            for file in file_list
+            if file.endswith(".mp4")
+        ]
+        paths.sort()
+        paths = paths
+    else:
+        paths = [paths]
+
+    return paths
+
 
 class SafetyChecker:
     def __init__(
@@ -49,7 +72,7 @@ class SafetyChecker:
         ckpt_path=None,
         tokenizer_path="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         model_name="openai/clip-vit-large-patch14",
-        settings_path="tools/safety_checker/safety_settings_v2.yaml",
+        settings_path="../../mindone/tools/safety_checker/safety_settings_v2.yaml",
         threshold=0.2,
         **kwargs,
     ):
@@ -157,7 +180,7 @@ class SafetyChecker:
             w /= w.norm(p=2, dim=-1, keepdim=True)
             return torch.mm(v, w.T)
 
-    def eval(self, paths):
+    def eval_images(self, paths):
         images, paths = load_images(paths)
         print(f"{len(images)} images are loaded")
 
@@ -167,6 +190,33 @@ class SafetyChecker:
             images = self.processor(images=images, return_tensors="pt").pixel_values
 
         return self.__call__(images)
+
+    def eval_videos(self, paths):
+        assert is_av_available is True, "av is not installed, please install av."
+        paths = get_video_path(paths)
+        print(f"{len(paths)} images are loaded")
+        nsfw_concept = []
+        for path in tqdm(paths):
+            container = av.open(path)
+            # only want to look at keyframes.
+            stream = container.streams.video[0]
+            stream.codec_context.skip_frame = "NONKEY"
+            frames = []
+            for frame in container.decode(stream):
+                frames.append(frame.to_image())
+
+            frames = [frame.resize((224, 224)) for frame in frames]
+            if self.backend == "ms":
+                frames = self.processor(frames)
+            else:
+                frames = self.processor(images=frames, return_tensors="pt").pixel_values
+
+            _, has_nsfw_concepts = self.__call__(frames)
+
+            if any(has_nsfw_concepts):
+                print(f"Potential NSFW content was detected in {path}.")
+            nsfw_concept.append(has_nsfw_concepts)
+        return nsfw_concept
 
     def __call__(self, images):
         original_images = images
@@ -205,7 +255,7 @@ class SafetyChecker:
 
         if any(has_nsfw_concepts):
             print(
-                "Potential NSFW content was detected in one or more images. A black image will be returned instead."
+                "Potential NSFW content was detected in one or more images."
                 " Try again with a different prompt and/or seed."
             )
 
@@ -222,7 +272,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--config",
-        default="tools/_common/clip/configs/clip_vit_l_14.yaml",
+        default="examples/stable_diffusion_v2/tools/_common/clip/configs/clip_vit_l_14.yaml",
         type=str,
         help="YAML config files for ms backend" " Default: tools/_common/clip/configs/clip_vit_l_14.yaml",
     )
@@ -237,7 +287,13 @@ if __name__ == "__main__":
         "--image_path_or_dir",
         default=None,
         type=str,
-        help="input data for predict, it support real data path or data directory." " Default: None",
+        help="input data for predict, it support image data path or directory." " Default: None",
+    )
+    parser.add_argument(
+        "--video_path_or_dir",
+        default=None,
+        type=str,
+        help="input data for predict, it support video data path or directory." " Default: None",
     )
     parser.add_argument("--ckpt_path", default=None, type=str, help="load model checkpoint." " Default: None")
     parser.add_argument(
@@ -248,16 +304,17 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--tokenizer_path",
-        default="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
+        default="examples/stable_diffusion_v2/ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         type=str,
-        help="load tokenizer checkpoint." " Default: ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
+        help="load tokenizer checkpoint."
+        " Default: examples/stable_diffusion_v2/ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
     )
     parser.add_argument(
         "--settings_path",
-        default="tools/safety_checker/safety_settings_v2.yaml",
+        default="mindone/tools/safety_checker/safety_settings_v2.yaml",
         type=str,
         help="YAML file for a list of NSFW concepts as safety settings"
-        " Default: tools/safety_checker/safety_settings_v2.yaml",
+        " Default: mindone/tools/safety_checker/safety_settings_v2.yaml",
     )
     parser.add_argument(
         "--threshold",
@@ -269,7 +326,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     checker = SafetyChecker(**vars(args))
 
-    assert args.image_path_or_dir is not None
-    _, has_nsfw_concepts = checker.eval(args.image_path_or_dir)
+    if args.image_path_or_dir:
+        _, has_nsfw_concepts = checker.eval_images(args.image_path_or_dir)
+    elif args.video_path_or_dir:
+        has_nsfw_concepts = checker.eval_videos(args.video_path_or_dir)
+    else:
+        raise ValueError("Please input image path or video path")
 
     print(has_nsfw_concepts)
