@@ -14,7 +14,7 @@ enable_flash_attention: False
 use_fp16: True
 
 # data setting
-data_path: ../videocomposer/demo_video/
+data_path: imagenet_samples/images/
 
 dataset_sink_mode: True
 
@@ -23,9 +23,9 @@ start_learning_rate: 1e-4
 scheduler: "constant"
 warmup_steps: 10
 train_batch_size: 1
-gradient_accumulation_steps: 4
+gradient_accumulation_steps: 2
 weight_decay: 0.01
-epochs: 1000
+epochs: 5000
 
 use_ema: False
 clip_grad: True
@@ -37,5 +37,5 @@ optim_eps: 1.e-6
 
 # training process
 log_interval: 1
-ckpt_save_interval: 200  # save ckpt every n epochs
+ckpt_save_interval: 1000  # save ckpt every n epochs
 step_mode: False

@@ -131,11 +131,13 @@ def parse_args():
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
+    # Apply for VideoDiT only #
     parser.add_argument(
         "--ft_dit_all_params",
         type=str2bool,
         default=False,
-        help="Whether to finetune DiT all parameters. If False, will select trainable params based on condition types"
+        help="Whether to finetune VideoDiT all parameters. Applies for VideoDit model only."
+        "If False, will select trainable params based on condition types"
         "When condition=='class', finetune label embedder (e.g., y_embedder), temporal_blocks"
         "When condition=='text', finetune text embedder, temporal_blocks",
     )
@@ -143,8 +145,11 @@ def parse_args():
         "--identifier",
         type=str,
         default="attention",
-        help="Applies for VideoDit model. Now support ['attention', 'encoder', 'sd']",
+        help="Applies for VideoDit model only. Now support ['attention', 'encoder', 'sd']",
     )
+    parser.add_argument("--num_frames", default=16, type=int, help="num frames")
+    parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
+    # Apply for VideoDiT only #
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
@@ -168,9 +173,9 @@ def parse_args():
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
-    parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
-    parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
-    parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
+    # parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
+    # parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
+    # parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
 
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
@@ -179,22 +184,15 @@ def parse_args():
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    parser.add_argument(
-        "--image_finetune",
-        default=True,
-        type=str2bool,
-        help="True for image finetune. False for temporal blocks finetuning.",
-    )
+    parser.add_argument("--image_size", default=256, type=int, help="image size")
     parser.add_argument(
         "--condition",
         default=None,
         type=str,
         help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
-        " `class` means using class labels as conditions.",
+        " `class` means using class labels as conditions."
+        "DiT only supports `class`condition",
     )
-    parser.add_argument("--image_size", default=256, type=int, help="image size")
-    parser.add_argument("--num_frames", default=16, type=int, help="num frames")
-    parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
 

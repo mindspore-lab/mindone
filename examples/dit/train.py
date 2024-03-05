@@ -11,7 +11,8 @@ from typing import Tuple
 import yaml
 from args_train import parse_args
 from data.dataset import create_dataloader
-from pipelines.train_pipeline import VideoDiTWithLoss
+from pipelines.train_pipeline import DiTWithLoss
+from utils.model_utils import load_dit_ckpt_params
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -27,8 +28,7 @@ sys.path.insert(0, mindone_lib_path)
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
-from examples.dit.modules.text_encoders import initiate_clip_text_encoder
-from mindone.models.dit import VideoDiT_models
+from mindone.models.dit import DiT_models
 
 # load training modules
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -105,7 +105,7 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-def set_dit_trainable_params(dit_model, trainable_param_names=["temp_blocks."], train=True, condition="class"):
+def set_dit_trainable_params(dit_model, trainable_param_names=[], train=True, condition="class"):
     if condition is not None:
         if condition == "class":
             trainable_param_names += ["y_embedder."]
@@ -158,20 +158,18 @@ def main(args):
     # 2.1 dit
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
-    dit_model = VideoDiT_models[args.model_name](
-        identifier=args.identifier,
+    dit_model = DiT_models[args.model_name](
         input_size=latent_size,
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
-        condition=args.condition,
-        num_frames=args.num_frames,
     )
     amp_level = "O2" if args.use_fp16 else "O1"
     dit_model = auto_mixed_precision(dit_model, amp_level=amp_level)
     if not args.dit_initialize_random:
-        dit_model.load_params_from_ckpt(args.dit_checkpoint)
+        dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+    dit_model.set_train(True)
     # set temp_blocks  train
-    set_dit_params(dit_model, args.ft_dit_all_params, train=True, condition=args.condition)
+    set_dit_params(dit_model, ft_all_params=True, train=True, condition=args.condition)
 
     # 2.2 vae
     logger.info("vae init")
@@ -185,32 +183,21 @@ def main(args):
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
 
-    if args.condition == "text":
-        text_encoder = initiate_clip_text_encoder(
-            use_fp16=args.use_fp16,
-            ckpt_path=args.clip_checkpoint,
-            trainable=False,
-        )
-        tokenizer = text_encoder.tokenizer
-    else:
-        text_encoder, tokenizer = None, None
     diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = VideoDiTWithLoss(
+    latent_diffusion_with_loss = DiTWithLoss(
         dit_model,
         vae,
         diffusion,
         args.sd_scale_factor,
         args.condition,
-        text_encoder=text_encoder,
+        text_encoder=None,
         cond_stage_trainable=False,
     )
-    # video dataset
+    # image dataset
     data_config = dict(
         data_folder=args.data_path,
-        csv_path=args.data_path + "/video_caption.csv",
+        csv_path=args.data_path + "/image_caption.csv",
         sample_size=args.image_size,
-        sample_stride=args.frame_stride,
-        sample_n_frames=args.num_frames,
         batch_size=args.train_batch_size,
         shuffle=True,
         num_parallel_workers=args.num_parallel_workers,
@@ -219,8 +206,8 @@ def main(args):
 
     dataset = create_dataloader(
         data_config,
-        tokenizer=tokenizer,
-        is_image=False,
+        tokenizer=None,
+        is_image=True,  # using image dataset
         device_num=device_num,
         rank_id=rank_id,
         class_column="class" if args.condition == "class" else None,
@@ -318,7 +305,7 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
-            model_name="VideoDiT",
+            model_name="DiT",
             record_lr=False,  # TODO: check LR retrival for new MS on 910b
         )
         callback.append(save_cb)

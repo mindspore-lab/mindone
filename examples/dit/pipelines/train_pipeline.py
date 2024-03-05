@@ -310,17 +310,24 @@ class NetworkWithLoss(nn.Cell):
         return y
 
     def get_latents(self, x):
-        # "b f c h w -> (b f) c h w"
-        B, F, C, H, W = x.shape
-        if C != 3:
-            raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-        x = ops.reshape(x, (-1, C, H, W))
+        if x.dim() == 5:
+            # "b f c h w -> (b f) c h w"
+            B, F, C, H, W = x.shape
+            if C != 3:
+                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
+            x = ops.reshape(x, (-1, C, H, W))
 
-        z = ops.stop_gradient(self.vae_encode(x))
+            z = ops.stop_gradient(self.vae_encode(x))
 
-        # (b*f c h w) -> (b f c h w)
-        z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-
+            # (b*f c h w) -> (b f c h w)
+            z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
+        elif x.dim() == 4:
+            B, C, H, W = x.shape
+            if C != 3:
+                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
+            z = ops.stop_gradient(self.vae_encode(x))
+        else:
+            raise ValueError("Incorrect Dimensions of x")
         return z
 
     def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, labels: ms.Tensor, **kwargs):
@@ -355,16 +362,24 @@ class NetworkWithLoss(nn.Cell):
         loss = self.compute_loss(x, y, text_embed)
         return loss
 
+    # def apply_model(self, x_t, t, y=None, text_embed=None):
+    #     return self.network(x_t, t, y=y, text_embed=text_embed)
+    def apply_model(self, *args, **kwargs):
+        return self.network(*args, **kwargs)
+
     def compute_loss(self, x, y, text_embed):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
-        # model_kwargs = dict(y=y)
-        # loss = diffusion.training_losses(network, x, t, model_kwargs)
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
-        model_output = self.network(x_t, t, y=y, text_embed=text_embed)
-        B, F, C = x_t.shape[:3]
-        assert model_output.shape == (B, F, C * 2) + x_t.shape[3:]
-        model_output, model_var_values = ops.split(model_output, C, axis=2)
+        model_output = self.apply_model(x_t, t, y=y, text_embed=text_embed)
+        if x_t.dim() == 5:
+            B, F, C = x_t.shape[:3]
+            assert model_output.shape == (B, F, C * 2) + x_t.shape[3:]
+            model_output, model_var_values = ops.split(model_output, C, axis=2)
+        else:
+            B, C = x_t.shape[:2]
+            assert model_output.shape == (B, C * 2) + x_t.shape[2:]
+            model_output, model_var_values = ops.split(model_output, C, axis=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         # _vb_terms_bpd(model=lambda *_: frozen_out, x_start=x, x_t=x_t, t=t, clip_denoised=False) begin
@@ -390,3 +405,13 @@ class NetworkWithLoss(nn.Cell):
         loss = mean_flat((noise - model_output) ** 2) + vb
         loss = loss.mean()
         return loss
+
+
+class DiTWithLoss(NetworkWithLoss):
+    def apply_model(self, x_t, t, y=None, **kwargs):
+        return self.network(x_t, t, y=y)
+
+
+class VideoDiTWithLoss(NetworkWithLoss):
+    def apply_model(self, x_t, t, y=None, text_embed=None):
+        return self.network(x_t, t, y=y, text_embed=text_embed)

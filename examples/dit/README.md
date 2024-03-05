@@ -43,5 +43,18 @@ To run the same inference on GPU devices, simply set `--device_target GPU` for t
 
 You can also adjust the classifier-free guidance scale by setting `guidance_scale`. The default guidance scale is $8.5$. Check details in the yaml files under `configs/inference/`.
 
+To run inference on GPU devices, simply append `--target_device GPU` to the commands above.
 
 ## Training
+
+Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images from ImageNet and corresponding class labels. To run finetuning experiments on Ascend devices, use:
+```bash
+python train.py --config configs/training/image/class_cond_finetune.yaml
+```
+
+**Experimental Features**:
+
+- We also support finetuning DiT model on a toy dataset `imagenet_samples/videos/`. It consists of three videos generated using `examples/svd` based on the three images in `imagenet_samples/images/`. To run finetuning experiments on Ascend devices, use:
+```bash
+python train_video.py --config configs/training/video/class_cond_finetune.yaml
+```
