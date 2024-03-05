@@ -307,6 +307,7 @@ def main(args):
         betas=args.betas,
         weight_decay=args.weight_decay,
         lr=lr,
+        scale_lr=args.scale_lr,
     )
 
     loss_scaler = DynamicLossScaleUpdateCell(

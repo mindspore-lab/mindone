@@ -15,6 +15,7 @@ def build_optimizer(
     name: str,
     lr: Union[float, List[float]],
     betas: Optional[List[float]] = None,
+    scale_lr: bool = False,
     weight_decay: float = 1e-6,
     eps: float = 1e-6,
     group_strategy: Optional[str] = None,
@@ -28,6 +29,7 @@ def build_optimizer(
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
             If not provided, [0.9, 0.999] is used as default.
+        scale_lr: Set different learning rate for parameters in zero conv layers.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
         eps: epsilon in adam or adamw optimization, Default: 1e-6
         group_strategy: The specific grouping startegy for weight decay. If it is None,
@@ -56,7 +58,7 @@ def build_optimizer(
 
         return all([x not in param.name.lower() for x in filter_list])
 
-    def scale_lr(group_params, lr):
+    def _scale_lr(group_params, lr):
         new_groups = list()
         for group in group_params:
             scale_params, unscale_params = list(), list()
@@ -103,7 +105,8 @@ def build_optimizer(
     _logger.info(_info)
 
     # set different lr for zero_conv layers of cldm
-    group_params = scale_lr(group_params, lr)
+    if scale_lr:
+        group_params = _scale_lr(group_params, lr)
     group_params.append({"order_params": param_optimizer})
 
     if name.lower() == "adam":
