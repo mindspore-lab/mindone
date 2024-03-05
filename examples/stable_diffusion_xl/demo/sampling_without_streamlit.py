@@ -76,6 +76,7 @@ def get_parser_sample():
     parser.add_argument("--num_rows", type=int, default=1)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--deterministic", type=ast.literal_eval, default=True)
     parser.add_argument(
         "--init_latent_path",
         type=str,
@@ -447,6 +448,8 @@ if __name__ == "__main__":
         mode=args.ms_mode,
         device_target=args.device_target,
     )
+    if args.deterministic:
+        ms.context.set_context(deterministic="ON")
     if args.precision_keep_origin_dtype:
         ms.context.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
 
