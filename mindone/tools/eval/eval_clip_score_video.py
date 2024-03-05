@@ -32,6 +32,23 @@ except ImportError:
 VIDEO_EXTENSIONS = {".mp4", ".gif"}
 
 
+def clip_score_text(model, processor, text_processor, frames, edited_prompt):
+    frames = processor(frames)
+    texts = Tensor(text_processor(edited_prompt, padding="max_length", max_length=77)["input_ids"]).reshape(1, -1)
+    logits_per_image, _ = model(image=frames, text=texts)
+    score = logits_per_image.mean()
+    return score
+
+
+def clip_score_frame(model, processor, frames):
+    frames = processor(frames)
+    image_features = model.get_image_features(frames)
+    cosine_sim_matrix = cosine_similarity(image_features)
+    np.fill_diagonal(cosine_sim_matrix, 0)  # set diagonal elements to 0
+    score = cosine_sim_matrix.sum() / (len(frames) * (len(frames) - 1))
+    return score
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -83,8 +100,8 @@ if __name__ == "__main__":
         processor = CLIPImageProcessor()
         text_processor = CLIPTokenizer(args.tokenizer_path, pad_token="!")
 
-        def process_text(text):
-            return Tensor(text_processor(text, padding="max_length", max_length=77)["input_ids"]).reshape(1, -1)
+        # def process_text(text):
+        #     return Tensor(text_processor(text, padding="max_length", max_length=77)["input_ids"]).reshape(1, -1)
 
     else:
         raise NotImplementedError(args.backend)
@@ -136,17 +153,10 @@ if __name__ == "__main__":
                 raise NotImplementedError(args.metric)
         elif args.backend == "ms":
             if args.metric == "clip_score_text":
-                frames = processor(frames)
-                texts = process_text(edited_prompt)
-                logits_per_image, _ = model(image=frames, text=texts)
-                score = logits_per_image.mean()
+                score = clip_score_text(model, processor, text_processor, frames, edited_prompt)
                 scores.append(score)
             elif args.metric == "clip_score_frame":
-                frames = processor(frames)
-                image_features = model.get_image_features(frames)
-                cosine_sim_matrix = cosine_similarity(image_features)
-                np.fill_diagonal(cosine_sim_matrix, 0)  # set diagonal elements to 0
-                score = cosine_sim_matrix.sum() / (len(frames) * (len(frames) - 1))
+                score = clip_score_frame(model, processor, frames)
                 scores.append(score)
             else:
                 raise NotImplementedError(args.metric)
