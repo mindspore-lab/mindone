@@ -29,7 +29,7 @@ start_learning_rate: 5.e-4
 scheduler: constant
 warmup_steps: 10
 train_batch_size: 1  # original: 4
-epochs: 1400
+epochs: 8000
 weight_decay: 0.01
 
 init_loss_scale: 65536
@@ -38,7 +38,7 @@ use_ema: False
 clip_grad: True
 
 # training process
-ckpt_save_epochs: 100
+ckpt_save_epochs: 600
 ckpt_max_keep: 20
 
 use_recompute: True
