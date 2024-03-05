@@ -91,7 +91,14 @@ Some generated example images are shown below:
 
 ## Training
 
-Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. To run finetuning experiments on Ascend devices, use:
+Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. This toy dataset is store at this [website](https://github.com/wtomin/mindone-assets/tree/main/dit/imagenet_samples). You can also download this toy dataset using:
+
+```bash
+bash scripts/download_toy_dataset.sh
+```
+Afterwards, the toy dataset is saved in `imagenet_samples/` folder.
+
+To run finetuning experiments on Ascend devices, use:
 ```bash
 python train.py --config configs/training/image/class_cond_finetune.yaml
 ```
