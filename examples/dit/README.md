@@ -47,12 +47,12 @@ models/
 
 To run inference of `DiT-XL/2` model with the `256x256` image size on Ascend devices, you can use:
 ```bash
-python sample.py -c configs/inference/image/dit-xl-2-256x256.yaml
+python sample.py -c configs/inference/dit-xl-2-256x256.yaml
 ```
 
 To run inference of `DiT-XL/2` model with the `512x512` image size on Ascend devices, you can use:
 ```bash
-python sample.py -c configs/inference/image/dit-xl-2-512x512.yaml
+python sample.py -c configs/inference/dit-xl-2-512x512.yaml
 ```
 
 To run the same inference on GPU devices, simply set `--device_target GPU` for the commands above.
@@ -76,14 +76,20 @@ bash scripts/download_toy_dataset.sh
 ```
 Afterwards, the toy dataset is saved in `imagenet_samples/` folder.
 
-To run finetuning experiments on Ascend devices, use:
+To finetune DiT model conditioned on class labels on Ascend devices, use:
 ```bash
-python train.py --config configs/training/image/class_cond_finetune.yaml
+python train.py --config configs/training/class_cond_finetune.yaml
 ```
+
+To finetune DiT model on images without any conditions on Ascend devices, use:
+```bash
+python train.py --config configs/training/unconditional_finetune.yaml
+```
+
 You can adjust the hyper-parameters in the yaml file:
 ```yaml
 # training hyper-params
-start_learning_rate: 5e-5  # small lr for finetuing exps. Change it to 1e-4 for regular training tasks.
+start_learning_rate: 5e-5  # small lr for finetuning exps. Change it to 1e-4 for regular training tasks.
 scheduler: "constant"
 warmup_steps: 10
 train_batch_size: 2
@@ -94,7 +100,7 @@ epochs: 3000
 
 After training, the checkpoints will be saved under `output_folder/ckpt/`.
 
-To run inference with a certain checkpoint file, please first revise `dit_checkpoint` path in the yaml files under `configs/inference/image/`, for example,
+To run inference with a certain checkpoint file, please first revise `dit_checkpoint` path in the yaml files under `configs/inference/`, for example,
 ```
 # dit-xl-2-256x256.yaml
 dit_checkpoint: "outputs/ckpt/DiT-3000.ckpt"

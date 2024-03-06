@@ -231,7 +231,16 @@ class TextImageDataset:
 
 
 # TODO: parse in config dict
-def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0, class_column=None):
+def create_dataloader(
+    config,
+    tokenizer=None,
+    is_image=False,
+    device_num=1,
+    rank_id=0,
+    image_column=None,
+    class_column=None,
+    caption_column=None,
+):
     assert is_image, "Expect to have only Image Dataset!"
     dataset = TextImageDataset(
         config["csv_path"],
@@ -239,7 +248,9 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
         sample_size=config.get("sample_size", 256),
         is_image=is_image,
         tokenizer=tokenizer,
+        image_column=image_column,
         class_column=class_column,
+        caption_column=caption_column,
     )
     data_name = "image"
     print("Total number of samples: ", len(dataset))
