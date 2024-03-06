@@ -50,39 +50,6 @@ class NetworkWithLoss(nn.Cell):
         image_latents = image_latents * self.scale_factor
         return image_latents.astype(ms.float16)
 
-    def vae_decode(self, x):
-        """
-        Args:
-            x: (b c h w), denoised latent
-        Return:
-            y: (b H W 3), batch of images, normalized to [0, 1]
-        """
-        b, c, h, w = x.shape
-
-        y = self.vae.decode(x / self.scale_factor)
-        y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-
-        # (b 3 H W) -> (b H W 3)
-        y = ops.transpose(y, (0, 2, 3, 1))
-
-        return y
-
-    def vae_decode_video(self, x):
-        """
-        Args:
-            x: (b f c h w), denoised latent
-        Return:
-            y: (b f H W 3), batch of images, normalized to [0, 1]
-        """
-        b, f, c, h, w = x.shape
-        x = x.reshape((b * f, c, h, w))
-
-        y = self.vae_decode(x)
-        _, h, w, c = y.shape
-        y = y.reshape((b, f, h, w, c))
-
-        return y
-
     def get_latents(self, x):
         if x.dim() == 5:
             # "b f c h w -> (b f) c h w"
@@ -106,12 +73,12 @@ class NetworkWithLoss(nn.Cell):
 
     def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, labels: ms.Tensor, **kwargs):
         """
-        Video diffusion model forward and loss computation for training
+        Diffusion model forward and loss computation for training
 
         Args:
-            x: pixel values of video frames, resized and normalized to shape [bs, F, 3, 256, 256]
-            text: text tokens padded to fixed shape [bs, 77]
-            control: other conditions for future extension
+            x: pixel values of video frames or images, resized and normalized to shape [bs, F, 3, 256, 256] or [bs, 3, 256, 256]
+            text: text tokens padded to fixed shape [bs, 77], optional
+            labels: class label ids [bs, ], optional
 
         Returns:
             loss
@@ -182,8 +149,3 @@ class NetworkWithLoss(nn.Cell):
 class DiTWithLoss(NetworkWithLoss):
     def apply_model(self, x_t, t, y=None, **kwargs):
         return self.network(x_t, t, y=y)
-
-
-class VideoDiTWithLoss(NetworkWithLoss):
-    def apply_model(self, x_t, t, y=None, text_embed=None):
-        return self.network(x_t, t, y=y, text_embed=text_embed)

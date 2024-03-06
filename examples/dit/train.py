@@ -1,6 +1,6 @@
 """
-VideoDiT training pipeline
-- Image finetuning
+DiT training pipeline
+- Image finetuning conditioned on class labels (optional)
 """
 import datetime
 import logging
@@ -210,6 +210,8 @@ def main(args):
         is_image=True,  # using image dataset
         device_num=device_num,
         rank_id=rank_id,
+        image_column="image",
+        caption_column="caption" if args.condition == "text" else None,
         class_column="class" if args.condition == "class" else None,
     )
     dataset_size = dataset.get_dataset_size()

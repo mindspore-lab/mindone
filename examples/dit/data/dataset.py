@@ -1,24 +1,15 @@
 import csv
 import logging
 import os
-import random
 
 import albumentations
 import cv2
-import imageio
 import numpy as np
-from decord import VideoReader
-from PIL import Image, ImageSequence
+from PIL import Image
 
 import mindspore as ms
 
 logger = logging.getLogger()
-
-
-def read_gif(gif_path, mode="RGB"):
-    with Image.open(gif_path) as fp:
-        frames = np.array([np.array(frame.convert(mode)) for frame in ImageSequence.Iterator(fp)])
-    return frames
 
 
 def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="al", use_safer_augment=True):
@@ -88,162 +79,13 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
     return pixel_transforms
 
 
-# TODO: rm csv_path, find csv under video_folder
-class TextVideoDataset:
-    def __init__(
-        self,
-        csv_path,
-        video_folder,
-        sample_size=256,
-        sample_stride=4,
-        sample_n_frames=16,
-        is_image=False,
-        transform_backend="al",  # ms, pt, al
-        tokenizer=None,
-        video_column="video",
-        caption_column="caption",
-        class_column=None,
-    ):
-        logger.info(f"loading annotations from {csv_path} ...")
-        with open(csv_path, "r") as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
-
-        self.video_folder = video_folder
-        self.sample_stride = sample_stride
-        self.sample_n_frames = sample_n_frames
-        self.is_image = is_image
-
-        sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
-
-        # it should match the transformation used in SD/VAE pretraining, especially for normalization
-        self.pixel_transforms = create_video_transforms(
-            sample_size[0], sample_size[1], sample_n_frames, interpolation="bicubic", backend=transform_backend
-        )
-        self.transform_backend = transform_backend
-        self.tokenizer = tokenizer
-        self.video_column = video_column
-        self.caption_column = caption_column
-        self.class_column = class_column
-
-    def get_batch(self, idx):
-        # get video raw pixel
-        video_dict = self.dataset[idx]
-        video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
-        video_path = os.path.join(self.video_folder, video_fn)
-        if video_path.endswith(".gif"):
-            video_reader = read_gif(video_path, mode="RGB")
-        else:
-            video_reader = VideoReader(video_path)
-
-        video_length = len(video_reader)
-
-        if not self.is_image:
-            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-            start_idx = random.randint(0, video_length - clip_length)
-            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
-        else:
-            batch_index = [random.randint(0, video_length - 1)]
-
-        if video_path.endswith(".gif"):
-            pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
-        else:
-            pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
-        # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
-        # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
-        del video_reader
-        if self.class_column is not None:
-            class_label = int(video_dict[self.class_column])
-        else:
-            class_label = 0  # a dummy class label as a placeholder
-        return pixel_values, caption, class_label
-
-    def __len__(self):
-        return self.length
-
-    def __getitem__(self, idx):
-        """
-        Returns:
-            tuple (video, text_data)
-                - video: preprocessed video frames in shape (f, c, h, w)
-                - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
-        """
-        pixel_values, caption, class_label = self.get_batch(idx)
-        if self.transform_backend == "pt":
-            import torch
-
-            pixel_values = torch.from_numpy(pixel_values).permute(0, 3, 1, 2).contiguous()
-            pixel_values = self.pixel_transforms(pixel_values)
-            pixel_values = pixel_values.numpy()
-        elif self.transform_backend == "al":
-            # NOTE:it's to ensure augment all frames in a video in the same way.
-            # ref: https://albumentations.ai/docs/examples/example_multi_target/
-
-            inputs = {"image": pixel_values[0]}
-            num_frames = len(pixel_values)
-            for i in range(num_frames - 1):
-                inputs[f"image{i}"] = pixel_values[i + 1]
-
-            output = self.pixel_transforms(**inputs)
-
-            pixel_values = np.stack(list(output.values()), axis=0)
-            # (f h w c) -> (f c h w)
-            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
-        else:
-            raise NotImplementedError
-
-        if self.is_image:
-            pixel_values = pixel_values[0]  # (h, w, c)
-
-        pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
-
-        if self.tokenizer is not None:
-            tokens = self.tokenize(caption)
-            # print("D--: ", type(text_data))
-            if isinstance(tokens, list):
-                tokens = np.array(tokens, dtype=np.int64)
-            if len(tokens.shape) == 2:  # in case, the tokenizer output [1, 77]
-                tokens = tokens[0]
-            text_data = tokens
-        else:
-            text_data = np.array([49407], dtype=np.int64)  # dummy token ids as a placeholder. Do not return a string.
-        return pixel_values, text_data, class_label
-
-    def tokenize(self, text):
-        # a hack to determine if use transformers.CLIPTokenizer
-        # should handle it better
-        if type(self.tokenizer).__name__ == "CLIPTokenizer":
-            return self._clip_tokenize(text)
-
-        SOT_TEXT = self.tokenizer.sot_text  # "[CLS]"
-        EOT_TEXT = self.tokenizer.eot_text  # "[SEP]"
-        CONTEXT_LEN = self.tokenizer.context_length
-
-        sot_token = self.tokenizer.encoder[SOT_TEXT]
-        eot_token = self.tokenizer.encoder[EOT_TEXT]
-        tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
-        result = np.zeros([CONTEXT_LEN]) + eot_token
-        if len(tokens) > CONTEXT_LEN:
-            tokens = tokens[: CONTEXT_LEN - 1] + [eot_token]
-        result[: len(tokens)] = tokens
-
-        return result.astype(np.int64)
-
-    def _clip_tokenize(self, texts):
-        batch_encoding = self.tokenizer(
-            texts,
-            truncation=True,
-            max_length=self.tokenizer.context_length,
-            return_length=True,
-            return_overflowing_tokens=False,
-            padding="max_length",
-        )
-        tokens = np.array(batch_encoding["input_ids"], dtype=np.int32)
-        return tokens
-
-
 class TextImageDataset:
+    """
+    Dataset to read csv file, which returns image pixel values after transformation (SD VAE),
+    token ids (optional), and class label ids (optional).
+    Modified from `TextVideoDataset` from AnimateDiff in mindone.
+    """
+
     def __init__(
         self,
         csv_path,
@@ -253,7 +95,7 @@ class TextImageDataset:
         transform_backend="al",  # ms, pt, al
         tokenizer=None,
         image_column="image",
-        caption_column="caption",
+        caption_column=None,
         class_column=None,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
@@ -269,26 +111,37 @@ class TextImageDataset:
         sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
 
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
+        # force num_frames=1: equivalent to image transform
         self.pixel_transforms = create_video_transforms(
-            sample_size[0], sample_size[1], 1, interpolation="bicubic", backend=transform_backend
+            sample_size[0], sample_size[1], num_frames=1, interpolation="bicubic", backend=transform_backend
         )
         self.transform_backend = transform_backend
         self.tokenizer = tokenizer
         self.image_column = image_column
+        assert self.image_column is not None, "The input csv file must specify the image column"
         self.caption_column = caption_column
+        if self.caption_column is not None and self.tokenizer is None:
+            logger.warning(
+                f"The caption_column is provided {self.caption_column}, but tokenizer is not provided! "
+                "The text tokens will be dummy placeholders!"
+            )
         self.class_column = class_column
 
     def get_batch(self, idx):
-        # get video raw pixel
+        # get image raw pixel
         image_dict = self.dataset[idx]
-        image_fn, caption = image_dict[self.image_column], image_dict[self.caption_column]
-        image_path = os.path.join(self.image_folder, image_fn)
-        pixel_values = np.array(Image.open(image_path).convert("RGB"))
-        pixel_values = np.expand_dims(pixel_values, axis=0)  # (1, h, w, c)
+        image_fn = image_dict[self.image_column]
+        if self.caption_column is not None:
+            caption = image_dict[self.caption_column]
+        else:
+            caption = ""  # dummy placeholders
         if self.class_column is not None:
             class_label = int(image_dict[self.class_column])
         else:
             class_label = 0  # a dummy class label as a placeholder
+        image_path = os.path.join(self.image_folder, image_fn)
+        pixel_values = np.array(Image.open(image_path).convert("RGB"))
+        pixel_values = np.expand_dims(pixel_values, axis=0)  # (1, h, w, c)
         return pixel_values, caption, class_label
 
     def __len__(self):
@@ -330,7 +183,7 @@ class TextImageDataset:
         """
         Returns:
             tuple (image, text_data)
-                - image: preprocessed video frames in shape (c, h, w)
+                - image: preprocessed images in shape (c, h, w)
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
         pixel_values, caption, class_label = self.get_batch(idx)
@@ -379,28 +232,16 @@ class TextImageDataset:
 
 # TODO: parse in config dict
 def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank_id=0, class_column=None):
-    if not is_image:
-        dataset = TextVideoDataset(
-            config["csv_path"],
-            config["data_folder"],
-            sample_size=config.get("sample_size", 256),
-            sample_stride=config.get("sample_stride", 4),
-            sample_n_frames=config.get("sample_n_frames", 16),
-            is_image=is_image,
-            tokenizer=tokenizer,
-            class_column=class_column,
-        )
-        data_name = "video"
-    else:
-        dataset = TextImageDataset(
-            config["csv_path"],
-            config["data_folder"],
-            sample_size=config.get("sample_size", 256),
-            is_image=is_image,
-            tokenizer=tokenizer,
-            class_column=class_column,
-        )
-        data_name = "image"
+    assert is_image, "Expect to have only Image Dataset!"
+    dataset = TextImageDataset(
+        config["csv_path"],
+        config["data_folder"],
+        sample_size=config.get("sample_size", 256),
+        is_image=is_image,
+        tokenizer=tokenizer,
+        class_column=class_column,
+    )
+    data_name = "image"
     print("Total number of samples: ", len(dataset))
 
     # Larger value leads to more memory consumption. Default: 16
@@ -428,16 +269,3 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
     )
 
     return dl
-
-
-def check_sanity(x, save_fp="./tmp.gif"):
-    # reverse normalization and visulaize the transformed video
-    # (f, c, h, w) -> (f, h, w, c)
-    if len(x.shape) == 3:
-        x = np.expand_dims(x, axis=0)
-    x = np.transpose(x, (0, 2, 3, 1))
-
-    x = (x + 1.0) / 2.0  # -1,1 -> 0,1
-    x = (x * 255).astype(np.uint8)
-
-    imageio.mimsave(save_fp, x, duration=1 / 8.0, loop=1)

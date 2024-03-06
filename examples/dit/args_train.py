@@ -131,25 +131,6 @@ def parse_args():
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    # Apply for VideoDiT only #
-    parser.add_argument(
-        "--ft_dit_all_params",
-        type=str2bool,
-        default=False,
-        help="Whether to finetune VideoDiT all parameters. Applies for VideoDit model only."
-        "If False, will select trainable params based on condition types"
-        "When condition=='class', finetune label embedder (e.g., y_embedder), temporal_blocks"
-        "When condition=='text', finetune text embedder, temporal_blocks",
-    )
-    parser.add_argument(
-        "--identifier",
-        type=str,
-        default="attention",
-        help="Applies for VideoDit model only. Now support ['attention', 'encoder', 'sd']",
-    )
-    parser.add_argument("--num_frames", default=16, type=int, help="num frames")
-    parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
-    # Apply for VideoDiT only #
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
