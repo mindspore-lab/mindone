@@ -12,12 +12,13 @@ import mindspore as ms
 logger = logging.getLogger()
 
 
-def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="al", use_safer_augment=True):
+def create_transforms(h, w, interpolation="bicubic", backend="al", use_safer_augment=True):
     """
     pipeline: flip -> resize -> crop
     h, w : target resize height, weight
     NOTE: we change interpolation to bicubic for its better precision and used in SD. TODO: check impact on performance
     """
+    num_frames = 1  # in fact image transformation
     if backend == "pt":
         from torchvision import transforms
         from torchvision.transforms.functional import InterpolationMode
@@ -35,7 +36,6 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
         # expect rgb image in range 0-255, shape (h w c)
         from albumentations import CenterCrop, HorizontalFlip, Resize, SmallestMaxSize
 
-        # NOTE: to ensure augment all frames in a video in the same way.
         targets = {"image{}".format(i): "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
         if use_safer_augment:
@@ -47,8 +47,6 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
                 additional_targets=targets,
             )
         else:
-            # originally used in torch ad code, but not good for non-square video data
-            # also conflict the learning of left-right camera movement
             pixel_transforms = albumentations.Compose(
                 [
                     HorizontalFlip(p=0.5),
@@ -112,8 +110,8 @@ class TextImageDataset:
 
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
         # force num_frames=1: equivalent to image transform
-        self.pixel_transforms = create_video_transforms(
-            sample_size[0], sample_size[1], num_frames=1, interpolation="bicubic", backend=transform_backend
+        self.pixel_transforms = create_transforms(
+            sample_size[0], sample_size[1], interpolation="bicubic", backend=transform_backend
         )
         self.transform_backend = transform_backend
         self.tokenizer = tokenizer
@@ -196,9 +194,6 @@ class TextImageDataset:
             pixel_values = self.pixel_transforms(pixel_values)
             pixel_values = pixel_values.numpy()
         elif self.transform_backend == "al":
-            # NOTE:it's to ensure augment all frames in a video in the same way.
-            # ref: https://albumentations.ai/docs/examples/example_multi_target/
-
             inputs = {"image": pixel_values[0]}
             num_frames = len(pixel_values)
             for i in range(num_frames - 1):
@@ -271,7 +266,7 @@ def create_dataloader(
         python_multiprocessing=True,
         shuffle=config["shuffle"],
         num_parallel_workers=config["num_parallel_workers"],
-        max_rowsize=config["max_rowsize"],  # video data require larger rowsize
+        max_rowsize=config["max_rowsize"],
     )
 
     dl = dataloader.batch(
