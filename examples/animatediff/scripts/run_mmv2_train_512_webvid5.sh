@@ -1,8 +1,8 @@
 export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 
 python train.py --config configs/training/mmv2_train.yaml \
-    --data_path "../videocomposer/datasets/webvid5"
-    --csv_path "../videocomposer/datasets/webvid5_copy.csv"
+    --data_path "../videocomposer/datasets/webvid5" \
+    --csv_path "../videocomposer/datasets/webvid5_copy.csv" \
     --output_path "outputs/mmv2_train_webvid5" \
     --enable_flash_attention=False \
     --use_recompute=True \
