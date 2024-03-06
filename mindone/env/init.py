@@ -10,8 +10,6 @@ except ImportError:
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
-from ..utils.seed import set_random_seed
-
 _logger = logging.getLogger(__name__)
 
 
@@ -21,7 +19,9 @@ def init_train_env(
     debug: bool = False,
     seed: int = 42,
     cache_graph: bool = False,
+    cache_path: str = "./cache",
     distributed: bool = False,
+    ascend_config: Optional[dict] = None,
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
@@ -37,7 +37,9 @@ def init_train_env(
         cache_graph: (Experimental) Save or load the saved computation graph to significantly reduce the graph
                      compilation time during the first epoch. Use this feature with great caution, as any changes to the
                      Python scripts may cause inconsistencies in the results.
+        cache_path: The path to save or load the saved computation graph.
         distributed: Whether to enable distributed training. Default is False.
+        ascend_config: Parameters specific to the Ascend hardware platform.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
         json_data_path: The path of num_samples.json containing a dictionary with 64 parts. Each part is a large
@@ -47,7 +49,7 @@ def init_train_env(
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
     """
-    set_random_seed(seed)
+    ms.set_seed(seed)
 
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
@@ -55,12 +57,7 @@ def init_train_env(
 
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
-        )
+        ms.set_context(mode=mode, device_target=device_target, device_id=device_id, ascend_config=ascend_config or {})
         init()
         device_num = get_group_size()
         rank_id = get_rank()
@@ -86,10 +83,10 @@ def init_train_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
+            ascend_config=ascend_config or {},
             pynative_synchronize=debug,
             enable_compile_cache=cache_graph,
-            compile_cache_path="./cache",
+            compile_cache_path=cache_path,
         )
 
     return device_id, rank_id, device_num
