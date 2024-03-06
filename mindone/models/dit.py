@@ -564,6 +564,7 @@ class DiT(nn.Cell):
         x = self.unpatchify(x)  # (N, out_channels, H, W)
         return x
 
+    @ms.jit
     def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.

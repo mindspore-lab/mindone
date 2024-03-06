@@ -188,7 +188,6 @@ def main(args):
     dataset = create_dataloader(
         data_config,
         tokenizer=None,
-        is_image=True,  # using image dataset
         device_num=device_num,
         rank_id=rank_id,
         image_column="image",

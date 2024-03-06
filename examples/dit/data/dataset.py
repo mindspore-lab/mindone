@@ -18,7 +18,6 @@ def create_transforms(h, w, interpolation="bicubic", backend="al", use_safer_aug
     h, w : target resize height, weight
     NOTE: we change interpolation to bicubic for its better precision and used in SD. TODO: check impact on performance
     """
-    num_frames = 1  # in fact image transformation
     if backend == "pt":
         from torchvision import transforms
         from torchvision.transforms.functional import InterpolationMode
@@ -36,7 +35,6 @@ def create_transforms(h, w, interpolation="bicubic", backend="al", use_safer_aug
         # expect rgb image in range 0-255, shape (h w c)
         from albumentations import CenterCrop, HorizontalFlip, Resize, SmallestMaxSize
 
-        targets = {"image{}".format(i): "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
         if use_safer_augment:
             pixel_transforms = albumentations.Compose(
@@ -44,7 +42,6 @@ def create_transforms(h, w, interpolation="bicubic", backend="al", use_safer_aug
                     SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
-                additional_targets=targets,
             )
         else:
             pixel_transforms = albumentations.Compose(
@@ -53,22 +50,19 @@ def create_transforms(h, w, interpolation="bicubic", backend="al", use_safer_aug
                     Resize(h, h, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
-                additional_targets=targets,
             )
 
     elif backend == "ms":
         # TODO: MindData doesn't support batch transform. can NOT make sure all frames are flipped the same
-        from mindspore.dataset import transforms, vision
-        from mindspore.dataset.vision import Inter
-
-        from .transforms import CenterCrop
+        from mindspore.dataset.transforms import Compose
+        from mindspore.dataset.vision import Inter, CenterCrop, RandomHorizontalFlip, Resize
 
         mapping = {"bilinear": Inter.BILINEAR, "bicubic": Inter.BICUBIC}
-        pixel_transforms = transforms.Compose(
+        pixel_transforms = Compose(
             [
-                vision.RandomHorizontalFlip(),
-                vision.Resize(h, interpolation=mapping[interpolation]),
-                CenterCrop(h, w),
+                RandomHorizontalFlip(),
+                Resize(h, interpolation=mapping[interpolation]),
+                CenterCrop((h, w)),
             ]
         )
     else:
@@ -89,7 +83,6 @@ class TextImageDataset:
         csv_path,
         image_folder,
         sample_size=256,
-        is_image=True,
         transform_backend="al",  # ms, pt, al
         tokenizer=None,
         image_column="image",
@@ -103,13 +96,10 @@ class TextImageDataset:
         logger.info(f"Num data samples: {self.length}")
 
         self.image_folder = image_folder
-        self.is_image = is_image
-        assert self.is_image, "TextImage Dataset must have is_image=True!"
 
         sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
 
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
-        # force num_frames=1: equivalent to image transform
         self.pixel_transforms = create_transforms(
             sample_size[0], sample_size[1], interpolation="bicubic", backend=transform_backend
         )
@@ -139,7 +129,6 @@ class TextImageDataset:
             class_label = 0  # a dummy class label as a placeholder
         image_path = os.path.join(self.image_folder, image_fn)
         pixel_values = np.array(Image.open(image_path).convert("RGB"))
-        pixel_values = np.expand_dims(pixel_values, axis=0)  # (1, h, w, c)
         return pixel_values, caption, class_label
 
     def __len__(self):
@@ -189,26 +178,15 @@ class TextImageDataset:
             import torch
 
             pixel_values = (
-                torch.from_numpy(pixel_values).permute(0, 3, 1, 2).contiguous()
-            )  # (1, h, w, c) -> (1, c, h, w)
+                torch.from_numpy(pixel_values).permute(2, 0, 1).contiguous()
+            )  # (h, w, c) -> (c, h, w)
             pixel_values = self.pixel_transforms(pixel_values)
             pixel_values = pixel_values.numpy()
         elif self.transform_backend == "al":
-            inputs = {"image": pixel_values[0]}
-            num_frames = len(pixel_values)
-            for i in range(num_frames - 1):
-                inputs[f"image{i}"] = pixel_values[i + 1]
-
-            output = self.pixel_transforms(**inputs)
-
-            pixel_values = np.stack(list(output.values()), axis=0)
-            # (1 h w c) -> (1 c h w)
-            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
+            output = self.pixel_transforms(image=pixel_values)["image"]
+            pixel_values = np.transpose(output, (2, 0, 1))
         else:
             raise NotImplementedError
-
-        if self.is_image:
-            pixel_values = pixel_values[0]  # (h, w, c)
 
         pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
@@ -229,19 +207,16 @@ class TextImageDataset:
 def create_dataloader(
     config,
     tokenizer=None,
-    is_image=False,
     device_num=1,
     rank_id=0,
     image_column=None,
     class_column=None,
     caption_column=None,
 ):
-    assert is_image, "Expect to have only Image Dataset!"
     dataset = TextImageDataset(
         config["csv_path"],
         config["data_folder"],
         sample_size=config.get("sample_size", 256),
-        is_image=is_image,
         tokenizer=tokenizer,
         image_column=image_column,
         class_column=class_column,
