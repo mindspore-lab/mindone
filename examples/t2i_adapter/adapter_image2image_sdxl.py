@@ -12,8 +12,6 @@ from omegaconf import OmegaConf
 from PIL import Image
 from t2i_utils import read_images
 
-from mindspore import ops
-
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.env import init_train_env
 from mindone.utils import set_logger
