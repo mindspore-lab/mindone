@@ -195,6 +195,7 @@ def parse_args():
         default="canny",
         help="control mode for controlnet, should be in [canny, segmentation, openpose]",
     )
+    parser.add_argument("--scale_lr", default=False, type=str2bool, help="scale lr for zero conv layers")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()

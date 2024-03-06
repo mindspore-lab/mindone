@@ -83,6 +83,7 @@ def build_optimizer(
                     "lr": lr,
                 }
             )
+        _logger.info(f"Enable scale lr for zero conv layers, scale lr: {5 * lr[0]}")
         return new_groups
 
     param_optimizer = model.trainable_params()
