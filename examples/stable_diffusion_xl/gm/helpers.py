@@ -686,6 +686,9 @@ def init_sampling(
     guider="VanillaCFG",
     guidance_scale=5.0,
     discretization="LegacyDDPMDiscretization",
+    sigma_min=0.002,
+    sigma_max=80.0,
+    rho=7.0,
     img2img_strength=1.0,
     specify_num_samples=True,
     stage2strength=None,
@@ -701,11 +704,17 @@ def init_sampling(
         "LCMSampler",
     ]
     assert guider in ["VanillaCFG", "IdentityGuider"]
-    assert discretization in [
-        "LegacyDDPMDiscretization",
-        "EDMDiscretization",
-        "DiffusersDDPMDiscretization",
-    ]
+    if isinstance(discretization, str):
+        assert discretization in [
+            "LegacyDDPMDiscretization",
+            "EDMDiscretization",
+            "DiffusersDDPMDiscretization",
+        ]
+        discretization_config = get_discretization(discretization)
+    elif isinstance(discretization, DictConfig):
+        discretization_config = discretization
+    else:
+        raise TypeError("discretization must be str or DictConfig")
 
     steps = min(max(steps, 1), 1000)
     num_rows = 1
@@ -716,7 +725,6 @@ def init_sampling(
         num_cols = num_cols if num_cols else 1
 
     guider_config = get_guider(guider, cfg_scale=guidance_scale)
-    discretization_config = get_discretization(discretization)
     sampler = get_sampler(sampler, steps, discretization_config, guider_config)
 
     if img2img_strength < 1.0:

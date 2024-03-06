@@ -14,7 +14,15 @@ if os.environ.get("MS_PYNATIVE_GE") != "1":
     os.environ["MS_PYNATIVE_GE"] = "1"
 
 from cldm.util import get_control
-from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
+from gm.helpers import (
+    SD_XL_BASE_RATIOS,
+    VERSION2SPECS,
+    create_model,
+    get_discretization,
+    init_sampling,
+    load_img,
+    perform_save_locally,
+)
 from gm.util import seed_everything
 from gm.util.long_prompt import do_sample as do_sample_long_prompts
 from omegaconf import OmegaConf
@@ -71,7 +79,32 @@ def get_parser_sample():
         default=5.0,
         help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (cond - uncond).",
     )
-    parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
+    parser.add_argument(
+        "--discretization",
+        type=str,
+        default=None,
+        choices=["LegacyDDPMDiscretization", "EDMDiscretization", "DiffusersDDPMDiscretization"],
+        help="Defaultly read from discretization_config in yaml config file",
+    )
+    parser.add_argument(
+        "--sigma_min",
+        type=float,
+        default=0.002,
+        help="Vaild when discretization=EDMDiscretization. A reasonable range is [0, 10]",
+    )
+    parser.add_argument(
+        "--sigma_max",
+        type=float,
+        default=80.0,
+        help="Vaild when discretization=EDMDiscretization. A reasonable range is [0.2, 80.0]",
+    )
+    parser.add_argument(
+        "--rho",
+        type=float,
+        default=7.0,
+        help="Vaild when discretization=EDMDiscretization. This was set to 7.0 in the EDM paper. ",
+    )
+
     parser.add_argument("--sample_step", type=int, default=40)
     parser.add_argument("--num_rows", type=int, default=1)
     parser.add_argument("--num_cols", type=int, default=1)
@@ -184,6 +217,9 @@ def run_txt2img(
         guider=args.guider,
         guidance_scale=args.guidance_scale,
         discretization=args.discretization,
+        sigma_min=args.sigma_min,
+        sigma_max=args.sigma_max,
+        rho=args.rho,
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
@@ -253,6 +289,9 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         guider=args.guider,
         guidance_scale=args.guidance_scale,
         discretization=args.discretization,
+        sigma_min=args.sigma_min,
+        sigma_max=args.sigma_max,
+        rho=args.rho,
         steps=args.sample_step,
         img2img_strength=strength,
         stage2strength=stage2strength,
@@ -317,6 +356,14 @@ def sample(args):
     version_dict = VERSION2SPECS.get(version)
 
     task = args.task
+
+    if args.discretization is None:
+        assert "discretization_config" in config.model.params.denoiser_config.params
+        args.discretization = config.model.params.denoiser_config.params.discretization_config
+    else:
+        config.model.params.denoiser_config.params.discretization_config = get_discretization(
+            args.discretization, args.sigma_min, args.sigma_max, args.rho
+        )
 
     add_pipeline = args.add_pipeline
     if not version.startswith("SDXL-base") and add_pipeline:
@@ -383,6 +430,9 @@ def sample(args):
             num_cols=args.num_cols,
             guider=args.guider,
             discretization=args.discretization,
+            sigma_min=args.sigma_min,
+            sigma_max=args.sigma_max,
+            rho=args.rho,
             steps=args.sample_step,
             img2img_strength=stage2strength,
             specify_num_samples=False,
