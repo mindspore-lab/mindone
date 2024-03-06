@@ -16,3 +16,21 @@ python motion_lora_convert.py --src {path to torch motion lora ckpt} --tar {outp
 ```
 
 The converted checkpoint will be saved in {output folder}
+
+## Save original dataset files as embedding cache to accelerate training
+
+1. MindRecord:
+```
+python tools/embedding_cache.py --config configs/training/mmv2_train.yaml \
+                                --train_data_type mindrecord \
+                                --cache_folder /path/to/save_mindrecord \
+                                --image_size 512
+```
+
+2. npz:
+```
+python tools/embedding_cache.py --config configs/training/mmv2_train.yaml \
+                                --train_data_type npz \
+                                --cache_folder /path/to/save_mindrecord \
+                                --image_size 512
+```

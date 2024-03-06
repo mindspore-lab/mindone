@@ -6,6 +6,8 @@ import sys
 import time
 from functools import partial
 
+import numpy as np
+
 sys.path.append(".")
 sys.path.append("..")
 if os.environ.get("MS_PYNATIVE_GE") != "1":
@@ -67,7 +69,7 @@ def get_parser_sample():
         "--guidance_scale",
         type=float,
         default=5.0,
-        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (uncond - cond).",
+        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (cond - uncond).",
     )
     parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
     parser.add_argument("--sample_step", type=int, default=40)
@@ -191,6 +193,7 @@ def run_txt2img(
     for i, prompt in enumerate(prompts):
         images = []
         for j in range(num_samples):
+            np.random.seed(args.seed + j)  # set seed for every sample
             print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"], f"({j+1}/{num_samples})")
             value_dict["prompt"] = prompt
             s_time = time.time()

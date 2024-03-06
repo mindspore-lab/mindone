@@ -115,6 +115,7 @@ class UNet3DModel(nn.Cell):
         unet_chunk_size=2,
         adm_in_channels=None,
         use_recompute=False,
+        recompute_strategy="down_up",
         # Additional
         use_inflated_groupnorm=True,  # diff, default is to use in mm-v2, which is more reasonable.
         use_motion_module=False,
@@ -136,12 +137,9 @@ class UNet3DModel(nn.Cell):
             assert unet_use_temporal_attention is False, "not support"
             assert motion_module_type == "Vanilla", "not support"
         else:
-            print("D---: WARNING: not using motion module")
+            print("WARNING: not using motion module")
 
         self.norm_in_5d = not use_inflated_groupnorm
-
-        print("D--: norm in 5d: ", self.norm_in_5d)
-        print("D--: flash attention: ", enable_flash_attention)
 
         if use_spatial_transformer:
             assert (
@@ -500,13 +498,30 @@ class UNet3DModel(nn.Cell):
 
         # TODO: optimize where to recompute & fix bug on cell list.
         if use_recompute:
-            print("D--: recompute: ", use_recompute)
-            for iblock in self.input_blocks:
-                self.recompute(iblock)
-                # mblock.recompute()
-            for oblock in self.output_blocks:
-                self.recompute(oblock)
-                # oblock.recompute()
+            # print("D--: recompute strategy: ", recompute_strategy)
+            if recompute_strategy in ["down_mm", "down_mm_half", "down_blocks"]:
+                for iblock in self.input_blocks:
+                    if recompute_strategy == "down_blocks":
+                        self.recompute(iblock)
+                    else:
+                        # 12 input blocks
+                        for idx, cell in enumerate(iblock, 1):
+                            # recompute level 1 blocks (whose activations are very large), i.e. block 2-4
+                            if (recompute_strategy == "down_mm_half" and idx <= 4) or (recompute_strategy == "down_mm"):
+                                if isinstance(cell, VanillaTemporalModule):
+                                    self.recompute(cell)
+            elif recompute_strategy == "up_mm":
+                for oblock in self.output_blocks:
+                    for cell in oblock:
+                        if isinstance(cell, VanillaTemporalModule):
+                            self.recompute(cell)
+            elif recompute_strategy == "up_down":
+                for iblock in self.input_blocks:
+                    self.recompute(iblock)
+                for oblock in self.output_blocks:
+                    self.recompute(oblock)
+            else:
+                raise NotImplementedError
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -518,7 +533,6 @@ class UNet3DModel(nn.Cell):
 
     def set_mm_amp_level(self, amp_level):
         # set motion module precision
-        print("D--: mm amp level: ", amp_level)
         for i, celllist in enumerate(self.input_blocks, 1):
             for cell in celllist:
                 if isinstance(cell, VanillaTemporalModule):

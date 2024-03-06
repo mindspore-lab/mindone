@@ -6,6 +6,7 @@ import imagesize
 import numpy as np
 import pandas as pd
 from gm.data.commons import TEMPLATES_FACE, TEMPLATES_OBJECT, TEMPLATES_STYLE
+from gm.data.util import _is_valid_text_input
 from gm.util import instantiate_from_config
 from PIL import Image
 from PIL.ImageOps import exif_transpose
@@ -101,6 +102,20 @@ class Text2ImageDataset:
             if self.prompt_empty_probability and random.random() < self.prompt_empty_probability
             else self.local_captions[idx]
         )
+
+        if not _is_valid_text_input(caption):
+            print(
+                f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+            )
+
+            caption = str(caption)
+
+            if _is_valid_text_input(caption):
+                print("WARNING: convert caption type to string success.", flush=True)
+            else:
+                caption = " "
+                print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
+
         caption = np.array(caption)
 
         sample = {
@@ -145,7 +160,14 @@ class Text2ImageDataset:
 
         if self.tokenizer:
             data = {k: (v.tolist() if k in ("txt", "sample_name") else v.astype(np.float32)) for k, v in data.items()}
-            tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+
+            try:
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+            except Exception as e:
+                print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
+                data["txt"] = [" " for _ in range(len(data["txt"]))]
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+
             outs = (data["image"],) + tuple(tokens)
             if "sample_name" in data:
                 outs += (data["sample_name"],)

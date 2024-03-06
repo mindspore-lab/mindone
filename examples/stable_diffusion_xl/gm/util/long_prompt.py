@@ -384,7 +384,7 @@ def do_sample(
     if kwargs:
         print(
             "Some key arguments are fed but not supported in the long text prompt sampling function"
-            " ".join(list(kwargs.key()))
+            " ".join(list(kwargs.keys()))
         )
 
     dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16

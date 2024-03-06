@@ -181,6 +181,7 @@ class LatentDiffusion(DDPM):
         conditioning_key=None,
         scale_factor=1.0,
         scale_by_std=False,
+        emb_cache=False,
         *args,
         **kwargs,
     ):
@@ -223,6 +224,8 @@ class LatentDiffusion(DDPM):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys)
             self.restarted_from_ckpt = True
+
+        self.emb_cache = emb_cache
 
     def register_schedule(
         self,
@@ -401,6 +404,28 @@ class LatentDiffusion(DDPM):
     def reduce_loss(self, loss):
         # model output/loss shape: (b c f h w)
         return loss.mean([1, 2, 3, 4])
+
+
+class LatentDiffusionWithEmbedding(LatentDiffusion):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_latents(self, x):
+        B, F, C, H, W = x.shape
+        if C != 4:
+            raise ValueError("Expect input shape (b f 4 h w), but get {}".format(x.shape))
+        z = ops.stop_gradient(self.scale_factor * x)
+
+        # (b f c h w) -> (b c f h w )
+        z = ops.transpose(z, (0, 2, 1, 3, 4))
+        return z
+
+    def get_condition_embeddings(self, text_tokens, control=None):
+        # text conditions embedding inputs for cross-attention
+        text_emb = ops.stop_gradient(text_tokens)
+        cond = {"c_crossattn": text_emb}
+
+        return cond
 
 
 # latent diffusion (unet) forward based on input noised latent and encoded conditions

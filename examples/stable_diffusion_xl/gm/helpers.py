@@ -336,6 +336,8 @@ def get_learning_rate(optim_config, total_step, scaler=1.0):
     if "scheduler_config" in optim_config:
         scheduler_config = optim_config.get("scheduler_config")
         scheduler = instantiate_from_config(scheduler_config)
+        if hasattr(scheduler, "lr_max_decay_steps") and scheduler.lr_max_decay_steps == -1:
+            scheduler.lr_max_decay_steps = total_step
         lr = [scaled_lr * scheduler(step) for step in range(total_step)]
     else:
         print(f"scheduler_config not exist, train with base_lr {base_lr} and lr_scaler {scaler}")

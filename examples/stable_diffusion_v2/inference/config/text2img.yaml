@@ -1,4 +1,5 @@
 prompt: "A cute wolf in winter forest"  # The prompt to render
+a_prompt: "best quality"
 negative_prompt: ""  # The negative prompt not to render
 H: 512  # Image height, in pixel space
 W: 512  # Image width, in pixel space

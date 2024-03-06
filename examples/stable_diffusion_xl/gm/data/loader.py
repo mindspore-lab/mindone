@@ -14,6 +14,7 @@ def create_loader(
     dataset_config,
     per_batch_size,
     total_step=1000,
+    num_epochs=0,
     num_parallel_workers=8,
     shuffle=True,
     drop_remainder=True,
@@ -48,6 +49,7 @@ def create_loader(
     Returns:
         BatchDataset, dataset batched.
     """
+    use_webdataset = dataset_config["target"].split(".")[-1].startswith("T2I_Webdataset")
     if cache_latent and cache_text_embedding:
         assert cache_path is not None
         assert dataset_config["target"].split(".")[-1] in ("Text2ImageDataset",)
@@ -64,7 +66,6 @@ def create_loader(
             max_embeddings_multiples=max_embeddings_multiples,
             **dataset_config.get("params", dict()),
         )
-
     batch_collate_fn, dataset_column_names, dataset_output_column_names = (
         dataset.collate_fn,
         dataset.dataset_column_names,
@@ -72,13 +73,13 @@ def create_loader(
     )
     dataset_size = len(dataset)
     num_step_per_epoch = dataset_size // (per_batch_size * rank_size)
-    epoch_size = math.ceil(total_step / num_step_per_epoch)
+    epoch_size = num_epochs if num_epochs else math.ceil(total_step / num_step_per_epoch)
 
     de.config.set_seed(1236517205 + rank)
     cores = multiprocessing.cpu_count()
-    num_parallel_workers = min(int(cores / rank_size), num_parallel_workers)
+    num_parallel_workers = min(int(cores / min(rank_size, 8)), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
-    if rank_size > 1:
+    if (rank_size > 1) and (not use_webdataset):
         ds = de.GeneratorDataset(
             dataset,
             column_names=dataset_column_names,
@@ -121,6 +122,7 @@ def create_loader_dreambooth(
     dataset_config,
     per_batch_size,
     total_step=1000,
+    num_epochs=0,
     num_parallel_workers=8,
     shuffle=True,
     drop_remainder=True,
@@ -149,13 +151,15 @@ def create_loader_dreambooth(
     )
     dataset_size = len(dataset)
     num_step_per_epoch = dataset_size // (per_batch_size * rank_size)
-    epoch_size = math.ceil(total_step / num_step_per_epoch)
+    epoch_size = num_epochs if num_epochs else math.ceil(total_step / num_step_per_epoch)
 
     de.config.set_seed(1236517205 + rank)
     cores = multiprocessing.cpu_count()
-    num_parallel_workers = min(int(cores / rank_size), num_parallel_workers)
+    num_parallel_workers = min(int(cores / min(rank_size, 8)), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
-    if rank_size > 1:
+
+    use_webdataset = dataset_config["target"].split(".")[-1].startswith("T2I_Webdataset")
+    if (rank_size > 1) and (not use_webdataset):
         ds = de.GeneratorDataset(
             dataset,
             column_names=dataset_column_names,
