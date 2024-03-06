@@ -27,7 +27,13 @@ def parse_args():
     )
     # the following args's defualt value will be overrided if specified in config yaml
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
-    parser.add_argument("--data_path", default="dataset", type=str, help="data path")
+    parser.add_argument("--data_path", default="dataset", type=str, help="path to video root folder")
+    parser.add_argument(
+        "--csv_path",
+        default=None,
+        type=str,
+        help="path to csv annotation file. If None, video_caption.csv is expected to live under `data_path`",
+    )
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
