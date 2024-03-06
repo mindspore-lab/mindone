@@ -81,11 +81,6 @@ To finetune DiT model conditioned on class labels on Ascend devices, use:
 python train.py --config configs/training/class_cond_finetune.yaml
 ```
 
-To finetune DiT model on images without any conditions on Ascend devices, use:
-```bash
-python train.py --config configs/training/unconditional_finetune.yaml
-```
-
 You can adjust the hyper-parameters in the yaml file:
 ```yaml
 # training hyper-params

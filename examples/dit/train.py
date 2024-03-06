@@ -105,25 +105,6 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-def set_dit_trainable_params(dit_model, trainable_param_names=[], train=True, condition="class"):
-    if condition is not None:
-        if condition == "class":
-            trainable_param_names += ["y_embedder."]
-        elif condition == "text":
-            trainable_param_names += ["text_embedding_projection."]
-        else:
-            raise ValueError(f"Incorrect condition type : {condition}")
-    n_params_trainable = 0
-    for param in dit_model.get_parameters():
-        if any([n in param.name for n in trainable_param_names]):
-            param.requires_grad = train
-            if train:
-                n_params_trainable += 1
-        else:
-            param.requires_grad = False
-    logger.info(f"Set {n_params_trainable} params to train.")
-
-
 def set_dit_all_params(dit_model, train=True, **kwargs):
     n_params_trainable = 0
     for param in dit_model.get_parameters():
@@ -137,7 +118,7 @@ def set_dit_params(dit_model, ft_all_params, **kwargs):
     if ft_all_params:
         set_dit_all_params(dit_model, **kwargs)
     else:
-        set_dit_trainable_params(dit_model, **kwargs)
+        raise ValueError("Fintuning partial params is not supported!")
 
 
 def main(args):
@@ -168,8 +149,8 @@ def main(args):
     if not args.dit_initialize_random:
         dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
     dit_model.set_train(True)
-    # set temp_blocks  train
-    set_dit_params(dit_model, ft_all_params=True, train=True, condition=args.condition)
+
+    set_dit_params(dit_model, ft_all_params=True, train=True)
 
     # 2.2 vae
     logger.info("vae init")
