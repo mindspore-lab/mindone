@@ -55,7 +55,7 @@ def create_transforms(h, w, interpolation="bicubic", backend="al", use_safer_aug
     elif backend == "ms":
         # TODO: MindData doesn't support batch transform. can NOT make sure all frames are flipped the same
         from mindspore.dataset.transforms import Compose
-        from mindspore.dataset.vision import Inter, CenterCrop, RandomHorizontalFlip, Resize
+        from mindspore.dataset.vision import CenterCrop, Inter, RandomHorizontalFlip, Resize
 
         mapping = {"bilinear": Inter.BILINEAR, "bicubic": Inter.BICUBIC}
         pixel_transforms = Compose(
@@ -177,9 +177,7 @@ class TextImageDataset:
         if self.transform_backend == "pt":
             import torch
 
-            pixel_values = (
-                torch.from_numpy(pixel_values).permute(2, 0, 1).contiguous()
-            )  # (h, w, c) -> (c, h, w)
+            pixel_values = torch.from_numpy(pixel_values).permute(2, 0, 1).contiguous()  # (h, w, c) -> (c, h, w)
             pixel_values = self.pixel_transforms(pixel_values)
             pixel_values = pixel_values.numpy()
         elif self.transform_backend == "al":
