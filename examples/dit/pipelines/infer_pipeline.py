@@ -79,13 +79,13 @@ class DiTInferPipeline(ABC):
         return:
             images (b H W 3)
         """
-        assert inputs.dim() == 4, f"Expect to have 4-dim input, but got {inputs.shape}"
         z, y = self.data_prepare(inputs)
         model_kwargs = dict(y=y, cfg_scale=self.guidance_rescale)
         latents = self.sampling_func(
             self.dit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
         )
         latents, _ = latents.chunk(2, axis=0)
+        assert latents.dim() == 4, f"Expect to have 4-dim latents, but got {latents.shape}"
 
         images = self.vae_decode(latents)
 
