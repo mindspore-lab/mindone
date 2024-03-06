@@ -1,6 +1,6 @@
 # task
 image_finetune: False
-output_path: outputs/mmv2_train_webvid5_256b4_recompute
+output_path: outputs/mmv2_train_webvid
 
 # model
 model_config: configs/stable_diffusion/v1-train-mmv2.yaml
@@ -31,5 +31,6 @@ use_ema: False
 clip_grad: True
 
 # training process
-ckpt_save_interval: 2000
+ckpt_save_epochs: 2000
+ckpt_max_keep: 10
 save_mm_only: True

@@ -25,7 +25,7 @@ num_parallel_workers: 12
 dataset_sink_mode: False
 
 # training hyper-params
-start_learning_rate: 1.e-4
+start_learning_rate: 5.e-4 # larger than mm train, tested on 512x512 resolution
 scheduler: constant
 warmup_steps: 10
 train_batch_size: 4  # original: 4
@@ -38,5 +38,7 @@ use_ema: False
 clip_grad: True
 
 # training process
-ckpt_save_interval: 2000
+ckpt_save_epochs: 2000
 ckpt_max_keep: 20
+
+use_recompute: True

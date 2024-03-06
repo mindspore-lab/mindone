@@ -31,6 +31,7 @@ def create_scheduler(
     decay_rate: float = 0.9,
     milestones: list = None,
     num_epochs: int = 20,
+    total_steps: int = -1,
     num_cycles: int = 1,
     cycle_decay: float = 1.0,
 ):
@@ -50,6 +51,7 @@ def create_scheduler(
         decay_rate: LR decay rate (default: 0.9)
         milestones: list of steps milestones for 'multi_step_decay' scheduler. Must be increasing.
         num_epochs: number of total epochs.
+        total_steps: total steps to schedule. If -1, lr will be scheduled in num_epochs * steps_per_epoch steps.
     Returns:
         A list of float numbers indicating the learning rate at every step
     """
@@ -57,7 +59,11 @@ def create_scheduler(
     if milestones is None:
         milestones = []
 
-    num_steps = num_epochs * steps_per_epoch
+    if total_steps == -1:
+        num_steps = num_epochs * steps_per_epoch
+    else:
+        num_steps = total_steps
+
     if warmup_steps + decay_steps > num_steps:
         _logger.warning("warmup_steps + decay_steps > num_steps. Please check and reduce warmup_steps or decay_steps!")
 

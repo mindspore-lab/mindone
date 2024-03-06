@@ -195,6 +195,7 @@ class FrozenOpenCLIPEmbedder(FrozenCLIPEmbedder):
         self.dtype = ms.float16 if use_fp16 else ms.float32
         self.context_length = context_length
         self.tokenizer = get_tokenizer(tokenizer_name)
+        self.tokenizer_name = tokenizer_name
         setattr(self.tokenizer, "context_length", context_length)
 
         self.model = OpenClipTextEncoder(

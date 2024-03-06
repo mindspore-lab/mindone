@@ -17,6 +17,7 @@ import mindspore.ops as ops
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
+from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora
@@ -216,9 +217,15 @@ def main(args):
     logger.info(f"Prediction type: {prediction_type}")
 
     # create sampler
-    # TODO: currently we support DPM only
-    sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
-    sname = "dpm_solver"
+    if args.ddim:
+        sampler = DDIMSampler(model)
+        sname = "ddim"
+    elif args.dpm_solver:
+        sampler = DPMSolverSampler(model, "dpmsolver", prediction_type=prediction_type)
+        sname = "dpm_solver"
+    else:
+        sampler = DPMSolverSampler(model, "dpmsolver++", prediction_type=prediction_type)
+        sname = "dpm_solver_pp"
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -389,6 +396,16 @@ if __name__ == "__main__":
         type=int,
         default=768,
         help="image width, in pixel space",
+    )
+    parser.add_argument(
+        "--ddim",
+        action="store_true",
+        help="use ddim sampling",
+    )
+    parser.add_argument(
+        "--dpm_solver",
+        action="store_true",
+        help="use dpm_solver sampling",
     )
     parser.add_argument(
         "--scale",

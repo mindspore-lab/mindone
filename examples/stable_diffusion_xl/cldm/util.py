@@ -13,13 +13,16 @@ import mindspore as ms
 
 
 def get_control(args, num_samples, resolution):
-    image = cv2.imread(args.control_image_path)
-    input_image = np.array(image, dtype=np.uint8)
-    img = resize_image(HWC3(input_image), resolution)
-    # img = resize_image(HWC3(input_image), min(input_image.shape[:2]))
     if args.controlnet_mode == "canny":
-        apply_canny = CannyDetector()
-        detected_map = apply_canny(img, args.low_threshold, args.high_threshold)
+        if args.control_path is not None:
+            detected_map = cv2.imread(args.control_path)
+            detected_map = resize_image(HWC3(detected_map), resolution)
+        else:
+            image = cv2.imread(args.image_path)
+            input_image = np.array(image, dtype=np.uint8)
+            img = resize_image(HWC3(input_image), resolution)
+            apply_canny = CannyDetector()
+            detected_map = apply_canny(img, args.low_threshold, args.high_threshold)
         detected_map = HWC3(detected_map)
     else:
         raise NotImplementedError(f"mode {args.controlnet_mode} not supported")

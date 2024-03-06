@@ -4,6 +4,13 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 
 ONE is short for "ONE for all" and "Optimal generators with No Exception" (credits to GPT-4).
 ## News
+- 2024.03.04
+    1. New generative models released!
+        - [AnimateDiff](examples/animatediff) v1, v2, and v3
+        - [Pangu Draw v3](examples/pangu_draw_v3) for Chinese text-to-image generation
+        - [Stable Video Diffusion(SVD)](examples/svd) for image-to-video generation
+        - [Tune-a-Video](examples/tuneavideo) for one-shot video tuning.
+    2. Enhanced Stable Diffusion and Stable Diffusion XL with more add-ons: ControlNet, T2I-Adapter, and IP-Adapter.
 - 2023.07.01 stable diffusion 2.0 lora fine-tune example can be found [here](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/lora_finetune.md)
 
 ## Playground
@@ -15,6 +22,8 @@ ONE is short for "ONE for all" and "Optimal generators with No Exception" (credi
 - [Stable Diffusion XL](examples/stable_diffusion_xl): New state-of-the-art SD model with double text embedders and larger UNet.
 
 - [VideoComposer](examples/videocomposer): Generate videos with prompts or reference videos via controllable video diffusion (both training and inference are supported)
+
+- [AnimateDiff](examples/animatediff): SoTA text-to-video generation models (including v1, v2, and v3) supporting motion lora fine-tuning.
 
 
 ## Awesome List

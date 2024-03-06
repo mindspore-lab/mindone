@@ -1,6 +1,7 @@
 import importlib
 import random
 from inspect import isfunction
+from typing import List, Optional, Union
 
 import numpy as np
 
@@ -74,6 +75,13 @@ def seed_everything(seed):
     random.seed(seed)
     np.random.seed(seed)
     ms.set_seed(seed)
+
+
+@ms.constexpr
+def get_timestep_multinomial(p, size=1):
+    p = p.asnumpy()
+    out = np.random.multinomial(1, p / p.sum(), size=size).argmax(-1)
+    return Tensor(out, ms.int64)
 
 
 clip_grad = C.MultitypeFuncGraph("clip_grad")
@@ -220,3 +228,70 @@ def auto_mixed_precision(network, amp_level="O0"):
     else:
         raise ValueError("The amp level {} is not supported".format(amp_level))
     return network
+
+
+def pad_tokens(tokens, max_length, bos, eos, pad, no_boseos_middle=True, chunk_length=77):
+    r"""
+    Pad the tokens (with starting and ending tokens) and weights (with 1.0) to max_length.
+    """
+    for i in range(len(tokens)):
+        tokens[i] = [bos] + tokens[i] + [pad] * (max_length - 1 - len(tokens[i]) - 1) + [eos]
+
+    return tokens
+
+
+def get_text_index(
+    tokenizer,
+    prompt: Union[str, List[str]],
+    max_embeddings_multiples: Optional[int] = 4,
+    no_boseos_middle: Optional[bool] = False,
+):
+    r"""
+    Prompts can be assigned with local weights using brackets. For example,
+    prompt 'A (very beautiful) masterpiece' highlights the words 'very beautiful',
+    and the embedding tokens corresponding to the words get multiplied by a constant, 1.1.
+
+    Also, to regularize of the embedding, the weighted embedding would be scaled to preserve the original mean.
+
+    Args:
+        pipe (`DiffusionPipeline`):
+            Pipe to provide access to the tokenizer and the text encoder.
+        prompt (`str` or `List[str]`):
+            The prompt or prompts to guide the image generation.
+        max_embeddings_multiples (`int`, *optional*, defaults to `3`):
+            The max multiple length of prompt embeddings compared to the max output length of text encoder.
+        no_boseos_middle (`bool`, *optional*, defaults to `False`):
+            If the length of text token is multiples of the capacity of text encoder, whether reserve the starting and
+            ending token in each of the chunk in the middle.
+    """
+    max_length = (tokenizer.model_max_length - 2) * max_embeddings_multiples + 2
+    if isinstance(prompt, str):
+        prompt = [prompt]
+
+    prompt_tokens = [token[1:-1] for token in tokenizer(prompt, max_length=max_length, truncation=True).input_ids]
+    prompt_tokens_length = np.array([len(p) + 2 for p in prompt_tokens], np.int32)
+    # round up the longest length of tokens to a multiple of (model_max_length - 2)
+    max_length = max([len(token) for token in prompt_tokens])
+
+    max_embeddings_multiples = min(
+        max_embeddings_multiples,
+        (max_length - 1) // (tokenizer.model_max_length - 2) + 1,
+    )
+    max_embeddings_multiples = max(1, max_embeddings_multiples)
+    max_length = (tokenizer.model_max_length - 2) * max_embeddings_multiples + 2
+
+    # pad the length of tokens and weights
+    bos = tokenizer.bos_token_id
+    eos = tokenizer.eos_token_id
+    pad = getattr(tokenizer, "pad_token_id", eos)
+    prompt_tokens = pad_tokens(
+        prompt_tokens,
+        max_length,
+        bos,
+        eos,
+        pad,
+        no_boseos_middle=no_boseos_middle,
+        chunk_length=tokenizer.model_max_length,
+    )
+    prompt_tokens = np.array(prompt_tokens, np.int32)
+    return prompt_tokens, prompt_tokens_length

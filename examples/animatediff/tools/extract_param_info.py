@@ -139,6 +139,28 @@ def extract_ms_unet_mm():
     print(cnt)
 
 
+def extract_ms_sparsectrl_encoder(control_type="image"):
+    mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+    sys.path.insert(0, mindone_lib_path)
+    from mindone.utils.config import instantiate_from_config
+
+    if control_type == "image":
+        sparse_control_unet_config = "configs/stable_diffusion/v3-inference-mmv2-image-condition.yaml"
+    elif control_type == "latent":
+        sparse_control_unet_config = "configs/stable_diffusion/v3-inference-mmv2-latent-condition.yaml"
+
+    sd_config = OmegaConf.load(sparse_control_unet_config).model
+    model = instantiate_from_config(sd_config).model.diffusion_model.controlnet
+
+    cnt = 0
+    # for param in model.get_parameters():
+    for name, param in model.parameters_and_names():
+        print(f"{param.name}#{param.shape}#{param.dtype}")
+        cnt += 1
+    print(f"params count : {cnt}")
+
+
 if __name__ == "__main__":
     extract_ms_sd_mm(v="v1", print_mm=False, print_sd=True)
     # extract_ms_sd_params()
+    # extract_ms_sparsectrl_encoder(control_type="latent")

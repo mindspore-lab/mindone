@@ -9,9 +9,9 @@ from mindone.utils.params import load_param_into_net_with_filter
 logger = logging.getLogger()
 
 
-def merge_motion_lora_to_unet(unet, lora_ckpt_path, alpha=1.0):
+def merge_lora_to_unet(unet, lora_ckpt_path, alpha=1.0):
     """
-    Merge lora weights to motion modules of UNet cell. Make sure motion module checkpoint has been loaded before invoking this function.
+    Merge lora weights to modules of UNet cell. Make sure SD checkpoint has been loaded before invoking this function.
 
     Args:
         unet: nn.Cell
@@ -176,9 +176,34 @@ def load_motion_modules(
         if motion_lora_config["path"] not in ["", None]:
             _mlora_path, alpha = motion_lora_config["path"], motion_lora_config["alpha"]
             logger.info("Loading motion lora from {}".format(_mlora_path))
-            unet = merge_motion_lora_to_unet(unet, _mlora_path, alpha)
+            unet = merge_lora_to_unet(unet, _mlora_path, alpha)
 
     return unet
+
+
+def load_adapter_lora(unet, adapter_lora_path, adapter_lora_alpha):
+    # load motion module weights if use mm
+    logger.info("Loading domain adapter lora module from {}".format(adapter_lora_path))
+    unet = merge_lora_to_unet(unet, adapter_lora_path, adapter_lora_alpha)
+
+    return unet
+
+
+def load_controlnet(sd_model, controlnet_path, verbose=True):
+    logger.info("Loading sparse control encoder from {}".format(controlnet_path))
+    controlnet_state_dict = ms.load_checkpoint(controlnet_path)
+    controlnet_state_dict = (
+        controlnet_state_dict["controlnet"] if "controlnet" in controlnet_state_dict else controlnet_state_dict
+    )
+    filter_list = list(controlnet_state_dict.keys())
+    param_not_load, ckpt_not_load = load_param_into_net_with_filter(sd_model, controlnet_state_dict, filter=filter_list)
+    assert (
+        len(ckpt_not_load) == 0
+    ), f"All params in SD checkpoint must be loaded. but got these not loaded {ckpt_not_load}"
+    if verbose:
+        if len(param_not_load) > 0:
+            logger.info("Net params not loaded: {}".format([p for p in param_not_load if not p.startswith("adam")]))
+    return sd_model
 
 
 def build_model_from_config(config, ckpt: str, is_training=False, use_motion_module=True):

@@ -19,6 +19,7 @@ model:
     scale_factor: 0.18215
     use_ema: False
     use_fp16: True
+    parameterization: "velocity"
 
     embedder_config:
       target: ldm.modules.encoders.modules.FrozenOpenCLIPImageEmbedder

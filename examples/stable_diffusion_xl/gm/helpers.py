@@ -1,5 +1,7 @@
+import copy
 import logging
 import os
+import time
 from datetime import datetime
 from typing import List, Union
 
@@ -22,7 +24,7 @@ from gm.modules.diffusionmodules.sampler import (
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from PIL import Image
 
 import mindspore as ms
@@ -121,6 +123,10 @@ def set_default(args):
 
     # data sink step
     if args.data_sink:
+        if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
+            os.environ["MS_DATASET_SINK_QUEUE"] = "10"
+            print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+
         assert args.dataset_load_tokenizer
         args.log_interval = args.sink_size
         if not (args.save_ckpt_interval >= args.sink_size and args.save_ckpt_interval % args.sink_size == 0):
@@ -129,7 +135,13 @@ def set_default(args):
             args.infer_interval = args.sink_size * max(1, (args.infer_interval // args.sink_size))
 
     # split weights path
-    args.weight = args.weight.split(",") if len(args.weight) > 0 else ""
+    args.weight = args.weight.split(",") if args.weight is not None and len(args.weight) > 0 else ""
+
+    # cache
+    if "cache_latent" in args and "cache_text_embedding" in args:
+        assert (
+            args.cache_latent == args.cache_text_embedding
+        ), "Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent"
 
     # Directories and Save run settings
     if args.save_path_with_time:
@@ -161,6 +173,65 @@ def set_default(args):
     return args
 
 
+def get_all_reduce_config(model):
+    trainable_params = []
+    all_reduce_fusion_config = []
+
+    i = -1
+
+    if model.conditioner is not None and len(model.conditioner.trainable_params()) > 0:
+        for p in model.conditioner.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    unet = model.model.diffusion_model
+    for p in unet.time_embed.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    for p in unet.label_emb.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    all_reduce_fusion_config.append(i)
+
+    for block in unet.input_blocks:
+        for p in block.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    for p in unet.middle_block.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    all_reduce_fusion_config.append(i)
+
+    for block in unet.output_blocks:
+        for p in block.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    for p in unet.out.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    if hasattr(unet, "id_predictor"):
+        for p in unet.id_predictor.trainable_params():
+            trainable_params.append(p)
+            i += 1
+    all_reduce_fusion_config.append(i)
+
+    trainable_params = tuple(trainable_params)
+
+    num_trainable_params = (
+        len(model.model.trainable_params()) + len(model.conditioner.trainable_params())
+        if model.conditioner is not None
+        else len(model.model.trainable_params())
+    )
+    assert len(trainable_params) == num_trainable_params
+
+    return trainable_params, all_reduce_fusion_config
+
+
 def create_model(
     config: DictConfig,
     checkpoints: Union[str, List[str]] = "",
@@ -171,9 +242,17 @@ def create_model(
     textual_inversion_ckpt: str = None,
     placeholder_token: str = None,
     num_vectors: int = None,
+    load_first_stage_model: bool = True,
+    load_conditioner: bool = True,
 ):
     # create model
-    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
+    model = load_model_from_config(
+        config.model,
+        checkpoints,
+        amp_level=amp_level,
+        load_first_stage_model=load_first_stage_model,
+        load_conditioner=load_conditioner,
+    )
 
     if freeze:
         model.set_train(False)
@@ -182,7 +261,12 @@ def create_model(
             p.requires_grad = False
 
     if param_fp16:
-        convert_modules = (model.conditioner, model.first_stage_model)
+        convert_modules = ()
+        if load_conditioner:
+            convert_modules += (model.conditioner,)
+        if load_first_stage_model:
+            convert_modules += (model.first_stage_model,)
+
         if isinstance(model.model, nn.Cell):
             convert_modules += (model.model,)
         else:
@@ -246,21 +330,24 @@ def get_loss_scaler(ms_loss_scaler="static", scale_value=1024, scale_factor=2, s
     return loss_scaler
 
 
-def get_learning_rate(optim_comfig, total_step):
-    base_lr = optim_comfig.get("base_learning_rate", 1.0e-6)
-    if "scheduler_config" in optim_comfig:
-        scheduler_config = optim_comfig.get("scheduler_config")
+def get_learning_rate(optim_config, total_step, scaler=1.0):
+    base_lr = optim_config.get("base_learning_rate", 1.0e-6)
+    scaled_lr = scaler * base_lr
+    if "scheduler_config" in optim_config:
+        scheduler_config = optim_config.get("scheduler_config")
         scheduler = instantiate_from_config(scheduler_config)
-        lr = [base_lr * scheduler(step) for step in range(total_step)]
+        if hasattr(scheduler, "lr_max_decay_steps") and scheduler.lr_max_decay_steps == -1:
+            scheduler.lr_max_decay_steps = total_step
+        lr = [scaled_lr * scheduler(step) for step in range(total_step)]
     else:
-        print(f"scheduler_config not exist, train with base_lr {base_lr}")
-        lr = base_lr
+        print(f"scheduler_config not exist, train with base_lr {base_lr} and lr_scaler {scaler}")
+        lr = scaled_lr
 
     return lr
 
 
-def get_optimizer(optim_comfig, lr, params, filtering=True):
-    optimizer_config = optim_comfig.get("optimizer_config", {"target": "mindspore.nn.SGD"})
+def get_optimizer(optim_config, lr, params, filtering=True):
+    optimizer_config = optim_config.get("optimizer_config", {"target": "mindspore.nn.SGD"})
 
     def decay_filter(x):
         return "norm" not in x.name.lower() and "bias" not in x.name.lower()
@@ -292,7 +379,11 @@ def get_optimizer(optim_comfig, lr, params, filtering=True):
     return optimizer
 
 
-def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
+def load_model_from_config(
+    model_config, ckpts=None, verbose=True, amp_level="O0", load_first_stage_model=True, load_conditioner=True
+):
+    model_config["params"]["load_first_stage_model"] = load_first_stage_model
+    model_config["params"]["load_conditioner"] = load_conditioner
     model = instantiate_from_config(model_config)
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
@@ -324,6 +415,14 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                     new_k = k[:]
                 _new_sd_dict[new_k] = sd_dict[k]
             sd_dict = _new_sd_dict
+
+            # filter first_stage_model and conditioner
+            _keys = copy.deepcopy(list(sd_dict.keys()))
+            for _k in _keys:
+                if not load_first_stage_model and _k.startswith("first_stage_model."):
+                    sd_dict.pop(_k)
+                if not load_conditioner and _k.startswith("conditioner."):
+                    sd_dict.pop(_k)
 
             m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 
@@ -650,10 +749,21 @@ def embed_watermark(img):
     return img
 
 
-def perform_save_locally(save_path, samples):
+def concat_images(images: list, num_cols: int):
+    images = np.concatenate(images, axis=0)
+    _n, _c, _h, _w = images.shape
+    row, col = (int(_n / num_cols), num_cols) if _n % num_cols == 0 else (_n, 1)
+
+    images = images.reshape((row, col, _c, _h, _w)).transpose(2, 0, 3, 1, 4).reshape(1, _c, row * _h, col * _w)
+
+    return images
+
+
+def perform_save_locally(save_path, samples, num_cols=1):
     os.makedirs(os.path.join(save_path), exist_ok=True)
     base_count = len(os.listdir(os.path.join(save_path)))
     samples = embed_watermark(samples)
+    samples = concat_images(samples, num_cols=num_cols)
 
     for sample in samples:
         sample = 255.0 * sample.transpose(1, 2, 0)
@@ -764,6 +874,42 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
+
+
+def pre_compile_graph(config_path, per_batch_size, train_step_fn, rank, max_embeddings_multiples):
+    config = OmegaConf.load(config_path)
+    dataset_config = config.data.dataset_config
+    per_batch_size = config.data.pop("per_batch_size") if per_batch_size is None else per_batch_size
+
+    if "target_size" in dataset_config["params"]:
+        img_size = dataset_config["params"]["target_size"]
+    else:
+        img_size = dataset_config["params"]["multi_aspect"]
+    for i in range(max_embeddings_multiples):
+        if isinstance(img_size, int):
+            h, w = img_size, img_size
+            s_time = time.time()
+            image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
+                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+            )
+            loss, overflow = train_step_fn(image, *tokens)
+            print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
+        else:
+            for h, w in img_size:
+                s_time = time.time()
+                image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
+                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                )
+                loss, overflow = train_step_fn(image, *tokens)
+                print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
 
 
 class EMA(nn.Cell):

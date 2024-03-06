@@ -33,8 +33,9 @@ model:
                 use_linear_in_transformer: True
                 transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
                 context_dim: 2048
-                spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
+                spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
                 legacy: False
+                use_recompute: True
 
         conditioner_config:
             target: gm.modules.GeneralConditioner
@@ -112,30 +113,20 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-4
+    base_learning_rate: 1.0e-5
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
         params:
             beta1: 0.9
-            beta2: 0.999
+            beta2: 0.98
             weight_decay: 0.01
-            eps: 1.0e-8
-
-    scheduler_config:
-        target: gm.lr_scheduler.LambdaLinearScheduler
-        params:
-            warm_up_steps: [ 1e4 ]
-            cycle_lengths: [ 1e13 ]
-            f_start: [ 1.e-6 ]
-            f_max: [ 1. ]
-            f_min: [ 1. ]
 
 
 data:
     per_batch_size: 1
-    total_step: 15000
-    num_parallel_workers: 6
+    total_step: 100000
+    num_parallel_workers: 2
     python_multiprocessing: False
     shuffle: True
 

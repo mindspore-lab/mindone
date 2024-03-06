@@ -1,6 +1,6 @@
 version: SDXL-base-1.0
 model:
-  target: gm.models.diffusion.DiffusionEngine
+  target: gm.models.diffusion.DiffusionEngineControlNet
   params:
     scale_factor: 0.13025
     disable_first_stage_amp: True

@@ -17,6 +17,8 @@ pip install -r requirements.txt
 
 ### Convert Pretrained Checkpoint
 
+<details onclose>
+
 We provide a script for converting pre-trained weight from `.safetensors` to `.ckpt` in `tools/model_conversion/convert_weight.py`.
 
 step1. Download the [Official](https://github.com/Stability-AI/generative-models) pre-train weights [SDXL-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) and [SDXL-refiner-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0) from huggingface.
@@ -43,9 +45,23 @@ python convert_weight.py \
   --key_ms mindspore_key_refiner.yaml
 ```
 
+(Option) Step3. Replace and convert VAE, Download [vae-fp16-fix weights](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix) from huggingface.
+
+```shell
+python convert_diffusers_to_mindone_sdxl.py \
+  --model_path /PATH TO/sdxl-vae-fp16-fix \                 # dir of vae weight
+  --vae_name diffusion_pytorch_model.safetensors \          # source vae weight, from https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+  --sdxl_base_ckpt /PATH TO/sd_xl_base_1.0_ms.ckpt          # base checkpoint, from Step2
+  --checkpoint_path /PATH TO/sd_xl_base_1.0_vaefix_ms.ckpt  # output path
+```
+
+</details>
+
+For details, please refer to [weight_convertion.md](./weight_convertion.md).
+
 ### Dataset Preparation for Fine-Tuning (Optional)
 
-The text-image dataset for fine-tuning should follow the file structure below
+#### The text-image dataset for fine-tuning should follow the file structure below
 
 <details onclose>
 
@@ -77,6 +93,8 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 
 #### Training with Webdataset
 
+<details onclose>
+
 Image-text pair data are archived into `tar` files in webdataset. A training dataset is like
 ```text
 data_dir
@@ -91,6 +109,7 @@ data_dir
 └── ...
 ```
 
+##### WIDS
 We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compatible with minddata GeneratorDataset.
 
 1. Set the training YAML config as follows to use the T2I_Webdataset loader.
@@ -100,6 +119,8 @@ We provide a dataloader for webdataset (`T2I_Webdataset_RndAcs`) that is compati
             params:
                 caption_key: 'text_english'
     ```
+
+    A reference config file is shown in `configs/training/sd_xl_base_finetune_910b_wids.yaml`
 
 2. Set `--data_path` in the training script with the path to the data root of the whole training dataset, e.g. `data_dir` in the above example.
 
@@ -116,9 +137,8 @@ A shardlist decription obeys the following format.
         {"url": "data_dir/part01/00002.tar", "nsamples": 10000},
     ]
 }
-```
 
-For the first time running, the data loader will scan the whole dataset to get the shardlist information (which can be time-consuming for large dataset) and save the shardlist description file to `{data_dir}/data_info.json`. For later-on running, the dataloader will reuse the existing `{data_dir}/data_info.json` to save scanning time.
+```
 
 You can manually specify a new shardlist description file in the config yaml via the `shardlist_desc` argument, for example.
 
@@ -130,9 +150,40 @@ You can manually specify a new shardlist description file in the config yaml via
             shardlist_desc: 'data_dir/data_info.json'
 ```
 
+For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
+
+
+##### Original Webdataset
+
+We also provide a dataloader for original webdataset (`T2I_Webdataset`) that is compatible with minddata GeneratorDataset.
+
+A reference config file is shown in `configs/training/sd_xl_base_finetune_910b_wds.yaml`.
+
+The shardlist description file used here shares the same format as wids.
+
+**Caustion!!** Since we need to know the total number of samples for data parallel training, we provides three ways to get the dataset size of webdataset:
+
+    1. Specify the total number of samples via training config yaml
+        ```yaml
+        dataset_config:
+            target: gm.data.dataset_wds.T2I_Webdataset
+            params:
+                caption_key: 'text_english'
+                num_samples: 10000  # specify total number of samples
+        ```
+        If `num_samples` is not specify or -1, the following 2 ways will be used to get dataset size.
+
+    2. Get total number of samples from shardlist record
+        If shardlist description file is provided in source dataset (see format above), the datsat size will be obtained from the description file. Shardlist description file default path is `{dataset_dir/data_info.json}`.
+
+    3. Scan tar files to record number of samples
+        If neither the total number of samples or the shardlist record is provided, we will scanning all tar files to generate the sharlist description file and get the dataset size. It can be time-consuming for larget dataset.
+
+
 > Note that if you have updated the training data, you should either specify a new shardlist description file or **remove the existing shardlist file** `{data_dir}/data_info.json` for auto re-generation.
 
-For distributed training, no additional effort is required when using `T2I_Webdataset_RndAcs` dataloader, since it's compatible with mindspore `GeneratorDataset` and the data partition will be finished in `GeneratorDataset` just like training with original data format.
+
+</details>
 
 ## Inference
 
@@ -230,6 +281,13 @@ integrate and use.
 For more information on inference and training with T2I-Adapters, please refer
 to [T2I-Adapter](../t2i_adapter/README.md) page.
 
+### Inference with ControlNet
+
+[ControlNet](https://arxiv.org/abs/2302.05543) controls pretrained large diffusion models to support additional input conditions. The ControlNet learns task-specific conditions in an end-to-end way, and the learning is robust even when the training dataset is small. Large diffusion models like Stable Diffusion can be augmented with ControlNets to enable conditional inputs like canny edge maps, segmentation maps, keypoints, etc.
+
+For more information about ControlNet, please refer
+to [ControlNet](controlnet.md) page.
+
 ### Invisible Watermark Detection
 
 To be supplemented
@@ -241,7 +299,9 @@ To be supplemented
 
 We are providing example training configs in `configs/training`. To launch a training, run
 
-1. Vanilla fine-tune, example as:
+#### 1. Vanilla fine-tune, example as:
+
+<details close>
 
 ```shell
 # sdxl-base fine-tune with 1p on Ascend
@@ -259,12 +319,22 @@ mpirun --allow-run-as-root -n 8 python train.py \
   --param_fp16 True \
   --is_parallel True
 
+# sdxl-base fine-tune with cache on Ascend
+bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
+
 # sdxl-base fine-tune with 16p on Ascend
-bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
-bash scripts/run_vanilla_ft_910b_16p /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 0 8 16 /path_to/dataset/  # run on server 1
+bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_16p.json 8 16 16 /path_to/dataset/ # run on server 2
 ```
 
-2. LoRA fine-tune, example as:
+</details>
+
+For details, please refer to [vanilla_finetune.md](./vanilla_finetune.md)
+
+#### 2. LoRA fine-tune, example as:
+
+<details close>
 
 ```shell
 # sdxl-base lora fine-tune with 1p on Ascend
@@ -274,23 +344,29 @@ python train.py \
   --data_path /PATH TO/YOUR DATASET/ \
   --gradient_accumulation_steps 4 \
 ```
+</details>
 
-3. DreamBooth fine-tune
+For details, please refer to [lora_finetune.md](./lora_finetune.md)
+
+#### 3. DreamBooth fine-tune
 
 For details, please refer to [dreambooth_finetune.md](./dreambooth_finetune.md).
 
-4. Textual Inversion fine-tune
+#### 4. Textual Inversion fine-tune
 
 For details, please refer to [textual_inversion_finetune.md](./textual_inversion_finetune.md).
 
-5. Run with Multiple NPUs, example as:
+#### 5. Long prompts support, example as:
+
+<details close>
+
+By default, SDXL only supports the token sequence no longer than 77. For those sequences longer than 77, they will be truncated to 77, which can cause information loss.
+
+To avoid information loss for long text prompts, we add the feature of long prompts training. Long prompts training is supported by `args.lpw` in `train.py`.
 
 ```shell
-# run with multiple NPU/GPUs
-mpirun --allow-run-as-root -n 8 python train.py \
-  --config /PATH TO/config.yaml \
-  --weight /PATH TO/weight.ckpt \
-  --data_path /PATH TO/YOUR DATASET/ \
-  --is_parallel True \
-  --device_target <YOUR DEVCIE>
+python train.py \
+  ...  \  # other arguments configurations
+  --lpw True \
 ```
+</details>
