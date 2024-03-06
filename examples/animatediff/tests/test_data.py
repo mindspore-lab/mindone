@@ -15,10 +15,10 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.config import instantiate_from_config
 
-# csv_path = "../videocomposer/datasets/webvid5/video_caption.csv"
-# video_folder = "../videocomposer/datasets/webvid5"
-csv_path = "./datasets/webvid_overfit/video_caption.csv"
-video_folder = "./datasets/webvid_overfit"
+csv_path = "../videocomposer/datasets/webvid5/video_caption.csv"
+video_folder = "../videocomposer/datasets/webvid5"
+# csv_path = "./datasets/webvid_overfit/video_caption.csv"
+# video_folder = "./datasets/webvid_overfit"
 cfg_path = "configs/stable_diffusion/v1-train-mmv2.yaml"
 
 

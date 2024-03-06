@@ -5,3 +5,5 @@ einops
 omegaconf
 safetensors
 albumentations
+ftfy
+regex

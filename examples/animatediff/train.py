@@ -50,6 +50,10 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 logger = logging.getLogger(__name__)
 
 
+def _to_abspath(rp):
+    return os.path.join(__dir__, rp)
+
+
 def build_model_from_config(config, unet_config_update=None):
     config = OmegaConf.load(config).model
     if unet_config_update is not None:
@@ -186,10 +190,10 @@ def main(args):
         use_recompute=args.use_recompute,
         recompute_strategy=args.recompute_strategy,
     )
-    latent_diffusion_with_loss = build_model_from_config(args.model_config, unet_config_update)
+    latent_diffusion_with_loss = build_model_from_config(_to_abspath(args.model_config), unet_config_update)
     # 1) load sd pretrained weight
     load_pretrained_model(
-        args.pretrained_model_path,
+        _to_abspath(args.pretrained_model_path),
         latent_diffusion_with_loss,
         unet_initialize_random=args.unet_initialize_random,
         load_unet3d_from_2d=(not args.image_finetune),
@@ -245,13 +249,14 @@ def main(args):
     assert trainable_params > 0, "No trainable parameters. Please check model config."
 
     # 3. build dataset
+    csv_path = args.csv_path if args.csv_path is not None else os.path.join(args.data_path, "video_caption.csv")
     if args.image_finetune:
         logger.info("Task is image finetune, num_frames and frame_stride is forced to 1")
         args.num_frames = 1
         args.frame_stride = 1
         data_config = dict(
             video_folder=args.data_path,
-            csv_path=args.data_path + "/video_caption.csv",
+            csv_path=csv_path,
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
             sample_n_frames=args.num_frames,
@@ -266,7 +271,7 @@ def main(args):
     else:
         data_config = dict(
             video_folder=args.data_path,
-            csv_path=args.data_path + "/video_caption.csv",
+            csv_path=csv_path,
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
             sample_n_frames=args.num_frames,
