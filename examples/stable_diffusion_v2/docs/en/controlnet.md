@@ -282,7 +282,7 @@ optim: "adamw"
 start_learning_rate: 5.e-4
 ```
 
-There is an argument named `scale_lr`. Setting it to `True` will lead to a faster convergence for the pose2image task.
+- The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet, which are very hard to train. We scale up the base learning rate for training parameters specifically (x5 by default in Pose2Image task). You can set the scale value by `group_lr_scaler`.
 
 
 For more settings, check the `model_config` file.
@@ -316,7 +316,7 @@ To evaluate the training result, please modify the control image path in the scr
 ```
 sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH $OUTPUT_FOLDER_NAME
 ```
-> For more settings, please [this part](#Generating-Images-with-ControlNet)
+> For more settings, please check [this part](#Generating-Images-with-ControlNet)
 
 The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
@@ -335,7 +335,7 @@ Prompt:
 ![controlnet_train_prompt](https://github.com/congw729/mindone/assets/115451386/7adb909a-a4b3-4ca3-856a-b996233b7b33)
 
 
-Here are some inference results of pose2image task after training MPII1K dataset (lr=2e-4, scale_lr=True, bs=2, epoch=30):
+Here are some inference results of pose2image task after training MPII1K dataset (lr=2e-4, group_lr_scaler=10, bs=2, epoch=30):
 
 *prompt: A man riding a motor bike across a forest.*
 

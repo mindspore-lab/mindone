@@ -195,8 +195,9 @@ def parse_args():
         default="canny",
         help="control mode for controlnet, should be in [canny, segmentation, openpose]",
     )
-    parser.add_argument("--scale_lr", default=False, type=str2bool, help="scale lr for zero conv layers")
-
+    parser.add_argument(
+        "--group_lr_scaler", default=1.0, type=float, help="scaler for lr of a particular group of params"
+    )
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
     if default_args.train_config:
@@ -308,7 +309,7 @@ def main(args):
         betas=args.betas,
         weight_decay=args.weight_decay,
         lr=lr,
-        scale_lr=args.scale_lr,
+        group_lr_scaler=args.group_lr_scaler,
     )
 
     loss_scaler = DynamicLossScaleUpdateCell(

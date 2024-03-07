@@ -65,8 +65,6 @@ class ControlNetDataset:
                         self.control_paths.append(os.path.join("source", img_name))
                         self.image_paths.append(os.path.join("target", img_name))
                         self.captions.append(caption["caption"])
-                        # print(f'img_name:{img_name}, caption:{caption["caption"]}')
-            # self.drop_captions()
         else:
             if os.path.exists(root_dir):
                 with open(os.path.join(root_dir, "prompt.json"), "rt") as f:
@@ -157,11 +155,6 @@ class ControlNetDataset:
         result[: len(tokens)] = tokens
 
         return result
-
-    def drop_captions(self, rate=0.5):
-        drop_idx = random.sample(range(0, len(self.captions)), int(len(self.captions) * rate))
-        for idx in drop_idx:
-            self.captions[idx] = ""
 
 
 def build_dataset_controlnet(

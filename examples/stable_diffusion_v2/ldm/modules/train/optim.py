@@ -15,7 +15,7 @@ def build_optimizer(
     name: str,
     lr: Union[float, List[float]],
     betas: Optional[List[float]] = None,
-    scale_lr: bool = False,
+    group_lr_scaler: float = 1.0,
     weight_decay: float = 1e-6,
     eps: float = 1e-6,
     group_strategy: Optional[str] = None,
@@ -29,7 +29,7 @@ def build_optimizer(
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
             If not provided, [0.9, 0.999] is used as default.
-        scale_lr: Set different learning rate for parameters in zero conv layers.
+        group_lr_scaler: Set different learning rate for particular group of params.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
         eps: epsilon in adam or adamw optimization, Default: 1e-6
         group_strategy: The specific grouping startegy for weight decay. If it is None,
@@ -58,7 +58,7 @@ def build_optimizer(
 
         return all([x not in param.name.lower() for x in filter_list])
 
-    def _scale_lr(group_params, lr):
+    def _scale_lr(group_params, lr, scaler):
         new_groups = list()
         for group in group_params:
             scale_params, unscale_params = list(), list()
@@ -73,7 +73,7 @@ def build_optimizer(
                 {
                     "params": scale_params,
                     "weight_decay": group["weight_decay"],
-                    "lr": [i * 5 for i in lr],
+                    "lr": [i * scaler for i in lr],
                 }
             )
             new_groups.append(
@@ -83,7 +83,7 @@ def build_optimizer(
                     "lr": lr,
                 }
             )
-        _logger.info(f"Enable scale lr for zero conv layers, scale lr: {5 * lr[0]}")
+        _logger.info(f"Enable scale lr for zero conv layers, scale lr: {scaler * lr[0]}")
         return new_groups
 
     param_optimizer = model.trainable_params()
@@ -105,9 +105,9 @@ def build_optimizer(
     )
     _logger.info(_info)
 
-    # set different lr for zero_conv layers of cldm
-    if scale_lr:
-        group_params = _scale_lr(group_params, lr)
+    # set different lr for zero_conv/input_hint_block/middle_block_out layers of cldm
+    if group_lr_scaler is not 1.0:
+        group_params = _scale_lr(group_params, lr, group_lr_scaler)
     group_params.append({"order_params": param_optimizer})
 
     if name.lower() == "adam":
