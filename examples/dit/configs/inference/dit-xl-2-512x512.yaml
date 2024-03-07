@@ -8,7 +8,7 @@ enable_flash_attention: False
 use_fp16: True
 
 # sampling
-sampling_steps: 50
+sampling_steps: 250
 guidance_scale: 4.0
 seed: 42
-ddim_sampling: True
+ddim_sampling: False

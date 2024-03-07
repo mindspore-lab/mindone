@@ -57,7 +57,21 @@ python sample.py -c configs/inference/dit-xl-2-512x512.yaml
 
 To run the same inference on GPU devices, simply set `--device_target GPU` for the commands above.
 
-For diffusion sampling, the default sampler is the DDIM sampler, and the default number of sampling steps is 50. For classifier-free guidance, the default guidance scale is $4.0$. Check more details in the yaml files under `configs/inference/image/`.
+By default, we run the DiT inference in mixed precision mode, where `amp_level="O2"`. If you want to run inference in full precision mode, please set `use_fp16: False` in the inference yaml file.
+
+For diffusion sampling, we use same setting as the [official repository of DiT](https://github.com/facebookresearch/DiT):
+
+- The default sampler is the DDPM sampler, and the default number of sampling steps is 250.
+- For classifier-free guidance, the default guidance scale is $4.0$.
+
+If you want to use DDIM sampler and sample for 50 steps, you can revise the inference yaml file as follows:
+```yaml
+# sampling
+sampling_steps: 50
+guidance_scale: 4.0
+seed: 42
+ddim_sampling: True
+```
 
 Some generated example images are shown below:
 <p float="center">

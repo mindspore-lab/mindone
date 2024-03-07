@@ -82,7 +82,7 @@ class GaussianDiffusion:
 
         self.posterior_mean_coef1 = self.betas * ops.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         self.posterior_mean_coef2 = (
-            (1.0 - self.alphas_cumprod_prev) * to_mindspore(alphas) / (1.0 - self.alphas_cumprod)
+            (1.0 - self.alphas_cumprod_prev) * ops.sqrt(to_mindspore(alphas)) / (1.0 - self.alphas_cumprod)
         )
 
     def q_mean_variance(self, x_start, t):
@@ -429,7 +429,7 @@ class GaussianDiffusion:
         # Equation 12.
         noise = ops.randn_like(x)
         mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_prev) + ops.sqrt(1 - alpha_bar_prev - sigma**2) * eps
-        nonzero_mask = (t != 0).float().reshape(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
+        nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         sample = mean_pred + nonzero_mask * sigma * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
