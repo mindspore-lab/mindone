@@ -77,8 +77,27 @@ def get_parser_sample():
         "--guidance_scale",
         type=float,
         default=5.0,
-        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (cond - uncond).",
+        help="the guidance scale for txt2img and img2img tasks. For VanillaCFG, uncond + guidance_scale * (cond - uncond).",
     )
+    parser.add_argument(
+        "--thresholding",
+        type=bool,
+        default=False,
+        help="For VanillaCFG. Whether to use the dynamic thresholding method.",
+    )
+    parser.add_argument(
+        "--dynamic_thresholding_ratio",
+        type=float,
+        default=0.995,
+        help="For DynamicThresholding. Valid only when thresholding=True.",
+    )
+    parser.add_argument(
+        "--sample_max_value",
+        type=float,
+        default=1.0,
+        help="For DynamicThresholding. Valid only when thresholding=True.",
+    )
+
     parser.add_argument(
         "--discretization",
         type=str,
@@ -216,6 +235,9 @@ def run_txt2img(
         num_cols=args.num_cols,
         guider=args.guider,
         guidance_scale=args.guidance_scale,
+        thresholding=args.thresholding,
+        dynamic_thresholding_ratio=args.dynamic_thresholding_ratio,
+        sample_max_value=args.sample_max_value,
         discretization=args.discretization,
         sigma_min=args.sigma_min,
         sigma_max=args.sigma_max,
