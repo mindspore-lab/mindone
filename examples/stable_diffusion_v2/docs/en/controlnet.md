@@ -335,7 +335,7 @@ Prompt:
 ![controlnet_train_prompt](https://github.com/congw729/mindone/assets/115451386/7adb909a-a4b3-4ca3-856a-b996233b7b33)
 
 
-Here are some inference results of pose2image task after training MPII1K dataset (lr=2e-4, group_lr_scaler=10, bs=2, epoch=30):
+Here are some inference results of pose2image task after training MPII1K dataset (lr=2e-4, group_lr_scaler=5, bs=2, epoch=30):
 
 *prompt: A man riding a motor bike across a forest.*
 

@@ -106,7 +106,7 @@ def build_optimizer(
     _logger.info(_info)
 
     # set different lr for zero_conv/input_hint_block/middle_block_out layers of cldm
-    if group_lr_scaler is not 1.0:
+    if group_lr_scaler != 1.0:
         group_params = _scale_lr(group_params, lr, group_lr_scaler)
     group_params.append({"order_params": param_optimizer})
 
