@@ -301,6 +301,14 @@ sh scripts/run_train_cldm.sh $CARD_ID
 
 The resulting log will be saved in $output_dir as defined in the script, and the saved checkpoint will be saved in $output_path as defined in  `train_config` file.
 
+Here are the training performances:
+
+| Platform | Dataset | Task | Batch Size | Training Performance |
+| -------- | ------- | ---- |  --------- |  ------------------- |
+| 910A | Fill50k | Canny2Image | 4 | 620 ms/step|
+| 910* | Fill50k | Canny2Image | 4 | 552 ms/step|
+| 910A | MPII1K | Pose2Image | 2 | 490 ms/step|
+
 
 #### 4. Evaluation
 To evaluate the training result, please modify the control image path in the script indicate the path to the trained checkpoint, and run the following script.
@@ -332,10 +340,12 @@ Here are some inference results of pose2image task after training MPII1K dataset
 *prompt: A man riding a motor bike across a forest.*
 
 test image 1:
+
 <img src="https://github.com/congw729/mindone/assets/115451386/2b7de126-4866-48d1-8c8d-9065980258c7" alt="image" width="256" height="auto">
 <img src="https://github.com/congw729/mindone/assets/115451386/3e4f972b-fc5c-4291-8e22-0a72f4f12f67" alt="image" width="256" height="auto">
 
 test image 2:
+
 <img src="https://github.com/congw729/mindone/assets/115451386/e34bf3d0-f13a-4c0e-a199-5c092a392b1c" alt="image" width="256" height="auto">
 <img src="https://github.com/congw729/mindone/assets/115451386/d661b967-5f56-4ec5-b8e9-ed91ff160306" alt="image" width="256" height="auto">
 
