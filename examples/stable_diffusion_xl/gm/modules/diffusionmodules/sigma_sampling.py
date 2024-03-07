@@ -1,6 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
 
-from gm.util import default, instantiate_from_config
+from gm.util import instantiate_from_config
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
