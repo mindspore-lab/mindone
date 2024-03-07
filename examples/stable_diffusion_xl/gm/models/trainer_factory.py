@@ -120,7 +120,7 @@ class LatentDiffusionWithLoss(nn.Cell):
         c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
         model_output = self.model(
             ops.cast(noised_input * c_in, ms.float32),
-            ops.cast(c_noise, ms.int32),
+            c_noise,
             concat=concat,
             context=context,
             y=y,
