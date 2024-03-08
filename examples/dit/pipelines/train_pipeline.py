@@ -1,3 +1,5 @@
+from typing import Optional
+
 from diffusion import SpacedDiffusion
 from diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
 
@@ -51,42 +53,26 @@ class NetworkWithLoss(nn.Cell):
         return image_latents.astype(ms.float16)
 
     def get_latents(self, x):
-        if x.dim() == 5:
-            # "b f c h w -> (b f) c h w"
-            B, F, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = ops.reshape(x, (-1, C, H, W))
-
-            z = ops.stop_gradient(self.vae_encode(x))
-
-            # (b*f c h w) -> (b f c h w)
-            z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-        elif x.dim() == 4:
-            B, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            z = ops.stop_gradient(self.vae_encode(x))
-        else:
-            raise ValueError("Incorrect Dimensions of x")
+        if x.shape[1] != 3:
+            raise ValueError("Expect input shape (b 3 h w), but get {}".format(x.shape))
+        z = ops.stop_gradient(self.vae_encode(x))
         return z
 
-    def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, labels: ms.Tensor, **kwargs):
+    def construct(self, x: ms.Tensor, labels: Optional[ms.Tensor] = None, text_tokens: Optional[ms.Tensor] = None):
         """
         Diffusion model forward and loss computation for training
 
         Args:
-            x: pixel values of video frames or images, resized and normalized to shape [bs, F, 3, 256, 256] or [bs, 3, 256, 256]
-            text: text tokens padded to fixed shape [bs, 77], optional
+            x: pixel values of video frames or images, resized and normalized to shape [bs, 3, 256, 256]
             labels: class label ids [bs, ], optional
+            text: text tokens padded to fixed shape [bs, 77], optional
 
         Returns:
             loss
 
         Notes:
             - inputs should matches dataloder output order
-            - assume unet3d input/output shape: (b c f h w)
-                unet2d input/output shape: (b c h w)
+            - assume input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
         x = self.get_latents(x)
@@ -100,28 +86,14 @@ class NetworkWithLoss(nn.Cell):
             y = labels
         else:
             y = None
+
         loss = self.compute_loss(x, y, text_embed)
         return loss
 
     def apply_model(self, *args, **kwargs):
         return self.network(*args, **kwargs)
 
-    def compute_loss(self, x, y, text_embed):
-        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
-        noise = ops.randn_like(x)
-        x_t = self.diffusion.q_sample(x, t, noise=noise)
-        model_output = self.apply_model(x_t, t, y=y, text_embed=text_embed)
-        if x_t.dim() == 5:
-            B, F, C = x_t.shape[:3]
-            assert model_output.shape == (B, F, C * 2) + x_t.shape[3:]
-            model_output, model_var_values = ops.split(model_output, C, axis=2)
-        else:
-            B, C = x_t.shape[:2]
-            assert model_output.shape == (B, C * 2) + x_t.shape[2:]
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
-
-        # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        # _vb_terms_bpd(model=lambda *_: frozen_out, x_start=x, x_t=x_t, t=t, clip_denoised=False) begin
+    def _cal_vb(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
         # p_mean_variance(model=lambda *_: frozen_out, x_t, t, clip_denoised=False) begin
         min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
@@ -129,17 +101,30 @@ class NetworkWithLoss(nn.Cell):
         # The model_var_values is [-1, 1] for [min_var, max_var].
         frac = (model_var_values + 1) / 2
         model_log_variance = frac * max_log + (1 - frac) * min_log
-        pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=ops.stop_gradient(model_output))
+        pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
         model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
         # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
-        kl = mean_flat(kl) / 0.693147  # np.log(2.0)
+        kl = mean_flat(kl) / ms.numpy.log(2.0)
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
-        decoder_nll = mean_flat(decoder_nll) / 0.693147  # np.log(2.0)
+        decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         vb = ops.where((t == 0), decoder_nll.to(kl.dtype), kl)
-        # _vb_terms_bpd end
+        return vb
+
+    def compute_loss(self, x, y, text_embed):
+        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
+        noise = ops.randn_like(x)
+        x_t = self.diffusion.q_sample(x, t, noise=noise)
+        model_output = self.apply_model(x_t, t, y=y, text_embed=text_embed)
+
+        B, C = x_t.shape[:2]
+        assert model_output.shape == (B, C * 2) + x_t.shape[2:]
+        model_output, model_var_values = ops.split(model_output, C, axis=1)
+
+        # Learn the variance using the variational bound, but don't let it affect our mean prediction.
+        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
 
         loss = mean_flat((noise - model_output) ** 2) + vb
         loss = loss.mean()
