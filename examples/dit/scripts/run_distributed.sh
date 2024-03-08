@@ -7,7 +7,7 @@ then
     echo "[RANK_TABLE_FILE]: HCCL config file, please visit https://gitee.com/mindspore/models/tree/master/utils/hccl_tools"
     echo "[RANK_START]: The starting device ID."
     echo "[RANK_SIZE]: The total number of distributed processes you want to launch."
-    echo "[DATASET_PATH]: The dataset path for training, in Imagenet format."
+    echo "[DATASET_PATH]: The dataset path for training, in ImageNet format."
     exit 1
 fi
 
