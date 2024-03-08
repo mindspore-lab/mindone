@@ -430,10 +430,10 @@ if __name__ == "__main__":
         print("text_encoder_path is not valid, please double-check it!")
 
     if osp.exists(args.text_encoder_2_path):
-        if args.args.text_encoder_2_path.endswith(".bin"):
-            text_enc_2_dict = torch.load(args.args.text_encoder_2_path, map_location="cpu")
+        if args.text_encoder_2_path.endswith(".bin"):
+            text_enc_2_dict = torch.load(args.text_encoder_2_path, map_location="cpu")
         else:
-            text_enc_2_dict = load_file(args.args.text_encoder_2_path, device="cpu")
+            text_enc_2_dict = load_file(args.text_encoder_2_path, device="cpu")
         print("load text encoder 2 from text_enc_2_path ", args.text_encoder_2_path)
     else:
         print("text_encoder_2_path is not valid, please double-check it!")
