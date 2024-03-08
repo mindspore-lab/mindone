@@ -22,7 +22,7 @@ class EpsScaling(nn.Cell):
         c_skip = ops.ones_like(sigma)
         c_out = -sigma
         c_in = 1 / (sigma**2 + 1.0) ** 0.5
-        c_noise = sigma.copy()
+        c_noise = sigma.copysign(1.0)
         return c_skip, c_out, c_in, c_noise
 
 

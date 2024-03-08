@@ -259,6 +259,8 @@ def train(args):
         # Graph Mode
         from gm.models.trainer_factory import TrainOneStepCellDreamBooth
 
+        model = auto_mixed_precision(model, amp_level=args.ms_amp_level)
+
         train_step_fn = TrainOneStepCellDreamBooth(
             model,
             optimizer,
@@ -270,7 +272,7 @@ def train(args):
             clip_grad=args.clip_grad,
             clip_norm=args.max_grad_norm,
         )
-        train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+
         if model.disable_first_stage_amp:
             train_step_fn.first_stage_model.to_float(ms.float32)
         jit_config = ms.JitConfig()

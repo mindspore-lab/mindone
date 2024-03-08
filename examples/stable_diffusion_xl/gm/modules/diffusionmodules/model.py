@@ -176,7 +176,7 @@ class MemoryEfficientAttnBlock(nn.Cell):
         self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
         self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
-        self.flash_attention = FlashAttention()
+        self.flash_attention = FlashAttention(input_layout="BNSD")
 
     def attention(self, h_: Tensor) -> Tensor:
         h_ = self.norm(h_)
@@ -199,7 +199,7 @@ class MemoryEfficientAttnBlock(nn.Cell):
         q_n, k_n = q.shape[-2], k.shape[-2]
         head_dim = q.shape[-1]
         if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
-            h_ = self.flash_attention(q, k, v)
+            h_ = self.flash_attention(q, k, v, None, None, None, None, None)[3]
         else:
             h_ = scaled_dot_product_attention(q, k, v, dtype=self.attn_dtype)  # scale is dim_head ** -0.5 per default
 
