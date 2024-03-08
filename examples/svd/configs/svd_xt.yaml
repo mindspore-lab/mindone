@@ -151,7 +151,7 @@ model:
             sigma_max: 700.0
 
         guider_config:
-          target: gm.modules.diffusionmodules.guiders.LinearPredictionGuider
+          target: modules.diffusionmodules.guiders.LinearPredictionGuider
           params:
             max_scale: 3.0
             min_scale: 1.5

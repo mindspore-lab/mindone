@@ -1,3 +1,5 @@
+import os
+import sys
 from typing import List, Optional
 
 from gm.models.diffusion import DiffusionEngine
@@ -6,6 +8,8 @@ from gm.util.util import append_dims
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
+# FIXME: remove in future when mindone is ready for install
+sys.path.append(os.path.abspath(os.path.join(__file__, "../../../../")))
 from mindone.utils.version_control import MSVersion, is_910b
 
 
