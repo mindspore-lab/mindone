@@ -334,7 +334,7 @@ def main(args):
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
-                f"Total training steps: {dataset_size * args.epochs * device_num:,}",
+                f"Total training steps: {dataset_size * args.epochs:,}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
