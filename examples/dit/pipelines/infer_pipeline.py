@@ -29,7 +29,6 @@ class DiTInferPipeline(ABC):
     ):
         super().__init__()
         self.dit = dit
-        # self.num_classes = self.dit.num_classes
         self.vae = vae
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
@@ -54,8 +53,6 @@ class DiTInferPipeline(ABC):
         Return:
             y: (b H W 3), batch of images, normalized to [0, 1]
         """
-        b, c, h, w = x.shape
-
         y = self.vae.decode(x / self.scale_factor)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
