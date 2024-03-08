@@ -122,6 +122,7 @@ Then run `python sample.py -c config-file-path`.
 You can start the distributed training with ImageNet dataset format using the following command
 
 ```bash
+export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 mpirun -n 4 python train.py \
     -c configs/training/class_cond_train.yaml \
     --dataset_path PATH_TO_YOUR_DATASET \
