@@ -2,7 +2,17 @@ version: SDXL-base-1.0
 model:
     target: gm.models.diffusion.DiffusionEngine
     params:
-        scale_factor: 0.13025
+        scale_factor: 0.5
+        latents_mean:
+            - -1.6574
+            - 1.886
+            - -1.383
+            - 2.5155
+        latents_std:
+            - 8.4927
+            - 5.9022
+            - 6.5498
+            - 5.2299
         disable_first_stage_amp: True
 
         denoiser_config:

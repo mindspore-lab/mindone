@@ -29,6 +29,8 @@ class DiffusionEngine(nn.Cell):
         use_ema: bool = False,
         ema_decay_rate: float = 0.9999,
         scale_factor: float = 1.0,
+        latents_mean: Union[List, ListConfig, None] = None,
+        latents_std: Union[List, ListConfig, None] = None,
         disable_first_stage_amp=False,
         input_key: str = "image",
         log_keys: Union[List, None] = None,
@@ -41,6 +43,8 @@ class DiffusionEngine(nn.Cell):
         self.input_key = input_key
         self.no_cond_log = no_cond_log
         self.scale_factor = scale_factor
+        self.latents_mean = list(latents_mean)
+        self.latents_std = list(latents_std)
         self.disable_first_stage_amp = disable_first_stage_amp
 
         if network_config is not None:
@@ -91,7 +95,12 @@ class DiffusionEngine(nn.Cell):
             self.first_stage_model.to_float(ms.float32)
             z = z.astype(ms.float32)
 
-        z = 1.0 / self.scale_factor * z
+        if self.latents_mean and self.latents_std:
+            latents_mean = Tensor(self.latents_mean, dtype=ms.float32).reshape(1, 4, 1, 1)
+            latents_std = Tensor(self.latents_std, dtype=ms.float32).reshape(1, 4, 1, 1)
+            z = z * latents_std / self.scale_factor + latents_mean
+        else:
+            z = 1.0 / self.scale_factor * z
         out = self.first_stage_model.decode(z)
         return out
 
