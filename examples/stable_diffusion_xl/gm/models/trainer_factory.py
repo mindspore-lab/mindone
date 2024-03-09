@@ -59,6 +59,8 @@ class TrainOneStepCell(nn.Cell):
         self.first_stage_model = model.first_stage_model
 
         self.scale_factor = model.scale_factor
+        self.latents_mean = model.latents_mean
+        self.latents_std = model.latents_std
         self.sigma_sampler = model.sigma_sampler
         self.loss_fn = model.loss_fn
         self.denoiser = model.denoiser
@@ -73,7 +75,13 @@ class TrainOneStepCell(nn.Cell):
         # get latent target
         if self.enable_first_stage_model:
             x = self.first_stage_model.encode(x)
-        x = self.scale_factor * x
+
+        if self.latents_mean and self.latents_std:
+            latents_mean = ms.Tensor(self.latents_mean, dtype=ms.float32).reshape(1, 4, 1, 1)
+            latents_std = ms.Tensor(self.latents_std, dtype=ms.float32).reshape(1, 4, 1, 1)
+            x = (x - latents_mean) * self.scale_factor / latents_std
+        else:
+            x = self.scale_factor * x
 
         # get noise and sigma
         if self.timestep_bias_weighting is None:
