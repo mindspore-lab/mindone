@@ -111,7 +111,6 @@ class UNet3DModel(nn.Cell):
         legacy=True,
         use_linear_in_transformer=False,
         enable_flash_attention=False,
-        cross_frame_attention=False,
         unet_chunk_size=2,
         adm_in_channels=None,
         use_recompute=False,
@@ -268,7 +267,6 @@ class UNet3DModel(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
-                            cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                         )
                     )
@@ -363,7 +361,6 @@ class UNet3DModel(nn.Cell):
                     dropout=self.dropout,
                     use_linear=use_linear_in_transformer,
                     enable_flash_attention=enable_flash_attention,
-                    cross_frame_attention=cross_frame_attention,
                     unet_chunk_size=unet_chunk_size,
                 ),
             ]
@@ -443,7 +440,6 @@ class UNet3DModel(nn.Cell):
                             dropout=self.dropout,
                             use_linear=use_linear_in_transformer,
                             enable_flash_attention=enable_flash_attention,
-                            cross_frame_attention=cross_frame_attention,
                             unet_chunk_size=unet_chunk_size,
                         )
                     )
