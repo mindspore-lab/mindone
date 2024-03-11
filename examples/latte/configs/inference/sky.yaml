@@ -1,6 +1,7 @@
 # model
 condition: null
 image_size: 256
+num_frames: 16
 model_name: "Latte-XL/2"
 checkpoint: "models/skytimelapse.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
@@ -9,7 +10,7 @@ enable_flash_attention: False
 use_fp16: True
 
 # sampling
-sampling_steps: 50
+sampling_steps: 250
 guidance_scale: 1.0 # do not use cfg
 seed: 42
 ddim_sampling: True

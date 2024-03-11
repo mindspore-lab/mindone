@@ -38,9 +38,9 @@ Instruction on ffmpeg and decord install on EulerOS:
 
 We refer to the [official repository of Latte](https://github.com/Vchitect/Latte/tree/main) for pretrained checkpoints downloading. The pretrained checkpoint files trained on FaceForensics, SkyTimelapse, Taichi-HD and UCF101 (256x256) can be downloaded from [huggingface](https://huggingface.co/maxin-cn/Latte/tree/main).
 
-After downloading the `{}.pt` file, please place it under the `models/` folder, and then run `tools/dit_converter.py`. For example, to convert `models/skytimelapse.pt`, you can run:
+After downloading the `{}.pt` file, please place it under the `models/` folder, and then run `tools/latte_converter.py`. For example, to convert `models/skytimelapse.pt`, you can run:
 ```bash
-python tools/dit_converter.py --source models/skytimelapse.pt --target models/skytimelapse.ckpt
+python tools/latte_converter.py --source models/skytimelapse.pt --target models/skytimelapse.ckpt
 ```
 
 Please also download the VAE checkpoint from [huggingface/stabilityai.co](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main), and convert this VAE checkpoint by running:
