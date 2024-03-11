@@ -257,7 +257,7 @@ def main(args):
         args.frame_stride = 1
         data_config = dict(
             video_folder=args.data_path,
-            csv_path=csv_path,
+            csv_path=_to_abspath(csv_path),
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
             sample_n_frames=args.num_frames,
@@ -273,7 +273,7 @@ def main(args):
     else:
         data_config = dict(
             video_folder=args.data_path,
-            csv_path=csv_path,
+            csv_path=_to_abspath(csv_path),
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
             sample_n_frames=args.num_frames,
@@ -283,6 +283,8 @@ def main(args):
             max_rowsize=64,
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
+            video_column=args.video_column,
+            caption_column=args.caption_column,
             train_data_type=args.train_data_type,
             disable_flip=args.disable_flip,
         )

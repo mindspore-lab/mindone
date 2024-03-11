@@ -311,6 +311,10 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
                 is_image=is_image,
                 tokenizer=tokenizer,
                 disable_flip=config["disable_flip"],
+                video_column=config["video_column"],
+                caption_column=config["caption_column"],
+                random_drop_text=config["random_drop_text"],
+                random_drop_text_ratio=config["random_drop_text_ratio"],
             )
         else:
             dataset = TextVideoDatasetWithEmbeddingNpz(
@@ -322,6 +326,10 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
                 is_image=is_image,
                 tokenizer=tokenizer,
                 disable_flip=config["disable_flip"],
+                video_column=config["video_column"],
+                caption_column=config["caption_column"],
+                random_drop_text=config["random_drop_text"],
+                random_drop_text_ratio=config["random_drop_text_ratio"],
             )
         print("Total number of samples: ", len(dataset))
 
