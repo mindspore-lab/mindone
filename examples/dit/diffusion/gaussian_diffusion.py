@@ -149,7 +149,12 @@ class GaussianDiffusion:
         if model_kwargs is None:
             model_kwargs = {}
 
-        B, C = x.shape[:2]
+        if x.dim() == 4:
+            B, C = x.shape[:2]
+        elif x.dim() == 5:
+            B, F, C = x.shape[:3]
+        else:
+            raise ValueError(f"Incorrect input shape. Expect to get 4 or 5 dimensional inputs, but got {x.dim()}")
 
         assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
@@ -158,8 +163,13 @@ class GaussianDiffusion:
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            assert model_output.shape == (B, C * 2, *x.shape[2:])
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
+            if x.dim() == 4:
+                assert model_output.shape == (B, C * 2, *x.shape[2:])
+                model_output, model_var_values = ops.split(model_output, C, axis=1)
+            else:
+                assert model_output.shape == (B, F, C * 2, *x.shape[3:])
+                model_output, model_var_values = ops.split(model_output, C, axis=2)
+
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)
             # The model_var_values is [-1, 1] for [min_var, max_var].
