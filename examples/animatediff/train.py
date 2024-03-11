@@ -256,7 +256,7 @@ def main(args):
         args.num_frames = 1
         args.frame_stride = 1
         data_config = dict(
-            video_folder=args.data_path,
+            video_folder=_to_abspath(args.data_path),
             csv_path=_to_abspath(csv_path),
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
@@ -272,7 +272,7 @@ def main(args):
         )
     else:
         data_config = dict(
-            video_folder=args.data_path,
+            video_folder=_to_abspath(args.data_path),
             csv_path=_to_abspath(csv_path),
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
