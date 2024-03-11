@@ -111,6 +111,7 @@ def resume_train_network(network, optimizer, resume_ckpt):
     loss_scale = float(resume_param.get("loss_scale", ms.Tensor(0, ms.float32)).asnumpy().item())
     cur_iter = resume_param.get("current_iterator_step", ms.Tensor(0, ms.int32))
     last_overflow_iter = resume_param.get("last_overflow_iterator_step", ms.Tensor(0, ms.int32))
+    # TODO: fix here, ignore optimizer params for network loading
     ms.load_param_into_net(network, resume_param)
     ms.load_param_into_net(optimizer, resume_param)
     _logger.info(

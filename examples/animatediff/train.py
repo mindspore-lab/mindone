@@ -46,6 +46,7 @@ from mindone.utils.seed import set_random_seed
 from mindone.utils.version_control import is_old_ms_version
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
 logger = logging.getLogger(__name__)
 
@@ -267,6 +268,7 @@ def main(args):
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
             train_data_type=args.train_data_type,
+            disable_flip=args.disable_flip,
         )
     else:
         data_config = dict(
@@ -282,6 +284,7 @@ def main(args):
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
             train_data_type=args.train_data_type,
+            disable_flip=args.disable_flip,
         )
 
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenize
@@ -327,6 +330,13 @@ def main(args):
             ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
         )
     )
+
+    # if args.dataset_sink_mode:
+    #    if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
+    #        os.environ["MS_DATASET_SINK_QUEUE"] = "10"
+    #        print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+    #    else:
+    #        print("D--: get dataset sink queue: ", os.environ.get("MS_DATASET_SINK_QUEUE") )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
@@ -381,6 +391,7 @@ def main(args):
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
+        logger.info(f"Resume training from {resume_ckpt}")
 
     # trainer (standalone and distributed)
     ema = (
