@@ -51,7 +51,6 @@ def parse_args():
         help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
     )
     # training hyper-params
-    parser.add_argument("--dit_initialize_random", default=False, type=str2bool, help="initialize dit randomly")
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
         "--betas",
@@ -177,6 +176,8 @@ def parse_args():
     )
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+
+    parser.add_argument("--imagenet_format", help="Training with ImageNet dataset format")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
