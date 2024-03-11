@@ -64,6 +64,12 @@ def parse_args():
         help="number of frames",
     )
     parser.add_argument(
+        "--num_classes",
+        type=int,
+        default=1000,
+        help="number of classes, applies only when condition is `class`",
+    )
+    parser.add_argument(
         "--num_samples",
         type=int,
         default=3,
@@ -115,7 +121,7 @@ def parse_args():
         "--use_fp16",
         default=True,
         type=str2bool,
-        help="whether to use fp16 for DiT mode. Default is True",
+        help="whether to use fp16 for Latte mode. Default is True",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
@@ -148,7 +154,7 @@ if __name__ == "__main__":
     latent_size = args.image_size // 8
     latte_model = Latte_models[args.model_name](
         input_size=latent_size,
-        num_classes=1000,
+        num_classes=args.num_classes,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         condition=args.condition,
     )
@@ -180,10 +186,10 @@ if __name__ == "__main__":
     # Labels to condition the model with (feel free to change):
     # Create sampling noise:
     if args.condition == "class":
-        class_labels = [1, 13, 404]
+        class_labels = [1, 13, 100]
         n = len(class_labels)
         y = Tensor(class_labels)
-        y_null = ops.ones_like(y) * 1000
+        y_null = ops.ones_like(y) * args.num_classes
     elif args.condition == "text":
         # tokenizer
         pass
@@ -203,15 +209,15 @@ if __name__ == "__main__":
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_dit, num_params_dit_trainable = count_params(latte_model)
-    num_params = num_params_vae + num_params_dit
-    num_params_trainable = num_params_vae_trainable + num_params_dit_trainable
+    num_params_latte, num_params_latte_trainable = count_params(latte_model)
+    num_params = num_params_vae + num_params_latte
+    num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num of samples: {n}",
-            f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
+            f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
             f"Use FP16: {args.use_fp16}",
             f"Sampling steps {args.sampling_steps}",

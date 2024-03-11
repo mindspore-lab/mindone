@@ -1,10 +1,10 @@
 # model
-condition: null
-num_classes: null
+condition: "class"
+num_classes: 101
 image_size: 256
 num_frames: 16
 model_name: "Latte-XL/2"
-checkpoint: "models/skytimelapse.ckpt"
+checkpoint: "models/ucf101.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False

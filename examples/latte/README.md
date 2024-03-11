@@ -2,6 +2,22 @@
 
 ## Introduction of Latte
 
+Latte is a novel Latent Diffusion Transformer designed for video generation. It is built based on DiT (a diffusion transformer model for image generation). For introduction of DiT, please refer to [README of DiT](../dit/README.md).
+
+Latte first uses a VAE (Variational AutoEncoder) to compress the video data into a latent space, and then extracts spatial-temporal tokens given the latent codes. Similar to DiT, it stacks multiple transformer blocks to model the video diffusion in the latent space. How to design the spatial and temporal blocks becomes a major question.
+
+Through experiments and analysis, they found the best practice is (a) structure in the image below. It stacks spatial blocks and temporal blocks alternately to model spatial attentions and temporal attentions in turns.
+
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Vchitect/Latte/9ededbe590a5439b6e7013d00fbe30e6c9b674b8/visuals/architecture.svg" width=550 />
+</p>
+<p align="center">
+  <em> Figure 1. The Structure of Latte and Latte transformer blocks. [<a href="#references">2</a>] </em>
+</p>
+
+Similar to DiT, Latte supports un-conditional video generation and class-labels-conditioned video generation. In addition, it supports to generate videos given text captions.
+
 
 ## Get Started
 In this tutorial, we will introduce how to run inference and finetuning experiments using MindONE.
