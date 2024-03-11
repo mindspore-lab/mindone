@@ -25,7 +25,7 @@ from mindspore import nn, ops
 from mindspore.common.initializer import initializer
 
 try:
-    from mindspore.nn.layer.flash_attention import FlashAttention
+    from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
     FLASH_IS_AVAILABLE = True
     print("flash attention is available.")
@@ -157,7 +157,7 @@ class CrossAttention(nn.Cell):
                 self.flash_attention = FlashAttention(head_dim=dim_head, high_precision=True)
                 self.fa_mask_dtype = ms.float16  # choose_flash_attention_dtype()
             else:
-                self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
+                self.flash_attention = FlashAttention(scale_value=1.0/math.sqrt(dim_head), head_num=heads, input_layout='BNSD')
                 self.fa_mask_dtype = ms.uint8  # choose_flash_attention_dtype()
             # logger.info("Flash attention is enabled.")
         else:
@@ -217,8 +217,8 @@ class CrossAttention(nn.Cell):
                 k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
                 v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
 
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+            _, _, _, out = self.flash_attention(
+                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, mask[:, None, :, :].to(self.fa_mask_dtype), None
             )
             if head_dim == 160:
                 out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
@@ -301,8 +301,8 @@ class CrossFrameAttention(CrossAttention):
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
 
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
+            _, _, _, out = self.flash_attention(
+                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, mask[:, None, :, :].to(self.fa_mask_dtype), None
             )
 
             b, h, n, d = out.shape
