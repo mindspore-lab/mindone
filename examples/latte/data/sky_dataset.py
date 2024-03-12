@@ -34,7 +34,7 @@ class SkyDataset:
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
-
+        self.transform_backend = transform_backend
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
         self.pixel_transforms = create_video_transforms(
             sample_size[0],
@@ -74,12 +74,13 @@ class SkyDataset:
         frame_list = os.walk(dataroot)
         for _, meta in enumerate(frame_list):
             root = meta[0]
+            frames = meta[2]
+            frames = [os.path.join(root, item) for item in frames if is_image_file(item)]
             try:
-                frames = sorted(meta[2], key=lambda item: int(item.split(".")[0].split("_")[-1]))
+                frames = sorted(frames, key=lambda item: int(os.path.basename(item).split(".")[0].split("_")[-1]))
             except Exception:
                 print(meta[0])  # root
                 print(meta[2])  # files
-            frames = [os.path.join(root, item) for item in frames if is_image_file(item)]
             if len(frames) > max(0, self.sample_n_frames * self.sample_stride):
                 data_all.append(frames)
                 for frame in frames:
@@ -167,11 +168,7 @@ class SkyDataset:
         return pixel_values
 
 
-def create_dataloader(
-    config,
-    device_num=1,
-    rank_id=0,
-):
+def create_dataloader(config, device_num=1, rank_id=0, **kwargs):
     dataset = SkyDataset(
         config["data_folder"],
         sample_size=config["sample_size"],
