@@ -135,13 +135,14 @@ def main(args):
     if args.use_fp16:
         latte_model = auto_mixed_precision(latte_model, amp_level="O2")
 
-    if len(args.checkpoint) > 0:
-        param_dict = ms.load_checkpoint(args.checkpoint)
+    if len(args.pretrained_model_path) > 0:
+        param_dict = ms.load_checkpoint(args.pretrained_model_path)
+        logger.info(f"Loading ckpt {args.pretrained_model_path} into Latte...")
         # in case a save ckpt with "network." prefix, removing it before loading
         param_dict = remove_pname_prefix(param_dict, prefix="network.")
         latte_model.load_params_from_ckpt(param_dict)
     else:
-        logger.warning("Latte checkpoint is not provided!")
+        logger.info("Use random initialization for DiT")
     # set train
     latte_model.set_train(True)
     for param in latte_model.get_parameters():

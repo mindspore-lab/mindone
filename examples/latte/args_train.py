@@ -12,16 +12,20 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--config",
+        "-c",
         default="",
         type=str,
         help="path to load a config yaml file that describes the training recipes which will override the default arguments",
     )
     # the following args's defualt value will be overrided if specified in config yaml
-    parser.add_argument("--data_config_path", default="", type=str, help="data configuration file path")
+    parser.add_argument("--data_config_file", default="", type=str, help="data configuration file path")
     parser.add_argument("--dataset_name", default="", type=str, help="dataset name")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
-        "--pretrained_model_path", default="", type=str, help="Specify the pretrained dit model from this checkpoint"
+        "--pretrained_model_path",
+        default="",
+        type=str,
+        help="Specify the pretrained model path, either a pretrained " "DiT model or a pretrained Latte model.",
     )
     # ms
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -125,8 +129,8 @@ def parse_args():
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-
-    parser.add_argument("--num_frames", default=16, type=int, help="num frames")
+    parser.add_argument("--image_size", default=256, type=int, help="the image size used to initiate model")
+    parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
     parser.add_argument(
         "--num_classes",
         type=int,
