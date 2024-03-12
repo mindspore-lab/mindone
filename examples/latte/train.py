@@ -142,7 +142,7 @@ def main(args):
         param_dict = remove_pname_prefix(param_dict, prefix="network.")
         latte_model.load_params_from_ckpt(param_dict)
     else:
-        logger.info("Use random initialization for DiT")
+        logger.info("Use random initialization for Latte")
     # set train
     latte_model.set_train(True)
     for param in latte_model.get_parameters():
@@ -180,16 +180,10 @@ def main(args):
     )
     # select dataset
     data_config = OmegaConf.load(args.data_config_file).data_config
-    if data_config.sample_n_frames != args.num_frames:
-        raise ValueError(
-            "Expect that the data sample n frames equals to the number of frames for model defintion"
-            f", but got {data_config.sample_n_frames} and {args.num_frames}"
-        )
-    if data_config.sample_size != args.image_size:
-        raise ValueError(
-            "Expect that the frame sample_size equals to the image size for model defintion"
-            f", but got {data_config.sample_size} and {args.image_size}"
-        )
+    # set some data params from argument parser
+    data_config.sample_size = args.image_size
+    data_config.sample_n_frames = args.num_frames
+    data_config.batch_size = args.train_batch_size
 
     dataset = get_dataset(
         args.dataset_name,
