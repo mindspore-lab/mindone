@@ -36,6 +36,6 @@ betas: [0.9, 0.999]
 optim_eps: 1.e-6
 
 # training process
-log_interval: 1
-ckpt_save_interval: 1000 # save ckpt every n epochs
+log_interval: 100
+ckpt_save_interval: 50 # save ckpt every n epochs
 step_mode: False

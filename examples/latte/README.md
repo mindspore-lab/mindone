@@ -71,7 +71,43 @@ For example, to run inference of `skytimelapse` model with the `256x256` image s
 python sample.py -c configs/inference/sky.yaml
 ```
 
+Some of the generated results are shown here:
+<table class="center">
+    <tr style="line-height: 0">
+    <td width=33% style="border: none; text-align: center">Example 1</td>
+    <td width=33% style="border: none; text-align: center">Example 2</td>
+    <td width=33% style="border: none; text-align: center">Example 3</td>
+    </tr>
+    <tr>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-0.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-1.gif" style="width:100%"></td>
+    <td width=33% style="border: none"><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/latte/sky/generated-2.gif" style="width:100%"></td>
+    </tr>
+</table>
+
 ## Training
 
+Now, we support training Latte model on the Sky Timelapse dataset, which can be downloaded from https://github.com/weixiong-ur/mdgan.
+
+After uncompress the downloaded file, you will get a folder named `sky_train/` which contains all training video frames. The folder structure is similar to:
+```
+sky_train/
+├── video_name_0/
+|   ├── frame_id_0.jpg
+|   ├── frame_id_0.jpg
+|   └── ...
+├── video_name_1/
+└── ...
+```
+
+First, edit the configuration file `configs/training/data/sky_video.yaml`. Change the `data_folder` from `""` to the absolute path to `sky_train/`.
+
+Then, you can start standalone training on Ascend devices using:
+```bash
+python train.py -c configs/training/sky_video.yaml
+```
+To start training on GPU devices, simply append `--device_target GPU` to the command above.
+
+The default training configuration is to train Latte model from scratch. The batch size is $5$, and the number of epochs is $3000$, which corresponds to around 900k steps. The learning rate is a constant value $1e-4$. The model is trained under mixed precision mode. The default AMP level is `O2`. See more details in `configs/training/sky_video.yaml`.
 
 # References
