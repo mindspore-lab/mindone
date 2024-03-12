@@ -1,0 +1,11 @@
+data_config:
+  data_folder: ""
+  sample_size: 256
+  sample_stride: 3
+  sample_n_frames: 16
+  use_safer_augment: False
+  image_video_joint: True
+  use_image_num: 8
+  num_parallel_workers: 8
+  max_rowsize: 64
+  shuffle: True

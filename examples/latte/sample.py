@@ -7,7 +7,7 @@ import time
 
 import yaml
 from pipelines import InferPipeline
-from utils.model_utils import _check_cfgs_in_parser, count_params, str2bool
+from utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     set_random_seed(args.seed)
 
     # 2. model initiate and weight loading
-    # 2.1 dit
+    # 2.1 latte
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
     latent_size = args.image_size // 8
     latte_model = Latte_models[args.model_name](
@@ -157,13 +157,17 @@ if __name__ == "__main__":
         num_classes=args.num_classes,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         condition=args.condition,
+        num_frames=args.num_frames,
     )
 
     if args.use_fp16:
         latte_model = auto_mixed_precision(latte_model, amp_level="O2")
 
     if len(args.checkpoint) > 0:
-        latte_model.load_params_from_ckpt(args.checkpoint)
+        param_dict = ms.load_checkpoint(args.checkpoint)
+        # in case a save ckpt with "network." prefix, removing it before loading
+        param_dict = remove_pname_prefix(param_dict, prefix="network.")
+        latte_model.load_params_from_ckpt(param_dict)
     else:
         logger.warning("Latte checkpoint is not provided!")
 

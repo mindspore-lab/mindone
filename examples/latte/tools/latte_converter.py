@@ -35,7 +35,7 @@ def load_torch_ckpt(ckpt_path):
 
 
 def convert_pt_name_to_ms(content: str) -> str:
-    # DiT embedding table name conversion
+    # embedding table name conversion
     content = content.replace("y_embedder.embedding_table.weight", "y_embedder.embedding_table.embedding_table")
     return content
 
