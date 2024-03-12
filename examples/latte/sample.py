@@ -165,11 +165,12 @@ if __name__ == "__main__":
 
     if len(args.checkpoint) > 0:
         param_dict = ms.load_checkpoint(args.checkpoint)
+        logger.info(f"Loading ckpt {args.checkpoint} into Latte")
         # in case a save ckpt with "network." prefix, removing it before loading
         param_dict = remove_pname_prefix(param_dict, prefix="network.")
         latte_model.load_params_from_ckpt(param_dict)
     else:
-        logger.warning("Latte checkpoint is not provided!")
+        logger.warning("Latte uses random initialization!")
 
     latte_model = latte_model.set_train(False)
     for param in latte_model.get_parameters():  # freeze latte_model

@@ -7,7 +7,7 @@ from diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian
 import mindspore as ms
 from mindspore import nn, ops
 
-__all__ = ["NetworkWithLoss"]
+__all__ = ["NetworkWithLoss", "get_model_with_loss"]
 
 
 class NetworkWithLoss(nn.Cell):
@@ -184,3 +184,29 @@ class NetworkWithLoss(nn.Cell):
         loss = mean_flat((noise - model_output) ** 2) + vb
         loss = loss.mean()
         return loss
+
+
+class UnconditionalModelWithLoss(NetworkWithLoss):
+    def construct(self, x: ms.Tensor):
+        super().construct(x, labels=None, text_tokens=None)
+
+
+class ClassConditionedModelWithLoss(NetworkWithLoss):
+    def construct(self, x: ms.Tensor, labels: ms.Tensor):
+        super().construct(x, labels=labels, text_tokens=None)
+
+
+class TextConditionedModelWithLoss(NetworkWithLoss):
+    def construct(self, x: ms.Tensor, text_tokens: ms.Tensor):
+        super().construct(x, labels=None, text_tokens=text_tokens)
+
+
+def get_model_with_loss(condition):
+    if condition is None:
+        return UnconditionalModelWithLoss
+    elif condition == "class":
+        return ClassConditionedModelWithLoss
+    elif condition == "text":
+        return TextConditionedModelWithLoss
+    else:
+        raise NotImplementedError

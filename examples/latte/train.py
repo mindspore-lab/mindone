@@ -13,7 +13,7 @@ from args_train import parse_args
 from data.dataset import get_dataset
 from modules.text_encoders import initiate_clip_text_encoder
 from omegaconf import OmegaConf
-from pipelines import NetworkWithLoss
+from pipelines import get_model_with_loss
 from utils.model_utils import remove_pname_prefix
 
 import mindspore as ms
@@ -169,7 +169,7 @@ def main(args):
     else:
         text_encoder, tokenizer = None, None
     diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = NetworkWithLoss(
+    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
         latte_model,
         vae,
         diffusion,
