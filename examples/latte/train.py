@@ -184,6 +184,11 @@ def main(args):
             "Expect that the data sample n frames equals to the number of frames for model defintion"
             f", but got {data_config.sample_n_frames} and {args.num_frames}"
         )
+    if data_config.sample_size != args.image_size:
+        raise ValueError(
+            "Expect that the frame sample_size equals to the image size for model defintion"
+            f", but got {data_config.sample_size} and {args.image_size}"
+        )
 
     dataset = get_dataset(
         args.dataset_name,

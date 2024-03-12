@@ -1,6 +1,5 @@
 data_config:
   data_folder: ""
-  csv_path: ""
   sample_size: 256
   sample_stride: 3
   sample_n_frames: 16
