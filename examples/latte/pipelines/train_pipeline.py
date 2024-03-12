@@ -188,17 +188,17 @@ class NetworkWithLoss(nn.Cell):
 
 class UnconditionalModelWithLoss(NetworkWithLoss):
     def construct(self, x: ms.Tensor):
-        super().construct(x, labels=None, text_tokens=None)
+        return super().construct(x, labels=None, text_tokens=None)
 
 
 class ClassConditionedModelWithLoss(NetworkWithLoss):
     def construct(self, x: ms.Tensor, labels: ms.Tensor):
-        super().construct(x, labels=labels, text_tokens=None)
+        return super().construct(x, labels=labels, text_tokens=None)
 
 
 class TextConditionedModelWithLoss(NetworkWithLoss):
     def construct(self, x: ms.Tensor, text_tokens: ms.Tensor):
-        super().construct(x, labels=None, text_tokens=text_tokens)
+        return super().construct(x, labels=None, text_tokens=text_tokens)
 
 
 def get_model_with_loss(condition):
