@@ -20,14 +20,14 @@ dataset_sink_mode: True
 # training hyper-params
 start_learning_rate: 1e-4
 scheduler: "constant"
-warmup_steps: 10
+warmup_steps: 0
 train_batch_size: 4
 gradient_accumulation_steps: 1
-weight_decay: 0.01
-epochs: 3000
+weight_decay: 0.0
+epochs: 4
 
 use_ema: True
-clip_grad: False
+clip_grad: False  # original repo applies clip grad after 20k steps
 max_grad_norm: 0.1
 ckpt_max_keep: 3
 init_loss_scale: 65536
@@ -37,5 +37,5 @@ optim_eps: 1.e-6
 
 # training process
 log_interval: 1
-ckpt_save_interval: 1000 # save ckpt every n epochs
+ckpt_save_interval: 1 # save ckpt every n epochs
 step_mode: False
