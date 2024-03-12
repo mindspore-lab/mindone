@@ -182,7 +182,7 @@ def parse_args():
     parser.add_argument(
         "--vae_fp16",
         default=None,
-        type=bool,
+        type=str2bool,
         help="whether use fp16 precision in vae. If None, it will be set by the value in stable diffusion config yaml",
     )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
