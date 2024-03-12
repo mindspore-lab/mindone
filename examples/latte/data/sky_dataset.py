@@ -164,6 +164,7 @@ class SkyDataset:
             pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
         else:
             raise NotImplementedError
+        return pixel_values
 
 
 def create_dataloader(

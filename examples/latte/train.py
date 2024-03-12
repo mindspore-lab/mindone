@@ -306,7 +306,6 @@ def main(args):
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
-                f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (dit: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use FP16: {args.use_fp16}",

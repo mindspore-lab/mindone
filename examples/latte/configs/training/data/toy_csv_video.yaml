@@ -4,7 +4,7 @@ data_config:
   sample_stride: 3
   video_column: "video"
   class_column: "class"
-  caption_column: "caption"
+  caption_column:
   use_safer_augment: False
   image_video_joint: False
   use_image_num:

@@ -141,6 +141,7 @@ class CSVDataset:
             pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
         else:
             raise NotImplementedError
+        return pixel_values
 
     def __getitem__(self, idx):
         """
@@ -149,7 +150,7 @@ class CSVDataset:
                 - video: preprocessed video frames in shape (f, c, h, w)
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
-        pixel_values, caption, class_label = self.get_batch(idx)
+        pixel_values, class_label, caption = self.get_batch(idx)
         pixel_values = self.apply_transform(pixel_values, video_transform=True)
         pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 

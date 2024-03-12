@@ -5,6 +5,7 @@ output_path: outputs/toy_csv_video_train
 # model setting
 image_size: 256
 num_frames: 16
+num_classes: 1000
 model_name: "Latte-XL/2"
 pretrained_model_path: ""
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
