@@ -45,16 +45,7 @@ class SkyDataset:
             use_safer_augment=use_safer_augment,
             apply_same_transform=True,
         )
-        if image_video_joint:
-            self.image_transforms = create_video_transforms(
-                sample_size[0],
-                sample_size[1],
-                sample_n_frames,
-                interpolation="bicubic",
-                backend=transform_backend,
-                use_safer_augment=use_safer_augment,
-                apply_same_transform=False,
-            )
+
         self.image_video_joint = image_video_joint
         if self.image_video_joint:
             self.data_all, self.video_frame_all = self.load_video_frames(self.data_path)
@@ -130,19 +121,15 @@ class SkyDataset:
                     except Exception:
                         index = random.randint(0, self.video_frame_num - self.use_image_num)
             images_values = np.stack(images, axis=0)  # (n, h, w, c)
-            images_values = self.apply_transform(images_values, video_transform=False)
+            images_values = self.apply_transform(images_values)
             pixel_values = np.concatenate([pixel_values, images_values], axis=0)  # (f+n, h, w, c)
 
         # normallization
         pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
         return pixel_values
 
-    def apply_transform(self, pixel_values, video_transform=True):
-        if video_transform:
-            transform_func = self.pixel_transforms
-        else:
-            assert self.image_video_joint, "image transform requires to set image-video-joint training on"
-            transform_func = self.image_transforms
+    def apply_transform(self, pixel_values):
+        transform_func = self.pixel_transforms
         if self.transform_backend == "pt":
             import torch
 
