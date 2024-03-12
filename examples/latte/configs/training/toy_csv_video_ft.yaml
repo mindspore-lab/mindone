@@ -25,7 +25,7 @@ warmup_steps: 10
 train_batch_size: 1
 gradient_accumulation_steps: 1
 weight_decay: 0.01
-epochs: 1000
+epochs: 3000
 
 use_ema: True
 clip_grad: False
