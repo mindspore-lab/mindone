@@ -406,7 +406,7 @@ def infer_during_train(model, prompt, save_path, num_samples=1):
             amp_level="O2",
         )
         perform_save_locally(save_path, out)
-        print(f"{j+1}/{num_samples} image samping done.")
+        print(f"{j+1}/{num_samples} image sampling done.")
 
 
 if __name__ == "__main__":
