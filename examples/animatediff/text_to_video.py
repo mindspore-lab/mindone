@@ -234,7 +234,14 @@ def main(args):
             inputs["scale"] = ms.Tensor(guidance_scale, ms.float16)
 
             # latent noisy frames: b c f h w
-            noise = np.random.randn(bs, 4, ad_config.L, ad_config.H // 8, ad_config.W // 8)
+            shape = (bs, 4, ad_config.L, ad_config.H // 8, ad_config.W // 8)
+            if args.init_latent_path is not None:
+                logger.info(f"Loading latent noise from {args.init_latent_path}")
+                noise = np.load(args.init_latent_path)
+                assert noise.shape == shape, "Shape of loaded init latent noise is not correct."
+            else:
+                noise = np.random.randn(*shape)
+
             inputs["noise"] = ms.Tensor(noise, ms.float16)
 
             # control images
@@ -283,6 +290,12 @@ if __name__ == "__main__":
         default=None,
         help="whether use fp16 on vae. If None, will use the precision defined in `sd_config`. Should keep it same as vae precision set in training."
         "For inference with checkpoints coverted from torch, should set it True.",
+    )
+    parser.add_argument(
+        "--init_latent_path",
+        type=str,
+        default=None,
+        help="path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.",
     )
     parser.add_argument(
         "--motion_module_path",
