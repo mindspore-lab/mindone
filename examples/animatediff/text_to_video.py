@@ -236,7 +236,7 @@ def main(args):
             # latent noisy frames: b c f h w
             shape = (bs, 4, ad_config.L, ad_config.H // 8, ad_config.W // 8)
             if args.init_latent_path is not None:
-                logger.info("Loading latent noise from ", args.init_latent_path)
+                logger.info(f"Loading latent noise from {args.init_latent_path}")
                 noise = np.load(args.init_latent_path)
                 assert noise.shape == shape, "Shape of loaded init latent noise is not correct."
             else:
