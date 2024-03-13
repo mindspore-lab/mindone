@@ -74,6 +74,7 @@ class SkyDataset:
     def load_video_frames(self, dataroot):
         data_all = []
         frames_all = []
+        video_names = []
         frame_list = os.walk(dataroot)
         for _, meta in enumerate(frame_list):
             root = meta[0]
@@ -88,8 +89,20 @@ class SkyDataset:
                 data_all.append(frames)
                 for frame in frames:
                     frames_all.append(frame)
+                # get video  name
+                video_name = os.path.abspath(root).split(os.path.abspath(self.data_path))[-1]
+                video_name = video_name.split("/")
+                if len(video_name) > 1:
+                    video_name = video_name[-1]
+                assert len(video_name) > 0, "found empty video name!"
+                video_names.append(video_name)
+
         self.video_num = len(data_all)
         self.video_frame_num = len(frames_all)
+        self.video_names = video_names
+        assert (
+            len(self.video_names) == self.video_num and len(set(self.video_names)) == self.video_num
+        ), f"video names should be {self.video_num} non-repetitive names"
         return data_all, frames_all
 
     def __len__(self):
@@ -166,8 +179,38 @@ class SkyDataset:
             raise NotImplementedError
         return pixel_values
 
+    def traverse_single_video_frames(self, video_index):
+        vframes = self.data_all[video_index]
+        video_length = len(vframes)
+        video_name = self.video_names[video_index]
 
-def create_dataloader(config, device_num=1, rank_id=0, **kwargs):
+        # Sampling video frames
+        clips_indices = []
+        start_idx = 0
+        while start_idx + self.sample_n_frames < video_length:
+            clips_indices.append([start_idx, start_idx + self.sample_n_frames])
+            start_idx += self.sample_n_frames
+        if start_idx < video_length:
+            clips_indices.append([start_idx, video_length])
+        assert len(clips_indices) > 0 and clips_indices[-1][-1] == video_length, "incorrect sampled clips!"
+
+        for clip_indices in clips_indices:
+            i, j = clip_indices
+            frame_indice = list(range(i, j, 1))
+            select_video_frames = [vframes[ind] for ind in frame_indice]
+            video_frames = []
+            for path in select_video_frames:
+                img = Image.open(path).convert("RGB")
+                video_frame = np.array(img, dtype=np.uint8, copy=True)
+                video_frames.append(video_frame)
+            pixel_values = np.stack(video_frames, axis=0)  # (f, h, w, c)
+            pixel_values = self.apply_transform(pixel_values)
+            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+
+            yield video_name, {"video": pixel_values}
+
+
+def create_dataloader(config, device_num=1, rank_id=0, return_dataset=False, **kwargs):
     dataset = SkyDataset(
         config["data_folder"],
         sample_size=config["sample_size"],
@@ -195,5 +238,7 @@ def create_dataloader(config, device_num=1, rank_id=0, **kwargs):
         config["batch_size"],
         drop_remainder=True,
     )
-
-    return dl
+    if return_dataset:
+        return dataset, dl
+    else:
+        return dl

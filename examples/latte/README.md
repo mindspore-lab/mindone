@@ -114,6 +114,22 @@ To accelerate the training speed, we use `dataset_sink_mode: True` in the config
 
 After training, the checkpoints are saved under `output_dir/ckpt/`. To run inference with the checkpoint, please change `checkpoint` in `configs/inference/sky.yaml` to the path of the checkpoint, and then run `python sample.py -c configs/inference/sky.yaml`.
 
+### Embedding Cache
+
+We can accelerate the training speed by caching the embedding before running the training script. See `tools/embedding_cache.py`
+<details onclose>
+
+For Sky Timelapse dataset, in order to cache embeddings in `mindrecord` file format, please run:
+```bash
+python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache_folder path/to/cache/folder --train_data_type mindrecord
+```
+You can also change set `train_data_type` to `npz` to save embeddings in `.npz` files.
+
+
+
+
+</details>
+
 # References
 
 [1] Xin Ma, Yaohui Wang, Gengyun Jia, Xinyuan Chen, Ziwei Liu, Yuan-Fang Li, Cunjian Chen, Yu Qiao: Latte: Latent Diffusion Transformer for Video Generation. CoRR abs/2401.03048 (2024)

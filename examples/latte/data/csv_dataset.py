@@ -230,6 +230,7 @@ def create_dataloader(
     tokenizer=None,
     device_num=1,
     rank_id=0,
+    return_dataset=False,
 ):
     dataset = CSVDataset(
         config["csv_path"],
@@ -262,5 +263,7 @@ def create_dataloader(
         config["batch_size"],
         drop_remainder=True,
     )
-
-    return dl
+    if return_dataset:
+        return dataset, dl
+    else:
+        return dl

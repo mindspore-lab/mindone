@@ -178,6 +178,23 @@ def parse_args():
     )
 
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+    # for embedding cache
+    parser.add_argument(
+        "--train_data_type",
+        default="video_file",
+        type=str,
+        choices=["video_file", "npz", "mindrecord"],
+        help="type of data for training",
+    )
+    parser.add_argument(
+        "--save_data_type",
+        default="float32",
+        type=str,
+        choices=["float16", "float32"],
+        help="data type when saving embedding cache",
+    )
+
+    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
