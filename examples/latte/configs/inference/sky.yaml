@@ -1,0 +1,17 @@
+# model
+condition: null
+num_classes: null
+image_size: 256
+num_frames: 16
+model_name: "Latte-XL/2"
+checkpoint: "models/skytimelapse.ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+use_fp16: True
+
+# sampling
+sampling_steps: 250
+guidance_scale: 1.0 # do not use cfg
+seed: 42
+ddim_sampling: False

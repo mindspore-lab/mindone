@@ -1,0 +1,13 @@
+data_config:
+  data_folder: "imagenet_samples/videos/"
+  csv_path: "imagenet_samples/videos/video_caption.csv"
+  sample_stride: 3
+  video_column: "video"
+  class_column: "class"
+  caption_column:
+  use_safer_augment: False
+  image_video_joint: False
+  use_image_num:
+  num_parallel_workers: 8
+  max_rowsize: 64
+  shuffle: True

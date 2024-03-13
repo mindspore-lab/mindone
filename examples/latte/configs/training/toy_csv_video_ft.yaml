@@ -1,0 +1,42 @@
+# task
+condition: "class"
+output_path: outputs/toy_csv_video_ft
+
+# model setting
+image_size: 256
+num_frames: 16
+num_classes: 1000
+model_name: "Latte-XL/2"
+pretrained_model_path: "path/to/dit/ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+use_fp16: True
+
+# data setting
+dataset_name: "csv"
+data_config_file: "configs/training/data/toy_csv_video.yaml"
+dataset_sink_mode: True
+
+# training hyper-params
+start_learning_rate: 1e-5
+scheduler: "constant"
+warmup_steps: 10
+train_batch_size: 1
+gradient_accumulation_steps: 1
+weight_decay: 0.01
+epochs: 3000
+
+use_ema: True
+clip_grad: False
+max_grad_norm: 0.1
+ckpt_max_keep: 3
+init_loss_scale: 65536
+
+betas: [0.9, 0.999]
+optim_eps: 1.e-6
+
+# training process
+log_interval: 1
+ckpt_save_interval: 1000 # save ckpt every n epochs
+step_mode: False

@@ -1,0 +1,41 @@
+# task
+condition: null
+output_path: outputs/sky_video_train
+
+# model setting
+image_size: 256
+num_frames: 16
+model_name: "Latte-XL/2"
+pretrained_model_path: ""
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+use_fp16: True
+
+# data setting
+dataset_name: "sky"
+data_config_file: "configs/training/data/sky_video.yaml"
+dataset_sink_mode: True
+
+# training hyper-params
+start_learning_rate: 1e-4
+scheduler: "constant"
+warmup_steps: 0
+train_batch_size: 5
+gradient_accumulation_steps: 1
+weight_decay: 0.0
+epochs: 3000
+
+use_ema: True
+clip_grad: False  # original repo applies clip grad after 20k steps
+max_grad_norm: 0.1
+ckpt_max_keep: 3
+init_loss_scale: 65536
+
+betas: [0.9, 0.999]
+optim_eps: 1.e-6
+
+# training process
+log_interval: 100
+ckpt_save_interval: 50 # save ckpt every n epochs
+step_mode: False

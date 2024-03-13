@@ -1,0 +1,17 @@
+# model
+condition: "class"
+num_classes: 101
+image_size: 256
+num_frames: 16
+model_name: "Latte-XL/2"
+checkpoint: "models/ucf101.ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+use_fp16: True
+
+# sampling
+sampling_steps: 250
+guidance_scale: 7.0
+seed: 42
+ddim_sampling: False

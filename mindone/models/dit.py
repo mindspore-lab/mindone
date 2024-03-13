@@ -454,8 +454,19 @@ class FinalLayer(nn.Cell):
 
 
 class DiT(nn.Cell):
-    """
-    Diffusion model with a Transformer backbone.
+    """A diffusion model with a Transformer backbone.
+    Args:
+        input_size (int, default=32): The size of the input latent.
+        patch_size (int, default=2): The size of each patch in the input latent. The input latent is divided into patches of patch_size x patch_size.
+        in_channels (int, default=4): The number of input channels in the input latent.
+        hidden_size (int, default=1152): The hidden size of the Transformer model.
+        depth (int, default=28): The number of blocks in this Transformer.
+        num_heads (int, default=16): The number of attention heads.
+        mlp_ratio (float, default=4.0): The expansion ratio for the hidden dimension in the MLP of the Transformer.
+        class_dropout_prob (float, default=0.1): The dropout probability for the class labels in the label embedder.
+        num_classes (int, default=1000): The number of classes of the input labels.
+        learn_sigma (bool, default=True): Whether to learn the diffusion model's sigma parameter.
+        block_kwargs (dict, default={}): Additional keyword arguments for the Transformer blocks. for example, {'enable_flash_attention':True}
     """
 
     def __init__(
