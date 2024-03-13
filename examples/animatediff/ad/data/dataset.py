@@ -163,6 +163,12 @@ class TextVideoDataset:
         video_dict = self.dataset[idx]
         video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
         video_path = os.path.join(self.video_folder, video_fn)
+        # in case missing .mp4 in csv file
+        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+            if video_path[-4] != ".":
+                video_path = video_path + ".mp4"
+            else:
+                raise ValueError(f"video file format is not verified: {video_path}")
 
         # TODO: Add error data replacement!!!
         if video_path.endswith(".gif"):

@@ -85,6 +85,7 @@ class TrainOneStepCell(nn.Cell):
             sigmas = self.sigma_sampler(x.shape[0], rand=timesteps)
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         if self.snr_gamma is not None:

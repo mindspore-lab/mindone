@@ -17,6 +17,9 @@ from mindone.utils.config import instantiate_from_config
 
 csv_path = "../videocomposer/datasets/webvid5/video_caption.csv"
 video_folder = "../videocomposer/datasets/webvid5"
+video_column = "video"
+caption_column = "caption"
+
 # csv_path = "./datasets/webvid_overfit/video_caption.csv"
 # video_folder = "./datasets/webvid_overfit"
 cfg_path = "configs/stable_diffusion/v1-train-mmv2.yaml"
@@ -51,6 +54,8 @@ def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
         is_image=is_image,
         transform_backend=backend,  # pt, al
         tokenizer=tokenizer,
+        video_column=video_column,
+        caption_column=caption_column,
     )
     num_samples = len(ds)
     steps = 100
@@ -91,6 +96,12 @@ def test_loader(image_finetune=False):
         shuffle=True,
         num_parallel_workers=12,
         max_rowsize=64,
+        video_column=video_column,
+        caption_column=caption_column,
+        train_data_type="video_file",
+        disable_flip=True,
+        random_drop_text=False,
+        random_drop_text_ratio=0.0,
     )
     dl = create_dataloader(data_config, tokenizer=tokenizer, is_image=image_finetune, device_num=1, rank_id=0)
 
