@@ -35,8 +35,8 @@ class Latte(nn.Cell):
         learn_sigma (bool, default=True): Whether to learn the diffusion model's sigma parameter.
         block_kwargs (dict, default={}): Additional keyword arguments for the Transformer blocks. for example, {'enable_flash_attention':True}
         condition (str, default=None): The type of conditions in [None, 'text', 'class']. If it is None, Latte is a un-conditional video generator.
-            If it is 'text', it accepts text embeddings (B, T, N) as conditions, and generates videos.
-            It it is `class`, it accepts class labels (B, ) as conditions, and generates videos.
+            If it is 'text', it accepts text embeddings (B, T, D) as conditions, and generates videos. T: number of tokens. D: embedding dimension.
+            If it is 'class', it accepts class labels (B, ) as conditions, and generates videos.
     """
 
     def __init__(

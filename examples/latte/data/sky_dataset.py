@@ -18,6 +18,18 @@ def is_image_file(filename):
 
 
 class SkyDataset:
+    """A dataset for Sky Timelapse
+    data_path: (str) a folder path where the videos frames are all stored.
+    sample_size: (int, default=256) image size
+    sample_stride: (int, default=4) sample stride, should be positive
+    sample_n_frames: (int, default=16) the number of sampled frames, only applies when `frame_index_sampler` is None.
+    transform_backend: (str, default="al") one of transformation backends in [ms, pt, al]. "al" is recommended.
+    use_safer_augment: (bool, default=False), whether to use safe augmentation. If True, it will disable random horizontal flip.
+    image_video_joint: (bool, default=False), whether to use image-video-joint training. If True, the dataset will return the concatenation of `video_frames`
+        and randomly-sampled `images` as the pixel values (concatenated at the frame axis).
+    use_image_num: (int, default=None), the number of randomly-sampled images in image-video-joint training.
+    """
+
     def __init__(
         self,
         data_path,
@@ -25,7 +37,7 @@ class SkyDataset:
         sample_stride=4,
         sample_n_frames=16,
         transform_backend="al",  # ms, pt, al
-        use_safer_augment=True,
+        use_safer_augment=False,
         image_video_joint=False,
         use_image_num=None,
     ):

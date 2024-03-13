@@ -21,6 +21,23 @@ def read_gif(gif_path, mode="RGB"):
 
 
 class CSVDataset:
+    """A dataset using a csv file
+    csv path: (str) a path to a csv file consisting of columns including video_column, class_column (optional),  caption_column(optional)
+    video_folder: (str) a folder path where the videos are all stored.
+    sample_size: (int, default=256) image size
+    sample_stride: (int, default=4) sample stride, should be positive
+    sample_n_frames: (int, default=16) the number of sampled frames, only applies when `frame_index_sampler` is None.
+    transform_backend: (str, default="al") one of transformation backends in [ms, pt, al]. "al" is recommended.
+    tokenizer: (object, default=None) a text tokenizer which is callable.
+    video_column: (str, default=None), the column name of videos.
+    caption_column: (str, default=None), the column name of text. If not provided, the returned caption/text token will be a dummy placeholder.
+    class_column: (str, default=None), the column name of class labels. If not provided, the returned class label will be a dummy placeholder.
+    use_safer_augment: (bool, default=False), whether to use safe augmentation. If True, it will disable random horizontal flip.
+    image_video_joint: (bool, default=False), whether to use image-video-joint training. If True, the dataset will return the concatenation of `video_frames`
+        and randomly-sampled `images` as the pixel values (concatenated at the frame axis). Not supported for CSVDataset.
+    use_image_num: (int, default=None), the number of randomly-sampled images in image-video-joint training.
+    """
+
     def __init__(
         self,
         csv_path,
@@ -45,7 +62,13 @@ class CSVDataset:
 
         self.video_folder = video_folder
         self.sample_stride = sample_stride
+        assert (
+            isinstance(self.sample_stride, int) and self.sample_stride > 0
+        ), "The sample stride should be a positive integer"
         self.sample_n_frames = sample_n_frames
+        assert (
+            isinstance(self.sample_n_frames, int) and self.sample_n_frames > 0
+        ), "The number of sampled frames should be a positive integer"
         sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
 
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
@@ -61,7 +84,7 @@ class CSVDataset:
         self.tokenizer = tokenizer
         self.video_column = video_column
         assert self.video_column is not None, "The input csv file must specifiy the video column"
-
+        # conditions: None, text, or class
         self.caption_column = caption_column
         self.class_column = class_column
         if self.caption_column is not None and self.tokenizer is None:
@@ -69,6 +92,8 @@ class CSVDataset:
                 f"The caption column is provided as {self.caption_column}, but tokenizer is None",
                 "The text tokens will be dummy placeholders!",
             )
+
+        # whether to use image and video joint training
         self.image_video_joint = image_video_joint
         self.use_image_num = use_image_num
         if image_video_joint:

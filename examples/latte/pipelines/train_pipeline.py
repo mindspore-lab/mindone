@@ -8,6 +8,22 @@ __all__ = ["NetworkWithLoss", "get_model_with_loss"]
 
 
 class NetworkWithLoss(nn.Cell):
+    """An training pipeline for diffusion model
+
+    Args:
+        model (nn.Cell): A noise prediction model to denoise the encoded image latents.
+        vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
+        diffusion: (object): A class for Gaussian Diffusion.
+        scale_factor (float): scale_factor for vae.
+        condition (str): The type of conditions of model in [None, 'text', 'class'].
+            If it is None, model is a un-conditional video generator.
+            If it is 'text', model accepts text embeddings (B, T, N) as conditions, and generates videos.
+            If it is 'class', model accepts class labels (B, ) as conditions, and generates videos.
+        text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
+            T is the number of tokens, and D is the embedding dimension.
+        cond_stage_trainable (bool): whether to train the text encoder.
+    """
+
     def __init__(
         self,
         network: nn.Cell,

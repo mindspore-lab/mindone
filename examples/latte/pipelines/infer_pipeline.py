@@ -9,14 +9,15 @@ __all__ = ["InferPipeline"]
 
 
 class InferPipeline(ABC):
-    """
+    """An Inference pipeline for diffusion model
 
     Args:
-        dit (nn.Cell): A `DiT` to denoise the encoded image latents.
+        model (nn.Cell): A noise prediction model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         scale_factor (float): scale_factor for vae.
         guidance_rescale (float): A higher guidance scale value for noise rescale.
         num_inference_steps: (int): The number of denoising steps.
+        ddim_sampling: (bool): whether to use DDIM sampling. If False, will use DDPM sampling.
     """
 
     def __init__(
