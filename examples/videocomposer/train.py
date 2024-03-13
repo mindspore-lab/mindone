@@ -47,6 +47,7 @@ def init_env(args):
     # rank_id - global card id, device_num - num of cards
     set_random_seed(args.seed)
 
+    # ms.set_context(max_device_memory="30GB")  # adapt for 910b
     ms.set_context(mode=args.ms_mode)  # needed for MS2.0
     if args.use_parallel:
         init()
@@ -72,7 +73,6 @@ def init_env(args):
         mode=args.ms_mode,
         device_target="Ascend",
         device_id=device_id,
-        # max_device_memory="30GB", # adapt for 910b
     )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
     # ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})  # TODO: testing bf16
