@@ -195,7 +195,9 @@ def main(args):
         use_recompute=args.use_recompute,
         recompute_strategy=args.recompute_strategy,
     )
-    latent_diffusion_with_loss = build_model_from_config(_to_abspath(args.model_config), unet_config_update, vae_use_fp16=args.vae_fp16)
+    latent_diffusion_with_loss = build_model_from_config(
+        _to_abspath(args.model_config), unet_config_update, vae_use_fp16=args.vae_fp16
+    )
     # 1) load sd pretrained weight
     load_pretrained_model(
         _to_abspath(args.pretrained_model_path),
