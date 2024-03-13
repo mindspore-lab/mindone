@@ -8,7 +8,8 @@ import time
 import numpy as np
 import yaml
 from PIL import Image
-from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
+from utils.model_utils import check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
+from utils.plot import image_grid
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -95,6 +96,7 @@ def parse_args():
         help="whether to use fp16 for DiT mode. Default is True",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument("--imagegrid", default=False, type=str2bool, help="")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -102,7 +104,7 @@ def parse_args():
         default_args.config = os.path.join(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
-            _check_cfgs_in_parser(cfg, parser)
+            check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
     return args
@@ -209,8 +211,14 @@ if __name__ == "__main__":
     end_time = time.time()
 
     # save result
-    for i, class_label in enumerate(class_labels, 0):
-        save_fp = f"{save_dir}/class-{class_label}.png"
-        img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
+    if not args.imagegrid:
+        for i, class_label in enumerate(class_labels, 0):
+            save_fp = f"{save_dir}/class-{class_label}.png"
+            img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
+            img.save(save_fp)
+            logger.info(f"save to {save_fp}")
+    else:
+        save_fp = f"{save_dir}/sample.png"
+        img = image_grid(x_samples)
         img.save(save_fp)
         logger.info(f"save to {save_fp}")

@@ -1,0 +1,9 @@
+# model
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+
+# data setting
+imagenet_format: True
+data_path: imagenet_samples/images/
+image_size: 256
+patch_size: 2

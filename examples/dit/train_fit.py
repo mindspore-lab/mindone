@@ -1,5 +1,5 @@
 """
-DiT training pipeline
+FiT training pipeline
 - Image finetuning conditioned on class labels (optional)
 """
 import datetime
@@ -10,9 +10,8 @@ from typing import Tuple
 
 import yaml
 from args_train import parse_args
-from data.dataset import create_dataloader
-from data.imagenet_dataset import create_dataloader_imagenet
-from pipelines.train_pipeline import DiTWithLoss
+from data.imagenet_dataset import create_dataloader_imagenet_latent
+from pipelines.train_pipeline import FiTWithLoss
 from utils.model_utils import load_dit_ckpt_params
 
 import mindspore as ms
@@ -27,9 +26,8 @@ sys.path.insert(0, mindone_lib_path)
 
 
 from diffusion import create_diffusion
-from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
-from mindone.models.dit import DiT_models
+from mindone.models.fit import FiT_models
 
 # load training modules
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -67,9 +65,6 @@ def init_env(
     """
     set_random_seed(seed)
 
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
@@ -102,6 +97,9 @@ def init_env(
             device_id=device_id,
             # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
 
     return device_id, rank_id, device_num
 
@@ -139,9 +137,7 @@ def main(args):
     # 2. model initiate and weight loading
     # 2.1 dit
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-    latent_size = args.image_size // 8
-    dit_model = DiT_models[args.model_name](
-        input_size=latent_size,
+    dit_model = FiT_models[args.model_name](
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
@@ -151,32 +147,23 @@ def main(args):
     if args.dit_checkpoint:
         dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
     else:
-        logger.info("Initialize DIT ramdonly")
+        logger.info("Initialize FIT ramdonly")
     dit_model.set_train(True)
 
     set_dit_params(dit_model, ft_all_params=True, train=True)
 
-    # 2.2 vae
-    logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        4,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
-
     diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = DiTWithLoss(
+
+    model_config = dict(C=4, H=args.image_size // 8, W=args.image_size // 8, patch_size=args.patch_size)
+    latent_diffusion_with_loss = FiTWithLoss(
         dit_model,
         diffusion,
-        vae=vae,
+        vae=None,
         scale_factor=args.sd_scale_factor,
         condition=args.condition,
         text_encoder=None,
         cond_stage_trainable=False,
+        model_config=model_config,
     )
 
     # image dataset
@@ -187,32 +174,17 @@ def main(args):
             batch_size=args.train_batch_size,
             shuffle=True,
             num_parallel_workers=args.num_parallel_workers,
+            patch_size=args.patch_size,
+            embed_dim=args.embed_dim,
         )
-        dataset = create_dataloader_imagenet(
+        dataset = create_dataloader_imagenet_latent(
             data_config,
             device_num=device_num,
             rank_id=rank_id,
         )
     else:
-        data_config = dict(
-            data_folder=args.data_path,
-            csv_path=args.data_path + "/image_caption.csv",
-            sample_size=args.image_size,
-            batch_size=args.train_batch_size,
-            shuffle=True,
-            num_parallel_workers=args.num_parallel_workers,
-            max_rowsize=64,
-        )
+        raise NotImplementedError("FiT support ImageNet format dataset only")
 
-        dataset = create_dataloader(
-            data_config,
-            tokenizer=None,
-            device_num=device_num,
-            rank_id=rank_id,
-            image_column="image",
-            caption_column="caption" if args.condition == "text" else None,
-            class_column="class" if args.condition == "class" else None,
-        )
     dataset_size = dataset.get_dataset_size()
 
     # 4. build training utils: lr, optim, callbacks, trainer
@@ -316,17 +288,16 @@ def main(args):
     # 5. log and save config
     if rank_id == 0:
         # 4. print key info
-        num_params_vae, num_params_vae_trainable = count_params(vae)
         num_params_dit, num_params_dit_trainable = count_params(dit_model)
-        num_params = num_params_vae + num_params_dit
-        num_params_trainable = num_params_vae_trainable + num_params_dit_trainable
+        num_params = num_params_dit
+        num_params_trainable = num_params_dit_trainable
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
+                f"Num params: {num_params:,} (dit: {num_params_dit:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use FP16: {args.use_fp16}",
                 f"Learning rate: {args.start_learning_rate}",

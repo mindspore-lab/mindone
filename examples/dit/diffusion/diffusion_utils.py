@@ -2,9 +2,9 @@
 #     GLIDE: https://github.com/openai/glide-text2im/blob/main/glide_text2im/gaussian_diffusion.py
 #     ADM:   https://github.com/openai/guided-diffusion/blob/main/guided_diffusion
 #     IDDPM: https://github.com/openai/improved-diffusion/blob/main/improved_diffusion/gaussian_diffusion.py
-
 import enum
 import math
+from typing import Optional
 
 import numpy as np
 
@@ -110,11 +110,17 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     return np.array(betas)
 
 
-def mean_flat(tensor):
+def mean_flat(tensor: Tensor, mask: Optional[Tensor] = None):
     """
-    Take the mean over all non-batch dimensions.
+    Take the mean over all non-batch dimensions
+    When mask is not None, it calculate the mean of the valid region (mask=True)
     """
-    return tensor.mean(axis=list(range(1, len(tensor.shape))))
+    if mask is None:
+        return tensor.mean(axis=list(range(1, len(tensor.shape))))
+
+    tensor = ops.masked_fill(tensor, ~mask, 0.0)
+    num = ops.clamp(mask.sum(axis=list(range(1, len(tensor.shape)))), min=1)
+    return tensor.sum(axis=list(range(1, len(tensor.shape)))) / num
 
 
 class ModelMeanType(enum.Enum):
@@ -175,7 +181,7 @@ def approx_standard_normal_cdf(x):
     A fast approximation of the cumulative distribution function of the
     standard normal.
     """
-    return 0.5 * (1.0 + ops.tanh(Tensor(np.sqrt(2.0 / np.pi)) * (x + 0.044715 * ops.pow(x, 3))))
+    return 0.5 * (1.0 + ops.tanh(ms.numpy.sqrt(2.0 / ms.numpy.pi) * (x + 0.044715 * ops.pow(x, 3))))
 
 
 def continuous_gaussian_log_likelihood(x, *, means, log_scales):

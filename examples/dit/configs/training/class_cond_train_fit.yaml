@@ -7,9 +7,10 @@ use_parallel: True
 
 # model setting
 image_size: 256 # or 512
-model_name: "DiT-XL/2"
+patch_size: 2
+embed_dim: 1152
+model_name: "FiT-XL/2"
 dit_checkpoint: ""
-vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
 use_fp16: True
@@ -27,7 +28,7 @@ warmup_steps: 100
 train_batch_size: 64
 gradient_accumulation_steps: 1
 weight_decay: 0.01
-epochs: 1400
+epochs: 360
 
 use_ema: True
 clip_grad: True

@@ -50,7 +50,7 @@ def count_params(model, verbose=False):
     return total_params, trainable_params
 
 
-def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
+def check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     actions_dest = [action.dest for action in parser._actions]
     defaults_key = parser._defaults.keys()
     for k in cfgs.keys():

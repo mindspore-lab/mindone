@@ -1,0 +1,257 @@
+import mindspore as ms
+from mindspore import Tensor, nn, ops
+
+from .dit import (
+    GELU,
+    FinalLayer,
+    LabelEmbedder,
+    LayerNorm,
+    Mlp,
+    Optional,
+    TimestepEmbedder,
+    constant_,
+    exists,
+    modulate,
+    normal_,
+    xavier_uniform_,
+)
+
+__all__ = [
+    "FiT",
+    "FiT_models",
+    "FiT_XL_2",
+]
+
+
+class Attention(nn.Cell):
+    def __init__(self, dim_head: int, attn_drop: float = 0.0):
+        super().__init__()
+        self.scale = dim_head**-0.5
+        self.attn_drop = nn.Dropout(p=attn_drop)
+
+    def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None):
+        sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
+
+        # use fp32 for exponential inside
+        sim = sim.to(ms.float32)
+        if exists(mask):
+            mask = mask[:, None, None, :]
+            sim = ops.masked_fill(sim, ~mask, -ms.numpy.inf)
+        attn = ops.softmax(sim, axis=-1).astype(v.dtype)
+        attn = self.attn_drop(attn)
+        out = ops.matmul(attn, v)
+        return out
+
+
+class SelfAttention(nn.Cell):
+    def __init__(
+        self,
+        dim: int,
+        num_heads: int = 8,
+        qkv_bias: bool = False,
+        attn_drop: float = 0.0,
+        proj_drop: float = 0.0,
+        enable_flash_attention: bool = False,
+    ):
+        super().__init__()
+        if enable_flash_attention:
+            raise NotImplementedError("Flash attention is not supported yet.")
+
+        assert dim % num_heads == 0, "dim should be divisible by num_heads"
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias)
+        self.proj = nn.Dense(dim, dim)
+        self.proj_drop = nn.Dropout(p=proj_drop)
+        self.attention = Attention(head_dim, attn_drop=attn_drop)
+
+    @staticmethod
+    def _rearange_in(x, h):
+        # (b, n, h*d) -> (b, h, n, d)
+        b, n, d = x.shape
+        d = d // h
+
+        x = ops.reshape(x, (b, n, h, d))
+        x = ops.transpose(x, (0, 2, 1, 3))
+        return x
+
+    @staticmethod
+    def _rearange_out(x):
+        # (b, h, n, d) -> (b, n, h*d)
+        b, _, n, _ = x.shape
+        x = ops.transpose(x, (0, 2, 1, 3))
+        x = ops.reshape(x, (b, n, -1))
+        return x
+
+    def construct(self, x: Tensor, mask: Optional[Tensor] = None):
+        h = self.num_heads
+        B, N, _ = x.shape
+
+        # (b, n, 3*h*d) -> (b, n, 3, h*d)  -> (3, b, n, h*d)
+        qkv = self.qkv(x).reshape(B, N, 3, -1).permute((2, 0, 1, 3))
+        q, k, v = qkv.unbind(0)
+
+        # (b, n, h*d) -> (b, h, n, d)
+        q = self._rearange_in(q, h)
+        k = self._rearange_in(k, h)
+        v = self._rearange_in(v, h)
+
+        out = self.attention(q, k, v, mask=mask)
+        # (b, h, n, d) -> (b, n, h*d)
+        out = self._rearange_out(out)
+
+        return self.proj_drop(self.proj(out))
+
+
+class FiTBlock(nn.Cell):
+    """
+    A FiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
+    """
+
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
+        super().__init__()
+        self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.attn = SelfAttention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
+        self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        mlp_hidden_dim = int(hidden_size * mlp_ratio)
+        approx_gelu = lambda: GELU(approximate="tanh")
+        self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
+
+    def construct(self, x: Tensor, c: Tensor, mask: Optional[Tensor] = None):
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, axis=1)
+        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), mask=mask)
+        x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+        return x
+
+
+class FiT(nn.Cell):
+    """
+    Diffusion model with a Transformer backbone.
+    """
+
+    def __init__(
+        self,
+        patch_size=2,
+        in_channels=4,
+        hidden_size=1152,
+        depth=28,
+        num_heads=16,
+        mlp_ratio=4.0,
+        class_dropout_prob=0.1,
+        num_classes=1000,
+        learn_sigma=True,
+        block_kwargs={},
+    ):
+        super().__init__()
+        self.learn_sigma = learn_sigma
+        self.in_channels = in_channels
+        self.out_channels = in_channels * 2 if learn_sigma else in_channels
+        self.patch_size = patch_size
+        self.num_heads = num_heads
+
+        self.x_embedder = nn.Dense(self.in_channels * patch_size * patch_size, hidden_size, has_bias=True)
+        self.t_embedder = TimestepEmbedder(hidden_size)
+        self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
+
+        self.blocks = nn.CellList(
+            [FiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]
+        )
+        self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        # Initialize transformer layers:
+        def _basic_init(module):
+            if isinstance(module, nn.Dense):
+                xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    constant_(module.bias, 0)
+
+        self.apply(_basic_init)
+
+        # Initialize label embedding table:
+        normal_(self.y_embedder.embedding_table.embedding_table, std=0.02)
+
+        # Initialize timestep embedding MLP:
+        normal_(self.t_embedder.mlp[0].weight, std=0.02)
+        normal_(self.t_embedder.mlp[2].weight, std=0.02)
+
+        # Zero-out adaLN modulation layers in DiT blocks:
+        for block in self.blocks:
+            constant_(block.adaLN_modulation[-1].weight, 0)
+            constant_(block.adaLN_modulation[-1].bias, 0)
+
+        # Zero-out output layers:
+        constant_(self.final_layer.adaLN_modulation[-1].weight, 0)
+        constant_(self.final_layer.adaLN_modulation[-1].bias, 0)
+        constant_(self.final_layer.linear.weight, 0)
+        constant_(self.final_layer.linear.bias, 0)
+
+    def unpatchify(self, x: Tensor):
+        """
+        x: (N, T, patch_size**2 * C)
+        imgs: (N, H, W, C)
+        """
+        c = self.out_channels
+        h = w = int(x.shape[1] ** 0.5)
+        assert h * w == x.shape[1]
+
+        x = x.reshape((x.shape[0], h, w, self.patch_size, self.patch_size, c))
+        x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
+        imgs = x.reshape((x.shape[0], c, h * self.patch_size, h * self.patch_size))
+        return imgs
+
+    def _check_input(self, x):
+        if len(x.shape) == 4:
+            N, C, H, W = x.shape
+            nh, nw = H // self.patch_size, W // self.patch_size
+            x = ops.reshape(x, (N, C, nh, self.patch_size, nw, self.patch_size))
+            x = ops.transpose(x, (0, 2, 4, 1, 3, 5))  # N, nh, nw, C, patch, patch
+            x = ops.reshape(x, (N, nh * nw, -1))
+        return x
+
+    def construct(self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor):
+        """
+        Forward pass of DiT.
+        x: (N, T, D) or (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
+        t: (N,) tensor of diffusion timesteps
+        y: (N,) tensor of class labels
+        pos: (N, T, D) tensor of positional embedding
+        mask: (N, T) tensor of valid mask
+        """
+        x = self._check_input(x)
+        x = self.x_embedder(x) + pos  # (N, T, D), where T = H * W / patch_size ** 2
+        t = self.t_embedder(t)  # (N, D)
+        y = self.y_embedder(y, self.training)  # (N, D)
+        c = t + y  # (N, D)
+        for block in self.blocks:
+            x = block(x, c, mask=mask)  # (N, T, D)
+        x = self.final_layer(x, c)  # (N, T, patch_size ** 2 * out_channels)
+        x = self.unpatchify(x)  # (N, out_channels, H, W)
+        return x
+
+    @ms.jit
+    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
+        """
+        Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
+        """
+        # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
+        half = x[: len(x) // 2]
+        combined = ops.cat([half, half], axis=0)
+        model_out = self.construct(combined, t, y)
+        eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
+        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+        eps = ops.cat([half_eps, half_eps], axis=0)
+        return ops.cat([eps, rest], axis=1)
+
+
+def FiT_XL_2(**kwargs):
+    return FiT(depth=28, hidden_size=1152, patch_size=2, num_heads=16, **kwargs)
+
+
+FiT_models = {
+    "FiT-XL/2": FiT_XL_2,
+}

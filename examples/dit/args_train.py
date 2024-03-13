@@ -3,7 +3,7 @@ import logging
 import os
 
 import yaml
-from utils.model_utils import _check_cfgs_in_parser, str2bool
+from utils.model_utils import check_cfgs_in_parser, str2bool
 
 logger = logging.getLogger()
 
@@ -166,6 +166,8 @@ def parse_args():
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
+    parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
+    parser.add_argument("--embed_dim", type=int, default=1152, help="Embed Dim")
     parser.add_argument(
         "--condition",
         default=None,
@@ -185,7 +187,7 @@ def parse_args():
         default_args.config = os.path.join(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
-            _check_cfgs_in_parser(cfg, parser)
+            check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
 

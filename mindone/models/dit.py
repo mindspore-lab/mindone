@@ -542,7 +542,7 @@ class DiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x):
+    def unpatchify(self, x: Tensor):
         """
         x: (N, T, patch_size**2 * C)
         imgs: (N, H, W, C)
@@ -553,7 +553,6 @@ class DiT(nn.Cell):
         assert h * w == x.shape[1]
 
         x = x.reshape((x.shape[0], h, w, p, p, c))
-        # x = torch.einsum('nhwpqc->nchpwq', x)
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
         imgs = x.reshape((x.shape[0], c, h * p, h * p))
         return imgs
@@ -584,10 +583,6 @@ class DiT(nn.Cell):
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
         model_out = self.construct(combined, t, y)
-        # For exact reproducibility reasons, we apply classifier-free guidance on only
-        # three channels by default. The standard approach to cfg applies it to all channels.
-        # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
