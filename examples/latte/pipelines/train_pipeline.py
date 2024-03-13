@@ -1,6 +1,3 @@
-import sys
-
-sys.path.append("../dit/")
 from diffusion import SpacedDiffusion
 from diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
 

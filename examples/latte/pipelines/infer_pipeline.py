@@ -1,9 +1,5 @@
-import logging
-import sys
 from abc import ABC
 
-logger = logging.getLogger()
-sys.path.append("../dit/")
 from diffusion import create_diffusion
 
 import mindspore as ms

@@ -1,6 +1,5 @@
 """
-Latte training pipeline
-- Image finetuning
+Latte training script
 """
 import datetime
 import logging
