@@ -65,7 +65,7 @@ def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None):
                 logger.info("Arg `{}` updated: {} -> {}".format(name, unet_args[name], value))
                 unet_args[name] = value
 
-    if args.vae_use_fp16 is not None:
+    if vae_use_fp16 is not None:
         config.params.first_stage_config.params.use_fp16 = vae_use_fp16
 
     if "target" not in config:
