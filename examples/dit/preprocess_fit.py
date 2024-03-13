@@ -59,9 +59,6 @@ def parse_args():
         default="models/sd-vae-ft-mse.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
-    )
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
     parser.add_argument("--imagenet_format", help="Training with ImageNet dataset format")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")

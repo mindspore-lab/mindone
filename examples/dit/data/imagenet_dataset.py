@@ -184,12 +184,13 @@ def create_dataloader_imagenet(
         num_shards=device_num,
         shard_id=rank_id,
         num_parallel_workers=config["num_parallel_workers"],
-        decode=True,
+        decode=False,
     )
     sample_size = config.get("sample_size", 256)
     dataset = dataset.map(
         operations=Compose(
             [
+                vision.Decode(to_pil=True),
                 _CenterCrop(sample_size),
                 vision.RandomHorizontalFlip(),
                 vision.HWC2CHW(),

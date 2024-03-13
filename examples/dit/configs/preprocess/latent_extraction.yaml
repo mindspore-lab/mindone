@@ -1,6 +1,5 @@
 # model
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
-sd_scale_factor: 0.18215
 
 # data setting
 imagenet_format: True
