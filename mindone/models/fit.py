@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Type, Union
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -117,25 +117,64 @@ class SelfAttention(nn.Cell):
         return self.proj_drop(self.proj(out))
 
 
+class SwiGLU(nn.Cell):
+    def __init__(
+        self,
+        in_features: int,
+        hidden_features: Optional[int] = None,
+        out_features: Optional[int] = None,
+        act_layer: Type[nn.Cell] = nn.SiLU,
+        norm_layer: Optional[Type[nn.Cell]] = None,
+        has_bias: bool = True,
+        drop: float = 0.0,
+    ):
+        super().__init__()
+        out_features = out_features or in_features
+        hidden_features = hidden_features or in_features
+
+        self.fc1_g = nn.Dense(in_features, hidden_features, has_bias=has_bias)
+        self.fc1_x = nn.Dense(in_features, hidden_features, has_bias=has_bias)
+        self.act = act_layer()
+        self.drop1 = nn.Dropout(p=drop)
+        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        self.fc2 = nn.Dense(hidden_features, out_features, has_bias=has_bias)
+        self.drop2 = nn.Dropout(p=drop)
+
+    def construct(self, x):
+        x_gate = self.fc1_g(x)
+        x = self.fc1_x(x)
+        x = self.act(x_gate) * x
+        x = self.drop1(x)
+        x = self.norm(x)
+        x = self.fc2(x)
+        x = self.drop2(x)
+        return x
+
+
 class FiTBlock(nn.Cell):
     """
     A FiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
 
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, **block_kwargs):
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, ffn="swiglu", **block_kwargs):
         super().__init__()
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.attn = SelfAttention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
-        approx_gelu = lambda: GELU(approximate="tanh")
-        self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        if ffn == "swiglu":
+            self.ffn = SwiGLU(
+                in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=nn.SiLU, has_bias=False, drop=0
+            )
+        elif ffn == "mlp":
+            approx_gelu = lambda: GELU(approximate="tanh")
+            self.ffn = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
         self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
 
     def construct(self, x: Tensor, c: Tensor, mask: Optional[Tensor] = None):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, axis=1)
         x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), mask=mask)
-        x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
+        x = x + gate_mlp.unsqueeze(1) * self.ffn(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
 
@@ -155,6 +194,7 @@ class FiT(nn.Cell):
         class_dropout_prob=0.1,
         num_classes=1000,
         learn_sigma=True,
+        ffn="swiglu",
         block_kwargs={},
     ):
         super().__init__()
@@ -169,7 +209,7 @@ class FiT(nn.Cell):
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
 
         self.blocks = nn.CellList(
-            [FiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]
+            [FiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, ffn=ffn, **block_kwargs) for _ in range(depth)]
         )
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()

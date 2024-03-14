@@ -1,7 +1,7 @@
 import logging
 import math
 import numbers
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple, Type, Union
 
 import numpy as np
 
@@ -154,7 +154,7 @@ class Mlp(nn.Cell):
         in_features: int,
         hidden_features: Optional[int] = None,
         out_features: Optional[int] = None,
-        act_layer: Optional[nn.Cell] = nn.GELU,
+        act_layer: Type[nn.Cell] = nn.GELU,
         drop: float = 0.0,
     ) -> None:
         super().__init__()
