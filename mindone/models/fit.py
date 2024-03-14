@@ -136,7 +136,7 @@ class SwiGLU(nn.Cell):
         self.fc1_x = nn.Dense(in_features, hidden_features, has_bias=has_bias)
         self.act = act_layer()
         self.drop1 = nn.Dropout(p=drop)
-        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        self.norm = norm_layer((hidden_features,)) if norm_layer is not None else nn.Identity()
         self.fc2 = nn.Dense(hidden_features, out_features, has_bias=has_bias)
         self.drop2 = nn.Dropout(p=drop)
 
