@@ -65,24 +65,24 @@ def create_model(config, checkpoint_path=None):
 class VideoCaptioner:
     def __init__(
         self,
-        config: str = "/disk1/mindone/songyuanwei/mindone/examples/coca/coca_vit-l-14.yaml",
-        model_path: str = "models/coca_model.ckpt",
+        config: str = "./config/coca_vit-l-14.yaml",
+        model_path: str = "./models/coca_model.ckpt",
     ):
         if not os.path.exists(model_path):
             raise ValueError("{} not exist".format(model_path))
         else:
             self.model = create_model(config, checkpoint_path=model_path)
-            self.transform = create_transforms()
-            self.tokenize = BpeTokenizer()
+            self.transforms = create_transforms()
+            self.tokenizer = BpeTokenizer()
 
     def __call__(self, video_path: str, repetition_penalty: float = 1.0, seq_len: int = 30):
         middle_frame = extract_mid_frame(video_path)
 
-        img = ms.Tensor(self.transform(middle_frame), dtype=ms.float32)
+        img = ms.Tensor(self.transforms(middle_frame), dtype=ms.float32)
         self.model.set_train(False)
         generated = self.model.generate(img)
 
-        caption = self.tokenize.decode(generated[0].asnumpy()).split("<|endoftext|>")[0].replace("<|startoftext|>", "")
+        caption = self.tokenizer.decode(generated[0].asnumpy()).split("<|endoftext|>")[0].replace("<|startoftext|>", "")
 
         return caption
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", default="./models/coca_model.ckpt", type=str, help="coca model checkpoint path")
     args = parser.parse_args()
 
-    vc = VideoCaptioner(config=args.config, model_path=args.config)
+    vc = VideoCaptioner(config=args.config, model_path=args.model_path)
     video_path = args.video_path
     caption = vc(video_path)
 
