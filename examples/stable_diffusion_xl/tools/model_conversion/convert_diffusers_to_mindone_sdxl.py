@@ -304,7 +304,9 @@ def convert_weight(state_dict, msname):
         kt, kms = key_torch[i], key_ms[i]
         vms = Tensor(state_dict["state_dict"][kt].numpy(), ms.float32)
         if "conditioner.embedders.1.model.text_projection" == kms:
-            print(f"[Attention] {kms} is called differently in MindONE and Diffusers, so it is transposed in converting")
+            print(
+                f"[Attention] {kms} is called differently in MindONE and Diffusers, so it is transposed in converting"
+            )
             vms = ms.ops.transpose(vms, (1, 0))
         newckpt.append({"name": kms, "data": vms})
         ms_key.append(kms)
