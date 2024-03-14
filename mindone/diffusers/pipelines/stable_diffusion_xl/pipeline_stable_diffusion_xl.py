@@ -16,7 +16,7 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from transformers import CLIPTokenizer
-from ...transformers_ms import (
+from ....transformers import (
     CLIPTextModel,
     CLIPTextModelWithProjection,
 )

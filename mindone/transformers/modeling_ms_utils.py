@@ -57,8 +57,8 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 if is_safetensors_available():
     from safetensors import safe_open
-    from ..safetensors_ms import load_file as safe_load_file
-    from ..safetensors_ms import save_file as safe_save_file
+    from ..safetensors import load_file as safe_load_file
+    from ..safetensors import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
 

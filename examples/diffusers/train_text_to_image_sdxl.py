@@ -35,11 +35,11 @@ from mindspore import Parameter, Tensor, context, nn, ops
 from mindspore.amp import DynamicLossScaler, LossScaler, StaticLossScaler, all_finite
 from mindspore.dataset import vision, transforms, GeneratorDataset
 
-from .models import AutoencoderKL, UNet2DConditionModel
-from .schedulers import DDPMScheduler
-from .pipelines import StableDiffusionXLPipeline
-from .optimization import get_scheduler
-from .training_utils import compute_snr, set_seed, is_master, init_distributed_device
+from mindone.diffusers.models import AutoencoderKL, UNet2DConditionModel
+from mindone.diffusers.schedulers import DDPMScheduler
+from mindone.diffusers.pipelines import StableDiffusionXLPipeline
+from mindone.diffusers.optimization import get_scheduler
+from mindone.diffusers.training_utils import compute_snr, set_seed, is_master, init_distributed_device
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +58,11 @@ def import_model_class_from_model_name_or_path(
     model_class = text_encoder_config.architectures[0]
 
     if model_class == "CLIPTextModel":
-        from .transformers_ms import CLIPTextModel
+        from mindone.transformers import CLIPTextModel
 
         return CLIPTextModel
     elif model_class == "CLIPTextModelWithProjection":
-        from .transformers_ms import CLIPTextModelWithProjection
+        from mindone.transformers import CLIPTextModelWithProjection
 
         return CLIPTextModelWithProjection
     else:
