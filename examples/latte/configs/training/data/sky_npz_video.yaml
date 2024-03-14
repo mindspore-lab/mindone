@@ -2,7 +2,7 @@ data_config:
   train_data_type: "npz"
   data_folder: "path/to/sky_train_cache"
   sample_stride: 3
-  use_safer_augment: False
+  use_safer_augment: True
   image_video_joint: False
   use_image_num:
   num_parallel_workers: 8

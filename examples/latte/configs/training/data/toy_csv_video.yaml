@@ -5,7 +5,7 @@ data_config:
   video_column: "video"
   class_column: "class"
   caption_column:
-  use_safer_augment: False
+  use_safer_augment: True
   image_video_joint: False
   use_image_num:
   num_parallel_workers: 8
