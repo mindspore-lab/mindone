@@ -198,7 +198,7 @@ def parse_embedding_cache_args(parser):
     parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
     parser.add_argument(
         "--max_page_size",
-        default=128,
+        default=256,
         type=int,
         choices=[64, 128, 256],
         help="The maximum page size for the MindRecord File Writer. Should be one of [64, 128, 256]",

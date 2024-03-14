@@ -116,21 +116,33 @@ After training, the checkpoints are saved under `output_dir/ckpt/`. To run infer
 
 ### Embedding Cache
 
-We can accelerate the training speed by caching the embeddings of the dataset before running the training script. See `python tools/embedding_cache.py -h`.
+We can accelerate the training speed by caching the embeddings of the dataset before running the training script. See the following example about how to cache the embeddings.
+
 <details onclose>
 
 For Sky Timelapse dataset, in order to cache embeddings in `mindrecord` file format, first, please make sure the `data_path` in `configs/training/sky_video.yaml` is set correctly to the folder named `sky_train/`.
 
 Then you can start saving the embeddings using:
 ```bash
-python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache_folder path/to/cache/folder --train_data_type mindrecord
+python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache_folder path/to/cache/folder --cache_file_type mindrecord
 ```
-You can also change `train_data_type` to `npz` to save embeddings in `.npz` files.
+You can also change `cache_file_type` to `npz` to save embeddings in `.npz` files.
 
-The
+The embedding caching process can take a while depending on the size of the video dataset. Some exceptions maybe thrown during the process.
 
+If unexpected exceptions were thrown, the program will be stoped and the embedding caching writer's status will be printed on the screen:
+```bash
+Start file Index: 0. # the start of video index to be processed
+Number of saved mindrecord files 1 # the number of saved mindrecord files
+Number of saved data lines 120 # the number of processed videos which have been saved.
+```
+In this case, you can resume the embedding cache from the video indexed at $120$ (index starts from 0). Simply append `--resume_cache_index 120`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $120^{th}$ video and save the embeddings in another mindrecord file.
+
+To check more usages, please use `python tools/embedding_cache.py -h`.
 
 </details>
+
+After the embeddings have been cached,
 
 # References
 
