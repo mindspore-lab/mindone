@@ -1,7 +1,7 @@
 import logging
 import math
 import numbers
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -143,8 +143,8 @@ class PatchEmbed(nn.Cell):
                 self.image_size[1],
             ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         x = self.proj(x)
-        x = ops.reshape(x, (b, self.embed_dim, -1))  # B Ph*Pw C
-        x = ops.transpose(x, (0, 2, 1))
+        x = ops.reshape(x, (b, self.embed_dim, -1))
+        x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
         return x
 
 
@@ -575,7 +575,7 @@ class DiT(nn.Cell):
         return x
 
     @ms.jit
-    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
+    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: Union[float, Tensor]):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """

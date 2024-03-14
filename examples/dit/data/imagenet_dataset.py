@@ -155,8 +155,8 @@ class ImageNetLatentIterator:
         nh, nw = h // self.patch_size, w // self.patch_size
 
         latent = np.reshape(latent, (c, nh, self.patch_size, nw, self.patch_size))
-        latent = np.transpose(latent, (1, 3, 0, 2, 4))  # nh, nw, c, patch, patch
-        latent = np.reshape(latent, (nh * nw, -1))  # nh * nw, c * patch * patch
+        latent = np.transpose(latent, (1, 3, 2, 4, 0))  # nh, nw, patch, patch, c
+        latent = np.reshape(latent, (nh * nw, -1))  # nh * nw, patch * patch * c
 
         pos = get_2d_sincos_pos_embed(self.embed_dim, nh, nw).astype(np.float16)
         return latent, pos
@@ -244,7 +244,7 @@ def create_dataloader_imagenet_latent(
     C = 4
 
     pad_info = {
-        "latent": ([max_length, C * patch_size * patch_size], 0),
+        "latent": ([max_length, patch_size * patch_size * C], 0),
         "label": None,
         "pos": ([max_length, embed_dim], 0),
         "mask": ([max_length], 0),

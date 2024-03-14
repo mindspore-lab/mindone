@@ -157,7 +157,7 @@ class FiTWithLoss(NetworkWithLoss):
         Diffusion model forward and loss computation for training
 
         Args:
-            x: flattened latent, in shape [bs, T, C * patch_size * patch_size]
+            x: flattened latent, in shape [bs, T, patch_size * patch_size * C]
             labels: class label ids [bs, ], optional
             text: text tokens padded to fixed shape [bs, 77], optional
 

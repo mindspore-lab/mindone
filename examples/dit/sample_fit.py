@@ -21,8 +21,8 @@ sys.path.insert(0, mindone_lib_path)
 
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
-from examples.dit.pipelines.infer_pipeline import DiTInferPipeline
-from mindone.models.dit import DiT_models
+from examples.dit.pipelines.infer_pipeline import FiTInferPipeline
+from mindone.models.fit import FiT_models
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
@@ -53,6 +53,18 @@ def parse_args():
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
     parser.add_argument(
+        "--image_height",
+        type=int,
+        default=256,
+        help="image height",
+    )
+    parser.add_argument(
+        "--image_width",
+        type=int,
+        default=256,
+        help="image width",
+    )
+    parser.add_argument(
         "--image_size",
         type=int,
         default=256,
@@ -62,12 +74,12 @@ def parse_args():
         "--model_name",
         "-m",
         type=str,
-        default="DiT-XL/2",
-        help="Model name , such as DiT-XL/2, DiT-L/2",
+        default="FiT-XL/2",
+        help="Model name , such as FiT-XL/2",
     )
-    parser.add_argument(
-        "--dit_checkpoint", type=str, default="models/DiT-XL-2-256x256.ckpt", help="the path to the DiT checkpoint."
-    )
+    parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
+    parser.add_argument("--embed_dim", type=int, default=1152, help="Embed Dim")
+    parser.add_argument("--dit_checkpoint", type=str, required=True, help="the path to the FiT checkpoint.")
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -93,7 +105,7 @@ def parse_args():
         "--use_fp16",
         default=True,
         type=str2bool,
-        help="whether to use fp16 for DiT mode. Default is True",
+        help="whether to use fp16 for FiT mode. Default is True",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="")
@@ -122,26 +134,25 @@ if __name__ == "__main__":
     set_random_seed(args.seed)
 
     # 2. model initiate and weight loading
-    # 2.1 dit
-    logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-    latent_size = args.image_size // 8
-    dit_model = DiT_models[args.model_name](
-        input_size=latent_size,
+    # 2.1 fit
+    logger.info(f"{args.model_name}-{args.image_width}x{args.image_height} init")
+    latent_height, latent_width = args.image_height // 8, args.image_width // 8
+    fit_model = FiT_models[args.model_name](
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
 
     if args.use_fp16:
-        dit_model = auto_mixed_precision(dit_model, amp_level="O2")
+        fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
     try:
-        dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+        fit_model = load_dit_ckpt_params(fit_model, args.dit_checkpoint)
     except Exception:
         param_dict = ms.load_checkpoint(args.dit_checkpoint)
         param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        dit_model = load_dit_ckpt_params(dit_model, param_dict)
-    dit_model = dit_model.set_train(False)
-    for param in dit_model.get_parameters():  # freeze dit_model
+        fit_model = load_dit_ckpt_params(fit_model, param_dict)
+    fit_model = fit_model.set_train(False)
+    for param in fit_model.get_parameters():  # freeze fit_model
         param.requires_grad = False
 
     # 2.2 vae
@@ -160,31 +171,40 @@ if __name__ == "__main__":
     class_labels = [207, 360, 387, 974, 88, 979, 417, 279]
     # Create sampling noise:
     n = len(class_labels)
-    z = ops.randn((n, 4, latent_size, latent_size), dtype=ms.float32)
+    z = ops.randn((n, 4, latent_height, latent_width), dtype=ms.float32)
     y = Tensor(class_labels)
     y_null = ops.ones_like(y) * 1000
 
+    model_config = dict(
+        C=4,
+        max_size=args.image_size // 8,
+        patch_size=args.patch_size,
+        embed_dim=args.embed_dim,
+        max_length=args.image_size * args.image_size // 8 // 8 // args.patch_size // args.patch_size,
+    )
+
     # 3. build inference pipeline
-    pipeline = DiTInferPipeline(
-        dit_model,
+    pipeline = FiTInferPipeline(
+        fit_model,
         vae,
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         ddim_sampling=args.ddim_sampling,
+        model_config=model_config,
     )
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_dit, num_params_dit_trainable = count_params(dit_model)
-    num_params = num_params_vae + num_params_dit
+    num_params_fit, num_params_dit_trainable = count_params(fit_model)
+    num_params = num_params_vae + num_params_fit
     num_params_trainable = num_params_vae_trainable + num_params_dit_trainable
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Class labels: {class_labels}",
-            f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
+            f"Num params: {num_params:,} (fit: {num_params_fit:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
             f"Use FP16: {args.use_fp16}",
             f"Sampling steps {args.sampling_steps}",

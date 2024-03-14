@@ -1,3 +1,5 @@
+from typing import Union
+
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
@@ -233,14 +235,16 @@ class FiT(nn.Cell):
         return x
 
     @ms.jit
-    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
+    def construct_with_cfg(
+        self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor, cfg_scale: Union[float, Tensor]
+    ):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        model_out = self.construct(combined, t, y)
+        model_out = self.construct(combined, t, y, pos, mask)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)

@@ -104,18 +104,18 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-def set_dit_all_params(dit_model, train=True, **kwargs):
+def set_fit_all_params(fit_model, train=True, **kwargs):
     n_params_trainable = 0
-    for param in dit_model.get_parameters():
+    for param in fit_model.get_parameters():
         param.requires_grad = train
         if train:
             n_params_trainable += 1
     logger.info(f"Set {n_params_trainable} params to train.")
 
 
-def set_dit_params(dit_model, ft_all_params, **kwargs):
+def set_fit_params(fit_model, ft_all_params, **kwargs):
     if ft_all_params:
-        set_dit_all_params(dit_model, **kwargs)
+        set_fit_all_params(fit_model, **kwargs)
     else:
         raise ValueError("Fintuning partial params is not supported!")
 
@@ -135,28 +135,28 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
-    # 2.1 dit
+    # 2.1 fit
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-    dit_model = FiT_models[args.model_name](
+    fit_model = FiT_models[args.model_name](
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
     if args.use_fp16:
-        dit_model = auto_mixed_precision(dit_model, amp_level="O2")
+        fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
     if args.dit_checkpoint:
-        dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+        fit_model = load_dit_ckpt_params(fit_model, args.dit_checkpoint)
     else:
         logger.info("Initialize FIT ramdonly")
-    dit_model.set_train(True)
+    fit_model.set_train(True)
 
-    set_dit_params(dit_model, ft_all_params=True, train=True)
+    set_fit_params(fit_model, ft_all_params=True, train=True)
 
     diffusion = create_diffusion(timestep_respacing="")
 
     model_config = dict(C=4, H=args.image_size // 8, W=args.image_size // 8, patch_size=args.patch_size)
     latent_diffusion_with_loss = FiTWithLoss(
-        dit_model,
+        fit_model,
         diffusion,
         vae=None,
         scale_factor=args.sd_scale_factor,
@@ -234,7 +234,7 @@ def main(args):
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
-        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(dit_model, optimizer, resume_ckpt)
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(fit_model, optimizer, resume_ckpt)
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
@@ -268,7 +268,7 @@ def main(args):
 
     if rank_id == 0:
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.network,  # save dit only
+            network=latent_diffusion_with_loss.network,  # save fit only
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
@@ -278,7 +278,7 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
-            model_name="DiT",
+            model_name="FiT",
             record_lr=True,
         )
         callback.append(save_cb)
@@ -288,16 +288,16 @@ def main(args):
     # 5. log and save config
     if rank_id == 0:
         # 4. print key info
-        num_params_dit, num_params_dit_trainable = count_params(dit_model)
-        num_params = num_params_dit
-        num_params_trainable = num_params_dit_trainable
+        num_params_fit, num_params_fit_trainable = count_params(fit_model)
+        num_params = num_params_fit
+        num_params_trainable = num_params_fit_trainable
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Num params: {num_params:,} (dit: {num_params_dit:,})",
+                f"Num params: {num_params:,} (fit: {num_params_fit:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use FP16: {args.use_fp16}",
                 f"Learning rate: {args.start_learning_rate}",
