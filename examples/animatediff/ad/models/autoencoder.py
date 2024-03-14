@@ -33,6 +33,8 @@ class AutoencoderKL(nn.Cell):
     ):
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
+        print("D--: vae precision, ", self.dtype)
+
         self.image_key = image_key
         self.encoder = Encoder(dtype=self.dtype, **ddconfig)
         self.decoder = Decoder(dtype=self.dtype, **ddconfig)

@@ -193,6 +193,14 @@ def parse_args():
     )
     parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
     parser.add_argument(
+        "--snr_gamma",
+        default=None,
+        type=float,
+        help="min-SNR weighting used to improve diffusion training convergence."
+        "If not None, it will overwrite the value defined in config yaml(stable_diffusion/v1-train_xx.yaml)."
+        "If use, 5.0 is a common choice. To disable min-SNR weighting, set it to 0",
+    )
+    parser.add_argument(
         "--disable_flip",
         default=True,
         type=str2bool,

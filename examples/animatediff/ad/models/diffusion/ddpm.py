@@ -157,14 +157,23 @@ class DDPM(nn.Cell):
 
     # def q_sample(self, x_start, t, noise):
     def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timestep: ms.Tensor) -> ms.Tensor:
+        """
+        return:
+            noisy_samples: sample with scheduled noise, shape [bs, ...]
+            snr: signla-to-noise ratio of each sample, determined by the sampled time step, the snr value is estimaed by (alpha/sigma)^2, shape [bs]
+        """
         t = timestep
         x_start = original_samples
-        noisy_samples = (
-            extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start
-            + extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise
-        )
+        alpha = extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape)
+        sigma = extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
+        noisy_samples = alpha * x_start + sigma * noise
 
-        return noisy_samples
+        # FIXME: if we apply beta zero rescale, we need to fix it.
+        snr = (alpha / sigma) ** 2
+        # [bs, 1, 1, 1] -> [bs]
+        snr = snr.squeeze()
+
+        return noisy_samples, snr
 
 
 class LatentDiffusion(DDPM):
@@ -182,11 +191,14 @@ class LatentDiffusion(DDPM):
         scale_factor=1.0,
         scale_by_std=False,
         emb_cache=False,
+        snr_gamma=None,
         *args,
         **kwargs,
     ):
         """
         Core latetn diffusion model
+        Args:
+            snr_gamma: if not None, use min-SNR weighting. If use, typical value is 5.
         Notes:
             - For SD, first_stage_model = vae, cond_stage_model = text_encoder, they are set to be not trainable by default.
         """
@@ -226,6 +238,12 @@ class LatentDiffusion(DDPM):
             self.restarted_from_ckpt = True
 
         self.emb_cache = emb_cache
+
+        if (snr_gamma is not None) and (snr_gamma > 0.0):
+            self.snr_gamma = snr_gamma
+        else:
+            self.snr_gamma = None
+        print("D--: snr gamma ", self.snr_gamma)
 
     def register_schedule(
         self,
@@ -354,7 +372,7 @@ class LatentDiffusion(DDPM):
             (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
         )
         noise = ops.randn_like(z)
-        noisy_latents = self.add_noise(z, noise, t)
+        noisy_latents, snr = self.add_noise(z, noise, t)
 
         # 3. get condition embeddings
         cond = self.get_condition_embeddings(text_tokens, control)
@@ -373,12 +391,21 @@ class LatentDiffusion(DDPM):
         else:
             raise NotImplementedError()
 
-        loss = self.mse_mean(target, model_output)
+        loss_element = self.compute_loss(model_output, target)
+        loss_sample = self.reduce_loss(loss_element)
+
+        if self.snr_gamma is not None:
+            snr_gamma = ops.ones_like(snr) * self.snr_gamma
+            # TODO: for v-pred, .../ (snr+1)
+            # TODO: for beta zero rescale, consider snr=0
+            # min{snr, gamma} / snr
+            loss_weight = ops.stack((snr, snr_gamma), axis=0).min(axis=0) / snr
+            loss = (loss_weight * loss_sample).mean()
+        else:
+            loss = loss_sample.mean()
+            # loss = self.mse_mean(target, model_output)
 
         """
-        loss_simple = self.compute_loss(model_output, target)
-        loss_simple = self.reduce_loss(loss_simple)
-
         # can be used to place more weights to high-score samples
         logvar_t = self.logvar[t]
         loss = loss_simple / ops.exp(logvar_t) + logvar_t

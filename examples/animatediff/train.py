@@ -55,7 +55,7 @@ def _to_abspath(rp):
     return os.path.join(__dir__, rp)
 
 
-def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None):
+def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None, snr_gamma=None):
     config = OmegaConf.load(config).model
     if unet_config_update is not None:
         # config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
@@ -67,6 +67,9 @@ def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None):
 
     if vae_use_fp16 is not None:
         config.params.first_stage_config.params.use_fp16 = vae_use_fp16
+
+    if snr_gamma is not None:
+        config.params.snr_gamma = snr_gamma
 
     if "target" not in config:
         if config == "__is_first_stage__":
@@ -196,7 +199,10 @@ def main(args):
         recompute_strategy=args.recompute_strategy,
     )
     latent_diffusion_with_loss = build_model_from_config(
-        _to_abspath(args.model_config), unet_config_update, vae_use_fp16=args.vae_fp16
+        _to_abspath(args.model_config),
+        unet_config_update,
+        vae_use_fp16=args.vae_fp16,
+        snr_gamma=args.snr_gamma,
     )
     # 1) load sd pretrained weight
     load_pretrained_model(
