@@ -108,7 +108,7 @@ class FiTInferPipeline(DiTInferPipeline):
         n, _, _ = x.shape
         x = ops.reshape(x, (n, nh, nw, p, p, c))
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
-        x = ops.reshape(x, (n, c, nh * p, nh * p))
+        x = ops.reshape(x, (n, c, nh * p, nw * p))
         return x
 
     def _pad_latent(self, x: Tensor, p: int, max_size: int, max_length: int) -> Tensor:
@@ -116,9 +116,9 @@ class FiTInferPipeline(DiTInferPipeline):
         n, c, _, _ = x.shape
         nh, nw = max_size // p, max_size // p
 
-        x = ops.zeros((n, max_length, p * p * c))
         x_fill = self._patchify(x, p)
-        x[:, : x_fill.shape[0]] = x_fill
+        x = ops.zeros((n, max_length, p * p * c), dtype=x.dtype)
+        x[:, : x_fill.shape[1]] = x_fill
         x = self._unpatchify(x, nh, nw, p, c)
         return x
 
