@@ -108,7 +108,7 @@ python train.py -c configs/training/sky_video.yaml
 ```
 To start training on GPU devices, simply append `--device_target GPU` to the command above.
 
-The default training configuration is to train Latte model from scratch. The batch size is $5$, and the number of epochs is $3000$, which corresponds to around 900k steps. The learning rate is a constant value $1e-4$. The model is trained under mixed precision mode. The default AMP level is `O2`. See more details in `configs/training/sky_video.yaml`.
+The default training configuration is to train Latte model from scratch. The batch size is $5$, and the number of epochs is $3000$, which corresponds to around 900k steps. The learning rate is a constant value $1e^{-4}$. The model is trained under mixed precision mode. The default AMP level is `O2`. See more details in `configs/training/sky_video.yaml`.
 
 To accelerate the training speed, we use `dataset_sink_mode: True` in the configuration file by default.
 
@@ -116,7 +116,9 @@ After training, the checkpoints are saved under `output_dir/ckpt/`. To run infer
 
 ### Embedding Cache
 
-We can accelerate the training speed by caching the embeddings of the dataset before running the training script. See the following example about how to cache the embeddings.
+We can accelerate the training speed by caching the embeddings of the dataset before running the training script. This takes four steps:
+
+- Step 1: Cache the embedding into a cache folder. See the following example about how to cache the embeddings. This step can take a bit long time.
 
 <details onclose>
 
@@ -128,21 +130,40 @@ python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache
 ```
 You can also change `cache_file_type` to `npz` to save embeddings in `.npz` files.
 
-The embedding caching process can take a while depending on the size of the video dataset. Some exceptions maybe thrown during the process.
+In general, we recommend to use `mindrecord` file type because it is supported by `MindDataset` which can better accelerates data loading. However, if your dataset has extra long videos, using `mindrecord` file to cache embedding increases the risk of exceeding the maximum page size of the MindRecord writer. In this case, we recommend to use `npz` file.
 
-If unexpected exceptions were thrown, the program will be stoped and the embedding caching writer's status will be printed on the screen:
+The embedding caching process can take a while depending on the size of the video dataset. Some exceptions maybe thrown during the process. If unexpected exceptions were thrown, the program will be stoped and the embedding caching writer's status will be printed on the screen:
 ```bash
 Start file Index: 0. # the start of video index to be processed
 Number of saved mindrecord files 1 # the number of saved mindrecord files
 Number of saved data lines 120 # the number of processed videos which have been saved.
 ```
-In this case, you can resume the embedding cache from the video indexed at $120$ (index starts from 0). Simply append `--resume_cache_index 120`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $120^{th}$ video and save the embeddings in another mindrecord file.
+In this case, you can resume the embedding cache from the video indexed at $120$ (index starts from 0). Simply append `--resume_cache_index 120`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $120^{th}$ video and save the embeddings in another mindrecord file or npz file.
 
 To check more usages, please use `python tools/embedding_cache.py -h`.
 
 </details>
 
-After the embeddings have been cached,
+- Step 2: Change the dataset configuration file's `data_folder` to the current cache folder path.
+
+After the embeddings have been cached, edit `configs/training/data/sky_mindrecord_video.yaml` or `configs/training/data/sky_npz_video.yaml`, and change the `data_folder` to the folder where the cached embeddings are stored in.
+
+- Step 3: Change the experiment configuration file's `data_config_file` to the target dataset configuration file path.
+
+For example, edits the `configs/training/sky_video.yaml` like this:
+```yaml
+# data setting
+dataset_name: "sky"
+data_config_file: "configs/training/data/sky_mindrecord_video.yaml"  # or configs/training/data/sky_npz_video.yaml
+dataset_sink_mode: True
+```
+
+- Step 4: Run the training script.
+
+You can start training on the cached embedding dataset of Sky TimeLapse using:
+```bash
+python train.py -c configs/training/sky_video.yaml
+```
 
 # References
 

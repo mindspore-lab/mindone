@@ -26,7 +26,7 @@ class NetworkWithLoss(nn.Cell):
         text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
             T is the number of tokens, and D is the embedding dimension.
         cond_stage_trainable (bool): whether to train the text encoder.
-        train_with_embd (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
+        train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
     """
 
     def __init__(
@@ -38,7 +38,7 @@ class NetworkWithLoss(nn.Cell):
         condition: str = "class",
         text_encoder: nn.Cell = None,
         cond_stage_trainable: bool = False,
-        train_with_embd: bool = False,
+        train_with_embed: bool = False,
     ):
         super().__init__()
         self.network = network.set_grad()
@@ -54,8 +54,8 @@ class NetworkWithLoss(nn.Cell):
 
         self.scale_factor = scale_factor
         self.cond_stage_trainable = cond_stage_trainable
-        self.train_with_embd = train_with_embd
-        if self.train_with_embd:
+        self.train_with_embed = train_with_embed
+        if self.train_with_embed:
             self.vae = None
             self.text_encoder = None
             logger.info("Train with Embedding inputs and set vae and text encoder to None")
@@ -151,7 +151,7 @@ class NetworkWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
-        if not self.self.train_with_embd:
+        if not self.self.train_with_embed:
             x = self.get_latents(x)
             # 2. get conditions
             if self.condition == "text":

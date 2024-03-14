@@ -166,22 +166,14 @@ def main(args):
         tokenizer = text_encoder.tokenizer
     else:
         text_encoder, tokenizer = None, None
-    diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
-        latte_model,
-        diffusion,
-        vae,
-        args.sd_scale_factor,
-        args.condition,
-        text_encoder=text_encoder,
-        cond_stage_trainable=False,
-    )
+
     # select dataset
     data_config = OmegaConf.load(args.data_config_file).data_config
     # set some data params from argument parser
     data_config.sample_size = args.image_size
     data_config.sample_n_frames = args.num_frames
     data_config.batch_size = args.train_batch_size
+    train_with_embed = True if data_config.get("train_data_type", None) in ["npz", "mindrecord"] else False
 
     dataset = get_dataset(
         args.dataset_name,
@@ -191,6 +183,18 @@ def main(args):
         rank_id=rank_id,
     )
     dataset_size = dataset.get_dataset_size()
+
+    diffusion = create_diffusion(timestep_respacing="")
+    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
+        latte_model,
+        diffusion,
+        vae,
+        args.sd_scale_factor,
+        args.condition,
+        text_encoder=text_encoder,
+        cond_stage_trainable=False,
+        train_with_embed=train_with_embed,
+    )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
