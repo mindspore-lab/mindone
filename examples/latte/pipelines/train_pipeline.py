@@ -1,3 +1,5 @@
+import logging
+
 from diffusion import SpacedDiffusion
 from diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
 
@@ -5,6 +7,8 @@ import mindspore as ms
 from mindspore import nn, ops
 
 __all__ = ["NetworkWithLoss", "get_model_with_loss"]
+
+logger = logging.getLogger(__name__)
 
 
 class NetworkWithLoss(nn.Cell):
@@ -22,17 +26,19 @@ class NetworkWithLoss(nn.Cell):
         text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
             T is the number of tokens, and D is the embedding dimension.
         cond_stage_trainable (bool): whether to train the text encoder.
+        train_with_embd (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
     """
 
     def __init__(
         self,
         network: nn.Cell,
-        vae: nn.Cell,
         diffusion: SpacedDiffusion,
+        vae: nn.Cell = None,
         scale_factor: float = 0.18215,
         condition: str = "class",
         text_encoder: nn.Cell = None,
         cond_stage_trainable: bool = False,
+        train_with_embd: bool = False,
     ):
         super().__init__()
         self.network = network.set_grad()
@@ -48,8 +54,13 @@ class NetworkWithLoss(nn.Cell):
 
         self.scale_factor = scale_factor
         self.cond_stage_trainable = cond_stage_trainable
+        self.train_with_embd = train_with_embd
+        if self.train_with_embd:
+            self.vae = None
+            self.text_encoder = None
+            logger.info("Train with Embedding inputs and set vae and text encoder to None")
 
-        if self.cond_stage_trainable:
+        if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
             self.text_encoder.set_grad(True)
 
@@ -140,12 +151,15 @@ class NetworkWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
-        x = self.get_latents(x)
-        # 2. get conditions
-        if self.condition == "text":
-            text_embed = self.get_condition_embeddings(text_tokens)
+        if not self.self.train_with_embd:
+            x = self.get_latents(x)
+            # 2. get conditions
+            if self.condition == "text":
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = None
         else:
-            text_embed = None
+            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
 
         if self.condition == "class":
             y = labels

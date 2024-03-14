@@ -152,8 +152,8 @@ def init_models(args):
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = get_model_with_loss(args.condition)(
         latte_model,
-        vae,
         diffusion,
+        vae,
         args.sd_scale_factor,
         args.condition,
         text_encoder=text_encoder,

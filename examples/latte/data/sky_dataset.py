@@ -1,3 +1,4 @@
+import glob
 import logging
 import os
 import random
@@ -69,7 +70,7 @@ class SkyDataset:
         else:
             self.data_all, _ = self.load_video_frames(self.data_path)
 
-        logger.info(f"{self.video_num} videos ({self.video_frame_num} frames) are loaded.")
+        logger.info(f"{self.video_num} videos are loaded.")
 
     def load_video_frames(self, dataroot):
         data_all = []
@@ -210,34 +211,128 @@ class SkyDataset:
             yield video_name, {"video": pixel_values}
 
 
-def create_dataloader(config, device_num=1, rank_id=0, return_dataset=False, **kwargs):
-    dataset = SkyDataset(
-        config["data_folder"],
-        sample_size=config["sample_size"],
-        sample_stride=config["sample_stride"],
-        sample_n_frames=config["sample_n_frames"],
-        use_safer_augment=config["use_safer_augment"],
-        image_video_joint=config["image_video_joint"],
-        use_image_num=config.get("use_image_num", None),
-    )
-    data_name = "video"
-    dataloader = ms.dataset.GeneratorDataset(
-        source=dataset,
-        column_names=[
-            data_name,
-        ],
-        num_shards=device_num,
-        shard_id=rank_id,
-        python_multiprocessing=True,
-        shuffle=config["shuffle"],
-        num_parallel_workers=config["num_parallel_workers"],
-        max_rowsize=config["max_rowsize"],  # video data require larger rowsize
-    )
+class SkyDatasetWithEmbeddingNpz(SkyDataset):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert not self.image_video_joint, "image-video joint training not supported for SkyDatasetWithEmbeddingNpz"
 
-    dl = dataloader.batch(
-        config["batch_size"],
-        drop_remainder=True,
-    )
+    def load_video_frames(self, dataroot):
+        data_all = []
+        frames_all = []
+        video_names = []
+        npz_files = glob.glob(os.path.join(self.data_path, "*.npz"))
+        for fp in npz_files:
+            video_names.append(os.path.basename(fp).split(".")[0])
+            data_all.append(fp)
+        self.video_num = len(data_all)
+        self.video_frame_num = len(frames_all)
+        self.video_names = video_names
+        assert (
+            len(self.video_names) == self.video_num and len(set(self.video_names)) == self.video_num
+        ), f"video names should be {self.video_num} non-repetitive names"
+        return data_all, frames_all
+
+    def __getitem__(self, index):
+        if self.image_video_joint:
+            video_index = index % self.video_num
+        else:
+            video_index = index
+        emb_fp = self.data_all[video_index]
+        emb_data = np.load(emb_fp)
+        video_latent = emb_data["video_latent"]
+        video_length = len(video_latent)
+
+        # Sampling video frames
+        clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+        start_idx = random.randint(0, video_length - clip_length)
+        frame_indice = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        video_emb_train = video_latent[frame_indice]
+        return video_emb_train
+
+
+class SelectFrameMap:
+    def __init__(self, is_image=False, sample_n_frames=16, sample_stride=4):
+        self.is_image = is_image
+        self.sample_n_frames = sample_n_frames
+        self.sample_stride = sample_stride
+
+    def __call__(self, video_latent):
+        video_length = len(video_latent)
+        if not self.is_image:
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = random.randint(0, video_length - clip_length)
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        else:
+            batch_index = [random.randint(0, video_length - 1)]
+
+        video_emb_train = video_latent[batch_index]
+        return video_emb_train
+
+
+def create_dataloader(config, device_num=1, rank_id=0, return_dataset=False, **kwargs):
+    if config["train_data_type"] == "video_file" or config["train_data_type"] == "npz":
+        if config["train_data_type"] == "video_file":
+            dataset = SkyDataset(
+                config["data_folder"],
+                sample_size=config["sample_size"],
+                sample_stride=config["sample_stride"],
+                sample_n_frames=config["sample_n_frames"],
+                use_safer_augment=config["use_safer_augment"],
+                image_video_joint=config["image_video_joint"],
+                use_image_num=config.get("use_image_num", None),
+            )
+            data_name = "video"
+        else:
+            dataset = SkyDatasetWithEmbeddingNpz(
+                config["data_folder"],
+                sample_size=config["sample_size"],
+                sample_stride=config["sample_stride"],
+                sample_n_frames=config["sample_n_frames"],
+                use_safer_augment=config["use_safer_augment"],
+                image_video_joint=config["image_video_joint"],
+                use_image_num=config.get("use_image_num", None),
+            )
+            data_name = "video_latent"
+    elif config["train_data_type"] == "mindrecord":
+        data_files = []
+        for file in os.listdir(config["data_folder"]):
+            file_path = os.path.join(config["data_folder"], file)
+            if os.path.isfile(file_path) and file.split(".")[-1] == "mindrecord":
+                data_files.append(file_path)
+
+        dataset = ms.dataset.MindDataset(
+            dataset_files=data_files,
+            columns_list=["video_latent"],
+            num_shards=device_num,
+            shard_id=rank_id,
+            shuffle=config["shuffle"],
+            num_parallel_workers=config["num_parallel_workers"],
+        )
+        select_frames_map = SelectFrameMap(
+            is_image=False,
+            sample_n_frames=config["sample_n_frames"],
+            sample_stride=config["sample_stride"],
+        )
+        dataloader = dataset.map(operations=select_frames_map, input_columns=["video_latent"])
+    else:
+        raise ValueError("Train data type {} is not supported!".format(config["train_data_type"]))
+
+    if config["train_data_type"] != "mindrecord":
+        print("Total number of samples: ", len(dataset))
+
+        dataloader = ms.dataset.GeneratorDataset(
+            source=dataset,
+            column_names=[data_name],
+            num_shards=device_num,
+            shard_id=rank_id,
+            python_multiprocessing=True,
+            shuffle=config["shuffle"],
+            num_parallel_workers=config["num_parallel_workers"],
+            max_rowsize=config["max_rowsize"],
+        )
+
+    dl = dataloader.batch(config["batch_size"], drop_remainder=True)
+
     if return_dataset:
         return dataset, dl
     else:
