@@ -101,18 +101,3 @@ if __name__ == "__main__":
     caption = vc(video_path)
 
     print(caption)
-
-    # im = Image.open("/disk1/mindone/songyuanwei/mindone/examples/coca/cat.jpg").convert("RGB")
-    # im = vision.ToTensor()(im)
-    # im = ms.Tensor(im).expand_dims(0)
-    # im = ops.ResizeBilinearV2()(im, (224, 224))
-    # # im = im.squeeze()
-    # print(im.shape)
-    # model = create_model(config)
-    #
-    # model.set_train(False)
-    # text = model.generate(im)
-    # tokenizer = BpeTokenizer()
-    # output = tokenizer.decode(text[0].asnumpy()).split("<|endoftext|>")[0].replace("<|startoftext|>", "")
-    #
-    # print(output)

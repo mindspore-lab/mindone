@@ -403,8 +403,6 @@ class VisionTransformer(nn.Cell):
         x = self.ln_pre(x)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
-        # print(x.shape)
-        # print("xxxxxxx")
         x = self.transformer(x)
         x = x.permute(1, 0, 2)  # LND -> NLD
 
@@ -418,9 +416,7 @@ class VisionTransformer(nn.Cell):
                     assert self.attn_pool_type == "cascade"
                     pooled = self.attn_pool_contrastive(tokens)
             else:
-                # print(x.shape)
                 x = self.attn_pool(x)
-                # print(x.shape)
                 x = self.ln_post(x)
                 pooled, tokens = self._global_pool(x)
         elif self.final_ln_after_pool:

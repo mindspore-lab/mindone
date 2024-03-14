@@ -143,12 +143,6 @@ class CoCa(nn.Cell):
 
         labels = text[:, -token_embs.shape[1] :]
 
-        # print(labels.shape)
-        # print(text_latent.shape)
-        # print(token_embs.shape)
-        # print(image_latent.shape)
-        # print(image_embs.shape)
-
         logits = self.text_decoder(image_embs, token_embs)
 
         out_dict = {
@@ -281,11 +275,9 @@ class CoCa(nn.Cell):
         min_seq_len=5,
         stopping_criteria=None,
         logit_processor=None,
-        logit_warper=None,
     ):
         batch_size = image_inputs.shape[0]
         image_inputs = ops.repeat_interleave(image_inputs, num_beams, axis=0)
-        # print(image_inputs.shape)
         image_latent, image_embs = self._encode_image(image_inputs)
 
         input_ids = ops.ones((batch_size * num_beams, 1), dtype=ms.int32)
@@ -384,7 +376,6 @@ class CoCa(nn.Cell):
                 beam_idx = beam_outputs["next_beam_indices"]
 
                 input_ids[batch_group_indices] = group_input_ids[beam_idx]
-                # print(group_input_ids.dtype)
 
                 group_input_ids = ops.cat([group_input_ids[beam_idx, :], beam_next_tokens.unsqueeze(-1)], axis=-1)
                 current_tokens[batch_group_indices] = group_input_ids[:, -1]
