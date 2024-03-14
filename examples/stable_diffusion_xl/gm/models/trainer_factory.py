@@ -685,3 +685,132 @@ class LatentDiffusionStage2Grad(nn.Cell):
 
         overflow_tag = not grads_finite
         return self.scaler.unscale(loss), grads_i, unscaled_grads, overflow_tag
+
+
+class TrainOneStepWithZeRO3Cell(nn.Cell):
+    def __init__(
+        self,
+        model,
+        optimizer,
+        reducer,
+        scaler,
+        overflow_still_update=True,
+        grad_accum_steps=1,
+        clip_grad=False,
+        clip_norm=1.0,
+        data_cache=False,
+    ):
+        super(TrainOneStepWithZeRO3Cell, self).__init__()
+        self.data_cache = data_cache
+        # get conditioner trainable status
+        trainable_conditioner = False
+        for embedder in model.conditioner.embedders:
+            if embedder.is_trainable:
+                trainable_conditioner = True
+
+        self.trainable_conditioner = trainable_conditioner
+        self.overflow_reducer = ops.AllReduce()
+        self.grad_fn = ops.value_and_grad(self.forward, grad_position=None, weights=optimizer.parameters)
+        self.optimizer = optimizer
+        self.scale_factor = model.scale_factor
+        self.sigma_sampler = model.sigma_sampler
+        self.conditioner = model.conditioner
+        self.first_stage_model = model.first_stage_model
+        self.loss_fn = model.loss_fn
+        self.denoiser = model.denoiser
+        self.model = model.model
+        self.scaler = scaler
+        self.reducer = reducer
+        self.overflow_still_update = overflow_still_update
+
+        self.clip_grad = clip_grad
+        self.clip_norm = clip_norm
+
+        self.enable_accum_grad = False
+        if grad_accum_steps > 1:
+            self.enable_accum_grad = True
+            self.accum_steps = grad_accum_steps
+            self.accum_step = ms.Parameter(ms.Tensor(0, dtype=ms.int32), name="accum_step")
+            self.accumulated_grads = optimizer.parameters.clone(prefix="accum_grad", init="zeros")
+            self.hyper_map = ops.HyperMap()
+        self.get_input = self.get_input_with_cache if data_cache else self.get_input_without_cache
+
+    def rand_t(self, b):
+        t_ori = ops.uniform((b,), ms.Tensor(0, ms.float32), ms.Tensor(self.sigma_sampler.num_idx, ms.float32))
+        t = t_ori.int()
+        return t
+
+    def get_input_without_cache(self, x, *tokens):
+        x = self.first_stage_model.encode(x)
+        vector, crossattn, concat = self.conditioner(*tokens)
+        x = ops.stop_gradient(x)
+        vector = ops.stop_gradient(vector)
+        crossattn = ops.stop_gradient(crossattn)
+        return self.get_input_with_cache(x, vector, crossattn)
+
+    def get_input_with_cache(self, x, y, context):
+        x = self.scale_factor * x
+        t = self.rand_t(x.shape[0])
+        sigmas = self.sigma_sampler.sigmas[t]
+        noise = ops.randn_like(x)
+        noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+        w = append_dims(self.denoiser.w(sigmas), x.ndim)
+        c_skip = self.sigma_sampler.c_skip[t].reshape(-1, 1, 1, 1)
+        c_out = self.sigma_sampler.c_out[t].reshape(-1, 1, 1, 1)
+        c_in = self.sigma_sampler.c_in[t].reshape(-1, 1, 1, 1)
+        noised_input_c = noised_input * c_in
+        noised_input_c = ops.stop_gradient(noised_input_c)
+        c_skip = ops.stop_gradient(c_skip)
+        c_out = ops.stop_gradient(c_out)
+        w = ops.stop_gradient(w)
+        if not self.trainable_conditioner:
+            context = ops.stop_gradient(context)
+            y = ops.stop_gradient(y)
+        return x, noised_input_c, t, context, y, c_out, noised_input * c_skip, w
+
+    def forward(self, *inputs):
+        x, noised_input_c, t, context, y, c_out, noised_input, w = self.get_input(*inputs)
+
+        model_output = self.model(
+            ops.cast(noised_input_c, ms.float32),
+            t,
+            context=context,
+            y=y,
+        )
+        model_output = model_output * c_out + noised_input
+        loss = self.loss_fn(model_output, x, w)
+        loss = loss.mean()
+        return self.scaler.scale(loss)
+
+    def do_optim(self, loss, grads):
+        if not self.enable_accum_grad:
+            grads = self.reducer(grads)
+            if self.clip_grad:
+                grads = ops.clip_by_global_norm(grads, self.clip_norm)
+            loss = ops.depend(loss, self.optimizer(grads))
+        else:
+            self.accum_step += 1
+            loss = ops.depend(
+                loss, self.hyper_map(F.partial(_grad_accum_op, self.accum_steps), self.accumulated_grads, grads)
+            )
+            if self.accum_step % self.accum_steps == 0:
+                grads = self.reducer(self.accumulated_grads)
+                if self.clip_grad:
+                    grads = ops.clip_by_global_norm(grads, self.clip_norm)
+                loss = ops.depend(loss, self.optimizer(grads))
+                loss = ops.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
+            else:
+                # update the learning rate, do not update the parameter
+                loss = F.depend(loss, self.optimizer.get_lr())
+
+        return loss
+
+    def construct(self, *inputs):
+        loss, grads = self.grad_fn(*inputs)
+        grads = self.scaler.unscale(grads)
+        overflow = ops.logical_not(ms.amp.all_finite(grads))
+        overflow = ops.less_equal(ops.ones((), ms.float32), self.overflow_reducer(overflow.to(ms.float32)))
+        if self.overflow_still_update or not overflow:
+            loss = self.do_optim(loss, grads)
+
+        return self.scaler.unscale(loss), overflow

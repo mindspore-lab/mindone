@@ -22,11 +22,11 @@ from gm.helpers import (
     save_checkpoint,
     set_default,
 )
-from gm.util.util import auto_mixed_precision
+from gm.util.util import LossMonitor, auto_mixed_precision
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import CheckpointConfig, ModelCheckpoint, Tensor, nn
 
 
 def get_parser_train():
@@ -154,6 +154,10 @@ def get_parser_train():
     parser.add_argument("--overflow_still_update", type=ast.literal_eval, default=True)
     parser.add_argument("--max_device_memory", type=str, default=None)
     parser.add_argument("--is_parallel", type=ast.literal_eval, default=False)
+    parser.add_argument("--parallel_mode", type=str, default="DATA_PARALLEL")
+    parser.add_argument(
+        "--optimizer_weight_shard_size", type=int, default=-1, help="num of shards when using optimizer parallel"
+    )
 
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
@@ -241,7 +245,9 @@ def train(args):
             trainable_params += model.conditioner.trainable_params()
     if isinstance(model.model, nn.Cell):
         optimizer = get_optimizer(config.optim, lr, params=trainable_params)
-        reducer = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer.parameters)
+        reducer = get_grad_reducer(
+            is_parallel=args.is_parallel, parameters=optimizer.parameters, parallel_mode=args.parallel_mode
+        )
         if args.optimizer_weight:
             print(f"Loading optimizer from {args.optimizer_weight}")
             load_checkpoint(optimizer, args.optimizer_weight, remove_prefix="ldm_with_loss_grad.optimizer.")
@@ -266,7 +272,7 @@ def train(args):
         )
         model = auto_mixed_precision(model, args.ms_amp_level)
         jit_config = None
-    elif args.ms_mode == 0:
+    elif args.ms_mode == 0 and args.parallel_mode == "DATA_PARALLEL":
         # Graph Mode
         if isinstance(model.model, nn.Cell):
             from gm.models.trainer_factory import TrainOneStepCell
@@ -303,8 +309,12 @@ def train(args):
                 config.optim, lr, params=model.conditioner.trainable_params() + model.stage1.trainable_params()
             )
             optimizer2 = get_optimizer(config.optim, lr, params=model.stage2.trainable_params())
-            reducer1 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer1.parameters)
-            reducer2 = get_grad_reducer(is_parallel=args.is_parallel, parameters=optimizer2.parameters)
+            reducer1 = get_grad_reducer(
+                is_parallel=args.is_parallel, parameters=optimizer1.parameters, parallel_mode=args.parallel_mode
+            )
+            reducer2 = get_grad_reducer(
+                is_parallel=args.is_parallel, parameters=optimizer2.parameters, parallel_mode=args.parallel_mode
+            )
             train_step_fn = TrainerMultiGraphTwoStage(
                 model,
                 (optimizer1, optimizer2),
@@ -316,17 +326,53 @@ def train(args):
 
             optimizer = optimizer1
             jit_config = None
+
+    elif args.ms_mode == 0 and args.parallel_mode == "OPTIMIZER_PARALLEL":
+        from gm.models.trainer_factory import TrainOneStepWithZeRO3Cell
+
+        callback = [LossMonitor()]
+        train_step_fn = TrainOneStepWithZeRO3Cell(
+            model,
+            optimizer,
+            reducer,
+            scaler,
+            overflow_still_update=args.overflow_still_update,
+            grad_accum_steps=args.gradient_accumulation_steps,
+            clip_grad=args.clip_grad,
+            clip_norm=args.max_grad_norm,
+            data_cache=False,
+        )
+        train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+        if model.disable_first_stage_amp:
+            train_step_fn.first_stage_model.to_float(ms.float32)
+        ckpt_config = CheckpointConfig(
+            save_checkpoint_steps=args.save_ckpt_interval, keep_checkpoint_max=1, integrated_save=False
+        )
+        save_ckpt_dir = os.path.join(args.save_path, "rank_{}".format(args.rank))
+        ckpoint_cb = ModelCheckpoint(prefix="checkpoint", directory=save_ckpt_dir, config=ckpt_config)
+        callback.append(ckpoint_cb)
+
     else:
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
     if args.max_num_ckpt is not None and args.max_num_ckpt <= 0:
         raise ValueError("args.max_num_ckpt must be None or a positive integer!")
-    if args.task == "txt2img":
+    if args.task == "txt2img" and args.parallel_mode == "DATA_PARALLEL":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
         train_fn(
             args, train_step_fn, dataloader=dataloader, optimizer=optimizer, model=model, jit_config=jit_config, ema=ema
         )
+    elif args.task == "txt2img" and args.parallel_mode == "OPTIMIZER_PARALLEL":
+        total_step = dataloader.get_dataset_size()
+        epochs = total_step // args.sink_size
+        assert args.dataset_load_tokenizer
+        model_sdxl = ms.Model(train_step_fn)
+        if args.data_sink:
+            sink_size = args.sink_size
+        else:
+            sink_size = -1
+        model_sdxl.train(epochs, dataloader, callbacks=callback, sink_size=sink_size, dataset_sink_mode=args.data_sink)
     elif args.task == "img2img":
         raise NotImplementedError
     else:

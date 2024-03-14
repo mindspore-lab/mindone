@@ -116,7 +116,17 @@ def set_default(args):
     # Set Parallel
     if args.is_parallel:
         init()
-        args.rank, args.rank_size, parallel_mode = get_rank(), get_group_size(), context.ParallelMode.DATA_PARALLEL
+        args.rank, args.rank_size = get_rank(), get_group_size()
+        if args.parallel_mode == "DATA_PARALLEL":
+            parallel_mode = context.ParallelMode.DATA_PARALLEL
+        elif args.parallel_mode == "OPTIMIZER_PARALLEL":
+            parallel_mode = context.ParallelMode.SEMI_AUTO_PARALLEL
+            context.set_auto_parallel_context(
+                parallel_optimizer_config={"optimizer_weight_shard_size": args.optimizer_weight_shard_size},
+                enable_parallel_optimizer=True,
+            )
+        else:
+            raise ValueError("Parallel mode {} is not supported!".format(args.parallel_mode))
         context.set_auto_parallel_context(device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True)
     else:
         args.rank, args.rank_size = 0, 1
@@ -144,6 +154,9 @@ def set_default(args):
         ), "Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent"
 
     # Directories and Save run settings
+    if args.parallel_mode == "OPTIMIZER_PARALLEL":
+        args.save_path_with_time = False
+
     if args.save_path_with_time:
         # FIXME: Bug when running with rank_table on MindSpore 2.2.1; This is not a problem when running with OpenMPI
         time = _get_broadcast_datetime(rank_size=args.rank_size)
@@ -301,8 +314,8 @@ def create_model(
     return model, None
 
 
-def get_grad_reducer(is_parallel, parameters):
-    if is_parallel:
+def get_grad_reducer(is_parallel, parameters, parallel_mode="DATA_PARALLEL"):
+    if is_parallel and parallel_mode == "DATA_PARALLEL":
         mean = ms.context.get_auto_parallel_context("gradients_mean")
         degree = ms.context.get_auto_parallel_context("device_num")
         grad_reducer = nn.DistributedGradReducer(parameters, mean, degree)
