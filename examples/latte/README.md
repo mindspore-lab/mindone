@@ -116,16 +116,18 @@ After training, the checkpoints are saved under `output_dir/ckpt/`. To run infer
 
 ### Embedding Cache
 
-We can accelerate the training speed by caching the embedding before running the training script. See `tools/embedding_cache.py`
+We can accelerate the training speed by caching the embeddings of the dataset before running the training script. See `python tools/embedding_cache.py -h`.
 <details onclose>
 
-For Sky Timelapse dataset, in order to cache embeddings in `mindrecord` file format, please run:
+For Sky Timelapse dataset, in order to cache embeddings in `mindrecord` file format, first, please make sure the `data_path` in `configs/training/sky_video.yaml` is set correctly to the folder named `sky_train/`.
+
+Then you can start saving the embeddings using:
 ```bash
 python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache_folder path/to/cache/folder --train_data_type mindrecord
 ```
-You can also change set `train_data_type` to `npz` to save embeddings in `.npz` files.
+You can also change `train_data_type` to `npz` to save embeddings in `.npz` files.
 
-
+The
 
 
 </details>

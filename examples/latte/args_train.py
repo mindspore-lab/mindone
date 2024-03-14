@@ -8,8 +8,7 @@ from utils.model_utils import _check_cfgs_in_parser, str2bool
 logger = logging.getLogger()
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def parse_train_args(parser):
     parser.add_argument(
         "--config",
         "-c",
@@ -178,7 +177,7 @@ def parse_args():
     )
 
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
-    # for embedding cache
+    # for embedding cache dataset
     parser.add_argument(
         "--train_data_type",
         default="video_file",
@@ -186,6 +185,10 @@ def parse_args():
         choices=["video_file", "npz", "mindrecord"],
         help="type of data for training",
     )
+    return parser
+
+
+def parse_embedding_cache_args(parser):
     parser.add_argument(
         "--save_data_type",
         default="float32",
@@ -193,9 +196,24 @@ def parse_args():
         choices=["float16", "float32"],
         help="data type when saving embedding cache",
     )
-
     parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
+    parser.add_argument(
+        "--max_page_size",
+        default=128,
+        type=int,
+        choices=[64, 128, 256],
+        help="The maximum page size for the MindRecord File Writer. Should be one of [64, 128, 256]",
+    )
+    parser.add_argument(
+        "--resume_cache_index", default=None, type=int, help="If provided, will resume cache from this video index."
+    )
+    return parser
 
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser = parse_train_args(parser)
+    parser = parse_embedding_cache_args(parser)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
     if default_args.config:

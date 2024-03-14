@@ -12,7 +12,9 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.mindrecord import FileWriter
+
+from .mindrecord_writer import MindRecordEmbeddingCacheWriter
+from .npz_writer import NPZEmbeddingCacheWriter
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 latte_path = os.path.abspath(os.path.join(__dir__, "../"))
@@ -218,6 +220,8 @@ def main(args):
     video_column = "video"
     caption_column = "caption"
     class_column = "class"
+    start_video_index = 0 if args.resume_cache_index is None else args.resume_cache_index
+    logger.info(f"Start embedding cache from {start_video_index}th video...")
 
     if train_data_type == "mindrecord":
         assert args.save_data_type == "float32"
@@ -230,13 +234,19 @@ def main(args):
         elif args.condition == "text":
             schema[caption_column] = {"type": "string"}
             schema["text_emb"] = {"type": args.save_data_type, "shape": text_embed_shape}
-        count = 0
+
         dataset_name = args.data_config_file.split("/")[-1].split(".")[0]
-        filename = dataset_name + str(count) + ".mindrecord"
-        file_path = os.path.join(cache_folder, filename)
-        writer = FileWriter(file_path, shard_num=1, overwrite=True)
-        writer.set_page_size(1 << 26)
-        writer.add_schema(schema, "Preprocessed {} dataset.".format(dataset_name))
+        embed_cache_writer = MindRecordEmbeddingCacheWriter(
+            cache_folder,
+            dataset_name,
+            schema,
+            start_lines_index=start_video_index,
+            overwrite=False if args.resume_cache_index else True,
+            max_page_size=args.max_page_size,
+            dump_every_n_lines=10,
+        )
+    else:
+        embed_cache_writer = NPZEmbeddingCacheWriter(cache_folder, start_video_index)
 
     # print key info
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -258,7 +268,8 @@ def main(args):
     length = len(dataset)
     logger.info("Start dataset embedding cache...")
     data = []
-    for video_index in tqdm(range(length), total=length):
+
+    for video_index in tqdm(range(start_video_index, length), total=length):
         video_save_kwargs = {}
         video_latent = []
         for video_name, inputs in dataset.traverse_single_video_frames(video_index):
@@ -287,35 +298,15 @@ def main(args):
 
         if train_data_type == "npz":
             # save video_name.npz
-            video_path = os.path.join(cache_folder, video_name + ".npz")
-            np.savez_compressed(video_path, **video_save_kwargs)
+            embed_cache_writer.save(video_name, video_save_kwargs)
         elif train_data_type == "mindrecord":
-            if os.path.isfile(file_path):
-                mindrecord_size = os.stat(file_path).st_size
-                mindrecord_size = mindrecord_size / 1024 / 1024 / 1024
-                if mindrecord_size > 19:
-                    if data:
-                        writer.write_raw_data(data)
-                        data = []
-                    writer.commit()
-                    # close last filewriter when it exceeds 19GB
-                    count += 1
-                    filename = dataset_name + str(count) + ".mindrecord"
-                    file_path = os.path.join(cache_folder, filename)
-                    writer = FileWriter(file_path, shard_num=1, overwrite=True)
-                    writer.set_page_size(1 << 26)
-                    writer.add_schema(schema, "Preprocessed {} dataset.".format(dataset_name))
             data.append(video_save_kwargs)
-            if video_index % 10 == 0:
-                writer.write_raw_data(data)
-                data = []
+            data = embed_cache_writer.save(data)
         else:
             raise ValueError("Train data type {} is not supported!".format(train_data_type))
 
     if data and train_data_type == "mindrecord":
-        writer.write_raw_data(data)
-        writer.commit()
-
+        embed_cache_writer.save_data_and_close_writer(data)
     logger.info("Dataset embedding cache successfully saved in {}".format(cache_folder))
 
 
