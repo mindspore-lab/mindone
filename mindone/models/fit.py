@@ -22,6 +22,17 @@ __all__ = [
     "FiT",
     "FiT_models",
     "FiT_XL_2",
+    "FiT_XL_4",
+    "FiT_XL_8",
+    "FiT_L_2",
+    "FiT_L_4",
+    "FiT_L_8",
+    "FiT_B_2",
+    "FiT_B_4",
+    "FiT_B_8",
+    "FiT_S_2",
+    "FiT_S_4",
+    "FiT_S_8",
 ]
 
 
@@ -180,7 +191,7 @@ class FiT(nn.Cell):
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
         normal_(self.t_embedder.mlp[2].weight, std=0.02)
 
-        # Zero-out adaLN modulation layers in DiT blocks:
+        # Zero-out adaLN modulation layers in FiT blocks:
         for block in self.blocks:
             constant_(block.adaLN_modulation[-1].weight, 0)
             constant_(block.adaLN_modulation[-1].bias, 0)
@@ -216,7 +227,7 @@ class FiT(nn.Cell):
 
     def construct(self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor):
         """
-        Forward pass of DiT.
+        Forward pass of FiT.
         x: (N, T, D) or (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
@@ -239,7 +250,7 @@ class FiT(nn.Cell):
         self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor, cfg_scale: Union[float, Tensor]
     ):
         """
-        Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
+        Forward pass of FiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
@@ -256,6 +267,61 @@ def FiT_XL_2(**kwargs):
     return FiT(depth=28, hidden_size=1152, patch_size=2, num_heads=16, **kwargs)
 
 
+def FiT_XL_4(**kwargs):
+    return FiT(depth=28, hidden_size=1152, patch_size=4, num_heads=16, **kwargs)
+
+
+def FiT_XL_8(**kwargs):
+    return FiT(depth=28, hidden_size=1152, patch_size=8, num_heads=16, **kwargs)
+
+
+def FiT_L_2(**kwargs):
+    return FiT(depth=24, hidden_size=1024, patch_size=2, num_heads=16, **kwargs)
+
+
+def FiT_L_4(**kwargs):
+    return FiT(depth=24, hidden_size=1024, patch_size=4, num_heads=16, **kwargs)
+
+
+def FiT_L_8(**kwargs):
+    return FiT(depth=24, hidden_size=1024, patch_size=8, num_heads=16, **kwargs)
+
+
+def FiT_B_2(**kwargs):
+    return FiT(depth=12, hidden_size=768, patch_size=2, num_heads=12, **kwargs)
+
+
+def FiT_B_4(**kwargs):
+    return FiT(depth=12, hidden_size=768, patch_size=4, num_heads=12, **kwargs)
+
+
+def FiT_B_8(**kwargs):
+    return FiT(depth=12, hidden_size=768, patch_size=8, num_heads=12, **kwargs)
+
+
+def FiT_S_2(**kwargs):
+    return FiT(depth=12, hidden_size=384, patch_size=2, num_heads=6, **kwargs)
+
+
+def FiT_S_4(**kwargs):
+    return FiT(depth=12, hidden_size=384, patch_size=4, num_heads=6, **kwargs)
+
+
+def FiT_S_8(**kwargs):
+    return FiT(depth=12, hidden_size=384, patch_size=8, num_heads=6, **kwargs)
+
+
 FiT_models = {
     "FiT-XL/2": FiT_XL_2,
+    "FiT-XL/4": FiT_XL_4,
+    "FiT-XL/8": FiT_XL_8,
+    "FiT-L/2": FiT_L_2,
+    "FiT-L/4": FiT_L_4,
+    "FiT-L/8": FiT_L_8,
+    "FiT-B/2": FiT_B_2,
+    "FiT-B/4": FiT_B_4,
+    "FiT-B/8": FiT_B_8,
+    "FiT-S/2": FiT_S_2,
+    "FiT-S/4": FiT_S_4,
+    "FiT-S/8": FiT_S_8,
 }
