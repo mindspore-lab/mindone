@@ -24,10 +24,18 @@ model:
 
         weighting_config:
           target: gm.modules.diffusionmodules.denoiser_weighting.EDMWeighting
+          params:
+            sigma_data: 0.5
         scaling_config:
           target: gm.modules.diffusionmodules.denoiser_scaling.EDMScaling
+          params:
+            sigma_data: 0.5
         discretization_config:
           target: gm.modules.diffusionmodules.discretizer.EDMDiscretization
+          params:
+            sigma_min: 0.002
+            sigma_max: 80.0
+            rho: 7.0
 
     network_config:
       target: gm.modules.diffusionmodules.openaimodel.UNetModel

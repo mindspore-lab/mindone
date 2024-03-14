@@ -43,8 +43,8 @@ class DiffusionEngine(nn.Cell):
         self.input_key = input_key
         self.no_cond_log = no_cond_log
         self.scale_factor = scale_factor
-        self.latents_mean = list(latents_mean)
-        self.latents_std = list(latents_std)
+        self.latents_mean = list(latents_mean) if latents_mean else latents_mean
+        self.latents_std = list(latents_std) if latents_std else latents_std
         self.disable_first_stage_amp = disable_first_stage_amp
 
         if network_config is not None:
