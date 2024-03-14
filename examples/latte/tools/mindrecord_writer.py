@@ -46,7 +46,7 @@ class MindRecordEmbeddingCacheWriter:
 
     @property
     def current_file_path(self):
-        filepath = self.dataset_name + str(self.current_file_index) + ".mindrecord"
+        filepath = os.path.join(self.cache_folder, self.dataset_name + str(self.current_file_index) + ".mindrecord")
         return filepath
 
     def initiate_writer(self):
@@ -78,6 +78,7 @@ class MindRecordEmbeddingCacheWriter:
         if data:
             try:
                 self.writer.write_raw_data(data)
+                self.num_saved_lines += len(data)
             except Exception as e:
                 self.handle_saving_exception(e)
             data = []
@@ -98,11 +99,11 @@ class MindRecordEmbeddingCacheWriter:
                 self.initiate_writer()
                 self.num_saved_files += 1
 
-        if len(data) >= self.dump_every_n_lines:
+        if len(data) >= self.dump_every_n_lines or not os.path.isfile(self.current_file_path):
             try:
                 self.writer.write_raw_data(data)
+                self.num_saved_lines += len(data)
             except Exception as e:
                 self.handle_saving_exception(e)
             data = []
-            self.num_saved_lines += len(data)
         return data

@@ -177,18 +177,17 @@ def parse_train_args(parser):
     )
 
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
-    # for embedding cache dataset
-    parser.add_argument(
-        "--train_data_type",
-        default="video_file",
-        type=str,
-        choices=["video_file", "npz", "mindrecord"],
-        help="type of data for training",
-    )
     return parser
 
 
 def parse_embedding_cache_args(parser):
+    parser.add_argument(
+        "--cache_file_type",
+        default="mindrecord",
+        type=str,
+        choices=["npz", "mindrecord"],
+        help="type of cached dataset file",
+    )
     parser.add_argument(
         "--save_data_type",
         default="float32",

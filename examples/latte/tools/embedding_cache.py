@@ -8,13 +8,12 @@ import sys
 from typing import Tuple
 
 import numpy as np
+from mindrecord_writer import MindRecordEmbeddingCacheWriter
+from npz_writer import NPZEmbeddingCacheWriter
 from tqdm import tqdm
 
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank, init
-
-from .mindrecord_writer import MindRecordEmbeddingCacheWriter
-from .npz_writer import NPZEmbeddingCacheWriter
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 latte_path = os.path.abspath(os.path.join(__dir__, "../"))
@@ -197,12 +196,13 @@ def main(args):
     # select dataset
     dataset = init_data(args, tokenizer, device_num, rank_id)
 
+    length = len(dataset)
     # parse train and save data types
-    train_data_type = args.train_data_type
-    assert train_data_type in [
+    cache_file_type = args.cache_file_type
+    assert cache_file_type in [
         "mindrecord",
         "npz",
-    ], "embedding_cache.py should work on data type in['mindrecord', 'npz'] "
+    ], "embedding_cache.py should work on cache file type in['mindrecord', 'npz'] "
     if args.save_data_type == "float32":
         save_data_type = np.float32
     elif args.save_data_type == "float16":
@@ -223,7 +223,7 @@ def main(args):
     start_video_index = 0 if args.resume_cache_index is None else args.resume_cache_index
     logger.info(f"Start embedding cache from {start_video_index}th video...")
 
-    if train_data_type == "mindrecord":
+    if cache_file_type == "mindrecord":
         assert args.save_data_type == "float32"
         schema = {
             video_column: {"type": "string"},
@@ -243,7 +243,7 @@ def main(args):
             start_lines_index=start_video_index,
             overwrite=False if args.resume_cache_index else True,
             max_page_size=args.max_page_size,
-            dump_every_n_lines=10,
+            dump_every_n_lines=min((length - start_video_index), 10),
         )
     else:
         embed_cache_writer = NPZEmbeddingCacheWriter(cache_folder, start_video_index)
@@ -253,7 +253,7 @@ def main(args):
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-            f"train_data_type: {args.train_data_type}",
+            f"cache_file_type: {args.cache_file_type}",
             f"save_data_type: {args.save_data_type}",
             f"cache_folder: {args.cache_folder}",
             f"Use FP16: {args.use_fp16}",
@@ -265,7 +265,6 @@ def main(args):
     key_info += "\n" + "=" * 50
     logger.info(key_info)
 
-    length = len(dataset)
     logger.info("Start dataset embedding cache...")
     data = []
 
@@ -296,18 +295,19 @@ def main(args):
             class_labels = inputs["class"]
             video_save_kwargs[class_column] = class_labels.copy().astype(np.int32)
 
-        if train_data_type == "npz":
+        if cache_file_type == "npz":
             # save video_name.npz
             embed_cache_writer.save(video_name, video_save_kwargs)
-        elif train_data_type == "mindrecord":
+        elif cache_file_type == "mindrecord":
             data.append(video_save_kwargs)
             data = embed_cache_writer.save(data)
         else:
-            raise ValueError("Train data type {} is not supported!".format(train_data_type))
+            raise ValueError("Train data type {} is not supported!".format(cache_file_type))
 
-    if data and train_data_type == "mindrecord":
+    if cache_file_type == "mindrecord":
         embed_cache_writer.save_data_and_close_writer(data)
     logger.info("Dataset embedding cache successfully saved in {}".format(cache_folder))
+    embed_cache_writer.get_status()
 
 
 if __name__ == "__main__":
