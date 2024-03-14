@@ -161,12 +161,14 @@ class FiTBlock(nn.Cell):
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         self.attn = SelfAttention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        mlp_hidden_dim = int(hidden_size * mlp_ratio)
+
         if ffn == "swiglu":
+            mlp_hidden_dim = int(hidden_size * mlp_ratio * 2 / 3)  # following LLaMA
             self.ffn = SwiGLU(
                 in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=nn.SiLU, has_bias=False, drop=0
             )
         elif ffn == "mlp":
+            mlp_hidden_dim = int(hidden_size * mlp_ratio)
             approx_gelu = lambda: GELU(approximate="tanh")
             self.ffn = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
         self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
