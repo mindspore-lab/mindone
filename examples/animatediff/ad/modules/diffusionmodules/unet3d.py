@@ -617,7 +617,12 @@ class UNet3DModel(nn.Cell):
                 if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
                     h = cell(h, emb, context, video_length=F)
                 else:
-                    h = cell(h, emb, context)
+                    if isinstance(cell, Upsample):
+                        _, _, tar_h, tar_w = hs[hs_index - 1].shape
+                        target_size = (tar_h, tar_w)
+                        h = cell(h, emb, context, target_size)
+                    else:
+                        h = cell(h, emb, context)
             hs_index -= 1
         if self.norm_in_5d:
             h = self.conv_norm_out(h, video_length=F)
