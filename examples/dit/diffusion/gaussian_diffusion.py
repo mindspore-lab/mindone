@@ -23,8 +23,6 @@ from .diffusion_utils import (
     normal_kl,
 )
 
-# from .diffusion_utils import ModelMeanType, ModelVarType, _extract_into_tensor,
-
 
 @ms.jit_class
 class GaussianDiffusion:
@@ -126,12 +124,6 @@ class GaussianDiffusion:
         )
         posterior_variance = _extract_into_tensor(self.posterior_variance, t, x_t.shape)
         posterior_log_variance_clipped = _extract_into_tensor(self.posterior_log_variance_clipped, t, x_t.shape)
-        # assert (
-        #     posterior_mean.shape[0]
-        #     == posterior_variance.shape[0]
-        #     == posterior_log_variance_clipped.shape[0]
-        #     == x_start.shape[0]
-        # )
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None):
@@ -156,12 +148,9 @@ class GaussianDiffusion:
         """
         if model_kwargs is None:
             model_kwargs = {}
-        if x.dim() == 4:
-            B, C = x.shape[:2]
-        elif x.dim() == 5:
-            B, F, C = x.shape[:3]
-        else:
-            raise ValueError(f"Incorrect input shape. Expect to get 4 or 5 dimensional inputs, but got {x.dim()}")
+
+        B, C = x.shape[:2]
+
         assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
         if isinstance(model_output, tuple):
@@ -169,13 +158,8 @@ class GaussianDiffusion:
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            if x.dim() == 4:
-                assert model_output.shape == (B, C * 2, *x.shape[2:])
-                model_output, model_var_values = ops.split(model_output, C, axis=1)
-            else:
-                assert model_output.shape == (B, F, C * 2, *x.shape[3:])
-                model_output, model_var_values = ops.split(model_output, C, axis=2)
-
+            assert model_output.shape == (B, C * 2, *x.shape[2:])
+            model_output, model_var_values = ops.split(model_output, C, axis=1)
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)
             # The model_var_values is [-1, 1] for [min_var, max_var].

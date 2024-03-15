@@ -15,6 +15,7 @@ def build_optimizer(
     name: str,
     lr: Union[float, List[float]],
     betas: Optional[List[float]] = None,
+    group_lr_scaler: float = 1.0,
     weight_decay: float = 1e-6,
     eps: float = 1e-6,
     group_strategy: Optional[str] = None,
@@ -28,6 +29,7 @@ def build_optimizer(
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
             If not provided, [0.9, 0.999] is used as default.
+        group_lr_scaler: Set different learning rate for particular group of params.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
         eps: epsilon in adam or adamw optimization, Default: 1e-6
         group_strategy: The specific grouping startegy for weight decay. If it is None,
@@ -56,6 +58,34 @@ def build_optimizer(
 
         return all([x not in param.name.lower() for x in filter_list])
 
+    def _scale_lr(group_params, lr, scaler):
+        new_groups = list()
+        for group in group_params:
+            scale_params, unscale_params = list(), list()
+            for params in group["params"]:
+                name = params.name.lower()
+                if "zero_conv" in name or "input_hint_block" in name or "middle_block_out" in name:
+                    scale_params.append(params)
+                else:
+                    unscale_params.append(params)
+
+            new_groups.append(
+                {
+                    "params": scale_params,
+                    "weight_decay": group["weight_decay"],
+                    "lr": [i * scaler for i in lr],
+                }
+            )
+            new_groups.append(
+                {
+                    "params": unscale_params,
+                    "weight_decay": group["weight_decay"],
+                    "lr": lr,
+                }
+            )
+        _logger.info(f"Enable scale lr for zero conv layers, scale lr: {scaler * lr[0]}")
+        return new_groups
+
     param_optimizer = model.trainable_params()
     decay_params = list(filter(decay_filter, param_optimizer))
     other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
@@ -64,6 +94,20 @@ def build_optimizer(
         group_params.append({"params": decay_params, "weight_decay": weight_decay})  # 1e-6})
     if len(other_params) > 0:
         group_params.append({"params": other_params, "weight_decay": 0.0})
+
+    _info = "\n".join(
+        [
+            f"Enable optimizer group param, "
+            f"decay params num: {len(decay_params)}, "
+            f"no decay params num: {len(other_params)}, "
+            f"full params num: {len(decay_params) + len(other_params)}"
+        ]
+    )
+    _logger.info(_info)
+
+    # set different lr for zero_conv/input_hint_block/middle_block_out layers of cldm
+    if group_lr_scaler != 1.0:
+        group_params = _scale_lr(group_params, lr, group_lr_scaler)
     group_params.append({"order_params": param_optimizer})
 
     if name.lower() == "adam":

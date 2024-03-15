@@ -179,6 +179,12 @@ def parse_args():
         type=str2bool,
         help="if True, set mixed precision O2 for MM. Otherwise, use manually defined precision according to use_fp16 flag",
     )
+    parser.add_argument(
+        "--vae_fp16",
+        default=None,
+        type=str2bool,
+        help="whether use fp16 precision in vae. If None, it will be set by the value in stable diffusion config yaml",
+    )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
     parser.add_argument("--num_frames", default=16, type=int, help="num frames")
     parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
@@ -186,6 +192,12 @@ def parse_args():
         "--random_drop_text", default=True, type=str2bool, help="set caption to empty string randomly if enabled"
     )
     parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
+    parser.add_argument(
+        "--disable_flip",
+        default=True,
+        type=str2bool,
+        help="disable random flip video (to avoid motion direction and text mismatch)",
+    )
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(
         "--motion_module_path", default="", type=str, help="path to pretrained motion mdule. Load it if not empty"

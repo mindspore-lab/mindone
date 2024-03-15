@@ -13,8 +13,9 @@ class EDMSampling(nn.Cell):
         self.p_std = p_std
 
     @ms.jit  # FIXME: ops.randn causes 'dynamic shape' error in PyNative mode
-    def construct(self, n_samples):
-        log_sigma = self.p_mean + self.p_std * ops.randn((n_samples,))
+    def construct(self, n_samples, rand=None):
+        rand = rand if rand else ops.randn((n_samples,))
+        log_sigma = self.p_mean + self.p_std * rand
         return log_sigma.exp()
 
 

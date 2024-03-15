@@ -541,7 +541,7 @@ def get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
     return batch, batch_uc
 
 
-def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0):
+def get_discretization(discretization, sigma_min=0.002, sigma_max=80, rho=7.0):
     if discretization == "LegacyDDPMDiscretization":
         discretization_config = {
             "target": "gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization",
@@ -754,6 +754,8 @@ def concat_images(images: list, num_cols: int):
 def perform_save_locally(save_path, samples, num_cols=1):
     os.makedirs(os.path.join(save_path), exist_ok=True)
     base_count = len(os.listdir(os.path.join(save_path)))
+    if isinstance(samples, np.ndarray):
+        samples = [samples]
     samples = embed_watermark(samples)
     samples = concat_images(samples, num_cols=num_cols)
 

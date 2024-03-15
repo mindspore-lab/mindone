@@ -35,13 +35,14 @@ def parse_args():
         description="Merge several hccl config json files" "of single server into one config file of the whole cluster"
     )
     parser.add_argument("file_list", type=str, nargs="+", help="Hccl file lists")
+    parser.add_argument("--save_path", type=str, default="", help="save path for merged result")
     arg = parser.parse_args()
     return arg
 
 
 if __name__ == "__main__":
     args = parse_args()
-    print(args.file_list)
+    print("\n".join(args.file_list))
 
     server_count = 0
     json_list = []
@@ -65,7 +66,7 @@ if __name__ == "__main__":
 
     hccl_table["status"] = "completed"
 
-    table_path = os.getcwd()
+    table_path = args.save_path if args.save_path else os.getcwd()
     table_name = os.path.join(table_path, "hccl_{}s_{}p.json".format(server_count, rank_id))
     with open(table_name, "w") as table_fp:
         json.dump(hccl_table, table_fp, indent=4)

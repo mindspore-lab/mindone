@@ -59,6 +59,8 @@ class TrainOneStepCell(nn.Cell):
         self.first_stage_model = model.first_stage_model
 
         self.scale_factor = model.scale_factor
+        self.latents_mean = model.latents_mean
+        self.latents_std = model.latents_std
         self.sigma_sampler = model.sigma_sampler
         self.loss_fn = model.loss_fn
         self.denoiser = model.denoiser
@@ -73,7 +75,13 @@ class TrainOneStepCell(nn.Cell):
         # get latent target
         if self.enable_first_stage_model:
             x = self.first_stage_model.encode(x)
-        x = self.scale_factor * x
+
+        if self.latents_mean and self.latents_std:
+            latents_mean = ms.Tensor(self.latents_mean, dtype=ms.float32).reshape(1, 4, 1, 1)
+            latents_std = ms.Tensor(self.latents_std, dtype=ms.float32).reshape(1, 4, 1, 1)
+            x = (x - latents_mean) * self.scale_factor / latents_std
+        else:
+            x = self.scale_factor * x
 
         # get noise and sigma
         if self.timestep_bias_weighting is None:
@@ -85,6 +93,7 @@ class TrainOneStepCell(nn.Cell):
             sigmas = self.sigma_sampler(x.shape[0], rand=timesteps)
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
         if self.snr_gamma is not None:
@@ -120,7 +129,7 @@ class LatentDiffusionWithLoss(nn.Cell):
         c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
         model_output = self.model(
             ops.cast(noised_input * c_in, ms.float32),
-            ops.cast(c_noise, ms.int32),
+            c_noise,
             concat=concat,
             context=context,
             y=y,

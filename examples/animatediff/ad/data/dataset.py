@@ -22,7 +22,7 @@ def read_gif(gif_path, mode="RGB"):
     return frames
 
 
-def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="al", use_safer_augment=True):
+def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="al", disable_flip=True):
     """
     pipeline: flip -> resize -> crop
     h, w : target resize height, weight
@@ -48,7 +48,7 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
         # NOTE: to ensure augment all frames in a video in the same way.
         targets = {"image{}".format(i): "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
-        if use_safer_augment:
+        if disable_flip:
             # flip is not proper for horizontal motion learning
             pixel_transforms = albumentations.Compose(
                 [
@@ -106,6 +106,7 @@ class TextVideoDataset:
         caption_column="caption",
         random_drop_text=True,
         random_drop_text_ratio=0.1,
+        disable_flip=True,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -122,7 +123,12 @@ class TextVideoDataset:
 
         # it should match the transformation used in SD/VAE pretraining, especially for normalization
         self.pixel_transforms = create_video_transforms(
-            sample_size[0], sample_size[1], sample_n_frames, interpolation="bicubic", backend=transform_backend
+            sample_size[0],
+            sample_size[1],
+            sample_n_frames,
+            interpolation="bicubic",
+            backend=transform_backend,
+            disable_flip=disable_flip,
         )
         self.transform_backend = transform_backend
         self.tokenizer = tokenizer
@@ -157,6 +163,12 @@ class TextVideoDataset:
         video_dict = self.dataset[idx]
         video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
         video_path = os.path.join(self.video_folder, video_fn)
+        # in case missing .mp4 in csv file
+        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+            if video_path[-4] != ".":
+                video_path = video_path + ".mp4"
+            else:
+                raise ValueError(f"video file format is not verified: {video_path}")
 
         # TODO: Add error data replacement!!!
         if video_path.endswith(".gif"):
@@ -304,6 +316,11 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
                 sample_n_frames=config["sample_n_frames"],
                 is_image=is_image,
                 tokenizer=tokenizer,
+                disable_flip=config["disable_flip"],
+                video_column=config["video_column"],
+                caption_column=config["caption_column"],
+                random_drop_text=config["random_drop_text"],
+                random_drop_text_ratio=config["random_drop_text_ratio"],
             )
         else:
             dataset = TextVideoDatasetWithEmbeddingNpz(
@@ -314,6 +331,11 @@ def create_dataloader(config, tokenizer=None, is_image=False, device_num=1, rank
                 sample_n_frames=config["sample_n_frames"],
                 is_image=is_image,
                 tokenizer=tokenizer,
+                disable_flip=config["disable_flip"],
+                video_column=config["video_column"],
+                caption_column=config["caption_column"],
+                random_drop_text=config["random_drop_text"],
+                random_drop_text_ratio=config["random_drop_text_ratio"],
             )
         print("Total number of samples: ", len(dataset))
 

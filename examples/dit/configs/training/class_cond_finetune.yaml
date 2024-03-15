@@ -1,6 +1,6 @@
 # task
 condition: "class"
-output_path: outputs/class_ft_dit
+output_path: outputs/class_cond_finetune
 
 # model setting
 image_size: 256 # or 512

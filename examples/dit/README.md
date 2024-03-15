@@ -81,9 +81,9 @@ Some generated example images are shown below:
 <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-207.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-279.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-360.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-387.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-417.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-88.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-974.png" width="12.5%" /><img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/256x256/class-979.png" width="12.5%" />
 </p>
 
-## Training
+## Model Finetuning
 
-Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. This toy dataset is store at this [website](https://github.com/wtomin/mindone-assets/tree/main/dit/imagenet_samples). You can also download this toy dataset using:
+Now, we support finetuning DiT model on a toy dataset `imagenet_samples/images/`. It consists of three sample images randomly selected from ImageNet dataset and their corresponding class labels. This toy dataset is stored at this [website](https://github.com/wtomin/mindone-assets/tree/main/dit/imagenet_samples). You can also download this toy dataset using:
 
 ```bash
 bash scripts/download_toy_dataset.sh
@@ -116,6 +116,33 @@ dit_checkpoint: "outputs/ckpt/DiT-3000.ckpt"
 ```
 
 Then run `python sample.py -c config-file-path`.
+
+## Model Training with ImageNet dataset
+
+You can start the distributed training with ImageNet dataset format using the following command
+
+```bash
+export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
+mpirun -n 4 python train.py \
+    -c configs/training/class_cond_train.yaml \
+    --dataset_path PATH_TO_YOUR_DATASET \
+    --use_parallel True
+```
+
+where `PATH_TO_YOUR_DATASET` is the path of your ImageNet dataset, e.g. `ImageNet2012/train`.
+
+For machine with Ascend devices, you can also start the distributed training using the rank table.
+Please run
+
+```bash
+bash scripts/run_distributed.sh path_of_the_rank_table 0 4 path_to_your_dataset
+```
+
+to launch a 4P training. For detail usage of the training script, please run
+
+```bash
+bash scripts/run_distributed.sh -h
+```
 
 # References
 

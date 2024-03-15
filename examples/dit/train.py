@@ -10,7 +10,7 @@ from typing import Tuple
 
 import yaml
 from args_train import parse_args
-from data.dataset import create_dataloader
+from data.dataset import create_dataloader, create_dataloader_imagenet
 from pipelines.train_pipeline import DiTWithLoss
 from utils.model_utils import load_dit_ckpt_params
 
@@ -66,6 +66,9 @@ def init_env(
     """
     set_random_seed(seed)
 
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
@@ -99,9 +102,6 @@ def init_env(
             # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
 
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
     return device_id, rank_id, device_num
 
 
@@ -126,7 +126,7 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    device_id, rank_id, device_num = init_env(
+    _, rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
@@ -146,8 +146,11 @@ def main(args):
     )
     if args.use_fp16:
         dit_model = auto_mixed_precision(dit_model, amp_level="O2")
-    if not args.dit_initialize_random:
+
+    if args.dit_checkpoint:
         dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+    else:
+        logger.info("Initialize DIT ramdonly")
     dit_model.set_train(True)
 
     set_dit_params(dit_model, ft_all_params=True, train=True)
@@ -174,26 +177,41 @@ def main(args):
         text_encoder=None,
         cond_stage_trainable=False,
     )
-    # image dataset
-    data_config = dict(
-        data_folder=args.data_path,
-        csv_path=args.data_path + "/image_caption.csv",
-        sample_size=args.image_size,
-        batch_size=args.train_batch_size,
-        shuffle=True,
-        num_parallel_workers=args.num_parallel_workers,
-        max_rowsize=64,
-    )
 
-    dataset = create_dataloader(
-        data_config,
-        tokenizer=None,
-        device_num=device_num,
-        rank_id=rank_id,
-        image_column="image",
-        caption_column="caption" if args.condition == "text" else None,
-        class_column="class" if args.condition == "class" else None,
-    )
+    # image dataset
+    if args.imagenet_format:
+        data_config = dict(
+            data_folder=args.data_path,
+            sample_size=args.image_size,
+            batch_size=args.train_batch_size,
+            shuffle=True,
+            num_parallel_workers=args.num_parallel_workers,
+        )
+        dataset = create_dataloader_imagenet(
+            data_config,
+            device_num=device_num,
+            rank_id=rank_id,
+        )
+    else:
+        data_config = dict(
+            data_folder=args.data_path,
+            csv_path=args.data_path + "/image_caption.csv",
+            sample_size=args.image_size,
+            batch_size=args.train_batch_size,
+            shuffle=True,
+            num_parallel_workers=args.num_parallel_workers,
+            max_rowsize=64,
+        )
+
+        dataset = create_dataloader(
+            data_config,
+            tokenizer=None,
+            device_num=device_num,
+            rank_id=rank_id,
+            image_column="image",
+            caption_column="caption" if args.condition == "text" else None,
+            class_column="class" if args.condition == "class" else None,
+        )
     dataset_size = dataset.get_dataset_size()
 
     # 4. build training utils: lr, optim, callbacks, trainer
@@ -288,7 +306,7 @@ def main(args):
             log_interval=args.callback_size,
             start_epoch=start_epoch,
             model_name="DiT",
-            record_lr=False,  # TODO: check LR retrival for new MS on 910b
+            record_lr=True,
         )
         callback.append(save_cb)
         if args.profile:
@@ -316,6 +334,7 @@ def main(args):
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
+                f"Total training steps: {dataset_size * args.epochs:,}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",
