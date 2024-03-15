@@ -174,6 +174,7 @@ class CoCa(nn.Cell):
         stopping_criteria=None,
         repetition_penalty=1.0,
         fixed_output_length=False,  # if True output.shape == (batch_size, seq_len)
+        is_video=False,
     ):
         assert seq_len > min_seq_len, "seq_len must be larger than min_seq_len"
 
@@ -202,6 +203,7 @@ class CoCa(nn.Cell):
                 min_seq_len=min_seq_len,
                 stopping_criteria=stopping_criteria,
                 logit_processor=logit_processor,
+                is_video=is_video,
             )
             if fixed_output_length and output.shape[1] < seq_len:
                 return ops.cat(
@@ -218,11 +220,21 @@ class CoCa(nn.Cell):
             raise ValueError(
                 f"generation_type has to be one of " f"{'| ' + ' | '.join(list(GENERATION_TYPES.keys())) + ' |'}."
             )
+        if is_video:
+            image_latent, image_embs = 0, 0
+            for data in image:
+                data_latent, data_embs = self._encode_image(data)
+                image_latent += data_latent
+                image_embs += image_embs
+            image_latent = image_latent / image.shape[0]
+            image_embs = image_embs / image.shape[0]
+            if text is None:
+                text = ops.ones((1, 1), dtype=ms.int32) * sot_token_id
+        else:
+            image_latent, image_embs = self._encode_image(image)
 
-        image_latent, image_embs = self._encode_image(image)
-
-        if text is None:
-            text = ops.ones((image.shape[0], 1), dtype=ms.int32) * sot_token_id
+            if text is None:
+                text = ops.ones((image.shape[0], 1), dtype=ms.int32) * sot_token_id
 
         num_dims = len(text.shape)
 
@@ -275,10 +287,22 @@ class CoCa(nn.Cell):
         min_seq_len=5,
         stopping_criteria=None,
         logit_processor=None,
+        is_video=False,
     ):
-        batch_size = image_inputs.shape[0]
-        image_inputs = ops.repeat_interleave(image_inputs, num_beams, axis=0)
-        image_latent, image_embs = self._encode_image(image_inputs)
+        if is_video:
+            batch_size = 1
+            image_latent, image_embs = 0, 0
+            for data in image_inputs:
+                data = ops.repeat_interleave(data.unsqueeze(0), num_beams, axis=0)
+                data_latent, data_embs = self._encode_image(image_inputs)
+                image_latent += data_latent
+                image_embs += data_embs
+            image_latent = image_latent / image_inputs.shape[0]
+            image_embs = image_embs / image_inputs.shape[0]
+        else:
+            batch_size = image_inputs.shape[0]
+            image_inputs = ops.repeat_interleave(image_inputs, num_beams, axis=0)
+            image_latent, image_embs = self._encode_image(image_inputs)
 
         input_ids = ops.ones((batch_size * num_beams, 1), dtype=ms.int32)
         input_ids = input_ids * sot_token_id
