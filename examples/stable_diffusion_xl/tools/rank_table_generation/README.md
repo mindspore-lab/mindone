@@ -37,6 +37,9 @@ python merge_hccl.py hccl1.json hccl2.json
 
 # merge all hccl*.json
 python merge_hccl.py hccl*.json
+
+# merge with a specific save path for merged file
+python merge_hccl.py hccl1.json hccl2.json --save_path specific/save/path
 ```
 
 ### Note

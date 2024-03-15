@@ -118,6 +118,7 @@ def get_parser_train():
     parser.add_argument("--save_path", type=str, default="./runs")
     parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+    parser.add_argument("--save_ckpt_only_rank_zero", type=ast.literal_eval, default=False)
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
     parser.add_argument(
         "--max_num_ckpt",
@@ -386,7 +387,8 @@ def train_txt2img(
             s_time = time.time()
 
         # Save checkpoint
-        if (i + 1) % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
+        is_rank_to_save = args.rank == 0 if args.save_ckpt_only_rank_zero else args.rank % 8 == 0
+        if (i + 1) % args.save_ckpt_interval == 0 and is_rank_to_save:
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{(i + 1)}.ckpt")
             if args.cache_latent and args.cache_text_embedding:
                 save_ckpt_dir = os.path.join(args.save_path, "weights", f"unet_{(i + 1)}.ckpt")
@@ -460,7 +462,8 @@ def train_txt2img_datasink(
             )
 
         # Save checkpoint
-        if cur_step % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
+        is_rank_to_save = args.rank == 0 if args.save_ckpt_only_rank_zero else args.rank % 8 == 0
+        if cur_step % args.save_ckpt_interval == 0 and is_rank_to_save:
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{cur_step}.ckpt")
             if args.cache_latent and args.cache_text_embedding:
                 save_ckpt_dir = os.path.join(args.save_path, "weights", f"unet_{cur_step}.ckpt")
