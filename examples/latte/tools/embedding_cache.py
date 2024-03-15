@@ -243,7 +243,7 @@ def main(args):
             start_lines_index=start_video_index,
             overwrite=False if args.resume_cache_index else True,
             max_page_size=args.max_page_size,
-            dump_every_n_lines=min((length - start_video_index), 10),
+            dump_every_n_lines=min((length - start_video_index), args.dump_every_n_lines),
         )
     else:
         embed_cache_writer = NPZEmbeddingCacheWriter(cache_folder, start_video_index)

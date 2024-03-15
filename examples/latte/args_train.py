@@ -206,6 +206,12 @@ def parse_embedding_cache_args(parser):
     parser.add_argument(
         "--resume_cache_index", default=None, type=int, help="If provided, will resume cache from this video index."
     )
+    parser.add_argument(
+        "--dump_every_n_lines",
+        type=int,
+        default=1,
+        help="The number of data items (videos) saved every time calling mindrecord writer.",
+    )
     return parser
 
 

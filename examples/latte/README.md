@@ -89,7 +89,7 @@ Some of the generated results are shown here:
 
 Now, we support training Latte model on the Sky Timelapse dataset, which can be downloaded from https://github.com/weixiong-ur/mdgan.
 
-After uncompress the downloaded file, you will get a folder named `sky_train/` which contains all training video frames. The folder structure is similar to:
+After uncompressing the downloaded file, you will get a folder named `sky_train/` which contains all training video frames. The folder structure is similar to:
 ```
 sky_train/
 ├── video_name_0/
@@ -116,7 +116,7 @@ After training, the checkpoints are saved under `output_dir/ckpt/`. To run infer
 
 ### Embedding Cache
 
-We can accelerate the training speed by caching the embeddings of the dataset before running the training script. This takes four steps:
+We can accelerate the training speed by caching the embeddings of the dataset before running the training script. This takes three steps:
 
 - Step 1: Cache the embedding into a cache folder. See the following example about how to cache the embeddings. This step can take a bit long time.
 
@@ -148,22 +148,13 @@ To check more usages, please use `python tools/embedding_cache.py -h`.
 
 After the embeddings have been cached, edit `configs/training/data/sky_mindrecord_video.yaml` or `configs/training/data/sky_npz_video.yaml`, and change the `data_folder` to the folder where the cached embeddings are stored in.
 
-- Step 3: Change the experiment configuration file's `data_config_file` to the target dataset configuration file path.
-
-For example, edits the `configs/training/sky_video.yaml` like this:
-```yaml
-# data setting
-dataset_name: "sky"
-data_config_file: "configs/training/data/sky_mindrecord_video.yaml"  # or configs/training/data/sky_npz_video.yaml
-dataset_sink_mode: True
-```
-
-- Step 4: Run the training script.
+- Step 3: Run the training script.
 
 You can start training on the cached embedding dataset of Sky TimeLapse using:
 ```bash
-python train.py -c configs/training/sky_video.yaml
+python train.py -c path/to/config/file
 ```
+The configuration file can be either `configs/training/sky_mindrecord_video.yaml` or `configs/training/sky_npz_video.yaml`.
 
 # References
 

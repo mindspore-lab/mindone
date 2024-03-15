@@ -151,7 +151,7 @@ class NetworkWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
-        if not self.self.train_with_embed:
+        if not self.train_with_embed:
             x = self.get_latents(x)
             # 2. get conditions
             if self.condition == "text":
