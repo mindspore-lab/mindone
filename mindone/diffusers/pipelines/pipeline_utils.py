@@ -15,11 +15,15 @@
 # limitations under the License.
 import importlib
 import inspect
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Union
+
+import numpy as np
+import PIL.Image
 from tqdm.auto import tqdm
 
 from ..configuration_utils import ConfigMixin
-from ..utils import logging, numpy_to_pil
+from ..utils import BaseOutput, logging, numpy_to_pil
 
 logger = logging.get_logger(__name__)
 
@@ -50,6 +54,20 @@ LOADABLE_CLASSES = {
         "ORTModule": ["save_pretrained", "from_pretrained"],
     },
 }
+
+
+@dataclass
+class ImagePipelineOutput(BaseOutput):
+    """
+    Output class for image pipelines.
+
+    Args:
+        images (`List[PIL.Image.Image]` or `np.ndarray`)
+            List of denoised PIL images of length `batch_size` or NumPy array of shape `(batch_size, height, width,
+            num_channels)`.
+    """
+
+    images: Union[List[PIL.Image.Image], np.ndarray]
 
 
 def _fetch_class_library_tuple(module):
