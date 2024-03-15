@@ -8,11 +8,13 @@ import sys
 from typing import Tuple
 
 import numpy as np
-from mindrecord_writer import MindRecordEmbeddingCacheWriter
-from npz_writer import NPZEmbeddingCacheWriter
+from embed_writer.mindrecord_writer import MindRecordEmbeddingCacheWriter
+from embed_writer.npy_writer import NPYEmbeddingCacheWriter
+from embed_writer.npz_writer import NPZEmbeddingCacheWriter
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore import ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -21,19 +23,14 @@ sys.path.insert(0, latte_path)
 
 from args_train import parse_args
 from data.dataset import get_dataset
-from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 from modules.text_encoders import initiate_clip_text_encoder
 from omegaconf import OmegaConf
-from pipelines import get_model_with_loss
-from utils.model_utils import remove_pname_prefix
 
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
 # load training modules
-from mindone.models.latte import Latte_models
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 
@@ -100,34 +97,6 @@ def init_env(
 
 
 def init_models(args):
-    # 2.1 latte
-    logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-    latent_size = args.image_size // 8
-    latte_model = Latte_models[args.model_name](
-        input_size=latent_size,
-        num_classes=args.num_classes,
-        block_kwargs={"enable_flash_attention": args.enable_flash_attention},
-        condition=args.condition,
-        num_frames=args.num_frames,
-    )
-
-    if args.use_fp16:
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2")
-
-    if len(args.pretrained_model_path) > 0:
-        param_dict = ms.load_checkpoint(args.pretrained_model_path)
-        logger.info(f"Loading ckpt {args.pretrained_model_path} into Latte...")
-        # in case a save ckpt with "network." prefix, removing it before loading
-        param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        latte_model.load_params_from_ckpt(param_dict)
-    else:
-        logger.info("Use random initialization for Latte")
-
-    # set train=False
-    latte_model.set_train(False)
-    for param in latte_model.get_parameters():
-        param.requires_grad = False
-
     # 2.2 vae
     logger.info("vae init")
     vae = AutoencoderKL(
@@ -150,17 +119,7 @@ def init_models(args):
         text_embed_shape = [77, 768]
     else:
         text_encoder, tokenizer, text_embed_shape = None, None, None
-    diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
-        latte_model,
-        diffusion,
-        vae,
-        args.sd_scale_factor,
-        args.condition,
-        text_encoder=text_encoder,
-        cond_stage_trainable=False,
-    )
-    return latent_diffusion_with_loss, tokenizer, text_embed_shape
+    return vae, text_encoder, tokenizer, text_embed_shape
 
 
 def init_data(args, tokenizer, device_num, rank_id):
@@ -192,7 +151,7 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
-    latent_diffusion_with_loss, tokenizer, text_embed_shape = init_models(args)
+    vae, text_encoder, tokenizer, text_embed_shape = init_models(args)
     # select dataset
     dataset = init_data(args, tokenizer, device_num, rank_id)
 
@@ -245,8 +204,12 @@ def main(args):
             max_page_size=args.max_page_size,
             dump_every_n_lines=min((length - start_video_index), args.dump_every_n_lines),
         )
-    else:
+    elif cache_file_type == "npz":
         embed_cache_writer = NPZEmbeddingCacheWriter(cache_folder, start_video_index)
+    elif cache_file_type == "npy":
+        embed_cache_writer = NPYEmbeddingCacheWriter(cache_folder, start_video_index)
+    else:
+        raise ValueError
 
     # print key info
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -271,10 +234,12 @@ def main(args):
     for video_index in tqdm(range(start_video_index, length), total=length):
         video_save_kwargs = {}
         video_latent = []
-        for video_name, inputs in dataset.traverse_single_video_frames(video_index):
+        all_frames_names = []
+        for video_name, frames_paths, inputs in dataset.traverse_single_video_frames(video_index):
             clip_data = inputs["video"]
-            clip_latent = latent_diffusion_with_loss.get_latents(ms.Tensor(clip_data, ms.float32)).asnumpy()
-            video_latent.append(clip_latent)
+            clip_latent = ops.stop_gradient(vae.encode(ms.Tensor(clip_data, ms.float32))) * args.sd_scale_factor
+            video_latent.append(clip_latent.asnumpy())
+            all_frames_names.extend([os.path.basename(frame_path).split(".")[0] for frame_path in frames_paths])
         video_latent = np.concatenate(video_latent, axis=0)
         # save video_latent (tensor) and video_name (string)
         video_save_kwargs["video_latent"] = video_latent.copy().astype(save_data_type)
@@ -284,7 +249,7 @@ def main(args):
             # save text_emb (tensor) and caption (string)
             assert len(inputs) > 1, "incorrect data return shape"
             token_ids = inputs["text"]
-            text_emb = latent_diffusion_with_loss.get_condition_embeddings(ms.Tensor(token_ids, ms.int32)).asnumpy()
+            text_emb = ops.stop_gradient(text_encoder(ms.Tensor(token_ids, ms.int32))).asnumpy()
             video_save_kwargs["text_emb"] = text_emb.copy().astype(save_data_type)
 
             caption = inputs["caption"]
@@ -301,6 +266,8 @@ def main(args):
         elif cache_file_type == "mindrecord":
             data.append(video_save_kwargs)
             data = embed_cache_writer.save(data)
+        elif cache_file_type == "npy":
+            embed_cache_writer.save(video_name, all_frames_names, video_save_kwargs)
         else:
             raise ValueError("Train data type {} is not supported!".format(cache_file_type))
 

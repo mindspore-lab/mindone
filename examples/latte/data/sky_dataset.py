@@ -208,7 +208,7 @@ class SkyDataset:
             pixel_values = self.apply_transform(pixel_values)
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
-            yield video_name, {"video": pixel_values}
+            yield video_name, select_video_frames, {"video": pixel_values}
 
 
 class SkyDatasetWithEmbeddingNpz(SkyDataset):
