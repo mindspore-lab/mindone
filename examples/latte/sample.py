@@ -158,6 +158,7 @@ if __name__ == "__main__":
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         condition=args.condition,
         num_frames=args.num_frames,
+        use_recompute=args.use_recompute,
     )
 
     if args.use_fp16:

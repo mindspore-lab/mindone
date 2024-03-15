@@ -95,7 +95,7 @@ def parse_train_args(parser):
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
         "--use_recompute",
-        default=None,
+        default=False,
         type=str2bool,
         help="whether use recompute.",
     )
