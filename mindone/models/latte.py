@@ -37,6 +37,7 @@ class Latte(nn.Cell):
         condition (str, default=None): The type of conditions in [None, 'text', 'class']. If it is None, Latte is a un-conditional video generator.
             If it is 'text', it accepts text embeddings (B, T, D) as conditions, and generates videos. T: number of tokens. D: embedding dimension.
             If it is 'class', it accepts class labels (B, ) as conditions, and generates videos.
+        use_recompute (bool, default=False): Whether to use recompute for transformer blocks. Recompute can save some memory while slowing down the process.
     """
 
     def __init__(
@@ -54,6 +55,7 @@ class Latte(nn.Cell):
         learn_sigma=True,
         block_kwargs={},
         condition=None,
+        use_recompute=False,
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -62,6 +64,7 @@ class Latte(nn.Cell):
         self.patch_size = patch_size
         self.num_heads = num_heads
         self.num_classes = num_classes
+        self.use_recompute = use_recompute
 
         if condition is not None:
             assert isinstance(condition, str), f"Expect that the condition type is a string, but got {type(condition)}"
@@ -90,6 +93,18 @@ class Latte(nn.Cell):
 
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()
+
+        if self.use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def initialize_weights(self):
         # Initialize transformer layers:
