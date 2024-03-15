@@ -152,9 +152,6 @@ def get_parser_train():
         ),
     )
     parser.add_argument(
-        "--sample_batch_size", type=int, default=2, help="Specify the batch size (per device) for sampling images."
-    )
-    parser.add_argument(
         "--train_data_repeat",
         type=int,
         default=10,
@@ -186,21 +183,15 @@ def generate_class_images(args):
 
     if cur_class_images < args.num_class_images:
         num_new_images = args.num_class_images - cur_class_images
-        N_prompts = num_new_images // args.sample_batch_size
-        N_prompts = N_prompts + 1 if num_new_images % args.sample_batch_size != 0 else N_prompts
-        print(f"Number of class images to sample: {N_prompts*args.sample_batch_size}.")
+        print(f"Number of class images to sample: {num_new_images}.")
     start_time = time.time()
-    for i in range(N_prompts):
-        infer_during_train(
-            model=model, prompt=args.class_prompt, save_path=class_images_dir, num_cols=args.sample_batch_size
-        )
-        print(f"{(i+1)*args.sample_batch_size}/{N_prompts*args.sample_batch_size} class image sampling done")
+    infer_during_train(model=model, prompt=args.class_prompt, save_path=class_images_dir, num_samples=num_new_images)
 
     end_time = time.time()
 
     print(
-        f"It took {end_time-start_time:.2f} seconds to generate {N_prompts*args.sample_batch_size} \
-            new images which are saved in: {class_images_dir}."
+        f"It took {end_time-start_time:.2f} seconds to generate {num_new_images}, ",
+        f"new images which are saved in: {class_images_dir}.",
     )
     del model
 
@@ -380,7 +371,7 @@ def train_txt2img(args, train_step_fn, dataloader, optimizer=None, model=None, *
             print(f"Step {i + 1}/{total_step}, infer done.", flush=True)
 
 
-def infer_during_train(model, prompt, save_path, num_cols=1):
+def infer_during_train(model, prompt, save_path, num_samples=1):
     from gm.helpers import init_sampling, perform_save_locally
 
     version_dict = VERSION2SPECS.get(args.version)
@@ -401,27 +392,33 @@ def infer_during_train(model, prompt, save_path, num_cols=1):
         "aesthetic_score": 6.0,
         "negative_aesthetic_score": 2.5,
     }
-    sampler, num_rows, num_cols = init_sampling(steps=40, num_cols=num_cols)
-
-    out = model.do_sample(
-        sampler,
-        value_dict,
-        num_rows * num_cols,
-        H,
-        W,
-        C,
-        F,
-        force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-        return_latents=False,
-        filter=None,
-        amp_level="O2",
-    )
-    perform_save_locally(save_path, out)
+    sampler, num_rows, num_cols = init_sampling(steps=40, num_cols=1)
+    for j in range(num_samples):
+        out = model.do_sample(
+            sampler,
+            value_dict,
+            num_rows * num_cols,
+            H,
+            W,
+            C,
+            F,
+            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+            return_latents=False,
+            filter=None,
+            amp_level="O2",
+        )
+        perform_save_locally(save_path, out)
+        print(f"{j+1}/{num_samples} image sampling done.")
 
 
 if __name__ == "__main__":
     parser = get_parser_train()
     args, _ = parser.parse_known_args()
+
+    ms.context.set_context(
+        mode=args.ms_mode,
+        device_target=args.device_target,
+    )
 
     class_images_dir = Path(args.class_data_path)
     if not class_images_dir.exists():
@@ -431,8 +428,7 @@ if __name__ == "__main__":
         logger.warning(f"Found {cur_class_images} class images only. The target number is {args.num_class_images}")
         generate_class_images(args)
         logger.warning(
-            "Finish generating class images, please check the class images first!\
-                       If the class images are ready, rerun train command to start training."
+            "Finish generating class images, please check the class images first! If the class images are ready, rerun train command to start training."
         )
 
     else:
