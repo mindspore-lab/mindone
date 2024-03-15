@@ -223,7 +223,7 @@ def train(args):
 
     # 4. Create train step func
     assert "sigma_sampler_config" in config.model.params
-    num_timesteps = config.model.params.sigma_sampler_config.params.num_idx
+    num_timesteps = config.model.params.sigma_sampler_config.params.get("num_idx", None)
     timestep_bias_weighting = generate_timestep_weights(args, num_timesteps)
 
     assert "optim" in config
@@ -626,6 +626,9 @@ def cache_data(args):
 
 
 def generate_timestep_weights(args, num_timesteps):
+    if num_timesteps is None:
+        return None
+
     weights = np.ones(num_timesteps)
 
     # Determine the indices to bias

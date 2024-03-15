@@ -370,3 +370,20 @@ python train.py \
   --lpw True \
 ```
 </details>
+
+#### 6. EDM training
+
+<details close>
+
+> [Elucidating the Design Space of Diffusion-Based Generative Models](https://arxiv.org/pdf/2206.00364.pdf)
+
+By default, SDXL uses DDPM for training. It can be changed to the EDM-style training by configuring the `denoiser` and other related parameters of the training.
+
+We have provided a EDM-style-training yaml configuration file, in which parameters `denoiser_config` its associated `weighting_config` and `scaling_config` are modified to support EDM training. You can refer to the following case to make it effective.
+
+```shell
+python train.py \
+  ...  \  # other arguments configurations
+  --config configs/training/sd_xl_base_finetune_910b_edm.yaml \
+```
+</details>

@@ -549,7 +549,7 @@ def get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
     return batch, batch_uc
 
 
-def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0):
+def get_discretization(discretization, sigma_min=0.002, sigma_max=80, rho=7.0):
     if discretization == "LegacyDDPMDiscretization":
         discretization_config = {
             "target": "gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization",
