@@ -176,6 +176,7 @@ def main(args):
             num_parallel_workers=args.num_parallel_workers,
             patch_size=args.patch_size,
             embed_dim=args.embed_dim,
+            embed_method=args.embed_method,
         )
         dataset = create_dataloader_imagenet_latent(
             data_config,

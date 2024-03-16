@@ -167,7 +167,8 @@ def parse_args():
     )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
-    parser.add_argument("--embed_dim", type=int, default=1152, help="Embed Dim")
+    parser.add_argument("--embed_dim", type=int, default=72, help="Embed Dim")
+    parser.add_argument("--embed_method", default="rotate", help="Embed Method")
     parser.add_argument(
         "--condition",
         default=None,

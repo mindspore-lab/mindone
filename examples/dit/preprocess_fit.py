@@ -8,7 +8,7 @@ import numpy as np
 import yaml
 from data.imagenet_dataset import create_dataloader_imagenet_preprocessing
 from tqdm import tqdm
-from utils.model_utils import check_cfgs_in_parser
+from utils.model_utils import check_cfgs_in_parser, str2bool
 
 import mindspore as ms
 
@@ -60,7 +60,7 @@ def parse_args():
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
-    parser.add_argument("--imagenet_format", help="Training with ImageNet dataset format")
+    parser.add_argument("--imagenet_format", type=str2bool, default=True, help="Training with ImageNet dataset format")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")

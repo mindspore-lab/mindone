@@ -9,7 +9,7 @@ from PIL import Image
 import mindspore as ms
 from mindspore.dataset.transforms import Compose, vision
 
-from .pos_embed import get_2d_sincos_pos_embed
+from .pos_embed import get_2d_sincos_pos_embed, precompute_freqs_cis_2d
 
 _logger = logging.getLogger()
 
@@ -116,6 +116,7 @@ class ImageNetLatentIterator:
         self.label_mapping = self._create_label_mapping(self.latent_info)
         self.patch_size = config.get("patch_size", 2)
         self.embed_dim = config.get("embed_dim", 1152)
+        self.embed_method = config.get("embed_method", "rotate")
 
     def _inspect_latent(self, root: str) -> List[Dict[str, str]]:
         latent_info = list()
@@ -158,7 +159,10 @@ class ImageNetLatentIterator:
         latent = np.transpose(latent, (1, 3, 2, 4, 0))  # nh, nw, patch, patch, c
         latent = np.reshape(latent, (nh * nw, -1))  # nh * nw, patch * patch * c
 
-        pos = get_2d_sincos_pos_embed(self.embed_dim, nh, nw).astype(np.float16)
+        if self.embed_method == "rotate":
+            pos = precompute_freqs_cis_2d(self.embed_dim, nh, nw).astype(np.float16)
+        else:
+            pos = get_2d_sincos_pos_embed(self.embed_dim, nh, nw).astype(np.float16)
         return latent, pos
 
     def __getitem__(self, idx):
@@ -240,7 +244,7 @@ def create_dataloader_imagenet_latent(
     patch_size = config.get("patch_size", 2)
     vae_scale = 8
     max_length = sample_size * sample_size // patch_size // patch_size // vae_scale // vae_scale
-    embed_dim = config.get("embed_dim", 1152)
+    embed_dim = config.get("embed_dim", 72)
     C = 4
 
     pad_info = {

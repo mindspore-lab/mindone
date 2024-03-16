@@ -8,7 +8,8 @@ use_parallel: True
 # model setting
 image_size: 256 # or 512
 patch_size: 2
-embed_dim: 1152
+embed_dim: 72 # 1152 / 16 (num_heads)
+embed_method: "rotate"
 model_name: "FiT-XL/2"
 dit_checkpoint: ""
 sd_scale_factor: 0.18215

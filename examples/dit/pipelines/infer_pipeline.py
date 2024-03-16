@@ -1,7 +1,7 @@
 from typing import Tuple
 
 import numpy as np
-from data.pos_embed import get_2d_sincos_pos_embed
+from data.pos_embed import get_2d_sincos_pos_embed, precompute_freqs_cis_2d
 from diffusion import create_diffusion
 
 import mindspore as ms
@@ -131,11 +131,16 @@ class FiTInferPipeline(DiTInferPipeline):
         x = self._unpatchify(x, nh, nw, p, c)
         return x
 
-    def _create_pos_embed(self, h: int, w: int, p: int, max_length: int, embed_dim: int) -> Tuple[Tensor, int]:
+    def _create_pos_embed(
+        self, h: int, w: int, p: int, max_length: int, embed_dim: int, method: str = "rotate"
+    ) -> Tuple[Tensor, int]:
         # 1, T, D
         nh, nw = h // p, w // p
         pos_embed = np.zeros((max_length, embed_dim), dtype=np.float32)
-        pos_embed_fill = get_2d_sincos_pos_embed(embed_dim, nh, nw)
+        if method == "rotate":
+            pos_embed_fill = precompute_freqs_cis_2d(embed_dim, nh, nw)
+        else:
+            pos_embed_fill = get_2d_sincos_pos_embed(embed_dim, nh, nw)
         pos_embed[: pos_embed_fill.shape[0]] = pos_embed_fill
         pos_embed = pos_embed[None, ...]
         pos_embed = Tensor(pos_embed)
@@ -161,12 +166,13 @@ class FiTInferPipeline(DiTInferPipeline):
         max_size = self.model_config["max_size"]
         max_length = self.model_config["max_length"]
         embed_dim = self.model_config["embed_dim"]
+        embed_method = self.model_config["embed_method"]
 
         z, y = self.data_prepare(inputs)
         _, _, h, w = z.shape
 
         z = self._pad_latent(z, p, max_size, max_length)
-        pos, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim)
+        pos, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim, method=embed_method)
         mask = self._create_mask(valid_t, max_length)
 
         model_kwargs = dict(y=y, pos=pos, mask=mask, cfg_scale=Tensor(self.guidance_rescale, dtype=ms.float32))

@@ -78,7 +78,8 @@ def parse_args():
         help="Model name , such as FiT-XL/2",
     )
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
-    parser.add_argument("--embed_dim", type=int, default=1152, help="Embed Dim")
+    parser.add_argument("--embed_dim", type=int, default=72, help="Embed Dim")
+    parser.add_argument("--embed_method", default="rotate", help="Embed Method")
     parser.add_argument("--dit_checkpoint", type=str, required=True, help="the path to the FiT checkpoint.")
     parser.add_argument(
         "--vae_checkpoint",
@@ -180,6 +181,7 @@ if __name__ == "__main__":
         max_size=args.image_size // 8,
         patch_size=args.patch_size,
         embed_dim=args.embed_dim,
+        embed_method=args.embed_method,
         max_length=args.image_size * args.image_size // 8 // 8 // args.patch_size // args.patch_size,
     )
 

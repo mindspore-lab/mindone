@@ -36,6 +36,32 @@ __all__ = [
 ]
 
 
+def complex_mult(x: Tensor, y: Tensor):
+    assert x.shape[-1] == y.shape[-1] == 2
+    a, b = x[..., 0], x[..., 1]
+    c, d = y[..., 0], y[..., 1]
+
+    # (a + bi)(c + di) = (ac - bd) + i(bc + ad)
+    real_part = a * c - b * d
+    imag_part = b * c + a * d
+    return ops.stack([real_part, imag_part], axis=-1)
+
+
+def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor):
+    q_shape = q.shape
+    k_shape = q.shape
+    # to complex
+    q = ops.reshape(q, (q_shape[0], q_shape[1], q_shape[2], -1, 2))
+    k = ops.reshape(k, (k_shape[0], k_shape[1], k_shape[2], -1, 2))  # b, h, n, d/2, 2
+    freqs_cis = ops.reshape(freqs_cis, (q_shape[0], 1, q_shape[2], -1, 2))  # b, 1, n, d/2, 2
+    q = complex_mult(q, freqs_cis)
+    k = complex_mult(k, freqs_cis)
+    # to real
+    q = ops.reshape(q, q_shape)
+    k = ops.reshape(k, k_shape)
+    return q, k
+
+
 class Attention(nn.Cell):
     def __init__(self, dim_head: int, attn_drop: float = 0.0):
         super().__init__()
@@ -64,6 +90,7 @@ class SelfAttention(nn.Cell):
         qkv_bias: bool = False,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
+        apply_rotate_embed: bool = False,
         enable_flash_attention: bool = False,
     ):
         super().__init__()
@@ -78,6 +105,8 @@ class SelfAttention(nn.Cell):
         self.proj = nn.Dense(dim, dim)
         self.proj_drop = nn.Dropout(p=proj_drop)
         self.attention = Attention(head_dim, attn_drop=attn_drop)
+
+        self.apply_rotate_embed = apply_rotate_embed
 
     @staticmethod
     def _rearange_in(x, h):
@@ -97,7 +126,7 @@ class SelfAttention(nn.Cell):
         x = ops.reshape(x, (b, n, -1))
         return x
 
-    def construct(self, x: Tensor, mask: Optional[Tensor] = None):
+    def construct(self, x: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None):
         h = self.num_heads
         B, N, _ = x.shape
 
@@ -109,6 +138,9 @@ class SelfAttention(nn.Cell):
         q = self._rearange_in(q, h)
         k = self._rearange_in(k, h)
         v = self._rearange_in(v, h)
+
+        if self.apply_rotate_embed:
+            q, k = apply_rotary_emb(q, k, freqs_cis)
 
         out = self.attention(q, k, v, mask=mask)
         # (b, h, n, d) -> (b, n, h*d)
@@ -156,10 +188,13 @@ class FiTBlock(nn.Cell):
     A FiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
 
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, ffn="swiglu", **block_kwargs):
+    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, ffn="swiglu", pos="rotate", **block_kwargs):
         super().__init__()
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-        self.attn = SelfAttention(hidden_size, num_heads=num_heads, qkv_bias=True, **block_kwargs)
+        apply_rotate_embed = pos == "rotate"
+        self.attn = SelfAttention(
+            hidden_size, num_heads=num_heads, qkv_bias=True, apply_rotate_embed=apply_rotate_embed, **block_kwargs
+        )
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         if ffn == "swiglu":
@@ -173,9 +208,11 @@ class FiTBlock(nn.Cell):
             self.ffn = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
         self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
 
-    def construct(self, x: Tensor, c: Tensor, mask: Optional[Tensor] = None):
+    def construct(self, x: Tensor, c: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, axis=1)
-        x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa), mask=mask)
+        x = x + gate_msa.unsqueeze(1) * self.attn(
+            modulate(self.norm1(x), shift_msa, scale_msa), mask=mask, freqs_cis=freqs_cis
+        )
         x = x + gate_mlp.unsqueeze(1) * self.ffn(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
 
@@ -197,6 +234,7 @@ class FiT(nn.Cell):
         num_classes=1000,
         learn_sigma=True,
         ffn="swiglu",
+        pos="rotate",
         block_kwargs={},
     ):
         super().__init__()
@@ -205,13 +243,20 @@ class FiT(nn.Cell):
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
         self.num_heads = num_heads
+        self.pos = pos
+
+        assert pos in ["absolute", "rotate"]
+        assert ffn in ["swiglu", "mlp"]
 
         self.x_embedder = nn.Dense(self.in_channels * patch_size * patch_size, hidden_size, has_bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
 
         self.blocks = nn.CellList(
-            [FiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, ffn=ffn, **block_kwargs) for _ in range(depth)]
+            [
+                FiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, ffn=ffn, pos=pos, **block_kwargs)
+                for _ in range(depth)
+            ]
         )
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()
@@ -273,16 +318,26 @@ class FiT(nn.Cell):
         x: (N, T, D) or (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
-        pos: (N, T, D) tensor of positional embedding
+        pos: (N, T, D) tensor of positional embedding or precomputed cosine and sine frequencies
         mask: (N, T) tensor of valid mask
         """
         x = self._check_input(x)
-        x = self.x_embedder(x) + pos  # (N, T, D), where T = H * W / patch_size ** 2
+        if self.pos == "absolute":
+            x = self.x_embedder(x) + pos  # (N, T, D), where T = H * W / patch_size ** 2
+        else:
+            x = self.x_embedder(x)
+
         t = self.t_embedder(t)  # (N, D)
         y = self.y_embedder(y, self.training)  # (N, D)
         c = t + y  # (N, D)
+
+        if self.pos == "rotate":
+            freqs_cis = pos
+        else:
+            freqs_cis = None
+
         for block in self.blocks:
-            x = block(x, c, mask=mask)  # (N, T, D)
+            x = block(x, c, mask=mask, freqs_cis=freqs_cis)  # (N, T, D)
         x = self.final_layer(x, c)  # (N, T, patch_size ** 2 * out_channels)
         x = self.unpatchify(x)  # (N, out_channels, H, W)
         return x
