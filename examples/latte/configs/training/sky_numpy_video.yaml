@@ -1,6 +1,6 @@
 # task
 condition: null
-output_path: outputs/sky_npz_video_train
+output_path: outputs/sky_numpy_video_train
 
 # model setting
 image_size: 256
