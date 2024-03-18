@@ -12,6 +12,6 @@ image_size: 256
 
 # sampling
 sampling_steps: 250
-guidance_scale: 1.5
+guidance_scale: 4.0
 seed: 42
 ddim_sampling: False
