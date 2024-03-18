@@ -86,8 +86,51 @@ to [T2I-Adapter](../t2i_adapter/README.md) page.
 
 For more information about ControlNet, please refer to [ControlNet](controlnet.md) page.
 
+### 5. Inference with different schedulers
 
-### 5. Support List
+A scheduler defines how to iteratively add noise to an image in training and how to update a sample based on a model’s output in inference.
+
+SDXL uses the DDPM formulation by default, which is set in `denoiser_config`  in yaml file. See `onfigs/inference/sd_xl_base.yaml`.
+
+[EDM formulation](https://arxiv.org/abs/2006.11239) is supported as well. An example yaml config is `configs/inference/sd_xl_base_edm_pg2_5.yaml`,  where the `weighting_config`,  `scaling_config,` and `discretization_config`  in `denoiser_config`  are modified to `EDMWeighting`,  `EDMScaling` and `EDMDiscretization`.
+
+The `denoiser_config` of the model in yaml config file together with the args of samplers such as `sampler`, `guider` and `discretization` in sampling script define a scheduler in inference. Examples of EDM-style inference are as below.
+
+* EDM formulation of Euler sampler (EDMEulerScheduler)
+
+  ```shell
+  python demo/sampling_without_streamlit.py \
+    --config configs/inference/configs/inference/sd_xl_base_edm_pg2_5.yaml \
+    --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+    --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
+    --sampler EulerEDMSampler
+    --sample_step 20
+    --guider VanillaCFG # class-free-guidence
+    --guidance_scale 3.0
+    --discretization EDMDiscretization
+    --sigma_min 0.002
+    --sigma_max 80.0
+    --rho 7.0
+  ```
+
+* EDM formulation of DPM++ 2M sampler (EDMDPMsolverMultistepScheduler)
+
+  ```shell
+  python demo/sampling_without_streamlit.py \
+    --config configs/inference/configs/inference/sd_xl_base_edm_pg2_5.yaml \
+    --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+    --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
+    --sampler DPMPP2MSampler # DPM++ second-order multistep
+    --sample_step 20
+    --guider VanillaCFG # class-free-guidence
+    --guidance_scale 5.0
+    --discretization EDMDiscretization
+    --sigma_min 0.002
+    --sigma_max 80.0
+    --rho 7.0
+  ```
+
+### 6. Support List
 
 <div align="center">
 

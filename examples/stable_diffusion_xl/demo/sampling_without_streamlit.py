@@ -380,9 +380,15 @@ def sample(args):
     task = args.task
 
     if args.discretization is None:
+        print(
+            f"args.discretization is None, read from the model.denoiser_config.discretization_config of {args.config}"
+        )
         assert "discretization_config" in config.model.params.denoiser_config.params
         args.discretization = config.model.params.denoiser_config.params.discretization_config
     else:
+        print(
+            f"The args.discretization, {args.discretization}, will cover the discretization_config in {args.config} if they are not consistant."
+        )
         config.model.params.denoiser_config.params.discretization_config = get_discretization(
             args.discretization, args.sigma_min, args.sigma_max, args.rho
         )
