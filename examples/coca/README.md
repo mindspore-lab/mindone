@@ -29,6 +29,9 @@ We provide a script for converting pre-trained weight from `.bin` to `.ckpt` in 
 step1. Download the [Official](https://huggingface.co/laion/mscoco_finetuned_CoCa-ViT-L-14-laion2B-s13B-b90k/tree/main) pre-train weights `open_clip_pytorch_model.bin` from huggingface.
 
 step2. Convert weight to MindSpore `.ckpt` format and put it to `./models/`.
+```shell
+python tools/model_conversion/coca_convert.py --source YOUR_TORCH_WEIGHT_PATH --target MINDSPORE-WEIGHT-DIR
+```
 
 After conversion, the checkpoints under `models/` should be like:
 ```bash
