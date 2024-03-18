@@ -303,7 +303,7 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
                         index = random.randint(0, self.video_frame_num - self.use_image_num)
             images_embeddings = np.stack(images_embeddings, axis=0)
             video_emb_train = np.concatenate([video_emb_train, images_embeddings], axis=0)
-        return video_emb_train
+        return video_emb_train.astype(np.float32)
 
 
 class SelectFrameMap:
