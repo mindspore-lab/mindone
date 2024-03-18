@@ -126,19 +126,18 @@ For Sky Timelapse dataset, in order to cache embeddings in `mindrecord` file for
 
 Then you can start saving the embeddings using:
 ```bash
-python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache_folder path/to/cache/folder --cache_file_type mindrecord
+python tools/embedding_cache.py --config configs/training/sky_video.yaml --cache_folder path/to/cache/folder --cache_file_type numpy
 ```
-You can also change `cache_file_type` to `npz` to save embeddings in `.npz` files.
+You can also change `cache_file_type` to `mindrecord` to save embeddings in `.mindrecord` files.
 
-In general, we recommend to use `mindrecord` file type because it is supported by `MindDataset` which can better accelerates data loading. However, if your dataset has extra long videos, using `mindrecord` file to cache embedding increases the risk of exceeding the maximum page size of the MindRecord writer. In this case, we recommend to use `npz` file.
+In general, we recommend to use `mindrecord` file type because it is supported by `MindDataset` which can better accelerates data loading. However, Sky Timelapse dataset has extra long videos. Using `mindrecord` file to cache embedding increases the risk of exceeding the maximum page size of the MindRecord writer. Therefore, we recommend to use `numpy` file.
 
 The embedding caching process can take a while depending on the size of the video dataset. Some exceptions maybe thrown during the process. If unexpected exceptions were thrown, the program will be stoped and the embedding caching writer's status will be printed on the screen:
 ```bash
-Start file Index: 0. # the start of video index to be processed
-Number of saved mindrecord files 1 # the number of saved mindrecord files
-Number of saved data lines 120 # the number of processed videos which have been saved.
+Start Video Index: 0. # the start of video index to be processed
+Saving Attempts: 0: save 2 videos, failed 0 videos. # the number of saved video files
 ```
-In this case, you can resume the embedding cache from the video indexed at $120$ (index starts from 0). Simply append `--resume_cache_index 120`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $120^{th}$ video and save the embeddings in another mindrecord file or npz file.
+In this case, you can resume the embedding cache from the video indexed at $2$ (index starts from 0). Simply append `--resume_cache_index 2`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $2^{nd}$ video and save the embeddings without overwriting the existing files.
 
 To check more usages, please use `python tools/embedding_cache.py -h`.
 

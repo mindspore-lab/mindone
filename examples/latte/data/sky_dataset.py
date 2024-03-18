@@ -60,15 +60,13 @@ class SkyDataset:
         )
 
         self.image_video_joint = image_video_joint
+        self.load_video_frames(self.data_path)
         if self.image_video_joint:
-            self.data_all, self.video_frame_all = self.load_video_frames(self.data_path)
             random.shuffle(self.video_frame_all)
             self.use_image_num = use_image_num
             assert (
                 isinstance(self.use_image_num, int) and self.use_image_num > 0
-            ), "Expect to get use_image_num as a positive integer"
-        else:
-            self.data_all, _ = self.load_video_frames(self.data_path)
+            ), f"Expect to get use_image_num as a positive integer, but got {self.use_image_num}"
 
         logger.info(f"{self.video_num} videos are loaded.")
 
@@ -104,7 +102,8 @@ class SkyDataset:
         assert (
             len(self.video_names) == self.video_num and len(set(self.video_names)) == self.video_num
         ), f"video names should be {self.video_num} non-repetitive names"
-        return data_all, frames_all
+        self.data_all = data_all
+        self.video_frame_all = frames_all
 
     def __len__(self):
         if self.image_video_joint:
@@ -211,42 +210,99 @@ class SkyDataset:
             yield video_name, select_video_frames, {"video": pixel_values}
 
 
-class SkyDatasetWithEmbeddingNpz(SkyDataset):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        assert not self.image_video_joint, "image-video joint training not supported for SkyDatasetWithEmbeddingNpz"
-
+class SkyDatasetWithEmbeddingNumpy(SkyDataset):
     def load_video_frames(self, dataroot):
-        data_all = []
-        frames_all = []
-        video_names = []
-        npz_files = glob.glob(os.path.join(self.data_path, "*.npz"))
-        for fp in npz_files:
-            video_names.append(os.path.basename(fp).split(".")[0])
-            data_all.append(fp)
-        self.video_num = len(data_all)
-        self.video_frame_num = len(frames_all)
-        self.video_names = video_names
-        assert (
-            len(self.video_names) == self.video_num and len(set(self.video_names)) == self.video_num
-        ), f"video names should be {self.video_num} non-repetitive names"
-        return data_all, frames_all
+        self.video_npz_files = []
+        self.video_npy_files = []
+        self.video_frame_all = []
+        self.video_names = []
+
+        # load npz files first
+        npz_files = glob.glob(os.path.join(dataroot, "*.npz"))
+        if len(npz_files) > 0:
+            for fp in npz_files:
+                self.video_names.append(os.path.basename(fp).split(".")[0])
+                self.video_npz_files.append(fp)
+
+        # then load npy files
+        if len(self.video_names) > 0:
+            # load from video_names folders
+            video_folders = [os.path.join(dataroot, video_name) for video_name in self.video_names]
+        else:
+            # load from all sub-folders
+            # get video folders
+            video_folders = []
+            for file in os.listdir(dataroot):
+                folder = os.path.join(dataroot, file)
+                if os.path.isdir(folder) and len(os.listdir(folder)) > 0:
+                    video_folders.append(folder)
+                    assert len(file) > 0, "found empty video name!"
+                    self.video_names.append(file)
+        for video_folder in video_folders:
+            if os.path.exists(video_folder):
+                frames = glob.glob(os.path.join(video_folder, "*.npy"))
+                frames = sorted(frames, key=lambda item: int(os.path.basename(item).split(".")[0].split("_")[-1]))
+
+                if len(frames) > max(0, self.sample_n_frames * self.sample_stride):
+                    self.video_npy_files.append(frames)
+                    self.video_frame_all.extend(frames)
+
+        self.video_num = len(self.video_names)
+        self.video_frame_num = len(self.video_frame_all)
+        if self.video_frame_num == 0:
+            # no npy file existent
+            assert not self.image_video_joint, "Cannot apply image-video-joint training, because no frame num!"
+
+        assert len(self.video_npy_files) + len(self.video_npz_files) > 0, "NPZ and NPY files should not be all empty!"
 
     def __getitem__(self, index):
         if self.image_video_joint:
             video_index = index % self.video_num
         else:
             video_index = index
-        emb_fp = self.data_all[video_index]
-        emb_data = np.load(emb_fp)
-        video_latent = emb_data["video_latent"]
-        video_length = len(video_latent)
+
+        # get npz file if needed
+        if len(self.video_npz_files):
+            emb_fp = self.video_npz_files[video_index]
+            emb_data = np.load(emb_fp)
+            if "video_latent" in emb_data:
+                video_latent = emb_data["video_latent"]
+                video_length = len(video_latent)
+
+        if len(self.video_npy_files):
+            emb_data = self.video_npy_files[video_index]
+            video_length = len(emb_data)
+            video_latent = []
 
         # Sampling video frames
         clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
         start_idx = random.randint(0, video_length - clip_length)
         frame_indice = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
-        video_emb_train = video_latent[frame_indice]
+        if len(video_latent):
+            video_emb_train = video_latent[frame_indice]
+        else:
+            # load from npy files
+            video_frames_paths = self.video_npy_files[video_index]
+            frames = [video_frames_paths[index] for index in frame_indice]
+            for frame_path in frames:
+                latent = np.load(frame_path)
+                video_latent.append(latent)
+            video_emb_train = np.stack(video_latent, axis=0)
+
+        # get random frames if needed
+        if self.image_video_joint:
+            images_embeddings = []
+            for i in range(self.use_image_num):
+                while True:
+                    try:
+                        video_frame_path = self.video_frame_all[index + i]
+                        image_emb = np.load(video_frame_path)
+                        images_embeddings.append(image_emb)
+                        break
+                    except Exception:
+                        index = random.randint(0, self.video_frame_num - self.use_image_num)
+            images_embeddings = np.stack(images_embeddings, axis=0)
+            video_emb_train = np.concatenate([video_emb_train, images_embeddings], axis=0)
         return video_emb_train
 
 
@@ -270,30 +326,11 @@ class SelectFrameMap:
 
 
 def create_dataloader(config, device_num=1, rank_id=0, return_dataset=False, **kwargs):
-    if config["train_data_type"] == "video_file" or config["train_data_type"] == "npz":
-        if config["train_data_type"] == "video_file":
-            dataset = SkyDataset(
-                config["data_folder"],
-                sample_size=config["sample_size"],
-                sample_stride=config["sample_stride"],
-                sample_n_frames=config["sample_n_frames"],
-                use_safer_augment=config["use_safer_augment"],
-                image_video_joint=config["image_video_joint"],
-                use_image_num=config.get("use_image_num", None),
-            )
-            data_name = "video"
-        else:
-            dataset = SkyDatasetWithEmbeddingNpz(
-                config["data_folder"],
-                sample_size=config["sample_size"],
-                sample_stride=config["sample_stride"],
-                sample_n_frames=config["sample_n_frames"],
-                use_safer_augment=config["use_safer_augment"],
-                image_video_joint=config["image_video_joint"],
-                use_image_num=config.get("use_image_num", None),
-            )
-            data_name = "video_latent"
-    elif config["train_data_type"] == "mindrecord":
+    if "train_data_type" not in config:
+        # by default a video file dataset
+        config["train_data_type"] = "video_file"
+
+    if config["train_data_type"] == "mindrecord":
         data_files = []
         for file in os.listdir(config["data_folder"]):
             file_path = os.path.join(config["data_folder"], file)
@@ -314,11 +351,32 @@ def create_dataloader(config, device_num=1, rank_id=0, return_dataset=False, **k
             sample_stride=config["sample_stride"],
         )
         dataloader = dataset.map(operations=select_frames_map, input_columns=["video_latent"])
-    else:
-        raise ValueError("Train data type {} is not supported!".format(config["train_data_type"]))
 
-    if config["train_data_type"] != "mindrecord":
-        print("Total number of samples: ", len(dataset))
+    else:
+        if config["train_data_type"] == "video_file":
+            dataset = SkyDataset(
+                config["data_folder"],
+                sample_size=config["sample_size"],
+                sample_stride=config["sample_stride"],
+                sample_n_frames=config["sample_n_frames"],
+                use_safer_augment=config["use_safer_augment"],
+                image_video_joint=config["image_video_joint"],
+                use_image_num=config.get("use_image_num", None),
+            )
+            data_name = "video"
+        elif config["train_data_type"] == "numpy":
+            dataset = SkyDatasetWithEmbeddingNumpy(
+                config["data_folder"],
+                sample_size=config["sample_size"],
+                sample_stride=config["sample_stride"],
+                sample_n_frames=config["sample_n_frames"],
+                use_safer_augment=config["use_safer_augment"],
+                image_video_joint=config["image_video_joint"],
+                use_image_num=config.get("use_image_num", None),
+            )
+            data_name = "video_latent"
+        else:
+            raise ValueError("Train data type {} is not supported!".format(config["train_data_type"]))
 
         dataloader = ms.dataset.GeneratorDataset(
             source=dataset,

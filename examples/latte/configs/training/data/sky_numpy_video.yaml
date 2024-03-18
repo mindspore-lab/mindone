@@ -1,5 +1,5 @@
 data_config:
-  train_data_type: "npz"
+  train_data_type: "numpy"
   data_folder: "path/to/sky_train_cache"
   sample_stride: 3
   use_safer_augment: True

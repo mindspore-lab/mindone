@@ -14,7 +14,7 @@ class MindRecordEmbeddingCacheWriter:
         cache_folder,
         dataset_name,
         schema,
-        start_lines_index,
+        start_video_index,
         overwrite=False,
         max_page_size=128,
         dump_every_n_lines=10,
@@ -22,7 +22,7 @@ class MindRecordEmbeddingCacheWriter:
         self.cache_folder = cache_folder
         self.dataset_name = dataset_name
         assert osp.exists(cache_folder)
-        self.start_lines_index = start_lines_index  # start of lines
+        self.start_video_index = start_video_index
 
         if not overwrite:
             existing_files = glob.glob(osp.join(cache_folder, dataset_name + "*.mindrecord"))
@@ -32,10 +32,10 @@ class MindRecordEmbeddingCacheWriter:
             self.start_file_index = len(existing_files)
         else:
             self.start_file_index = 0
-        self.current_file_index = start_lines_index
+        self.current_file_index = self.start_file_index
 
         self.num_saved_files = 0
-        self.num_saved_lines = 0
+        self.num_saved_videos = 0
         self.max_page_size = max_page_size
         self.schema = schema
 
@@ -69,16 +69,16 @@ class MindRecordEmbeddingCacheWriter:
     def get_status(self):
         logger.info(
             "MindRecord embedding cache writer status:\n"
-            f"Start file Index: {self.start_lines_index}.\n"
+            f"Start Video Index: {self.start_video_index}.\n"
             f"Number of saved mindrecord files {self.num_saved_files}\n"
-            f"Number of saved data lines {self.num_saved_lines}\n"
+            f"Number of saved videos {self.num_saved_videos}\n"
         )
 
     def save_data_and_close_writer(self, data):
         if data:
             try:
                 self.writer.write_raw_data(data)
-                self.num_saved_lines += len(data)
+                self.num_saved_videos += len(data)
             except Exception as e:
                 self.handle_saving_exception(e)
             data = []
@@ -102,7 +102,7 @@ class MindRecordEmbeddingCacheWriter:
         if len(data) >= self.dump_every_n_lines or not os.path.isfile(self.current_file_path):
             try:
                 self.writer.write_raw_data(data)
-                self.num_saved_lines += len(data)
+                self.num_saved_videos += len(data)
             except Exception as e:
                 self.handle_saving_exception(e)
             data = []

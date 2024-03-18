@@ -185,7 +185,7 @@ def parse_embedding_cache_args(parser):
         "--cache_file_type",
         default="mindrecord",
         type=str,
-        choices=["npz", "mindrecord"],
+        choices=["numpy", "mindrecord"],
         help="type of cached dataset file",
     )
     parser.add_argument(

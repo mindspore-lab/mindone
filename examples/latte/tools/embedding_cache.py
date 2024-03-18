@@ -8,9 +8,6 @@ import sys
 from typing import Tuple
 
 import numpy as np
-from embed_writer.mindrecord_writer import MindRecordEmbeddingCacheWriter
-from embed_writer.npy_writer import NPYEmbeddingCacheWriter
-from embed_writer.npz_writer import NPZEmbeddingCacheWriter
 from tqdm import tqdm
 
 import mindspore as ms
@@ -26,6 +23,8 @@ from data.dataset import get_dataset
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 from modules.text_encoders import initiate_clip_text_encoder
 from omegaconf import OmegaConf
+from tools.embed_writers.mindrecord_writer import MindRecordEmbeddingCacheWriter
+from tools.embed_writers.numpy_writer import NumpyEmbeddingCacheWriter
 
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
@@ -158,10 +157,6 @@ def main(args):
     length = len(dataset)
     # parse train and save data types
     cache_file_type = args.cache_file_type
-    assert cache_file_type in [
-        "mindrecord",
-        "npz",
-    ], "embedding_cache.py should work on cache file type in['mindrecord', 'npz'] "
     if args.save_data_type == "float32":
         save_data_type = np.float32
     elif args.save_data_type == "float16":
@@ -176,9 +171,12 @@ def main(args):
         os.makedirs(cache_folder)
 
     # default save column names
-    video_column = "video"
+    video_column = "video"  # video name/file path column
+    latent_column = "video_latent"
     caption_column = "caption"
+    text_emb_column = "text_emb"
     class_column = "class"
+
     start_video_index = 0 if args.resume_cache_index is None else args.resume_cache_index
     logger.info(f"Start embedding cache from {start_video_index}th video...")
 
@@ -186,28 +184,37 @@ def main(args):
         assert args.save_data_type == "float32"
         schema = {
             video_column: {"type": "string"},
-            "video_latent": {"type": args.save_data_type, "shape": [-1, 4, args.image_size // 8, args.image_size // 8]},
+            latent_column: {"type": args.save_data_type, "shape": [-1, 4, args.image_size // 8, args.image_size // 8]},
         }
         if args.condition == "class":
             schema[class_column] = {"type": "int"}
         elif args.condition == "text":
             schema[caption_column] = {"type": "string"}
-            schema["text_emb"] = {"type": args.save_data_type, "shape": text_embed_shape}
+            schema[text_emb_column] = {"type": args.save_data_type, "shape": text_embed_shape}
 
         dataset_name = args.data_config_file.split("/")[-1].split(".")[0]
         embed_cache_writer = MindRecordEmbeddingCacheWriter(
             cache_folder,
             dataset_name,
             schema,
-            start_lines_index=start_video_index,
+            start_video_index=start_video_index,
             overwrite=False if args.resume_cache_index else True,
             max_page_size=args.max_page_size,
             dump_every_n_lines=min((length - start_video_index), args.dump_every_n_lines),
         )
-    elif cache_file_type == "npz":
-        embed_cache_writer = NPZEmbeddingCacheWriter(cache_folder, start_video_index)
-    elif cache_file_type == "npy":
-        embed_cache_writer = NPYEmbeddingCacheWriter(cache_folder, start_video_index)
+
+    elif cache_file_type == "numpy":
+        save_npz_keys = [video_column]
+        if args.condition == "class":
+            save_npz_keys += [class_column]
+        if args.condition == "text":
+            save_npz_keys += [caption_column, text_emb_column]
+        embed_cache_writer = NumpyEmbeddingCacheWriter(
+            cache_folder,
+            start_video_index,
+            save_as_npy_keys=[latent_column],  # save video latent to npy file (frame-wise)
+            save_as_npz_keys=save_npz_keys,
+        )  # save others (class labels, captions, etc.) to npz file (video-wise)
     else:
         raise ValueError
 
@@ -260,14 +267,11 @@ def main(args):
             class_labels = inputs["class"]
             video_save_kwargs[class_column] = class_labels.copy().astype(np.int32)
 
-        if cache_file_type == "npz":
-            # save video_name.npz
-            embed_cache_writer.save(video_name, video_save_kwargs)
+        if cache_file_type == "numpy":
+            embed_cache_writer.save(video_name, all_frames_names, video_save_kwargs)
         elif cache_file_type == "mindrecord":
             data.append(video_save_kwargs)
             data = embed_cache_writer.save(data)
-        elif cache_file_type == "npy":
-            embed_cache_writer.save(video_name, all_frames_names, video_save_kwargs)
         else:
             raise ValueError("Train data type {} is not supported!".format(cache_file_type))
 

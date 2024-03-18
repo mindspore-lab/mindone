@@ -174,7 +174,7 @@ def main(args):
     data_config.sample_size = args.image_size
     data_config.sample_n_frames = args.num_frames
     data_config.batch_size = args.train_batch_size
-    train_with_embed = True if data_config.get("train_data_type", None) in ["npz", "mindrecord"] else False
+    train_with_embed = True if data_config.get("train_data_type", None) in ["numpy", "mindrecord"] else False
 
     dataset = get_dataset(
         args.dataset_name,
