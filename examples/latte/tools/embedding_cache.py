@@ -238,7 +238,7 @@ def main(args):
     logger.info("Start dataset embedding cache...")
     data = []
 
-    for video_index in tqdm(range(start_video_index, length), total=length):
+    for video_index in tqdm(range(start_video_index, length), total=length - start_video_index):
         video_save_kwargs = {}
         video_latent = []
         all_frames_names = []
