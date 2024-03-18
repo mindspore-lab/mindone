@@ -239,6 +239,7 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
                     self.video_dict[video_name] = {"npz": None, "npy": []}
 
         for video_folder in video_folders:
+            video_name = os.path.basename(video_folder)
             if os.path.exists(video_folder):
                 frames = glob.glob(os.path.join(video_folder, "*.npy"))
                 frames = sorted(frames, key=lambda item: int(os.path.basename(item).split(".")[0].split("_")[-1]))
@@ -247,8 +248,9 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
                     self.video_dict[video_name]["npy"] = frames
                     self.video_frame_all.extend(frames)
                 else:
-                    # filter videos too short
-                    del self.video_dict[video_name]
+                    # filter videos that are too short
+                    if video_name in self.video_dict:
+                        del self.video_dict[video_name]
 
         self.video_num = len(self.video_dict)
         self.video_frame_num = len(self.video_frame_all)
