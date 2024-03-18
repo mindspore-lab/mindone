@@ -14,7 +14,7 @@ use_fp16: True
 
 # data setting
 dataset_name: "sky"
-data_config_file: "configs/training/data/sky_npz_video.yaml"
+data_config_file: "configs/training/data/sky_numpy_video.yaml"
 dataset_sink_mode: True
 
 # training hyper-params
