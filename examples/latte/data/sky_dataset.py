@@ -212,22 +212,21 @@ class SkyDataset:
 
 class SkyDatasetWithEmbeddingNumpy(SkyDataset):
     def load_video_frames(self, dataroot):
-        self.video_npz_files = []
-        self.video_npy_files = []
-        self.video_frame_all = []
+        self.video_dict = {}
         self.video_names = []
+        self.video_frame_all = []
 
         # load npz files first
         npz_files = glob.glob(os.path.join(dataroot, "*.npz"))
         if len(npz_files) > 0:
             for fp in npz_files:
-                self.video_names.append(os.path.basename(fp).split(".")[0])
-                self.video_npz_files.append(fp)
+                video_name = os.path.basename(fp).split(".")[0]
+                self.video_dict[video_name] = {"npz": fp, "npy": []}
 
         # then load npy files
-        if len(self.video_names) > 0:
+        if len(self.video_dict) > 0:
             # load from video_names folders
-            video_folders = [os.path.join(dataroot, video_name) for video_name in self.video_names]
+            video_folders = [os.path.join(dataroot, video_name) for video_name in self.video_dict]
         else:
             # load from all sub-folders
             # get video folders
@@ -237,23 +236,26 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
                 if os.path.isdir(folder) and len(os.listdir(folder)) > 0:
                     video_folders.append(folder)
                     assert len(file) > 0, "found empty video name!"
-                    self.video_names.append(file)
+                    self.video_dict[video_name] = {"npz": None, "npy": []}
+
         for video_folder in video_folders:
             if os.path.exists(video_folder):
                 frames = glob.glob(os.path.join(video_folder, "*.npy"))
                 frames = sorted(frames, key=lambda item: int(os.path.basename(item).split(".")[0].split("_")[-1]))
 
                 if len(frames) > max(0, self.sample_n_frames * self.sample_stride):
-                    self.video_npy_files.append(frames)
+                    self.video_dict[video_name]["npy"] = frames
                     self.video_frame_all.extend(frames)
+                else:
+                    # filter videos too short
+                    del self.video_dict[video_name]
 
-        self.video_num = len(self.video_names)
+        self.video_num = len(self.video_dict)
         self.video_frame_num = len(self.video_frame_all)
         if self.video_frame_num == 0:
             # no npy file existent
             assert not self.image_video_joint, "Cannot apply image-video-joint training, because no frame num!"
-
-        assert len(self.video_npy_files) + len(self.video_npz_files) > 0, "NPZ and NPY files should not be all empty!"
+        self.video_names = list(self.video_dict.keys())
 
     def __getitem__(self, index):
         if self.image_video_joint:
@@ -262,15 +264,16 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
             video_index = index
 
         # get npz file if needed
-        if len(self.video_npz_files):
-            emb_fp = self.video_npz_files[video_index]
+        video_name = self.video_names[video_index]
+        if self.video_dict[video_name]["npz"]:
+            emb_fp = self.video_dict[video_name]["npz"]
             emb_data = np.load(emb_fp)
             if "video_latent" in emb_data:
                 video_latent = emb_data["video_latent"]
                 video_length = len(video_latent)
 
-        if len(self.video_npy_files):
-            emb_data = self.video_npy_files[video_index]
+        if self.video_dict[video_name]["npy"]:
+            emb_data = self.video_dict[video_name]["npy"]
             video_length = len(emb_data)
             video_latent = []
 
@@ -282,7 +285,7 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
             video_emb_train = video_latent[frame_indice]
         else:
             # load from npy files
-            video_frames_paths = self.video_npy_files[video_index]
+            video_frames_paths = self.video_dict[video_name]["npy"]
             frames = [video_frames_paths[index] for index in frame_indice]
             for frame_path in frames:
                 latent = np.load(frame_path)

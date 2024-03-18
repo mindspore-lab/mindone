@@ -259,7 +259,10 @@ class SelfAttention(nn.Cell):
         if self.enable_flash_attention:
             if MSVersion >= "2.3.0":
                 self.flash_attention = FlashAttention(
-                    scale_value=1.0 / math.sqrt(head_dim), head_dim=num_heads, input_layout="BNSD"
+                    scale_value=1.0 / math.sqrt(head_dim),
+                    head_num=num_heads,
+                    input_layout="BNSD",
+                    keep_prob=1 - attn_drop,
                 )
             else:
                 self.flash_attention = FlashAttention(
@@ -332,7 +335,7 @@ class SelfAttention(nn.Cell):
                     None,
                     None,
                     None,
-                    mask[:None, :, :].to(self.fa_mask_dtype),
+                    mask[:, None, :, :].to(self.fa_mask_dtype),
                     None,
                 )[3]
             else:
