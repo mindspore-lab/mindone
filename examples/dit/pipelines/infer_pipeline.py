@@ -117,6 +117,8 @@ class FiTInferPipeline(DiTInferPipeline):
         nh, nw = max_size // p, max_size // p
 
         x_fill = self._patchify(x, p)
+        if x_fill.shape[1] > max_length:
+            return x
         x = ops.zeros((n, max_length, p * p * c), dtype=x.dtype)
         x[:, : x_fill.shape[1]] = x_fill
         x = self._unpatchify(x, nh, nw, p, c)
@@ -136,20 +138,28 @@ class FiTInferPipeline(DiTInferPipeline):
     ) -> Tuple[Tensor, int]:
         # 1, T, D
         nh, nw = h // p, w // p
-        pos_embed = np.zeros((max_length, embed_dim), dtype=np.float32)
         if method == "rotate":
             pos_embed_fill = precompute_freqs_cis_2d(embed_dim, nh, nw)
         else:
             pos_embed_fill = get_2d_sincos_pos_embed(embed_dim, nh, nw)
-        pos_embed[: pos_embed_fill.shape[0]] = pos_embed_fill
+
+        if pos_embed_fill.shape[0] > max_length:
+            pos_embed = pos_embed_fill
+        else:
+            pos_embed = np.zeros((max_length, embed_dim), dtype=np.float32)
+            pos_embed[: pos_embed_fill.shape[0]] = pos_embed_fill
+
         pos_embed = pos_embed[None, ...]
         pos_embed = Tensor(pos_embed)
         return pos_embed, pos_embed_fill.shape[0]
 
     def _create_mask(self, valid_t: int, max_length: int) -> Tensor:
         # 1, T
-        mask = np.zeros((max_length,), dtype=np.bool_)
-        mask[:valid_t] = True
+        if valid_t > max_length:
+            mask = np.ones((valid_t,), dtype=np.bool_)
+        else:
+            mask = np.zeros((max_length,), dtype=np.bool_)
+            mask[:valid_t] = True
         mask = mask[None, ...]
         mask = Tensor(mask)
         return mask
