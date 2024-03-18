@@ -139,7 +139,7 @@ class FiTInferPipeline(DiTInferPipeline):
         # 1, T, D
         nh, nw = h // p, w // p
         if method == "rotate":
-            pos_embed_fill = precompute_freqs_cis_2d(embed_dim, nh, nw)
+            pos_embed_fill = precompute_freqs_cis_2d(embed_dim, nh, nw, max_length=max_length)
         else:
             pos_embed_fill = get_2d_sincos_pos_embed(embed_dim, nh, nw)
 
