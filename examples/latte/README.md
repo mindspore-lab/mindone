@@ -154,6 +154,11 @@ You can start training on the cached embedding dataset of Sky TimeLapse using:
 python train.py -c configs/training/sky_numpy_video.yaml
 ```
 
+Note that in `sky_numpy_video.yaml`, we use a large number of frames $128$ and a sample stride $1$, which are different from the settings in `sky_video.yaml` (num_frames=$16$ and stride=$3$)· Embedding caching allows us to train Latte to generate more frames under a larger sample rate.
+
+In case of OOM, please set `enable_flash_attention: True` in the `configs/training/sky_numpy_video.yaml`.
+
+
 # References
 
 [1] Xin Ma, Yaohui Wang, Gengyun Jia, Xinyuan Chen, Ziwei Liu, Yuan-Fang Li, Cunjian Chen, Yu Qiao: Latte: Latent Diffusion Transformer for Video Generation. CoRR abs/2401.03048 (2024)

@@ -215,6 +215,7 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
         self.video_dict = {}
         self.video_names = []
         self.video_frame_all = []
+        num_filtered_videos = 0
 
         # load npz files first
         npz_files = glob.glob(os.path.join(dataroot, "*.npz"))
@@ -251,6 +252,7 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
                     # filter videos that are too short
                     if video_name in self.video_dict:
                         del self.video_dict[video_name]
+                    num_filtered_videos += 1
 
         self.video_num = len(self.video_dict)
         self.video_frame_num = len(self.video_frame_all)
@@ -258,6 +260,11 @@ class SkyDatasetWithEmbeddingNumpy(SkyDataset):
             # no npy file existent
             assert not self.image_video_joint, "Cannot apply image-video-joint training, because no frame num!"
         self.video_names = list(self.video_dict.keys())
+        if num_filtered_videos:
+            logger.info(
+                f"{num_filtered_videos} videos were filtered out because the number of frames are smaller"
+                f" than n_frames * sample_stride: {self.sample_n_frames * self.sample_stride}!"
+            )
 
     def __getitem__(self, index):
         if self.image_video_joint:
