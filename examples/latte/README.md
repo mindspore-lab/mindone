@@ -114,15 +114,15 @@ To accelerate the training speed, we use `dataset_sink_mode: True` in the config
 
 After training, the checkpoints are saved under `output_dir/ckpt/`. To run inference with the checkpoint, please change `checkpoint` in `configs/inference/sky.yaml` to the path of the checkpoint, and then run `python sample.py -c configs/inference/sky.yaml`.
 
-### Embedding Cache
+### Training With Embedding Cache
 
 We can accelerate the training speed by caching the embeddings of the dataset before running the training script. This takes three steps:
 
-- Step 1: Cache the embedding into a cache folder. See the following example about how to cache the embeddings. This step can take a bit long time.
+- **Step 1**: Cache the embedding into a cache folder. See the following example about how to cache the embeddings. This step can take a bit long time.
 
 <details onclose>
 
-For Sky Timelapse dataset, in order to cache embeddings in `mindrecord` file format, first, please make sure the `data_path` in `configs/training/sky_video.yaml` is set correctly to the folder named `sky_train/`.
+To cache embeddings for Sky Timelapse dataset, first, please make sure the `data_path` in `configs/training/sky_video.yaml` is set correctly to the folder named `sky_train/`.
 
 Then you can start saving the embeddings using:
 ```bash
@@ -132,12 +132,12 @@ You can also change `cache_file_type` to `mindrecord` to save embeddings in `.mi
 
 In general, we recommend to use `mindrecord` file type because it is supported by `MindDataset` which can better accelerates data loading. However, Sky Timelapse dataset has extra long videos. Using `mindrecord` file to cache embedding increases the risk of exceeding the maximum page size of the MindRecord writer. Therefore, we recommend to use `numpy` file.
 
-The embedding caching process can take a while depending on the size of the video dataset. Some exceptions maybe thrown during the process. If unexpected exceptions were thrown, the program will be stoped and the embedding caching writer's status will be printed on the screen:
+The embedding caching process can take a while depending on the size of the video dataset. Some exceptions maybe thrown during the process. If unexpected exceptions are thrown, the program will be stoped and the embedding caching writer's status will be printed on the screen:
 ```bash
 Start Video Index: 0. # the start of video index to be processed
-Saving Attempts: 0: save 2 videos, failed 0 videos. # the number of saved video files
+Saving Attempts: 0: save 120 videos, failed 0 videos. # the number of saved video files
 ```
-In this case, you can resume the embedding cache from the video indexed at $2$ (index starts from 0). Simply append `--resume_cache_index 2`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $2^{nd}$ video and save the embeddings without overwriting the existing files.
+In this case, you can resume the embedding cache from the video indexed at $120$ (index starts from 0). Simply append `--resume_cache_index 120`, and run `python tools/embedding_cache.py`. It will start caching the embedding from the $120^{th}$ video and save the embeddings without overwriting the existing files.
 
 To check more usages, please use `python tools/embedding_cache.py -h`.
 
@@ -154,9 +154,9 @@ You can start training on the cached embedding dataset of Sky TimeLapse using:
 python train.py -c configs/training/sky_numpy_video.yaml
 ```
 
-Note that in `sky_numpy_video.yaml`, we use a large number of frames $128$ and a sample stride $1$, which are different from the settings in `sky_video.yaml` (num_frames=$16$ and stride=$3$)· Embedding caching allows us to train Latte to generate more frames with a larger frame rate.
+Note that in `sky_numpy_video.yaml`, we use a large number of frames 128 and a smaller sample stride 1, which are different from the settings in `sky_video.yaml` (num_frames=16 and stride=3)· Embedding caching allows us to train Latte to generate more frames with a larger frame rate.
 
-Due to the memory limit, we set the local batch size to $1$ and use a gradient accumulation step $2$. In case of OOM, please set `enable_flash_attention: True` in the `configs/training/sky_numpy_video.yaml`. It can also accelerate the training speed.
+Due to the memory limit, we set the local batch size to $1$ and use a gradient accumulation step $2$. In case of OOM, please set `enable_flash_attention: True` in the `configs/training/sky_numpy_video.yaml`. It can reduce the memory cost and also accelerate the training speed.
 
 
 # References
