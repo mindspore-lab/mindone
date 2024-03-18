@@ -2,7 +2,9 @@ from typing import Optional
 
 import numpy as np
 from modules.clip.clip_config import CLIPTextCfg, CLIPVisionCfg
-from modules.encoders._common import (
+from modules.encoders.image_encoder import ImageEncoder
+from modules.encoders.text_encoder import MultimodalTransformer, TextEncoder
+from modules.utils._common import (
     LogitsProcessorList,
     MaxLengthCriteria,
     MinLengthLogitsProcessor,
@@ -11,9 +13,7 @@ from modules.encoders._common import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
-from modules.encoders.beam_search import BeamSearchScorer
-from modules.encoders.image_encoder import ImageEncoder
-from modules.encoders.text_encoder import MultimodalTransformer, TextEncoder
+from modules.utils.beam_search import BeamSearchScorer
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
