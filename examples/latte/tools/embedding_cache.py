@@ -8,6 +8,9 @@ import sys
 from typing import Tuple
 
 import numpy as np
+from embed_writers.mindrecord_writer import MindRecordEmbeddingCacheWriter
+from embed_writers.numpy_writer import NumpyEmbeddingCacheWriter
+from omegaconf import OmegaConf
 from tqdm import tqdm
 
 import mindspore as ms
@@ -22,9 +25,6 @@ from args_train import parse_args
 from data.dataset import get_dataset
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 from modules.text_encoders import initiate_clip_text_encoder
-from omegaconf import OmegaConf
-from tools.embed_writers.mindrecord_writer import MindRecordEmbeddingCacheWriter
-from tools.embed_writers.numpy_writer import NumpyEmbeddingCacheWriter
 
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)

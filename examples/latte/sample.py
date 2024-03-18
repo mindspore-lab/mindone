@@ -123,6 +123,12 @@ def parse_args():
         type=str2bool,
         help="whether to use fp16 for Latte mode. Default is True",
     )
+    parser.add_argument(
+        "--use_recompute",
+        default=False,
+        type=str2bool,
+        help="whether use recompute.",
+    )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))

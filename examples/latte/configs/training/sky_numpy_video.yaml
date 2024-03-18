@@ -11,6 +11,7 @@ vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
 use_fp16: True
+use_recompute: True
 
 # data setting
 dataset_name: "sky"
