@@ -77,7 +77,7 @@ def seed_everything(seed):
     ms.set_seed(seed)
 
 
-@ms.constexpr
+@ms.constexpr(reuse_result=False)
 def get_timestep_multinomial(p, size=1):
     p = p.asnumpy()
     out = np.random.multinomial(1, p / p.sum(), size=size).argmax(-1)
