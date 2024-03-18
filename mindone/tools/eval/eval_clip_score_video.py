@@ -9,7 +9,7 @@ from PIL import Image
 from sklearn.metrics.pairwise import cosine_similarity
 from tqdm import tqdm
 
-from mindspore import Tensor
+from mindspore import Tensor, ops
 
 from examples.stable_diffusion_v2.tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 
@@ -29,24 +29,36 @@ except ImportError:
     is_transformers_available = False
 
 
-VIDEO_EXTENSIONS = {".mp4", ".gif"}
+VIDEO_EXTENSIONS = {".mp4"}
 
 
-def clip_score_text(model, processor, text_processor, frames, edited_prompt):
-    frames = processor(frames)
-    texts = Tensor(text_processor(edited_prompt, padding="max_length", max_length=77)["input_ids"]).reshape(1, -1)
-    logits_per_image, _ = model(image=frames, text=texts)
-    score = logits_per_image.mean()
-    return score
+class ClipScoreText:
+    def __init__(self, model, processor, text_processor):
+        self.model = model
+        self.processor = processor
+        self.text_processor = text_processor
+
+    def score(self, frames, prompt):
+        frames = self.processor(frames)
+        texts = Tensor(text_processor(prompt, padding="max_length", max_length=77)["input_ids"]).reshape(1, -1)
+        logits_per_image, _ = self.model(image=frames, text=texts)
+        score = logits_per_image.mean()
+        return score
 
 
-def clip_score_frame(model, processor, frames):
-    frames = processor(frames)
-    image_features = model.get_image_features(frames)
-    cosine_sim_matrix = cosine_similarity(image_features)
-    np.fill_diagonal(cosine_sim_matrix, 0)  # set diagonal elements to 0
-    score = cosine_sim_matrix.sum() / (len(frames) * (len(frames) - 1))
-    return score
+class ClipScoreFrame:
+    def __init__(self, model, processor):
+        self.model = model
+        self.processor = processor
+        self.fill_diagonal = ops.FillDiagonal(0.0)
+
+    def score(self, frames):
+        frames = self.processor(frames)
+        image_features = self.model.get_image_features(frames)
+        cosine_sim_matrix = cosine_similarity(image_features)
+        cosine_sim_matrix = self.fill_diagonal(Tensor(cosine_sim_matrix))  # set diagonal elements to 0
+        score = cosine_sim_matrix.sum() / (len(frames) * (len(frames) - 1))
+        return score
 
 
 if __name__ == "__main__":
@@ -99,6 +111,8 @@ if __name__ == "__main__":
         model = CLIPModel(config)
         processor = CLIPImageProcessor()
         text_processor = CLIPTokenizer(args.tokenizer_path, pad_token="!")
+        clip_score_text = ClipScoreText(model, processor, text_processor)
+        clip_score_frame = ClipScoreFrame(model, processor)
 
     else:
         raise NotImplementedError(args.backend)
@@ -150,10 +164,10 @@ if __name__ == "__main__":
                 raise NotImplementedError(args.metric)
         elif args.backend == "ms":
             if args.metric == "clip_score_text":
-                score = clip_score_text(model, processor, text_processor, frames, edited_prompt)
+                score = clip_score_text.score(frames, edited_prompt)
                 scores.append(score)
             elif args.metric == "clip_score_frame":
-                score = clip_score_frame(model, processor, frames)
+                score = clip_score_frame.score(frames)
                 scores.append(score)
             else:
                 raise NotImplementedError(args.metric)
