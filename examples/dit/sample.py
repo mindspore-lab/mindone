@@ -37,6 +37,7 @@ def init_env(args):
         mode=args.mode,
         device_target=args.device_target,
         device_id=device_id,
+        ascend_config={"precision_mode": args.precision_mode},
     )
 
     return device_id
@@ -89,10 +90,20 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--use_fp16",
-        default=True,
+        "--use_recompute",
+        default=None,
         type=str2bool,
-        help="whether to use fp16 for DiT mode. Default is True",
+        help="whether use recompute.",
+    )
+    parser.add_argument(
+        "--use_model_dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--precision_mode", default="force_fp16", type=str, help="the precision mode for Ascend configurations."
     )
     parser.add_argument(
         "--patch_embedder",
@@ -134,10 +145,17 @@ if __name__ == "__main__":
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         patch_embedder=args.patch_embedder,
+        use_recompute=args.use_recompute,
     )
 
-    if args.use_fp16:
-        dit_model = auto_mixed_precision(dit_model, amp_level="O2")
+    if args.use_model_dtype == "fp16":
+        model_dtype = ms.float16
+        dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
+    elif args.use_model_dtype == "bf16":
+        model_dtype = ms.bfloat16
+        dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
     try:
         dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
@@ -191,7 +209,7 @@ if __name__ == "__main__":
             f"Class labels: {class_labels}",
             f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use FP16: {args.use_fp16}",
+            f"Use model dtype: {args.use_model_dtype}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",

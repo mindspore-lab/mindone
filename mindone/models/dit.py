@@ -569,6 +569,7 @@ class DiT(nn.Cell):
         learn_sigma=True,
         block_kwargs={},
         patch_embedder="conv",
+        use_recompute=False,
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -577,6 +578,7 @@ class DiT(nn.Cell):
         self.patch_size = patch_size
         self.num_heads = num_heads
         self.patch_embedder = patch_embedder
+        self.use_recompute = use_recompute
         if patch_embedder == "conv":
             PatchEmbedder = PatchEmbed
         else:
@@ -593,6 +595,18 @@ class DiT(nn.Cell):
         )
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()
+
+        if self.use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def initialize_weights(self):
         # Initialize transformer layers:
