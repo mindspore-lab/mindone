@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
-# from ...loaders import FromOriginalVAEMixin  # from_single_file
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .vae import Decoder, DecoderOutput, DiagonalGaussianDistribution, Encoder
@@ -72,6 +71,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
         sample_size: int = 32,
         scaling_factor: float = 0.18215,
         force_upcast: float = True,
+        latents_mean: Optional[Tuple[float]] = None,
+        latents_std: Optional[Tuple[float]] = None,
     ):
         super().__init__()
 

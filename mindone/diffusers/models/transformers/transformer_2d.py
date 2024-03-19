@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,9 +18,13 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...utils import BaseOutput, deprecate
+from ...utils import BaseOutput, deprecate, logging
 from ..attention import BasicTransformerBlock
 from ..modeling_utils import ModelMixin
+from ..normalization import GroupNorm, LayerNorm
+
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 @dataclass
@@ -88,13 +92,24 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         only_cross_attention: bool = False,
         double_self_attention: bool = False,
         upcast_attention: bool = False,
-        norm_type: str = "layer_norm",
+        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single', 'ada_norm_continuous', 'layer_norm_i2vgen'
         norm_elementwise_affine: bool = True,
         norm_eps: float = 1e-5,
         attention_type: str = "default",
         caption_channels: int = None,
+        interpolation_scale: float = None,
     ):
         super().__init__()
+        if patch_size is not None:
+            if norm_type not in ["ada_norm", "ada_norm_zero", "ada_norm_single"]:
+                raise NotImplementedError(
+                    f"Forward pass is not implemented when `patch_size` is not None and `norm_type` is '{norm_type}'."
+                )
+            elif norm_type in ["ada_norm", "ada_norm_zero"] and num_embeds_ada_norm is None:
+                raise ValueError(
+                    f"When using a `patch_size` and this `norm_type` ({norm_type}), `num_embeds_ada_norm` cannot be None."
+                )
+
         self.use_linear_projection = use_linear_projection
         self.num_attention_heads = num_attention_heads
         self.attention_head_dim = attention_head_dim
@@ -140,7 +155,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         if self.is_input_continuous:
             self.in_channels = in_channels
 
-            self.norm = nn.GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
+            self.norm = GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
             if use_linear_projection:
                 self.proj_in = linear_cls(in_channels, inner_dim)
             else:
@@ -194,10 +209,6 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
             raise NotImplementedError("PixArtAlphaTextProjection is not implemented")
 
         self.gradient_checkpointing = False
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(
         self,

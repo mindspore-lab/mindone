@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
 
-from ..utils import BaseOutput, PushToHubMixin
+from ..utils import BaseOutput, PushToHubMixin, maybe_import_module_in_mindone
 
 
 SCHEDULER_CONFIG_NAME = "scheduler_config.json"
@@ -46,6 +46,7 @@ class KarrasDiffusionSchedulers(Enum):
     DEISMultistepScheduler = 12
     UniPCMultistepScheduler = 13
     DPMSolverSDEScheduler = 14
+    EDMEulerScheduler = 15
 
 
 @dataclass
@@ -180,7 +181,7 @@ class SchedulerMixin(PushToHubMixin):
     @classmethod
     def _get_compatibles(cls):
         compatible_classes_str = list(set([cls.__name__] + cls._compatibles))
-        diffusers_library = importlib.import_module(__name__.split(".")[0])
+        diffusers_library = maybe_import_module_in_mindone(__name__.split(".")[1])
         compatible_classes = [
             getattr(diffusers_library, c) for c in compatible_classes_str if hasattr(diffusers_library, c)
         ]

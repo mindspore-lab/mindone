@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
@@ -332,7 +333,7 @@ class VaeImageProcessor(ConfigMixin):
         image: Union[PIL.Image.Image, np.ndarray, ms.Tensor],
         height: int,
         width: int,
-        resize_mode: str = "default",  # "defalt", "fill", "crop"
+        resize_mode: str = "default",  # "default", "fill", "crop"
     ) -> Union[PIL.Image.Image, np.ndarray, ms.Tensor]:
         """
         Resize image.
@@ -448,7 +449,7 @@ class VaeImageProcessor(ConfigMixin):
         image: PipelineImageInput,
         height: Optional[int] = None,
         width: Optional[int] = None,
-        resize_mode: str = "default",  # "defalt", "fill", "crop"
+        resize_mode: str = "default",  # "default", "fill", "crop"
         crops_coords: Optional[Tuple[int, int, int, int]] = None,
     ) -> ms.Tensor:
         """

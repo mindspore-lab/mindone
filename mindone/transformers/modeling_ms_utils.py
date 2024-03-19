@@ -14,19 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import collections
+import copy
+import functools
 import gc
+import importlib.metadata
 import inspect
+import itertools
 import json
 import os
 import re
 import shutil
 import tempfile
 import warnings
-import copy
-from functools import partial
+from contextlib import contextmanager
+from dataclasses import dataclass
+from functools import partial, wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from zipfile import is_zipfile
 
-import numpy as np
 from packaging import version
 import mindspore as ms
 from mindspore import Tensor, ops, nn
@@ -57,28 +62,45 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 if is_safetensors_available():
     from safetensors import safe_open
-    from ..safetensors import load_file as safe_load_file
-    from ..safetensors import save_file as safe_save_file
+    from mindone.safetensors.mindspore import load_file as safe_load_file
+    from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
+
+
+def get_parameter_dtype(parameter: Union[nn.Cell, "ModuleUtilsMixin"]):
+    """
+    Returns the first found floating dtype in parameters if there is one, otherwise returns the last dtype it found.
+    """
+    last_dtype = None
+    for t in parameter.get_parameters():
+        last_dtype = t.dtype
+        if t.is_floating_point():
+            return t.dtype
+
+    # if no floating dtype was found return whatever the first dtype is
+    return last_dtype
 
 
 def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
     """
     Reads a PyTorch checkpoint file, returning properly formatted errors if they arise.
     """
-    if checkpoint_file.endswith(".safetensors") and is_safetensors_available():
-        # Check format of the archive
-        with safe_open(checkpoint_file, framework="np") as f:
-            metadata = f.metadata()
-        if metadata.get("format") not in ["pt", "tf", "flax", "np"]:
-            raise OSError(
-                f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
-                "you save your model with the `save_pretrained` method."
-            )
-        return safe_load_file(checkpoint_file)
     try:
-        return ms.load_checkpoint(checkpoint_file)
+        if checkpoint_file.endswith(".safetensors") and is_safetensors_available():
+            # Check format of the archive
+            with safe_open(checkpoint_file, framework="np") as f:
+                metadata = f.metadata()
+            if metadata.get("format") not in ["pt", "tf", "flax", "np"]:
+                raise OSError(
+                    f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
+                    "you save your model with the `save_pretrained` method."
+                )
+            return safe_load_file(checkpoint_file)
+        else:
+            raise NotImplementedError(
+                f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
+            )
     except Exception as e:
         try:
             with open(checkpoint_file) as f:
@@ -95,9 +117,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     ) from e
         except (UnicodeDecodeError, ValueError):
             raise OSError(
-                f"Unable to load weights from pytorch checkpoint file for '{checkpoint_file}' "
-                f"at '{checkpoint_file}'. "
-                "If you tried to load a PyTorch model from a TF 2.0 checkpoint, please set from_tf=True."
+                f"Unable to load weights from checkpoint file for '{checkpoint_file}' " f"at '{checkpoint_file}'. "
             )
 
 
@@ -110,7 +130,64 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
     return weights_name
 
 
-class MSPreTrainedModel(nn.Cell, PushToHubMixin):
+class ModuleUtilsMixin:
+    """
+    A few utilities for `mindspore.nn.Cell`, to be used as a mixin.
+    """
+
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+
+    def float(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float32)
+
+    def half(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float16)
+
+    @property
+    def dtype(self) -> ms.Type:
+        """
+        `ms.Type`: The dtype of the module (assuming that all the module parameters have the same dtype).
+        """
+        return get_parameter_dtype(self)
+
+    def num_parameters(self, only_trainable: bool = False, exclude_embeddings: bool = False) -> int:
+        """
+        Get number of (optionally, trainable or non-embeddings) parameters in the module.
+
+        Args:
+            only_trainable (`bool`, *optional*, defaults to `False`):
+                Whether or not to return only the number of trainable parameters
+
+            exclude_embeddings (`bool`, *optional*, defaults to `False`):
+                Whether or not to return only the number of non-embeddings parameters
+
+        Returns:
+            `int`: The number of parameters.
+        """
+
+        if exclude_embeddings:
+            embedding_param_names = [
+                f"{name}.weight" for name, module_type in self.cells_and_names() if isinstance(module_type, nn.Embedding)
+            ]
+            total_parameters = [
+                parameter for name, parameter in self.cells_and_names() if name not in embedding_param_names
+            ]
+        else:
+            total_parameters = list(self.get_parameters())
+
+        total_numel = []
+        for param in total_parameters:
+            if param.requires_grad or not only_trainable:
+                total_numel.append(param.numel())
+
+        return sum(total_numel)
+
+
+class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
     r"""
     Base class for all models.
 
@@ -187,9 +264,21 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
         """
         pass
 
-    @property
-    def dtype(self):
-        return self.trainable_params()[0].dtype
+    def save_pretrained(
+        self,
+        save_directory: Union[str, os.PathLike],
+        is_main_process: bool = True,
+        state_dict: Optional[dict] = None,
+        save_function: Callable = ms.save_checkpoint,
+        push_to_hub: bool = False,
+        max_shard_size: Union[int, str] = "5GB",
+        safe_serialization: bool = True,
+        variant: Optional[str] = None,
+        token: Optional[Union[str, bool]] = None,
+        save_peft_format: bool = True,
+        **kwargs,
+    ):
+        logger.warning(f"{self.__class__.__name__}.save_pretrained is not implemented.")
 
     @classmethod
     def from_pretrained(
@@ -224,8 +313,6 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
                 Can be either:
 
                     - A string, the *model id* of a pretrained model hosted inside a model repo on huggingface.co.
-                      Valid model ids can be located at the root-level, like `bert-base-uncased`, or namespaced under a
-                      user or organization name, like `dbmdz/bert-base-german-cased`.
                     - A path to a *directory* containing model weights saved using
                       [`~PreTrainedModel.save_pretrained`], e.g., `./my_model_directory/`.
                     - A path or url to a *tensorflow index checkpoint file* (e.g, `./tf_model/model.ckpt.index`). In
@@ -320,15 +407,15 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
             low_cpu_mem_usage(`bool`, *optional*):
                 Tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model.
                 This is an experimental feature and a subject to change at any moment.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model under a specific `dtype`. The different options
+            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model under a specific `dtype`. The different options
                 are:
 
                 1. `torch.float16` or `torch.bfloat16` or `torch.float`: load in a specified
-                  `dtype`, ignoring the model's `config.torch_dtype` if one exists. If not specified
+                  `dtype`, ignoring the model's `config.mindspore_dtype` if one exists. If not specified
                   - the model will get loaded in `torch.float` (fp32).
 
-                2. `"auto"` - A `torch_dtype` entry in the `config.json` file of the model will be
+                2. `"auto"` - A `mindspore_dtype` entry in the `config.json` file of the model will be
                   attempted to be used. If this entry isn't found then next check the `dtype` of the first weight in
                   the checkpoint that's of a floating point type and use that as `dtype`. This will load the model
                   using the `dtype` it was saved in at the end of the training. It can't be used as an indicator of how
@@ -338,7 +425,7 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
 
                 For some models the `dtype` they were trained in is unknown - you may try to check the model's paper or
                 reach out to the authors and ask them to add this information to the model's card and to insert the
-                `torch_dtype` entry in `config.json` on the hub.
+                `mindspore_dtype` entry in `config.json` on the hub.
 
                 </Tip>
 
@@ -361,15 +448,12 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
                 If `True`, will temporarily offload the CPU state dict to the hard drive to avoid getting out of CPU
                 RAM if the weight of the CPU state dict + the biggest shard of the checkpoint does not fit. Defaults to
                 `True` when there is some disk offload.
-            load_in_8bit (`bool`, *optional*, defaults to `False`):
-                If `True`, will convert the loaded model into mixed-8bit quantized model. To use this feature please
-                install `bitsandbytes` (`pip install -U bitsandbytes`).
-            load_in_4bit (`bool`, *optional*, defaults to `False`):
-                If `True`, will convert the loaded model into 4bit precision quantized model. To use this feature
-                install the latest version of `bitsandbytes` (`pip install -U bitsandbytes`).
             quantization_config (`Union[QuantizationConfigMixin,Dict]`, *optional*):
                 A dictionary of configuration parameters or a QuantizationConfigMixin object for quantization (e.g
-                bitsandbytes, gptq)
+                bitsandbytes, gptq). There may be other quantization-related kwargs, including `load_in_4bit` and
+                `load_in_8bit`, which are parsed by QuantizationConfigParser. Supported only for bitsandbytes
+                quantizations and not preferred. consider inserting all such arguments into quantization_config
+                instead.
             subfolder (`str`, *optional*, defaults to `""`):
                 In case the relevant files are located inside a subfolder of the model repo on huggingface.co, you can
                 specify the folder name here.
@@ -407,17 +491,17 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
         >>> from transformers import BertConfig, BertModel
 
         >>> # Download model and configuration from huggingface.co and cache.
-        >>> model = BertModel.from_pretrained("bert-base-uncased")
+        >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased")
         >>> # Model was saved using *save_pretrained('./test/saved_model/')* (for example purposes, not runnable).
         >>> model = BertModel.from_pretrained("./test/saved_model/")
         >>> # Update configuration during loading.
-        >>> model = BertModel.from_pretrained("bert-base-uncased", output_attentions=True)
+        >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased", output_attentions=True)
         >>> assert model.config.output_attentions == True
         >>> # Loading from a TF checkpoint file instead of a PyTorch model (slower, for example purposes, not runnable).
         >>> config = BertConfig.from_json_file("./tf_model/my_tf_model_config.json")
         >>> model = BertModel.from_pretrained("./tf_model/my_tf_checkpoint.ckpt.index", from_tf=True, config=config)
         >>> # Loading from a Flax checkpoint file instead of a PyTorch model (slower)
-        >>> model = BertModel.from_pretrained("bert-base-uncased", from_flax=True)
+        >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased", from_flax=True)
         ```
 
         * `low_cpu_mem_usage` algorithm:
@@ -446,7 +530,7 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
         _ = kwargs.pop("mirror", None)
         from_pipeline = kwargs.pop("_from_pipeline", None)
         from_auto_class = kwargs.pop("_from_auto", False)
-        torch_dtype = kwargs.pop("torch_dtype", None)
+        mindspore_dtype = kwargs.pop("mindspore_dtype", None)
         offload_folder = kwargs.pop("offload_folder", None)
         offload_state_dict = kwargs.pop("offload_state_dict", False)
         subfolder = kwargs.pop("subfolder", "")
@@ -481,6 +565,7 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
                     token=token,
                     revision=revision,
                     subfolder=subfolder,
+                    _raise_exceptions_for_gated_repo=False,
                     _raise_exceptions_for_missing_entries=False,
                     _raise_exceptions_for_connection_errors=False,
                 )
@@ -652,6 +737,7 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
                         "user_agent": user_agent,
                         "revision": revision,
                         "subfolder": subfolder,
+                        "_raise_exceptions_for_gated_repo": False,
                         "_raise_exceptions_for_missing_entries": False,
                         "_commit_hash": commit_hash,
                     }
@@ -826,7 +912,7 @@ class MSPreTrainedModel(nn.Cell, PushToHubMixin):
             sharded_metadata=sharded_metadata,
             offload_folder=offload_folder,
             offload_state_dict=offload_state_dict,
-            dtype=torch_dtype,
+            dtype=mindspore_dtype,
         )
 
         # Set model in evaluation mode to deactivate DropOut modules by default

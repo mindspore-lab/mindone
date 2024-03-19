@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ from typing import Optional, Tuple
 
 import mindspore as ms
 from mindspore import nn, ops
+
+from .normalization import LayerNorm
 
 
 class Upsample2D(nn.Cell):
@@ -56,9 +58,10 @@ class Upsample2D(nn.Cell):
         self.use_conv_transpose = use_conv_transpose
         self.name = name
         self.interpolate = interpolate
+        conv_cls = nn.Conv2d
 
         if norm_type == "ln_norm":
-            self.norm = nn.LayerNorm((channels,), epsilon=eps)  # elementwise_affine
+            self.norm = LayerNorm(channels, eps, elementwise_affine)
         elif norm_type == "rms_norm":
             raise NotImplementedError("RMSNorm is not implemented")
         elif norm_type is None:
@@ -70,13 +73,13 @@ class Upsample2D(nn.Cell):
         if use_conv_transpose:
             if kernel_size is None:
                 kernel_size = 4
-            conv = nn.Conv3dTranspose(
+            conv = nn.Conv2dTranspose(
                 channels, self.out_channels, kernel_size=kernel_size, stride=2, pad_mode="pad", padding=padding, has_bias=bias
             )
         elif use_conv:
             if kernel_size is None:
                 kernel_size = 3
-            conv = nn.Conv2d(self.channels, self.out_channels, kernel_size=kernel_size, pad_mode="pad", padding=padding, has_bias=bias)
+            conv = conv_cls(self.channels, self.out_channels, kernel_size=kernel_size, pad_mode="pad", padding=padding, has_bias=bias)
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if name == "conv":
@@ -85,10 +88,7 @@ class Upsample2D(nn.Cell):
             self.Conv2d_0 = conv
 
     def construct(
-        self,
-        hidden_states: ms.Tensor,
-        output_size: Optional[int] = None,
-        scale: float = 1.0,
+            self, hidden_states: ms.Tensor, output_size: Optional[int] = None
     ) -> ms.Tensor:
         assert hidden_states.shape[1] == self.channels
 

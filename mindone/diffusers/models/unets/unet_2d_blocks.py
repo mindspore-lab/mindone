@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import nn, ops
 
-from ...utils import logging
+from ...utils import deprecate, logging
 from ..activations import get_activation
 from ..attention_processor import Attention
 from ..resnet import (
@@ -135,6 +135,67 @@ def get_down_block(
     elif down_block_type == "KCrossAttnDownBlock2D":
         raise NotImplementedError
     raise ValueError(f"{down_block_type} does not exist.")
+
+
+def get_mid_block(
+    mid_block_type: str,
+    temb_channels: int,
+    in_channels: int,
+    resnet_eps: float,
+    resnet_act_fn: str,
+    resnet_groups: int,
+    output_scale_factor: float = 1.0,
+    transformer_layers_per_block: int = 1,
+    num_attention_heads: Optional[int] = None,
+    cross_attention_dim: Optional[int] = None,
+    dual_cross_attention: bool = False,
+    use_linear_projection: bool = False,
+    mid_block_only_cross_attention: bool = False,
+    upcast_attention: bool = False,
+    resnet_time_scale_shift: str = "default",
+    attention_type: str = "default",
+    resnet_skip_time_act: bool = False,
+    cross_attention_norm: Optional[str] = None,
+    attention_head_dim: Optional[int] = 1,
+    dropout: float = 0.0,
+):
+    if mid_block_type == "UNetMidBlock2DCrossAttn":
+        return UNetMidBlock2DCrossAttn(
+            transformer_layers_per_block=transformer_layers_per_block,
+            in_channels=in_channels,
+            temb_channels=temb_channels,
+            dropout=dropout,
+            resnet_eps=resnet_eps,
+            resnet_act_fn=resnet_act_fn,
+            output_scale_factor=output_scale_factor,
+            resnet_time_scale_shift=resnet_time_scale_shift,
+            cross_attention_dim=cross_attention_dim,
+            num_attention_heads=num_attention_heads,
+            resnet_groups=resnet_groups,
+            dual_cross_attention=dual_cross_attention,
+            use_linear_projection=use_linear_projection,
+            upcast_attention=upcast_attention,
+            attention_type=attention_type,
+        )
+    elif mid_block_type == "UNetMidBlock2DSimpleCrossAttn":
+        raise NotImplementedError
+    elif mid_block_type == "UNetMidBlock2D":
+        return UNetMidBlock2D(
+            in_channels=in_channels,
+            temb_channels=temb_channels,
+            dropout=dropout,
+            num_layers=0,
+            resnet_eps=resnet_eps,
+            resnet_act_fn=resnet_act_fn,
+            output_scale_factor=output_scale_factor,
+            resnet_groups=resnet_groups,
+            resnet_time_scale_shift=resnet_time_scale_shift,
+            add_attention=False,
+        )
+    elif mid_block_type is None:
+        return None
+    else:
+        raise ValueError(f"unknown mid_block_type : {mid_block_type}")
 
 
 def get_up_block(
@@ -510,8 +571,7 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
-        lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
-        hidden_states = self.resnets[0](hidden_states, temb, scale=lora_scale)
+        hidden_states = self.resnets[0](hidden_states, temb)
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if self.training and self.gradient_checkpointing:
                 raise NotImplementedError
@@ -524,7 +584,7 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
                     encoder_attention_mask=encoder_attention_mask,
                     return_dict=False,
                 )[0]
-                hidden_states = resnet(hidden_states, temb, scale=lora_scale)
+                hidden_states = resnet(hidden_states, temb)
 
         return hidden_states
 
@@ -624,15 +684,13 @@ class CrossAttnDownBlock2D(nn.Cell):
     ) -> Tuple[ms.Tensor, Tuple[ms.Tensor, ...]]:
         output_states = ()
 
-        lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
-
         blocks = list(zip(self.resnets, self.attentions))
 
         for i, (resnet, attn) in enumerate(blocks):
             if self.training and self.gradient_checkpointing:
                 raise NotImplementedError
             else:
-                hidden_states = resnet(hidden_states, temb, scale=lora_scale)
+                hidden_states = resnet(hidden_states, temb)
                 hidden_states = attn(
                     hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
@@ -650,7 +708,7 @@ class CrossAttnDownBlock2D(nn.Cell):
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                hidden_states = downsampler(hidden_states, scale=lora_scale)
+                hidden_states = downsampler(hidden_states)
 
             output_states = output_states + (hidden_states,)
 
@@ -712,7 +770,7 @@ class DownBlock2D(nn.Cell):
         self.gradient_checkpointing = False
 
     def construct(
-        self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None, scale: float = 1.0
+        self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None
     ) -> Tuple[ms.Tensor, Tuple[ms.Tensor, ...]]:
         output_states = ()
 
@@ -720,13 +778,13 @@ class DownBlock2D(nn.Cell):
             if self.training and self.gradient_checkpointing:
                 raise NotImplementedError
             else:
-                hidden_states = resnet(hidden_states, temb, scale=scale)
+                hidden_states = resnet(hidden_states, temb)
 
             output_states = output_states + (hidden_states,)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                hidden_states = downsampler(hidden_states, scale=scale)
+                hidden_states = downsampler(hidden_states)
 
             output_states = output_states + (hidden_states,)
 
@@ -787,13 +845,13 @@ class DownEncoderBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-    def construct(self, hidden_states: ms.Tensor, scale: float = 1.0) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb=None, scale=scale)
+            hidden_states = resnet(hidden_states, temb=None)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                hidden_states = downsampler(hidden_states, scale)
+                hidden_states = downsampler(hidden_states)
 
         return hidden_states
 
@@ -891,7 +949,6 @@ class CrossAttnUpBlock2D(nn.Cell):
         attention_mask: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
-        lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
         is_freeu_enabled = (
             getattr(self, "s1", None)
             and getattr(self, "s2", None)
@@ -913,7 +970,7 @@ class CrossAttnUpBlock2D(nn.Cell):
             if self.training and self.gradient_checkpointing:
                 raise NotImplementedError
             else:
-                hidden_states = resnet(hidden_states, temb, scale=lora_scale)
+                hidden_states = resnet(hidden_states, temb)
                 hidden_states = attn(
                     hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
@@ -925,7 +982,7 @@ class CrossAttnUpBlock2D(nn.Cell):
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
-                hidden_states = upsampler(hidden_states, upsample_size, scale=lora_scale)
+                hidden_states = upsampler(hidden_states, upsample_size)
 
         return hidden_states
 
@@ -988,7 +1045,6 @@ class UpBlock2D(nn.Cell):
         res_hidden_states_tuple: Tuple[ms.Tensor, ...],
         temb: Optional[ms.Tensor] = None,
         upsample_size: Optional[int] = None,
-        scale: float = 1.0,
     ) -> ms.Tensor:
         is_freeu_enabled = (
             getattr(self, "s1", None)
@@ -1011,11 +1067,11 @@ class UpBlock2D(nn.Cell):
             if self.training and self.gradient_checkpointing:
                 raise NotImplementedError
             else:
-                hidden_states = resnet(hidden_states, temb, scale=scale)
+                hidden_states = resnet(hidden_states, temb)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
-                hidden_states = upsampler(hidden_states, upsample_size, scale=scale)
+                hidden_states = upsampler(hidden_states, upsample_size)
 
         return hidden_states
 
@@ -1072,11 +1128,9 @@ class UpDecoderBlock2D(nn.Cell):
 
         self.resolution_idx = resolution_idx
 
-    def construct(
-        self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None, scale: float = 1.0
-    ) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
         for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb=temb, scale=scale)
+            hidden_states = resnet(hidden_states, temb=temb)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:

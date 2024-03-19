@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@ from typing import Optional, Tuple
 
 import mindspore as ms
 from mindspore import nn, ops
+
+from .normalization import LayerNorm
 
 
 class Downsample2D(nn.Cell):
@@ -54,9 +56,10 @@ class Downsample2D(nn.Cell):
         self.padding = padding
         stride = 2
         self.name = name
+        conv_cls = nn.Conv2d
 
         if norm_type == "ln_norm":
-            self.norm = nn.LayerNorm((channels,), epsilon=eps)  # elementwise_affine
+            self.norm = LayerNorm(channels, eps, elementwise_affine)
         elif norm_type == "rms_norm":
             raise NotImplementedError("RMSNorm is not implemented")
         elif norm_type is None:
@@ -65,7 +68,7 @@ class Downsample2D(nn.Cell):
             raise ValueError(f"unknown norm_type: {norm_type}")
 
         if use_conv:
-            conv = nn.Conv2d(
+            conv = conv_cls(
                 self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, pad_mode="pad", padding=padding, has_bias=bias
             )
             if padding == 0:
@@ -85,7 +88,7 @@ class Downsample2D(nn.Cell):
         else:
             self.conv = conv
 
-    def construct(self, hidden_states: ms.Tensor, scale: float = 1.0) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         assert hidden_states.shape[1] == self.channels
 
         if self.norm is not None:

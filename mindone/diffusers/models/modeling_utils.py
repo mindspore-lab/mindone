@@ -1,6 +1,6 @@
 # coding=utf-8
 # Copyright 2023 The HuggingFace Inc. team.
-# Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
+# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import re
 from collections import OrderedDict
 from functools import partial
 from typing import Any, Callable, List, Optional, Tuple, Union
-import numpy as np
 
 from huggingface_hub import create_repo
 from huggingface_hub.utils import validate_hf_hub_args
@@ -41,15 +40,15 @@ from ..utils import (
     logging,
 )
 from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populate_model_card
-from ..safetensors_ms import load_file as safe_load_file
-from ..safetensors_ms import save_file as safe_save_file
+from mindone.safetensors.mindspore import load_file as safe_load_file
+from mindone.safetensors.mindspore import save_file as safe_save_file
 
 
 logger = logging.get_logger(__name__)
 
 
 def get_parameter_dtype(module: nn.Cell) -> ms.Type:
-    params = module.trainable_params()
+    params = tuple(module.get_parameters())
     if len(params) > 0:
         return params[0].dtype
 
@@ -61,9 +60,11 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
     try:
         file_extension = os.path.basename(checkpoint_file).split(".")[-1]
         if file_extension == SAFETENSORS_FILE_EXTENSION:
-            return safe_load_file(checkpoint_file, )
+            return safe_load_file(checkpoint_file)
         else:
-            return ms.load_checkpoint(checkpoint_file)
+            raise NotImplementedError(
+                f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
+            )
     except Exception as e:
         try:
             with open(checkpoint_file) as f:
@@ -80,29 +81,45 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
                     ) from e
         except (UnicodeDecodeError, ValueError):
             raise OSError(
-                f"Unable to load weights from checkpoint file for '{checkpoint_file}' "
-                f"at '{checkpoint_file}'. "
-                "If you tried to load a PyTorch model from a TF 2.0 checkpoint, please set from_tf=True."
+                f"Unable to load weights from checkpoint file for '{checkpoint_file}' " f"at '{checkpoint_file}'. "
             )
 
 
+def _get_pt2ms_mappings(m):
+    mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
+    for name, cell in m.cells_and_names():
+        if isinstance(cell, nn.Conv1d):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
+        elif isinstance(cell, nn.Embedding):
+            mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
+        elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+            mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
+            mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
+            if isinstance(cell, (nn.BatchNorm2d,)):
+                mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
+                mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
+                mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+    return mappings
+
+
+def _convert_state_dict(m, state_dict_pt):
+    mappings = _get_pt2ms_mappings(m)
+    state_dict_ms = {}
+    for name_pt, data_pt in state_dict_pt.items():
+        name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
+        data_ms = data_mapping(data_pt)
+        if name_ms is not None:
+            state_dict_ms[name_ms] = data_ms
+    return state_dict_ms
+
+
 def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> List[str]:
-    # Convert old format to new format if needed from a PyTorch state_dict
-    # copy state_dict so _load_from_state_dict can modify it
-    state_dict = state_dict.copy()
     error_msgs = []
-
-    # PyTorch's `_load_from_state_dict` does not copy parameters in a module's descendants
-    # so we need to apply the function recursively.
-    def load(module: nn.Cell, prefix: str = ""):
-        args = (state_dict, prefix, {}, True, [], [], error_msgs)
-        module._load_from_state_dict(*args)
-
-        for name, child in module._modules.items():
-            if child is not None:
-                load(child, prefix + name + ".")
-
-    load(model_to_load)
+    param_not_load, ckpt_not_load = ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+    if param_not_load:
+        error_msgs.append(f"{param_not_load} in network is not loaded!")
+    if ckpt_not_load:
+        error_msgs.append(f"{ckpt_not_load} in checkpoint is not loaded!")
 
     return error_msgs
 
@@ -173,42 +190,10 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         raise NotImplementedError
 
     def enable_xformers_memory_efficient_attention(self, attention_op: Optional[Callable] = None) -> None:
-        r"""
-        Enable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).
-
-        When this option is enabled, you should observe lower GPU memory usage and a potential speed up during
-        inference. Speed up during training is not guaranteed.
-
-        <Tip warning={true}>
-
-        ⚠️ When memory efficient attention and sliced attention are both enabled, memory efficient attention takes
-        precedent.
-
-        </Tip>
-
-        Parameters:
-            attention_op (`Callable`, *optional*):
-                Override the default `None` operator for use as `op` argument to the
-                [`memory_efficient_attention()`](https://facebookresearch.github.io/xformers/components/ops.html#xformers.ops.memory_efficient_attention)
-                function of xFormers.
-
-        Examples:
-
-        ```py
-        >>> model = UNet2DConditionModel.from_pretrained(
-        ...     "stabilityai/stable-diffusion-2-1", subfolder="unet", torch_dtype=torch.float16
-        ... )
-        >>> model = model.to("cuda")
-        >>> model.enable_xformers_memory_efficient_attention(attention_op=MemoryEfficientAttentionFlashAttentionOp)
-        ```
-        """
-        self.set_use_memory_efficient_attention_xformers(True, attention_op)
+        raise NotImplementedError
 
     def disable_xformers_memory_efficient_attention(self) -> None:
-        r"""
-        Disable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).
-        """
-        self.set_use_memory_efficient_attention_xformers(False)
+        raise NotImplementedError
 
     def save_pretrained(
         self,
@@ -269,7 +254,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             model_to_save.save_config(save_directory)
 
         # Save the model
-        state_dict = model_to_save.state_dict()
+        state_dict = model_to_save.parameters_dict()
 
         weights_name = SAFETENSORS_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
         weights_name = _add_variant(weights_name, variant)
@@ -319,8 +304,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            torch_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If `"auto"` is passed, the
+            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
                 dtype is automatically derived from the model's weights.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -342,36 +327,12 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             revision (`str`, *optional*, defaults to `"main"`):
                 The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
                 allowed by Git.
-            from_flax (`bool`, *optional*, defaults to `False`):
-                Load the model weights from a Flax checkpoint save file.
             subfolder (`str`, *optional*, defaults to `""`):
                 The subfolder location of a model file within a larger model repository on the Hub or locally.
             mirror (`str`, *optional*):
                 Mirror source to resolve accessibility issues if you're downloading a model in China. We do not
                 guarantee the timeliness or safety of the source, and you should refer to the mirror site for more
                 information.
-            device_map (`str` or `Dict[str, Union[int, str, torch.device]]`, *optional*):
-                A map that specifies where each submodule should go. It doesn't need to be defined for each
-                parameter/buffer name; once a given module name is inside, every submodule of it will be sent to the
-                same device.
-
-                Set `device_map="auto"` to have 🤗 Accelerate automatically compute the most optimized `device_map`. For
-                more information about each option see [designing a device
-                map](https://hf.co/docs/accelerate/main/en/usage_guides/big_modeling#designing-a-device-map).
-            max_memory (`Dict`, *optional*):
-                A dictionary device identifier for the maximum memory. Will default to the maximum memory available for
-                each GPU and the available CPU RAM if unset.
-            offload_folder (`str` or `os.PathLike`, *optional*):
-                The path to offload weights if `device_map` contains the value `"disk"`.
-            offload_state_dict (`bool`, *optional*):
-                If `True`, temporarily offloads the CPU state dict to the hard drive to avoid running out of CPU RAM if
-                the weight of the CPU state dict + the biggest shard of the checkpoint does not fit. Defaults to `True`
-                when there is some disk offload.
-            low_cpu_mem_usage (`bool`, *optional*, defaults to `True` if torch version >= 1.9.0 else `False`):
-                Speed up model loading only loading the pretrained weights and not initializing the weights. This also
-                tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model.
-                Only supported for PyTorch >= 1.9.0. If you are using an older version of PyTorch, setting this
-                argument to `True` will raise an error.
             variant (`str`, *optional*):
                 Load weights from a specified `variant` filename such as `"fp16"` or `"ema"`. This is ignored when
                 loading `from_flax`.
@@ -414,12 +375,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         local_files_only = kwargs.pop("local_files_only", None)
         token = kwargs.pop("token", None)
         revision = kwargs.pop("revision", None)
-        torch_dtype = kwargs.pop("torch_dtype", None)
+        mindspore_dtype = kwargs.pop("mindspore_dtype", None)
         subfolder = kwargs.pop("subfolder", None)
-        device_map = kwargs.pop("device_map", None)
-        max_memory = kwargs.pop("max_memory", None)
-        offload_folder = kwargs.pop("offload_folder", None)
-        offload_state_dict = kwargs.pop("offload_state_dict", False)
         variant = kwargs.pop("variant", None)
         use_safetensors = kwargs.pop("use_safetensors", None)
 
@@ -450,10 +407,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             token=token,
             revision=revision,
             subfolder=subfolder,
-            device_map=device_map,
-            max_memory=max_memory,
-            offload_folder=offload_folder,
-            offload_state_dict=offload_state_dict,
             user_agent=user_agent,
             **kwargs,
         )
@@ -516,12 +469,12 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             "error_msgs": error_msgs,
         }
 
-        if torch_dtype is not None and not isinstance(torch_dtype, ms.Type):
+        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             raise ValueError(
-                f"{torch_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(torch_dtype)}."
+                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
             )
-        elif torch_dtype is not None:
-            model = model.to(torch_dtype)
+        elif mindspore_dtype is not None:
+            model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
@@ -541,43 +494,118 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         pretrained_model_name_or_path: Union[str, os.PathLike],
         ignore_mismatched_sizes: bool = False,
     ):
-        def get_pt2ms_mappings(m):
-            mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
-            for name, cell in m.cells_and_names():
-                if isinstance(cell, nn.Conv1d):
-                    mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
-                elif isinstance(cell, nn.Embedding):
-                    mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
-                elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
-                    mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
-                    mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
-                    if isinstance(cell, (nn.BatchNorm2d,)):
-                        mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
-                        mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
-                        mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-            return mappings
+        state_dict = _convert_state_dict(model, state_dict)
+        # Retrieve missing & unexpected_keys
+        model_state_dict = model.parameters_dict()
+        loaded_keys = list(state_dict.keys())
 
-        def convert_state_dict(m, state_dict_pt):
-            mappings = get_pt2ms_mappings(m)
-            state_dict_ms = {}
-            for name_pt, data_pt in state_dict_pt.items():
-                name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-                data_ms = data_mapping(data_pt)
-                if name_ms is not None:
-                    state_dict_ms[name_ms] = data_ms
-            return state_dict_ms
+        expected_keys = list(model_state_dict.keys())
 
-        missing_keys, unexpected_keys = ms.load_param_into_net(
-            model, convert_state_dict(model, state_dict), strict_load=True
-        )
-        mismatched_keys, error_msgs = [], ""
+        original_loaded_keys = loaded_keys
+
+        missing_keys = list(set(expected_keys) - set(loaded_keys))
+        unexpected_keys = list(set(loaded_keys) - set(expected_keys))
+
+        # Make sure we are able to load base models as well as derived models (with heads)
+        model_to_load = model
+
+        def _find_mismatched_keys(
+            state_dict,
+            model_state_dict,
+            loaded_keys,
+            ignore_mismatched_sizes,
+        ):
+            mismatched_keys = []
+            if ignore_mismatched_sizes:
+                for checkpoint_key in loaded_keys:
+                    model_key = checkpoint_key
+
+                    if (
+                        model_key in model_state_dict
+                        and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape
+                    ):
+                        mismatched_keys.append(
+                            (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
+                        )
+                        del state_dict[checkpoint_key]
+            return mismatched_keys
+
+        if state_dict is not None:
+            # Whole checkpoint
+            mismatched_keys = _find_mismatched_keys(
+                state_dict,
+                model_state_dict,
+                original_loaded_keys,
+                ignore_mismatched_sizes,
+            )
+            error_msgs = _load_state_dict_into_model(model_to_load, state_dict)
+
+        if len(error_msgs) > 0:
+            error_msg = "\n\t".join(error_msgs)
+            if "size mismatch" in error_msg:
+                error_msg += (
+                    "\n\tYou may consider adding `ignore_mismatched_sizes=True` in the model `from_pretrained` method."
+                )
+            raise RuntimeError(f"Error(s) in loading state_dict for {model.__class__.__name__}:\n\t{error_msg}")
+
+        if len(unexpected_keys) > 0:
+            logger.warning(
+                f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when"
+                f" initializing {model.__class__.__name__}: {unexpected_keys}\n- This IS expected if you are"
+                f" initializing {model.__class__.__name__} from the checkpoint of a model trained on another task"
+                " or with another architecture (e.g. initializing a BertForSequenceClassification model from a"
+                " BertForPreTraining model).\n- This IS NOT expected if you are initializing"
+                f" {model.__class__.__name__} from the checkpoint of a model that you expect to be exactly"
+                " identical (initializing a BertForSequenceClassification model from a"
+                " BertForSequenceClassification model)."
+            )
+        else:
+            logger.info(f"All model checkpoint weights were used when initializing {model.__class__.__name__}.\n")
+        if len(missing_keys) > 0:
+            logger.warning(
+                f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at"
+                f" {pretrained_model_name_or_path} and are newly initialized: {missing_keys}\nYou should probably"
+                " TRAIN this model on a down-stream task to be able to use it for predictions and inference."
+            )
+        elif len(mismatched_keys) == 0:
+            logger.info(
+                f"All the weights of {model.__class__.__name__} were initialized from the model checkpoint at"
+                f" {pretrained_model_name_or_path}.\nIf your task is similar to the task the model of the"
+                f" checkpoint was trained on, you can already use {model.__class__.__name__} for predictions"
+                " without further training."
+            )
+        if len(mismatched_keys) > 0:
+            mismatched_warning = "\n".join(
+                [
+                    f"- {key}: found shape {shape1} in the checkpoint and {shape2} in the model instantiated"
+                    for key, shape1, shape2 in mismatched_keys
+                ]
+            )
+            logger.warning(
+                f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at"
+                f" {pretrained_model_name_or_path} and are newly initialized because the shapes did not"
+                f" match:\n{mismatched_warning}\nYou should probably TRAIN this model on a down-stream task to be"
+                " able to use it for predictions and inference."
+            )
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
+
+    def to(self, dtype: Optional[ms.Type] = None):
+        for p in self.get_parameters():
+            p.set_dtype(dtype)
+
+    def float(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float32)
+
+    def half(self):
+        for p in self.get_parameters():
+            p.set_dtype(ms.float16)
 
     @property
     def dtype(self) -> ms.Type:
         """
-        `torch.dtype`: The dtype of the module (assuming that all the module parameters have the same dtype).
+        `mindspore.Type`: The dtype of the module (assuming that all the module parameters have the same dtype).
         """
         return get_parameter_dtype(self)
 

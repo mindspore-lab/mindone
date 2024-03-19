@@ -1,5 +1,5 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
-# `TemporalConvLayer` Copyright 2023 Alibaba DAMO-VILAB, The ModelScope Team and The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
+# `TemporalConvLayer` Copyright 2024 Alibaba DAMO-VILAB, The ModelScope Team and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from .activations import get_activation
+from .normalization import GroupNorm
 from .downsampling import Downsample2D
 from .upsampling import Upsample2D
 
@@ -105,7 +106,7 @@ class ResnetBlock2D(nn.Cell):
         if groups_out is None:
             groups_out = groups
 
-        self.norm1 = nn.GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
+        self.norm1 = GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
         self.conv1 = conv_cls(in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
 
@@ -119,7 +120,7 @@ class ResnetBlock2D(nn.Cell):
         else:
             self.time_emb_proj = None
 
-        self.norm2 = nn.GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+        self.norm2 = GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
 
         self.dropout = nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
@@ -156,39 +157,18 @@ class ResnetBlock2D(nn.Cell):
                 has_bias=conv_shortcut_bias,
             )
 
-    def construct(
-        self,
-        input_tensor: ms.Tensor,
-        temb: ms.Tensor,
-        scale: float = 1.0,
-    ) -> ms.Tensor:
+    def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:
         hidden_states = input_tensor
 
         hidden_states = self.norm1(hidden_states)
         hidden_states = self.nonlinearity(hidden_states)
 
         if self.upsample is not None:
-            input_tensor = (
-                self.upsample(input_tensor, scale=scale)
-                if isinstance(self.upsample, Upsample2D)
-                else self.upsample(input_tensor)
-            )
-            hidden_states = (
-                self.upsample(hidden_states, scale=scale)
-                if isinstance(self.upsample, Upsample2D)
-                else self.upsample(hidden_states)
-            )
+            input_tensor = self.upsample(input_tensor)
+            hidden_states = self.upsample(hidden_states)
         elif self.downsample is not None:
-            input_tensor = (
-                self.downsample(input_tensor, scale=scale)
-                if isinstance(self.downsample, Downsample2D)
-                else self.downsample(input_tensor)
-            )
-            hidden_states = (
-                self.downsample(hidden_states, scale=scale)
-                if isinstance(self.downsample, Downsample2D)
-                else self.downsample(hidden_states)
-            )
+            input_tensor = self.downsample(input_tensor)
+            hidden_states = self.downsample(hidden_states)
 
         hidden_states = self.conv1(hidden_states)
 

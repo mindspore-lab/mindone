@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team.
+# Copyright 2024 The HuggingFace Inc. team.
 # Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,6 +41,7 @@ from .utils import (
     deprecate,
     extract_commit_hash,
     http_user_agent,
+    maybe_import_module_in_mindone,
     logging,
 )
 
@@ -126,7 +127,7 @@ class ConfigMixin:
         """The only reason we overwrite `getattr` here is to gracefully deprecate accessing
         config attributes directly. See https://github.com/huggingface/diffusers/pull/3129
 
-        Tihs funtion is mostly copied from PyTorch's __getattr__ overwrite:
+        This function is mostly copied from PyTorch's __getattr__ overwrite:
         https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module
         """
 
@@ -205,6 +206,8 @@ class ConfigMixin:
         Examples:
 
         ```python
+        >>> from mindone.diffusers import DDPMScheduler, DDIMScheduler, PNDMScheduler
+
         >>> # Download scheduler from huggingface.co and cache.
         >>> scheduler = DDPMScheduler.from_pretrained("google/ddpm-cifar10-32")
 
@@ -256,6 +259,10 @@ class ConfigMixin:
         model = cls(**init_dict)
 
         # make sure to also save config parameters that might be used for compatible classes
+        # update _class_name
+        if "_class_name" in hidden_dict:
+            hidden_dict["_class_name"] = cls.__name__
+
         model.register_to_config(**hidden_dict)
 
         # add hidden kwargs of compatible classes to unused_kwargs
@@ -471,7 +478,7 @@ class ConfigMixin:
             expected_keys = expected_keys - set(cls.ignore_for_config)
 
         # load diffusers library to import compatible and original scheduler
-        diffusers_library = importlib.import_module(__name__.split(".")[0])
+        diffusers_library = maybe_import_module_in_mindone(__name__.split(".")[1])
 
         if cls.has_compatibles:
             compatible_classes = [c for c in cls._get_compatibles()]  # todo: check backend using DummyObject
@@ -526,7 +533,7 @@ class ConfigMixin:
                 f"{cls.config_name} configuration file."
             )
 
-        # 5. Give nice info if config attributes are initiliazed to default because they have not been passed
+        # 5. Give nice info if config attributes are initialized to default because they have not been passed
         passed_keys = set(init_dict.keys())
         if len(expected_keys - passed_keys) > 0:
             logger.info(
@@ -646,51 +653,3 @@ def register_to_config(init):
         init(self, *args, **init_kwargs)
 
     return inner_init
-
-
-def flax_register_to_config(cls):
-    original_init = cls.__init__
-
-    @functools.wraps(original_init)
-    def init(self, *args, **kwargs):
-        if not isinstance(self, ConfigMixin):
-            raise RuntimeError(
-                f"`@register_for_config` was applied to {self.__class__.__name__} init method, but this class does "
-                "not inherit from `ConfigMixin`."
-            )
-
-        # Ignore private kwargs in the init. Retrieve all passed attributes
-        init_kwargs = dict(kwargs.items())
-
-        # Retrieve default values
-        fields = dataclasses.fields(self)
-        default_kwargs = {}
-        for field in fields:
-            # ignore flax specific attributes
-            if field.name in self._flax_internal_args:
-                continue
-            if type(field.default) == dataclasses._MISSING_TYPE:
-                default_kwargs[field.name] = None
-            else:
-                default_kwargs[field.name] = getattr(self, field.name)
-
-        # Make sure init_kwargs override default kwargs
-        new_kwargs = {**default_kwargs, **init_kwargs}
-        # dtype should be part of `init_kwargs`, but not `new_kwargs`
-        if "dtype" in new_kwargs:
-            new_kwargs.pop("dtype")
-
-        # Get positional arguments aligned with kwargs
-        for i, arg in enumerate(args):
-            name = fields[i].name
-            new_kwargs[name] = arg
-
-        # Take note of the parameters that were not present in the loaded config
-        if len(set(new_kwargs.keys()) - set(init_kwargs)) > 0:
-            new_kwargs["_use_default_values"] = list(set(new_kwargs.keys()) - set(init_kwargs))
-
-        getattr(self, "register_to_config")(**new_kwargs)
-        original_init(self, *args, **kwargs)
-
-    cls.__init__ = init
-    return cls

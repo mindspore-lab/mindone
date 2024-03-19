@@ -1,4 +1,4 @@
-# Copyright 2023 UC Berkeley Team and The HuggingFace Team. All rights reserved.
+# Copyright 2024 UC Berkeley Team and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ from mindspore import ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
+from ..utils.mindspore_utils import randn_tensor
 from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
 
 
@@ -87,7 +88,7 @@ def betas_for_alpha_bar(
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return ms.Tensor(betas, dtype=ms.float32)
+    return ms.tensor(betas, dtype=ms.float32)
 
 
 # Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
@@ -168,9 +169,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
             The way the timesteps should be scaled. Refer to Table 2 of the [Common Diffusion Noise Schedules and
             Sample Steps are Flawed](https://huggingface.co/papers/2305.08891) for more information.
         steps_offset (`int`, defaults to 0):
-            An offset added to the inference steps. You can use a combination of `offset=1` and
-            `set_alpha_to_one=False` to make the last step use step 0 for the previous alpha product like in Stable
-            Diffusion.
+            An offset added to the inference steps, as required by some model families.
         rescale_betas_zero_snr (`bool`, defaults to `False`):
             Whether to rescale the betas to have zero terminal SNR. This enables the model to generate very bright and
             dark samples instead of limiting it to samples with medium brightness. Loosely related to
@@ -202,16 +201,16 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         if trained_betas is not None:
             self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = ops.linspace(beta_start, beta_end, num_train_timesteps).to(ms.float32)
+            self.betas = ms.tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
-            self.betas = ops.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps).to(ms.float32) ** 2
+            self.betas = ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
         elif beta_schedule == "sigmoid":
             # GeoDiff sigmoid schedule
-            betas = ops.linspace(-6, 6, num_train_timesteps)
+            betas = ms.tensor(np.linspace(-6, 6, num_train_timesteps), dtype=ms.float32)
             self.betas = ops.sigmoid(betas) * (beta_end - beta_start) + beta_start
         else:
             raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
@@ -401,7 +400,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         model_output: ms.Tensor,
         timestep: int,
         sample: ms.Tensor,
-        generator=None,  # todo: maybe change to seed here?
+        generator=None,
         return_dict: bool = False,
     ) -> Union[DDPMSchedulerOutput, Tuple]:
         """
@@ -415,7 +414,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                 The current discrete timestep in the diffusion chain.
             sample (`ms.Tensor`):
                 A current instance of a sample created by the diffusion process.
-            generator (`torch.Generator`, *optional*):
+            generator (`np.random.Generator`, *optional*):
                 A random number generator.
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~schedulers.scheduling_ddpm.DDPMSchedulerOutput`] or `tuple`.
@@ -477,8 +476,8 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # 6. Add noise
         variance = 0
         if t > 0:
-            variance_noise = ops.randn(
-                model_output.shape, dtype=model_output.dtype,  # todo: seed here?
+            variance_noise = randn_tensor(
+                model_output.shape, generator=generator, dtype=model_output.dtype
             )
             if self.variance_type == "fixed_small_log":
                 variance = self._get_variance(t, predicted_variance=predicted_variance) * variance_noise
@@ -549,7 +548,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
     def previous_timestep(self, timestep):
         if self.custom_timesteps:
-            index = (self.timesteps == timestep).nonzero(as_tuple=True)[0][0]
+            index = (self.timesteps == timestep).nonzero()[0][0]
             if index == self.timesteps.shape[0] - 1:
                 prev_t = ms.Tensor(-1)
             else:

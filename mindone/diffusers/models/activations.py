@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2023 HuggingFace Inc.
+# Copyright 2024 HuggingFace Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,9 +17,18 @@ import mindspore as ms
 from mindspore import nn, ops
 
 
+def sigmoid(x):
+    """A numerically stable version of the logistic sigmoid function."""
+    return ops.where(
+        x >= 0.0,
+        1.0 / (1.0 + ops.exp(-x)),  # For positive values
+        ops.exp(x) / (1.0 + ops.exp(x))  # For negative values
+    )
+
+
 class SiLU(nn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
-        return x * ops.sigmoid(ops.clamp(x, -64, 64))
+        return x * sigmoid(x)
 
 
 ACTIVATION_FUNCTIONS = {
@@ -90,7 +99,7 @@ class GEGLU(nn.Cell):
     def gelu(self, gate: ms.Tensor) -> ms.Tensor:
         return ops.gelu(gate)
 
-    def construct(self, hidden_states, scale: float = 1.0):
+    def construct(self, hidden_states):
         hidden_states, gate = self.proj(hidden_states).chunk(2, axis=-1)
         return hidden_states * self.gelu(gate)
 

@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import inspect
 from importlib import import_module
 from typing import Callable, Optional, Union
 
@@ -18,6 +19,7 @@ import mindspore as ms
 from mindspore import ops, nn
 
 from ..utils import logging
+from .normalization import GroupNorm, LayerNorm
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -102,6 +104,8 @@ class Attention(nn.Cell):
         super().__init__()
         self.inner_dim = out_dim if out_dim is not None else dim_head * heads
         self.query_dim = query_dim
+        self.use_bias = bias
+        self.is_cross_attention = cross_attention_dim is not None
         self.cross_attention_dim = cross_attention_dim if cross_attention_dim is not None else query_dim
         self.upcast_attention = upcast_attention
         self.upcast_softmax = upcast_softmax
@@ -133,7 +137,7 @@ class Attention(nn.Cell):
             )
 
         if norm_num_groups is not None:
-            self.group_norm = nn.GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
+            self.group_norm = GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
         else:
             self.group_norm = None
 
@@ -146,7 +150,7 @@ class Attention(nn.Cell):
         if cross_attention_norm is None:
             self.norm_cross = None
         elif cross_attention_norm == "layer_norm":
-            self.norm_cross = nn.LayerNorm((self.cross_attention_dim,))
+            self.norm_cross = LayerNorm(self.cross_attention_dim)
         elif cross_attention_norm == "group_norm":
             if self.added_kv_proj_dim is not None:
                 # The given `encoder_hidden_states` are initially of shape
@@ -158,7 +162,7 @@ class Attention(nn.Cell):
             else:
                 norm_cross_num_channels = self.cross_attention_dim
 
-            self.norm_cross = nn.GroupNorm(
+            self.norm_cross = GroupNorm(
                 num_channels=norm_cross_num_channels, num_groups=cross_attention_norm_num_groups, eps=1e-5, affine=True
             )
         else:
@@ -258,12 +262,16 @@ class Attention(nn.Cell):
             `ms.Tensor`: The reshaped tensor.
         """
         head_size = self.heads
-        batch_size, seq_len, dim = tensor.shape
-        tensor = tensor.reshape(batch_size, seq_len, head_size, dim // head_size)
+        if tensor.ndim == 3:
+            batch_size, seq_len, dim = tensor.shape
+            extra_dim = 1
+        else:
+            batch_size, extra_dim, seq_len, dim = tensor.shape
+        tensor = tensor.reshape(batch_size, seq_len * extra_dim, head_size, dim // head_size)
         tensor = tensor.permute(0, 2, 1, 3)
 
         if out_dim == 3:
-            tensor = tensor.reshape(batch_size * head_size, seq_len, dim // head_size)
+            tensor = tensor.reshape(batch_size * head_size, seq_len * extra_dim, dim // head_size)
 
         return tensor
 
@@ -381,6 +389,35 @@ class Attention(nn.Cell):
 
         return encoder_hidden_states
 
+    def fuse_projections(self, fuse=True):
+        dtype = self.to_q.weight.dtype
+
+        if not self.is_cross_attention:
+            # fetch weight matrices.
+            concatenated_weights = ops.cat([self.to_q.weight, self.to_k.weight, self.to_v.weight])
+            in_features = concatenated_weights.shape[1]
+            out_features = concatenated_weights.shape[0]
+
+            # create a new single projection layer and copy over the weights.
+            self.to_qkv = self.linear_cls(in_features, out_features, has_bias=self.use_bias, dtype=dtype)
+            self.to_qkv.weight.set_data(concatenated_weights)
+            if self.use_bias:
+                concatenated_bias = ops.cat([self.to_q.bias, self.to_k.bias, self.to_v.bias])
+                self.to_qkv.bias.set_data(concatenated_bias)
+
+        else:
+            concatenated_weights = ops.cat([self.to_k.weight, self.to_v.weight])
+            in_features = concatenated_weights.shape[1]
+            out_features = concatenated_weights.shape[0]
+
+            self.to_kv = self.linear_cls(in_features, out_features, has_bias=self.use_bias, dtype=dtype)
+            self.to_kv.weight.set_data(concatenated_weights)
+            if self.use_bias:
+                concatenated_bias = ops.cat([self.to_k.bias, self.to_v.bias])
+                self.to_kv.bias.set_data(concatenated_bias)
+
+        self.fused_projections = fuse
+
 
 @ms.jit_class
 class AttnProcessor:
@@ -395,7 +432,6 @@ class AttnProcessor:
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         temb: Optional[ms.Tensor] = None,
-        scale: float = 1.0,
     ) -> ms.Tensor:
         residual = hidden_states
 
@@ -416,7 +452,7 @@ class AttnProcessor:
         attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
 
         if attn.group_norm is not None:
-            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2).unsqueeze(-1)).squeeze(-1).swapaxes(1, 2)
+            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
 
         query = attn.to_q(hidden_states)
 
@@ -451,8 +487,6 @@ class AttnProcessor:
 
         return hidden_states
 
-
-ADDED_KV_ATTENTION_PROCESSORS = ()
 
 CROSS_ATTENTION_PROCESSORS = (
     AttnProcessor,

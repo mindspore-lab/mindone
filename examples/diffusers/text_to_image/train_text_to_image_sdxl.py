@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team. All rights reserved.
+# Copyright 2024 The HuggingFace Inc. team. All rights reserved.
+# Hacked together by / Copyright 2024 Genius Patrick @ MindSpore Team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,11 +19,13 @@
 import argparse
 import functools
 import gc
+import json
 import logging
 import math
 import os
 import random
 import shutil
+import time
 from pathlib import Path
 
 import numpy as np
@@ -35,9 +38,7 @@ from mindspore import Parameter, Tensor, context, nn, ops
 from mindspore.amp import DynamicLossScaler, LossScaler, StaticLossScaler, all_finite
 from mindspore.dataset import vision, transforms, GeneratorDataset
 
-from mindone.diffusers.models import AutoencoderKL, UNet2DConditionModel
-from mindone.diffusers.schedulers import DDPMScheduler
-from mindone.diffusers.pipelines import StableDiffusionXLPipeline
+from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import compute_snr, set_seed, is_master, init_distributed_device
 
@@ -361,7 +362,7 @@ def parse_args(input_args=None):
         "--prediction_type",
         type=str,
         default=None,
-        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediciton_type` is chosen.",
+        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediction_type` is chosen.",
     )
     parser.add_argument(
         "--hub_model_id",
@@ -416,6 +417,24 @@ def parse_args(input_args=None):
     if args.proportion_empty_prompts < 0 or args.proportion_empty_prompts > 1:
         raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
 
+    # Limitations for NOW.
+    def error_template(feature, flag):
+        return f"{feature} is not yet supported, please do not set --{flag}"
+    assert args.gradient_accumulation_steps == 1, error_template("Gradient Accumulation", "gradient_accumulation_steps")
+    assert args.gradient_checkpointing is False, error_template("Gradient Checkpointing", "gradient_checkpointing")
+    assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
+    assert args.allow_tf32 is False, error_template("TF32 Data Type", "allow_tf32")
+    assert args.use_8bit_adam is False, error_template("AdamW8bit", "use_8bit_adam")
+    assert args.mixed_precision is None, error_template("Mixed Precision", "mixed_precision")
+    assert args.enable_xformers_memory_efficient_attention is False, error_template(
+        "Memory Efficient Attention from 'xformers'", "enable_xformers_memory_efficient_attention"
+    )
+    if args.push_to_hub is True:
+        raise ValueError(
+            "You cannot use --push_to_hub due to a security risk of uploading your data to huggingface-hub. "
+            "If you know what you are doing, just delete this line and try again."
+        )
+
     return args
 
 
@@ -461,9 +480,10 @@ def encode_prompt(batch, text_encoders, tokenizers, proportion_empty_prompts, ca
 
 
 def compute_vae_encodings(batch, vae):
-    images = batch.pop("pixel_values")  # tuple of np.array
+    images = batch.pop("pixel_values")
     pixel_values = Tensor(images)
     pixel_values = pixel_values.float()
+    pixel_values = pixel_values.to(dtype=vae.dtype)
 
     model_input = vae.diag_gauss_dist.sample(vae.encode(pixel_values)[0])
     model_input = model_input * vae.config.scaling_factor
@@ -516,6 +536,9 @@ def main():
     ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
     init_distributed_device(args)  # read attr distributed, writer attrs rank/local_rank/world_size
 
+    # tensorboard, mindinsight, wandb logging stuff into logging_dir
+    logging_dir = Path(args.output_dir, args.logging_dir)
+
     # Make one log on every process with the configuration for debugging.
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -529,8 +552,8 @@ def main():
 
     # Handle the repository creation
     if is_master(args):
-        if args.output_dir is not None:
-            os.makedirs(args.output_dir, exist_ok=True)
+        os.makedirs(args.output_dir, exist_ok=True)
+        os.makedirs(logging_dir, exist_ok=True)
 
     # Load the tokenizers
     tokenizer_one = AutoTokenizer.from_pretrained(
@@ -588,7 +611,7 @@ def main():
     # Set unet as trainable.
     unet.set_train(True)
 
-    # For mixed precision training we cast all non-trainable weigths to half-precision
+    # For mixed precision training we cast all non-trainable weights to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
     weight_dtype = ms.float32
     if args.mixed_precision == "fp16":
@@ -598,18 +621,11 @@ def main():
 
     # Move unet, vae and text_encoder to device and cast to weight_dtype
     # The VAE is in float32 to avoid NaN losses.
-    def convert_weights(m: nn.Cell, dtype):
-        for p in m.get_parameters():
-            p.set_dtype(dtype)
-    convert_weights(vae, ms.float32)  # we cannot use amp to this model, which will automatically convert dtype.
-    convert_weights(text_encoder_one, weight_dtype)
-    convert_weights(text_encoder_two, weight_dtype)
+    vae.to(ms.float32)
+    text_encoder_one.to(weight_dtype)
+    text_encoder_two.to(weight_dtype)
 
-    if args.enable_xformers_memory_efficient_attention:
-        raise ValueError("xformers is not available. Make sure it is installed correctly")
-
-    if args.gradient_checkpointing:
-        unet.enable_gradient_checkpointing()
+    # TODO: support EMA, xformers_memory_efficient_attention, gradient_checkpointing, TF32, AdamW8bit
 
     if args.scale_lr:
         args.learning_rate = (
@@ -682,15 +698,6 @@ def main():
 
     def preprocess_train(examples):
         images = [image.convert("RGB") for image in examples[image_column]]
-
-        # time ids
-        def compute_time_ids(original_size, crops_coords_top_left):
-            # Adapted from pipeline.StableDiffusionXLPipeline._get_add_time_ids
-            target_size = (args.resolution, args.resolution)
-            add_time_ids = list(original_size + crops_coords_top_left + target_size)
-            add_time_ids = np.array(add_time_ids)
-            return add_time_ids
-
         # image aug
         original_sizes = []
         all_images = []
@@ -707,12 +714,18 @@ def main():
                 x1 = max(0, int(round((image.width - args.resolution) / 2.0)))
                 image = train_crop(image)
             else:
-                # todo: we cannot get params of random cropping, maybe we need to reimplemented RandomCrop
-                y1, x1, h, w = train_crop.get_params(image, (args.resolution, args.resolution))
-                image = image.crop((x1, y1, x1 + w, y1 + h))
+                h, w = image.height, image.width
+                th, tw = args.resolution, args.resolution
+                if h < th or w < tw:
+                    raise ValueError(f"Required crop size {(th, tw)} is larger than input image size {(h, w)}")
+                if w == tw and h == th:
+                    return 0, 0, h, w
+                y1 = np.random.randint(0, h - th + 1, size=(1,)).item()
+                x1 = np.random.randint(0, w - tw + 1, size=(1,)).item()
+                image = image.crop((x1, y1, x1 + tw, y1 + th))
             crop_top_left = (y1, x1)
             crop_top_lefts.append(crop_top_left)
-            add_time_id = compute_time_ids(original_sizes[-1], crop_top_lefts[-1])
+            add_time_id = original_sizes[-1] + crop_top_lefts[-1] + (args.resolution, args.resolution)
             add_time_ids.append(add_time_id)
             image = train_transforms(image)[0]
             all_images.append(image)
@@ -747,7 +760,7 @@ def main():
     # fingerprint used by the cache for the other processes to load the result
     # details: https://github.com/huggingface/diffusers/pull/4038#discussion_r1266078401
     new_fingerprint = Hasher.hash(args)
-    new_fingerprint_for_vae = Hasher.hash("vae")
+    new_fingerprint_for_vae = Hasher.hash(vae_path)
     train_dataset = train_dataset.map(compute_embeddings_fn, batched=True, new_fingerprint=new_fingerprint)
     train_dataset = train_dataset.map(
         compute_vae_encodings_fn,
@@ -768,8 +781,8 @@ def main():
 
         def __getitem__(self, idx):
             idx = idx.item() if isinstance(idx, np.integer) else idx  # what the fuck?
-            example = self.data[idx]  # todo: members are list? why?
-            return (np.array(example[column], dtype=np.float32) for column in self.columns)
+            example = self.data[idx]  # members are list
+            return tuple(np.array(example[column], dtype=np.float32) for column in self.columns)
 
         def __len__(self):
             return len(self.data)
@@ -807,10 +820,30 @@ def main():
     # Afterwards we recalculate our number of training epochs
     args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
 
-    # Function for unwraping if torch.compile() was used in accelerate.
-    def unwrap_model(model):
-        # todo : may remove the disgusting _backbone after amp
-        return model
+    # We need to initialize the trackers we use, and also store our configuration.
+    if is_master(args):
+        with open(logging_dir / "args.json", 'w') as f:
+            json.dump(vars(args), f, indent=4)
+
+    # todo: may write the function `unwrap_model` to remove the disgusting _backbone prefix after amp?
+
+    train_step = TrainStep(
+        unet=unet,
+        optimizer=optimizer,
+        scaler=StaticLossScaler(65536),
+        noise_scheduler=noise_scheduler,
+        args=args,
+    ).set_train()
+
+    def maybe_compile(m: nn.Cell, *model_args, **model_kwargs):
+        if os.getenv("MS_JIT") != '0' and context._get_mode() == context.GRAPH_MODE:
+            logger.info(f"Compiling {m.__class__.__name__}...")
+            compile_begin = time.perf_counter()
+            m.compile(*model_args, **model_kwargs)
+            compile_end = time.perf_counter()
+            logger.info(f"Compiling is finished, elapsed time {compile_end - compile_begin:.2f} s")
+
+    maybe_compile(train_step, *next(iter(train_dataloader)))
 
     # Train!
     total_batch_size = args.train_batch_size * args.world_size * args.gradient_accumulation_steps
@@ -856,16 +889,6 @@ def main():
     else:
         initial_global_step = 0
 
-    train_step = TrainStep(
-        unet=unet,
-        noise_scheduler=noise_scheduler,
-        weight_dtype=weight_dtype,
-        args=args,
-        optimizer=optimizer,
-        scaler=StaticLossScaler(65536),
-        grad_clip_norm=args.max_grad_norm,
-    ).set_train()
-
     progress_bar = tqdm(
         range(0, args.max_train_steps),
         initial=initial_global_step,
@@ -875,8 +898,9 @@ def main():
     )
 
     for epoch in range(first_epoch, args.num_train_epochs):
+        unet.set_train(True)
         for step, (model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids) in enumerate(train_dataloader):
-            # with accelerator.accumulate(unet): todo: support accumulation
+            # todo: support accumulation
             loss = train_step(model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids)
 
             progress_bar.update(1)
@@ -919,6 +943,7 @@ def main():
                 f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
                 f" {args.validation_prompt}."
             )
+            unet.set_train(False)
 
             # create pipeline
             pipeline = StableDiffusionXLPipeline(
@@ -937,36 +962,33 @@ def main():
             pipeline.set_progress_bar_config(disable=True)
 
             # run inference
+            generator = np.random.Generator(np.random.PCG64(seed=args.seed)) if args.seed else None
             pipeline_args = {"prompt": args.validation_prompt}
             images = [
-                pipeline(**pipeline_args, num_inference_steps=25)[0][0]
+                pipeline(**pipeline_args, generator=generator, num_inference_steps=25)[0][0]
                 for _ in range(args.num_validation_images)
             ]
 
             if is_master(args):
-                val_output_dir = os.path.join(args.output_dir, "validation", f"epoch{epoch+1}")
-                os.makedirs(val_output_dir, exist_ok=True)
+                validation_logging_dir = os.path.join(logging_dir, "validation", f"epoch{epoch+1}")
+                os.makedirs(validation_logging_dir, exist_ok=True)
                 for idx, img in enumerate(images):
-                    img.save(os.path.join(val_output_dir, f"{idx:04d}.jpg"))
+                    img.save(os.path.join(validation_logging_dir, f"{idx:04d}.jpg"))
 
 
 class TrainStep(nn.Cell):
     def __init__(
         self,
         unet: nn.Cell,
-        noise_scheduler,
-        weight_dtype,
-        args,
         optimizer: nn.Optimizer,
         scaler: LossScaler,
-        grad_clip_norm: float = None,
+        noise_scheduler,
+        args,
     ):
         super().__init__()
         self.unet = unet.set_grad()
-        self.noise_scheduler = noise_scheduler
-        self.weight_dtype = weight_dtype
         self.optimizer = optimizer
-        self.weights = self.optimizer.parameters
+        self.weights = optimizer.parameters
         self.scaler = scaler
         if isinstance(self.scaler, StaticLossScaler):
             self.drop_overflow = False
@@ -983,92 +1005,91 @@ class TrainStep(nn.Cell):
             raise NotImplementedError(f"When creating reducer, Got Unsupported parallel mode: {self.parallel_mode}")
         if isinstance(unet, nn.Cell) and unet.jit_config_dict:
             self._jit_config_dict = unet.jit_config_dict
-
-        self.clip_grad = grad_clip_norm is not None
-        self.clip_value = grad_clip_norm
+        self.clip_grad = args.max_grad_norm is not None
+        self.clip_value = args.max_grad_norm
 
         # Get the target for loss depending on the prediction type
         if args.prediction_type is not None:
             # set prediction_type of scheduler if defined
             noise_scheduler.register_to_config(prediction_type=args.prediction_type)
+        self.noise_scheduler = noise_scheduler
 
         @ms.jit_class
-        class JitWrapper:
+        class ArgsJitWrapper:
             def __init__(self, **kwargs):
                 for name in kwargs:
                     setattr(self, name, kwargs[name])
 
-        args = JitWrapper(**vars(args))
-        noise_scheduler_config_num_train_timesteps = noise_scheduler.config.num_train_timesteps
-        noise_scheduler_config_prediction_type = noise_scheduler.config.prediction_type
+        self.args = ArgsJitWrapper(**vars(args))
+        self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
+        self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
 
-        def forward_fn(model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
-            # Sample noise that we'll add to the latents
-            noise = ops.randn_like(model_input)
-            if args.noise_offset:
-                # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-                noise += args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
+        self.forward_and_backward = ops.value_and_grad(self.forward, None, weights=self.weights, has_aux=True)
 
-            bsz = model_input.shape[0]
-            if args.timestep_bias_strategy == "none":
-                # Sample a random timestep for each image without bias.
-                timesteps = ops.randint(0, noise_scheduler_config_num_train_timesteps, (bsz,))
-            else:
-                # Sample a random timestep for each image, potentially biased by the timestep weights.
-                # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
-                weights = generate_timestep_weights(args, noise_scheduler_config_num_train_timesteps)
-                timesteps = ops.multinomial(weights, bsz, replacement=True).long()
+    def forward(self, model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
+        # Sample noise that we'll add to the latents
+        noise = ops.randn_like(model_input)
+        if self.args.noise_offset:
+            # https://www.crosslabs.org//blog/diffusion-with-offset-noise
+            noise += self.args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
 
-            # Add noise to the model input according to the noise magnitude at each timestep
-            # (this is the forward diffusion process)
-            noisy_model_input = noise_scheduler.add_noise(model_input, noise, timesteps)
+        bsz = model_input.shape[0]
+        if self.args.timestep_bias_strategy == "none":
+            # Sample a random timestep for each image without bias.
+            timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        else:
+            # Sample a random timestep for each image, potentially biased by the timestep weights.
+            # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
+            weights = generate_timestep_weights(self.args, self.noise_scheduler_num_train_timesteps)
+            timesteps = ops.multinomial(weights, bsz, replacement=True).long()
 
-            # Predict the noise residual
-            unet_added_conditions = {"time_ids": add_time_ids.to(dtype=weight_dtype)}
-            unet_added_conditions.update({"text_embeds": pooled_prompt_embeds})
-            model_pred = unet(
-                noisy_model_input,
-                timesteps,
-                prompt_embeds,
-                added_cond_kwargs=unet_added_conditions,
-                return_dict=False,
+        # Add noise to the model input according to the noise magnitude at each timestep
+        # (this is the forward diffusion process)
+        noisy_model_input = self.noise_scheduler.add_noise(model_input, noise, timesteps)
+
+        # Predict the noise residual
+        unet_added_conditions = {"time_ids": add_time_ids, "text_embeds": pooled_prompt_embeds}
+        model_pred = self.unet(
+            noisy_model_input,
+            timesteps,
+            prompt_embeds,
+            added_cond_kwargs=unet_added_conditions,
+            return_dict=False,
+        )[0]
+
+        if self.noise_scheduler_prediction_type == "epsilon":
+            target = noise
+        elif self.noise_scheduler_prediction_type == "v_prediction":
+            target = self.noise_scheduler.get_velocity(model_input, noise, timesteps)
+        elif self.noise_scheduler_prediction_type == "sample":
+            # We set the target to latents here, but the model_pred will return the noise sample prediction.
+            target = model_input
+            # We will have to subtract the noise residual from the prediction to get the target sample.
+            model_pred = model_pred - noise
+        else:
+            raise ValueError(f"Unknown prediction type {self.noise_scheduler_prediction_type}")
+
+        if self.args.snr_gamma is None:
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+        else:
+            # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
+            # Since we predict the noise instead of x_0, the original formulation is slightly changed.
+            # This is discussed in Section 4.2 of the same paper.
+            snr = compute_snr(self.noise_scheduler, timesteps)
+            mse_loss_weights = ops.stack([snr, self.args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(
+                axis=1
             )[0]
+            if self.noise_scheduler_prediction_type == "epsilon":
+                mse_loss_weights = mse_loss_weights / snr
+            elif self.noise_scheduler_prediction_type == "v_prediction":
+                mse_loss_weights = mse_loss_weights / (snr + 1)
 
-            if noise_scheduler_config_prediction_type == "epsilon":
-                target = noise
-            elif noise_scheduler_config_prediction_type == "v_prediction":
-                target = noise_scheduler.get_velocity(model_input, noise, timesteps)
-            elif noise_scheduler_config_prediction_type == "sample":
-                # We set the target to latents here, but the model_pred will return the noise sample prediction.
-                target = model_input
-                # We will have to subtract the noise residual from the prediction to get the target sample.
-                model_pred = model_pred - noise
-            else:
-                raise ValueError(f"Unknown prediction type {noise_scheduler_config_prediction_type}")
+            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.mean(axis=list(range(1, len(loss.shape)))) * mse_loss_weights
+            loss = loss.mean()
 
-            if args.snr_gamma is None:
-                loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
-            else:
-                # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
-                # Since we predict the noise instead of x_0, the original formulation is slightly changed.
-                # This is discussed in Section 4.2 of the same paper.
-                snr = compute_snr(noise_scheduler, timesteps)
-                mse_loss_weights = ops.stack([snr, args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(
-                    axis=1
-                )[0]
-                if noise_scheduler_config_prediction_type == "epsilon":
-                    mse_loss_weights = mse_loss_weights / snr
-                elif noise_scheduler_config_prediction_type == "v_prediction":
-                    mse_loss_weights = mse_loss_weights / (snr + 1)
-
-                loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
-                loss = loss.mean(axis=list(range(1, len(loss.shape)))) * mse_loss_weights
-                loss = loss.mean()
-
-            loss = scaler.scale(loss)
-            return loss, model_pred
-
-        self.grad_fn = ops.value_and_grad(forward_fn, grad_position=None, weights=self.weights, has_aux=True)
+        loss = self.scaler.scale(loss)
+        return loss, model_pred
 
     def update(self, loss, grads):
         if self.clip_grad:
@@ -1078,7 +1099,7 @@ class TrainStep(nn.Cell):
         return loss
 
     def construct(self, *inputs):
-        (loss, model_pred), grads = self.grad_fn(*inputs)
+        (loss, model_pred), grads = self.forward_and_backward(*inputs)
         grads = self.grad_reducer(grads)
         loss = self.scaler.unscale(loss)
         grads = self.scaler.unscale(grads)

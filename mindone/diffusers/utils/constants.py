@@ -17,10 +17,6 @@ import os
 from huggingface_hub.constants import HF_HOME
 
 
-MIN_PEFT_VERSION = "0.6.0"
-MIN_TRANSFORMERS_VERSION = "4.34.0"
-
-
 CONFIG_NAME = "config.json"
 WEIGHTS_NAME = "diffusion_pytorch_model.bin"
 FLAX_WEIGHTS_NAME = "diffusion_flax_model.msgpack"

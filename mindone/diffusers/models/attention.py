@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@ from typing import Any, Dict, Optional
 import mindspore as ms
 from mindspore import nn, ops
 
+from ..utils import deprecate, logging
 from .activations import GEGLU, GELU, ApproximateGELU
 from .attention_processor import Attention
+from .normalization import LayerNorm
 
 
-def _chunked_feed_forward(
-    ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int, chunk_size: int, lora_scale: Optional[float] = None
-):
+logger = logging.get_logger(__name__)
+
+
+def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int, chunk_size: int):
     # "feed_forward_chunk_size" can be used to save memory
     if hidden_states.shape[chunk_dim] % chunk_size != 0:
         raise ValueError(
@@ -30,18 +33,10 @@ def _chunked_feed_forward(
         )
 
     num_chunks = hidden_states.shape[chunk_dim] // chunk_size
-    if lora_scale is None:
-        ff_output = ops.cat(
-            [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, axis=chunk_dim)],
-            axis=chunk_dim,
-        )
-    else:
-        # TODO(Patrick): LoRA scale can be removed once PEFT refactor is complete
-        ff_output = ops.cat(
-            [ff(hid_slice, scale=lora_scale) for hid_slice in hidden_states.chunk(num_chunks, axis=chunk_dim)],
-            axis=chunk_dim,
-        )
-
+    ff_output = ops.cat(
+        [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, axis=chunk_dim)],
+        axis=chunk_dim,
+    )
     return ff_output
 
 
@@ -94,7 +89,7 @@ class BasicTransformerBlock(nn.Cell):
         double_self_attention: bool = False,
         upcast_attention: bool = False,
         norm_elementwise_affine: bool = True,
-        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single', 'layer_norm_i2vgen'
+        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single', 'ada_norm_continuous', 'layer_norm_i2vgen'
         norm_eps: float = 1e-5,
         final_dropout: bool = False,
         attention_type: str = "default",
@@ -110,6 +105,7 @@ class BasicTransformerBlock(nn.Cell):
         self.only_cross_attention = only_cross_attention
 
         assert norm_type == "layer_norm", f"Only layer_norm not supported, but got {norm_type}!"
+        self.use_layer_norm = norm_type == "layer_norm"
         self.norm_type = norm_type
         self.num_embeds_ada_norm = num_embeds_ada_norm
 
@@ -125,7 +121,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        self.norm1 = nn.LayerNorm((dim,), epsilon=norm_eps)  # elementwise_affine=norm_elementwise_affine
+        self.norm1 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
@@ -142,7 +138,7 @@ class BasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            self.norm2 = nn.LayerNorm((dim,), epsilon=norm_eps)  # norm_elementwise_affine
+            self.norm2 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
             self.attn2 = Attention(
                 query_dim=dim,
                 cross_attention_dim=cross_attention_dim if not double_self_attention else None,
@@ -158,7 +154,7 @@ class BasicTransformerBlock(nn.Cell):
             self.attn2 = None
 
         # 3. Feed-forward
-        self.norm3 = nn.LayerNorm((dim,), epsilon=norm_eps)  # norm_elementwise_affine
+        self.norm3 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
         self.ff = FeedForward(
             dim,
             dropout=dropout,
@@ -194,17 +190,20 @@ class BasicTransformerBlock(nn.Cell):
     ) -> ms.Tensor:
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Self-Attention
+        batch_size = hidden_states.shape[0]
+
         norm_hidden_states = self.norm1(hidden_states)
 
         if self.pos_embed is not None:
             norm_hidden_states = self.pos_embed(norm_hidden_states)
 
-        # 1. Retrieve lora scale.
-        lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
-
-        # 2. Prepare GLIGEN inputs
-        cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
-        gligen_kwargs = cross_attention_kwargs.get("gligen", None)
+        # 1. Prepare GLIGEN inputs
+        if cross_attention_kwargs is not None:
+            cross_attention_kwargs = cross_attention_kwargs.copy()
+            gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
+        else:
+            cross_attention_kwargs = {}
+            gligen_kwargs = None
 
         attn_output = self.attn1(
             norm_hidden_states,
@@ -217,7 +216,7 @@ class BasicTransformerBlock(nn.Cell):
         if hidden_states.ndim == 4:
             hidden_states = hidden_states.squeeze(1)
 
-        # 2.5 GLIGEN Control
+        # 1.2 GLIGEN Control
         if gligen_kwargs is not None:
             hidden_states = self.fuser(hidden_states, gligen_kwargs["objs"])
 
@@ -241,11 +240,9 @@ class BasicTransformerBlock(nn.Cell):
 
         if self._chunk_size is not None:
             # "feed_forward_chunk_size" can be used to save memory
-            ff_output = _chunked_feed_forward(
-                self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size, lora_scale=lora_scale
-            )
+            ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
         else:
-            ff_output = self.ff(norm_hidden_states, scale=lora_scale)
+            ff_output = self.ff(norm_hidden_states)
 
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4:
@@ -306,7 +303,7 @@ class FeedForward(nn.Cell):
             net.append(nn.Dropout(p=dropout))
         self.net = nn.CellList(net)
 
-    def construct(self, hidden_states: ms.Tensor, scale: float = 1.0) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         for module in self.net:
             hidden_states = module(hidden_states)
         return hidden_states

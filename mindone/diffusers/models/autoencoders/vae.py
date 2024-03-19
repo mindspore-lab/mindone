@@ -1,4 +1,4 @@
-# Copyright 2023 The HuggingFace Team. All rights reserved.
+# Copyright 2024 The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ from mindspore import nn, ops
 
 from ...utils import BaseOutput
 from ..activations import SiLU
+from ..normalization import GroupNorm
 from ..unets.unet_2d_blocks import (
     UNetMidBlock2D,
     get_down_block,
@@ -128,7 +129,7 @@ class Encoder(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
         self.conv_act = SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -254,7 +255,7 @@ class Decoder(nn.Cell):
         if norm_type == "spatial":
             raise NotImplementedError("SpatialNorm is not implemented.")
         else:
-            self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
         self.conv_act = SiLU()
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
