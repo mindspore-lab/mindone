@@ -152,27 +152,6 @@ def main(args):
     latte_model.set_train(True)
     for param in latte_model.get_parameters():
         param.requires_grad = True
-    # 2.2 vae
-    logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        4,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae . TODO: set by config file
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
-
-    if args.condition == "text":
-        text_encoder = initiate_clip_text_encoder(
-            use_fp16=True,  # TODO: set by config file
-            ckpt_path=args.clip_checkpoint,
-            trainable=False,
-        )
-        tokenizer = text_encoder.tokenizer
-    else:
-        text_encoder, tokenizer = None, None
 
     # select dataset
     data_config = OmegaConf.load(args.data_config_file).data_config
@@ -181,6 +160,31 @@ def main(args):
     data_config.sample_n_frames = args.num_frames
     data_config.batch_size = args.train_batch_size
     train_with_embed = True if data_config.get("train_data_type", None) in ["numpy", "mindrecord"] else False
+
+    if not train_with_embed:
+        # 2.2 vae
+        logger.info("vae init")
+        vae = AutoencoderKL(
+            SD_CONFIG,
+            4,
+            ckpt_path=args.vae_checkpoint,
+            use_fp16=False,  # disable amp for vae . TODO: set by config file
+        )
+        vae = vae.set_train(False)
+        for param in vae.get_parameters():  # freeze vae
+            param.requires_grad = False
+    else:
+        vae = None
+
+    if args.condition == "text" and not train_with_embed:
+        text_encoder = initiate_clip_text_encoder(
+            use_fp16=True,  # TODO: set by config file
+            ckpt_path=args.clip_checkpoint,
+            trainable=False,
+        )
+        tokenizer = text_encoder.tokenizer
+    else:
+        text_encoder, tokenizer = None, None
 
     dataset = get_dataset(
         args.dataset_name,
