@@ -71,7 +71,6 @@ def parse_train_args(parser):
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
-    parser.add_argument("--callback_size", default=1, type=int, help="callback size.")
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")

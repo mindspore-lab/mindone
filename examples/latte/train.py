@@ -290,7 +290,7 @@ def main(args):
 
     model = Model(net_with_grads)
     # callbacks
-    callback = [TimeMonitor(args.callback_size)]
+    callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
@@ -304,7 +304,7 @@ def main(args):
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
-            log_interval=args.callback_size,
+            log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name="Latte",
             record_lr=False,  # TODO: check LR retrival for new MS on 910b

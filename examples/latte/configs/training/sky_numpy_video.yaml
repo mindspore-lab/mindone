@@ -11,15 +11,16 @@ vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
 use_model_dtype: "fp16"
+patch_embedder: "conv"
 use_recompute: True
 
 # data setting
 dataset_name: "sky"
 data_config_file: "configs/training/data/sky_numpy_video.yaml"
-dataset_sink_mode: True
+dataset_sink_mode: False
 
 # training hyper-params
-start_learning_rate: 1e-4
+start_learning_rate: 2e-5
 scheduler: "constant"
 warmup_steps: 0
 train_batch_size: 1

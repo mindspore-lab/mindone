@@ -156,7 +156,10 @@ python train.py -c configs/training/sky_numpy_video.yaml
 
 Note that in `sky_numpy_video.yaml`, we use a large number of frames 128 and a smaller sample stride 1, which are different from the settings in `sky_video.yaml` (num_frames=16 and stride=3)· Embedding caching allows us to train Latte to generate more frames with a larger frame rate.
 
-Due to the memory limit, we set the local batch size to $1$ and use a gradient accumulation step $2$. In case of OOM, please set `enable_flash_attention: True` in the `configs/training/sky_numpy_video.yaml`. It can reduce the memory cost and also accelerate the training speed.
+Due to the memory limit, we set the local batch size to $1$ and use a gradient accumulation steps $2$. The number of epochs is $1000$ and the learning rate is $2e^{-5}$. The total number of training steps is about 1000k.
+
+
+In case of OOM, please set `enable_flash_attention: True` in the `configs/training/sky_numpy_video.yaml`. It can reduce the memory cost and also accelerate the training speed.
 
 
 # References
