@@ -2,8 +2,19 @@ from typing import Optional
 
 import numpy as np
 
+__all__ = ["get_2d_sincos_pos_embed", "precompute_freqs_cis_2d"]
 
-def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: int) -> np.ndarray:
+
+def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -> np.ndarray:
+    """Generate 2D sinusoidal positional embedding based on the given height and width
+    referred from https://github.com/facebookresearch/mae
+
+    Args:
+        embed_dim: embedding dimension.
+        nh: image height
+        nw: image width. If it is not given, then `nw` is equal to `nh`. Default: None
+    """
+    nw = nh if nw is None else nw
     grid_h = np.arange(nh, dtype=np.float32)
     grid_w = np.arange(nw, dtype=np.float32)
     grid = np.meshgrid(grid_w, grid_h)  # here w goes first
@@ -12,6 +23,32 @@ def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: int) -> np.ndarray:
     grid = grid.reshape([2, nh, nw])
     pos_embed = _get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     return pos_embed
+
+
+def precompute_freqs_cis_2d(
+    dim: int, nh: int, nw: Optional[int] = None, max_length: Optional[int] = None
+) -> np.ndarray:
+    """Precompute the frequency tensor for complex exponentials (cis) with given dimensions, for 2D RoPE
+    referered from 1D RoPE https://github.com/meta-llama/llama and paper `FiT` https://arxiv.org/abs/2402.12376
+
+    If max_length is not None, then a length extrpolation algo. `VisionNTK` from `FiT` will be used for tensor calculation.
+
+    Args:
+        dim: dimension of the frequency tensor
+        nh: image height
+        nw: image width. If it is not given, then `nw` is equal to `nh`. Default: None
+        max_length: If it is None, then the VisionNTK algo. will be applied. Default: None
+    """
+    nw = nh if nw is None else nw
+    grid_h = np.arange(nh, dtype=np.float32)
+    grid_w = np.arange(nw, dtype=np.float32)
+    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
+    grid = np.stack(grid, axis=0)
+
+    grid = grid.reshape([2, nh, nw])
+    freqs_cis = _precompute_freqs_cis_2d_from_grid(dim, grid, max_length=max_length)  # (M, D/2, 2)
+    freqs_cis = np.reshape(freqs_cis, (freqs_cis.shape[0], -1))
+    return freqs_cis
 
 
 def _get_2d_sincos_pos_embed_from_grid(embed_dim: int, grid: np.ndarray) -> np.ndarray:
@@ -42,20 +79,6 @@ def _get_1d_sincos_pos_embed_from_grid(embed_dim: int, pos: np.ndarray) -> np.nd
 
     emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
     return emb
-
-
-def precompute_freqs_cis_2d(dim: int, nh: int, nw: int, max_length: Optional[int] = None) -> np.ndarray:
-    grid_h = np.arange(nh, dtype=np.float32)
-    grid_w = np.arange(nw, dtype=np.float32)
-    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
-    grid = np.stack(grid, axis=0)
-
-    grid = grid.reshape([2, nh, nw])
-    freqs_cis = _precompute_freqs_cis_2d_from_grid(dim, grid, max_length=max_length)  # (M, D/2, 2)
-    freqs_cis = np.reshape(
-        freqs_cis, (freqs_cis.shape[0], -1)
-    )  # (M, D), need to convert (M, D/2, 2) before computation
-    return freqs_cis
 
 
 def _precompute_freqs_cis_2d_from_grid(

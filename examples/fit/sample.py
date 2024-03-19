@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+"""
+FiT inference pipeline
+"""
 import argparse
 import datetime
 import logging
@@ -8,7 +12,7 @@ import time
 import numpy as np
 import yaml
 from PIL import Image
-from utils.model_utils import check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
+from utils.model_utils import check_cfgs_in_parser, count_params, load_fit_ckpt_params, remove_pname_prefix, str2bool
 from utils.plot import image_grid
 
 import mindspore as ms
@@ -20,8 +24,8 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
+from pipelines.infer_pipeline import FiTInferPipeline
 
-from examples.dit.pipelines.infer_pipeline import FiTInferPipeline
 from mindone.models.fit import FiT_models
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -48,7 +52,7 @@ def parse_args():
     parser.add_argument(
         "--config",
         "-c",
-        default="",
+        default="configs/inference/fit-xl-2-256x256.yaml",
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
@@ -80,7 +84,7 @@ def parse_args():
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
     parser.add_argument("--embed_dim", type=int, default=72, help="Embed Dim")
     parser.add_argument("--embed_method", default="rotate", help="Embed Method")
-    parser.add_argument("--dit_checkpoint", type=str, required=True, help="the path to the FiT checkpoint.")
+    parser.add_argument("--fit_checkpoint", type=str, required=True, help="the path to the FiT checkpoint.")
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -109,7 +113,7 @@ def parse_args():
         help="whether to use fp16 for FiT mode. Default is True",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
-    parser.add_argument("--imagegrid", default=False, type=str2bool, help="")
+    parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -147,11 +151,11 @@ if __name__ == "__main__":
         fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
     try:
-        fit_model = load_dit_ckpt_params(fit_model, args.dit_checkpoint)
+        fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
     except Exception:
-        param_dict = ms.load_checkpoint(args.dit_checkpoint)
+        param_dict = ms.load_checkpoint(args.fit_checkpoint)
         param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        fit_model = load_dit_ckpt_params(fit_model, param_dict)
+        fit_model = load_fit_ckpt_params(fit_model, param_dict)
     fit_model = fit_model.set_train(False)
     for param in fit_model.get_parameters():  # freeze fit_model
         param.requires_grad = False
@@ -198,9 +202,9 @@ if __name__ == "__main__":
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_fit, num_params_dit_trainable = count_params(fit_model)
+    num_params_fit, num_params_fit_trainable = count_params(fit_model)
     num_params = num_params_vae + num_params_fit
-    num_params_trainable = num_params_vae_trainable + num_params_dit_trainable
+    num_params_trainable = num_params_vae_trainable + num_params_fit_trainable
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [

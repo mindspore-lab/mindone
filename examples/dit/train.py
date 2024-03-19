@@ -171,10 +171,10 @@ def main(args):
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiTWithLoss(
         dit_model,
+        vae,
         diffusion,
-        vae=vae,
-        scale_factor=args.sd_scale_factor,
-        condition=args.condition,
+        args.sd_scale_factor,
+        args.condition,
         text_encoder=None,
         cond_stage_trainable=False,
     )

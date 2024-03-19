@@ -1,22 +1,10 @@
-from typing import Type, Union
+from typing import Any, Dict, Tuple, Type, Union
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
-from .dit import (
-    GELU,
-    FinalLayer,
-    LabelEmbedder,
-    LayerNorm,
-    Mlp,
-    Optional,
-    TimestepEmbedder,
-    constant_,
-    exists,
-    modulate,
-    normal_,
-    xavier_uniform_,
-)
+from .dit import GELU, FinalLayer, LabelEmbedder, LayerNorm, Mlp, Optional, TimestepEmbedder
+from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 __all__ = [
     "FiT",
@@ -36,7 +24,7 @@ __all__ = [
 ]
 
 
-def complex_mult(x: Tensor, y: Tensor):
+def complex_mult(x: Tensor, y: Tensor) -> Tensor:
     assert x.shape[-1] == y.shape[-1] == 2
     a, b = x[..., 0], x[..., 1]
     c, d = y[..., 0], y[..., 1]
@@ -47,7 +35,7 @@ def complex_mult(x: Tensor, y: Tensor):
     return ops.stack([real_part, imag_part], axis=-1)
 
 
-def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor):
+def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor) -> Tuple[Tensor, Tensor]:
     q_shape = q.shape
     k_shape = q.shape
     # to complex
@@ -63,12 +51,12 @@ def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor):
 
 
 class Attention(nn.Cell):
-    def __init__(self, dim_head: int, attn_drop: float = 0.0):
+    def __init__(self, dim_head: int, attn_drop: float = 0.0) -> None:
         super().__init__()
         self.scale = dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
 
-    def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None):
+    def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
 
         # use fp32 for exponential inside
@@ -92,7 +80,7 @@ class SelfAttention(nn.Cell):
         proj_drop: float = 0.0,
         apply_rotate_embed: bool = False,
         enable_flash_attention: bool = False,
-    ):
+    ) -> None:
         super().__init__()
         if enable_flash_attention:
             raise NotImplementedError("Flash attention is not supported yet.")
@@ -109,7 +97,7 @@ class SelfAttention(nn.Cell):
         self.apply_rotate_embed = apply_rotate_embed
 
     @staticmethod
-    def _rearange_in(x, h):
+    def _rearange_in(x: Tensor, h: int) -> Tensor:
         # (b, n, h*d) -> (b, h, n, d)
         b, n, d = x.shape
         d = d // h
@@ -119,14 +107,14 @@ class SelfAttention(nn.Cell):
         return x
 
     @staticmethod
-    def _rearange_out(x):
+    def _rearange_out(x: Tensor) -> Tensor:
         # (b, h, n, d) -> (b, n, h*d)
         b, _, n, _ = x.shape
         x = ops.transpose(x, (0, 2, 1, 3))
         x = ops.reshape(x, (b, n, -1))
         return x
 
-    def construct(self, x: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None):
+    def construct(self, x: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None) -> Tensor:
         h = self.num_heads
         B, N, _ = x.shape
 
@@ -159,7 +147,7 @@ class SwiGLU(nn.Cell):
         norm_layer: Optional[Type[nn.Cell]] = None,
         has_bias: bool = True,
         drop: float = 0.0,
-    ):
+    ) -> None:
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
@@ -172,7 +160,7 @@ class SwiGLU(nn.Cell):
         self.fc2 = nn.Dense(hidden_features, out_features, has_bias=has_bias)
         self.drop2 = nn.Dropout(p=drop)
 
-    def construct(self, x):
+    def construct(self, x: Tensor) -> Tensor:
         x_gate = self.fc1_g(x)
         x = self.fc1_x(x)
         x = self.act(x_gate) * x
@@ -188,7 +176,15 @@ class FiTBlock(nn.Cell):
     A FiT block with adaptive layer norm zero (adaLN-Zero) conditioning.
     """
 
-    def __init__(self, hidden_size, num_heads, mlp_ratio=4.0, ffn="swiglu", pos="rotate", **block_kwargs):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        ffn: str = "swiglu",
+        pos: str = "rotate",
+        **block_kwargs: Any,
+    ) -> None:
         super().__init__()
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         apply_rotate_embed = pos == "rotate"
@@ -206,9 +202,13 @@ class FiTBlock(nn.Cell):
             mlp_hidden_dim = int(hidden_size * mlp_ratio)
             approx_gelu = lambda: GELU(approximate="tanh")
             self.ffn = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        else:
+            raise ValueError(f"Unsupported ffn `{ffn}`")
         self.adaLN_modulation = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
 
-    def construct(self, x: Tensor, c: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None):
+    def construct(
+        self, x: Tensor, c: Tensor, mask: Optional[Tensor] = None, freqs_cis: Optional[Tensor] = None
+    ) -> Tensor:
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, axis=1)
         x = x + gate_msa.unsqueeze(1) * self.attn(
             modulate(self.norm1(x), shift_msa, scale_msa), mask=mask, freqs_cis=freqs_cis
@@ -219,23 +219,36 @@ class FiTBlock(nn.Cell):
 
 class FiT(nn.Cell):
     """
-    Diffusion model with a Transformer backbone.
+    FiT: Flexible Vision Transformer for Diffusion Model
+    https://arxiv.org/abs/2402.12376
+
+    Args:
+        patch_size: patch size. Default: 2
+        in_channels: The number of input channels in the input latent. Default: 4
+        hidden_size: The hidden size of the Transformer model. Default: 1152
+        depth: The number of blocks in this Transformer. Default: 28
+        num_heads: The number of attention heads. Default: 16
+        mlp_ratio: The expansion ratio for the hidden dimension in the MLP of the Transformer. Default: 4.0
+        class_dropout_prob: The dropout probability for the class labels in the label embedder. Default: 0.1
+        num_classes: The number of classes of the input labels. Default: 1000
+        learn_sigma: Whether to learn the diffusion model's sigma parameter. Default: True
+        block_kwargs: Additional keyword arguments for the Transformer blocks. for example, `{'enable_flash_attention':True}`. Default: {}
     """
 
     def __init__(
         self,
-        patch_size=2,
-        in_channels=4,
-        hidden_size=1152,
-        depth=28,
-        num_heads=16,
-        mlp_ratio=4.0,
-        class_dropout_prob=0.1,
-        num_classes=1000,
-        learn_sigma=True,
-        ffn="swiglu",
-        pos="rotate",
-        block_kwargs={},
+        patch_size: int = 2,
+        in_channels: int = 4,
+        hidden_size: int = 1152,
+        depth: int = 28,
+        num_heads: int = 16,
+        mlp_ratio: float = 4.0,
+        class_dropout_prob: float = 0.1,
+        num_classes: int = 1000,
+        learn_sigma: bool = True,
+        ffn: str = "swiglu",
+        pos: str = "rotate",
+        block_kwargs: Dict[str, Any] = {},
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -289,7 +302,7 @@ class FiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x: Tensor):
+    def unpatchify(self, x: Tensor) -> Tensor:
         """
         x: (N, T, patch_size**2 * C)
         imgs: (N, H, W, C)
@@ -303,7 +316,7 @@ class FiT(nn.Cell):
         imgs = x.reshape((x.shape[0], c, h * self.patch_size, h * self.patch_size))
         return imgs
 
-    def _check_input(self, x):
+    def patchify(self, x: Tensor) -> Tensor:
         if len(x.shape) == 4:
             N, C, H, W = x.shape
             nh, nw = H // self.patch_size, W // self.patch_size
@@ -312,7 +325,7 @@ class FiT(nn.Cell):
             x = ops.reshape(x, (N, nh * nw, -1))
         return x
 
-    def construct(self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor):
+    def construct(self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor) -> Tensor:
         """
         Forward pass of FiT.
         x: (N, T, D) or (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
@@ -321,7 +334,7 @@ class FiT(nn.Cell):
         pos: (N, T, D) tensor of positional embedding or precomputed cosine and sine frequencies
         mask: (N, T) tensor of valid mask
         """
-        x = self._check_input(x)
+        x = self.patchify(x)
         if self.pos == "absolute":
             x = self.x_embedder(x) + pos  # (N, T, D), where T = H * W / patch_size ** 2
         else:
@@ -345,7 +358,7 @@ class FiT(nn.Cell):
     @ms.jit
     def construct_with_cfg(
         self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor, cfg_scale: Union[float, Tensor]
-    ):
+    ) -> Tensor:
         """
         Forward pass of FiT, but also batches the unconditional forward pass for classifier-free guidance.
         """

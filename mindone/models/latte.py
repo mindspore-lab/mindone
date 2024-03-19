@@ -5,17 +5,9 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
-from .dit import (
-    DiTBlock,
-    FinalLayer,
-    LabelEmbedder,
-    PatchEmbed,
-    TimestepEmbedder,
-    constant_,
-    get_2d_sincos_pos_embed,
-    normal_,
-    xavier_uniform_,
-)
+from .dit import DiTBlock, FinalLayer, LabelEmbedder, PatchEmbed, TimestepEmbedder
+from .modules import get_2d_sincos_pos_embed
+from .utils import constant_, normal_, xavier_uniform_
 
 logger = logging.getLogger(__name__)
 

@@ -18,9 +18,9 @@ def remove_pname_prefix(param_dict, prefix="network."):
     return new_param_dict
 
 
-def load_dit_ckpt_params(model, ckpt):
+def load_fit_ckpt_params(model, ckpt):
     if isinstance(ckpt, str):
-        logger.info(f"Loading {ckpt} params into DiT model...")
+        logger.info(f"Loading {ckpt} params into FiT model...")
         param_dict = ms.load_checkpoint(ckpt)
     else:
         param_dict = ckpt
@@ -50,7 +50,7 @@ def count_params(model, verbose=False):
     return total_params, trainable_params
 
 
-def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
+def check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     actions_dest = [action.dest for action in parser._actions]
     defaults_key = parser._defaults.keys()
     for k in cfgs.keys():

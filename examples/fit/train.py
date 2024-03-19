@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 """
 FiT training pipeline
-- Image finetuning conditioned on class labels (optional)
 """
 import datetime
 import logging
@@ -8,24 +8,22 @@ import os
 import sys
 from typing import Tuple
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
+
 import yaml
 from args_train import parse_args
 from data.imagenet_dataset import create_dataloader_imagenet_latent
+from diffusion import create_diffusion
 from pipelines.train_pipeline import FiTWithLoss
-from utils.model_utils import load_dit_ckpt_params
+from utils.model_utils import load_fit_ckpt_params
 
 import mindspore as ms
 from mindspore import Model, nn
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
-
-
-from diffusion import create_diffusion
 
 from mindone.models.fit import FiT_models
 
@@ -144,8 +142,8 @@ def main(args):
     if args.use_fp16:
         fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
-    if args.dit_checkpoint:
-        fit_model = load_dit_ckpt_params(fit_model, args.dit_checkpoint)
+    if args.fit_checkpoint:
+        fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
     else:
         logger.info("Initialize FIT ramdonly")
     fit_model.set_train(True)

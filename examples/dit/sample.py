@@ -8,7 +8,7 @@ import time
 import numpy as np
 import yaml
 from PIL import Image
-from utils.model_utils import check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
+from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
 from utils.plot import image_grid
 
 import mindspore as ms
@@ -96,7 +96,7 @@ def parse_args():
         help="whether to use fp16 for DiT mode. Default is True",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
-    parser.add_argument("--imagegrid", default=False, type=str2bool, help="")
+    parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -104,7 +104,7 @@ def parse_args():
         default_args.config = os.path.join(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
-            check_cfgs_in_parser(cfg, parser)
+            _check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
     return args

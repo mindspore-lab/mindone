@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+"""
+FiT preprocessing (for training) pipeline
+"""
 import argparse
 import json
 import logging
@@ -52,6 +56,7 @@ def parse_args():
         default=256,
         help="path to source torch checkpoint, which ends with .pt",
     )
+    parser.add_argument("--outdir", default="./latent", help="Path of the output dir")
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
     parser.add_argument(
         "--vae_checkpoint",
@@ -78,12 +83,13 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    save_dir = "latent"
+    args = parse_args()
+
+    save_dir = args.outdir
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    args = parse_args()
     init_env(args)
 
     # 2 vae
