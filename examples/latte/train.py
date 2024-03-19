@@ -53,6 +53,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
+    precision_mode: str = "force_fp16",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -61,6 +62,9 @@ def init_env(
         mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
         seed: The seed value for reproducibility. Default is 42.
         distributed: Whether to enable distributed training. Default is False.
+        max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
+        device_target (str, default: "Ascend"): The target device on which the function should be executed: "GPU" or "Ascend"
+        precision_mode (str, default: "force_fp16"): the precision mode for mixed precision.
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
     """
@@ -74,7 +78,7 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"}, # TODO: tune
+            ascend_config={"precision_mode": precision_mode},
         )
         init()
         device_num = get_group_size()
@@ -98,7 +102,7 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
+            ascend_config={"precision_mode": precision_mode},
         )
 
     return device_id, rank_id, device_num
@@ -115,6 +119,7 @@ def main(args):
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
+        precision_mode=args.precision_mode,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -310,7 +315,10 @@ def main(args):
     # 5. log and save config
     if rank_id == 0:
         # 4. print key info
-        num_params_vae, num_params_vae_trainable = count_params(vae)
+        if vae is not None:
+            num_params_vae, num_params_vae_trainable = count_params(vae)
+        else:
+            num_params_vae, num_params_vae_trainable = 0, 0
         num_params_latte, num_params_latte_trainable = count_params(latte_model)
         num_params = num_params_vae + num_params_latte
         num_params_trainable = num_params_vae_trainable + num_params_latte_trainable

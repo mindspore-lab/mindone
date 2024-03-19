@@ -143,11 +143,11 @@ To check more usages, please use `python tools/embedding_cache.py -h`.
 
 </details>
 
-- Step 2: Change the dataset configuration file's `data_folder` to the current cache folder path.
+- **Step 2**: Change the dataset configuration file's `data_folder` to the current cache folder path.
 
 After the embeddings have been cached, edit `configs/training/data/sky_numpy_video.yaml`, and change the `data_folder` to the folder where the cached embeddings are stored in.
 
-- Step 3: Run the training script.
+- **Step 3**: Run the training script.
 
 You can start training on the cached embedding dataset of Sky TimeLapse using:
 ```bash
