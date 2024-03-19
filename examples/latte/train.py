@@ -53,7 +53,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    precision_mode: str = "force_fp16",
+    precision_mode: str = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -64,13 +64,15 @@ def init_env(
         distributed: Whether to enable distributed training. Default is False.
         max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
         device_target (str, default: "Ascend"): The target device on which the function should be executed: "GPU" or "Ascend"
-        precision_mode (str, default: "force_fp16"): the precision mode for mixed precision.
+        precision_mode (str, default: None): the precision mode for mixed precision.
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+    if precision_mode is not None:
+        ms.set_context(ascend_config={"precision_mode": precision_mode})
 
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
@@ -78,7 +80,6 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": precision_mode},
         )
         init()
         device_num = get_group_size()
@@ -102,7 +103,6 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": precision_mode},
         )
 
     return device_id, rank_id, device_num

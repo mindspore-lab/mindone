@@ -37,8 +37,9 @@ def init_env(args):
         mode=args.mode,
         device_target=args.device_target,
         device_id=device_id,
-        ascend_config={"precision_mode": args.precision_mode},
     )
+    if args.precision_mode is not None:
+        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
 
     return device_id
 
@@ -103,7 +104,10 @@ def parse_args():
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
-        "--precision_mode", default="force_fp16", type=str, help="the precision mode for Ascend configurations."
+        "--precision_mode",
+        default=None,
+        type=str,
+        help="If specified, set the precision mode for Ascend configurations.",
     )
     parser.add_argument(
         "--patch_embedder",
