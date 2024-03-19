@@ -24,6 +24,16 @@ def load_dit_ckpt_params(model, ckpt):
         param_dict = ms.load_checkpoint(ckpt)
     else:
         param_dict = ckpt
+    # check patch embedder type
+    if model.patch_embedder != "conv":
+        # reshape model.x_embedder to (C, -1) to adapt conv weight to dense layer weight
+        if param_dict["x_embedder.proj.weight"].dim() > 2:
+            param = param_dict["x_embedder.proj.weight"]
+            C = param.shape[0]
+            param_dict["x_embedder.proj.weight"] = ms.Parameter(
+                param.value().reshape((C, -1)), requires_grad=True, name=param.name
+            )
+
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
     assert (
         len(param_not_load) == len(ckpt_not_load) == 0

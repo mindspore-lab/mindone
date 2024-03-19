@@ -107,6 +107,12 @@ def parse_args():
         help="whether use fp16 for dit.",
     )
     parser.add_argument(
+        "--patch_embedder",
+        type=str,
+        default="conv",
+        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
+    )
+    parser.add_argument(
         "--model_name",
         "-m",
         type=str,

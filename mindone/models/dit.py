@@ -160,6 +160,53 @@ class PatchEmbed(nn.Cell):
         return x
 
 
+class LinearPatchEmbed(nn.Cell):
+    """Image to Patch Embedding: using a linear layer instead of conv2d layer for projection
+
+    Args:
+        image_size (int): Image size. Default: 224.
+        patch_size (int): Patch token size. Default: 4.
+        in_chans (int): Number of input image channels. Default: 3.
+        embed_dim (int): Number of linear projection output channels. Default: 96.
+    """
+
+    def __init__(
+        self,
+        image_size: Optional[int] = 224,
+        patch_size: int = 4,
+        in_chans: int = 3,
+        embed_dim: int = 96,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
+        if image_size is not None:
+            self.image_size: Optional[Tuple] = (image_size, image_size) if isinstance(image_size, int) else image_size
+            self.patches_resolution: Optional[Tuple] = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
+            self.num_patches: Optional[int] = self.patches_resolution[0] * self.patches_resolution[1]
+        else:
+            self.image_size: Optional[Tuple] = None
+            self.patches_resolution: Optional[Tuple] = None
+            self.num_patches: Optional[int] = None
+        self.embed_dim = embed_dim
+        self.proj = nn.Dense(patch_size * patch_size * in_chans, embed_dim, has_bias=bias)
+
+    def construct(self, x: Tensor) -> Tensor:
+        b, c, h, w = x.shape
+        if self.image_size is not None:
+            assert (h, w) == (
+                self.image_size[0],
+                self.image_size[1],
+            ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
+        ph, pw = h // self.patch_size[0], w // self.patch_size[1]
+        x = x.reshape((b, c, self.patch_size[0], ph, self.patch_size[1], pw))  # (B, C, P, Ph, P, Pw)
+        x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
+        x = x.reshape((b, ph * pw, self.patch_size[0] * self.patch_size[1] * c))  # (B, Ph*Pw, P*P*C)
+
+        x = self.proj(x)  # B Ph*Pw C_out
+        return x
+
+
 class Mlp(nn.Cell):
     def __init__(
         self,
@@ -521,6 +568,7 @@ class DiT(nn.Cell):
         num_classes=1000,
         learn_sigma=True,
         block_kwargs={},
+        patch_embedder="conv",
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -528,8 +576,12 @@ class DiT(nn.Cell):
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
         self.num_heads = num_heads
-
-        self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
+        self.patch_embedder = patch_embedder
+        if patch_embedder == "conv":
+            PatchEmbedder = PatchEmbed
+        else:
+            PatchEmbedder = LinearPatchEmbed
+        self.x_embedder = PatchEmbedder(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
         num_patches = self.x_embedder.num_patches

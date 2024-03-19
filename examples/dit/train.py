@@ -143,6 +143,7 @@ def main(args):
         input_size=latent_size,
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        patch_embedder=args.patch_embedder,
     )
     if args.use_fp16:
         dit_model = auto_mixed_precision(dit_model, amp_level="O2")
