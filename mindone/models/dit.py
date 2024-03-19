@@ -13,14 +13,22 @@ from mindspore.common.initializer import Constant, Normal, One, XavierNormal, Xa
 from ..utils.version_control import MSVersion, check_valid_flash_attention, choose_flash_attention_dtype
 
 logger = logging.getLogger(__name__)
-FLASH_IS_AVAILABLE = check_valid_flash_attention()
-if FLASH_IS_AVAILABLE:
+
+# try import fa
+try:
     if MSVersion >= "2.3.0":
         from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
     else:
         from mindspore.nn.layer.flash_attention import FlashAttention
+    import_fa_success = True
+except Exception:
+    import_fa_success = False
 
+FLASH_IS_AVAILABLE = check_valid_flash_attention(import_fa_success)
+if FLASH_IS_AVAILABLE:
     logger.info("Flash attention is available.")
+else:
+    logger.info("Flash attention is unavailable.")
 
 __all__ = [
     "DiT",
