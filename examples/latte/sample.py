@@ -118,10 +118,11 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--use_fp16",
-        default=True,
-        type=str2bool,
-        help="whether to use fp16 for Latte mode. Default is True",
+        "--use_model_dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
         "--use_recompute",
@@ -167,8 +168,14 @@ if __name__ == "__main__":
         use_recompute=args.use_recompute,
     )
 
-    if args.use_fp16:
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2")
+    if args.use_model_dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.use_model_dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
     if len(args.checkpoint) > 0:
         param_dict = ms.load_checkpoint(args.checkpoint)
@@ -231,7 +238,7 @@ if __name__ == "__main__":
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use FP16: {args.use_fp16}",
+            f"Use model dtype: {model_dtype}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",

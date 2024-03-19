@@ -100,10 +100,11 @@ def parse_train_args(parser):
         help="whether use recompute.",
     )
     parser.add_argument(
-        "--use_fp16",
-        default=True,
-        type=str2bool,
-        help="whether use fp16 for latte.",
+        "--use_model_dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
         "--model_name",

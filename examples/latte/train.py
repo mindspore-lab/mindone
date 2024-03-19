@@ -131,8 +131,14 @@ def main(args):
         use_recompute=args.use_recompute,
     )
 
-    if args.use_fp16:
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2")
+    if args.use_model_dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.use_model_dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
     if len(args.pretrained_model_path) > 0:
         param_dict = ms.load_checkpoint(args.pretrained_model_path)
@@ -152,7 +158,7 @@ def main(args):
         SD_CONFIG,
         4,
         ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
+        use_fp16=False,  # disable amp for vae . TODO: set by config file
     )
     vae = vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
@@ -160,7 +166,7 @@ def main(args):
 
     if args.condition == "text":
         text_encoder = initiate_clip_text_encoder(
-            use_fp16=args.use_fp16,
+            use_fp16=True,  # TODO: set by config file
             ckpt_path=args.clip_checkpoint,
             trainable=False,
         )
@@ -311,7 +317,7 @@ def main(args):
                 f"Distributed mode: {args.use_parallel}",
                 f"Num params: {num_params:,} (dit: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use FP16: {args.use_fp16}",
+                f"Use model dtype: {model_dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",

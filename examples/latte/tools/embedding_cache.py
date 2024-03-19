@@ -102,7 +102,7 @@ def init_models(args):
         SD_CONFIG,
         4,
         ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
+        use_fp16=False,  # disable amp for vae . TODO: set by config file
     )
     vae = vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
@@ -110,7 +110,7 @@ def init_models(args):
 
     if args.condition == "text":
         text_encoder = initiate_clip_text_encoder(
-            use_fp16=args.use_fp16,
+            use_fp16=True,  # TODO: set by config file
             ckpt_path=args.clip_checkpoint,
             trainable=False,
         )
@@ -226,7 +226,6 @@ def main(args):
             f"cache_file_type: {args.cache_file_type}",
             f"save_data_type: {args.save_data_type}",
             f"cache_folder: {args.cache_folder}",
-            f"Use FP16: {args.use_fp16}",
             f"Image size: {args.image_size}",
             f"Frames: {args.num_frames}",
             f"Enable flash attention: {args.enable_flash_attention}",
