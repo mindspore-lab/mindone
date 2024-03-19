@@ -137,6 +137,12 @@ def parse_args():
         type=str2bool,
         help="whether use recompute.",
     )
+    parser.add_argument(
+        "--patch_embedder",
+        type=str,
+        default="conv",
+        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
+    )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -173,6 +179,7 @@ if __name__ == "__main__":
         condition=args.condition,
         num_frames=args.num_frames,
         use_recompute=args.use_recompute,
+        patch_embedder=args.patch_embedder,
     )
 
     if args.use_model_dtype == "fp16":

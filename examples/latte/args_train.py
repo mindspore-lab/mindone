@@ -100,6 +100,12 @@ def parse_train_args(parser):
         help="whether use recompute.",
     )
     parser.add_argument(
+        "--patch_embedder",
+        type=str,
+        default="conv",
+        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
+    )
+    parser.add_argument(
         "--use_model_dtype",
         default="fp16",
         type=str,

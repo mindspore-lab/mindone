@@ -134,6 +134,7 @@ def main(args):
         condition=args.condition,
         num_frames=args.num_frames,
         use_recompute=args.use_recompute,
+        patch_embedder=args.patch_embedder,
     )
 
     if args.use_model_dtype == "fp16":

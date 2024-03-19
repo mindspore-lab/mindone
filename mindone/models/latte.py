@@ -9,6 +9,7 @@ from .dit import (
     DiTBlock,
     FinalLayer,
     LabelEmbedder,
+    LinearPatchEmbed,
     PatchEmbed,
     TimestepEmbedder,
     constant_,
@@ -55,6 +56,7 @@ class Latte(nn.Cell):
         learn_sigma=True,
         block_kwargs={},
         condition=None,
+        patch_embedder="conv",
         use_recompute=False,
     ):
         super().__init__()
@@ -65,14 +67,18 @@ class Latte(nn.Cell):
         self.num_heads = num_heads
         self.num_classes = num_classes
         self.use_recompute = use_recompute
+        self.patch_embedder = patch_embedder
 
         if condition is not None:
             assert isinstance(condition, str), f"Expect that the condition type is a string, but got {type(condition)}"
             self.condition = condition.lower()
         else:
             self.condition = condition
-
-        self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
+        if patch_embedder == "conv":
+            PatchEmbedder = PatchEmbed
+        else:
+            PatchEmbedder = LinearPatchEmbed
+        self.x_embedder = PatchEmbedder(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         assert self.condition in [None, "text", "class"], f"Unsupported condition type! {self.condition}"
         if self.condition == "class":
