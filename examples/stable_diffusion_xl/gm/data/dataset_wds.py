@@ -476,7 +476,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         try:
             raw = self.dataset[idx]
             image, caption = self.parse_raw_data(raw)
-            sample = self.preprocess(image, caption, idx)
+            sample = self.preprocess(image, caption)
 
             if (self.prev_ok_sample is None) or (self.require_update_prev):
                 self.prev_ok_sample = copy.deepcopy(sample)
