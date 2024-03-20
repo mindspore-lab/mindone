@@ -20,7 +20,7 @@ data_config_file: "configs/training/data/sky_numpy_video.yaml"
 dataset_sink_mode: True
 
 # training hyper-params
-start_learning_rate: 1e-4
+start_learning_rate: 2e-5
 scheduler: "constant"
 warmup_steps: 0
 train_batch_size: 1
@@ -38,6 +38,6 @@ betas: [0.9, 0.999]
 optim_eps: 1.e-6
 
 # training process
-log_interval: 100
+log_interval: 1
 ckpt_save_interval: 50 # save ckpt every n epochs
 step_mode: False
