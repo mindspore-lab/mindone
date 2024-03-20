@@ -1,5 +1,10 @@
 from typing import Any, Dict, Tuple, Type, Union
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
+
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
@@ -181,8 +186,8 @@ class FiTBlock(nn.Cell):
         hidden_size: int,
         num_heads: int,
         mlp_ratio: float = 4.0,
-        ffn: str = "swiglu",
-        pos: str = "rotate",
+        ffn: Literal["swiglu", "mlp"] = "swiglu",
+        pos: Literal["rotate", "absolute"] = "rotate",
         **block_kwargs: Any,
     ) -> None:
         super().__init__()
@@ -232,6 +237,8 @@ class FiT(nn.Cell):
         class_dropout_prob: The dropout probability for the class labels in the label embedder. Default: 0.1
         num_classes: The number of classes of the input labels. Default: 1000
         learn_sigma: Whether to learn the diffusion model's sigma parameter. Default: True
+        ffn: Method to use in FFN block. Can choose SwiGLU or MLP. Default: swiglu
+        pos: Method to use in positional encoding. Can choose absolute or rotate. Default: rotate
         block_kwargs: Additional keyword arguments for the Transformer blocks. for example, `{'enable_flash_attention':True}`. Default: {}
     """
 
@@ -246,8 +253,8 @@ class FiT(nn.Cell):
         class_dropout_prob: float = 0.1,
         num_classes: int = 1000,
         learn_sigma: bool = True,
-        ffn: str = "swiglu",
-        pos: str = "rotate",
+        ffn: Literal["swiglu", "mlp"] = "swiglu",
+        pos: Literal["rotate", "absolute"] = "rotate",
         block_kwargs: Dict[str, Any] = {},
     ):
         super().__init__()
