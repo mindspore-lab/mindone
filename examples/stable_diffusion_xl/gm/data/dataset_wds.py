@@ -153,7 +153,7 @@ class T2I_BaseDataset:
                     flush=True,
                 )
 
-    def preprocess(self, image, caption: str, idx=0):
+    def preprocess(self, image, caption: str, image_path="0000000000000"):
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
@@ -178,12 +178,8 @@ class T2I_BaseDataset:
 
         if self.return_sample_name:
             self.dataset_output_column_names.append("sample_name")
-            if idx == 0:
-                temp = "0000000000000"  # random value
-            if idx != 0:
-                image_path = self.dataset[idx]["__key__"]
-                temp = str(image_path)
-            sample["sample_name"] = np.array(temp)
+            sample["sample_name"] = np.array(image_path)
+            print("sample_name is :", image_path)
 
         for trans in self.transforms:
             sample = trans(sample)
@@ -369,7 +365,7 @@ class T2I_Webdataset(T2I_BaseDataset):
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
-                sample = self.preprocess(image, caption)
+                sample = self.preprocess(image, caption, str(raw["__key__"]))
                 trials += 1
                 if sample is not None:
                     self.prev_ok_sample = copy.deepcopy(sample)
@@ -402,7 +398,7 @@ class T2I_Webdataset(T2I_BaseDataset):
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
-                sample = self.preprocess(image, caption)
+                sample = self.preprocess(image, caption, str(raw["__key__"]))
 
                 yield sample
             except StopIteration:
