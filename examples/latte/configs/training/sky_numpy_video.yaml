@@ -17,14 +17,14 @@ use_recompute: True
 # data setting
 dataset_name: "sky"
 data_config_file: "configs/training/data/sky_numpy_video.yaml"
-dataset_sink_mode: False
+dataset_sink_mode: True
 
 # training hyper-params
-start_learning_rate: 2e-5
+start_learning_rate: 1e-4
 scheduler: "constant"
 warmup_steps: 0
 train_batch_size: 1
-gradient_accumulation_steps: 2
+gradient_accumulation_steps: 4
 weight_decay: 0.0
 epochs: 1000
 

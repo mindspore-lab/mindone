@@ -1,6 +1,6 @@
 # Latte: Latent Diffusion Transformer for Video Generation
 
-## Introduction of Latte
+## 1. Introduction of Latte
 
 Latte [<a href="#references">1</a>] is a novel Latent Diffusion Transformer designed for video generation. It is built based on DiT (a diffusion transformer model for image generation). For introduction of DiT [<a href="#references">2</a>], please refer to [README of DiT](../dit/README.md).
 
@@ -19,10 +19,10 @@ Through experiments and analysis, they found the best practice is structure (a) 
 Similar to DiT, Latte supports un-conditional video generation and class-labels-conditioned video generation. In addition, it supports to generate videos given text captions.
 
 
-## Get Started
+## 2. Get Started
 In this tutorial, we will introduce how to run inference and finetuning experiments using MindONE.
 
-### Environment Setup
+### 2.1 Environment Setup
 
 ```
 pip install -r requirements.txt
@@ -50,7 +50,7 @@ Instruction on ffmpeg and decord install on EulerOS:
     python3 setup.py install --user
 ```
 
-### Pretrained Checkpoints
+### 2.2 Pretrained Checkpoints
 
 We refer to the [official repository of Latte](https://github.com/Vchitect/Latte/tree/main) for pretrained checkpoints downloading. The pretrained checkpoint files trained on FaceForensics, SkyTimelapse, Taichi-HD and UCF101 (256x256) can be downloaded from [huggingface](https://huggingface.co/maxin-cn/Latte/tree/main).
 
@@ -64,7 +64,7 @@ Please also download the VAE checkpoint from [huggingface/stabilityai.co](https:
 python tools/vae_converter.py --source path/to/vae/ckpt --target models/sd-vae-ft-mse.ckpt
 ```
 
-## Sampling
+## 3. Sampling
 
 For example, to run inference of `skytimelapse.ckpt` model with the `256x256` image size on Ascend devices, you can use:
 ```bash
@@ -85,7 +85,7 @@ Some of the generated results are shown here:
     </tr>
 </table>
 
-## Training
+## 4. Training
 
 Now, we support training Latte model on the Sky Timelapse dataset, which can be downloaded from https://github.com/weixiong-ur/mdgan.
 
@@ -114,7 +114,7 @@ To accelerate the training speed, we use `dataset_sink_mode: True` in the config
 
 After training, the checkpoints are saved under `output_dir/ckpt/`. To run inference with the checkpoint, please change `checkpoint` in `configs/inference/sky.yaml` to the path of the checkpoint, and then run `python sample.py -c configs/inference/sky.yaml`.
 
-### Training With Embedding Cache
+### 4.1 Training With Embedding Cache
 
 We can accelerate the training speed by caching the embeddings of the dataset before running the training script. This takes three steps:
 
@@ -156,10 +156,27 @@ python train.py -c configs/training/sky_numpy_video.yaml
 
 Note that in `sky_numpy_video.yaml`, we use a large number of frames 128 and a smaller sample stride 1, which are different from the settings in `sky_video.yaml` (num_frames=16 and stride=3)· Embedding caching allows us to train Latte to generate more frames with a larger frame rate.
 
-Due to the memory limit, we set the local batch size to $1$ and use a gradient accumulation steps $2$. The number of epochs is $1000$ and the learning rate is $2e^{-5}$. The total number of training steps is about 1000k.
-
+Due to the memory limit, we set the local batch size to $1$ and use a gradient accumulation steps $4$. The number of epochs is $1000$ and the learning rate is $1e^{-4}$. The total number of training steps is about 1000k.
 
 In case of OOM, please set `enable_flash_attention: True` in the `configs/training/sky_numpy_video.yaml`. It can reduce the memory cost and also accelerate the training speed.
+
+### 4.3 Distributed Training
+
+Taking the 4-card distributed training as an example, you can start the distributed training using:
+```bash
+export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
+mpirun -n 4 python train.py \
+    -c path/to/configuration/file \
+    --use_parallel True
+```
+where the configuration file can be selected from the `.yaml` files in `configs/training/` folder.
+
+If you have the rank table of Ascend devices, you can take `scripts/run_distributed_sky_numpy_video.sh` as a reference, and start the 4-card distributed training using:
+```bash
+bash scripts/run_distributed_sky_numpy_video.sh path/to/rank/table 0 4
+```
+
+The first number `0` indicates the start index of the training devices, and the second number `4` indicates the total number of distributed processes you want to launch.
 
 
 # References
