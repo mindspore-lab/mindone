@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument(
         "--config",
         "-c",
-        default="configs/preprocess/latent_extraction.yaml",
+        default="configs/preprocess/sd-vae-ft-mse-256x256.yaml",
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
