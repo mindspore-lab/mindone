@@ -148,6 +148,11 @@ class ImageNetLatentIterator:
         x = self.latent_info[idx]
 
         latent = np.load(x["path"])
+
+        # N(mean, std)
+        mean, std = np.split(latent, 2, axis=0)
+        latent = mean + std * np.random.randn(mean.shape)
+
         latent = self._random_horiztotal_flip(latent)
         latent, pos = self._patchify(latent)
 

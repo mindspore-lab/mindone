@@ -19,7 +19,7 @@ use_fp16: True
 # data setting
 imagenet_format: True
 data_path: imagenet_samples/images/
-dataset_sink_mode: False
+dataset_sink_mode: True
 num_parallel_workers: 4
 
 # training hyper-params

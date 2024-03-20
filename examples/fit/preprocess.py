@@ -127,7 +127,7 @@ if __name__ == "__main__":
         if os.path.isfile(dest):
             continue
 
-        latent = vae.encode(img).numpy().astype(np.float16)[0]
+        latent = vae.encode_with_moments_output(img).numpy().astype(np.float16)[0]
         np.save(dest, latent)
         records.append(dict(img=path, latent=dest))
 
