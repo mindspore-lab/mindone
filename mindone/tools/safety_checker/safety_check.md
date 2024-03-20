@@ -19,7 +19,7 @@ For other compatible models, e.g., OpenCLIP, you can download `open_clip_pytorch
 
 
 ## Usage
-You can use the checkers in your image generation pipelines. It is by default included in `text_to_image.py` for checking the safety of stable diffusion outputs. In addition, you can test the checkers on saved images or videos. please run,
+You can incorporate the checkers into your image generation pipelines. By default, they are included in `text_to_image.py` for evaluating the safety of stable diffusion outputs. Additionally, you have the option to test the checkers on saved images or videos. Please execute the following command:
 
 ### Image Safety Check
 
