@@ -13,7 +13,7 @@ class FiTInferPipeline:
     """
 
     Args:
-        dit (nn.Cell): A `FiT` to denoise the encoded image latents.
+        fit (nn.Cell): A `FiT` to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         scale_factor (float): scale_factor for vae.
         guidance_rescale (float): A higher guidance scale value for noise rescale.
@@ -22,7 +22,7 @@ class FiTInferPipeline:
 
     def __init__(
         self,
-        dit,
+        fit,
         vae,
         text_encoder=None,
         scale_factor=1.0,
@@ -33,7 +33,7 @@ class FiTInferPipeline:
     ):
         super().__init__()
         self.model_config = model_config
-        self.dit = dit
+        self.fit = fit
         self.vae = vae
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
@@ -167,7 +167,7 @@ class FiTInferPipeline:
 
         model_kwargs = dict(y=y, pos=pos, mask=mask, cfg_scale=Tensor(self.guidance_rescale, dtype=ms.float32))
         latents = self.sampling_func(
-            self.dit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+            self.fit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
         )
         latents, _ = latents.chunk(2, axis=0)
         latents = self._unpad_latent(latents, valid_t, h, w, p)

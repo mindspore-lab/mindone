@@ -145,7 +145,7 @@ def main(args):
     if args.fit_checkpoint:
         fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
     else:
-        logger.info("Initialize FIT ramdonly")
+        logger.info("Initialize FIT randomly.")
     fit_model.set_train(True)
 
     set_fit_params(fit_model, ft_all_params=True, train=True)

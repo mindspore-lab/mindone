@@ -17,15 +17,40 @@ To run inference of `FiT-XL/2` model with the `256x256` image size on Ascend dev
 python sample.py --imagegrid True
 
 ```
-You can also adjust the image size by add the flag `--image_height` and `--image_width`. For example, you can run
+You can also adjust the image size by adding the flag `--image_height` and `--image_width`. For example, you can run
 ```bash
 python sample.py --imagegrid True --image_height 320 --image_width 160
 ```
 to generate image with 160x320 size.
 
+#### Intermediate Result
+Some generated example images of are shown below:
+
+<p align="center"><img width="400" src="https://github.com/zhtmike/mindone/assets/8342575/71404444-61e8-44c1-a8fb-34bed6fddb1f"/>
+<br><em>Sampling Result (85/360 epochs)</em></p>
+
+
 ## Training with ImageNet format
 
 We provide the training script for dataset in the ImageNet format.
+
+### Data Preperation
+
+You may download the ImageNet-1K data from (https://www.image-net.org/challenges/LSVRC/2012/index.php). After decompressing, the folder structure will look like this
+
+```text
+ImageNet2012/
+├── train
+│   ├── n01440764
+│   │   ├── n01440764_10026.JPEG
+│   │   ├── n01440764_10027.JPEG
+│   │   └── ...
+│   └── ...
+└── val
+    └── ...
+```
+
+We use the `train` folder for training the FiT model.
 
 ### Latent Extraction
 
@@ -63,6 +88,29 @@ to launch a 4P training. For detail usage of the training script, please run
 ```bash
 bash scripts/run_distributed.sh -h
 ```
+
+## Benchmark
+
+### Training
+
+| Model    | Context       | Global Batch Size x Grad. Accu. | Max. Resolution | Acceleration | FPS (img/s) |
+|----------|---------------|---------------------------------|-----------------|--------------|-------------|
+| FiT-XL-2 | D910*x4-MS2.2 | 256x1                           | 256x256         | FP16         | 319.7       |
+
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+> Acceleration: FP16: float16 computation. Flash attention is not used in the test currently.
+> Max. Resolution: The maximum resolution of the image in training.
+> FPS: images per second during training. average training time (s/step) = batch_size / FPS
+
+### Inference
+
+| SD Model | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) |
+|----------|---------------|-----------|-------|------------|------------|----------------|
+| FiT-XL-2 | D910*x1-MS2.2 | DDPM      | 250   | 256x256    | 8          | 2.19           |
+| FiT-XL-2 | D910*x1-MS2.2 | DDIM      | 50    | 256x256    | 8          | 1.82           |
+
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+> Speed (step/s): sampling speed measured in the number of sampling steps per second.
 
 # References
 
