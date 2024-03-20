@@ -12,6 +12,7 @@ from itertools import islice
 import numpy as np
 import webdataset as wds
 import wids
+from gm.data.util import _is_valid_text_input
 from gm.util import instantiate_from_config
 from PIL import Image
 from tqdm import tqdm
@@ -39,16 +40,6 @@ def get_tar_nsample(tar_file):
     for cur in wds_iterator:
         n += 1
     return n
-
-
-def get_sample_name_and_id(tar_file):
-    sample_name_and_id_dict = {}
-    wds_iterator = wds.WebDataset(tar_file)
-    for cur in wds_iterator:
-        name = str(cur["__key__"])
-        id = json.loads(cur["json"].decode("utf-8"))["id"]
-        sample_name_and_id_dict[id] = name
-    return sample_name_and_id_dict
 
 
 def generate_sharlist(data_dir):
@@ -107,8 +98,6 @@ class T2I_BaseDataset:
         self.dataset_column_names = ["samples"]
         self.return_sample_name = return_sample_name
         self.data_path = data_path
-        all_name_and_ids = self.list_sample_name_recursively(data_path)
-        self.local_name_and_ids = all_name_and_ids
 
         if self.tokenizer is None:
             self.dataset_output_column_names = self.dataset_column_names
@@ -161,6 +150,19 @@ class T2I_BaseDataset:
         # caption preprocess
         if self.prompt_empty_probability and random.random() < self.prompt_empty_probability:
             caption = ""
+
+        if not _is_valid_text_input(caption):
+            print(
+                f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+            )
+
+            caption = str(caption)
+
+            if _is_valid_text_input(caption):
+                print("WARNING: convert caption type to string success.", flush=True)
+            else:
+                caption = " "
+                print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
         caption = np.array(caption)
 
         sample = {
@@ -179,7 +181,6 @@ class T2I_BaseDataset:
         if self.return_sample_name:
             self.dataset_output_column_names.append("sample_name")
             sample["sample_name"] = np.array(image_path)
-            print("sample_name is :", image_path)
 
         for trans in self.transforms:
             sample = trans(sample)
@@ -208,7 +209,12 @@ class T2I_BaseDataset:
             data = {
                 k: (v.tolist() if (k == "txt" or k == "sample_name") else v.astype(np.float32)) for k, v in data.items()
             }
-            tokens, _ = self.tokenizer(data)
+            try:
+                tokens, _ = self.tokenizer(data)
+            except Exception as e:
+                print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
+                data["txt"] = [" " for _ in range(len(data["txt"]))]
+                tokens, _ = self.tokenizer(data)
             outs = (data["image"],) + tuple(tokens)
             if "sample_name" in data:
                 outs += (data["sample_name"],)
@@ -228,19 +234,6 @@ class T2I_BaseDataset:
             # print(cnt)
 
         return cnt
-
-    @staticmethod
-    def list_sample_name_recursively(data_path):
-        tar_files = []
-        for root, dirs, files in os.walk(data_path):
-            for file in files:
-                if file.endswith(".tar"):
-                    tar_files.append(os.path.join(root, file))
-        all_sample_names_and_ids = {}
-        for tar_file in tar_files:
-            temp = get_sample_name_and_id(tar_file)
-            all_sample_names_and_ids = {**all_sample_names_and_ids, **temp}
-        return all_sample_names_and_ids
 
 
 def get_device_rank_info():
