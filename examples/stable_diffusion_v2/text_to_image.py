@@ -16,7 +16,6 @@ import mindspore as ms
 
 workspace = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(workspace)
-sys.path.append("../../")
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.dpm_solver import DPMSolverSampler
 from ldm.models.diffusion.plms import PLMSSampler
