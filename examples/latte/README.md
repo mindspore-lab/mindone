@@ -20,7 +20,15 @@ Similar to DiT, Latte supports un-conditional video generation and class-labels-
 
 
 ## 2. Get Started
-In this tutorial, we will introduce how to run inference and finetuning experiments using MindONE.
+In this tutorial, we will introduce how to run inference and training experiments using MindONE.
+
+This tutorial includes:
+- [x] Pretrained checkpoints conversion;
+- [x] Un-conditional video sampling with pretrained Latte checkpoints;
+- [x] Training un-conditional Latte on Sky TimeLapse dataset: support training (1) on-the-fly ; and (2) with embedding cache;
+- [x] Mixed Precision: support (1) Float16; (2) BFloat16 (patch_embedder: "linear");
+- [x] Standalone training and distributed training.
+- [ ] Text-to-Video Latte inference and training.
 
 ### 2.1 Environment Setup
 
