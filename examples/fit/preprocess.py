@@ -8,20 +8,19 @@ import logging
 import os
 import sys
 
-import numpy as np
-import yaml
-from data.imagenet_dataset import create_dataloader_imagenet_preprocessing
-from tqdm import tqdm
-from utils.model_utils import check_cfgs_in_parser, str2bool
-
-import mindspore as ms
-
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
+import numpy as np
+import yaml
+from data.imagenet_dataset import create_dataloader_imagenet_preprocessing
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
+from tqdm import tqdm
+from utils.model_utils import check_cfgs_in_parser, str2bool
+
+import mindspore as ms
 
 from mindone.utils.logger import set_logger
 
