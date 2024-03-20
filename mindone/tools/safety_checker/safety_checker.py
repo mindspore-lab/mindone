@@ -194,7 +194,7 @@ class SafetyChecker:
     def eval_videos(self, paths):
         assert is_av_available is True, "av is not installed, please install av."
         paths = get_video_path(paths)
-        print(f"{len(paths)} images are loaded")
+        print(f"{len(paths)} videos are loaded")
         nsfw_concept = []
         for path in tqdm(paths):
             container = av.open(path)
