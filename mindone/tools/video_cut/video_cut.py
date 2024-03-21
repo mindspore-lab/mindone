@@ -3,7 +3,7 @@ import os
 from multiprocessing import Pool
 
 import av
-from scenedetect import SceneManager, open_video
+from scenedetect import detect
 from scenedetect.detectors import AdaptiveDetector, ContentDetector, ThresholdDetector
 from scenedetect.video_splitter import split_video_ffmpeg
 from tqdm import tqdm
@@ -53,11 +53,11 @@ class SceneCutUtils:
         self.num_processing = num_processing
         self.save_dir = save_dir
         if self.Detectortype == "ContentDetector":
-            self.Detector = ContentDetector()
+            self.Detector = ContentDetector
         elif self.Detectortype == "AdaptiveDetector":
-            self.Detector = AdaptiveDetector()
+            self.Detector = AdaptiveDetector
         elif self.Detectortype == "ThresholdDetector":
-            self.Detector = ThresholdDetector()
+            self.Detector = ThresholdDetector
         else:
             raise ValueError(f"Unsupported Detector type: {self.Detectortype}.")
 
@@ -85,19 +85,15 @@ class SceneCutUtils:
         else:
             self.save_scene(video_dir, self.save_dir)
 
+    def do_detect_scenes(self, path, detector_type=ContentDetector):
+        return detect(str(path), detector_type(), show_progress=True)
+
     def save_scene(self, video_dir, save_dir):
         for video_path in video_dir:
             # Create our video & scene managers, then add the detector.
             if not check_video_integrity(video_path):
                 continue
-            video_manager = open_video(video_path)
-            scene_manager = SceneManager()
-            scene_manager.add_detector(self.Detector)
-
-            # Start the video manager and perform the scene detection.
-            scene_manager.detect_scenes(video_manager, show_progress=True)
-            # save scene
-            scene_list = scene_manager.get_scene_list()
+            scene_list = self.do_detect_scenes(video_path, detector_type=self.Detector)
             if len(scene_list):
                 split_video_ffmpeg(video_path, scene_list, output_dir=save_dir, show_progress=False)
                 for index, scene in enumerate(scene_list):
@@ -129,9 +125,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--Detectortype",
         type=str,
-        default="ContentDetector",
+        default="AdaptiveDetector",
         choices=["ContentDetector", "AdaptiveDetector", "ThresholdDetector"],
-        help="scene detection algorithms type." "Default: ContentDetector",
+        help="scene detection algorithms type." "Default: AdaptiveDetector",
     )
     parser.add_argument(
         "--num_processing",
