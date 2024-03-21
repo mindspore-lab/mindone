@@ -11,14 +11,14 @@ You can generate video keyframes or cut video scenes by running `video_cut.py`
 ### Generate video keyframes
 
 ```
-python mindone/tools/video_cut/video_cut.py --video_data_path <path-to-videos> --keyframe_save_dir <path-to-save-keyframes> --task keyframe
+python mindone/tools/video_cut/video_cut.py --video_data_path <path-to-videos> --save_dir <path-to-save-keyframes> --task keyframe
 ```
 > Note: `keyframe_save_dir` defaults to None. If you do not set `keyframe_save_dir`, keyframes will be saved in the `video_data_path` folder
 
 ### cut video scene
 
 ```
-python mindone/tools/video_cut/video_cut.py --video_data_path <path-to-videos> --task scene
+python mindone/tools/video_cut/video_cut.py --video_data_path <path-to-videos> --task scene --save_dir <path-to-save-scene> --num_processing 1
 ```
 
 For more usage, please run `python mindone/tools/video_cut/video_cut.py -h`.
