@@ -31,11 +31,29 @@ __all__ = ["FLASH_IS_AVAILABLE", "MSFlashAttention"]
 
 
 class MSFlashAttention(nn.Cell):
+    """
+    This class represents a FlashAttention module compatible for different MS versions.
+    Args:
+        head_dim (int): The dimensionality of each attention head.
+        head_num (int): The number of attention heads.
+        fix_head_dims (list or None): A list of integers representing head dimensions to be padded to 2**n * 64, where n is the integer value.
+        attention_dropout (float): The dropout rate applied to attention matrix.
+        input_layout (str): The input data layout. Defaults to "BNSD".
+        high_precision (bool): Determines whether to use high precision mode for attention calculations. Defaults to True.
+    Attributes:
+        use_new_flash_attention (bool): Indicates whether the new FlashAttention module supported in ms 2.3.0.
+        flash_attention (FlashAttention): An instance of the FlashAttention module used for attention calculations.
+        fa_mask_dtype (dtype): The data type used for the attention mask (ms.uint8 or ms.float16 depending on the version).
+        fix_head_dims (list): A list of integers representing head dimensions to be padded to 2**n * 64.
+    """
+
     def __init__(
         self, head_dim, head_num, fix_head_dims=None, attention_dropout=0.0, input_layout="BNSD", high_precision=True
     ):
+        super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
-        if MSVersion >= "2.3.0":
+        self.use_new_flash_attention = MSVersion >= "2.3.0"
+        if self.use_new_flash_attention:
             self.flash_attention = FlashAttention(
                 scale_value=1.0 / math.sqrt(head_dim),
                 head_num=head_num,
@@ -54,8 +72,8 @@ class MSFlashAttention(nn.Cell):
         if self.fix_head_dims is not None and not isinstance(self.fix_head_dims, (list, tuple)):
             self.fix_head_dims = [self.fix_head_dims]
 
-    def construct(self, q, k, v, mask=None, **kwargs):
-        q_b, q_n, h, d = q.shape
+    def construct(self, q, k, v, mask=None):
+        q_b, h, q_n, d = q.shape  # (b, h, n, d)
         head_dim = d
         if mask is None:
             mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
@@ -66,7 +84,7 @@ class MSFlashAttention(nn.Cell):
             q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
             k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
             v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-        if MSVersion >= "2.3.0":
+        if self.use_new_flash_attention:
             out = self.flash_attention(
                 q.to(ms.float16),
                 k.to(ms.float16),
@@ -76,11 +94,13 @@ class MSFlashAttention(nn.Cell):
                 None,
                 mask[:, None, :, :].to(self.fa_mask_dtype),
                 None,
-                **kwargs
             )[3]
         else:
             out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype), **kwargs
+                q.to(ms.float16),
+                k.to(ms.float16),
+                v.to(ms.float16),
+                mask.to(self.fa_mask_dtype),
             )
         if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
             out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
