@@ -139,9 +139,9 @@ class ImageNetLatentIterator:
         latent = np.reshape(latent, (nh * nw, -1))  # nh * nw, patch * patch * c
 
         if self.embed_method == "rotate":
-            pos = precompute_freqs_cis_2d(self.embed_dim, nh, nw).astype(np.float16)
+            pos = precompute_freqs_cis_2d(self.embed_dim, nh, nw).astype(np.float32)
         else:
-            pos = get_2d_sincos_pos_embed(self.embed_dim, nh, nw).astype(np.float16)
+            pos = get_2d_sincos_pos_embed(self.embed_dim, nh, nw).astype(np.float32)
         return latent, pos
 
     def __getitem__(self, idx):

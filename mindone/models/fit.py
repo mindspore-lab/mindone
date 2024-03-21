@@ -34,7 +34,7 @@ def complex_mult(x: Tensor, y: Tensor) -> Tensor:
     a, b = x[..., 0], x[..., 1]
     c, d = y[..., 0], y[..., 1]
 
-    # (a + bi)(c + di) = (ac - bd) + i(bc + ad)
+    # (a + ib)(c + id) = (ac - bd) + i(bc + ad)
     real_part = a * c - b * d
     imag_part = b * c + a * d
     return ops.stack([real_part, imag_part], axis=-1)
@@ -47,8 +47,9 @@ def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor) -> Tuple[Tensor, T
     q = ops.reshape(q, (q_shape[0], q_shape[1], q_shape[2], -1, 2))
     k = ops.reshape(k, (k_shape[0], k_shape[1], k_shape[2], -1, 2))  # b, h, n, d/2, 2
     freqs_cis = ops.reshape(freqs_cis, (q_shape[0], 1, q_shape[2], -1, 2))  # b, 1, n, d/2, 2
-    q = complex_mult(q, freqs_cis)
-    k = complex_mult(k, freqs_cis)
+    dtype = q.dtype
+    q = complex_mult(q.to(ms.float32), freqs_cis).to(dtype)
+    k = complex_mult(k.to(ms.float32), freqs_cis).to(dtype)
     # to real
     q = ops.reshape(q, q_shape)
     k = ops.reshape(k, k_shape)
@@ -343,7 +344,7 @@ class FiT(nn.Cell):
         """
         x = self.patchify(x)
         if self.pos == "absolute":
-            x = self.x_embedder(x) + pos  # (N, T, D), where T = H * W / patch_size ** 2
+            x = self.x_embedder(x) + pos.to(x.dtype)  # (N, T, D), where T = H * W / patch_size ** 2
         else:
             x = self.x_embedder(x)
 
