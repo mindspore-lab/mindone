@@ -79,13 +79,10 @@ class InferPipeline(ABC):
         Return:
             y: (b f H W 3), batch of images, normalized to [0, 1]
         """
-        b, f, c, h, w = x.shape
-        x = x.reshape((b * f, c, h, w))
-
-        y = self.vae_decode(x)
-        _, h, w, c = y.shape
-        y = y.reshape((b, f, h, w, c))
-
+        y = []
+        for x_sample in x:
+            y.append(self.vae_decode(x_sample))
+        y = ops.stack(y, axis=0)  # (b f H W 3)
         return y
 
     def data_prepare(self, inputs):

@@ -1,4 +1,3 @@
-import logging
 import math
 import numbers
 from typing import Optional, Tuple
@@ -6,29 +5,10 @@ from typing import Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-import mindspore.numpy as msnp
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import Constant, Normal, One, XavierNormal, XavierUniform, Zero, initializer
 
-from ..utils.version_control import MSVersion, check_valid_flash_attention, choose_flash_attention_dtype
-
-logger = logging.getLogger(__name__)
-
-# try import fa
-try:
-    if MSVersion >= "2.3.0":
-        from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
-    else:
-        from mindspore.nn.layer.flash_attention import FlashAttention
-    import_fa_success = True
-except Exception:
-    import_fa_success = False
-
-FLASH_IS_AVAILABLE = check_valid_flash_attention(import_fa_success)
-if FLASH_IS_AVAILABLE:
-    logger.info("Flash attention is available.")
-else:
-    logger.info("Flash attention is unavailable.")
+from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 __all__ = [
     "DiT",
@@ -312,22 +292,9 @@ class SelfAttention(nn.Cell):
         )
 
         if self.enable_flash_attention:
-            if MSVersion >= "2.3.0":
-                self.flash_attention = FlashAttention(
-                    scale_value=1.0 / math.sqrt(head_dim),
-                    head_num=num_heads,
-                    input_layout="BNSD",
-                    keep_prob=1 - attn_drop,
-                )
-            else:
-                self.flash_attention = FlashAttention(
-                    head_dim=head_dim,
-                    head_num=num_heads,
-                    high_precision=True,
-                    dropout_rate=attn_drop,
-                )  # TODO: how high_precision affect the training or inference quality
-            self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
-            # logger.info("Flash attention is enabled.")
+            self.flash_attention = MSFlashAttention(
+                head_dim=head_dim, head_num=num_heads, fix_head_dims=[72], attention_dropout=attn_drop
+            )
         else:
             self.flash_attention = None
 
@@ -373,32 +340,7 @@ class SelfAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-            # FIXME: a trick to pad head dimensions from 72 to 128
-            if head_dim == 72:
-                # pad to 2**n * 64
-                padding_size = 64 * 2 ** math.ceil(math.log(head_dim / 64, 2)) - head_dim
-                q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-                k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-                v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-            if MSVersion >= "2.3.0":
-                out = self.flash_attention(
-                    q.to(ms.float16),
-                    k.to(ms.float16),
-                    v.to(ms.float16),
-                    None,
-                    None,
-                    None,
-                    mask[:, None, :, :].to(self.fa_mask_dtype),
-                    None,
-                )[3]
-            else:
-                out = self.flash_attention(
-                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-                )
-            if head_dim == 72:
-                out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
+            out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)

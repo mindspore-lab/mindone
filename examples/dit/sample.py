@@ -113,6 +113,7 @@ def parse_args():
         "--patch_embedder",
         type=str,
         default="conv",
+        choices=["conv", "linear"],
         help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")

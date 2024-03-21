@@ -117,6 +117,7 @@ def parse_args():
         "--patch_embedder",
         type=str,
         default="conv",
+        choices=["conv", "linear"],
         help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument(

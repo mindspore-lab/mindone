@@ -2,8 +2,8 @@
 if [ $# != 3 ]
 then
     echo "For distributed training in single/multiple machine with Ascend devices."
-    echo "Usage Help: bash run_distribute.sh [RANK_TABLE_FILE] [RANK_START] [RANK_SIZE]"
-    echo "Example as: bash run_distribute.sh hccl_8p.json 4 4"
+    echo "Usage Help: bash run_distributed_sky_numpy_video.sh [RANK_TABLE_FILE] [RANK_START] [RANK_SIZE]"
+    echo "Example as: bash run_distributed_sky_numpy_video.sh hccl_4p.json 4 4"
     echo "[RANK_TABLE_FILE]: HCCL config file, please visit https://gitee.com/mindspore/models/tree/master/utils/hccl_tools"
     echo "[RANK_START]: The starting device ID."
     echo "[RANK_SIZE]: The total number of distributed processes you want to launch."
