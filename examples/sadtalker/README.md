@@ -21,6 +21,16 @@ SadTalker is a novel system for a stylized audio-driven single image talking hea
 pip install -r requirements.txt
 ```
 
+### Supported Environments
+
+The inference pipeline of SadTalker has been fully tested with the following environments:
+
+| Ascend | MindSpore | CANN |driver | Python |
+| --- | --- | --- | --- | --- |
+| 910 | 2.2.10 | 7.1.0.1.118 | 23.0.rc3.20 | 3.7.16 |
+| 910* | 2.2.10.20231124 | 7.1.0.1.118 | 23.0.rc3.6 | 3.7.15 |
+
+
 ## Data and Preparation
 
 To execute the inference pipeline of SadTalker, please first download the [pretrained checkpoints](#pretrained-checkpoints) and setup the path in [config file](./config/sadtalker-infer.yaml).
