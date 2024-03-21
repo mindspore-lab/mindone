@@ -141,3 +141,4 @@ download.txt
 *hf*.py
 *torch*.py
 *.txt
+/mindone/tools/video_cut/utils.py
