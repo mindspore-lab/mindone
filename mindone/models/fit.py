@@ -328,7 +328,7 @@ class FiT(nn.Cell):
             N, C, H, W = x.shape
             nh, nw = H // self.patch_size, W // self.patch_size
             x = ops.reshape(x, (N, C, nh, self.patch_size, nw, self.patch_size))
-            x = ops.transpose(x, (0, 2, 4, 1, 3, 5))  # N, nh, nw, C, patch, patch
+            x = ops.transpose(x, (0, 2, 4, 3, 5, 1))  # N, nh, nw, patch, patch, C
             x = ops.reshape(x, (N, nh * nw, -1))
         return x
 
