@@ -27,13 +27,13 @@ for ((i = 0; i < ${RANK_SIZE}; i++)); do
     export RANK_ID=$i
     echo "Launching rank: ${RANK_ID}, device: ${DEVICE_ID}"
     if [ $i -eq 0 ]; then
-        python train_fit.py \
-            -c configs/training/class_cond_train_fit.yaml \
+        python train.py \
+            -c configs/training/class_cond_train.yaml \
             --data_path ${DATASET_PATH} \
             --use_parallel True > train.log 2>&1 &
     else
-        python train_fit.py \
-            -c configs/training/class_cond_train_fit.yaml \
+        python train.py \
+            -c configs/training/class_cond_train.yaml \
             --data_path ${DATASET_PATH} \
             --use_parallel True > /dev/null 2>&1 &
     fi
