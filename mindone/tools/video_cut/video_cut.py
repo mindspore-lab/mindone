@@ -96,13 +96,14 @@ class SceneCutUtils:
             scene_list = self.do_detect_scenes(video_path, detector_type=self.Detector)
             if len(scene_list):
                 split_video_ffmpeg(video_path, scene_list, output_dir=save_dir, show_progress=False)
+                print(f"{video_path} detect:")
                 for index, scene in enumerate(scene_list):
                     print(
                         f"Scene {index + 1}: Start {scene[0].get_timecode()} / Frame {scene[0].get_frames()}",
                         f"End {scene[1].get_timecode()} / Frame {scene[1].get_frames()}",
                     )
             else:
-                print(f"{video_path} only detects one scene, no need to cut it.")
+                print(f"{video_path} detect: only detects one scene, no need to cut it.")
 
 
 if __name__ == "__main__":
