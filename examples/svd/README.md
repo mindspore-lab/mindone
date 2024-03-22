@@ -20,7 +20,7 @@ src="https://github.com/mindspore-lab/mindone/assets/16683750/e291f64d-fb49-4983
 | SD Base Version | SVD version | Trained for          | Config                      | Checkpoint                                                                                |
 |-----------------|-------------|----------------------|-----------------------------|-------------------------------------------------------------------------------------------|
 | v2.0 & v2.1     | SVD         | 14 frames generation | [yaml](configs/svd.yaml)    | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd-d19a808f.ckpt)    |
-|                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt-d60bb7b8.ckpt) |
+|                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt-993f895f.ckpt) |
 
 </div>
 
@@ -34,7 +34,7 @@ python svd_tools/convert.py \
 --out_dir PATH_TO_OUTPUT_DIR
 ```
 
-## Inference and Examples
+## Inference
 
 Currently, only Image-to-Video generation is supported. For video generation from text, an image must first be created
 using either [SD](../stable_diffusion_v2/README.md#inference) or
@@ -50,6 +50,10 @@ python image_to_video.py --mode=1 \
 --image=PATH_TO_INPUT_IMAGE
 ```
 
+> [!TIP]
+> If you encounter an OOM error while running the above command, try setting the `--SVD.decode_chunk_size` argument to
+> a lower value (default is `num_frames`) before reducing `num_frames` as decoding is very memory-intensive.
+
 For more information on possible parameters and usage, please execute the following command:
 
 ```shell
@@ -58,7 +62,45 @@ python image_to_video.py --help
 
 ## Training
 
-Coming soon.
+### Dataset Preparation
+
+Video labels should be stored in a CSV file in the following format:
+
+```text
+path,length,motion_bucket_id
+path_to_video1,video_length1,motion_bucket_id1
+path_to_video2,video_length2,motion_bucket_id2
+...
+```
+
+The generation of motion bucket IDs is described in detail in the SVD [[1](#acknowledgements)] paper.
+Please refer to Appendix C of the paper for more information.
+
+### Training
+
+Currently, only Image-to-Video generation training is supported.
+To train Stable Video Diffusion, execute the following command:
+
+```shell
+python train.py --config=configs/svd_train.yaml \
+--svd_config=configs/svd.yaml \
+--train.pretrained=PATH_TO_YOUR_SVD_CHECKPOINT \
+--train.output_dir=PATH_TO_OUTPUT_DIR \
+--environment.mode=0 \
+--train.temporal_only=True \
+--train.epochs=NUM_EPOCHS \
+--train.dataset.init_args.frames=NUM_FRAMES \
+--train.dataset.init_args.step=FRAMES_FETCHING_STEP \
+--train.dataset.init_args.data_dir=PATH_TO_DATASET \
+--train.dataset.init_args.metadata=PATH_TO_LABELS
+```
+
+> [!NOTE]
+> More details on the training arguments can be found in the [training config](configs/svd_train.yaml)
+> and [model config](configs/svd.yaml).
+
+> [!IMPORTANT]
+> For 910*, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
 
 ## Acknowledgements
 

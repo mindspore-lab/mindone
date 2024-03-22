@@ -1,4 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
+import logging
+
 try:
     from typing import Literal
 except ImportError:
@@ -20,8 +22,12 @@ try:
     FLASH_IS_AVAILABLE = True
     print("flash attention is available.")
 except ImportError:
+    FlashAttention = None
     FLASH_IS_AVAILABLE = False
     print("flash attention is unavailable.")
+
+
+_logger = logging.getLogger(__name__)
 
 
 # feedforward
@@ -291,7 +297,9 @@ class SpatialTransformer(nn.Cell):
         attn_type: Literal["vanilla", "flash-attention"] = "vanilla",
     ):
         super().__init__()
-        print(f"constructing {self.__class__.__name__} of depth {depth} w/ {in_channels} channels and {n_heads} heads")
+        _logger.debug(
+            f"constructing {self.__class__.__name__} of depth {depth} w/ {in_channels} channels and {n_heads} heads"
+        )
         from omegaconf import ListConfig
 
         if exists(context_dim) and not isinstance(context_dim, (list, ListConfig)):
