@@ -1,6 +1,7 @@
 """FlashAttention Wrapper"""
 import logging
 import math
+from typing import List, Optional
 
 import mindspore as ms
 import mindspore.numpy as msnp
@@ -48,7 +49,13 @@ class MSFlashAttention(nn.Cell):
     """
 
     def __init__(
-        self, head_dim, head_num, fix_head_dims=None, attention_dropout=0.0, input_layout="BNSD", high_precision=True
+        self,
+        head_dim: int,
+        head_num: int,
+        fix_head_dims: Optional[List[int]] = None,
+        attention_dropout: float = 0.0,
+        input_layout: str = "BNSD",
+        high_precision: bool = True,
     ):
         super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
