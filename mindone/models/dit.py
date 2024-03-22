@@ -1,15 +1,17 @@
 import logging
 import math
 import numbers
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Type, Union
 
 import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
-from mindspore.common.initializer import Constant, Normal, One, XavierNormal, XavierUniform, Zero, initializer
+from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from ..utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
+from .modules import get_2d_sincos_pos_embed
+from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 logger = logging.getLogger(__name__)
 FLASH_IS_AVAILABLE = check_valid_flash_attention()
@@ -34,40 +36,6 @@ __all__ = [
     "DiT_S_4",
     "DiT_S_8",
 ]
-
-
-def default(val, d):
-    if exists(val):
-        return val
-    # return d() if isfunction(d) else d
-    # TODO: this may lead to error in mindspore 2.1. use isinstance, and if return, return
-    if isinstance(d, (ms.Tensor, int, float)):
-        return d
-    return d()
-
-
-def normal_(tensor: Tensor, mean: float = 0.0, std: float = 1.0):
-    tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
-
-
-def constant_(tensor: Tensor, val: float):
-    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
-
-
-def ones_(tensor: Tensor):
-    tensor.set_data(initializer(One(), tensor.shape, tensor.dtype))
-
-
-def zeros_(tensor: Tensor):
-    tensor.set_data(initializer(Zero(), tensor.shape, tensor.dtype))
-
-
-def xavier_uniform_(tensor: Tensor, gain: float = 1.0):
-    tensor.set_data(initializer(XavierUniform(gain), tensor.shape, tensor.dtype))
-
-
-def xavier_normal_(tensor: Tensor, gain: float = 1.0):
-    tensor.set_data(initializer(XavierNormal(gain), tensor.shape, tensor.dtype))
 
 
 class LayerNorm(nn.Cell):
@@ -143,8 +111,8 @@ class PatchEmbed(nn.Cell):
                 self.image_size[1],
             ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         x = self.proj(x)
-        x = ops.reshape(x, (b, self.embed_dim, -1))  # B Ph*Pw C
-        x = ops.transpose(x, (0, 2, 1))
+        x = ops.reshape(x, (b, self.embed_dim, -1))
+        x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
         return x
 
 
@@ -154,7 +122,7 @@ class Mlp(nn.Cell):
         in_features: int,
         hidden_features: Optional[int] = None,
         out_features: Optional[int] = None,
-        act_layer: Optional[nn.Cell] = nn.GELU,
+        act_layer: Type[nn.Cell] = nn.GELU,
         drop: float = 0.0,
     ) -> None:
         super().__init__()
@@ -172,10 +140,6 @@ class Mlp(nn.Cell):
         x = self.fc2(x)
         x = self.drop(x)
         return x
-
-
-def exists(val):
-    return val is not None
 
 
 class Attention(nn.Cell):
@@ -327,10 +291,6 @@ class SelfAttention(nn.Cell):
             out = self._rearange_out(out, h)
 
         return self.proj_drop(self.proj(out)).to(x_dtype)
-
-
-def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
 
 #################################################################################
@@ -542,7 +502,7 @@ class DiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x):
+    def unpatchify(self, x: Tensor):
         """
         x: (N, T, patch_size**2 * C)
         imgs: (N, H, W, C)
@@ -553,7 +513,6 @@ class DiT(nn.Cell):
         assert h * w == x.shape[1]
 
         x = x.reshape((x.shape[0], h, w, p, p, c))
-        # x = torch.einsum('nhwpqc->nchpwq', x)
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
         imgs = x.reshape((x.shape[0], c, h * p, h * p))
         return imgs
@@ -576,7 +535,7 @@ class DiT(nn.Cell):
         return x
 
     @ms.jit
-    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
+    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: Union[float, Tensor]):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
@@ -584,76 +543,11 @@ class DiT(nn.Cell):
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
         model_out = self.construct(combined, t, y)
-        # For exact reproducibility reasons, we apply classifier-free guidance on only
-        # three channels by default. The standard approach to cfg applies it to all channels.
-        # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)
-
-
-#################################################################################
-#                   Sine/Cosine Positional Embedding Functions                  #
-#################################################################################
-# https://github.com/facebookresearch/mae/blob/main/util/pos_embed.py
-
-
-def get_1d_sincos_temp_embed(embed_dim, length):
-    pos = np.arange(0, length).reshape((-1, 1))
-    return get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
-
-
-def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=0):
-    """
-    grid_size: int of the grid height and width
-    return:
-    pos_embed: [grid_size*grid_size, embed_dim] or [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
-    """
-    grid_h = np.arange(grid_size, dtype=np.float32)
-    grid_w = np.arange(grid_size, dtype=np.float32)
-    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
-    grid = np.stack(grid, axis=0)
-
-    grid = grid.reshape([2, 1, grid_size, grid_size])
-    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
-    if cls_token and extra_tokens > 0:
-        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
-    return pos_embed
-
-
-def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
-    assert embed_dim % 2 == 0
-
-    # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
-
-    emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
-    return emb
-
-
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
-    """
-    embed_dim: output dimension for each position
-    pos: a list of positions to be encoded: size (M,)
-    out: (M, D)
-    """
-    assert embed_dim % 2 == 0
-    omega = np.arange(embed_dim // 2, dtype=np.float64)
-    omega /= embed_dim / 2.0
-    omega = 1.0 / 10000**omega  # (D/2,)
-
-    pos = pos.reshape(-1)  # (M,)
-    out = np.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
-
-    emb_sin = np.sin(out)  # (M, D/2)
-    emb_cos = np.cos(out)  # (M, D/2)
-
-    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
-    return emb
 
 
 #################################################################################

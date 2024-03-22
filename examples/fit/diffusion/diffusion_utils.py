@@ -4,6 +4,7 @@
 #     IDDPM: https://github.com/openai/improved-diffusion/blob/main/improved_diffusion/gaussian_diffusion.py
 import enum
 import math
+from typing import Optional
 
 import numpy as np
 
@@ -11,7 +12,7 @@ import mindspore as ms
 from mindspore import Tensor, ops
 
 
-def _extract_into_tensor(a, t, x_shape):
+def extract_into_tensor(a, t, x_shape):
     """
     Extract values from a 1-D numpy array for a batch of indices.
     :param a: the 1-D numpy array.
@@ -109,11 +110,17 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     return np.array(betas)
 
 
-def mean_flat(tensor: Tensor):
+def mean_flat(tensor: Tensor, mask: Optional[Tensor] = None):
     """
-    Take the mean over all non-batch dimensions.
+    Take the mean over all non-batch dimensions
+    When mask is not None, it calculate the mean of the valid region (mask=True)
     """
-    return tensor.mean(axis=list(range(1, len(tensor.shape))))
+    if mask is None:
+        return tensor.mean(axis=list(range(1, len(tensor.shape))))
+
+    tensor = ops.masked_fill(tensor, ~mask, 0.0)
+    num = ops.clamp(mask.sum(axis=list(range(1, len(tensor.shape)))), min=1)
+    return tensor.sum(axis=list(range(1, len(tensor.shape)))) / num
 
 
 class ModelMeanType(enum.Enum):

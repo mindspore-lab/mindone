@@ -3,7 +3,7 @@ import logging
 import os
 
 import yaml
-from utils.model_utils import _check_cfgs_in_parser, str2bool
+from utils.model_utils import check_cfgs_in_parser, str2bool
 
 logger = logging.getLogger()
 
@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument(
         "-c",
         "--config",
-        default="",
+        default="configs/training/class_cond_train.yaml",
         type=str,
         help="path to load a config yaml file that describes the training recipes which will override the default arguments",
     )
@@ -21,19 +21,13 @@ def parse_args():
     parser.add_argument("--data_path", default="dataset", type=str, help="data path")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
-        "--pretrained_model_path", default="", type=str, help="Specify the pretrained dit model from this checkpoint"
+        "--pretrained_model_path", default="", type=str, help="Specify the pretrained fit model from this checkpoint"
     )
     # ms
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-    parser.add_argument(
-        "--replace_small_images",
-        default=True,
-        type=str2bool,
-        help="replace the small-size images with other training samples",
-    )
     # modelarts
     parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
     parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
@@ -91,7 +85,6 @@ def parse_args():
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
-    # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
@@ -104,29 +97,24 @@ def parse_args():
         "--use_fp16",
         default=True,
         type=str2bool,
-        help="whether use fp16 for dit.",
+        help="whether use fp16 for fit.",
     )
     parser.add_argument(
         "--model_name",
         "-m",
         type=str,
-        default="DiT-XL/2",
-        help="Model name , such as DiT-XL/2, DiT-L/2",
+        default="FiT-XL/2",
+        help="Model name , such as FiT-XL/2, FiT-L/2",
     )
+    # TODO: add pretrained checkpoint here
     parser.add_argument(
-        "--dit_checkpoint", type=str, default="models/DiT-XL-2-256x256.ckpt", help="the path to the DiT checkpoint."
+        "--fit_checkpoint", type=str, default="models/FiT-XL-2-256x256.ckpt", help="the path to the FiT checkpoint."
     )
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
         default="models/sd-vae-ft-mse.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
-    )
-    parser.add_argument(
-        "--clip_checkpoint",
-        type=str,
-        default=None,
-        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
     )
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
@@ -154,10 +142,6 @@ def parse_args():
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
-    # parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
-    # parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
-    # parser.add_argument("--image_filter_size", default=256, type=int, help="image filter size")
-
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
         "--log_level",
@@ -166,6 +150,9 @@ def parse_args():
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
+    parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
+    parser.add_argument("--embed_dim", type=int, default=72, help="Embed Dim")
+    parser.add_argument("--embed_method", default="rotate", help="Embed Method")
     parser.add_argument(
         "--condition",
         default=None,
@@ -185,7 +172,7 @@ def parse_args():
         default_args.config = os.path.join(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
-            _check_cfgs_in_parser(cfg, parser)
+            check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
 

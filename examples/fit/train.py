@@ -1,6 +1,6 @@
+#!/usr/bin/env python
 """
-DiT training pipeline
-- Image finetuning conditioned on class labels (optional)
+FiT training pipeline
 """
 import datetime
 import logging
@@ -8,12 +8,16 @@ import os
 import sys
 from typing import Tuple
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
+
 import yaml
 from args_train import parse_args
-from data.dataset import create_dataloader
-from data.imagenet_dataset import create_dataloader_imagenet
-from pipelines.train_pipeline import DiTWithLoss
-from utils.model_utils import load_dit_ckpt_params
+from data.imagenet_dataset import create_dataloader_imagenet_latent
+from diffusion import create_diffusion
+from pipelines.train_pipeline import FiTWithLoss
+from utils.model_utils import load_fit_ckpt_params
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -21,15 +25,7 @@ from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
-
-
-from diffusion import create_diffusion
-from modules.autoencoder import SD_CONFIG, AutoencoderKL
-
-from mindone.models.dit import DiT_models
+from mindone.models.fit import FiT_models
 
 # load training modules
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -67,9 +63,6 @@ def init_env(
     """
     set_random_seed(seed)
 
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
@@ -103,21 +96,24 @@ def init_env(
             # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
 
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
     return device_id, rank_id, device_num
 
 
-def set_dit_all_params(dit_model, train=True, **kwargs):
+def set_fit_all_params(fit_model, train=True, **kwargs):
     n_params_trainable = 0
-    for param in dit_model.get_parameters():
+    for param in fit_model.get_parameters():
         param.requires_grad = train
         if train:
             n_params_trainable += 1
     logger.info(f"Set {n_params_trainable} params to train.")
 
 
-def set_dit_params(dit_model, ft_all_params, **kwargs):
+def set_fit_params(fit_model, ft_all_params, **kwargs):
     if ft_all_params:
-        set_dit_all_params(dit_model, **kwargs)
+        set_fit_all_params(fit_model, **kwargs)
     else:
         raise ValueError("Fintuning partial params is not supported!")
 
@@ -137,46 +133,35 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
-    # 2.1 dit
+    # 2.1 fit
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-    latent_size = args.image_size // 8
-    dit_model = DiT_models[args.model_name](
-        input_size=latent_size,
+    fit_model = FiT_models[args.model_name](
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
     )
     if args.use_fp16:
-        dit_model = auto_mixed_precision(dit_model, amp_level="O2")
+        fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
-    if args.dit_checkpoint:
-        dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
+    if args.fit_checkpoint:
+        fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
     else:
-        logger.info("Initialize DIT ramdonly")
-    dit_model.set_train(True)
+        logger.info("Initialize FIT randomly.")
+    fit_model.set_train(True)
 
-    set_dit_params(dit_model, ft_all_params=True, train=True)
-
-    # 2.2 vae
-    logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        4,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
+    set_fit_params(fit_model, ft_all_params=True, train=True)
 
     diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = DiTWithLoss(
-        dit_model,
-        vae,
+
+    model_config = dict(C=4, H=args.image_size // 8, W=args.image_size // 8, patch_size=args.patch_size)
+    latent_diffusion_with_loss = FiTWithLoss(
+        fit_model,
         diffusion,
-        args.sd_scale_factor,
-        args.condition,
+        vae=None,
+        scale_factor=args.sd_scale_factor,
+        condition=args.condition,
         text_encoder=None,
         cond_stage_trainable=False,
+        model_config=model_config,
     )
 
     # image dataset
@@ -187,32 +172,18 @@ def main(args):
             batch_size=args.train_batch_size,
             shuffle=True,
             num_parallel_workers=args.num_parallel_workers,
+            patch_size=args.patch_size,
+            embed_dim=args.embed_dim,
+            embed_method=args.embed_method,
         )
-        dataset = create_dataloader_imagenet(
+        dataset = create_dataloader_imagenet_latent(
             data_config,
             device_num=device_num,
             rank_id=rank_id,
         )
     else:
-        data_config = dict(
-            data_folder=args.data_path,
-            csv_path=args.data_path + "/image_caption.csv",
-            sample_size=args.image_size,
-            batch_size=args.train_batch_size,
-            shuffle=True,
-            num_parallel_workers=args.num_parallel_workers,
-            max_rowsize=64,
-        )
+        raise NotImplementedError("FiT support ImageNet format dataset only")
 
-        dataset = create_dataloader(
-            data_config,
-            tokenizer=None,
-            device_num=device_num,
-            rank_id=rank_id,
-            image_column="image",
-            caption_column="caption" if args.condition == "text" else None,
-            class_column="class" if args.condition == "class" else None,
-        )
     dataset_size = dataset.get_dataset_size()
 
     # 4. build training utils: lr, optim, callbacks, trainer
@@ -262,7 +233,7 @@ def main(args):
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
-        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(dit_model, optimizer, resume_ckpt)
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(fit_model, optimizer, resume_ckpt)
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
@@ -296,7 +267,7 @@ def main(args):
 
     if rank_id == 0:
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.network,  # save dit only
+            network=latent_diffusion_with_loss.network,  # save fit only
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
@@ -306,7 +277,7 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
-            model_name="DiT",
+            model_name="FiT",
             record_lr=True,
         )
         callback.append(save_cb)
@@ -316,17 +287,16 @@ def main(args):
     # 5. log and save config
     if rank_id == 0:
         # 4. print key info
-        num_params_vae, num_params_vae_trainable = count_params(vae)
-        num_params_dit, num_params_dit_trainable = count_params(dit_model)
-        num_params = num_params_vae + num_params_dit
-        num_params_trainable = num_params_vae_trainable + num_params_dit_trainable
+        num_params_fit, num_params_fit_trainable = count_params(fit_model)
+        num_params = num_params_fit
+        num_params_trainable = num_params_fit_trainable
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
-                f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
+                f"Num params: {num_params:,} (fit: {num_params_fit:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use FP16: {args.use_fp16}",
                 f"Learning rate: {args.start_learning_rate}",
