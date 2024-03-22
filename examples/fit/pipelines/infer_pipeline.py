@@ -1,10 +1,10 @@
-from typing import Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 from diffusion import create_diffusion
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, nn, ops
 
 from mindone.models.modules import get_2d_sincos_pos_embed, precompute_freqs_cis_2d
 
@@ -22,14 +22,14 @@ class FiTInferPipeline:
 
     def __init__(
         self,
-        fit,
-        vae,
-        text_encoder=None,
-        scale_factor=1.0,
-        guidance_rescale=0.0,
-        num_inference_steps=50,
-        ddim_sampling=True,
-        model_config=None,
+        fit: Tensor,
+        vae: Tensor,
+        text_encoder: Optional[nn.Cell] = None,
+        scale_factor: float = 1.0,
+        guidance_rescale: float = 0.0,
+        num_inference_steps: int = 50,
+        ddim_sampling: bool = True,
+        model_config: Dict[str, Any] = {},
     ):
         super().__init__()
         self.model_config = model_config

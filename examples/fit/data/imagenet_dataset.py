@@ -151,7 +151,7 @@ class ImageNetLatentIterator:
 
         # N(mean, std)
         mean, std = np.split(latent, 2, axis=0)
-        latent = mean + std * np.random.randn(mean.shape)
+        latent = mean + std * np.random.randn(*mean.shape).astype(mean.dtype)
 
         latent = self._random_horiztotal_flip(latent)
         latent, pos = self._patchify(latent)

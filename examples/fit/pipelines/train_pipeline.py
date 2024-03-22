@@ -15,9 +15,9 @@ class NetworkWithLoss(nn.Cell):
         vae: Optional[nn.Cell] = None,
         scale_factor: float = 0.18215,
         condition: str = "class",
-        text_encoder: nn.Cell = None,
+        text_encoder: Optional[nn.Cell] = None,
         cond_stage_trainable: bool = False,
-        model_config: Dict[str, Any] = None,
+        model_config: Dict[str, Any] = {},
     ):
         super().__init__()
         self.network = network.set_grad()
