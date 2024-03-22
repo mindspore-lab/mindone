@@ -6,7 +6,6 @@ import datetime
 import logging
 import os
 import sys
-from typing import Tuple
 
 import yaml
 from args_train import parse_args
@@ -16,7 +15,6 @@ from utils.model_utils import load_dit_ckpt_params
 
 import mindspore as ms
 from mindspore import Model, nn
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -28,6 +26,7 @@ sys.path.insert(0, mindone_lib_path)
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
+from mindone.env import init_train_env
 from mindone.models.dit import DiT_models
 
 # load training modules
@@ -40,73 +39,10 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-    precision_mode: str = None,
-) -> Tuple[int, int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-        max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
-        device_target (str, default: "Ascend"): The target device on which the function should be executed: "GPU" or "Ascend"
-        precision_mode (str, default: None): the precision mode for mixed precision.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-    if precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": precision_mode})
-
-    if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-        )
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-        )
-
-    return device_id, rank_id, device_num
 
 
 def set_dit_all_params(dit_model, train=True, **kwargs):
@@ -130,13 +66,13 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_env(
-        args.mode,
+    _, rank_id, device_num = init_train_env(
+        args.model,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
-        precision_mode=args.precision_mode,
+        ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
