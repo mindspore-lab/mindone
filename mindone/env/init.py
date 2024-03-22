@@ -23,6 +23,7 @@ def init_train_env(
     distributed: bool = False,
     ascend_config: Optional[dict] = None,
     enable_modelarts: bool = False,
+    max_device_memory: str = None,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
 ) -> Tuple[int, int, int]:
@@ -41,6 +42,7 @@ def init_train_env(
         distributed: Whether to enable distributed training. Default is False.
         ascend_config: Parameters specific to the Ascend hardware platform.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
+        max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
         num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
         json_data_path: The path of num_samples.json containing a dictionary with 64 parts. Each part is a large
                         dictionary containing counts of samples of 533 tar packages.
@@ -54,7 +56,8 @@ def init_train_env(
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
-
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(mode=mode, device_target=device_target, device_id=device_id, ascend_config=ascend_config or {})

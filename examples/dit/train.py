@@ -6,7 +6,6 @@ import datetime
 import logging
 import os
 import sys
-from typing import Tuple
 
 import yaml
 from args_train import parse_args
@@ -17,7 +16,6 @@ from utils.model_utils import load_dit_ckpt_params
 
 import mindspore as ms
 from mindspore import Model, nn
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -29,6 +27,7 @@ sys.path.insert(0, mindone_lib_path)
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
+from mindone.env import init_train_env
 from mindone.models.dit import DiT_models
 
 # load training modules
@@ -41,69 +40,10 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-) -> Tuple[int, int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"}, # TODO: tune
-        )
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
-        )
-
-    return device_id, rank_id, device_num
 
 
 def set_dit_all_params(dit_model, train=True, **kwargs):
@@ -127,12 +67,13 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_env(
+    _, rank_id, device_num = init_train_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
+        ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -144,9 +85,17 @@ def main(args):
         input_size=latent_size,
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        patch_embedder=args.patch_embedder,
+        use_recompute=args.use_recompute,
     )
-    if args.use_fp16:
-        dit_model = auto_mixed_precision(dit_model, amp_level="O2")
+    if args.dtype == "fp16":
+        model_dtype = ms.float16
+        dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        model_dtype = ms.bfloat16
+        dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
     if args.dit_checkpoint:
         dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
@@ -328,7 +277,7 @@ def main(args):
                 f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use FP16: {args.use_fp16}",
+                f"Use model dtype: {model_dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",

@@ -1,4 +1,3 @@
-import logging
 import math
 import numbers
 from typing import Optional, Tuple, Type, Union
@@ -9,16 +8,10 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
-from ..utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
+from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+
 from .modules import get_2d_sincos_pos_embed
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
-
-logger = logging.getLogger(__name__)
-FLASH_IS_AVAILABLE = check_valid_flash_attention()
-if FLASH_IS_AVAILABLE:
-    from mindspore.nn.layer.flash_attention import FlashAttention
-
-    logger.info("Flash attention is available.")
 
 __all__ = [
     "DiT",
@@ -113,6 +106,53 @@ class PatchEmbed(nn.Cell):
         x = self.proj(x)
         x = ops.reshape(x, (b, self.embed_dim, -1))
         x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
+        return x
+
+
+class LinearPatchEmbed(nn.Cell):
+    """Image to Patch Embedding: using a linear layer instead of conv2d layer for projection
+
+    Args:
+        image_size (int): Image size. Default: 224.
+        patch_size (int): Patch token size. Default: 4.
+        in_chans (int): Number of input image channels. Default: 3.
+        embed_dim (int): Number of linear projection output channels. Default: 96.
+    """
+
+    def __init__(
+        self,
+        image_size: Optional[int] = 224,
+        patch_size: int = 4,
+        in_chans: int = 3,
+        embed_dim: int = 96,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
+        if image_size is not None:
+            self.image_size: Optional[Tuple] = (image_size, image_size) if isinstance(image_size, int) else image_size
+            self.patches_resolution: Optional[Tuple] = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
+            self.num_patches: Optional[int] = self.patches_resolution[0] * self.patches_resolution[1]
+        else:
+            self.image_size: Optional[Tuple] = None
+            self.patches_resolution: Optional[Tuple] = None
+            self.num_patches: Optional[int] = None
+        self.embed_dim = embed_dim
+        self.proj = nn.Dense(patch_size * patch_size * in_chans, embed_dim, has_bias=bias)
+
+    def construct(self, x: Tensor) -> Tensor:
+        b, c, h, w = x.shape
+        if self.image_size is not None:
+            assert (h, w) == (
+                self.image_size[0],
+                self.image_size[1],
+            ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
+        ph, pw = h // self.patch_size[0], w // self.patch_size[1]
+        x = x.reshape((b, c, self.patch_size[0], ph, self.patch_size[1], pw))  # (B, C, P, Ph, P, Pw)
+        x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
+        x = x.reshape((b, ph * pw, self.patch_size[0] * self.patch_size[1] * c))  # (B, Ph*Pw, P*P*C)
+
+        x = self.proj(x)  # B Ph*Pw C_out
         return x
 
 
@@ -217,14 +257,9 @@ class SelfAttention(nn.Cell):
         )
 
         if self.enable_flash_attention:
-            self.flash_attention = FlashAttention(
-                head_dim=head_dim,
-                head_num=num_heads,
-                high_precision=True,
-                dropout_rate=attn_drop,
-            )  # TODO: how high_precision affect the training or inference quality
-            self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
-            # logger.info("Flash attention is enabled.")
+            self.flash_attention = MSFlashAttention(
+                head_dim=head_dim, head_num=num_heads, fix_head_dims=[72], attention_dropout=attn_drop
+            )
         else:
             self.flash_attention = None
 
@@ -270,13 +305,7 @@ class SelfAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
-
+            out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
@@ -442,6 +471,8 @@ class DiT(nn.Cell):
         num_classes=1000,
         learn_sigma=True,
         block_kwargs={},
+        patch_embedder="conv",
+        use_recompute=False,
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -449,8 +480,13 @@ class DiT(nn.Cell):
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
         self.num_heads = num_heads
-
-        self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
+        self.patch_embedder = patch_embedder
+        self.use_recompute = use_recompute
+        if patch_embedder == "conv":
+            PatchEmbedder = PatchEmbed
+        else:
+            PatchEmbedder = LinearPatchEmbed
+        self.x_embedder = PatchEmbedder(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
         num_patches = self.x_embedder.num_patches
@@ -462,6 +498,18 @@ class DiT(nn.Cell):
         )
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()
+
+        if self.use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def initialize_weights(self):
         # Initialize transformer layers:

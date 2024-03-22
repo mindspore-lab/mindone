@@ -8,8 +8,7 @@ from utils.model_utils import _check_cfgs_in_parser, str2bool
 logger = logging.getLogger()
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def parse_train_args(parser):
     parser.add_argument(
         "--config",
         "-c",
@@ -72,7 +71,6 @@ def parse_args():
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
-    parser.add_argument("--callback_size", default=1, type=int, help="callback size.")
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
@@ -96,15 +94,29 @@ def parse_args():
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="whether apply gradient clipping")
     parser.add_argument(
         "--use_recompute",
-        default=None,
+        default=False,
         type=str2bool,
         help="whether use recompute.",
     )
     parser.add_argument(
-        "--use_fp16",
-        default=True,
-        type=str2bool,
-        help="whether use fp16 for latte.",
+        "--patch_embedder",
+        type=str,
+        default="conv",
+        choices=["conv", "linear"],
+        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
+    )
+    parser.add_argument(
+        "--dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--precision_mode",
+        default=None,
+        type=str,
+        help="If specified, set the precision mode for Ascend configurations.",
     )
     parser.add_argument(
         "--model_name",
@@ -178,7 +190,48 @@ def parse_args():
     )
 
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+    return parser
 
+
+def parse_embedding_cache_args(parser):
+    parser.add_argument(
+        "--cache_file_type",
+        default="mindrecord",
+        type=str,
+        choices=["numpy", "mindrecord"],
+        help="type of cached dataset file",
+    )
+    parser.add_argument(
+        "--save_data_type",
+        default="float32",
+        type=str,
+        choices=["float16", "float32"],
+        help="data type when saving embedding cache",
+    )
+    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
+    parser.add_argument(
+        "--max_page_size",
+        default=256,
+        type=int,
+        choices=[64, 128, 256],
+        help="The maximum page size for the MindRecord File Writer. Should be one of [64, 128, 256]",
+    )
+    parser.add_argument(
+        "--resume_cache_index", default=None, type=int, help="If provided, will resume cache from this video index."
+    )
+    parser.add_argument(
+        "--dump_every_n_lines",
+        type=int,
+        default=1,
+        help="The number of data items (videos) saved every time calling mindrecord writer.",
+    )
+    return parser
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser = parse_train_args(parser)
+    parser = parse_embedding_cache_args(parser)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
     if default_args.config:

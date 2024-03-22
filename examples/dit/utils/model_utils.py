@@ -24,6 +24,7 @@ def load_dit_ckpt_params(model, ckpt):
         param_dict = ms.load_checkpoint(ckpt)
     else:
         param_dict = ckpt
+
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
     assert (
         len(param_not_load) == len(ckpt_not_load) == 0

@@ -5,7 +5,6 @@ import datetime
 import logging
 import os
 import sys
-from typing import Tuple
 
 import yaml
 from args_train import parse_args
@@ -17,7 +16,6 @@ from utils.model_utils import remove_pname_prefix
 
 import mindspore as ms
 from mindspore import Model, nn
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
@@ -28,6 +26,7 @@ sys.path.insert(0, mindone_lib_path)
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
+from mindone.env import init_train_env
 from mindone.models.latte import Latte_models
 
 # load training modules
@@ -40,68 +39,10 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-) -> Tuple[int, int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"}, # TODO: tune
-        )
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
-        )
-
-    return device_id, rank_id, device_num
 
 
 def main(args):
@@ -109,12 +50,13 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    device_id, rank_id, device_num = init_env(
+    _, rank_id, device_num = init_train_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
+        ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -128,10 +70,18 @@ def main(args):
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         condition=args.condition,
         num_frames=args.num_frames,
+        use_recompute=args.use_recompute,
+        patch_embedder=args.patch_embedder,
     )
 
-    if args.use_fp16:
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2")
+    if args.dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
     if len(args.pretrained_model_path) > 0:
         param_dict = ms.load_checkpoint(args.pretrained_model_path)
@@ -145,43 +95,39 @@ def main(args):
     latte_model.set_train(True)
     for param in latte_model.get_parameters():
         param.requires_grad = True
-    # 2.2 vae
-    logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        4,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
 
-    if args.condition == "text":
-        text_encoder = initiate_clip_text_encoder(
-            use_fp16=args.use_fp16,
-            ckpt_path=args.clip_checkpoint,
-            trainable=False,
-        )
-        tokenizer = text_encoder.tokenizer
-    else:
-        text_encoder, tokenizer = None, None
-    diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
-        latte_model,
-        vae,
-        diffusion,
-        args.sd_scale_factor,
-        args.condition,
-        text_encoder=text_encoder,
-        cond_stage_trainable=False,
-    )
     # select dataset
     data_config = OmegaConf.load(args.data_config_file).data_config
     # set some data params from argument parser
     data_config.sample_size = args.image_size
     data_config.sample_n_frames = args.num_frames
     data_config.batch_size = args.train_batch_size
+    train_with_embed = True if data_config.get("train_data_type", None) in ["numpy", "mindrecord"] else False
+
+    if not train_with_embed:
+        # 2.2 vae
+        logger.info("vae init")
+        vae = AutoencoderKL(
+            SD_CONFIG,
+            4,
+            ckpt_path=args.vae_checkpoint,
+            use_fp16=False,  # disable amp for vae . TODO: set by config file
+        )
+        vae = vae.set_train(False)
+        for param in vae.get_parameters():  # freeze vae
+            param.requires_grad = False
+    else:
+        vae = None
+
+    if args.condition == "text" and not train_with_embed:
+        text_encoder = initiate_clip_text_encoder(
+            use_fp16=True,  # TODO: set by config file
+            ckpt_path=args.clip_checkpoint,
+            trainable=False,
+        )
+        tokenizer = text_encoder.tokenizer
+    else:
+        text_encoder, tokenizer = None, None
 
     dataset = get_dataset(
         args.dataset_name,
@@ -191,6 +137,18 @@ def main(args):
         rank_id=rank_id,
     )
     dataset_size = dataset.get_dataset_size()
+
+    diffusion = create_diffusion(timestep_respacing="")
+    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
+        latte_model,
+        diffusion,
+        vae,
+        args.sd_scale_factor,
+        args.condition,
+        text_encoder=text_encoder,
+        cond_stage_trainable=False,
+        train_with_embed=train_with_embed,
+    )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
@@ -269,7 +227,7 @@ def main(args):
 
     model = Model(net_with_grads)
     # callbacks
-    callback = [TimeMonitor(args.callback_size)]
+    callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
@@ -283,7 +241,7 @@ def main(args):
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
-            log_interval=args.callback_size,
+            log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name="Latte",
             record_lr=False,  # TODO: check LR retrival for new MS on 910b
@@ -295,7 +253,10 @@ def main(args):
     # 5. log and save config
     if rank_id == 0:
         # 4. print key info
-        num_params_vae, num_params_vae_trainable = count_params(vae)
+        if vae is not None:
+            num_params_vae, num_params_vae_trainable = count_params(vae)
+        else:
+            num_params_vae, num_params_vae_trainable = 0, 0
         num_params_latte, num_params_latte_trainable = count_params(latte_model)
         num_params = num_params_vae + num_params_latte
         num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
@@ -306,7 +267,7 @@ def main(args):
                 f"Distributed mode: {args.use_parallel}",
                 f"Num params: {num_params:,} (dit: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use FP16: {args.use_fp16}",
+                f"Use model dtype: {model_dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",
@@ -320,6 +281,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"Enable flash attention: {args.enable_flash_attention}",
+                f"Use recompute: {args.use_recompute}",
                 f"Dataset sink: {args.dataset_sink_mode}",
             ]
         )

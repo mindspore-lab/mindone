@@ -55,7 +55,7 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
                 + [
                     nn.GroupNorm,
                 ],
-                ms.float16,
+                dtype,
             )
         except Exception:
             _auto_black_list(
@@ -66,7 +66,7 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
                 ],
             )
     elif amp_level == "O3":
-        network.to_float(ms.float16)
+        network.to_float(dtype)
     else:
         raise ValueError("The amp level {} is not supported".format(amp_level))
 

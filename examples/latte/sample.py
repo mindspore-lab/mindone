@@ -38,7 +38,8 @@ def init_env(args):
         device_target=args.device_target,
         device_id=device_id,
     )
-
+    if args.precision_mode is not None:
+        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
     return device_id
 
 
@@ -118,10 +119,30 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--use_fp16",
-        default=True,
+        "--dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--precision_mode",
+        default=None,
+        type=str,
+        help="If specified, set the precision mode for Ascend configurations.",
+    )
+    parser.add_argument(
+        "--use_recompute",
+        default=False,
         type=str2bool,
-        help="whether to use fp16 for Latte mode. Default is True",
+        help="whether use recompute.",
+    )
+    parser.add_argument(
+        "--patch_embedder",
+        type=str,
+        default="conv",
+        choices=["conv", "linear"],
+        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
@@ -158,10 +179,18 @@ if __name__ == "__main__":
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         condition=args.condition,
         num_frames=args.num_frames,
+        use_recompute=args.use_recompute,
+        patch_embedder=args.patch_embedder,
     )
 
-    if args.use_fp16:
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2")
+    if args.dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
     if len(args.checkpoint) > 0:
         param_dict = ms.load_checkpoint(args.checkpoint)
@@ -224,7 +253,7 @@ if __name__ == "__main__":
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use FP16: {args.use_fp16}",
+            f"Use model dtype: {model_dtype}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",

@@ -10,7 +10,7 @@ pretrained_model_path: ""
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
-use_fp16: True
+dtype: "fp16"
 
 # data setting
 dataset_name: "sky"
@@ -36,6 +36,6 @@ betas: [0.9, 0.999]
 optim_eps: 1.e-6
 
 # training process
-log_interval: 100
+log_interval: 1
 ckpt_save_interval: 50 # save ckpt every n epochs
 step_mode: False

@@ -75,10 +75,9 @@ def create_video_transforms(
     return pixel_transforms
 
 
-def get_dataset(dataset_name, config, device_num=1, rank_id=0, **kwargs):
+def get_dataset(dataset_name, config, device_num=1, rank_id=0, return_dataset=False, **kwargs):
     if dataset_name == "sky":
         from .sky_dataset import create_dataloader
     elif dataset_name == "csv":
         from .csv_dataset import create_dataloader
-    dataset = create_dataloader(config, device_num=device_num, rank_id=rank_id, **kwargs)
-    return dataset
+    return create_dataloader(config, device_num=device_num, rank_id=rank_id, return_dataset=return_dataset, **kwargs)
