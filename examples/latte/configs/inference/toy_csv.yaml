@@ -8,7 +8,7 @@ checkpoint: "path/to/ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
-use_model_dtype: "fp16"
+dtype: "fp16"
 
 # sampling
 sampling_steps: 250

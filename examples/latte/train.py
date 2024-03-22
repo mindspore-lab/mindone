@@ -137,10 +137,10 @@ def main(args):
         patch_embedder=args.patch_embedder,
     )
 
-    if args.use_model_dtype == "fp16":
+    if args.dtype == "fp16":
         model_dtype = ms.float16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    elif args.use_model_dtype == "bf16":
+    elif args.dtype == "bf16":
         model_dtype = ms.bfloat16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
     else:

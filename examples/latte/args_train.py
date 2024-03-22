@@ -106,7 +106,7 @@ def parse_train_args(parser):
         help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument(
-        "--use_model_dtype",
+        "--dtype",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],

@@ -9,7 +9,7 @@ dit_checkpoint: "models/DiT-XL-2-256x256.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
-use_model_dtype: "fp16"
+dtype: "fp16"
 use_recompute: False
 patch_embedder: "conv"
 

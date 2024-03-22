@@ -151,10 +151,10 @@ def main(args):
         patch_embedder=args.patch_embedder,
         use_recompute=args.use_recompute,
     )
-    if args.use_model_dtype == "fp16":
+    if args.dtype == "fp16":
         model_dtype = ms.float16
         dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
-    elif args.use_model_dtype == "bf16":
+    elif args.dtype == "bf16":
         model_dtype = ms.bfloat16
         dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
     else:
@@ -340,7 +340,7 @@ def main(args):
                 f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use model dtype: {args.use_model_dtype}",
+                f"Use model dtype: {model_dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",

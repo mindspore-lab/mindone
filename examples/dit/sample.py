@@ -97,7 +97,7 @@ def parse_args():
         help="whether use recompute.",
     )
     parser.add_argument(
-        "--use_model_dtype",
+        "--dtype",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
@@ -153,10 +153,10 @@ if __name__ == "__main__":
         use_recompute=args.use_recompute,
     )
 
-    if args.use_model_dtype == "fp16":
+    if args.dtype == "fp16":
         model_dtype = ms.float16
         dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
-    elif args.use_model_dtype == "bf16":
+    elif args.dtype == "bf16":
         model_dtype = ms.bfloat16
         dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
     else:
@@ -214,7 +214,7 @@ if __name__ == "__main__":
             f"Class labels: {class_labels}",
             f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use model dtype: {args.use_model_dtype}",
+            f"Use model dtype: {model_dtype}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",

@@ -101,7 +101,7 @@ def parse_args():
         help="whether use recompute.",
     )
     parser.add_argument(
-        "--use_model_dtype",
+        "--dtype",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],

@@ -119,7 +119,7 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--use_model_dtype",
+        "--dtype",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
@@ -183,10 +183,10 @@ if __name__ == "__main__":
         patch_embedder=args.patch_embedder,
     )
 
-    if args.use_model_dtype == "fp16":
+    if args.dtype == "fp16":
         model_dtype = ms.float16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    elif args.use_model_dtype == "bf16":
+    elif args.dtype == "bf16":
         model_dtype = ms.bfloat16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
     else:
