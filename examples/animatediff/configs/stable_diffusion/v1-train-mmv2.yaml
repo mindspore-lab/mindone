@@ -16,6 +16,7 @@ model:
     scale_factor: 0.18215
     use_ema: False
     use_fp16: True
+    snr_gamma: null
 
     unet_config:
       target: ad.modules.diffusionmodules.unet3d.UNet3DModel
