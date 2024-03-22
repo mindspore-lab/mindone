@@ -8,8 +8,10 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
-
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+
+from .modules import get_2d_sincos_pos_embed
+from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 __all__ = [
     "DiT",
