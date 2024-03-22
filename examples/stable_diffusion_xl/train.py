@@ -271,6 +271,8 @@ def train(args):
         if isinstance(model.model, nn.Cell):
             from gm.models.trainer_factory import TrainOneStepCell
 
+            model = auto_mixed_precision(model, amp_level=args.ms_amp_level)
+
             train_step_fn = TrainOneStepCell(
                 model,
                 optimizer,
@@ -286,7 +288,7 @@ def train(args):
                 timestep_bias_weighting=timestep_bias_weighting,
                 snr_gamma=args.snr_gamma,
             )
-            train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+
             if model.disable_first_stage_amp and train_step_fn.first_stage_model is not None:
                 train_step_fn.first_stage_model.to_float(ms.float32)
             jit_config = ms.JitConfig()
