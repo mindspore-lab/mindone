@@ -1,12 +1,10 @@
-from abc import ABC
-
 from diffusion import create_diffusion
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import Tensor, ops
 
 
-class DiTInferPipeline(ABC):
+class DiTInferPipeline:
     """
 
     Args:
@@ -77,7 +75,7 @@ class DiTInferPipeline(ABC):
             images (b H W 3)
         """
         z, y = self.data_prepare(inputs)
-        model_kwargs = dict(y=y, cfg_scale=self.guidance_rescale)
+        model_kwargs = dict(y=y, cfg_scale=Tensor(self.guidance_rescale, dtype=ms.float32))
         latents = self.sampling_func(
             self.dit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
         )

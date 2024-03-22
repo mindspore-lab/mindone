@@ -9,6 +9,7 @@ import numpy as np
 import yaml
 from PIL import Image
 from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
+from utils.plot import image_grid
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -57,7 +58,7 @@ def parse_args():
         "--image_size",
         type=int,
         default=256,
-        help="path to source torch checkpoint, which ends with .pt",
+        help="image size",
     )
     parser.add_argument(
         "--model_name",
@@ -117,6 +118,7 @@ def parse_args():
         help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -239,8 +241,14 @@ if __name__ == "__main__":
     end_time = time.time()
 
     # save result
-    for i, class_label in enumerate(class_labels, 0):
-        save_fp = f"{save_dir}/class-{class_label}.png"
-        img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
+    if not args.imagegrid:
+        for i, class_label in enumerate(class_labels, 0):
+            save_fp = f"{save_dir}/class-{class_label}.png"
+            img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
+            img.save(save_fp)
+            logger.info(f"save to {save_fp}")
+    else:
+        save_fp = f"{save_dir}/sample.png"
+        img = image_grid(x_samples)
         img.save(save_fp)
         logger.info(f"save to {save_fp}")

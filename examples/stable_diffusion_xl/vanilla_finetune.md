@@ -90,14 +90,14 @@ python train.py \
   --cache_text_embedding True \
   --cache_path ./cache_data
 or
-bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
+bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to_dataset/ /path_to_cache/ # cache data
 ```
 
 #### 3.2. train with cache data
 
 ```shell
 # sdxl-base fine-tune with cache on Ascend
-bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
+bash scripts/run_distribute_vanilla_ft_910b_cache.sh /path_to/hccl_8p.json 0 8 8 /path_to_dataset/  # run on server 1
 ```
 
 #### 3.3. merge weight and infer

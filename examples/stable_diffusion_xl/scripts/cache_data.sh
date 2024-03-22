@@ -1,10 +1,10 @@
 #!/bin/bash
 
-if [ $# != 5 ]
+if [ $# != 6 ]
 then
   echo "For Multiple Devices In Single/Multiple Machine"
-  echo "Usage Help: bash run_distribute.sh [RANK_TABLE_FILE] [RANK_START] [RANK_END] [RANK_SIZE] [DATASET_PATH]"
-  echo "Example as: bash run_distribute.sh hccl_8p.json 0 8 8 /PATH TO/YOUR DATASET/"
+  echo "Usage Help: bash cache_data.sh [RANK_TABLE_FILE] [RANK_START] [RANK_END] [RANK_SIZE] [DATASET_PATH] [CACHE_PATH]"
+  echo "Example as: bash cache_data.sh hccl_8p.json 0 8 8 /PATH_TO_DATASET/ /PATH_TO_CACHE/"
   exit 1
 fi
 
@@ -13,6 +13,7 @@ START_DEVICE=$2
 END_DEVICE=$3
 RANK_SIZE=$4
 DATASET_PATH=$5
+CACHE_PATH=$6
 
 export HCCL_CONNECT_TIMEOUT=7200
 export RANK_TABLE_FILE=$RANK_TABLE_FILE
@@ -35,6 +36,6 @@ do
     --save_path_with_time False \
     --cache_latent True \
     --cache_text_embedding True \
-    --cache_path ./cache_data \
+    --cache_path $CACHE_PATH \
     --is_parallel True > logs_for_cache/log_$i.txt 2>&1 &
 done

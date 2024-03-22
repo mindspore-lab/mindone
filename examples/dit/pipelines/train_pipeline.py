@@ -95,7 +95,6 @@ class NetworkWithLoss(nn.Cell):
 
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
-        # p_mean_variance(model=lambda *_: frozen_out, x_t, t, clip_denoised=False) begin
         min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
         max_log = _extract_into_tensor(ops.log(self.diffusion.betas), t, x_t.shape)
         # The model_var_values is [-1, 1] for [min_var, max_var].
@@ -103,14 +102,12 @@ class NetworkWithLoss(nn.Cell):
         model_log_variance = frac * max_log + (1 - frac) * min_log
         pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
         model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
-        # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
-        # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl) / ms.numpy.log(2.0)
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
         decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        vb = ops.where((t == 0), decoder_nll.to(kl.dtype), kl)
+        vb = ops.where((t == 0), decoder_nll, kl)
         return vb
 
     def compute_loss(self, x, y, text_embed):

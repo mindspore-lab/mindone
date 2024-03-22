@@ -224,6 +224,8 @@ def tokenize(texts: Union[str, List[str]], context_length: int = 77) -> [np.ndar
     -------
     A two-dimensional tensor containing the resulting tokens, shape = [number of input strings, context_length]
     """
+    if isinstance(texts, np.ndarray):  # MindData's `.map` returns strings wrapped into a numpy array
+        texts = texts.item()
     if isinstance(texts, str):
         texts = [texts]
 

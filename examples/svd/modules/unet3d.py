@@ -1,6 +1,6 @@
 import logging
 import sys
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union
 
 try:
     from typing import Literal
@@ -10,9 +10,7 @@ except ImportError:
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor
-from mindspore import dtype as ms_dtype
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
 from gm.modules.attention import (
@@ -61,19 +59,19 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
         context=None,
         image_only_indicator: Optional[Tensor] = None,
         time_context: Optional[int] = None,
-        num_video_frames: Optional[int] = None,
+        num_frames: Optional[int] = None,
     ):
         for cell in self.cell_list:
             if isinstance(cell, TimestepBlock) and not isinstance(cell, TemporalResBlock):
                 x = cell(x, emb)
             elif isinstance(cell, TemporalResBlock):
-                x = cell(x, emb, num_video_frames, image_only_indicator)
+                x = cell(x, emb, num_frames, image_only_indicator)
             elif isinstance(cell, TemporalTransformer):
                 x = cell(
                     x,
                     context,
                     time_context,
-                    num_video_frames,
+                    num_frames,
                     image_only_indicator,
                 )
             elif isinstance(cell, SpatialTransformer):
@@ -194,7 +192,6 @@ class TemporalTransformer(SpatialTransformer):
         in_channels,
         n_heads,
         d_head,
-        num_frames: int,
         depth=1,
         dropout=0.0,
         use_linear=False,
@@ -221,9 +218,8 @@ class TemporalTransformer(SpatialTransformer):
             use_linear=use_linear,
             disable_self_attn=disable_self_attn,
         )
-        self.depth = depth
         self.max_time_embed_period = max_time_embed_period
-        self._pe = Tensor(_positional_encoding(num_frames, in_channels), dtype=ms_dtype.float32)  # FIXME: check this
+        # self._pe = Tensor(_positional_encoding(num_frames, in_channels), dtype=ms_dtype.float32)  # FIXME: check this
 
         time_mix_d_head = d_head
         n_time_mix_heads = n_heads
@@ -249,7 +245,7 @@ class TemporalTransformer(SpatialTransformer):
                     disable_self_attn=disable_self_attn,
                     disable_temporal_crossattention=disable_temporal_crossattention,
                 )
-                for _ in range(self.depth)
+                for _ in range(depth)
             ]
         )
 
@@ -334,7 +330,6 @@ class TemporalResBlock(ResBlock):
         self,
         channels: int,
         emb_channels: int,
-        num_frames: int,
         dropout: float,
         video_kernel_size: Union[int, List[int]] = 3,
         merge_strategy: Literal["fixed", "learned", "learned_with_images"] = "fixed",
@@ -371,22 +366,20 @@ class TemporalResBlock(ResBlock):
             kernel_size=video_kernel_size,
             exchange_temb_dims=True,
         )
-        self.time_mixer = AlphaBlender(
-            alpha=merge_factor, merge_strategy=merge_strategy, reshape_pattern=(-1, 1, num_frames, 1, 1)
-        )
+        self.time_mixer = AlphaBlender(alpha=merge_factor, merge_strategy=merge_strategy)
 
     def construct(
         self,
         x: Tensor,
         emb: Tensor,
-        num_video_frames: int,
+        num_frames: int,
         image_only_indicator: Optional[Tensor] = None,
     ) -> Tensor:
         x_spat = super().construct(x, emb)
         # (b t) c h w -> b c t h w
-        x_spat = x_spat.reshape(-1, num_video_frames, x_spat.shape[1], x_spat.shape[2], x_spat.shape[3]).swapaxes(1, 2)
+        x_spat = x_spat.reshape(-1, num_frames, x_spat.shape[1], x_spat.shape[2], x_spat.shape[3]).swapaxes(1, 2)
 
-        emb = emb.reshape(-1, num_video_frames, *emb.shape[1:])  # (b t) ... -> b t ...
+        emb = emb.reshape(-1, num_frames, *emb.shape[1:])  # (b t) ... -> b t ...
         x_temp = self.time_stack(x_spat, emb)
         x = self.time_mixer(x_spatial=x_spat, x_temporal=x_temp, image_only_indicator=image_only_indicator)
 
@@ -402,7 +395,6 @@ class VideoUNet(nn.Cell):
         out_channels: int,
         num_res_blocks: int,
         attention_resolutions: int,
-        num_frames: int,
         dropout: float = 0.0,
         channel_mult: List[int] = (1, 2, 4, 8),
         conv_resample: bool = True,
@@ -516,7 +508,6 @@ class VideoUNet(nn.Cell):
                 ch,
                 num_heads,
                 dim_head,
-                num_frames=num_frames,
                 depth=depth,
                 context_dim=context_dim,
                 time_context_dim=time_context_dim,
@@ -546,7 +537,6 @@ class VideoUNet(nn.Cell):
             up=False,
         ):
             return TemporalResBlock(
-                num_frames=num_frames,
                 merge_factor=merge_factor,
                 merge_strategy=merge_strategy,
                 video_kernel_size=video_kernel_size,
@@ -737,6 +727,13 @@ class VideoUNet(nn.Cell):
             zero_module(conv_nd(dims, model_channels, out_channels, 3, pad_mode="same")),
         )
 
+    def get_temporal_param_names(self, prefix: str = "") -> Set[str]:
+        return {
+            prefix + name
+            for name, _ in self.parameters_and_names()
+            if any([n in name for n in ["time_stack", "time_mixer", "time_pos_embed"]])
+        }
+
     def construct(
         self,
         x: Tensor,
@@ -744,7 +741,7 @@ class VideoUNet(nn.Cell):
         context: Optional[Tensor] = None,
         y: Optional[Tensor] = None,
         time_context: Optional[Tensor] = None,
-        num_video_frames: Optional[int] = None,
+        num_frames: Optional[int] = None,
         image_only_indicator: Optional[Tensor] = None,
     ):
         assert (y is not None) == (
@@ -766,17 +763,19 @@ class VideoUNet(nn.Cell):
                 context=context,
                 image_only_indicator=image_only_indicator,
                 time_context=time_context,
-                num_video_frames=num_video_frames,
+                num_frames=num_frames,
             )
             hs.append(h)
+
         h = self.middle_block(
             h,
             emb,
             context=context,
             image_only_indicator=image_only_indicator,
             time_context=time_context,
-            num_video_frames=num_video_frames,
+            num_frames=num_frames,
         )
+
         for i, module in enumerate(self.output_blocks, start=1):
             h = ops.cat([h, hs[-i]], axis=1)
             h = module(
@@ -785,7 +784,7 @@ class VideoUNet(nn.Cell):
                 context=context,
                 image_only_indicator=image_only_indicator,
                 time_context=time_context,
-                num_video_frames=num_video_frames,
+                num_frames=num_frames,
             )
-        h = h.to(x.dtype)
+
         return self.out(h)

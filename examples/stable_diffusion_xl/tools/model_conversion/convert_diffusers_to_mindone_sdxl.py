@@ -302,7 +302,13 @@ def convert_weight(state_dict, msname):
     ms_key = []
     for i in range(len(key_torch)):
         kt, kms = key_torch[i], key_ms[i]
-        newckpt.append({"name": kms, "data": Tensor(state_dict["state_dict"][kt].numpy(), ms.float32)})
+        vms = Tensor(state_dict["state_dict"][kt].numpy(), ms.float32)
+        if "conditioner.embedders.1.model.text_projection" == kms:
+            print(
+                f"[Attention] {kms} is called differently in MindONE and Diffusers, so it is transposed in converting"
+            )
+            vms = ms.ops.transpose(vms, (1, 0))
+        newckpt.append({"name": kms, "data": vms})
         ms_key.append(kms)
     ms.save_checkpoint(newckpt, msname)
     print("convert Stable Diffusion checkpoint(torch) to MindOne Stable Diffusion checkpoint(mindspore) success!")
@@ -404,7 +410,7 @@ if __name__ == "__main__":
 
     if osp.exists(args.unet_path):
         if args.unet_path.endswith(".bin"):
-            unet_state_dict = torch.load(args.unet_bin_path, map_location="cpu")
+            unet_state_dict = torch.load(args.unet_path, map_location="cpu")
         else:
             unet_state_dict = load_file(args.unet_path, device="cpu")
         print("load unet from unet_path: ", args.unet_path)

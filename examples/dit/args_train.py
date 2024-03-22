@@ -191,7 +191,7 @@ def parse_args():
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
 
-    parser.add_argument("--imagenet_format", help="Training with ImageNet dataset format")
+    parser.add_argument("--imagenet_format", type=str2bool, help="Training with ImageNet dataset format")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()

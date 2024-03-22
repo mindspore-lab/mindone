@@ -248,35 +248,3 @@ def create_dataloader(
     )
 
     return dl
-
-
-def create_dataloader_imagenet(
-    config,
-    device_num=None,
-    rank_id=None,
-):
-    from mindspore.dataset.transforms import Compose, vision
-
-    dataset = ms.dataset.ImageFolderDataset(
-        config["data_folder"],
-        shuffle=config["shuffle"],
-        num_shards=device_num,
-        shard_id=rank_id,
-        num_parallel_workers=config["num_parallel_workers"],
-    )
-    sample_size = config.get("sample_size", 256)
-    dataset = dataset.map(
-        operations=Compose(
-            [
-                vision.Decode(),
-                vision.RandomHorizontalFlip(),
-                vision.Resize(sample_size, interpolation=vision.Inter.BICUBIC),
-                vision.CenterCrop(sample_size),
-                vision.HWC2CHW(),
-            ]
-        )
-    )
-    dataset = dataset.map(lambda x: (x / 127.5 - 1.0))
-
-    dl = dataset.batch(config["batch_size"], drop_remainder=True)
-    return dl

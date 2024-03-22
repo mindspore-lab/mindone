@@ -9,7 +9,8 @@ import sys
 
 import yaml
 from args_train import parse_args
-from data.dataset import create_dataloader, create_dataloader_imagenet
+from data.dataset import create_dataloader
+from data.imagenet_dataset import create_dataloader_imagenet
 from pipelines.train_pipeline import DiTWithLoss
 from utils.model_utils import load_dit_ckpt_params
 

@@ -2,6 +2,7 @@ import argparse
 
 import torch
 from safetensors.torch import load_file as load_safetensors
+from safetensors.torch import save_file as save_safetensors
 
 import mindspore as ms
 from mindspore import Tensor
@@ -54,7 +55,7 @@ def ms_to_pt(args):
         assert k_ms in sd, f"Keys '{k_ms}' not found in {args.key_ms}"
         new_ckpt[k_t] = torch.from_numpy(sd[k_ms].data.asnumpy())
 
-    torch.save(new_ckpt, args.weight_safetensors)
+    save_safetensors(new_ckpt, args.weight_safetensors)
     print(f"Convert '{args.weight_ms}' to '{args.weight_safetensors}' Done.")
 
 

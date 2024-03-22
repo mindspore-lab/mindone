@@ -536,6 +536,10 @@ def infer_during_train(model, prompt, save_path, lpw=False):
 
 
 def cache_data(args):
+    import csv
+
+    from tqdm import tqdm
+
     # 1. Init Env
     args = set_default(args)
 
@@ -573,13 +577,16 @@ def cache_data(args):
     )
 
     # 4. Cache Data
-    os.makedirs(args.cache_path, exist_ok=False)
+    os.makedirs(args.cache_path, exist_ok=True)
     if args.cache_latent:
-        os.makedirs(os.path.join(args.cache_path, "latent_cache"), exist_ok=False)
+        os.makedirs(os.path.join(args.cache_path, "latent_cache"), exist_ok=True)
     if args.cache_text_embedding:
-        os.makedirs(os.path.join(args.cache_path, "vector_cache"), exist_ok=False)
-        os.makedirs(os.path.join(args.cache_path, "crossattn_cache"), exist_ok=False)
+        os.makedirs(os.path.join(args.cache_path, "vector_cache"), exist_ok=True)
+        os.makedirs(os.path.join(args.cache_path, "crossattn_cache"), exist_ok=True)
+    # sample list files
+    prompt_list_path = os.path.join(args.cache_path, f"img_txt_rank{args.rank}.csv")
 
+    sample_list = [["dir", "text"]]
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_num = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -608,6 +615,11 @@ def cache_data(args):
             np.save(os.path.join(args.cache_path, "vector_cache", f"{sample_name}.npy"), vector.asnumpy())
             np.save(os.path.join(args.cache_path, "crossattn_cache", f"{sample_name}.npy"), crossattn.asnumpy())
 
+        txt = " " if args.dataset_load_tokenizer else data["txt"]
+        sample_list += [
+            [f"{sample_name}.jpg", txt],
+        ]
+
         # Print meg
         if (i + 1) % args.log_interval == 0:
             print(
@@ -623,6 +635,12 @@ def cache_data(args):
             s_time = time.time()
 
     print(f"Rank {args.rank + 1}/{args.rank_size}, Cache sample {total_num}, Done.")
+
+    with open(prompt_list_path, mode="w") as file:
+        writer = csv.writer(file)
+        for row in tqdm(sample_list):
+            writer.writerow(row)
+    print(f"Rank {args.rank + 1}/{args.rank_size}, Save image-text file to {prompt_list_path}, Done.")
 
 
 def generate_timestep_weights(args, num_timesteps):
