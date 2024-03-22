@@ -4,6 +4,10 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 
 ONE is short for "ONE for all" and "Optimal generators with No Exception" (credits to GPT-4).
 ## News
+- 2024.03.22
+    1. New diffusion transformer models released!
+        - [DiT](examples/dit) for image generation
+        - [Latte](examples/latte) for video generation
 - 2024.03.04
     1. New generative models released!
         - [AnimateDiff](examples/animatediff) v1, v2, and v3
