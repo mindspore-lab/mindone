@@ -67,7 +67,7 @@ def main(args):
 
     # 1. init
     _, rank_id, device_num = init_train_env(
-        args.model,
+        args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
