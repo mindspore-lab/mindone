@@ -25,7 +25,7 @@ In this tutorial, we will introduce how to run inference and training experiment
 This tutorial includes:
 - [x] Pretrained checkpoints conversion;
 - [x] Un-conditional video sampling with pretrained Latte checkpoints;
-- [x] Training un-conditional Latte on Sky TimeLapse dataset: support training (1) on-the-fly ; and (2) with embedding cache;
+- [x] Training un-conditional Latte on Sky TimeLapse dataset: support training (1) with videos ; and (2) with embedding cache;
 - [x] Mixed Precision: support (1) Float16; (2) BFloat16 (set patch_embedder to "linear");
 - [x] Standalone training and distributed training.
 - [ ] Text-to-Video Latte inference and training.
@@ -98,9 +98,9 @@ Some of the generated results are shown here:
 
 ## 4. Training
 
-### 4.1 Training On-the-Fly
+### 4.1 Training With Videos
 
-Now, we support on-the-fly training Latte model on the Sky Timelapse dataset, which can be downloaded from https://github.com/weixiong-ur/mdgan.
+Now, we support training Latte model on the Sky Timelapse dataset, a video dataset which can be downloaded from https://github.com/weixiong-ur/mdgan.
 
 After uncompressing the downloaded file, you will get a folder named `sky_train/` which contains all training video frames. The folder structure is similar to:
 ```
