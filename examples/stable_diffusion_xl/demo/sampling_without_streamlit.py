@@ -6,13 +6,23 @@ import sys
 import time
 from functools import partial
 
+import numpy as np
+
 sys.path.append(".")
 sys.path.append("..")
 if os.environ.get("MS_PYNATIVE_GE") != "1":
     os.environ["MS_PYNATIVE_GE"] = "1"
 
 from cldm.util import get_control
-from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling, load_img, perform_save_locally
+from gm.helpers import (
+    SD_XL_BASE_RATIOS,
+    VERSION2SPECS,
+    create_model,
+    get_discretization,
+    init_sampling,
+    load_img,
+    perform_save_locally,
+)
 from gm.util import seed_everything
 from gm.util.long_prompt import do_sample as do_sample_long_prompts
 from omegaconf import OmegaConf
@@ -67,10 +77,55 @@ def get_parser_sample():
         "--guidance_scale",
         type=float,
         default=5.0,
-        help="the guidance scale for txt2img and img2img tasks. For NoDynamicThresholding, uncond + guidance_scale * (uncond - cond).",
+        help="the guidance scale for txt2img and img2img tasks. For VanillaCFG, uncond + guidance_scale * (cond - uncond).",
     )
-    parser.add_argument("--discretization", type=str, default="LegacyDDPMDiscretization")
+    parser.add_argument(
+        "--thresholding",
+        type=bool,
+        default=False,
+        help="For VanillaCFG. Whether to use the dynamic thresholding method.",
+    )
+    parser.add_argument(
+        "--dynamic_thresholding_ratio",
+        type=float,
+        default=0.995,
+        help="For DynamicThresholding. Valid only when thresholding=True.",
+    )
+    parser.add_argument(
+        "--sample_max_value",
+        type=float,
+        default=1.0,
+        help="For DynamicThresholding. Valid only when thresholding=True.",
+    )
+
+    parser.add_argument(
+        "--discretization",
+        type=str,
+        default=None,
+        choices=["LegacyDDPMDiscretization", "EDMDiscretization", "DiffusersDDPMDiscretization"],
+        help="Defaultly read from discretization_config in yaml config file",
+    )
+    parser.add_argument(
+        "--sigma_min",
+        type=float,
+        default=0.002,
+        help="Vaild when discretization=EDMDiscretization. A reasonable range is [0, 10]",
+    )
+    parser.add_argument(
+        "--sigma_max",
+        type=float,
+        default=80.0,
+        help="Vaild when discretization=EDMDiscretization. A reasonable range is [0.2, 80.0]",
+    )
+    parser.add_argument(
+        "--rho",
+        type=float,
+        default=7.0,
+        help="Vaild when discretization=EDMDiscretization. This was set to 7.0 in the EDM paper. ",
+    )
+
     parser.add_argument("--sample_step", type=int, default=40)
+    parser.add_argument("--num_rows", type=int, default=1)
     parser.add_argument("--num_cols", type=int, default=1)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
@@ -105,7 +160,12 @@ def get_parser_sample():
 
     # for controlnet
     parser.add_argument("--controlnet_mode", type=str, choices=["canny"])
-    parser.add_argument("--control_image_path", type=str, help="path of input image for controlnet")
+    parser.add_argument("--image_path", type=str, help="path of original image for controlnet")
+    parser.add_argument(
+        "--control_path",
+        type=str,
+        help="path of control image (canny edge) for controlnet, if not None, --image_path is not in effect, use --control_path as control.",
+    )
     parser.add_argument("--low_threshold", type=int, default=100, help="param of cv2.Canny()")
     parser.add_argument("--high_threshold", type=int, default=200, help="param of cv2.Canny()")
 
@@ -153,6 +213,11 @@ def run_txt2img(
     else:
         prompts = [args.prompt]
 
+    num_samples = args.num_rows * args.num_cols
+    control = None
+    if args.controlnet_mode is not None:
+        control, H, W = get_control(args, num_samples, min(H, W))
+
     value_dict = {
         "prompt": prompts[0],
         "negative_prompt": args.negative_prompt,
@@ -165,48 +230,54 @@ def run_txt2img(
         "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
         "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
     }
-    sampler, num_rows, num_cols = init_sampling(
+    sampler, _, _ = init_sampling(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
         guidance_scale=args.guidance_scale,
+        thresholding=args.thresholding,
+        dynamic_thresholding_ratio=args.dynamic_thresholding_ratio,
+        sample_max_value=args.sample_max_value,
         discretization=args.discretization,
+        sigma_min=args.sigma_min,
+        sigma_max=args.sigma_max,
+        rho=args.rho,
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
-    num_samples = num_rows * num_cols
 
     print("Txt2Img Sampling")
     outs = []
-    control = None
-    if args.controlnet_mode is not None:
-        control, H, W = get_control(args, num_samples, min(H, W))
     for i, prompt in enumerate(prompts):
-        print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"])
-        value_dict["prompt"] = prompt
-        s_time = time.time()
-        sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
-        out = sampling_func(
-            sampler,
-            value_dict,
-            num_samples,
-            H,
-            W,
-            C,
-            F,
-            force_uc_zero_embeddings=["txt"] if not is_legacy else [],
-            return_latents=return_latents,
-            filter=filter,
-            amp_level=amp_level,
-            init_latent_path=args.init_latent_path,
-            control=control,
-        )
-        print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+        images = []
+        for j in range(num_samples):
+            np.random.seed(args.seed + j)  # set seed for every sample
+            print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"], f"({j+1}/{num_samples})")
+            value_dict["prompt"] = prompt
+            s_time = time.time()
+            sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
+            out = sampling_func(
+                sampler,
+                value_dict,
+                1,
+                H,
+                W,
+                C,
+                F,
+                force_uc_zero_embeddings=["txt"] if not is_legacy else [],
+                return_latents=return_latents,
+                filter=filter,
+                amp_level=amp_level,
+                init_latent_path=args.init_latent_path,
+                control=control,
+            )
+            print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
 
-        out = out if isinstance(out, (tuple, list)) else [out, None]
-        (samples, samples_z) = out
+            out = out if isinstance(out, (tuple, list)) else [out, None]
+            (samples, samples_z) = out
+            images.append(samples)
 
-        perform_save_locally(save_path, samples)
+        perform_save_locally(save_path, images, args.num_cols)
 
         outs.append(out)
 
@@ -240,6 +311,9 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         guider=args.guider,
         guidance_scale=args.guidance_scale,
         discretization=args.discretization,
+        sigma_min=args.sigma_min,
+        sigma_max=args.sigma_max,
+        rho=args.rho,
         steps=args.sample_step,
         img2img_strength=strength,
         stage2strength=stage2strength,
@@ -304,6 +378,20 @@ def sample(args):
     version_dict = VERSION2SPECS.get(version)
 
     task = args.task
+
+    if args.discretization is None:
+        print(
+            f"args.discretization is None, read from the model.denoiser_config.discretization_config of {args.config}"
+        )
+        assert "discretization_config" in config.model.params.denoiser_config.params
+        args.discretization = config.model.params.denoiser_config.params.discretization_config
+    else:
+        print(
+            f"The args.discretization, {args.discretization}, will cover the discretization_config in {args.config} if they are not consistant."
+        )
+        config.model.params.denoiser_config.params.discretization_config = get_discretization(
+            args.discretization, args.sigma_min, args.sigma_max, args.rho
+        )
 
     add_pipeline = args.add_pipeline
     if not version.startswith("SDXL-base") and add_pipeline:
@@ -370,6 +458,9 @@ def sample(args):
             num_cols=args.num_cols,
             guider=args.guider,
             discretization=args.discretization,
+            sigma_min=args.sigma_min,
+            sigma_max=args.sigma_max,
+            rho=args.rho,
             steps=args.sample_step,
             img2img_strength=stage2strength,
             specify_num_samples=False,

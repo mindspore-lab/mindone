@@ -18,6 +18,7 @@ model:
     scale_factor: 0.18215
     use_ema: False
     use_fp16: True
+    parameterization: "velocity"
 
     unet_config:
       target: ldm.modules.diffusionmodules.openaimodel.UNetModel

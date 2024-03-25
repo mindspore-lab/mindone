@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import os
+import re
 
 import torch
 from safetensors import safe_open
@@ -56,6 +57,84 @@ def replace_all_vae(content: str) -> str:
     return content
 
 
+def replace_all_controlnet(content: str) -> str:
+    # looks ugly, but straightfoward
+    content = replace(content, "mid_block", "middle_block")
+    content = replace(content, "time_embedding", "time_embed")
+    content = replace(content, "controlnet_cond_embedding", "input_hint_block")
+    content = replace(content, "controlnet_down_blocks", "zero_convs")
+    content = replace(content, "down_blocks", "input_blocks")
+
+    content = replace(content, "time_embed.linear_1", "time_embed.0")
+    content = replace(content, "time_embed.linear_2", "time_embed.2")
+    content = replace(content, "controlnet.conv_in", "controlnet.input_blocks.0.0.conv")
+    content = replace(content, "input_blocks.0.resnets.0", "input_blocks.1.0")
+    content = replace(content, "input_blocks.0.attentions.0", "input_blocks.1.1")
+    content = replace(content, "input_blocks.0.resnets.1", "input_blocks.2.0")
+    content = replace(content, "input_blocks.0.attentions.1", "input_blocks.2.1")
+    content = replace(content, "input_blocks.0.downsamplers.0", "input_blocks.3.0.op")
+    content = replace(content, "input_blocks.1.resnets.0", "input_blocks.4.0")
+    content = replace(content, "input_blocks.1.attentions.0", "input_blocks.4.1")
+    content = replace(content, "input_blocks.1.resnets.1", "input_blocks.5.0")
+    content = replace(content, "input_blocks.1.attentions.1", "input_blocks.5.1")
+    content = replace(content, "input_blocks.1.downsamplers.0", "input_blocks.6.0.op")
+    content = replace(content, "input_blocks.2.resnets.0", "input_blocks.7.0")
+    content = replace(content, "input_blocks.2.attentions.0", "input_blocks.7.1")
+    content = replace(content, "input_blocks.2.resnets.1", "input_blocks.8.0")
+    content = replace(content, "input_blocks.2.attentions.1", "input_blocks.8.1")
+    content = replace(content, "input_blocks.2.downsamplers.0", "input_blocks.9.0.op")
+    content = replace(content, "input_blocks.3.resnets.0", "input_blocks.10.0")
+    content = replace(content, "input_blocks.3.attentions.0", "input_blocks.10.1")
+    content = replace(content, "input_blocks.3.resnets.1", "input_blocks.11.0")
+    content = replace(content, "input_blocks.3.attentions.1", "input_blocks.11.1")
+    content = replace(content, "middle_block.resnets.0", "middle_block.0")
+    content = replace(content, "middle_block.attentions.0", "middle_block.1")
+    content = replace(content, "middle_block.resnets.1", "middle_block.2")
+
+    content = replace(content, "input_blocks.1.0.norm1", "input_blocks.1.0.in_layers_norm")
+    content = replace(content, "input_blocks.1.0.norm2", "input_blocks.1.0.out_layers_norm")
+    content = replace(content, "input_blocks.2.0.norm1", "input_blocks.2.0.in_layers_norm")
+    content = replace(content, "input_blocks.2.0.norm2", "input_blocks.2.0.out_layers_norm")
+    content = replace(content, "input_blocks.4.0.norm1", "input_blocks.4.0.in_layers_norm")
+    content = replace(content, "input_blocks.4.0.norm2", "input_blocks.4.0.out_layers_norm")
+    content = replace(content, "input_blocks.5.0.norm1", "input_blocks.5.0.in_layers_norm")
+    content = replace(content, "input_blocks.5.0.norm2", "input_blocks.5.0.out_layers_norm")
+    content = replace(content, "input_blocks.7.0.norm1", "input_blocks.7.0.in_layers_norm")
+    content = replace(content, "input_blocks.7.0.norm2", "input_blocks.7.0.out_layers_norm")
+    content = replace(content, "input_blocks.8.0.norm1", "input_blocks.8.0.in_layers_norm")
+    content = replace(content, "input_blocks.8.0.norm2", "input_blocks.8.0.out_layers_norm")
+    content = replace(content, "input_blocks.10.0.norm1", "input_blocks.10.0.in_layers_norm")
+    content = replace(content, "input_blocks.10.0.norm2", "input_blocks.10.0.out_layers_norm")
+    content = replace(content, "input_blocks.11.0.norm1", "input_blocks.11.0.in_layers_norm")
+    content = replace(content, "input_blocks.11.0.norm2", "input_blocks.11.0.out_layers_norm")
+    content = replace(content, "middle_block.0.norm1", "middle_block.0.in_layers_norm")
+    content = replace(content, "middle_block.0.norm2", "middle_block.0.out_layers_norm")
+    content = replace(content, "middle_block.2.norm1", "middle_block.2.in_layers_norm")
+    content = replace(content, "middle_block.2.norm2", "middle_block.2.out_layers_norm")
+
+    content = replace(content, "conv1", "in_layers_conv.conv")
+    content = replace(content, "conv2", "out_layers_conv.conv")
+    content = replace(content, "time_emb_proj", "emb_layers.1")
+    content = replace(content, "conv_shortcut", "skip_connection.conv")
+    content = replace(content, "controlnet_middle_block", "middle_block_out.conv")
+
+    content = replace(content, "input_hint_block.conv_in", "input_hint_block.0.conv")
+    content = replace(content, "input_hint_block.blocks.0", "input_hint_block.2.conv")
+    content = replace(content, "input_hint_block.blocks.1", "input_hint_block.4.conv")
+    content = replace(content, "input_hint_block.blocks.2", "input_hint_block.6.conv")
+    content = replace(content, "input_hint_block.blocks.3", "input_hint_block.8.conv")
+    content = replace(content, "input_hint_block.blocks.4", "input_hint_block.10.conv")
+    content = replace(content, "input_hint_block.blocks.5", "input_hint_block.12.conv")
+    content = replace(content, "input_hint_block.conv_out", "input_hint_block.14.conv")
+
+    content = re.sub(r"(zero_convs.[0-9]*).weight", r"\1.conv.weight", content)
+    content = re.sub(r"(zero_convs.[0-9]*).bias", r"\1.conv.bias", content)
+    content = re.sub(r"(norm[0-9]*).weight", r"\1.gamma", content)
+    content = re.sub(r"(norm[0-9]*).bias", r"\1.beta", content)
+
+    return content
+
+
 def expand_dim(name: str, value: torch.Tensor) -> torch.Tensor:
     if any([x in name for x in [".k.weight", ".q.weight", ".v.weight", ".proj_out.weight"]]):
         value = value[..., None, None]
@@ -95,6 +174,7 @@ def main():
         default="tools/ip_names_sd15.txt",
         help="Path of the IP mapping text file of SD",
     )
+    parser.add_argument("--controlnet", help="Path of the controlnet")
     args = parser.parse_args()
 
     print("Create IP Adapter naming mapping...")
@@ -149,12 +229,23 @@ def main():
         print("Merging IP Adapter...")
         tensors.update(ip_tensors)
 
-    print("Saving to MS checkpoints...")
+    if args.controlnet:
+        print("Converting Controlnet...")
+        controlnet_tensors = dict()
+        with safe_open(args.controlnet, framework="pt", device="cpu") as f:
+            for k in f.keys():
+                v = f.get_tensor(k)
+                new_k = replace_all_controlnet(append_prefix(k, "model.diffusion_model.controlnet."))
+                controlnet_tensors[new_k] = v
+        tensors.update(controlnet_tensors)
+
+    print("Saving to MS checkpoint...")
     records = convert_to_ms(tensors)
 
     root = os.path.dirname(args.out)
     os.makedirs(root, exist_ok=True)
     ms.save_checkpoint(records, args.out)
+    print(f"Merged MS checkpoint is saved at `{args.out}`.")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
+import copy
 import logging
 import os
+import time
 from datetime import datetime
 from typing import List, Union
 
@@ -22,11 +24,11 @@ from gm.modules.diffusionmodules.sampler import (
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
-from omegaconf import DictConfig, ListConfig
+from omegaconf import DictConfig, ListConfig, OmegaConf
 from PIL import Image
 
 import mindspore as ms
-from mindspore import Tensor, context, nn, ops
+from mindspore import Parameter, Tensor, context, nn, ops
 from mindspore.communication.management import get_group_size, get_rank, init
 
 
@@ -89,6 +91,14 @@ VERSION2SPECS = {
 }
 
 
+_ema_op = ops.MultitypeFuncGraph("grad_ema_op")
+
+
+@_ema_op.register("Tensor", "Tensor", "Tensor")
+def _ema_weights(factor, ema_weight, weight):
+    return ops.assign(ema_weight, ema_weight * factor + weight * (1 - factor))
+
+
 def set_default(args):
     seed_everything(args.seed)
 
@@ -107,12 +117,19 @@ def set_default(args):
     if args.is_parallel:
         init()
         args.rank, args.rank_size, parallel_mode = get_rank(), get_group_size(), context.ParallelMode.DATA_PARALLEL
-        context.set_auto_parallel_context(device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True)
+        if args.task != "cache":
+            context.set_auto_parallel_context(
+                device_num=args.rank_size, parallel_mode=parallel_mode, gradients_mean=True
+            )
     else:
         args.rank, args.rank_size = 0, 1
 
     # data sink step
     if args.data_sink:
+        if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
+            os.environ["MS_DATASET_SINK_QUEUE"] = "10"
+            print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+
         assert args.dataset_load_tokenizer
         args.log_interval = args.sink_size
         if not (args.save_ckpt_interval >= args.sink_size and args.save_ckpt_interval % args.sink_size == 0):
@@ -121,7 +138,13 @@ def set_default(args):
             args.infer_interval = args.sink_size * max(1, (args.infer_interval // args.sink_size))
 
     # split weights path
-    args.weight = args.weight.split(",") if len(args.weight) > 0 else ""
+    args.weight = args.weight.split(",") if args.weight is not None and len(args.weight) > 0 else ""
+
+    # cache
+    if "cache_latent" in args and "cache_text_embedding" in args:
+        assert (
+            args.cache_latent == args.cache_text_embedding
+        ), "Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent"
 
     # Directories and Save run settings
     if args.save_path_with_time:
@@ -153,6 +176,65 @@ def set_default(args):
     return args
 
 
+def get_all_reduce_config(model):
+    trainable_params = []
+    all_reduce_fusion_config = []
+
+    i = -1
+
+    if model.conditioner is not None and len(model.conditioner.trainable_params()) > 0:
+        for p in model.conditioner.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    unet = model.model.diffusion_model
+    for p in unet.time_embed.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    for p in unet.label_emb.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    all_reduce_fusion_config.append(i)
+
+    for block in unet.input_blocks:
+        for p in block.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    for p in unet.middle_block.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    all_reduce_fusion_config.append(i)
+
+    for block in unet.output_blocks:
+        for p in block.trainable_params():
+            trainable_params.append(p)
+            i += 1
+        all_reduce_fusion_config.append(i)
+
+    for p in unet.out.trainable_params():
+        trainable_params.append(p)
+        i += 1
+    if hasattr(unet, "id_predictor"):
+        for p in unet.id_predictor.trainable_params():
+            trainable_params.append(p)
+            i += 1
+    all_reduce_fusion_config.append(i)
+
+    trainable_params = tuple(trainable_params)
+
+    num_trainable_params = (
+        len(model.model.trainable_params()) + len(model.conditioner.trainable_params())
+        if model.conditioner is not None
+        else len(model.model.trainable_params())
+    )
+    assert len(trainable_params) == num_trainable_params
+
+    return trainable_params, all_reduce_fusion_config
+
+
 def create_model(
     config: DictConfig,
     checkpoints: Union[str, List[str]] = "",
@@ -163,9 +245,17 @@ def create_model(
     textual_inversion_ckpt: str = None,
     placeholder_token: str = None,
     num_vectors: int = None,
+    load_first_stage_model: bool = True,
+    load_conditioner: bool = True,
 ):
     # create model
-    model = load_model_from_config(config.model, checkpoints, amp_level=amp_level)
+    model = load_model_from_config(
+        config.model,
+        checkpoints,
+        amp_level=amp_level,
+        load_first_stage_model=load_first_stage_model,
+        load_conditioner=load_conditioner,
+    )
 
     if freeze:
         model.set_train(False)
@@ -174,7 +264,12 @@ def create_model(
             p.requires_grad = False
 
     if param_fp16:
-        convert_modules = (model.conditioner, model.first_stage_model)
+        convert_modules = ()
+        if load_conditioner:
+            convert_modules += (model.conditioner,)
+        if load_first_stage_model:
+            convert_modules += (model.first_stage_model,)
+
         if isinstance(model.model, nn.Cell):
             convert_modules += (model.model,)
         else:
@@ -215,7 +310,7 @@ def get_grad_reducer(is_parallel, parameters):
         degree = ms.context.get_auto_parallel_context("device_num")
         grad_reducer = nn.DistributedGradReducer(parameters, mean, degree)
     else:
-        grad_reducer = ops.functional.identity
+        grad_reducer = nn.Identity()
     return grad_reducer
 
 
@@ -238,21 +333,24 @@ def get_loss_scaler(ms_loss_scaler="static", scale_value=1024, scale_factor=2, s
     return loss_scaler
 
 
-def get_learning_rate(optim_comfig, total_step):
-    base_lr = optim_comfig.get("base_learning_rate", 1.0e-6)
-    if "scheduler_config" in optim_comfig:
-        scheduler_config = optim_comfig.get("scheduler_config")
+def get_learning_rate(optim_config, total_step, scaler=1.0):
+    base_lr = optim_config.get("base_learning_rate", 1.0e-6)
+    scaled_lr = scaler * base_lr
+    if "scheduler_config" in optim_config:
+        scheduler_config = optim_config.get("scheduler_config")
         scheduler = instantiate_from_config(scheduler_config)
-        lr = [base_lr * scheduler(step) for step in range(total_step)]
+        if hasattr(scheduler, "lr_max_decay_steps") and scheduler.lr_max_decay_steps == -1:
+            scheduler.lr_max_decay_steps = total_step
+        lr = [scaled_lr * scheduler(step) for step in range(total_step)]
     else:
-        print(f"scheduler_config not exist, train with base_lr {base_lr}")
-        lr = base_lr
+        print(f"scheduler_config not exist, train with base_lr {base_lr} and lr_scaler {scaler}")
+        lr = scaled_lr
 
     return lr
 
 
-def get_optimizer(optim_comfig, lr, params, filtering=True):
-    optimizer_config = optim_comfig.get("optimizer_config", {"target": "mindspore.nn.SGD"})
+def get_optimizer(optim_config, lr, params, filtering=True):
+    optimizer_config = optim_config.get("optimizer_config", {"target": "mindspore.nn.SGD"})
 
     def decay_filter(x):
         return "norm" not in x.name.lower() and "bias" not in x.name.lower()
@@ -284,7 +382,11 @@ def get_optimizer(optim_comfig, lr, params, filtering=True):
     return optimizer
 
 
-def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0"):
+def load_model_from_config(
+    model_config, ckpts=None, verbose=True, amp_level="O0", load_first_stage_model=True, load_conditioner=True
+):
+    model_config["params"]["load_first_stage_model"] = load_first_stage_model
+    model_config["params"]["load_conditioner"] = load_conditioner
     model = instantiate_from_config(model_config)
 
     from gm.models.diffusion import DiffusionEngineMultiGraph
@@ -307,15 +409,15 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
                     print(f"Global Step: {sd_dict['global_step']}")
 
             # FIXME: parameter auto-prefix name bug on mindspore 2.2.10
-            _new_sd_dict = {}
-            for k in sd_dict:
-                if "._backbone" in k:
-                    _index = k.find("._backbone")
-                    new_k = k[:_index] + k[_index + len("._backbone") :]
-                else:
-                    new_k = k[:]
-                _new_sd_dict[new_k] = sd_dict[k]
-            sd_dict = _new_sd_dict
+            sd_dict = {k.replace("._backbone", ""): v for k, v in sd_dict.items()}
+
+            # filter first_stage_model and conditioner
+            _keys = copy.deepcopy(list(sd_dict.keys()))
+            for _k in _keys:
+                if not load_first_stage_model and _k.startswith("first_stage_model."):
+                    sd_dict.pop(_k)
+                if not load_conditioner and _k.startswith("conditioner."):
+                    sd_dict.pop(_k)
 
             m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 
@@ -337,6 +439,29 @@ def load_model_from_config(model_config, ckpts=None, verbose=True, amp_level="O0
         model.set_train(False)
 
     return model
+
+
+def load_checkpoint(model, ckpt, verbose=True, remove_prefix=None):
+    sd_dict = ms.load_checkpoint(ckpt)
+
+    if remove_prefix is not None:
+        new_sd_dict = {}
+        for k in sd_dict:
+            if k.startswith(remove_prefix):
+                new_k = k[len(remove_prefix) :]
+            else:
+                new_k = k[:]
+            new_sd_dict[new_k] = sd_dict[k]
+        sd_dict = new_sd_dict
+
+    m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
+
+    if len(m) > 0 and verbose:
+        print("missing keys:")
+        print(m)
+    if len(u) > 0 and verbose:
+        print("unexpected keys:")
+        print(u)
 
 
 def get_unique_embedder_keys_from_conditioner(conditioner):
@@ -419,7 +544,7 @@ def get_batch(keys, value_dict, N: Union[List, ListConfig], dtype=ms.float32):
     return batch, batch_uc
 
 
-def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0):
+def get_discretization(discretization, sigma_min=0.002, sigma_max=80, rho=7.0):
     if discretization == "LegacyDDPMDiscretization":
         discretization_config = {
             "target": "gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization",
@@ -443,13 +568,12 @@ def get_discretization(discretization, sigma_min=0.03, sigma_max=14.61, rho=3.0)
     return discretization_config
 
 
-def get_guider(guider="VanillaCFG", cfg_scale=5.0):
+def get_guider(guider="VanillaCFG", cfg_scale=5.0, dyn_thresh_config=None):
     if guider == "IdentityGuider":
         guider_config = {"target": "gm.modules.diffusionmodules.guiders.IdentityGuider"}
     elif guider == "VanillaCFG":
         scale = min(max(cfg_scale, 0.0), 100.0)
 
-        dyn_thresh_config = {"target": "gm.modules.diffusionmodules.sampling_utils.NoDynamicThresholding"}
         guider_config = {
             "target": "gm.modules.diffusionmodules.guiders.VanillaCFG",
             "params": {"scale": scale, "dyn_thresh_config": dyn_thresh_config},
@@ -556,6 +680,12 @@ def init_sampling(
     guider="VanillaCFG",
     guidance_scale=5.0,
     discretization="LegacyDDPMDiscretization",
+    sigma_min=0.002,
+    sigma_max=80.0,
+    rho=7.0,
+    thresholding=False,
+    dynamic_thresholding_ratio=0.995,
+    sample_max_value=1.0,
     img2img_strength=1.0,
     specify_num_samples=True,
     stage2strength=None,
@@ -571,11 +701,17 @@ def init_sampling(
         "LCMSampler",
     ]
     assert guider in ["VanillaCFG", "IdentityGuider"]
-    assert discretization in [
-        "LegacyDDPMDiscretization",
-        "EDMDiscretization",
-        "DiffusersDDPMDiscretization",
-    ]
+    if isinstance(discretization, str):
+        assert discretization in [
+            "LegacyDDPMDiscretization",
+            "EDMDiscretization",
+            "DiffusersDDPMDiscretization",
+        ]
+        discretization_config = get_discretization(discretization, sigma_min, sigma_max, rho)
+    elif isinstance(discretization, DictConfig):
+        discretization_config = discretization
+    else:
+        raise TypeError("discretization must be str or DictConfig")
 
     steps = min(max(steps, 1), 1000)
     num_rows = 1
@@ -585,8 +721,18 @@ def init_sampling(
     else:
         num_cols = num_cols if num_cols else 1
 
-    guider_config = get_guider(guider, cfg_scale=guidance_scale)
-    discretization_config = get_discretization(discretization)
+    if thresholding:
+        dyn_thresh_config = {
+            "target": "gm.modules.diffusionmodules.sampling_utils.DynamicThresholding",
+            "params": {
+                "dynamic_thresholding_ratio": dynamic_thresholding_ratio,
+                "sample_max_value": sample_max_value,
+            },
+        }
+    else:
+        dyn_thresh_config = {"target": "gm.modules.diffusionmodules.sampling_utils.NoDynamicThresholding"}
+
+    guider_config = get_guider(guider, cfg_scale=guidance_scale, dyn_thresh_config=dyn_thresh_config)
     sampler = get_sampler(sampler, steps, discretization_config, guider_config)
 
     if img2img_strength < 1.0:
@@ -619,10 +765,23 @@ def embed_watermark(img):
     return img
 
 
-def perform_save_locally(save_path, samples):
+def concat_images(images: list, num_cols: int):
+    images = np.concatenate(images, axis=0)
+    _n, _c, _h, _w = images.shape
+    row, col = (int(_n / num_cols), num_cols) if _n % num_cols == 0 else (_n, 1)
+
+    images = images.reshape((row, col, _c, _h, _w)).transpose(2, 0, 3, 1, 4).reshape(1, _c, row * _h, col * _w)
+
+    return images
+
+
+def perform_save_locally(save_path, samples, num_cols=1):
     os.makedirs(os.path.join(save_path), exist_ok=True)
     base_count = len(os.listdir(os.path.join(save_path)))
+    if isinstance(samples, np.ndarray):
+        samples = [samples]
     samples = embed_watermark(samples)
+    samples = concat_images(samples, num_cols=num_cols)
 
     for sample in samples:
         sample = 255.0 * sample.transpose(1, 2, 0)
@@ -630,19 +789,36 @@ def perform_save_locally(save_path, samples):
         base_count += 1
 
 
-def _build_lora_ckpt_path(ckpt_path):
-    return ckpt_path.replace(".ckpt", "_lora.ckpt")
+def _build_lora_ckpt_path(ckpt_path, save_ema_ckpt=False, save_lora_ckpt=True):
+    if save_lora_ckpt and not save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_lora.ckpt")
+    elif save_lora_ckpt and save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_lora_ema.ckpt")
+    elif not save_lora_ckpt and save_ema_ckpt:
+        path = ckpt_path.replace(".ckpt", "_ema.ckpt")
+    else:
+        path = ckpt_path
+
+    return path
 
 
 def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False):
-    ckpt, ckpt_lora = [], []
+    ckpt, ckpt_lora, ckpt_lora_ema, ckpt_ema = [], [], [], []
     for n, p in model.parameters_and_names():
         # FIXME: save checkpoint bug on mindspore 2.1.0
         if "._backbone" in n:
             _index = n.find("._backbone")
             n = n[:_index] + n[_index + len("._backbone") :]
-        if "lora_" in n:
+        if "lora_" in n and "ema." not in n:
             ckpt_lora.append({"name": n, "data": p})
+        elif "lora_" in n and "ema." in n:
+            _index = n.find("ema.")
+            n = n[:_index] + n[_index + len("ema.") :]
+            ckpt_lora_ema.append({"name": n, "data": p})
+        elif "lora_" not in n and "ema." in n:
+            _index = n.find("ema.")
+            n = n[:_index] + n[_index + len("ema.") :]
+            ckpt_ema.append({"name": n, "data": p})
         else:
             ckpt.append({"name": n, "data": p})
 
@@ -651,11 +827,19 @@ def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False)
     if not only_save_lora:
         ms.save_checkpoint(ckpt, path)
         print(f"save checkpoint to {path}")
+        if len(ckpt_ema) > 0:
+            path_ema = _build_lora_ckpt_path(path, save_ema_ckpt=True, save_lora_ckpt=False)
+            ms.save_checkpoint(ckpt_ema, path_ema)
+            print(f"save ema checkpoint to {path_ema}")
 
     if len(ckpt_lora) > 0:
         path_lora = _build_lora_ckpt_path(path)
         ms.save_checkpoint(ckpt_lora, path_lora)
         print(f"save lora checkpoint to {path_lora}")
+        if len(ckpt_lora_ema) > 0:
+            path_lora_ema = _build_lora_ckpt_path(path, save_ema_ckpt=True)
+            ms.save_checkpoint(ckpt_lora_ema, path_lora_ema)
+            print(f"save ema lora checkpoint to {path_lora_ema}")
 
 
 def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
@@ -665,10 +849,12 @@ def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
     if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
         del_ckpt = ckpt_queue.pop(0)
         del_ckpt_lora = _build_lora_ckpt_path(del_ckpt)
+        del_ckpt_ema = _build_lora_ckpt_path(del_ckpt, save_ema_ckpt=True, save_lora_ckpt=False)
+        del_ckpt_lora_ema = _build_lora_ckpt_path(del_ckpt, save_ema_ckpt=True)
         if only_save_lora:
-            del_ckpts = [del_ckpt_lora]
+            del_ckpts = [del_ckpt_lora, del_ckpt_lora_ema]
         else:
-            del_ckpts = [del_ckpt, del_ckpt_lora]
+            del_ckpts = [del_ckpt, del_ckpt_lora, del_ckpt_ema, del_ckpt_lora_ema]
 
         for to_del in del_ckpts:
             if os.path.isfile(to_del):
@@ -706,3 +892,67 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
+
+
+def pre_compile_graph(config_path, per_batch_size, train_step_fn, rank, max_embeddings_multiples):
+    config = OmegaConf.load(config_path)
+    dataset_config = config.data.dataset_config
+    per_batch_size = config.data.pop("per_batch_size") if per_batch_size is None else per_batch_size
+
+    if "target_size" in dataset_config["params"]:
+        img_size = dataset_config["params"]["target_size"]
+    else:
+        img_size = dataset_config["params"]["multi_aspect"]
+    for i in range(max_embeddings_multiples):
+        if isinstance(img_size, int):
+            h, w = img_size, img_size
+            s_time = time.time()
+            image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
+                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+            )
+            loss, overflow = train_step_fn(image, *tokens)
+            print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
+        else:
+            for h, w in img_size:
+                s_time = time.time()
+                image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
+                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
+                )
+                loss, overflow = train_step_fn(image, *tokens)
+                print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
+
+
+class EMA(nn.Cell):
+    """
+    Args:
+        updates: number of ema updates, which can be restored from resumed training.
+    """
+
+    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True):
+        super().__init__()
+        # TODO: net.trainable_params() is more reasonable?
+        if trainable_only:
+            self.net_weight = ms.ParameterTuple(network.trainable_params())
+        else:
+            self.net_weight = ms.ParameterTuple(network.get_parameters())
+        self.ema_weight = self.net_weight.clone(prefix="ema", init="same")
+        self.ema_decay = ema_decay
+        self.updates = Parameter(Tensor(updates, ms.float32), requires_grad=False)
+        self.hyper_map = ops.HyperMap()
+
+    def ema_update(self):
+        """Update EMA parameters."""
+        self.updates += 1
+        d = self.ema_decay * (1 - ops.exp(-self.updates / 2000))
+        # update trainable parameters
+        success = self.hyper_map(ops.partial(_ema_op, d), self.ema_weight, self.net_weight)
+        self.updates = ops.depend(self.updates, success)
+        return self.updates

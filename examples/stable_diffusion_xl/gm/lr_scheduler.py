@@ -5,6 +5,21 @@ from bisect import bisect_right
 import numpy as np
 
 
+class LambdaWarmUpScheduler:
+    """
+    note: use with a base_lr of 1.0
+    """
+
+    def __init__(
+        self,
+        warm_up_steps,
+    ):
+        self.warm_up_steps = warm_up_steps
+
+    def __call__(self, cur_step, **kwargs):
+        return max(0.0, min(cur_step, self.warm_up_steps) / self.warm_up_steps)
+
+
 class LambdaWarmUpCosineScheduler:
     """
     note: use with a base_lr of 1.0

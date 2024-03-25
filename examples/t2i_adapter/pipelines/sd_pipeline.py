@@ -37,4 +37,10 @@ class SDAdapterPipeline(nn.Cell):
         x, c = self._network.get_input(x, c)
         c = self._network.get_learned_conditioning(c)
         adapter_features = self._adapter(cond)
+
+        if isinstance(adapter_features, list):
+            adapter_features = [feat.astype(self._network.dtype) for feat in adapter_features]
+        else:
+            adapter_features = adapter_features.astype(self._network.dtype)
+
         return self._network.p_losses(x, c, t, features_adapter=adapter_features)

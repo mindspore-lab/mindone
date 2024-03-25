@@ -8,6 +8,7 @@ import sys
 import time
 
 import numpy as np
+from common import init_env
 from omegaconf import OmegaConf
 from PIL import Image
 
@@ -21,7 +22,6 @@ from ldm.models.diffusion.plms import PLMSSampler
 from ldm.models.diffusion.uni_pc import UniPCSampler
 from ldm.modules.logger import set_logger
 from ldm.modules.lora import inject_trainable_lora, inject_trainable_lora_to_textencoder
-from ldm.modules.train.tools import set_random_seed
 from ldm.util import instantiate_from_config, str2bool
 from tools.safety_checker import SafetyChecker
 from tools.watermark import WatermarkEmbedder
@@ -134,6 +134,14 @@ def load_model_from_config(
 
 
 def main(args):
+    # init
+    device_id, rank_id, device_num = init_env(
+        args.ms_mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        device_target=args.device_target,
+    )
+
     # set logger
     set_logger(
         name="",
@@ -182,14 +190,7 @@ def main(args):
 
     sample_path = os.path.join(outpath, "samples")
     os.makedirs(sample_path, exist_ok=True)
-    base_count = len(os.listdir(sample_path))
-
-    # set ms context
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    # ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, device_id=device_id, max_device_memory="30GB") # only for 910a
-    ms.context.set_context(mode=args.ms_mode, device_target=args.device_target, device_id=device_id)
-
-    set_random_seed(args.seed)
+    base_count = len(os.listdir(sample_path)) + rank_id * args.n_samples * args.n_iter
 
     # create model
     if not os.path.isabs(args.config):
@@ -227,9 +228,10 @@ def main(args):
         sname = "dpm_solver_pp"
     if prediction_type == "v":
         assert sname in [
+            "ddim",
             "dpm_solver",
             "dpm_solver_pp",
-        ], "Only dpm_solver and dpm_solver_pp support v-prediction currently."
+        ], "Only ddim, dpm_solver and dpm_solver_pp support v-prediction currently."
 
     # create safety checker
     if args.check_safety:
@@ -247,7 +249,7 @@ def main(args):
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.ms_mode}",
-            "Distributed mode: False",
+            f"Distributed mode: {args.use_parallel}",
             f"Number of input prompts: {len(data)}",
             f"Number of input negative prompts: {len(negative_data)}",
             f"Number of trials for each prompt: {args.n_iter}",
@@ -264,7 +266,8 @@ def main(args):
         ]
     )
     key_info += "\n" + "=" * 50
-    logger.info(key_info)
+    if rank_id == 0:
+        logger.info(key_info)
 
     # infer
     start_code = None
@@ -273,10 +276,17 @@ def main(args):
         start_code = stdnormal((args.n_samples, 4, args.H // 8, args.W // 8))
 
     all_samples = list()
-    for i, prompts in enumerate(data):
-        negative_prompts = negative_data[i]
+    for i in range(0, len(data), device_num):
+        if i > 0:
+            base_count += args.n_samples * args.n_iter * (device_num - 1)
+        if i + rank_id < len(data):
+            prompts = data[i + rank_id]
+            negative_prompts = negative_data[i + rank_id]
+        else:
+            break
+
         logger.info(
-            f"[{i + 1}/{len(data)}] Generating images with conditions:\nPrompt(s): {prompts[0]}\n"
+            f"[{i + rank_id + 1}/{len(data)}] Generating images with conditions:\nPrompt(s): {prompts[0]}\n"
             f"Negative prompt(s): {negative_prompts[0]}"
         )
         for n in range(args.n_iter):
@@ -330,8 +340,8 @@ def main(args):
                 f"{batch_size * (n + 1)}/{batch_size * args.n_iter} images generated, "
                 f"time cost for current trial: {end_time - start_time:.3f}s"
             )
-
-    logger.info(f"Done! All generated images are saved in: {outpath}/samples" f"\nEnjoy.")
+    if rank_id == 0:
+        logger.info(f"Done! All generated images are saved in: {outpath}/samples" f"\nEnjoy.")
 
 
 if __name__ == "__main__":
@@ -339,6 +349,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
     )
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--device_target", type=str, nargs="?", default="Ascend", help="Ascend, GPU")
     parser.add_argument(
         "--data_path",

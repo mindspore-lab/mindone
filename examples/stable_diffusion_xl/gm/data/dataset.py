@@ -6,6 +6,7 @@ import imagesize
 import numpy as np
 import pandas as pd
 from gm.data.commons import TEMPLATES_FACE, TEMPLATES_OBJECT, TEMPLATES_STYLE
+from gm.data.util import _is_valid_text_input
 from gm.util import instantiate_from_config
 from PIL import Image
 from PIL.ImageOps import exif_transpose
@@ -21,11 +22,15 @@ class Text2ImageDataset:
         tokenizer=None,
         token_nums=None,
         image_filter_size=0,
-        random_crop=False,
         filter_small_size=False,
         multi_aspect=None,  # for multi_aspect
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
+        return_sample_name=False,
+        prompt_empty_probability=0.0,
+        lpw=False,
+        max_embeddings_multiples=4,
+        max_pixels=18000000,
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -39,13 +44,22 @@ class Text2ImageDataset:
                 "image",
             ] + [f"token{i}" for i in range(token_nums)]
 
+        self.return_sample_name = return_sample_name
+        if return_sample_name:
+            self.dataset_output_column_names.append("sample_name")
+
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
-        self.random_crop = random_crop
         self.filter_small_size = filter_small_size
 
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
+        if self.multi_aspect and len(self.multi_aspect) > 10:
+            random.seed(seed)
+            self.multi_aspect = random.sample(self.multi_aspect, 10)
+            print(f"Text2ImageDataset: modify multi_aspect sizes to {self.multi_aspect}")
+
         self.seed = seed
         self.per_batch_size = per_batch_size
+        self.prompt_empty_probability = prompt_empty_probability
 
         all_images, all_captions = self.list_image_files_captions_recursively(data_path)
         if filter_small_size:
@@ -53,6 +67,9 @@ class Text2ImageDataset:
             all_images, all_captions = self.filter_small_image(all_images, all_captions, image_filter_size)
         self.local_images = all_images
         self.local_captions = all_captions
+        self.lpw = lpw
+        self.max_embeddings_multiples = max_embeddings_multiples
+        self.max_pixels = max_pixels
 
         self.transforms = []
         if transforms:
@@ -76,19 +93,39 @@ class Text2ImageDataset:
         # images preprocess
         image_path = self.local_images[idx]
         image = Image.open(image_path)
+        original_size = [image.height, image.width]
+        image = self.shrink_pixels(image, self.max_pixels)
         image = exif_transpose(image)
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
 
         # caption preprocess
-        caption = self.local_captions[idx]
+        caption = (
+            ""
+            if self.prompt_empty_probability and random.random() < self.prompt_empty_probability
+            else self.local_captions[idx]
+        )
+
+        if not _is_valid_text_input(caption):
+            print(
+                f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+            )
+
+            caption = str(caption)
+
+            if _is_valid_text_input(caption):
+                print("WARNING: convert caption type to string success.", flush=True)
+            else:
+                caption = " "
+                print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
+
         caption = np.array(caption)
 
         sample = {
             "image": image,
             "txt": caption,
-            "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
+            "original_size_as_tuple": np.array(original_size, np.int32),  # original h, original w
             "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
             "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
             "aesthetic_score": np.array(
@@ -101,14 +138,18 @@ class Text2ImageDataset:
         for trans in self.transforms:
             sample = trans(sample)
 
+        if self.return_sample_name:
+            sample["sample_name"] = np.array(os.path.basename(image_path).split(".")[0])
+
         return sample
 
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            cur_seed = epoch_num * 10 + batch_num
-            random.seed(cur_seed)
+            # FIXME: Unable to get the correct batch_info on MindSpore 2.2.10
+            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            # cur_seed = epoch_num * 10 + batch_num
+            # random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:
@@ -122,9 +163,18 @@ class Text2ImageDataset:
         data = {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
 
         if self.tokenizer:
-            data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
-            tokens, _ = self.tokenizer(data)
+            data = {k: (v.tolist() if k in ("txt", "sample_name") else v.astype(np.float32)) for k, v in data.items()}
+
+            try:
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+            except Exception as e:
+                print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
+                data["txt"] = [" " for _ in range(len(data["txt"]))]
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+
             outs = (data["image"],) + tuple(tokens)
+            if "sample_name" in data:
+                outs += (data["sample_name"],)
         else:
             outs = data
 
@@ -164,6 +214,21 @@ class Text2ImageDataset:
                 filted_captions.append(caption)
         return filted_images, filted_captions
 
+    @staticmethod
+    def shrink_pixels(image, max_pixels):
+        max_pixels = max(max_pixels, 16)
+        h, w = image.height, image.width
+
+        need_shrink = False
+        while h * w > max_pixels:
+            h //= 2
+            w //= 2
+            need_shrink = True
+
+        image = image.resize(size=(w, h)) if need_shrink else image
+
+        return image
+
 
 class Text2ImageDatasetDreamBooth:
     def __init__(
@@ -179,7 +244,6 @@ class Text2ImageDatasetDreamBooth:
         tokenizer=None,
         token_nums=None,
         image_filter_size=0,
-        random_crop=False,
         filter_small_size=False,
         multi_aspect=None,  # for multi_aspect
         seed=42,  # for multi_aspect
@@ -206,7 +270,6 @@ class Text2ImageDatasetDreamBooth:
             self.dataset_output_column_names.extend(class_l)
 
         self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
-        self.random_crop = random_crop
         self.filter_small_size = filter_small_size
 
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
@@ -304,9 +367,10 @@ class Text2ImageDatasetDreamBooth:
     def collate_fn(self, instance_samples, class_samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            cur_seed = epoch_num * 10 + batch_num
-            random.seed(cur_seed)
+            # FIXME: Unable to get the correct batch_info on MindSpore 2.2.10
+            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            # cur_seed = epoch_num * 10 + batch_num
+            # random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:

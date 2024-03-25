@@ -39,7 +39,7 @@ def get_ascend_soc_version():
         raise EnvironmentError(f"ASCEND_CHIP_TYPE should be in ['910a', '910b'],but get {ascend_chip_type}")
     if ascend_chip_type == "UNSET":
         logger.info(
-            "Environment variables need to be set manually to obtain the chip type,"
+            "For MS version<2.2.0, environment variables need to be set manually to obtain the chip type,"
             "which can be set as follows: \n"
             "For 910A chip, run 'export ASCEND_CHIP_TYPE=910a' before the program runs.\n"
             "For 910B chip, run 'export ASCEND_CHIP_TYPE=910b' before the program runs.\n"

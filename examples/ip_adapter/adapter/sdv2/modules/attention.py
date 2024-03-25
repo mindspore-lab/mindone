@@ -20,10 +20,11 @@ class IPAdapterCrossAttention(CrossAttention):
         context_dim=None,
         heads=8,
         dim_head=64,
-        dropout=1,
+        dropout=1.0,
         dtype=ms.float32,
         enable_flash_attention=False,
         upcast=False,
+        fa_max_head_dim=256,
         ip_scale=1.0,
         num_tokens=4,
     ):
@@ -36,6 +37,7 @@ class IPAdapterCrossAttention(CrossAttention):
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
             upcast=upcast,
+            fa_max_head_dim=fa_max_head_dim,
         )
         self.ip_scale = ip_scale
         self.num_tokens = num_tokens
@@ -60,9 +62,9 @@ class IPAdapterCrossAttention(CrossAttention):
         head_dim = q.shape[-1] // self.heads
 
         if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
-        ):  # TODO: why restrict head_dim?
-            # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
+            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= self.fa_max_head_dim
+        ):  # restrict head_dim to avoid UB oom. Reduce fa_max_head_dim value in case of OOM.
+            # reshape qkv shape ((b n h*d) -> (b h n d)) and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
@@ -118,6 +120,7 @@ class IPAdapterBasicTransformerBlock(BasicTransformerBlock):
         dtype=ms.float32,
         enable_flash_attention=False,
         upcast_attn=False,
+        fa_max_head_dim=256,
         ip_scale=1.0,
         num_tokens=4,
     ):
@@ -130,6 +133,7 @@ class IPAdapterBasicTransformerBlock(BasicTransformerBlock):
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
             upcast=upcast_attn,
+            fa_max_head_dim=fa_max_head_dim,
         )
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
         self.attn2 = IPAdapterCrossAttention(
@@ -141,6 +145,7 @@ class IPAdapterBasicTransformerBlock(BasicTransformerBlock):
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
             upcast=upcast_attn,
+            fa_max_head_dim=fa_max_head_dim,
             ip_scale=ip_scale,
             num_tokens=num_tokens,
         )  # is self-attn if context is none
@@ -175,6 +180,7 @@ class IPAdapterSpatialTransformer(SpatialTransformer):
         use_linear=False,
         dtype=ms.float32,
         enable_flash_attention=False,
+        fa_max_head_dim=256,
         upcast_attn=False,
         ip_scale=1.0,
         num_tokens=4,
@@ -204,6 +210,7 @@ class IPAdapterSpatialTransformer(SpatialTransformer):
                     dtype=self.dtype,
                     enable_flash_attention=enable_flash_attention,
                     upcast_attn=upcast_attn,
+                    fa_max_head_dim=fa_max_head_dim,
                     ip_scale=ip_scale,
                     num_tokens=num_tokens,
                 )

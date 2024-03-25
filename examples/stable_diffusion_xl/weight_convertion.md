@@ -25,3 +25,13 @@ python convert_weight.py \
   --key_torch torch_key_refiner.yaml \
   --key_ms mindspore_key_refiner.yaml
 ```
+
+(Option) Step3. Replace and convert VAE, Download [vae-fp16-fix weights](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix) from huggingface.
+
+```shell
+python convert_diffusers_to_mindone_sdxl.py \
+  --model_path /PATH TO/sdxl-vae-fp16-fix \                 # dir of vae weight
+  --vae_name diffusion_pytorch_model.safetensors \          # source vae weight, from https://huggingface.co/madebyollin/sdxl-vae-fp16-fix
+  --sdxl_base_ckpt /PATH TO/sd_xl_base_1.0_ms.ckpt          # base checkpoint, from Step2
+  --checkpoint_path /PATH TO/sd_xl_base_1.0_vaefix_ms.ckpt  # output path
+```

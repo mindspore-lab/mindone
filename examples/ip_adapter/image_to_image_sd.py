@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """
-Image to image generation
+IPAdapter SD image to image generation (Image2Image)
 """
 import argparse
 import logging
 import os
 import sys
 import time
+from typing import Tuple
 
 import numpy as np
 from omegaconf import OmegaConf
@@ -16,8 +17,8 @@ from transformers import CLIPImageProcessor
 import mindspore as ms
 import mindspore.ops as ops
 
-sys.path.append("../stable_diffusion_xl/")
 sys.path.append("../stable_diffusion_v2/")
+sys.path.append("../stable_diffusion_xl/")
 
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.modules.logger import set_logger
@@ -53,7 +54,6 @@ def load_model_from_config(config, ckpt):
                             "Ckpt params not loaded: {}".format([p for p in ckpt_not_load if not p.startswith("adam")])
                         )
         else:
-            logger.error(f"!!!Error!!!: {ckpt_fp} doesn't exist")
             raise FileNotFoundError(f"{ckpt_fp} doesn't exist")
 
     logger.info(f"Loading model from {ckpt}")
@@ -67,6 +67,21 @@ def load_model_from_config(config, ckpt):
     return model
 
 
+def _check_strength(val: float):
+    if val <= 0 or val > 1:
+        raise ValueError("`strength` must be in range (0, 1]`")
+
+
+def _cal_size(w: int, h: int, min_size: int = 512) -> Tuple[int, int]:
+    if w < h:
+        new_h = round(h / w * min_size)
+        new_w = min_size
+    else:
+        new_w = round(w / h * min_size)
+        new_h = min_size
+    return new_w, new_h
+
+
 def load_clip_image(image: str) -> ms.Tensor:
     image = Image.open(image)
     image = ImageOps.exif_transpose(image)  # type: Image.Image
@@ -76,11 +91,12 @@ def load_clip_image(image: str) -> ms.Tensor:
     return image
 
 
-def load_ref_image(image: str, scale_factor: int = 8) -> ms.Tensor:
+def load_ref_image(image: str, scale_factor: int = 8, min_size: int = 512) -> ms.Tensor:
     image = Image.open(image)
     image = ImageOps.exif_transpose(image)  # type: Image.Image
     image = image.convert("RGB")
     w, h = image.size
+    w, h = _cal_size(w, h, min_size=min_size)
     w, h = (x - x % scale_factor for x in (w, h))
     image = image.resize((w, h), resample=Image.LANCZOS)
     image = np.array(image, dtype=np.float32)
@@ -144,7 +160,12 @@ def main(args):
 
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id)
+    ms.set_context(
+        mode=args.ms_mode,
+        device_target="Ascend",
+        device_id=device_id,
+        ascend_config=dict(precision_mode="must_keep_origin_dtype"),
+    )
 
     set_random_seed(args.seed)
 
@@ -183,9 +204,16 @@ def main(args):
 
     # determine total timesteps for q_forward
     sampler.make_schedule(args.sampling_steps, verbose=False)  # create the ddim steps internally
-    sampling_steps = int(args.sampling_steps * args.strength)  # the real sampling steps
+    sampling_steps = round(args.sampling_steps * args.strength)  # the real sampling steps
+    if sampling_steps < 1:
+        raise RuntimeError("`strength` must be large enougth such that at least one sampling step can be performed.")
     start_sample_step = args.sampling_steps - sampling_steps
     n_timestep = sampler.ddim_timesteps[::-1][None, start_sample_step, ...]
+
+    if sampling_steps == args.sampling_steps:
+        timesteps = None
+    else:
+        timesteps = sampling_steps + 1
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -225,13 +253,13 @@ def main(args):
                 tokenized_negative_prompts = model.tokenize(negative_prompts)
                 uc = model.get_learned_conditioning(tokenized_negative_prompts)
                 # concat text/img embedding
-                uc = ops.concat([uc, clip_img_uc], axis=1)
+                uc = ops.concat([uc.to(ms.float32), clip_img_uc.to(ms.float32)], axis=1)
             if isinstance(prompts, tuple):
                 prompts = list(prompts)
             tokenized_prompts = model.tokenize(prompts)
             c = model.get_learned_conditioning(tokenized_prompts)
             # concat text/img embedding
-            c = ops.concat([c, clip_img_c], axis=1)
+            c = ops.concat([c.to(ms.float32), clip_img_c.to(ms.float32)], axis=1)
 
             start_code = model.q_sample(ref_img_latent, n_timestep, ops.randn(ref_img_latent.shape))
             shape = [4, ref_img_latent.shape[2], ref_img_latent.shape[3]]
@@ -245,7 +273,7 @@ def main(args):
                 unconditional_conditioning=uc,
                 eta=args.ddim_eta,
                 x_T=start_code,
-                timesteps=sampling_steps + 1,  # add offset
+                timesteps=timesteps,
             )
             x_samples_ddim = model.decode_first_stage(samples_ddim)
             x_samples_ddim = ops.clip_by_value((x_samples_ddim + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
@@ -409,6 +437,8 @@ if __name__ == "__main__":
 
     if args.scale is None:
         args.scale = 9.0 if args.version.startswith("2.") else 7.5
+
+    _check_strength(args.strength)
 
     # core task
     main(args)

@@ -1,6 +1,5 @@
 import logging
 import os
-from argparse import Namespace
 from typing import Optional, Tuple
 
 from ldm.data.dataset_dist import split_and_sync_data
@@ -18,6 +17,7 @@ def init_env(
     debug: bool = False,
     seed: int = 42,
     distributed: bool = False,
+    device_target: Optional[str] = "Ascend",
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
@@ -49,9 +49,9 @@ def init_env(
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
             mode=mode,
-            device_target="Ascend",
+            device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
         )
         init()
         device_num = get_group_size()
@@ -69,17 +69,16 @@ def init_env(
         _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:
-            args = Namespace(num_workers=num_workers, json_data_path=json_data_path)
-            split_and_sync_data(args, device_num, rank_id)
+            split_and_sync_data(json_data_path, num_workers, device_num, rank_id)
     else:
         device_num = 1
         device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
         ms.set_context(
             mode=mode,
-            device_target="Ascend",
+            device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 901B
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             pynative_synchronize=debug,
         )
 

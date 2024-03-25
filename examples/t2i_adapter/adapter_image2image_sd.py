@@ -67,7 +67,7 @@ def main(args):
         get_adapter("sd", a_cond, ckpt, use_fp16=not args.adapter_full_precision)
         for a_cond, ckpt in zip(args.adapter_condition, args.adapter_ckpt_path)
     ]
-    adapters = CombinedAdapter(adapters, cond_weights, output_fp16=True)
+    adapters = CombinedAdapter(adapters, cond_weights, output_fp16=model.dtype == ms.float16)
 
     cond_paths = args.condition_image
     assert all([os.path.isfile(cond) for cond in cond_paths]), "Paths to condition images must be files."

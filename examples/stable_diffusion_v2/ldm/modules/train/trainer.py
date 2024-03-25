@@ -64,7 +64,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.drop_overflow_update = drop_overflow_update
 
         assert isinstance(clip_grad, bool), f"Invalid type of clip_grad, got {type(clip_grad)}, expected bool"
-        assert clip_norm > 0.0 and isinstance(clip_norm, float), f"clip_norm must be float > 1.0, but got {clip_norm}"
+        assert clip_norm > 0.0 and isinstance(clip_norm, float), f"clip_norm must be float > 0, but got {clip_norm}"
         self.clip_grad = clip_grad
         self.clip_norm = clip_norm
 
@@ -148,7 +148,9 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                 else:
                     # update LR in each gradient step but not optimize net parameter to ensure the LR curve is
                     # consistent
-                    loss = F.depend(loss, self.optimizer.get_lr())  # .get_lr() will make lr step increased by 1
+                    loss = F.depend(
+                        loss, ops.assign_add(self.optimizer.global_step, self.optimizer.global_step_increase_tensor)
+                    )
             else:
                 # 5. gradient reduction on distributed GPUs/NPUs
                 grads = self.grad_reducer(grads)

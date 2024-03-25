@@ -2,15 +2,21 @@ import copy
 import glob
 import io
 import json
+import math
 import os
 import random
 import time
+from itertools import islice
 
 import numpy as np
 import webdataset as wds
 import wids
+from gm.data.util import _is_valid_text_input
 from gm.util import instantiate_from_config
 from PIL import Image
+from tqdm import tqdm
+
+from mindspore.communication import get_group_size, get_rank
 
 
 def get_tar_file_list(data_dir):
@@ -42,8 +48,20 @@ def generate_sharlist(data_dir):
         "wids_version": 1,
         "shardlist": [],
     }
-    for tf in tar_files:
-        nsamples = get_tar_nsample(tf)
+    print("INFO: Start to scan tar files...")
+    # TODO: 1) use multi-process. 2) consider multiple machine access.
+    for tf in tqdm(tar_files):
+        tar_info_fp = tf.replace(".tar", ".txt")
+        if not os.path.exists(tar_info_fp):
+            # scan
+            nsamples = get_tar_nsample(tf)
+
+            with open(tar_info_fp, "w") as fp:
+                fp.write(str(nsamples))
+        else:
+            with open(tar_info_fp, "r") as fp:
+                nsamples = int(fp.read())
+
         out["shardlist"].append({"url": tf, "nsamples": nsamples})
     save_fp = os.path.join(data_dir, "data_info.json")
     with open(save_fp, "w") as fp:
@@ -69,8 +87,19 @@ class T2I_BaseDataset:
         seed=42,  # for multi_aspect
         per_batch_size=1,  # for multi_aspect
         caption_key="caption",
+        prompt_empty_probability=0.0,
+        lpw=False,
+        max_embeddings_multiples=4,
+        **kwargs,
     ):
         super().__init__()
+
+        if kwargs:
+            print(
+                "WARNING: Some key arguments are fed but not supported in the T2I_BaseDataset"
+                " ".join(list(kwargs.keys()))
+            )
+
         self.tokenizer = tokenizer
         self.token_nums = token_nums
         self.dataset_column_names = ["samples"]
@@ -90,10 +119,14 @@ class T2I_BaseDataset:
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
         self.seed = seed
         self.per_batch_size = per_batch_size
+        self.prompt_empty_probability = prompt_empty_probability
 
         self.caption_key = caption_key
         self.prev_ok_sample = None
         self.require_update_prev = True
+
+        self.lpw = lpw
+        self.max_embeddings_multiples = max_embeddings_multiples
 
         self.transforms = []
         if transforms:
@@ -120,6 +153,22 @@ class T2I_BaseDataset:
         image = np.array(image).astype(np.uint8)
 
         # caption preprocess
+        if self.prompt_empty_probability and random.random() < self.prompt_empty_probability:
+            caption = ""
+
+        if not _is_valid_text_input(caption):
+            print(
+                f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+            )
+
+            caption = str(caption)
+
+            if _is_valid_text_input(caption):
+                print("WARNING: convert caption type to string success.", flush=True)
+            else:
+                caption = " "
+                print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
+
         caption = np.array(caption)
 
         sample = {
@@ -160,7 +209,14 @@ class T2I_BaseDataset:
 
         if self.tokenizer:
             data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
-            tokens, _ = self.tokenizer(data)
+
+            try:
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+            except Exception as e:
+                print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
+                data["txt"] = [" " for _ in range(len(data["txt"]))]
+                tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
+
             outs = (data["image"],) + tuple(tokens)
         else:
             outs = data
@@ -175,32 +231,129 @@ class T2I_BaseDataset:
         cnt = 0
         for cur in wds_iterator:
             cnt += 1
+            # print(cnt)
 
         return cnt
 
 
+def get_device_rank_info():
+    # device_id = int(os.getenv("DEVICE_ID", 0))
+    try:
+        rank_id = get_rank()
+        device_num = get_group_size()
+    except Exception:
+        # print(
+        #     "WARNING: Distributed Communication has not been inited (by init()). rank_id and rank_size will be retrieved from env variables."
+        # )
+        rank_id = int(os.environ.get("RANK_ID", 0))
+        device_num = int(os.environ.get("RANK_SIZE", 1))
+
+    # print(f"D--: device_num: {device_num}, rank_id {rank_id}")
+
+    return rank_id, device_num
+
+
+def split_by_node(src, group=None):
+    # rank, world_size, worker, num_workers = utils.pytorch_worker_info(group=group)
+    assert group is None, "currently only support group is None"
+    rank, world_size = get_device_rank_info()
+
+    if world_size > 1:
+        yield from islice(src, rank, None, world_size)
+    else:
+        yield from src
+
+
+def split_by_worker(src):
+    # Split the input sequence by worker.
+    # rank, world_size, worker, num_workers = utils.pytorch_worker_info()
+    worker = 0
+    num_workers = 1
+    if num_workers > 1:
+        yield from islice(src, worker, None, num_workers)
+    else:
+        yield from src
+
+
+def get_num_samples(shardlist_desc=None, data_path=None):
+    # data_path: root dir of tar dataset
+    if shardlist_desc is None:
+        assert data_path is not None
+        if not os.path.exists(os.path.join(data_path, "data_info.json")):
+            print("Scanning tar files to get sample nums...")
+            # TODO: only scan tar files whose url/name is not in the shardlist description
+            shardlist_desc = generate_sharlist(data_path)
+            print("=> Saved shardlist json file in ", shardlist_desc)
+        else:
+            shardlist_desc = os.path.join(data_path, "data_info.json")
+    print("Loading sharlist description from: ", shardlist_desc)
+
+    tot_samples = 0
+    with open(shardlist_desc, "r") as fp:
+        shardlist = json.load(fp)["shardlist"]
+        for shard in shardlist:
+            tot_samples += shard["nsamples"]
+
+    return tot_samples
+
+
 class T2I_Webdataset(T2I_BaseDataset):
-    # sequential reading
-    def __init__(self, *args, **kwargs):
+    """
+    Webdataset loading, support data sharding for multiple training nodes.
+    """
+
+    def __init__(self, shardlist_desc=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         data_path = kwargs.get("data_path")
-        num_samples = kwargs.get("num_samples")
+        num_samples = kwargs.get("num_samples", -1)
 
         tar_files = get_tar_file_list(data_path)
         print(f"Get {len(tar_files)} tar files")
 
-        self.wds_iterator = wds.WebDataset(tar_files, cache_dir=None)
-        self.wds_iterator = self.wds_iterator.shuffle(1000)
-        # ds = ds.decode("rgb8").to_tuple("jpg;png", "json") # will do in getitem to save time
-        if num_samples is None:
-            print(
-                "WARNING: For webdataset, it's recommended to specify `num_samples` to save time to iterate all samples for counting"
-            )
-            self.num_samples = self.count_sample_num(self.wds_iterator)
-            print(f"Total number of samples: {self.num_samples} in all tar files")
+        # get number of samples
+        if num_samples == -1:
+            tot_samples = get_num_samples(shardlist_desc, data_path)
         else:
-            self.num_samples = num_samples
+            tot_samples = num_samples
+
+        # Change the epoch to return the given number of samples, determine by total samples and rank
+        rank_id, device_num = get_device_rank_info()
+        samples_per_rank = math.ceil(tot_samples / device_num)
+        print(
+            f"INFO: Total samples in dataset {tot_samples}, device num {device_num}, rank id {rank_id}, num samples per device: {samples_per_rank}"
+        )
+
+        # webdataset with shard split
+        # self.wds_iterator = wds.WebDataset(tar_files, resampled=True, cache_dir=cache_dir, nodesplitter=split_by_node)
+        self.wds_iterator = wds.WebDataset(
+            tar_files, cache_dir=None, nodesplitter=split_by_node, workersplitter=split_by_worker
+        )
+        self.wds_iterator = self.wds_iterator.with_epoch(samples_per_rank)
+        self.num_samples = samples_per_rank
+
+        self.wds_iterator = self.wds_iterator.shuffle(1000)  # TODO: allow set shuffle window size
+        # ds = ds.decode("rgb8").to_tuple("jpg;png", "json") # will do in getitem to save time
+
+        # prepare normal sample for replacement
+        max_attempts = 100
+        trials = 0
+        for raw in self.wds_iterator:
+            try:
+                image, caption = self.parse_raw_data(raw)
+                sample = self.preprocess(image, caption)
+                trials += 1
+                if sample is not None:
+                    self.prev_ok_sample = copy.deepcopy(sample)
+                    break
+                assert trials > max_attempts, f"Cannot get normal samples in {max_attempts} attempts"
+            except StopIteration:
+                raise StopIteration
+            except Exception as e:
+                print("\tError mg: {}".format(e), flush=True)
+                continue
+
+        print(f"Finish preparing normal sample in {trials} attempt(s)")
 
     def parse_raw_data(self, raw_data):
         if "jpg" in raw_data:
@@ -222,15 +375,26 @@ class T2I_Webdataset(T2I_BaseDataset):
             try:
                 image, caption = self.parse_raw_data(raw)
                 sample = self.preprocess(image, caption)
-                # TODO: add corrupted data check and replacement
+
                 yield sample
             except StopIteration:
                 raise StopIteration
+            except Exception as e:
+                print(
+                    "=> WARNING: Fail to get the iterated sample. The sample can be corrupted and will be replaced by previous normal sample."
+                )
+                print("\tError type: ", type(e).__name__)
+                print("\tError mg: {}".format(e), flush=True)
+                assert self.prev_ok_sample is not None
+                sample = self.prev_ok_sample  # unless the first sample is already not ok
+                self.require_update_prev = True
+
+                yield sample
 
 
 class T2I_Webdataset_RndAcs(T2I_BaseDataset):
     # random access
-    def __init__(self, shardlist_desc=None, *args, **kwargs):
+    def __init__(self, shardlist_desc=None, cache_dir=None, *args, **kwargs):
         # shardlist_desc: path to a json file describing sample num for each tar
         super().__init__(*args, **kwargs)
         if shardlist_desc is None:
@@ -245,7 +409,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
 
         with open(shardlist_desc, "r") as fp:
             shardlist = json.load(fp)["shardlist"]
-        self.dataset = wids.ShardListDataset(shardlist)
+        self.dataset = wids.ShardListDataset(shardlist, cache_dir=cache_dir)
         self._datalen = len(self.dataset)
 
         # preload sample

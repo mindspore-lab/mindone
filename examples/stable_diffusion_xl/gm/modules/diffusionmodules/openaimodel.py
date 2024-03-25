@@ -1,4 +1,5 @@
 # reference to https://github.com/Stability-AI/generative-models
+import logging
 from abc import abstractmethod
 from functools import partial
 from typing import Iterable
@@ -15,6 +16,8 @@ from gm.modules.diffusionmodules.util import (
 from gm.util import default, exists
 
 from mindspore import jit, nn, ops
+
+_logger = logging.getLogger(__name__)
 
 
 class TimestepBlock(nn.Cell):
@@ -182,7 +185,7 @@ class ResBlock(TimestepBlock):
         self.skip_t_emb = skip_t_emb
         self.emb_out_channels = 2 * self.out_channels if use_scale_shift_norm else self.out_channels
         if self.skip_t_emb:
-            print(f"Skipping timestep embedding in {self.__class__.__name__}")
+            _logger.debug(f"Skipping timestep embedding in {self.__class__.__name__}")
             assert not self.use_scale_shift_norm
             self.emb_layers = None
             self.exchange_temb_dims = False

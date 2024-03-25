@@ -1,6 +1,6 @@
 # This file only applies to static graph mode
 
-from gm.util import append_dims, clip_grad_, clip_grad_global_
+from gm.util import append_dims, clip_grad_, clip_grad_global_, get_timestep_multinomial
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -20,15 +20,21 @@ class TrainOneStepCell(nn.Cell):
         gradient_accumulation_steps=1,
         clip_grad=False,
         clip_norm=1.0,
+        enable_first_stage_model=True,
+        enable_conditioner=True,
+        ema=None,
+        timestep_bias_weighting=None,
+        snr_gamma=None,
     ):
         super(TrainOneStepCell, self).__init__()
 
         # get conditioner trainable status
         trainable_conditioner = False
-        for embedder in model.conditioner.embedders:
-            if embedder.is_trainable:
-                trainable_conditioner = True
-                print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
+        if enable_conditioner:
+            for embedder in model.conditioner.embedders:
+                if embedder.is_trainable:
+                    trainable_conditioner = True
+                    print(f"Build Trainer: conditioner {type(embedder).__name__} is trainable.")
 
         # train net
         if not trainable_conditioner:
@@ -46,36 +52,67 @@ class TrainOneStepCell(nn.Cell):
             gradient_accumulation_steps,
             clip_grad,
             clip_norm,
+            ema,
         )
 
         # first stage model
-        self.scale_factor = model.scale_factor
         self.first_stage_model = model.first_stage_model
 
-        #
+        self.scale_factor = model.scale_factor
+        self.latents_mean = model.latents_mean
+        self.latents_std = model.latents_std
         self.sigma_sampler = model.sigma_sampler
         self.loss_fn = model.loss_fn
         self.denoiser = model.denoiser
 
+        self.enable_conditioner = enable_conditioner
+        self.enable_first_stage_model = enable_first_stage_model
+
+        self.timestep_bias_weighting = timestep_bias_weighting
+        self.snr_gamma = snr_gamma
+
     def construct(self, x, *tokens):
         # get latent target
-        x = self.first_stage_model.encode(x)
-        x = self.scale_factor * x
+        if self.enable_first_stage_model:
+            x = self.first_stage_model.encode(x)
+
+        if self.latents_mean and self.latents_std:
+            latents_mean = ms.Tensor(self.latents_mean, dtype=ms.float32).reshape(1, 4, 1, 1)
+            latents_std = ms.Tensor(self.latents_std, dtype=ms.float32).reshape(1, 4, 1, 1)
+            x = (x - latents_mean) * self.scale_factor / latents_std
+        else:
+            x = self.scale_factor * x
 
         # get noise and sigma
-        sigmas = self.sigma_sampler(x.shape[0])
+        if self.timestep_bias_weighting is None:
+            sigmas = self.sigma_sampler(x.shape[0])
+        else:
+            # FIXME: Bug on MindSpore 2.2.10
+            # timesteps = ops.multinomial(self.timestep_bias_weighting, x.shape[0], replacement=True).long()
+            timesteps = get_timestep_multinomial(self.timestep_bias_weighting, x.shape[0])
+            sigmas = self.sigma_sampler(x.shape[0], rand=timesteps)
         noise = ops.randn_like(x)
         noised_input = self.loss_fn.get_noise_input(x, noise, sigmas)
+
         w = append_dims(self.denoiser.w(sigmas), x.ndim)
 
+        if self.snr_gamma is not None:
+            snr_gamma = ops.ones_like(w) * self.snr_gamma
+            w = ops.stack((w, snr_gamma), axis=0).min(axis=0)
+
         # compute loss
-        if self.conditioner:
-            # get condition
-            vector, crossattn, concat = self.conditioner(*tokens)
+        if self.enable_conditioner:
+            if self.conditioner:
+                # get condition
+                vector, crossattn, concat = self.conditioner(*tokens)
+                context, y = crossattn, vector
+                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, concat, context, y)
+            else:
+                loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, *tokens)
+        else:
+            vector, crossattn, concat = tokens[0], tokens[1], None
             context, y = crossattn, vector
             loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, concat, context, y)
-        else:
-            loss, _, overflow = self.ldm_with_loss_grad(x, noised_input, sigmas, w, *tokens)
 
         return loss, overflow
 
@@ -92,7 +129,7 @@ class LatentDiffusionWithLoss(nn.Cell):
         c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
         model_output = self.model(
             ops.cast(noised_input * c_in, ms.float32),
-            ops.cast(c_noise, ms.int32),
+            c_noise,
             concat=concat,
             context=context,
             y=y,
@@ -142,6 +179,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
         grad_accum_steps=1,
         clip_grad=False,
         clip_norm=1.0,
+        ema=None,
     ):
         super(LatentDiffusionWithLossGrad, self).__init__()
         self.grad_fn = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
@@ -152,6 +190,7 @@ class LatentDiffusionWithLossGrad(nn.Cell):
 
         self.clip_grad = clip_grad
         self.clip_norm = clip_norm
+        self.ema = ema
 
         self.accum_steps = grad_accum_steps
         if self.accum_steps > 1:
@@ -165,6 +204,8 @@ class LatentDiffusionWithLossGrad(nn.Cell):
                 # grads = clip_grad_global_(grads, clip_norm=self.clip_norm)
                 grads = clip_grad_(grads, clip_norm=self.clip_norm)
             loss = F.depend(loss, self.optimizer(grads))
+            if self.ema is not None:
+                self.ema.ema_update()
         else:
             loss = F.depend(
                 loss, self.hyper_map(F.partial(_grad_accum_op, self.accum_steps), self.accumulated_grads, grads)
@@ -178,6 +219,8 @@ class LatentDiffusionWithLossGrad(nn.Cell):
                     loss = F.depend(loss, self.optimizer(self.accumulated_grads))
                 loss = F.depend(loss, self.hyper_map(F.partial(_grad_clear_op), self.accumulated_grads))
                 loss = F.depend(loss, ops.assign(self.accum_step, ms.Tensor(0, ms.int32)))
+                if self.ema is not None:
+                    self.ema.ema_update()
             else:
                 # update the learning rate, do not update the parameter
                 loss = F.depend(loss, self.optimizer.get_lr())

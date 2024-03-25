@@ -330,12 +330,16 @@ class WordpieceTokenizer(object):
         return text
 
 
-def get_tokenizer(tokenizer_name):
+def get_tokenizer(tokenizer_name, version="openai/clip-vit-large-patch14"):
     if tokenizer_name == "WordpieceTokenizer":
         tokenizer = WordpieceTokenizer()
         _logger.debug("Using tokenizer `WordPieceTokenizer`")
     elif tokenizer_name == "BpeTokenizer":
         tokenizer = BpeTokenizer()
+    elif tokenizer_name == "CLIPTokenizer":
+        from transformers import CLIPTokenizer
+
+        tokenizer = CLIPTokenizer.from_pretrained(version)
     else:
         raise NotImplementedError(f"tokenizer {tokenizer_name} not implemented")
     return tokenizer

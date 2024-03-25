@@ -2,6 +2,7 @@ import argparse
 
 import torch
 from safetensors.torch import load_file as load_safetensors
+from safetensors.torch import save_file as save_safetensors
 
 import mindspore as ms
 from mindspore import Tensor
@@ -39,13 +40,22 @@ def ms_to_pt(args):
     assert len(key_torch) == len(key_ms)
 
     new_ckpt = {}
+    _new_sd_dict = {}
+    for k in sd:
+        if "._backbone" in k:
+            _index = k.find("._backbone")
+            new_k = k[:_index] + k[_index + len("._backbone") :]
+        else:
+            new_k = k[:]
+        _new_sd_dict[new_k] = sd[k]
+    sd = _new_sd_dict
     for i in range(len(key_ms)):
         k_t, k_ms = key_torch[i], key_ms[i]
 
         assert k_ms in sd, f"Keys '{k_ms}' not found in {args.key_ms}"
         new_ckpt[k_t] = torch.from_numpy(sd[k_ms].data.asnumpy())
 
-    ms.save_checkpoint(new_ckpt, args.weight_safetensors)
+    save_safetensors(new_ckpt, args.weight_safetensors)
     print(f"Convert '{args.weight_ms}' to '{args.weight_safetensors}' Done.")
 
 

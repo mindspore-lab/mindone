@@ -278,113 +278,186 @@ def convert_openai_text_enc_state_dict(text_enc_dict):
     return text_enc_dict
 
 
-def convert_weight(pth, msname):
-    sd = torch.load(pth)
-    key_torch = list(sd["state_dict"].keys())
+def convert_weight(state_dict, msname):
+    key_torch = list(state_dict["state_dict"].keys())
     key_ms = copy.deepcopy(key_torch)
     for i in range(len(key_torch)):
-        if "norm" in key_torch[i]:
+        if ("norm" in key_torch[i]) or ("ln_" in key_torch[i]) or ("model.diffusion_model.out.0." in key_torch[i]):
             if "weight" in key_torch[i]:
                 key_ms[i] = key_ms[i][:-6] + "gamma"
             if "bias" in key_torch[i]:
                 key_ms[i] = key_ms[i][:-4] + "beta"
-            if "embedding_table" in key_torch[i]:
-                key_ms[i] = key_ms[i][:-15] + "weight"
-
+        pattern1 = r"model\.diffusion_model\.(input_blocks|middle_block|output_blocks)\.[0-8]\.0\.(in_layers|out_layers)\.0\.(weight|bias)"
+        pattern2 = r"model\.diffusion_model\.middle_block\.[02]\.(in_layers|out_layers)\.0\.(weight|bias)"
+        if re.match(pattern1, key_torch[i]) or re.match(pattern2, key_torch[i]):
+            if "weight" in key_torch[i]:
+                key_ms[i] = key_ms[i][:-6] + "gamma"
+            if "bias" in key_torch[i]:
+                key_ms[i] = key_ms[i][:-4] + "beta"
+        if "embedding.weight" in key_torch[i]:
+            key_ms[i] = key_ms[i][:-6] + "embedding_table"
+        if "conditioner.embedders.1.model.text_projection.weight" in key_torch[i]:
+            key_ms[i] = "conditioner.embedders.1.model.text_projection"
     newckpt = []
+    ms_key = []
     for i in range(len(key_torch)):
         kt, kms = key_torch[i], key_ms[i]
-        newckpt.append({"name": kms, "data": Tensor(sd["state_dict"][kt].numpy(), ms.float32)})
+        vms = Tensor(state_dict["state_dict"][kt].numpy(), ms.float32)
+        if "conditioner.embedders.1.model.text_projection" == kms:
+            print(
+                f"[Attention] {kms} is called differently in MindONE and Diffusers, so it is transposed in converting"
+            )
+            vms = ms.ops.transpose(vms, (1, 0))
+        newckpt.append({"name": kms, "data": vms})
+        ms_key.append(kms)
     ms.save_checkpoint(newckpt, msname)
+    print("convert Stable Diffusion checkpoint(torch) to MindOne Stable Diffusion checkpoint(mindspore) success!")
+    return ms_key
 
 
-def merge_weight(partckpt, allckpt):
-    part = ms.load_checkpoint(partckpt)
-    al = ms.load_checkpoint(allckpt)
+def merge_weight(part_ckpt, base_ckpt):
+    part = ms.load_checkpoint(part_ckpt)
+    al = ms.load_checkpoint(base_ckpt)
     partkey = list(part.keys())
     alkey = list(al.keys())
-    newckpt = {}
+    newckpt = []
     for i in range(len(al)):
         key = alkey[i]
         if key in partkey:
-            newckpt[key] = part[key]
+            newckpt.append({"name": key, "data": part[key]})
         else:
-            newckpt[key] = al[key]
-    ms.save_checkpoint(newckpt, args.checkpoint_path)
+            newckpt.append({"name": key, "data": al[key]})
+    ms.save_checkpoint(newckpt, args.output_path)
+    print("insert Stable Diffusion checkpoint(mindspore) to sd_xl_base_1.0_ms.ckpt success!")
+
+
+def compare_missing_key(key_list, reverse=False, ms_key_base_path="mindspore_key_base.yaml"):
+    # get the sdxl base ckpt's key
+    base_key = []
+    with open(ms_key_base_path, "r", encoding="utf-8") as file:
+        for line in file:
+            key = line.split(":", 1)[0].strip()
+            base_key.append(key)
+    base_key = set(base_key)
+    key_list = set(key_list)
+    if not reverse:
+        difference = base_key - key_list
+    else:
+        difference = key_list - base_key
+    return list(difference)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", default=None, type=str, required=True, help="Path to the model to convert.")
-    parser.add_argument("--checkpoint_path", default=None, type=str, required=True, help="Path to the output model.")
+    parser.add_argument("--output_path", default=None, type=str, required=True, help="Path to the output model.")
     parser.add_argument("--half", action="store_true", help="Save weights in half precision.")
     parser.add_argument("--use_safetensors", action="store_true", help="Save weights use safetensors, default is ckpt.")
     parser.add_argument(
-        "--unet_name", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Name to the unet model."
+        "--unet_path",
+        default="./unet/diffusion_pytorch_model.fp16.safetensors",
+        type=str,
+        help="Path to the unet model.",
     )
     parser.add_argument(
-        "--vae_name", default="diffusion_pytorch_model.fp16.safetensors", type=str, help="Name to the vae model."
+        "--vae_path", default="./vae/diffusion_pytorch_model.fp16.safetensors", type=str, help="Path to the vae model."
     )
     parser.add_argument(
-        "--text_encoder_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder model."
+        "--text_encoder_path",
+        default="./text_encoder/model.fp16.safetensors",
+        type=str,
+        help="Path to the text_encoder model.",
     )
     parser.add_argument(
-        "--text_encoder_2_name", default="model.fp16.safetensors", type=str, help="Name to the text_encoder_2 model."
+        "--text_encoder_2_path",
+        default="./text_encoder_2/model.fp16.safetensors",
+        type=str,
+        help="Path to the text_encoder_2 model.",
     )
     parser.add_argument(
-        "--sdxl_base_ckpt", default="sd_xl_base_1.0_ms.ckpt", type=str, help="Name to the sd_xl_base model."
+        "--ms_key_base_path",
+        default="./mindspore_key_base.yaml",
+        type=str,
+        help="Path to the mindspore_key_base.yaml.",
+    )
+    parser.add_argument("--sdxl_base_ckpt", default=None, type=str, help="Path to the sd_xl_base model.")
+    parser.add_argument(
+        "--save_mindspore",
+        default=True,
+        type=bool,
+        help="Save mindspore weights, default is mindspore.",
+    )
+    parser.add_argument(
+        "--save_torch",
+        default=False,
+        type=bool,
+        help="Save torch weights using .pth format, default is mindspore.",
+    )
+    parser.add_argument(
+        "--save_safetensor",
+        default=False,
+        type=bool,
+        help="Save torch weights using .safetensor format, default is mindspore.",
     )
 
     args = parser.parse_args()
 
-    assert args.model_path is not None, "Must provide a model path!"
+    assert args.output_path is not None, "Must provide a checkpoint path!"
 
-    assert args.checkpoint_path is not None, "Must provide a checkpoint path!"
+    unet_state_dict = {}
+    vae_state_dict = {}
+    text_enc_dict = {}
+    text_enc_2_dict = {}
 
-    # Path for safetensors
-    unet_path = osp.join(args.model_path, "unet", args.unet_name)
-    vae_path = osp.join(args.model_path, "vae", args.vae_name)
-    text_enc_path = osp.join(args.model_path, "text_encoder", args.text_encoder_name)
-    text_enc_2_path = osp.join(args.model_path, "text_encoder_2", args.text_encoder_2_name)
-
-    # Load models from safetensors if it exists, if it doesn't pytorch
-    if osp.exists(unet_path):
-        unet_state_dict = load_file(unet_path, device="cpu")
+    if osp.exists(args.unet_path):
+        if args.unet_path.endswith(".bin"):
+            unet_state_dict = torch.load(args.unet_path, map_location="cpu")
+        else:
+            unet_state_dict = load_file(args.unet_path, device="cpu")
+        print("load unet from unet_path: ", args.unet_path)
     else:
-        unet_path = osp.join(args.model_path, "unet", "diffusion_pytorch_model.bin")
-        unet_state_dict = torch.load(unet_path, map_location="cpu")
+        print("unet_path is not valid, please double-check it!")
 
-    if osp.exists(vae_path):
-        vae_state_dict = load_file(vae_path, device="cpu")
+    if osp.exists(args.vae_path):
+        if args.vae_path.endswith(".bin"):
+            vae_state_dict = torch.load(args.vae_path, map_location="cpu")
+        else:
+            vae_state_dict = load_file(args.vae_path, device="cpu")
+        print("load vae from vae_path ", args.vae_path)
     else:
-        vae_path = osp.join(args.model_path, "vae", "diffusion_pytorch_model.bin")
-        vae_state_dict = torch.load(vae_path, map_location="cpu")
+        print("vae_path is not valid, please double-check it!")
 
-    if osp.exists(text_enc_path):
-        text_enc_dict = load_file(text_enc_path, device="cpu")
+    if osp.exists(args.text_encoder_path):
+        if args.text_encoder_path.endswith(".bin"):
+            text_enc_dict = torch.load(args.text_encoder_path, map_location="cpu")
+        else:
+            text_enc_dict = load_file(args.text_encoder_path, device="cpu")
+        print("load text encoder from text_enc_path ", args.text_encoder_path)
     else:
-        text_enc_path = osp.join(args.model_path, "text_encoder", "pytorch_model.bin")
-        text_enc_dict = torch.load(text_enc_path, map_location="cpu")
+        print("text_encoder_path is not valid, please double-check it!")
 
-    if osp.exists(text_enc_2_path):
-        text_enc_2_dict = load_file(text_enc_2_path, device="cpu")
+    if osp.exists(args.text_encoder_2_path):
+        if args.text_encoder_2_path.endswith(".bin"):
+            text_enc_2_dict = torch.load(args.text_encoder_2_path, map_location="cpu")
+        else:
+            text_enc_2_dict = load_file(args.text_encoder_2_path, device="cpu")
+        print("load text encoder 2 from text_enc_2_path ", args.text_encoder_2_path)
     else:
-        text_enc_2_path = osp.join(args.model_path, "text_encoder_2", "pytorch_model.bin")
-        text_enc_2_dict = torch.load(text_enc_2_path, map_location="cpu")
+        print("text_encoder_2_path is not valid, please double-check it!")
 
     # Convert the UNet model
-    unet_state_dict = convert_unet_state_dict(unet_state_dict)
-    unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
-
+    if unet_state_dict != {}:
+        unet_state_dict = convert_unet_state_dict(unet_state_dict)
+        unet_state_dict = {"model.diffusion_model." + k: v for k, v in unet_state_dict.items()}
     # Convert the VAE model
-    vae_state_dict = convert_vae_state_dict(vae_state_dict)
-    vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
-
-    text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
-    text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
-
-    text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
-    text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
+    if vae_state_dict != {}:
+        vae_state_dict = convert_vae_state_dict(vae_state_dict)
+        vae_state_dict = {"first_stage_model." + k: v for k, v in vae_state_dict.items()}
+    if text_enc_dict != {}:
+        text_enc_dict = convert_openai_text_enc_state_dict(text_enc_dict)
+        text_enc_dict = {"conditioner.embedders.0.transformer." + k: v for k, v in text_enc_dict.items()}
+    if text_enc_2_dict != {}:
+        text_enc_2_dict = convert_openclip_text_enc_state_dict(text_enc_2_dict)
+        text_enc_2_dict = {"conditioner.embedders.1.model." + k: v for k, v in text_enc_2_dict.items()}
 
     # Put together new checkpoint
     state_dict = {**unet_state_dict, **vae_state_dict, **text_enc_dict, **text_enc_2_dict}
@@ -392,24 +465,67 @@ if __name__ == "__main__":
     if args.half:
         state_dict = {k: v.half() for k, v in state_dict.items()}
 
-    if args.use_safetensors:
-        save_file(state_dict, args.checkpoint_path)
+    if args.output_path.endswith(".ckpt"):
+        save_safetensor_path = args.output_path[:-5] + ".safetensors"
+        save_torch_path = args.output_path[:-5] + ".pth"
+        save_mindspore_path = args.output_path
+    elif args.output_path.endswith(".pth"):
+        save_safetensor_path = args.output_path[:-4] + ".safetensors"
+        save_torch_path = args.output_path
+        save_mindspore_path = args.output_path[:-4] + ".ckpt"
+    elif args.output_path.endswith(".safetensors"):
+        save_safetensor_path = args.output_path
+        save_torch_path = args.output_path[:-12] + ".pth"
+        save_mindspore_path = args.output_path[:-12] + ".ckpt"
     else:
-        state_dict = {"state_dict": state_dict}
-        torch.save(state_dict, "torch_part.ckpt")
+        save_safetensor_path = args.output_path + ".safetensors"
+        save_torch_path = args.output_path + ".pth"
+        save_mindspore_path = args.output_path + ".ckpt"
+    state_dict = {"state_dict": state_dict}
+    if args.save_safetensor:
+        save_file(state_dict, save_safetensor_path)
+    if args.save_torch:
+        torch.save(state_dict, save_torch_path)
+    if args.save_mindspore:
+        # Convert the torch ckpt to mindspore ckpt and return mindspore key list
+        key_list = convert_weight(state_dict, save_mindspore_path)
+        exist_ms_key_base_path = osp.exists(args.ms_key_base_path)
 
-    # Convert the torch ckpt to mindspore ckpt
-    convert_weight("torch_part.ckpt", "mindspore_part.ckpt")
+        if exist_ms_key_base_path:
+            with open(args.ms_key_base_path, "r") as file:
+                line_count = len(file.readlines())
+        else:
+            line_count = 2514
 
-    if osp.exists("mindspore_key_base.yaml"):
-        with open("mindspore_key_base.yaml", "r") as file:
-            line_count = len(file.readlines())
-    else:
-        line_count = 2514
+        if not args.sdxl_base_ckpt:
+            print("you did not supply the 'sdxl_base_ckpt' argument; hence, the insertion operation was not executed.")
 
-    # If you have obtained all the keys, you do not need to run the insertion operation
-    if len(state_dict["state_dict"].keys()) < line_count:
-        # insert these ckpt to mindspore sdxl base ckpt
-        merge_weight("part.ckpt", args.sdxl_base_ckpt)
-    if len(state_dict["state_dict"].keys()) > line_count:
-        raise ValueError("The number of keys is greater than mindspore sd xl base checkpoint. Insertion not allowed.")
+        # If you have obtained all the keys, you do not need to run the insertion operation
+        elif (
+            len(key_list) == line_count
+            and exist_ms_key_base_path
+            and len(compare_missing_key(key_list, ms_key_base_path=args.ms_key_base_path)) == 0
+        ):
+            print("You have obtained all the keys, hence, the insertion operation was not executed.")
+
+        else:
+            print("The MindSpore checkpoint (.ckpt) file that we have obtained contains ", str(len(key_list)), "keys.")
+            print("The sdxl base checkpoint contains ", str(line_count), "keys.")
+            if exist_ms_key_base_path:
+                missing_key_list = compare_missing_key(key_list, ms_key_base_path=args.ms_key_base_path)
+                print("There are ", len(missing_key_list), " Missing Parameters.")
+                print(
+                    "Missing Parameters indicate parameters that are included in the base ckpt but not included in the current ckpt."
+                )
+                print("The first 20 missing parameters are: ", str(missing_key_list[:20]))
+                more_key_list = compare_missing_key(key_list, True, args.ms_key_base_path)
+                print("There are ", len(more_key_list), " More Parameters.")
+                print(
+                    "More Parameters indicate parameters that are included in the current ckpt but not included in the base ckpt."
+                )
+                print("The first 20 more parameters are: ", str(more_key_list[:20]))
+
+            print(
+                "......Begin to Integrate the retrieved MindSpore checkpoint into the sdxl base model checkpoint......"
+            )
+            merge_weight(args.output_path, args.sdxl_base_ckpt)

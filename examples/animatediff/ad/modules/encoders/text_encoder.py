@@ -141,7 +141,7 @@ class TextEncoder(nn.Cell):
         self.gather = ops.Gather()
         self.reshape = ops.Reshape()
         self.cast = ops.Cast()
-
+        # require_grad = False?
         self.positional_embedding = Parameter(
             initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
         )
