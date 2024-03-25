@@ -6,6 +6,7 @@ import math
 import os
 import random
 import time
+from functools import partial
 from itertools import islice
 
 import numpy as np
@@ -48,7 +49,7 @@ def generate_sharlist(data_dir):
         "wids_version": 1,
         "shardlist": [],
     }
-    print("INFO: Start to scan tar files...")
+    print("INFO: Start to scan tar files...", flush=True)
     # TODO: 1) use multi-process. 2) consider multiple machine access.
     for tf in tqdm(tar_files):
         tar_info_fp = tf.replace(".tar", ".txt")
@@ -134,7 +135,7 @@ class T2I_BaseDataset:
                 # Mapper
                 trans = instantiate_from_config(trans_config)
                 self.transforms.append(trans)
-                print(f"Adding mapper {trans.__class__.__name__} as transform #{i} " f"to the datapipeline")
+                print(f"Adding mapper {trans.__class__.__name__} as transform #{i} " f"to the datapipeline", flush=True)
 
         self.batched_transforms = []
         if batched_transforms:
@@ -143,7 +144,10 @@ class T2I_BaseDataset:
                 bs_trans = instantiate_from_config(bs_trans_config)
                 self.batched_transforms.append(bs_trans)
                 print(
-                    f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
+                    f"Adding batch mapper {bs_trans.__class__.__name__} as batch tran"
+                    f"sform #{i} "
+                    f"to the datapipeline",
+                    flush=True,
                 )
 
     def preprocess(self, image, caption: str):
@@ -253,10 +257,13 @@ def get_device_rank_info():
     return rank_id, device_num
 
 
-def split_by_node(src, group=None):
-    # rank, world_size, worker, num_workers = utils.pytorch_worker_info(group=group)
+def split_by_node(src, group=None, rank_id=None, rank_size=None):
     assert group is None, "currently only support group is None"
     rank, world_size = get_device_rank_info()
+    if rank_id is not None:
+        rank = rank_id
+    if rank_size is not None:
+        world_size = rank_size
 
     if world_size > 1:
         yield from islice(src, rank, None, world_size)
@@ -280,13 +287,13 @@ def get_num_samples(shardlist_desc=None, data_path=None):
     if shardlist_desc is None:
         assert data_path is not None
         if not os.path.exists(os.path.join(data_path, "data_info.json")):
-            print("Scanning tar files to get sample nums...")
+            print("Scanning tar files to get sample nums...", flush=True)
             # TODO: only scan tar files whose url/name is not in the shardlist description
             shardlist_desc = generate_sharlist(data_path)
-            print("=> Saved shardlist json file in ", shardlist_desc)
+            print("=> Saved shardlist json file in ", shardlist_desc, flush=True)
         else:
             shardlist_desc = os.path.join(data_path, "data_info.json")
-    print("Loading sharlist description from: ", shardlist_desc)
+    print("Loading sharlist description from: ", shardlist_desc, flush=True)
 
     tot_samples = 0
     with open(shardlist_desc, "r") as fp:
@@ -309,7 +316,7 @@ class T2I_Webdataset(T2I_BaseDataset):
         num_samples = kwargs.get("num_samples", -1)
 
         tar_files = get_tar_file_list(data_path)
-        print(f"Get {len(tar_files)} tar files")
+        print(f"Get {len(tar_files)} tar files", flush=True)
 
         # get number of samples
         if num_samples == -1:
@@ -321,13 +328,27 @@ class T2I_Webdataset(T2I_BaseDataset):
         rank_id, device_num = get_device_rank_info()
         samples_per_rank = math.ceil(tot_samples / device_num)
         print(
-            f"INFO: Total samples in dataset {tot_samples}, device num {device_num}, rank id {rank_id}, num samples per device: {samples_per_rank}"
+            f"INFO: Total samples in dataset {tot_samples}, device num {device_num}, "
+            f"rank id {rank_id}, num samples per device: {samples_per_rank}",
+            flush=True,
         )
+
+        if device_num > len(tar_files):
+            print(
+                f"WARNING: RankSize {device_num} greater than WebDataset tar files num {len(tar_files)}, "
+                f"tar files will be sampled repeatedly.",
+                flush=True,
+            )
+            device_num = len(tar_files)
+            rank_id %= device_num
 
         # webdataset with shard split
         # self.wds_iterator = wds.WebDataset(tar_files, resampled=True, cache_dir=cache_dir, nodesplitter=split_by_node)
         self.wds_iterator = wds.WebDataset(
-            tar_files, cache_dir=None, nodesplitter=split_by_node, workersplitter=split_by_worker
+            tar_files,
+            cache_dir=None,
+            nodesplitter=partial(split_by_node, rank_id=rank_id, rank_size=device_num),
+            workersplitter=split_by_worker,
         )
         self.wds_iterator = self.wds_iterator.with_epoch(samples_per_rank)
         self.num_samples = samples_per_rank
@@ -346,14 +367,14 @@ class T2I_Webdataset(T2I_BaseDataset):
                 if sample is not None:
                     self.prev_ok_sample = copy.deepcopy(sample)
                     break
-                assert trials > max_attempts, f"Cannot get normal samples in {max_attempts} attempts"
+                assert trials < max_attempts, f"Cannot get normal samples in {max_attempts} attempts"
             except StopIteration:
                 raise StopIteration
             except Exception as e:
                 print("\tError mg: {}".format(e), flush=True)
                 continue
 
-        print(f"Finish preparing normal sample in {trials} attempt(s)")
+        print(f"Finish preparing normal sample in {trials} attempt(s)", flush=True)
 
     def parse_raw_data(self, raw_data):
         if "jpg" in raw_data:
@@ -381,9 +402,10 @@ class T2I_Webdataset(T2I_BaseDataset):
                 raise StopIteration
             except Exception as e:
                 print(
-                    "=> WARNING: Fail to get the iterated sample. The sample can be corrupted and will be replaced by previous normal sample."
+                    "=> WARNING: Fail to get the iterated sample. The sample can be corrupted and will be replaced by previous normal sample.",
+                    flush=True,
                 )
-                print("\tError type: ", type(e).__name__)
+                print("\tError type: ", type(e).__name__, flush=True)
                 print("\tError mg: {}".format(e), flush=True)
                 assert self.prev_ok_sample is not None
                 sample = self.prev_ok_sample  # unless the first sample is already not ok
@@ -400,12 +422,12 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         if shardlist_desc is None:
             data_path = kwargs.get("data_path")
             if not os.path.exists(os.path.join(data_path, "data_info.json")):
-                print("Scanning tar files to get sample nums...")
+                print("Scanning tar files to get sample nums...", flush=True)
                 shardlist_desc = generate_sharlist(data_path)
-                print("=> Saved shardlist json file in ", shardlist_desc)
+                print("=> Saved shardlist json file in ", shardlist_desc, flush=True)
             else:
                 shardlist_desc = os.path.join(data_path, "data_info.json")
-        print("Loading sharlist description from: ", shardlist_desc)
+        print("Loading sharlist description from: ", shardlist_desc, flush=True)
 
         with open(shardlist_desc, "r") as fp:
             shardlist = json.load(fp)["shardlist"]
@@ -422,9 +444,10 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
             except Exception as e:
                 print(
                     f"=> WARNING: Fail to preload sample {_idx}. "
-                    f"The sample can be corrupted and will be replaced by previous normal sample."
+                    f"The sample can be corrupted and will be replaced by previous normal sample.",
+                    flush=True,
                 )
-                print("\tError type: ", type(e).__name__)
+                print("\tError type: ", type(e).__name__, flush=True)
                 print("\tError mg: {}".format(e), flush=True)
                 continue
 
@@ -461,9 +484,10 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
                 self.require_update_prev = False
         except Exception as e:
             print(
-                f"=> WARNING: Fail to get sample {idx}. The sample can be corrupted and will be replaced by previous normal sample."
+                f"=> WARNING: Fail to get sample {idx}. The sample can be corrupted and will be replaced by previous normal sample.",
+                flush=True,
             )
-            print("\tError type: ", type(e).__name__)
+            print("\tError type: ", type(e).__name__, flush=True)
             print("\tError mg: {}".format(e), flush=True)
             assert self.prev_ok_sample is not None
             sample = self.prev_ok_sample  # unless the first sample is already not ok
@@ -494,7 +518,7 @@ if __name__ == "__main__":
         {"target": "gm.data.mappers.Rescaler", "params": {"isfloat": False}},
         {"target": "gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
     ]
-    print("loading..")
+    print("loading..", flush=True)
     if args.target == "T2I_Webdataset":
         dataset = T2I_Webdataset(
             data_path=args.data_path, target_size=1024, transforms=transforms, caption_key=args.caption_key
@@ -511,7 +535,7 @@ if __name__ == "__main__":
         raise ValueError("Unknown dataset target")
 
     dataset_size = len(dataset)
-    print(f"dataset size: {dataset_size}")
+    print(f"dataset size: {dataset_size}", flush=True)
 
     s_time = time.time()
     tot_time = 0
@@ -521,7 +545,7 @@ if __name__ == "__main__":
             break
         tot_time += time.time() - s_time
         # print(f"{i}/{dataset_size}, image shape: {data.pop('image')}, {data}")
-        print(f"{i+1}/{dataset_size}, time cost: {(time.time()-s_time) * 1000} ms")
-        print(data["txt"])
+        print(f"{i+1}/{dataset_size}, time cost: {(time.time()-s_time) * 1000} ms", flush=True)
+        print(data["txt"], flush=True)
         s_time = time.time()
-    print("Total read time: ", tot_time)
+    print("Total read time: ", tot_time, flush=True)
