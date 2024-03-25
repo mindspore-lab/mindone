@@ -1,0 +1,6 @@
+numpy
+pillow==9.1.1
+opencv-python
+PyYaml
+regex==2023.8.8
+ftfy
