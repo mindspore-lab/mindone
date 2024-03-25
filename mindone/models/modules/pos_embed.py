@@ -28,7 +28,17 @@ def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -
 def get_1d_sincos_temp_embed(
     embed_dim: int,
     length: int,
-):
+) -> np.ndarray:
+    """
+    Generate sinusoidal/cosinusoidal positional embeddings for 1D data.
+
+    Args:
+        embed_dim (int): The dimensionality of the embeddings.
+        length (int): The length of the 1D data.
+
+    Returns:
+        numpy.ndarray: The positional embeddings of shape (length, embed_dim).
+    """
     pos = np.arange(0, length).reshape((-1, 1))
     return _get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
 
