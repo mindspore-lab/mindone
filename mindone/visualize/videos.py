@@ -21,7 +21,9 @@ def export_to_gif(frames: np.ndarray, path: str, fps: int = 8, loop: int = 0, co
         concat: if True and b>1, all videos will be concatenated horizontally and saved as one.
         loop: number of loops to play. If 0, it will play endlessly.
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dir_ = os.path.dirname(path)
+    if dir_:
+        os.makedirs(dir_, exist_ok=True)
 
     duration = 1 / fps
 
@@ -30,15 +32,14 @@ def export_to_gif(frames: np.ndarray, path: str, fps: int = 8, loop: int = 0, co
         imageio.mimsave(path, frames, duration=duration, loop=loop)
         _logger.info(f"Generated GIF saved to {path}")
     else:
-        b, f, h, w, _ = frames.shape
         if concat:
             frames = np.concatenate(frames, axis=2)
-            imageio.mimsave(path, frames, duration=duration, fps=fps, loop=loop)
+            imageio.mimsave(path, frames, duration=duration, loop=loop)
             _logger.info(f"Generated GIF saved to {path}")
         else:
-            for idx in range(b):
+            for idx in range(len(frames)):
                 new_path = path.replace(".gif", f"-{idx}.gif")
-                imageio.mimsave(new_path, frames[idx], fps=fps, loop=loop)
+                imageio.mimsave(new_path, frames[idx], duration=duration, loop=loop)
                 _logger.info(f"Generated GIF saved to {new_path}")
 
 
@@ -62,7 +63,9 @@ def export_to_video(frames: np.ndarray, path: str, fps: int = 25, concat: bool =
         concat: If True, all videos will be concatenated horizontally and saved as one.
         codec: Video codec to be used for encoding. Default is "mp4v".
     """
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    dir_ = os.path.dirname(path)
+    if dir_:
+        os.makedirs(dir_, exist_ok=True)
 
     frames = frames.squeeze()  # squeeze batch dimension if equal to 1 for simplicity
     if len(frames.shape) == 4:
@@ -72,7 +75,7 @@ def export_to_video(frames: np.ndarray, path: str, fps: int = 25, concat: bool =
             frames = np.concatenate(frames, axis=2)
             _write_video(frames, path, fps, codec)
         else:
-            for i in range(frames):
+            for i in range(len(frames)):
                 name, ext = path.rsplit(".", 1)
                 new_path = name + f"-{i}." + ext
                 _write_video(frames[i], new_path, fps, codec)
