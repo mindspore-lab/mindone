@@ -1,8 +1,13 @@
 import argparse
 import ast
 import os
+import sys
 import time
 from functools import partial
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
 
 from gm.data.loader import create_loader
 from gm.helpers import (
@@ -18,11 +23,12 @@ from gm.helpers import (
     save_checkpoint,
     set_default,
 )
-from gm.util.util import auto_mixed_precision
 from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Tensor, nn
+
+from mindone.utils.amp import auto_mixed_precision
 
 
 def count_params(model, verbose=False):
