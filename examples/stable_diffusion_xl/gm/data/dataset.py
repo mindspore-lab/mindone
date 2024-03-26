@@ -750,5 +750,28 @@ if __name__ == "__main__":
             target_size=1024,
             transforms=transforms,
         )
+    elif args.target == "Text2ImageControlNetDataset":
+        transforms_controlnet = [
+            {
+                "target": "gm.data.mappers.Resize",
+                "params": {"key": ["control", "image"], "size": 1024, "interpolation": 3},
+            },
+            {"target": "gm.data.mappers.RescalerControlNet", "params": {"key": ["control", "image"], "isfloat": False}},
+            {"target": "gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
+            {"target": "gm.data.mappers.Transpose", "params": {"key": ["control", "image"], "type": "hwc2chw"}},
+        ]
+        dataset = Text2ImageControlNetDataset(
+            data_path=args.data_path,
+            target_size=1024,
+            per_batch_size=2,  # for multi_aspect
+            drop_text_prob=0.5,
+            transforms=transforms_controlnet,
+        )
+        dataset_size = len(dataset)
+        print(f"dataset size: {dataset_size}")
+
+        for i, data in enumerate(dataset):
+            print(data)
+            break
     else:
         ValueError("dataset only support Text2ImageDataset and Text2ImageDatasetDreamBooth")
