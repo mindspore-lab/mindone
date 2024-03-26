@@ -10,7 +10,7 @@ __all__ = ["export_to_gif", "export_to_video"]
 _logger = logging.getLogger(__name__)
 
 
-def export_to_gif(frames: np.ndarray, path: str, fps: int = 8, loop: int = 0, concat: bool = False):
+def export_to_gif(frames: np.ndarray, path: str, fps: int = 8, loop: int = 0, concat: bool = False) -> None:
     """
     Export video frames to a gif file.
 
@@ -42,7 +42,7 @@ def export_to_gif(frames: np.ndarray, path: str, fps: int = 8, loop: int = 0, co
                 _logger.info(f"Generated GIF saved to {new_path}")
 
 
-def _write_video(frames: np.ndarray, path: str, fps: int = 25, codec: str = "mp4v"):
+def _write_video(frames: np.ndarray, path: str, fps: int = 25, codec: str = "mp4v") -> None:
     writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*codec), fps, (frames.shape[2], frames.shape[1]))
     for frame in frames:
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -51,7 +51,7 @@ def _write_video(frames: np.ndarray, path: str, fps: int = 25, codec: str = "mp4
     _logger.info(f"Generated video saved to {path}")
 
 
-def export_to_video(frames: np.ndarray, path: str, fps: int = 25, concat: bool = False, codec: str = "mp4v"):
+def export_to_video(frames: np.ndarray, path: str, fps: int = 25, concat: bool = False, codec: str = "mp4v") -> None:
     """
     Export video frames to a video file.
 
