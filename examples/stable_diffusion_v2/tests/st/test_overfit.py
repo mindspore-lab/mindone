@@ -76,7 +76,7 @@ def test_vanilla_8p(version):
         f"mpirun --allow-run-as-root -n 8 python train_text_to_image.py --data_path={data_dir} --train_config={train_config} "
         f"--pretrained_model_path={pretrained_model_path} --dataset_sink_mode=True --callback_size=3 --scheduler=constant "
         f"--epochs={epochs} --ckpt_save_interval={epochs} --init_loss_scale=65536 --image_size=256 --start_learning_rate=1e-4 "
-        f"--output_path={output_path} --clip_grad=True --unet_initialize_random=True --use_parallel=True --warmup_steps=50 "
+        f"--output_path={output_path} --clip_grad=False --unet_initialize_random=True --use_parallel=True --warmup_steps=50 "
     )
 
     print(f"Running command: \n{cmd}")
@@ -138,7 +138,7 @@ def test_vanilla_lora(use_lora, version):
         f"python train_text_to_image.py --data_path={data_dir} --model_config={model_config} "
         f"--pretrained_model_path={pretrained_model_path} --weight_decay=0.01 --image_size=256 --dataset_sink_mode=True --callback_size=5 "
         f"--epochs={epochs} --ckpt_save_interval={epochs} --start_learning_rate={start_learning_rate} --train_batch_size=1 --init_loss_scale=65536 "
-        f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=True "
+        f"--use_lora={use_lora} --output_path={output_path} --warmup_steps=10 --use_ema=False --clip_grad=False "
         f"--unet_initialize_random={unet_initialize_random} "
     )
 

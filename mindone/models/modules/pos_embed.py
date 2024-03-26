@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 
-__all__ = ["get_2d_sincos_pos_embed", "precompute_freqs_cis_2d"]
+__all__ = ["get_1d_sincos_temp_embed", "get_2d_sincos_pos_embed", "precompute_freqs_cis_2d"]
 
 
 def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -> np.ndarray:
@@ -23,6 +23,24 @@ def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -
     grid = grid.reshape([2, nh, nw])
     pos_embed = _get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
     return pos_embed
+
+
+def get_1d_sincos_temp_embed(
+    embed_dim: int,
+    length: int,
+) -> np.ndarray:
+    """
+    Generate sinusoidal/cosinusoidal positional embeddings for 1D data.
+
+    Args:
+        embed_dim (int): The dimensionality of the embeddings.
+        length (int): The length of the 1D data.
+
+    Returns:
+        numpy.ndarray: The positional embeddings of shape (length, embed_dim).
+    """
+    pos = np.arange(0, length).reshape((-1, 1))
+    return _get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
 
 
 def precompute_freqs_cis_2d(
