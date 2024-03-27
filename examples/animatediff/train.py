@@ -179,6 +179,7 @@ def init_env(
 
 
 def main(args):
+    resume_ckpt_save_dir = args.output_path
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     args.output_path = os.path.join(args.output_path, time_str)
 
@@ -397,15 +398,21 @@ def main(args):
     ckpt_dir = os.path.join(args.output_path, "ckpt")
     start_epoch = 0
     if args.resume:
-        resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
-
-        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
-            latent_diffusion_with_loss, optimizer, resume_ckpt
+        resume_ckpt = (
+            os.path.join(resume_ckpt_save_dir, "train_resume.ckpt")
+            if isinstance(args.resume, bool)
+            else _to_abspath(args.resume)
         )
-        loss_scaler.loss_scale_value = loss_scale
-        loss_scaler.cur_iter = cur_iter
-        loss_scaler.last_overflow_iter = last_overflow_iter
-        logger.info(f"Resume training from {resume_ckpt}")
+        if os.path.isfile(resume_ckpt):
+            start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
+                latent_diffusion_with_loss, optimizer, resume_ckpt
+            )
+            loss_scaler.loss_scale_value = loss_scale
+            loss_scaler.cur_iter = cur_iter
+            loss_scaler.last_overflow_iter = last_overflow_iter
+            logger.info(f"Resume training from {resume_ckpt}")
+        else:
+            logger.info("First time training, train_resume.ckpt does not exist. args.resume is not effective.")
 
     # trainer (standalone and distributed)
     ema = (
@@ -440,6 +447,7 @@ def main(args):
             network=latent_diffusion_with_loss,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
+            resume_ckpt_save_dir=resume_ckpt_save_dir,
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=args.ckpt_max_keep,
