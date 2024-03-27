@@ -399,9 +399,7 @@ def main(args):
     start_epoch = 0
     if args.resume:
         resume_ckpt = (
-            os.path.join(resume_ckpt_save_dir, "train_resume.ckpt")
-            if isinstance(args.resume, bool)
-            else _to_abspath(args.resume)
+            os.path.join(resume_ckpt_save_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
         )
         if os.path.isfile(resume_ckpt):
             start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(

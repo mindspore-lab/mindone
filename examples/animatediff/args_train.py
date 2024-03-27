@@ -17,6 +17,15 @@ def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
             raise KeyError(f"{k} does not exist in ArgumentParser!")
 
 
+def _parse_bool_str(b: str):
+    """Allow input args to be either str2bool or str (e.g. a filepath)."""
+    if b.lower() not in ["false", "true"]:
+        return b
+    if b.lower() in ["false"]:
+        return False
+    return True
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -62,8 +71,8 @@ def parse_args():
     parser.add_argument(
         "--resume",
         default=False,
-        type=str,
-        help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
+        type=_parse_bool_str,
+        help="It can be a string for absolute path to resume checkpoint, or a bool True for resuming and a bool False for not resuming.(default=False)",
     )
     # training hyper-params
     parser.add_argument("--unet_initialize_random", default=False, type=str2bool, help="initialize unet randomly")
