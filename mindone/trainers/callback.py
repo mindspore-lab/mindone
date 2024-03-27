@@ -32,6 +32,7 @@ class EvalSaveCallback(Callback):
         use_lora=False,
         rank_id=0,
         ckpt_save_dir="./",
+        resume_ckpt_save_dir=None,
         output_dir=None,
         ema=None,
         ckpt_save_policy="lastest_k",
@@ -63,6 +64,7 @@ class EvalSaveCallback(Callback):
         else:
             self.output_dir = ckpt_save_dir.replace("/ckpt", "")
             self.ckpt_save_dir = ckpt_save_dir
+        self.resume_ckpt_save_dir = self.ckpt_save_dir if resume_ckpt_save_dir is None else resume_ckpt_save_dir
         self.ckpt_save_interval = ckpt_save_interval
         self.step_mode = step_mode
         self.model_name = model_name
@@ -142,7 +144,7 @@ class EvalSaveCallback(Callback):
                 # TODO: resume training for step.
                 ms.save_checkpoint(
                     cb_params.train_network,
-                    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                    os.path.join(self.resume_ckpt_save_dir, "train_resume.ckpt"),
                     append_dict={
                         "epoch_num": cur_epoch,
                         "cur_step": cur_step,
@@ -221,7 +223,7 @@ class EvalSaveCallback(Callback):
 
                 ms.save_checkpoint(
                     cb_params.train_network,
-                    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                    os.path.join(self.resume_ckpt_save_dir, "train_resume.ckpt"),
                     append_dict={
                         "epoch_num": cur_epoch,
                         "loss_scale": self._get_scaling_value_from_cbp(cb_params),
