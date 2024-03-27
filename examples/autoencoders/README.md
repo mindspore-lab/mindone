@@ -67,7 +67,7 @@ For detailed arguments, please run `python infer.py -h`.
 We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. After 22 epochs of training, the training performance and evaluation results on the test set are reported as follows.
 
 
-| Model          |   Context   |  Precision         | Local BS x Grad. Accu.  |   Resolution  |  Train T. (ms/step)  |  Train FPS  |   PSNR &#8593    | SSIM   &#8593  |
+| Model          |   Context   |  Precision         | Local BS x Grad. Accu.  |   Resolution  |  Train T. (ms/step)  |  Train FPS  |   PSNR↑    | SSIM↑  |
 |:---------------|:---------------|:--------------|:-----------------------:|:----------:|:------------:|:----------------:|:----------------:|:----------------:|
 | VAE-kl-f8-ema    |    D910\*x1-MS2.2.10       |      FP32   |      12x1    |    256x256  |    700      |  17.14   |   32    |  0.89    |
 | VAE-kl-f8    |    G3090x1-MS2.3       |      FP32   |      4x1    |    256x256  | 800      |   5  |    32.37   |  0.90    |
@@ -78,6 +78,6 @@ We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images 
 Here are some visualization on the reconstruction results.
 -->
 
-## Causal 3D Autoencoder
+## Causal 3D AutoEncoder
 
 Coming soon...
