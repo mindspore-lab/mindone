@@ -3,7 +3,7 @@
 这个文件夹包含使用 [MindSpore](https://www.mindspore.cn/) 实现的 [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.01952) 模型，参考自Stability-AI[官方实现](https://github.com/Stability-AI/generative-models)。
 ## Features
 
-- [x] **推理：** 使用 SDXL-1.0-Base/SDXL-1.0-PipeLine 进行文本到图像生成。
+- [x] **推理：** 使用 SDXL-1.0-Base/3SDXL-1.0-PipeLine 进行文本到图像生成。
 - [x] **推理：** 使用 SDXL-1.0-Refiner 进行图像到图像生成。
 - [x] **推理：** 支持7种SoTA扩散过程采样器。
 - [x] **推理：** 支持MSLite。
@@ -18,13 +18,13 @@
 ## 文档
 
 1. 推理
-    - [在线推理](./GETTING_STARTED.md)
-    - [离线推理](./offline_inference/README.md)
+    - [在线推理](./GETTING_STARTED_CN.md)
+    - [离线推理](./offline_inference/README_CN.md)
 2. 微调
-    - [基础微调](./GETTING_STARTED.md)
-    - [LoRA微调](./GETTING_STARTED.md)
-    - [DreamBooth微调](dreambooth_finetune.md)
-    - [Textual Inversion微调](textual_inversion_finetune.md)
+    - [基础微调](./GETTING_STARTED_CN.md)
+    - [LoRA微调](./GETTING_STARTED_CN.md)
+    - [DreamBooth微调](dreambooth_finetune_CN.md)
+    - [Textual Inversion微调](textual_inversion_finetune_CN.md)
 
 ## 更新内容
 **2024年1月10日**
@@ -33,10 +33,10 @@
 **2023年11月22日**
 
 1. 支持[DreamBooth](https://arxiv.org/abs/2208.12242) lora微调。
-2. 支持使用MSLite进行[离线推理](./offline_inference/README.md)。
+2. 支持使用MSLite进行[离线推理](./offline_inference/README_CN.md)。
 3. 支持基础微调。
 4. 适配[MindSpore 2.2](https://www.mindspore.cn/install)。
-5. 为SDXL添加了[T2I适配器](../t2i_adapter/README.md)支持。
+5. 为SDXL添加了[T2I适配器](../t2i_adapter/README_CN.md)支持。
 
 **2023年9月15日**
 
@@ -55,7 +55,7 @@
 
 ## 入门指南
 
-详见[入门指南](GETTING_STARTED.md)获取详情。
+详见[入门指南](GETTING_STARTED_CN.md)获取详情。
 
 
 ## 示例:
