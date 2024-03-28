@@ -73,7 +73,9 @@ def load_data(
     if enable_modelarts:
         device_num = get_local_rank_size()
         rank_id = get_local_rank() % 8
-    loader = build_dataloader_ft(dataset, datalen, t2i_collate, batch_size, device_num, rank_id=rank_id, shuffle=shuffle)
+    loader = build_dataloader_ft(
+        dataset, datalen, t2i_collate, batch_size, device_num, rank_id=rank_id, shuffle=shuffle
+    )
     dataloaders["ftT2I"] = loader
     if sample_num == -1:
         batchlen = datalen // (batch_size * device_num)
