@@ -74,9 +74,15 @@ We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images 
 > Context: {G:GPU, D:Ascend}{chip type}-{number of NPUs}-{mindspore version}.
 
 
-<!-- TODO: attach results
-Here are some visualization on the reconstruction results.
--->
+Here are some reconstruction results (left is ground-truth, right is the reconstructed)
+
+
+<p float="center">
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/ec7ceee8-13e0-4358-8a8a-8b5a3a3daa57 width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/595eb459-96e1-442d-9152-39e0d431ff04 width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/aecc813a-71e2-4a30-971a-061f82b63e7c width="30%" />
+</p>
+
 
 ## Causal 3D AutoEncoder
 
