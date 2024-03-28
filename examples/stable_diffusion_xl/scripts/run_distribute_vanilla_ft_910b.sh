@@ -19,6 +19,10 @@ export RANK_TABLE_FILE=$RANK_TABLE_FILE
 export RANK_SIZE=$RANK_SIZE
 export DEVICE_NUM=$(($END_DEVICE - $START_DEVICE))
 
+# support finetune on ms2.3.0
+export MS_DEV_TRAVERSE_SUBSTITUTIONS_MODE=1
+export MS_ASCEND_CHECK_OVERFLOW_MODE="SATURATION_MODE"
+
 test -d ./logs_for_distribute || mkdir ./logs_for_distribute
 env > logs_for_distribute/env.log
 
