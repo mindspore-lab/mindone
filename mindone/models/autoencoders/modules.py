@@ -13,14 +13,62 @@
 # limitations under the License.
 # ============================================================================
 import logging
+from typing import Tuple, Union
 
 import numpy as np
 
 import mindspore as ms
-import mindspore.nn as nn
-from mindspore import ops
+from mindspore import nn, ops
 
 _logger = logging.getLogger(__name__)
+
+
+def divisible_by(num, den):
+    return (num % den) == 0
+
+
+def is_odd(n):
+    return not divisible_by(n, 2)
+
+
+def cast_tuple(t, length=1):
+    return t if isinstance(t, tuple) else ((t,) * length)
+
+
+class CausalConv3d(ms.nn.Cell):
+    def __init__(self, chan_in, chan_out, kernel_size: Union[int, Tuple[int, int, int]], pad_mode="constant", **kwargs):
+        super().__init__()
+        kernel_size = cast_tuple(kernel_size, 3)
+
+        time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
+
+        assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
+
+        dilation = kwargs.pop("dilation", 1)
+        stride = kwargs.pop("stride", 1)
+
+        self.pad_mode = pad_mode
+        time_pad = dilation * (time_kernel_size - 1) + (1 - stride)
+        height_pad = height_kernel_size // 2
+        width_pad = width_kernel_size // 2
+        self.time_pad = time_pad
+        self.time_causal_padding = (width_pad, width_pad, height_pad, height_pad, time_pad, 0)
+
+        stride = (stride, 1, 1)
+        dilation = (dilation, 1, 1)
+        # diff from torch: bias, pad_mode
+        self.conv = ms.nn.Conv3d(
+            chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, has_bias=True, pad_mode="valid", **kwargs
+        )
+
+    def construct(self, x):
+        # FIXME: will it cause dynamic shape issue? easy to avoid if pad mode is always contant.
+        pad_mode = self.pad_mode if self.time_pad < x.shape[2] else "constant"
+
+        # nn.Pad is more stable than ops.pad, but it doesn't support 5-dim padding currently.
+        x = ms.ops.pad(x, self.time_causal_padding, mode=pad_mode)
+
+        return self.conv(x)
 
 
 def nonlinearity(x, upcast=False):
