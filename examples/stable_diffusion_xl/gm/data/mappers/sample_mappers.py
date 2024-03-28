@@ -75,8 +75,29 @@ class Rescaler:
         return sample
 
 
+class RescalerControlNet(Rescaler):
+    def __call__(self, sample: Dict) -> Dict:
+        matching_keys = set(self.keys.intersection(sample))
+
+        for key in matching_keys:
+            if key == "control":
+                if self.isfloat:
+                    # already in [0, 1]
+                    pass
+                else:
+                    sample[key] = sample[key] / 255.0
+            elif key == "image":
+                if self.isfloat:
+                    sample[key] = sample[key] * 2 - 1.0
+                else:
+                    sample[key] = sample[key] / 127.5 - 1.0
+            else:
+                raise ValueError("Unexpected key in `RescalerControlNet`")
+        return sample
+
+
 class Resize:
-    def __init__(self, key: str = "image", size: Union[int, List] = 256, interpolation: int = 2):
+    def __init__(self, key: Union[str, List[str]] = "image", size: Union[int, List] = 256, interpolation: int = 2):
         inter_map = {
             0: Inter.NEAREST,
             1: Inter.ANTIALIAS,
@@ -90,10 +111,15 @@ class Resize:
 
         size = size if isinstance(size, int) else list(size)
         self.resize_op = ms.dataset.transforms.vision.Resize(size, interpolation)
-        self.key = key
+
+        if isinstance(key, str):
+            self.key = [key]
+        else:
+            self.key = key
 
     def __call__(self, sample: Dict):
-        sample[self.key] = self.resize_op(sample[self.key])
+        for k in self.key:
+            sample[k] = self.resize_op(sample[k])
         return sample
 
 
@@ -124,17 +150,21 @@ class RandomHorizontalFlip:
 
 
 class Transpose:
-    def __init__(self, key: str = "image", type: str = "hwc2chw"):
-        self.key = key
+    def __init__(self, key: Union[str, List[str]] = "image", type: str = "hwc2chw"):
+        if isinstance(key, str):
+            self.key = [key]
+        else:
+            self.key = key
         self.type = type
 
     def __call__(self, sample: Dict):
-        if self.type == "hwc2chw":
-            sample[self.key] = np.transpose(sample[self.key], (2, 0, 1))
-        elif self.type == "chw2hwc":
-            sample[self.key] = np.transpose(sample[self.key], (1, 2, 0))
-        else:
-            raise NotImplementedError
+        for k in self.key:
+            if self.type == "hwc2chw":
+                sample[k] = np.transpose(sample[k], (2, 0, 1))
+            elif self.type == "chw2hwc":
+                sample[k] = np.transpose(sample[k], (1, 2, 0))
+            else:
+                raise NotImplementedError
 
         return sample
 
@@ -203,5 +233,9 @@ class AddOriginalImageSizeAsTupleAndCropToSquare:
         left = np.random.randint(0, delta_w + 1)
         crop_op = ms.dataset.transforms.vision.Crop((top, left), size)
         x[self.image_key] = crop_op(jpg)
+
+        if "control" in x:
+            x["control"] = crop_op(x["control"])
+
         x["crop_coords_top_left"] = np.array([top, left])
         return x

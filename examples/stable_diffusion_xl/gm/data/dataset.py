@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import time
@@ -527,6 +528,171 @@ class Text2ImageDatasetTextualInversion(Text2ImageDataset):
         return filted_images, None
 
 
+class Text2ImageControlNetDataset(Text2ImageDataset):
+    def __init__(
+        self,
+        data_path,
+        target_size=(1024, 1024),
+        transforms=None,
+        batched_transforms=None,
+        tokenizer=None,
+        token_nums=None,
+        image_filter_size=0,
+        random_crop=False,
+        filter_small_size=False,
+        multi_aspect=None,  # for multi_aspect
+        seed=42,  # for multi_aspect
+        per_batch_size=1,  # for multi_aspect
+        drop_text_prob=0.0,
+        **kwargs,
+    ):
+        self.tokenizer = tokenizer
+        self.token_nums = token_nums
+        self.dataset_column_names = ["samples"]
+        if self.tokenizer is None:
+            self.dataset_output_column_names = self.dataset_column_names
+        else:
+            assert token_nums is not None and token_nums > 0
+            self.dataset_output_column_names = [
+                "image",
+                "control",
+            ] + [f"token{i}" for i in range(token_nums)]
+
+        self.target_size = [target_size, target_size] if isinstance(target_size, int) else target_size
+        self.random_crop = random_crop
+        self.filter_small_size = filter_small_size
+
+        self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
+        self.seed = seed
+        self.per_batch_size = per_batch_size
+        self.drop_text_prob = drop_text_prob
+
+        all_images, all_control_images, all_captions = self.read_annotation(data_path)
+        if filter_small_size:
+            # print(f"Filter small images, filter size: {image_filter_size}")
+            all_images, all_control_images, all_captions = self.filter_small_image(
+                all_images, all_control_images, all_captions, image_filter_size
+            )
+        self.local_images = all_images
+        self.local_control_images = all_control_images
+        self.local_captions = all_captions
+
+        self.transforms = []
+        if transforms:
+            for i, trans_config in enumerate(transforms):
+                # Mapper
+                trans = instantiate_from_config(trans_config)
+                self.transforms.append(trans)
+                print(f"Adding mapper {trans.__class__.__name__} as transform #{i} " f"to the datapipeline")
+
+        self.batched_transforms = []
+        if batched_transforms:
+            for i, bs_trans_config in enumerate(batched_transforms):
+                # Mapper
+                bs_trans = instantiate_from_config(bs_trans_config)
+                self.batched_transforms.append(bs_trans)
+                print(
+                    f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
+                )
+
+    def __getitem__(self, idx):
+        # images preprocess
+        image_path = self.local_images[idx]
+        image = Image.open(image_path)
+        image = exif_transpose(image)
+        if not image.mode == "RGB":
+            image = image.convert("RGB")
+        image = np.array(image, dtype=np.uint8)
+
+        control_image_path = self.local_control_images[idx]
+        control_image = Image.open(control_image_path)
+        control_image = exif_transpose(control_image)
+        if not control_image.mode == "RGB":
+            control_image = control_image.convert("RGB")
+        control_image = np.array(control_image, dtype=np.uint8)
+
+        # caption preprocess
+        if random.random() < self.drop_text_prob:
+            caption = ""
+        else:
+            caption = self.local_captions[idx]
+
+        caption = np.array(caption)
+
+        sample = {
+            "image": image,
+            "control": control_image,
+            "txt": caption,
+            "original_size_as_tuple": np.array([image.shape[0], image.shape[1]]),  # original h, original w
+            "target_size_as_tuple": np.array([self.target_size[0], self.target_size[1]]),  # target h, target w
+            "crop_coords_top_left": np.array([0, 0]),  # crop top, crop left
+            "aesthetic_score": np.array(
+                [
+                    6.0,
+                ]
+            ),
+        }
+
+        for trans in self.transforms:
+            sample = trans(sample)
+
+        return sample
+
+    @staticmethod
+    def read_annotation(data_root):
+        image_paths, control_image_paths, captions = [], [], []
+        with open(os.path.join(data_root, "prompt.json"), "r") as f:
+            for line in f:
+                item = json.loads(line)
+                control_image_paths.append(os.path.join(data_root, item["source"]))
+                image_paths.append(os.path.join(data_root, item["target"]))
+                captions.append(item["prompt"])
+        return image_paths, control_image_paths, captions
+
+    @staticmethod
+    def filter_small_image(all_images, all_control_images, all_captions, image_filter_size):
+        filted_images = []
+        filted_control_images = []
+        filted_captions = []
+        for image, control_image, caption in zip(all_images, all_control_images, all_captions):
+            w, h = imagesize.get(image)
+            if min(w, h) < image_filter_size:
+                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                continue
+            else:
+                filted_images.append(image)
+                filted_control_images.append(control_image)
+                filted_captions.append(caption)
+        return filted_images, filted_control_images, filted_captions
+
+    def collate_fn(self, samples, batch_info):
+        new_size = self.target_size
+        if self.multi_aspect:
+            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            cur_seed = epoch_num * 10 + batch_num
+            random.seed(cur_seed)
+            new_size = random.choice(self.multi_aspect)
+
+        for bs_trans in self.batched_transforms:
+            samples = bs_trans(samples, target_size=new_size)
+
+        batch_samples = {k: [] for k in samples[0]}
+        for s in samples:
+            for k in s:
+                batch_samples[k].append(s[k])
+
+        data = {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
+
+        if self.tokenizer:
+            data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
+            tokens, _ = self.tokenizer(data)
+            outs = (data["image"], data["control"]) + tuple(tokens)
+        else:
+            outs = data
+
+        return outs
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -584,5 +750,28 @@ if __name__ == "__main__":
             target_size=1024,
             transforms=transforms,
         )
+    elif args.target == "Text2ImageControlNetDataset":
+        transforms_controlnet = [
+            {
+                "target": "gm.data.mappers.Resize",
+                "params": {"key": ["control", "image"], "size": 1024, "interpolation": 3},
+            },
+            {"target": "gm.data.mappers.RescalerControlNet", "params": {"key": ["control", "image"], "isfloat": False}},
+            {"target": "gm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
+            {"target": "gm.data.mappers.Transpose", "params": {"key": ["control", "image"], "type": "hwc2chw"}},
+        ]
+        dataset = Text2ImageControlNetDataset(
+            data_path=args.data_path,
+            target_size=1024,
+            per_batch_size=2,  # for multi_aspect
+            drop_text_prob=0.5,
+            transforms=transforms_controlnet,
+        )
+        dataset_size = len(dataset)
+        print(f"dataset size: {dataset_size}")
+
+        for i, data in enumerate(dataset):
+            print(data)
+            break
     else:
         ValueError("dataset only support Text2ImageDataset and Text2ImageDatasetDreamBooth")
