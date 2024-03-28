@@ -6,7 +6,7 @@ from mindspore.communication import get_local_rank, get_local_rank_size
 from .dataset import BaseDataset
 
 
-def build_dataloader(
+def create_dataloader(
     dataset: BaseDataset,
     batch_size: int,
     transforms: Optional[Union[List[dict], dict]] = None,

@@ -13,7 +13,7 @@ from mindspore import Callback, Model, nn
 from mindspore.train.callback import LossMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import BaseDataset, build_dataloader
+from mindone.data import BaseDataset, create_dataloader
 from mindone.env import init_train_env
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.utils import count_params, set_logger
@@ -61,7 +61,7 @@ def main(args, initializer):
 
     # step 3: prepare train dataset and dataloader
     dataset = initializer.train.dataset
-    train_dataloader = build_dataloader(
+    train_dataloader = create_dataloader(
         dataset,
         transforms=dataset.train_transforms(),
         device_num=device_num,
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     )
     parser.add_subclass_arguments(BaseDataset, "train.dataset")
     parser.add_function_arguments(
-        build_dataloader,
+        create_dataloader,
         "train.dataloader",
         skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )
