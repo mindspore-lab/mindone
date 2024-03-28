@@ -1,5 +1,6 @@
 <!---
 Copyright 2022 - The HuggingFace Team. All rights reserved.
+Hacked together by / Copyright 2024 Genius Patrick @ MindSpore Team.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +21,14 @@ limitations under the License.
 > We've tried to provide a completely consistent interface and usage with the [huggingface/diffusers](https://github.com/huggingface/diffusers).
 > Only necessary changes are made to the [huggingface/diffusers](https://github.com/huggingface/diffusers) to make it seamless for users from torch.
 
+> [!IMPORTANT] 
+> This project is still under active development and many features are not yet well-supported.
+> Development progress and plans are detailed in [Roadmap](#Roadmap). 
+> Any contribution is welcome!
+
+> [!WARNING]
+> Due to differences in framework, some APIs will not be identical to [huggingface/diffusers](https://github.com/huggingface/diffusers) in the foreseeable future, see [Limitations](#Limitations) for details.
+
 🤗 Diffusers is the go-to library for state-of-the-art pretrained diffusion models for generating images, audio, and even 3D structures of molecules. Whether you're looking for a simple inference solution or training your own diffusion models, 🤗 Diffusers is a modular toolbox that supports both. Our library is designed with a focus on [usability over performance](https://huggingface.co/docs/diffusers/conceptual/philosophy#usability-over-performance), [simple over easy](https://huggingface.co/docs/diffusers/conceptual/philosophy#simple-over-easy), and [customizability over abstractions](https://huggingface.co/docs/diffusers/conceptual/philosophy#tweakable-contributorfriendly-over-abstraction).
 
 🤗 Diffusers offers three core components:
@@ -32,65 +41,91 @@ limitations under the License.
 
 Generating outputs is super easy with 🤗 Diffusers. To generate an image from text, use the `from_pretrained` method to load any pretrained diffusion model (browse the [Hub](https://huggingface.co/models?library=diffusers&sort=downloads) for 19000+ checkpoints):
 
-```python
-from diffusers import DiffusionPipeline
-import torch
+```diff
+- from diffusers import DiffusionPipeline
++ from mindone.diffusers import DiffusionPipeline
 
-pipeline = DiffusionPipeline.from_pretrained("runwayml/stable-diffusion-v1-5", torch_dtype=torch.float16)
-pipeline.to("cuda")
-pipeline("An image of a squirrel in Picasso style").images[0]
+pipe = DiffusionPipeline.from_pretrained(
+    "stabilityai/stable-diffusion-xl-base-1.0",
+-    torch_dtype=torch.float16,
++    mindspore_dtype=mindspore.float16
+    use_safetensors=True
+)
+
+prompt = "An astronaut riding a green horse"
+
+images = pipe(prompt=prompt)[0][0]
 ```
 
 You can also dig into the models and schedulers toolbox to build your own diffusion system:
 
 ```python
-from diffusers import DDPMScheduler, UNet2DModel
+from mindone.diffusers import DDPMScheduler, UNet2DModel
 from PIL import Image
-import torch
+from mindspore import ops
 
 scheduler = DDPMScheduler.from_pretrained("google/ddpm-cat-256")
-model = UNet2DModel.from_pretrained("google/ddpm-cat-256").to("cuda")
+model = UNet2DModel.from_pretrained("google/ddpm-cat-256")
 scheduler.set_timesteps(50)
 
 sample_size = model.config.sample_size
-noise = torch.randn((1, 3, sample_size, sample_size), device="cuda")
+noise = ops.randn((1, 3, sample_size, sample_size))
 input = noise
 
 for t in scheduler.timesteps:
-    with torch.no_grad():
-        noisy_residual = model(input, t).sample
-        prev_noisy_sample = scheduler.step(noisy_residual, t, input).prev_sample
-        input = prev_noisy_sample
+    noisy_residual = model(input, t)[0]
+    prev_noisy_sample = scheduler.step(noisy_residual, t, input)[0]
+    input = prev_noisy_sample
 
 image = (input / 2 + 0.5).clamp(0, 1)
-image = image.cpu().permute(0, 2, 3, 1).numpy()[0]
+image = image.permute(0, 2, 3, 1).numpy()[0]
 image = Image.fromarray((image * 255).round().astype("uint8"))
 image
 ```
 
 Check out the [Quickstart](https://huggingface.co/docs/diffusers/quicktour) to launch your diffusion journey today!
 
+## Roadmap
+
+In short, only the model, scheduler, pipeline and the training code related to StableDiffusionXL are currently available.
+Most base, utility and mixin class are available.
+
+### Pipeline
+- [x] DDIMPipeline
+- [x] DDPMPipeline
+- [x] StableDiffusionXLPipeline
+- [ ] StableDiffusionPipeline
+
+### Model
+- [x] AutoencoderKL
+- [x] Transformer2DModel
+- [x] UNet2DConditionModel
+
+### Scheduler
+- [x] DDIMScheduler
+- [x] DDPMScheduler
+- [x] EulerDiscreteScheduler
+
+### Loader
+- [ ] LoRA
+- [ ] FromSingleFileMixin
+
+## Limitations
+
+### `from_pretrained`
+- `torch_dtype` is renamed to `mindspore_dtype`
+- `device_map`, `max_memory`, `offload_folder`, `offload_state_dict`, `low_cpu_mem_usage` will not be supported.
+
+### `BaseOutput`
+
+- Default value of `return_dict` is changed to `False`, for `GRAPH_MODE` does not allow to construct an instance of it.
+
+### Output of `AutoencoderKL.encode`
+
+Unlike the output `posterior = DiagonalGaussianDistribution(latent)`, which can do sampling by `posterior.sample()`. 
+We can only output the `latent` and then do sampling through `AutoencoderKL.diag_gauss_dist.sample(latent)`.
 
 ## Credits
 
-This library concretizes previous work by many different authors and would not have been possible without their great research and implementations. We'd like to thank, in particular, the following implementations which have helped us in our development and without which the API could not have been as polished today:
-
-- @CompVis' latent diffusion models library, available [here](https://github.com/CompVis/latent-diffusion)
-- @hojonathanho original DDPM implementation, available [here](https://github.com/hojonathanho/diffusion) as well as the extremely useful translation into PyTorch by @pesser, available [here](https://github.com/pesser/pytorch_diffusion)
-- @ermongroup's DDIM implementation, available [here](https://github.com/ermongroup/ddim)
-- @yang-song's Score-VE and Score-VP implementations, available [here](https://github.com/yang-song/score_sde_pytorch)
-
-We also want to thank @heejkoo for the very helpful overview of papers, code and resources on diffusion models, available [here](https://github.com/heejkoo/Awesome-Diffusion-Models) as well as @crowsonkb and @rromb for useful discussions and insights.
-
-## Citation
-
-```bibtex
-@misc{von-platen-etal-2022-diffusers,
-  author = {Patrick von Platen and Suraj Patil and Anton Lozhkov and Pedro Cuenca and Nathan Lambert and Kashif Rasul and Mishig Davaadorj and Thomas Wolf},
-  title = {Diffusers: State-of-the-art diffusion models},
-  year = {2022},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{https://github.com/huggingface/diffusers}}
-}
-```
+Hacked together @geniuspatrick.
+All credit goes to [huggingface/diffusers](https://github.com/huggingface/diffusers) and original [contributors](https://github.com/huggingface/diffusers#credits).

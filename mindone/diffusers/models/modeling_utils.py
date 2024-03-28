@@ -593,14 +593,17 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
+        return self
 
     def float(self):
         for p in self.get_parameters():
             p.set_dtype(ms.float32)
+        return self
 
     def half(self):
         for p in self.get_parameters():
             p.set_dtype(ms.float16)
+        return self
 
     @property
     def dtype(self) -> ms.Type:
@@ -641,11 +644,11 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 if isinstance(module_type, nn.Embedding)
             ]
             non_embedding_parameters = [
-                parameter for name, parameter in self.named_parameters() if name not in embedding_param_names
+                parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
             ]
             return sum(p.numel() for p in non_embedding_parameters if p.requires_grad or not only_trainable)
         else:
-            return sum(p.numel() for p in self.parameters() if p.requires_grad or not only_trainable)
+            return sum(p.numel() for p in self.get_parameters() if p.requires_grad or not only_trainable)
 
     def _convert_deprecated_attention_blocks(self, state_dict: OrderedDict) -> None:
         deprecated_attention_block_paths = []

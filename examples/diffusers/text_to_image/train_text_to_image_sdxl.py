@@ -19,7 +19,7 @@
 import argparse
 import functools
 import gc
-import json
+import yaml
 import logging
 import math
 import os
@@ -31,6 +31,7 @@ from pathlib import Path
 import numpy as np
 from datasets import load_dataset
 from tqdm.auto import tqdm
+from multiprocessing import Process, SimpleQueue
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
@@ -425,7 +426,6 @@ def parse_args(input_args=None):
     assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
     assert args.allow_tf32 is False, error_template("TF32 Data Type", "allow_tf32")
     assert args.use_8bit_adam is False, error_template("AdamW8bit", "use_8bit_adam")
-    assert args.mixed_precision is None, error_template("Mixed Precision", "mixed_precision")
     assert args.enable_xformers_memory_efficient_attention is False, error_template(
         "Memory Efficient Attention from 'xformers'", "enable_xformers_memory_efficient_attention"
     )
@@ -579,6 +579,10 @@ def main():
 
     # Load scheduler and models
     noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    # Get the target for loss depending on the prediction type
+    if args.prediction_type is not None:
+        # set prediction_type of scheduler if defined
+        noise_scheduler.register_to_config(prediction_type=args.prediction_type)
     # Check for terminal SNR in combination with SNR Gamma
     text_encoder_one = text_encoder_cls_one.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant
@@ -600,6 +604,8 @@ def main():
     unet = UNet2DConditionModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
+    # set sample_size of unet
+    unet.register_to_config(sample_size=args.resolution // (2 ** (len(vae.config.block_out_channels) - 1)))
 
     # Freeze vae and text encoders.
     def freeze_params(m: nn.Cell):
@@ -645,6 +651,9 @@ def main():
 
     # Get the datasets: you can either provide your own training and evaluation files (see below)
     # or specify a Dataset from the hub (the dataset will be downloaded automatically from the datasets Hub).
+    from datasets import disable_caching
+    if args.cache_dir is None:
+        disable_caching()
 
     # In distributed training, the load_dataset function guarantees that only one local process can concurrently
     # download the dataset.
@@ -812,6 +821,7 @@ def main():
 
     # Prepare everything with our `accelerator`.
     # todo: auto mixed precision here
+    unet.to(weight_dtype)  # maybe using `to_float(weight_dtype)` give higher accuracy?
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -822,8 +832,15 @@ def main():
 
     # We need to initialize the trackers we use, and also store our configuration.
     if is_master(args):
-        with open(logging_dir / "args.json", 'w') as f:
-            json.dump(vars(args), f, indent=4)
+        with open(logging_dir / "hparams.yml", 'w') as f:
+            yaml.dump(vars(args), f, indent=4)
+    trackers = dict()
+    for tracker_name in args.report_to.split(","):
+        if tracker_name == "tensorboard":
+            from tensorboardX import SummaryWriter
+            trackers[tracker_name] = SummaryWriter(str(logging_dir), write_to_disk=is_master(args))
+        else:
+            logger.warning(f"Tracker {tracker_name} is not implemented, omitting...")
 
     # todo: may write the function `unwrap_model` to remove the disgusting _backbone prefix after amp?
 
@@ -835,15 +852,47 @@ def main():
         args=args,
     ).set_train()
 
+    def compile_progress_bar(q: SimpleQueue, duration: int):
+        pb = tqdm(total=duration, bar_format='{l_bar}{bar}| [{elapsed}<{remaining}]', disable=not is_master(args))
+        while True:
+            if q.empty():
+                time.sleep(1)
+                if pb.last_print_n < duration:
+                    pb.update(1)
+                else:
+                    pb.refresh(lock_args=pb.lock_args)
+            else:
+                pb.update(duration - pb.last_print_n)
+                pb.close()
+                break
+
     def maybe_compile(m: nn.Cell, *model_args, **model_kwargs):
         if os.getenv("MS_JIT") != '0' and context._get_mode() == context.GRAPH_MODE:
             logger.info(f"Compiling {m.__class__.__name__}...")
+            estimated_duration = sum(p.numel() for p in m.get_parameters()) * 2e-7
+            q = SimpleQueue()
+            p = Process(target=compile_progress_bar, args=(q, estimated_duration))
+            p.start()
             compile_begin = time.perf_counter()
             m.compile(*model_args, **model_kwargs)
             compile_end = time.perf_counter()
+            q.put(compile_end - compile_begin)
+            p.join()
             logger.info(f"Compiling is finished, elapsed time {compile_end - compile_begin:.2f} s")
 
-    maybe_compile(train_step, *next(iter(train_dataloader)))
+    maybe_compile(train_step, *[x.to(weight_dtype) for x in next(iter(train_dataloader))])
+
+    # create pipeline for validation
+    pipeline = StableDiffusionXLPipeline(
+        vae=vae,
+        text_encoder=text_encoder_one,
+        text_encoder_2=text_encoder_two,
+        tokenizer=tokenizer_one,
+        tokenizer_2=tokenizer_two,
+        unet=unet,
+        scheduler=noise_scheduler,
+    )
+    pipeline.set_progress_bar_config(disable=True)
 
     # Train!
     total_batch_size = args.train_batch_size * args.world_size * args.gradient_accumulation_steps
@@ -889,6 +938,10 @@ def main():
     else:
         initial_global_step = 0
 
+    # run inference
+    if args.validation_prompt and args.num_validation_images > 0:
+        validate(pipeline, args, trackers, logging_dir, first_epoch)
+
     progress_bar = tqdm(
         range(0, args.max_train_steps),
         initial=initial_global_step,
@@ -899,12 +952,16 @@ def main():
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.set_train(True)
-        for step, (model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids) in enumerate(train_dataloader):
+        for step, batch in enumerate(train_dataloader):
             # todo: support accumulation
-            loss = train_step(model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids)
+            batch = [x.to(weight_dtype) for x in batch]
+            loss = train_step(*batch)
 
             progress_bar.update(1)
             global_step += 1
+            for tracker_name, tracker in trackers.items():
+                if tracker_name == "tensorboard":
+                    tracker.add_scalar("train/loss", loss.numpy().item(), global_step)
 
             if is_master(args):
                 if global_step % args.checkpointing_steps == 0:
@@ -938,42 +995,20 @@ def main():
             if global_step >= args.max_train_steps:
                 break
 
+        # run inference
         if args.validation_prompt is not None and (epoch+1) % args.validation_epochs == 0:
-            logger.info(
-                f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
-                f" {args.validation_prompt}."
-            )
-            unet.set_train(False)
+            validate(pipeline, args, trackers, logging_dir, epoch+1)
 
-            # create pipeline
-            pipeline = StableDiffusionXLPipeline(
-                vae=vae,
-                text_encoder=text_encoder_one,
-                text_encoder_2=text_encoder_two,
-                tokenizer=tokenizer_one,
-                tokenizer_2=tokenizer_two,
-                unet=unet,
-                scheduler=noise_scheduler,
-            )
-            if args.prediction_type is not None:
-                scheduler_args = {"prediction_type": args.prediction_type}
-                pipeline.scheduler = pipeline.scheduler.from_config(pipeline.scheduler.config, **scheduler_args)
+    # Serialize pipeline.
+    if is_master(args):
+        pipeline.save_pretrained(args.output_dir)
 
-            pipeline.set_progress_bar_config(disable=True)
-
-            # run inference
-            generator = np.random.Generator(np.random.PCG64(seed=args.seed)) if args.seed else None
-            pipeline_args = {"prompt": args.validation_prompt}
-            images = [
-                pipeline(**pipeline_args, generator=generator, num_inference_steps=25)[0][0]
-                for _ in range(args.num_validation_images)
-            ]
-
-            if is_master(args):
-                validation_logging_dir = os.path.join(logging_dir, "validation", f"epoch{epoch+1}")
-                os.makedirs(validation_logging_dir, exist_ok=True)
-                for idx, img in enumerate(images):
-                    img.save(os.path.join(validation_logging_dir, f"{idx:04d}.jpg"))
+    # run inference
+    if args.validation_prompt and args.num_validation_images > 0:
+        validate(pipeline, args, trackers, logging_dir, args.num_train_epochs)
+    for tracker_name, tracker in trackers.items():
+        if tracker_name == "tensorboard":
+            tracker.close()
 
 
 class TrainStep(nn.Cell):
@@ -998,7 +1033,7 @@ class TrainStep(nn.Cell):
             raise NotImplementedError(f"Unsupported scaler: {type(self.scaler)}")
         self.parallel_mode = context.get_auto_parallel_context("parallel_mode")
         if self.parallel_mode == context.ParallelMode.STAND_ALONE:
-            self.grad_reducer = ops.identity
+            self.grad_reducer = nn.Identity()
         elif self.parallel_mode in (context.ParallelMode.DATA_PARALLEL, context.ParallelMode.HYBRID_PARALLEL):
             self.grad_reducer = nn.DistributedGradReducer(self.weights)
         else:
@@ -1008,12 +1043,6 @@ class TrainStep(nn.Cell):
         self.clip_grad = args.max_grad_norm is not None
         self.clip_value = args.max_grad_norm
 
-        # Get the target for loss depending on the prediction type
-        if args.prediction_type is not None:
-            # set prediction_type of scheduler if defined
-            noise_scheduler.register_to_config(prediction_type=args.prediction_type)
-        self.noise_scheduler = noise_scheduler
-
         @ms.jit_class
         class ArgsJitWrapper:
             def __init__(self, **kwargs):
@@ -1021,6 +1050,7 @@ class TrainStep(nn.Cell):
                     setattr(self, name, kwargs[name])
 
         self.args = ArgsJitWrapper(**vars(args))
+        self.noise_scheduler = noise_scheduler
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
         self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
 
@@ -1046,6 +1076,9 @@ class TrainStep(nn.Cell):
         # Add noise to the model input according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
         noisy_model_input = self.noise_scheduler.add_noise(model_input, noise, timesteps)
+        # TODO: method of scheduler should not change the dtype of input.
+        #  Remove the casting after cuiyushi confirm that.
+        noisy_model_input = noisy_model_input.to(model_input.dtype)
 
         # Predict the noise residual
         unet_added_conditions = {"time_ids": add_time_ids, "text_embeds": pooled_prompt_embeds}
@@ -1113,6 +1146,35 @@ class TrainStep(nn.Cell):
             loss = self.update(loss, grads)
 
         return loss
+
+
+def validate(pipeline, args, trackers, logging_dir, epoch):
+    logger.info(
+        f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
+        f" {args.validation_prompt}."
+    )
+    pipeline.unet.set_train(False)
+
+    # run inference
+    generator = np.random.Generator(np.random.PCG64(seed=args.seed)) if args.seed else None
+    pipeline_args = {"prompt": args.validation_prompt}
+    images = [
+        pipeline(**pipeline_args, generator=generator, num_inference_steps=25)[0][0]
+        for _ in range(args.num_validation_images)
+    ]
+
+    if is_master(args):
+        validation_logging_dir = os.path.join(logging_dir, "validation", f"epoch{epoch}")
+        os.makedirs(validation_logging_dir, exist_ok=True)
+        for idx, img in enumerate(images):
+            img.save(os.path.join(validation_logging_dir, f"{idx:04d}.jpg"))
+
+    for tracker_name, tracker in trackers.items():
+        if tracker_name == "tensorboard":
+            np_images = np.stack([np.asarray(img) for img in images])
+            tracker.add_images("validation", np_images, epoch, dataformats="NHWC")
+
+    logger.info("Validation done.")
 
 
 if __name__ == "__main__":
