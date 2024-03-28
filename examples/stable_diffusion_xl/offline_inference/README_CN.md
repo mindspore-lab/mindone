@@ -15,12 +15,12 @@
 参照[MindSpore Lite官方文档](https://mindspore.cn/lite/docs/zh-CN/r2.1/use/downloads.html)进行安装：
 
 1. 根据运行环境下载对应的tar.gz和whl压缩包。
-   
+
    ```shell
    # 解压并安装MindSpore Lite相应版本的WHL包
    tar -zxvf mindspore-lite-2.1.0-*.tar.gz
    pip install mindspore_lite-2.1.0-*.whl
-   
+
 ## 准备工作
 ### 1. 转换预训练权重（`.safetensors` -> `.ckpt`）
 
@@ -40,4 +40,3 @@ python convert_weight.py \
   --key_torch torch_key_base.yaml \
   --key_ms mindspore_key_base.yaml
 ```
-
