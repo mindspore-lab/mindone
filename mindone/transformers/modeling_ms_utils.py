@@ -138,14 +138,17 @@ class ModuleUtilsMixin:
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
             p.set_dtype(dtype)
+        return self
 
     def float(self):
         for p in self.get_parameters():
             p.set_dtype(ms.float32)
+        return self
 
     def half(self):
         for p in self.get_parameters():
             p.set_dtype(ms.float16)
+        return self
 
     @property
     def dtype(self) -> ms.Type:
@@ -914,6 +917,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
             offload_state_dict=offload_state_dict,
             dtype=mindspore_dtype,
         )
+
+        if mindspore_dtype is not None:
+            model = model.to(mindspore_dtype)
 
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)

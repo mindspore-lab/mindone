@@ -512,6 +512,8 @@ class StableDiffusionXLPipeline(DiffusionPipeline):
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
+        # wtf? The above line changes the dtype of latents from fp16 to fp32, so we need a casting.
+        latents = latents.to(dtype=dtype)
         return latents
 
     def _get_add_time_ids(
@@ -936,7 +938,11 @@ class StableDiffusionXLPipeline(DiffusionPipeline):
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
+                # TODO: method of scheduler should not change the dtype of input.
+                #  Remove the casting after cuiyushi confirm that.
+                tmp_dtype = latent_model_input.dtype
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+                latent_model_input = latent_model_input.to(tmp_dtype)
 
                 # predict the noise residual
                 added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
@@ -960,7 +966,11 @@ class StableDiffusionXLPipeline(DiffusionPipeline):
                     noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=self.guidance_rescale)
 
                 # compute the previous noisy sample x_t -> x_t-1
+                # TODO: method of scheduler should not change the dtype of input.
+                #  Remove the casting after cuiyushi confirm that.
+                tmp_dtype = latents.dtype
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
+                latents = latents.to(tmp_dtype)
 
                 if callback_on_step_end is not None:
                     callback_kwargs = {}
@@ -991,10 +1001,9 @@ class StableDiffusionXLPipeline(DiffusionPipeline):
 
             if needs_upcasting:
                 self.upcast_vae()
-                latents = latents.to(next(iter(self.vae.post_quant_conv.parameters())).dtype)
 
-                # unscale/denormalize the latents
-                # denormalize with the mean and std if available and not None
+            # unscale/denormalize the latents
+            # denormalize with the mean and std if available and not None
             has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
             has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
             if has_latents_mean and has_latents_std:
@@ -1007,6 +1016,7 @@ class StableDiffusionXLPipeline(DiffusionPipeline):
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor
+            latents = latents.to(self.vae.dtype)
 
             image = self.vae.decode(latents, return_dict=False)[0]
 
