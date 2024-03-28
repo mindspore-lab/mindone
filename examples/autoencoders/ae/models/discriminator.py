@@ -55,7 +55,7 @@ class NLayerDiscriminator(nn.Cell):
                     padding=padw,
                     has_bias=use_bias,
                 ).to_float(self.dtype),
-                norm_layer(ndf * nf_mult),
+                norm_layer(ndf * nf_mult, momentum=0.1),
                 nn.LeakyReLU(0.2),
             ]
 
@@ -71,7 +71,7 @@ class NLayerDiscriminator(nn.Cell):
                 padding=padw,
                 has_bias=use_bias,
             ).to_float(self.dtype),
-            norm_layer(ndf * nf_mult),
+            norm_layer(ndf * nf_mult, momentum=0.1),
             nn.LeakyReLU(0.2),
         ]
 
