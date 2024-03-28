@@ -380,6 +380,23 @@ class T2I_Webdataset(T2I_BaseDataset):
             except StopIteration:
                 raise StopIteration
             except Exception as e:
+                # Print damaged samples
+                caption = None
+                try:
+                    if "json" in raw and self.caption_key:
+                        annot = json.load(io.BytesIO(raw["json"]))
+                        if self.caption_key in annot:
+                            caption = annot[self.caption_key]
+                        else:
+                            raise ValueError(f"No caption found. Expecting caption key: {self.caption_key}")
+                except Exception:
+                    pass
+                if caption:
+                    print(f"\tDamaged samples, caption: {caption}, raw data: {raw}")
+                else:
+                    print(f"\tDamaged samples, load caption fail, raw data: {raw}")
+                ####################
+
                 print(
                     "=> WARNING: Fail to get the iterated sample. The sample can be corrupted and will be replaced by previous normal sample."
                 )
