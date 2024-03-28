@@ -24,13 +24,16 @@ class VersionComparator:
     def __gt__(self, other: str) -> bool:
         return self.current > version.parse(other)
 
+    def __str__(self):
+        return str(self.current)
 
-MSVersion = VersionComparator(ms.__version__)
+
+MS_VERSION = VersionComparator(ms.__version__)
 
 
 def get_ascend_soc_version():
     """Get ascend soc version."""
-    if MSVersion >= "2.2.0":
+    if MS_VERSION >= "2.2.0":
         from mindspore._c_expression import MSContext
 
         return MSContext.get_instance().get_ascend_soc_version()
@@ -60,7 +63,7 @@ def is_910b():
 
 def check_valid_flash_attention(import_fa_valid=True):
     """check mindspore version is valid for flash attention"""
-    if MSVersion < "2.2.0":
+    if MS_VERSION < "2.2.0":
         logger.warning("Current MindSpore do not support FlashAttention, please upgrade to 2.2.0 or later version.")
         logger.warning("Now running on self-attention mode.")
         result = False
@@ -80,11 +83,11 @@ def choose_flash_attention_dtype():
     attention_mask dtype should be float16 on ms 2.2.0, uint8 on 2.2.10
     ms version below 2.2.0 won't be in this func
     """
-    if MSVersion >= "2.2.1":
+    if MS_VERSION >= "2.2.1":
         return ms.uint8
     return ms.float16
 
 
 def is_old_ms_version(last_old_version="1.10.1"):
     # some APIs are changed after ms 1.10.1 version, such as dropout
-    return MSVersion <= last_old_version
+    return MS_VERSION <= last_old_version

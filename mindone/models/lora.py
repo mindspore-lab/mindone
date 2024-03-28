@@ -9,7 +9,7 @@ from mindspore.nn.layer.activation import get_activation
 from mindspore.ops.primitive import Primitive
 
 from ..utils.config import get_obj_from_str
-from ..utils.version_control import MSVersion
+from ..utils.version_control import MS_VERSION
 
 __all__ = [
     "LoRADenseLayer",
@@ -53,7 +53,7 @@ class LoRADenseLayer(nn.Cell):
         self.lora_down = nn.Dense(in_features, rank, has_bias=False).to_float(dtype)
         self.lora_up = nn.Dense(rank, out_features, has_bias=False).to_float(dtype)
 
-        if MSVersion <= "1.10.1":
+        if MS_VERSION <= "1.10.1":
             self.dropout = nn.Dropout(keep_prob=1 - dropout_p)
         else:
             self.dropout = nn.Dropout(p=dropout_p)
