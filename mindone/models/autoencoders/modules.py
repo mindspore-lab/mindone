@@ -62,10 +62,10 @@ class CausalConv3d(ms.nn.Cell):
         )
 
     def construct(self, x):
-        # FIXME: will it cause dynamic shape issue? easy to avoid if pad mode is always contant.
+        # FIXME: check dynamic shape issue in graph mode
         pad_mode = self.pad_mode if self.time_pad < x.shape[2] else "constant"
 
-        # nn.Pad is more stable than ops.pad, but it doesn't support 5-dim padding currently.
+        # nn.Pad can be more efficient but it doesn't support 5-dim padding currently.
         x = ms.ops.pad(x, self.time_causal_padding, mode=pad_mode)
 
         return self.conv(x)
