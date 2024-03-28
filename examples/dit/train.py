@@ -100,7 +100,7 @@ def main(args):
     if args.dit_checkpoint:
         dit_model = load_dit_ckpt_params(dit_model, args.dit_checkpoint)
     else:
-        logger.info("Initialize DIT ramdonly")
+        logger.info("Initialize DIT randomly")
     dit_model.set_train(True)
 
     set_dit_params(dit_model, ft_all_params=True, train=True)
