@@ -148,7 +148,7 @@ def main(args):
     optim_ae = create_optimizer(
         ae_params_to_update,
         name=args.optim,
-        betas=(0.5, 0.9),
+        betas=args.betas,
         group_strategy=args.group_strategy,
         weight_decay=args.weight_decay,
         lr=lr,
@@ -160,7 +160,7 @@ def main(args):
     if use_discriminator:
         optim_disc = create_optimizer(
             disc_with_loss.discriminator.trainable_params(),
-            betas=(0.5, 0.9),
+            betas=args.betas,
             name=args.optim,
             lr=lr,  # since lr is a shared list
             group_strategy=args.group_strategy,

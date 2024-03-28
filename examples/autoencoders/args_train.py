@@ -74,8 +74,8 @@ def parse_args():
     parser.add_argument(
         "--betas",
         type=float,
-        default=[0.9, 0.999],
-        help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
+        default=(0.5, 0.9),  # [0.9, 0.999]
+        help="Specify the [beta1, beta2] parameter for the Adam or AdamW optimizer.",
     )
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay.")
     parser.add_argument(
