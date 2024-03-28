@@ -26,7 +26,7 @@ from ad.utils.load_models import build_model_from_config, load_adapter_lora, loa
 from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
-from mindone.visualize.videos import save_videos
+from mindone.visualize.videos import export_to_gif
 
 logger = logging.getLogger(__name__)
 
@@ -254,6 +254,7 @@ def main(args):
             # infer
             x_samples = pipeline(inputs)  # (b f H W 3)
             x_samples = x_samples.asnumpy()
+            x_samples = (x_samples * 255).round().clip(0, 255).astype(np.uint8)
             # print("D--: pipeline output ", x_samples.shape)
 
             end_time = time.time()
@@ -262,7 +263,7 @@ def main(args):
             os.makedirs(save_dir, exist_ok=True)
             prompt = "-".join((prompt.replace("/", "").split(" ")[:10]))
             save_fp = f"{save_dir}/{sample_idx}-{prompt}.gif"
-            save_videos(x_samples, save_fp, loop=0)
+            export_to_gif(x_samples, save_fp, loop=0)
 
             # save_videos_grid(sample, f"{save_dir}/sample/{sample_idx}-{prompt}.gif")
             logger.info(f"save to {save_fp}")

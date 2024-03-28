@@ -24,7 +24,7 @@ from mindone.models.latte import Latte_models
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
-from mindone.visualize.videos import save_videos
+from mindone.visualize.videos import export_to_gif
 
 logger = logging.getLogger(__name__)
 
@@ -275,11 +275,11 @@ if __name__ == "__main__":
     # infer
     x_samples = pipeline(inputs)
     x_samples = x_samples.asnumpy()
+    x_samples = (x_samples * 255).round().clip(0, 255).astype("uint8")
 
     end_time = time.time()
 
     # save result
     for i in range(n):
         save_fp = f"{save_dir}/{i}.gif"
-        save_videos(x_samples[i : i + 1], save_fp, loop=0)
-        logger.info(f"save to {save_fp}")
+        export_to_gif(x_samples[i : i + 1], save_fp, loop=0)

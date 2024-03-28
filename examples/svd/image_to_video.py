@@ -8,7 +8,6 @@ try:
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
-import cv2
 import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import Path_fr, path_type
@@ -18,6 +17,9 @@ from utils import mixed_precision
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+
+sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
+from mindone.visualize.videos import export_to_video
 
 sys.path.append("../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
 from gm.helpers import create_model
@@ -154,15 +156,6 @@ def prepare_image(image_path: str) -> np.ndarray:
         return np.expand_dims(np.array(image).transpose((2, 0, 1)) / 127.5 - 1, axis=0).astype(np.float32)
 
 
-def write_video(vid: np.ndarray, video_path: str, fps: int = 25, codec: str = "mp4v"):
-    writer = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*codec), fps, (vid.shape[2], vid.shape[1]))
-    for frame in vid:
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        writer.write(frame)
-    writer.release()
-    logger.info(f"Generated video saved to {video_path}")
-
-
 def main(args):
     output_path = Path(args.output_dir)
     output_path.mkdir(exist_ok=True, parents=True)
@@ -180,7 +173,7 @@ def main(args):
     logger.info("Starting video generation, this may take a while...")
     vid = pipeline(Tensor(image))
 
-    write_video(vid.numpy(), str(video_path), fps=args.SVD.fps)
+    export_to_video(vid.numpy(), str(video_path), fps=args.SVD.fps)
 
 
 if __name__ == "__main__":
