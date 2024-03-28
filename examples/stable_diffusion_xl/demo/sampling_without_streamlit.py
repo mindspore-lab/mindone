@@ -286,7 +286,9 @@ def run_txt2img(
     return outs
 
 
-def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"):
+def run_img2img(
+    args, model, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0", save_path="./"
+):
     dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
 
     img = load_img(args.img)
@@ -335,6 +337,11 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         amp_level=amp_level,
     )
     print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+
+    out = out if isinstance(out, (tuple, list)) else [out, None]
+    (samples, samples_z) = out
+
+    perform_save_locally(save_path, samples)
 
     return out
 
@@ -491,32 +498,30 @@ def sample(args):
             filter=filter,
             stage2strength=stage2strength,
             amp_level=args.ms_amp_level,
+            save_path=save_path,
         )
     else:
         raise ValueError(f"Unknown task {task}")
 
-    if task != "txt2img":
-        out = out if isinstance(out, (tuple, list)) else [out, None]
-        (samples, samples_z) = out
-
-        perform_save_locally(save_path, samples)
-
     if add_pipeline:
         print("**Running Refinement Stage**")
-        assert samples_z is not None
+        outs = out if task == "txt2img" else [out]
+        for out in outs:
+            (samples, samples_z) = out
+            assert samples_z is not None
 
-        samples = apply_refiner(
-            samples_z,
-            model=model2,
-            sampler=sampler2,
-            num_samples=samples_z.shape[0],
-            prompt=args.prompt,
-            negative_prompt=args.negative_prompt if is_legacy else "",
-            filter=filter2,
-            finish_denoising=args.finish_denoising,
-        )
+            samples = apply_refiner(
+                samples_z,
+                model=model2,
+                sampler=sampler2,
+                num_samples=samples_z.shape[0],
+                prompt=args.prompt,
+                negative_prompt=args.negative_prompt if is_legacy else "",
+                filter=filter2,
+                finish_denoising=args.finish_denoising,
+            )
 
-        perform_save_locally(os.path.join(save_path, "pipeline"), samples)
+            perform_save_locally(os.path.join(save_path, "pipeline"), samples)
 
 
 if __name__ == "__main__":
