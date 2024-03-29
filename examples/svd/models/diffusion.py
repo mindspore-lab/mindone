@@ -10,7 +10,7 @@ from mindspore import Tensor, nn, ops
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.abspath(os.path.join(__file__, "../../../../")))
-from mindone.utils.version_control import MSVersion, is_910b
+from mindone.utils.version_control import MS_VERSION, is_910b
 
 
 def net_to_dtype(
@@ -45,7 +45,7 @@ class VideoDiffusionEngine(DiffusionEngine):
         self.weighting = self.denoiser.weighting
 
         # There is a bug in MindSpore 2.2 that causes the execution of `nn.Conv3d` in FP32 mode to fail.
-        if self.disable_first_stage_amp and MSVersion < "2.3" and is_910b():
+        if self.disable_first_stage_amp and MS_VERSION < "2.3" and is_910b():
             net_to_dtype(self.first_stage_model, ms.float32, exclude_layers=[nn.Conv3d], exclude_dtype=ms.float16)
 
     def decode_first_stage(self, z):
