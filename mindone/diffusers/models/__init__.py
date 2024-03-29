@@ -14,36 +14,22 @@
 
 from typing import TYPE_CHECKING
 
-from ..utils import (
-    _LazyModule,
-)
-
+from ..utils import _LazyModule
 
 _import_structure = {
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
     "modeling_utils": ["ModelMixin"],
     "transformers.transformer_2d": ["Transformer2DModel"],
-    "unets.unet_2d_condition": ["UNet2DConditionModel"]
+    "unets.unet_2d_condition": ["UNet2DConditionModel"],
 }
 
 if TYPE_CHECKING:
-    from .autoencoders import (
-        AutoencoderKL,
-    )
+    from .autoencoders import AutoencoderKL
     from .modeling_utils import ModelMixin
-    from .transformers import (
-        Transformer2DModel,
-    )
-    from .unets import (
-        UNet2DConditionModel,
-    )
+    from .transformers import Transformer2DModel
+    from .unets import UNet2DConditionModel
 
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__,
-        globals()["__file__"],
-        _import_structure,
-        module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

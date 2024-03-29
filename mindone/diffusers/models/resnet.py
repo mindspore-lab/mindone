@@ -12,16 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from functools import partial
-from typing import Optional, Tuple, Union
+from typing import Optional
 
 import mindspore as ms
 from mindspore import nn, ops
 
 from .activations import get_activation
-from .normalization import GroupNorm
 from .downsampling import Downsample2D
+from .normalization import GroupNorm
 from .upsampling import Upsample2D
 
 
@@ -108,7 +107,9 @@ class ResnetBlock2D(nn.Cell):
 
         self.norm1 = GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
-        self.conv1 = conv_cls(in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
+        self.conv1 = conv_cls(
+            in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+        )
 
         if temb_channels is not None:
             if self.time_embedding_norm == "default":
@@ -124,7 +125,9 @@ class ResnetBlock2D(nn.Cell):
 
         self.dropout = nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
-        self.conv2 = conv_cls(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
+        self.conv2 = conv_cls(
+            out_channels, conv_2d_out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+        )
 
         self.nonlinearity = get_activation(non_linearity)()
 
@@ -183,9 +186,7 @@ class ResnetBlock2D(nn.Cell):
             hidden_states = self.norm2(hidden_states)
         elif self.time_embedding_norm == "scale_shift":
             if temb is None:
-                raise ValueError(
-                    f" `temb` should not be None when `time_embedding_norm` is {self.time_embedding_norm}"
-                )
+                raise ValueError(f" `temb` should not be None when `time_embedding_norm` is {self.time_embedding_norm}")
             time_scale, time_shift = ops.chunk(temb, 2, axis=1)
             hidden_states = self.norm2(hidden_states)
             hidden_states = hidden_states * (1 + time_scale) + time_shift

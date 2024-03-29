@@ -11,16 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import inspect
-from importlib import import_module
-from typing import Callable, Optional, Union
+from typing import Optional, Union
 
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import nn, ops
 
 from ..utils import logging
 from .normalization import GroupNorm, LayerNorm
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -133,7 +130,7 @@ class Attention(nn.Cell):
 
         if self.added_kv_proj_dim is None and self.only_cross_attention:
             raise ValueError(
-                "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None. Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."
+                "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None. Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."  # noqa: E501
             )
 
         if norm_num_groups is not None:
@@ -275,9 +272,7 @@ class Attention(nn.Cell):
 
         return tensor
 
-    def get_attention_scores(
-        self, query: ms.Tensor, key: ms.Tensor, attention_mask: ms.Tensor = None
-    ) -> ms.Tensor:
+    def get_attention_scores(self, query: ms.Tensor, key: ms.Tensor, attention_mask: ms.Tensor = None) -> ms.Tensor:
         r"""
         Compute the attention scores.
 
@@ -295,9 +290,7 @@ class Attention(nn.Cell):
             key = key.float()
 
         if attention_mask is None:
-            baddbmm_input = ops.randn(
-                query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype
-            )
+            baddbmm_input = ops.randn(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype)
             beta = 0
         else:
             baddbmm_input = attention_mask
@@ -488,10 +481,6 @@ class AttnProcessor:
         return hidden_states
 
 
-CROSS_ATTENTION_PROCESSORS = (
-    AttnProcessor,
-)
+CROSS_ATTENTION_PROCESSORS = (AttnProcessor,)
 
-AttentionProcessor = Union[
-    AttnProcessor,
-]
+AttentionProcessor = Union[AttnProcessor,]  # noqa: E231

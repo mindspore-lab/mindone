@@ -11,11 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from typing import Optional, Tuple
+from typing import Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn
 
 from .normalization import LayerNorm
 
@@ -69,7 +68,13 @@ class Downsample2D(nn.Cell):
 
         if use_conv:
             conv = conv_cls(
-                self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, pad_mode="pad", padding=padding, has_bias=bias
+                self.channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                pad_mode="pad",
+                padding=padding,
+                has_bias=bias,
             )
             if padding == 0:
                 self.pad = nn.Pad(paddings=((0, 0), (0, 0), (0, 1), (0, 1)))

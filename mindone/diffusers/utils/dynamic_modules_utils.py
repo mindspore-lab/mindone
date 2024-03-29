@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Utilities to dynamically load objects from the Hub."""
-
 import importlib
 import inspect
 import json
@@ -31,7 +30,6 @@ from packaging import version
 
 from .. import __version__
 from . import DIFFUSERS_DYNAMIC_MODULE_NAME, HF_MODULES_CACHE, logging
-
 
 COMMUNITY_PIPELINES_URL = (
     "https://raw.githubusercontent.com/huggingface/diffusers/{revision}/examples/community/{pipeline}.py"

@@ -14,15 +14,11 @@
 """
 Import utilities: Utilities related to imports and our lazy inits.
 """
-
 import importlib.util
-import operator as op
 import os
-import sys
-from collections import OrderedDict
 from itertools import chain
 from types import ModuleType
-from typing import Any, Union
+from typing import Any
 
 from huggingface_hub.utils import is_jinja_available  # noqa: F401
 

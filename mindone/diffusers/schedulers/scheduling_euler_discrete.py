@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import ops
 
@@ -24,7 +24,6 @@ from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
 from ..utils.mindspore_utils import randn_tensor
 from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -197,7 +196,9 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             self.betas = ms.tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
-            self.betas = ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
+            self.betas = (
+                ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
+            )
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
@@ -270,9 +271,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         """
         self._begin_index = begin_index
 
-    def scale_model_input(
-        self, sample: ms.Tensor, timestep: Union[float, ms.Tensor]
-    ) -> ms.Tensor:
+    def scale_model_input(self, sample: ms.Tensor, timestep: Union[float, ms.Tensor]) -> ms.Tensor:
         """
         Ensures interchangeability with schedulers that need to scale the denoising model input depending on the
         current timestep. Scales the denoising model input by `(sigma**2 + 1) ** 0.5` to match the Euler algorithm.
@@ -466,10 +465,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
                 returned, otherwise a tuple is returned where the first element is the sample tensor.
         """
 
-        if (
-            isinstance(timestep, int)
-            or (isinstance(timestep, ms.Tensor) and timestep.dtype in [ms.int32, ms.int64])
-        ):
+        if isinstance(timestep, int) or (isinstance(timestep, ms.Tensor) and timestep.dtype in [ms.int32, ms.int64]):
             raise ValueError(
                 (
                     "Passing integer indices (e.g. from `enumerate(timesteps)`) as timesteps to"
@@ -494,9 +490,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         gamma = min(s_churn / (len(self.sigmas) - 1), 2**0.5 - 1) if s_tmin <= sigma <= s_tmax else 0.0
 
-        noise = randn_tensor(
-            model_output.shape, dtype=model_output.dtype, generator=generator
-        )
+        noise = randn_tensor(model_output.shape, dtype=model_output.dtype, generator=generator)
 
         eps = noise * s_noise
         sigma_hat = sigma * (gamma + 1)

@@ -12,39 +12,35 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import importlib
 import os
 import re
 import warnings
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
-
-from huggingface_hub import (
-    model_info,
-)
-from packaging import version
-
-import mindspore as ms
-from mindspore import ops, nn
-
-from ..utils import (
-    SAFETENSORS_WEIGHTS_NAME,
-    WEIGHTS_NAME,
-    get_class_from_dynamic_module,
-    maybe_import_module_in_mindone,
-    logging,
-)
+from typing import Any, Dict, List, Union
 
 import transformers
-from mindone.transformers import MSPreTrainedModel
+from huggingface_hub import model_info
+from huggingface_hub.utils import validate_hf_hub_args
+from packaging import version
 from transformers.utils import FLAX_WEIGHTS_NAME as TRANSFORMERS_FLAX_WEIGHTS_NAME
 from transformers.utils import SAFE_WEIGHTS_NAME as TRANSFORMERS_SAFE_WEIGHTS_NAME
 from transformers.utils import WEIGHTS_NAME as TRANSFORMERS_WEIGHTS_NAME
-from huggingface_hub.utils import validate_hf_hub_args
 
-from ..utils import FLAX_WEIGHTS_NAME, ONNX_EXTERNAL_WEIGHTS_NAME, ONNX_WEIGHTS_NAME
+import mindspore as ms
+from mindspore import nn
 
+from mindone.transformers import MSPreTrainedModel
+
+from ..utils import (
+    FLAX_WEIGHTS_NAME,
+    ONNX_EXTERNAL_WEIGHTS_NAME,
+    ONNX_WEIGHTS_NAME,
+    SAFETENSORS_WEIGHTS_NAME,
+    WEIGHTS_NAME,
+    get_class_from_dynamic_module,
+    logging,
+    maybe_import_module_in_mindone,
+)
 
 INDEX_FILE = "diffusion_pytorch_model.bin"
 CUSTOM_PIPELINE_FILE_NAME = "pipeline.py"
@@ -199,12 +195,12 @@ def warn_deprecated_model_variant(pretrained_model_name_or_path, token, variant,
 
     if set(model_filenames).issubset(set(comp_model_filenames)):
         warnings.warn(
-            f"You are loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'` even though you can load it via `variant=`{revision}`. Loading model variants via `revision='{revision}'` is deprecated and will be removed in diffusers v1. Please use `variant='{revision}'` instead.",
+            f"You are loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'` even though you can load it via `variant=`{revision}`. Loading model variants via `revision='{revision}'` is deprecated and will be removed in diffusers v1. Please use `variant='{revision}'` instead.",  # noqa: E501
             FutureWarning,
         )
     else:
         warnings.warn(
-            f"You are loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'`. This behavior is deprecated and will be removed in diffusers v1. One should use `variant='{revision}'` instead. However, it appears that {pretrained_model_name_or_path} currently does not have the required variant filenames in the 'main' branch. \n The Diffusers team and community would be very grateful if you could open an issue: https://github.com/huggingface/diffusers/issues/new with the title '{pretrained_model_name_or_path} is missing {revision} files' so that the correct variant file can be added.",
+            f"You are loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'`. This behavior is deprecated and will be removed in diffusers v1. One should use `variant='{revision}'` instead. However, it appears that {pretrained_model_name_or_path} currently does not have the required variant filenames in the 'main' branch. \n The Diffusers team and community would be very grateful if you could open an issue: https://github.com/huggingface/diffusers/issues/new with the title '{pretrained_model_name_or_path} is missing {revision} files' so that the correct variant file can be added.",  # noqa: E501
             FutureWarning,
         )
 
@@ -395,10 +391,7 @@ def load_sub_model(
     is_diffusers_model = issubclass(class_obj, diffusers_module.ModelMixin)
 
     transformers_version = version.parse(version.parse(transformers.__version__).base_version)
-    is_transformers_model = (
-        issubclass(class_obj, MSPreTrainedModel)
-        and transformers_version >= version.parse("4.20.0")
-    )
+    is_transformers_model = issubclass(class_obj, MSPreTrainedModel) and transformers_version >= version.parse("4.20.0")
 
     # When loading a transformers model, if the device_map is None, the weights will be initialized as opposed to diffusers.
     # To make default loading faster we set the `low_cpu_mem_usage=low_cpu_mem_usage` flag which is `True` by default.

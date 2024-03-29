@@ -13,20 +13,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import inspect
-import itertools
 import os
-import re
 from collections import OrderedDict
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Union
 
 from huggingface_hub import create_repo
 from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import nn, ops
+
+from mindone.safetensors.mindspore import load_file as safe_load_file
+from mindone.safetensors.mindspore import save_file as safe_save_file
 
 from .. import __version__
 from ..utils import (
@@ -40,9 +39,6 @@ from ..utils import (
     logging,
 )
 from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populate_model_card
-from mindone.safetensors.mindspore import load_file as safe_load_file
-from mindone.safetensors.mindspore import save_file as safe_save_file
-
 
 logger = logging.get_logger(__name__)
 
@@ -153,7 +149,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         is_attribute = name in self.__dict__
 
         if is_in_config and not is_attribute:
-            deprecation_message = f"Accessing config attribute `{name}` directly via '{type(self).__name__}' object attribute is deprecated. Please access '{name}' over '{type(self).__name__}'s config object instead, e.g. 'unet.config.{name}'."
+            deprecation_message = f"Accessing config attribute `{name}` directly via '{type(self).__name__}' object attribute is deprecated. Please access '{name}' over '{type(self).__name__}'s config object instead, e.g. 'unet.config.{name}'."  # noqa: E501
             deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False, stacklevel=3)
             return self._internal_dict[name]
 
@@ -184,9 +180,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         if self._supports_gradient_checkpointing:
             self.apply(partial(self._set_gradient_checkpointing, value=False))
 
-    def set_use_memory_efficient_attention_xformers(
-        self, valid: bool, attention_op: Optional[Callable] = None
-    ) -> None:
+    def set_use_memory_efficient_attention_xformers(self, valid: bool, attention_op: Optional[Callable] = None) -> None:
         raise NotImplementedError
 
     def enable_xformers_memory_efficient_attention(self, attention_op: Optional[Callable] = None) -> None:
@@ -261,9 +255,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         # Save the model
         if safe_serialization:
-            safe_save_file(
-                state_dict, os.path.join(save_directory, weights_name), metadata={"format": "np"}
-            )
+            safe_save_file(state_dict, os.path.join(save_directory, weights_name), metadata={"format": "np"})
         else:
             ms.save_checkpoint(state_dict, os.path.join(save_directory, weights_name))
 
@@ -361,7 +353,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         If you get the error message below, you need to finetune the weights for your downstream task:
 
         ```bash
-        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:
+        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at
+        runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:
         - conv_in.weight: found shape torch.Size([320, 4, 3, 3]) in the checkpoint and torch.Size([320, 9, 3, 3]) in the model instantiated
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```

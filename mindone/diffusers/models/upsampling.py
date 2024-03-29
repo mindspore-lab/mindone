@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from typing import Optional, Tuple
+from typing import Optional
 
 import mindspore as ms
 from mindspore import nn, ops
@@ -74,12 +73,25 @@ class Upsample2D(nn.Cell):
             if kernel_size is None:
                 kernel_size = 4
             conv = nn.Conv2dTranspose(
-                channels, self.out_channels, kernel_size=kernel_size, stride=2, pad_mode="pad", padding=padding, has_bias=bias
+                channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=2,
+                pad_mode="pad",
+                padding=padding,
+                has_bias=bias,
             )
         elif use_conv:
             if kernel_size is None:
                 kernel_size = 3
-            conv = conv_cls(self.channels, self.out_channels, kernel_size=kernel_size, pad_mode="pad", padding=padding, has_bias=bias)
+            conv = conv_cls(
+                self.channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                pad_mode="pad",
+                padding=padding,
+                has_bias=bias,
+            )
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if name == "conv":
@@ -87,9 +99,7 @@ class Upsample2D(nn.Cell):
         else:
             self.Conv2d_0 = conv
 
-    def construct(
-            self, hidden_states: ms.Tensor, output_size: Optional[int] = None
-    ) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor, output_size: Optional[int] = None) -> ms.Tensor:
         assert hidden_states.shape[1] == self.channels
 
         if self.norm is not None:

@@ -18,30 +18,29 @@
 
 import argparse
 import functools
-import gc
-import yaml
 import logging
 import math
 import os
 import random
 import shutil
 import time
+from multiprocessing import Process, SimpleQueue
 from pathlib import Path
 
 import numpy as np
+import yaml
 from datasets import load_dataset
 from tqdm.auto import tqdm
-from multiprocessing import Process, SimpleQueue
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, context, nn, ops
+from mindspore import Tensor, context, nn, ops
 from mindspore.amp import DynamicLossScaler, LossScaler, StaticLossScaler, all_finite
-from mindspore.dataset import vision, transforms, GeneratorDataset
+from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import compute_snr, set_seed, is_master, init_distributed_device
+from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -363,7 +362,7 @@ def parse_args(input_args=None):
         "--prediction_type",
         type=str,
         default=None,
-        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediction_type` is chosen.",
+        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediction_type` is chosen.",  # noqa: E501
     )
     parser.add_argument(
         "--hub_model_id",
@@ -421,6 +420,7 @@ def parse_args(input_args=None):
     # Limitations for NOW.
     def error_template(feature, flag):
         return f"{feature} is not yet supported, please do not set --{flag}"
+
     assert args.gradient_accumulation_steps == 1, error_template("Gradient Accumulation", "gradient_accumulation_steps")
     assert args.gradient_checkpointing is False, error_template("Gradient Checkpointing", "gradient_checkpointing")
     assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
@@ -570,9 +570,7 @@ def main():
     )
 
     # import correct text encoder classes
-    text_encoder_cls_one = import_model_class_from_model_name_or_path(
-        args.pretrained_model_name_or_path, args.revision
-    )
+    text_encoder_cls_one = import_model_class_from_model_name_or_path(args.pretrained_model_name_or_path, args.revision)
     text_encoder_cls_two = import_model_class_from_model_name_or_path(
         args.pretrained_model_name_or_path, args.revision, subfolder="text_encoder_2"
     )
@@ -611,6 +609,7 @@ def main():
     def freeze_params(m: nn.Cell):
         for p in m.get_parameters():
             p.require_grad = False
+
     freeze_params(vae)
     freeze_params(text_encoder_one)
     freeze_params(text_encoder_two)
@@ -652,6 +651,7 @@ def main():
     # Get the datasets: you can either provide your own training and evaluation files (see below)
     # or specify a Dataset from the hub (the dataset will be downloaded automatically from the datasets Hub).
     from datasets import disable_caching
+
     if args.cache_dir is None:
         disable_caching()
 
@@ -813,7 +813,7 @@ def main():
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
 
-    lr_scheduler = get_scheduler(
+    lr_scheduler = get_scheduler(  # noqa: F841
         args.lr_scheduler,
         num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
@@ -832,12 +832,13 @@ def main():
 
     # We need to initialize the trackers we use, and also store our configuration.
     if is_master(args):
-        with open(logging_dir / "hparams.yml", 'w') as f:
+        with open(logging_dir / "hparams.yml", "w") as f:
             yaml.dump(vars(args), f, indent=4)
     trackers = dict()
     for tracker_name in args.report_to.split(","):
         if tracker_name == "tensorboard":
             from tensorboardX import SummaryWriter
+
             trackers[tracker_name] = SummaryWriter(str(logging_dir), write_to_disk=is_master(args))
         else:
             logger.warning(f"Tracker {tracker_name} is not implemented, omitting...")
@@ -853,7 +854,7 @@ def main():
     ).set_train()
 
     def compile_progress_bar(q: SimpleQueue, duration: int):
-        pb = tqdm(total=duration, bar_format='{l_bar}{bar}| [{elapsed}<{remaining}]', disable=not is_master(args))
+        pb = tqdm(total=duration, bar_format="{l_bar}{bar}| [{elapsed}<{remaining}]", disable=not is_master(args))
         while True:
             if q.empty():
                 time.sleep(1)
@@ -867,7 +868,7 @@ def main():
                 break
 
     def maybe_compile(m: nn.Cell, *model_args, **model_kwargs):
-        if os.getenv("MS_JIT") != '0' and context._get_mode() == context.GRAPH_MODE:
+        if os.getenv("MS_JIT") != "0" and context._get_mode() == context.GRAPH_MODE:
             logger.info(f"Compiling {m.__class__.__name__}...")
             estimated_duration = sum(p.numel() for p in m.get_parameters()) * 2e-7
             q = SimpleQueue()
@@ -920,9 +921,7 @@ def main():
 
         if path is None:
             if is_master(args):
-                logger.info(
-                    f"Checkpoint '{args.resume_from_checkpoint}' does not exist. Starting a new training run."
-                )
+                logger.info(f"Checkpoint '{args.resume_from_checkpoint}' does not exist. Starting a new training run.")
             args.resume_from_checkpoint = None
             initial_global_step = 0
         else:
@@ -996,8 +995,8 @@ def main():
                 break
 
         # run inference
-        if args.validation_prompt is not None and (epoch+1) % args.validation_epochs == 0:
-            validate(pipeline, args, trackers, logging_dir, epoch+1)
+        if args.validation_prompt is not None and (epoch + 1) % args.validation_epochs == 0:
+            validate(pipeline, args, trackers, logging_dir, epoch + 1)
 
     # Serialize pipeline.
     if is_master(args):
@@ -1109,9 +1108,7 @@ class TrainStep(nn.Cell):
             # Since we predict the noise instead of x_0, the original formulation is slightly changed.
             # This is discussed in Section 4.2 of the same paper.
             snr = compute_snr(self.noise_scheduler, timesteps)
-            mse_loss_weights = ops.stack([snr, self.args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(
-                axis=1
-            )[0]
+            mse_loss_weights = ops.stack([snr, self.args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(axis=1)[0]
             if self.noise_scheduler_prediction_type == "epsilon":
                 mse_loss_weights = mse_loss_weights / snr
             elif self.noise_scheduler_prediction_type == "v_prediction":

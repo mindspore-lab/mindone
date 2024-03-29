@@ -13,21 +13,14 @@
 # limitations under the License.
 from typing import Any, Dict, Optional, Tuple, Union
 
-import numpy as np
-
 import mindspore as ms
 from mindspore import nn, ops
 
-from ...utils import deprecate, logging
+from ...utils import logging
 from ..activations import get_activation
 from ..attention_processor import Attention
-from ..resnet import (
-    Downsample2D,
-    ResnetBlock2D,
-    Upsample2D,
-)
+from ..resnet import Downsample2D, ResnetBlock2D, Upsample2D
 from ..transformers.transformer_2d import Transformer2DModel
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

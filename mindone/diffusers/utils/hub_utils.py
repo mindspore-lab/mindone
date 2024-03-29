@@ -12,8 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 import os
 import re
 import sys
@@ -24,14 +22,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 from uuid import uuid4
 
-from huggingface_hub import (
-    ModelCard,
-    ModelCardData,
-    create_repo,
-    hf_hub_download,
-    upload_folder,
-)
-from huggingface_hub.constants import HF_HUB_CACHE, HF_HUB_DISABLE_TELEMETRY, HF_HUB_OFFLINE
+from huggingface_hub import ModelCard, ModelCardData, create_repo, hf_hub_download, upload_folder
+from huggingface_hub.constants import HF_HUB_CACHE
 from huggingface_hub.file_download import REGEX_COMMIT_HASH
 from huggingface_hub.utils import (
     EntryNotFoundError,
@@ -44,14 +36,8 @@ from packaging import version
 from requests import HTTPError
 
 from .. import __version__
-from .constants import (
-    DEPRECATED_REVISION_ARGS,
-    HUGGINGFACE_CO_RESOLVE_ENDPOINT,
-    SAFETENSORS_WEIGHTS_NAME,
-    WEIGHTS_NAME,
-)
+from .constants import DEPRECATED_REVISION_ARGS, HUGGINGFACE_CO_RESOLVE_ENDPOINT, SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME
 from .logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -130,7 +116,7 @@ def load_or_create_model_card(
             card_data = ModelCardData()
             component = "pipeline" if is_pipeline else "model"
             if model_description is None:
-                model_description = f"This is the model card of a 🧨 diffusers {component} that has been pushed on the Hub. This model card has been automatically generated."
+                model_description = f"This is the model card of a 🧨 diffusers {component} that has been pushed on the Hub. This model card has been automatically generated."  # noqa: E501
             model_card = ModelCard.from_template(card_data, model_description=model_description)
 
     return model_card
@@ -302,13 +288,13 @@ def _get_model_file(
                     revision=revision or commit_hash,
                 )
                 warnings.warn(
-                    f"Loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'` is deprecated. Loading instead from `revision='main'` with `variant={revision}`. Loading model variants via `revision='{revision}'` will be removed in diffusers v1. Please use `variant='{revision}'` instead.",
+                    f"Loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'` is deprecated. Loading instead from `revision='main'` with `variant={revision}`. Loading model variants via `revision='{revision}'` will be removed in diffusers v1. Please use `variant='{revision}'` instead.",  # noqa: E501
                     FutureWarning,
                 )
                 return model_file
             except:  # noqa: E722
                 warnings.warn(
-                    f"You are loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'`. This behavior is deprecated and will be removed in diffusers v1. One should use `variant='{revision}'` instead. However, it appears that {pretrained_model_name_or_path} currently does not have a {_add_variant(weights_name, revision)} file in the 'main' branch of {pretrained_model_name_or_path}. \n The Diffusers team and community would be very grateful if you could open an issue: https://github.com/huggingface/diffusers/issues/new with the title '{pretrained_model_name_or_path} is missing {_add_variant(weights_name, revision)}' so that the correct variant file can be added.",
+                    f"You are loading the variant {revision} from {pretrained_model_name_or_path} via `revision='{revision}'`. This behavior is deprecated and will be removed in diffusers v1. One should use `variant='{revision}'` instead. However, it appears that {pretrained_model_name_or_path} currently does not have a {_add_variant(weights_name, revision)} file in the 'main' branch of {pretrained_model_name_or_path}. \n The Diffusers team and community would be very grateful if you could open an issue: https://github.com/huggingface/diffusers/issues/new with the title '{pretrained_model_name_or_path} is missing {_add_variant(weights_name, revision)}' so that the correct variant file can be added.",  # noqa: E501
                     FutureWarning,
                 )
         try:

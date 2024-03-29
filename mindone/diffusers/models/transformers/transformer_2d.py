@@ -15,14 +15,13 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput, deprecate, logging
 from ..attention import BasicTransformerBlock
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm, LayerNorm
-
+from ..normalization import GroupNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -33,7 +32,7 @@ class Transformer2DModelOutput(BaseOutput):
     The output of [`Transformer2DModel`].
 
     Args:
-        sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` or `(batch size, num_vector_embeds - 1, num_latent_pixels)` if [`Transformer2DModel`] is discrete):
+        sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` or `(batch size, num_vector_embeds - 1, num_latent_pixels)` if [`Transformer2DModel`] is discrete):  # noqa: E501
             The hidden states output conditioned on the `encoder_hidden_states` input. If discrete, returns probability
             distributions for the unnoised latent pixels.
     """
@@ -118,7 +117,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         conv_cls = nn.Conv2d
         linear_cls = nn.Dense
 
-        # 1. Transformer2DModel can process both standard continuous images of shape `(batch_size, num_channels, width, height)` as well as quantized image embeddings of shape `(batch_size, num_image_vectors)`
+        # 1. Transformer2DModel can process both standard continuous images of shape `(batch_size, num_channels, width, height)` as well as quantized image embeddings of shape `(batch_size, num_image_vectors)`  # noqa: E501
         # Define whether input is continuous or discrete depending on configuration
         self.is_input_continuous = (in_channels is not None) and (patch_size is None)
         self.is_input_vectorized = num_vector_embeds is not None
@@ -226,7 +225,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         The [`Transformer2DModel`] forward method.
 
         Args:
-            hidden_states (`ms.Tensor` of shape `(batch size, num latent pixels)` if discrete, `ms.Tensor` of shape `(batch size, channel, height, width)` if continuous):
+            hidden_states (`ms.Tensor` of shape `(batch size, num latent pixels)` if discrete, `ms.Tensor` of shape `(batch size, channel, height, width)` if continuous):  # noqa: E501
                 Input `hidden_states`.
             encoder_hidden_states ( `ms.Tensor` of shape `(batch size, sequence len, embed dims)`, *optional*):
                 Conditional embeddings for cross attention layer. If not given, cross-attention defaults to

@@ -2,9 +2,9 @@ import os
 from typing import Dict, Optional, Union
 
 import numpy as np
+from safetensors import numpy
 
 import mindspore as ms
-from safetensors import numpy
 
 
 def save(tensors: Dict[str, ms.Tensor], metadata: Optional[Dict[str, str]] = None) -> bytes:

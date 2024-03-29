@@ -12,12 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import numbers
-from typing import Dict, Optional, Tuple
+from typing import Tuple
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter
+from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import initializer
 
 
@@ -175,7 +174,7 @@ class GroupNorm(nn.Cell):
     def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5, affine: bool = True, dtype=ms.float32):
         super().__init__()
         if num_channels % num_groups != 0:
-            raise ValueError('num_channels must be divisible by num_groups')
+            raise ValueError("num_channels must be divisible by num_groups")
 
         self.num_groups = num_groups
         self.num_channels = num_channels

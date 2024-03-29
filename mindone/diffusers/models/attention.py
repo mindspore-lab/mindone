@@ -16,11 +16,10 @@ from typing import Any, Dict, Optional
 import mindspore as ms
 from mindspore import nn, ops
 
-from ..utils import deprecate, logging
+from ..utils import logging
 from .activations import GEGLU, GELU, ApproximateGELU
 from .attention_processor import Attention
 from .normalization import LayerNorm
-
 
 logger = logging.get_logger(__name__)
 
@@ -29,7 +28,7 @@ def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int,
     # "feed_forward_chunk_size" can be used to save memory
     if hidden_states.shape[chunk_dim] % chunk_size != 0:
         raise ValueError(
-            f"`hidden_states` dimension to be chunked: {hidden_states.shape[chunk_dim]} has to be divisible by chunk size: {chunk_size}. Make sure to set an appropriate `chunk_size` when calling `unet.enable_forward_chunking`."
+            f"`hidden_states` dimension to be chunked: {hidden_states.shape[chunk_dim]} has to be divisible by chunk size: {chunk_size}. Make sure to set an appropriate `chunk_size` when calling `unet.enable_forward_chunking`."  # noqa: E501
         )
 
     num_chunks = hidden_states.shape[chunk_dim] // chunk_size
@@ -190,7 +189,7 @@ class BasicTransformerBlock(nn.Cell):
     ) -> ms.Tensor:
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Self-Attention
-        batch_size = hidden_states.shape[0]
+        batch_size = hidden_states.shape[0]  # noqa: F841
 
         norm_hidden_states = self.norm1(hidden_states)
 

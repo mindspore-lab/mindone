@@ -13,28 +13,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import collections
 import copy
-import functools
-import gc
-import importlib.metadata
-import inspect
-import itertools
-import json
 import os
-import re
-import shutil
-import tempfile
 import warnings
-from contextlib import contextmanager
-from dataclasses import dataclass
-from functools import partial, wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from zipfile import is_zipfile
-
-from packaging import version
-import mindspore as ms
-from mindspore import Tensor, ops, nn
+from typing import Callable, Optional, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.safetensors_conversion import auto_conversion
@@ -49,7 +31,6 @@ from transformers.utils import (
     WEIGHTS_NAME,
     PushToHubMixin,
     cached_file,
-    copy_func,
     download_url,
     extract_commit_hash,
     has_file,
@@ -58,12 +39,15 @@ from transformers.utils import (
     is_safetensors_available,
     logging,
 )
-from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
+from transformers.utils.hub import get_checkpoint_shard_files
+
+import mindspore as ms
+from mindspore import nn, ops
 
 if is_safetensors_available():
     from safetensors import safe_open
+
     from mindone.safetensors.mindspore import load_file as safe_load_file
-    from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
 
@@ -174,7 +158,9 @@ class ModuleUtilsMixin:
 
         if exclude_embeddings:
             embedding_param_names = [
-                f"{name}.weight" for name, module_type in self.cells_and_names() if isinstance(module_type, nn.Embedding)
+                f"{name}.weight"
+                for name, module_type in self.cells_and_names()
+                if isinstance(module_type, nn.Embedding)
             ]
             total_parameters = [
                 parameter for name, parameter in self.cells_and_names() if name not in embedding_param_names

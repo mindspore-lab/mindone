@@ -14,9 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ ConfigMixin base class and utilities."""
-import dataclasses
 import functools
-import importlib
 import inspect
 import json
 import os
@@ -41,10 +39,9 @@ from .utils import (
     deprecate,
     extract_commit_hash,
     http_user_agent,
-    maybe_import_module_in_mindone,
     logging,
+    maybe_import_module_in_mindone,
 )
-
 
 logger = logging.get_logger(__name__)
 
@@ -135,7 +132,7 @@ class ConfigMixin:
         is_attribute = name in self.__dict__
 
         if is_in_config and not is_attribute:
-            deprecation_message = f"Accessing config attribute `{name}` directly via '{type(self).__name__}' object attribute is deprecated. Please access '{name}' over '{type(self).__name__}'s config object instead, e.g. 'scheduler.config.{name}'."
+            deprecation_message = f"Accessing config attribute `{name}` directly via '{type(self).__name__}' object attribute is deprecated. Please access '{name}' over '{type(self).__name__}'s config object instead, e.g. 'scheduler.config.{name}'."  # noqa: E501
             deprecate("direct config name access", "1.0.0", deprecation_message, standard_warn=False)
             return self._internal_dict[name]
 

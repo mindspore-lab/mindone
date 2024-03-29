@@ -13,18 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ MindSpore CLIP model."""
+from typing import List, Optional, Tuple, Union
 
-from typing import Any, Optional, Tuple, Union, List
+from transformers.models.clip.configuration_clip import CLIPConfig, CLIPTextConfig
+from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
-
-from transformers.utils import logging
-from transformers.models.clip.configuration_clip import CLIPConfig, CLIPTextConfig, CLIPVisionConfig
+from mindspore import nn, ops
 
 from ...activations_ms import ACT2FN
 from ...modeling_ms_utils import MSPreTrainedModel
-
 
 logger = logging.get_logger(__name__)
 
@@ -375,9 +373,7 @@ class CLIPEncoder(nn.Cell):
                 for more detail.
         """
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
-        )
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
 
         encoder_states = () if output_hidden_states else None
         all_attentions = () if output_attentions else None
@@ -434,9 +430,7 @@ class CLIPTextTransformer(nn.Cell):
 
         """
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.output_hidden_states
-        )
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
 
         if input_ids is None:
             raise ValueError("You have to specify input_ids")
@@ -448,9 +442,7 @@ class CLIPTextTransformer(nn.Cell):
 
         # CLIP's text model uses causal mask, prepare it here.
         # https://github.com/openai/CLIP/blob/cfcffb90e69f37bf2ff1e988237a0fbe41f33c04/clip/model.py#L324
-        causal_attention_mask = _create_4d_causal_attention_mask(
-            input_shape, hidden_states.dtype
-        )
+        causal_attention_mask = _create_4d_causal_attention_mask(input_shape, hidden_states.dtype)
         # expand attention_mask
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
@@ -483,9 +475,7 @@ class CLIPTextTransformer(nn.Cell):
             pooled_output = last_hidden_state[
                 ops.arange(last_hidden_state.shape[0]),
                 # We need to get the first position of `eos_token_id` value (`pad_token_ids` might equal to `eos_token_id`)
-                (input_ids.to(dtype=ms.int32) == self.eos_token_id)
-                .int()
-                .argmax(axis=-1),
+                (input_ids.to(dtype=ms.int32) == self.eos_token_id).int().argmax(axis=-1),
             ]
 
         return (last_hidden_state, pooled_output) + encoder_outputs[1:]

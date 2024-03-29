@@ -22,11 +22,7 @@ from mindspore import nn, ops
 from ...utils import BaseOutput
 from ..activations import SiLU
 from ..normalization import GroupNorm
-from ..unets.unet_2d_blocks import (
-    UNetMidBlock2D,
-    get_down_block,
-    get_up_block,
-)
+from ..unets.unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
 
 
 @dataclass
@@ -133,7 +129,9 @@ class Encoder(nn.Cell):
         self.conv_act = SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
-        self.conv_out = nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_out = nn.Conv2d(
+            block_out_channels[-1], conv_out_channels, 3, pad_mode="pad", padding=1, has_bias=True
+        )
 
         self.gradient_checkpointing = False
 
@@ -300,9 +298,7 @@ class DiagonalGaussianDistribution(object):
         mean, logvar = ops.chunk(parameters, 2, axis=1)
         logvar = ops.clamp(logvar, -30.0, 20.0)
         if self.deterministic:
-            var = std = ops.zeros_like(
-                mean, dtype=parameters.dtype
-            )
+            var = std = ops.zeros_like(mean, dtype=parameters.dtype)
         else:
             var = ops.exp(logvar)
             std = ops.exp(0.5 * logvar)
@@ -330,6 +326,7 @@ class DiagonalGaussianDistribution(object):
                 )
             else:
                 other_mean, other_logvar, other_var, other_std = self.init(other)
+                # fmt: off
                 return 0.5 * ops.sum(
                     ops.pow(mean - other_mean, 2) / other_var
                     + var / other_var
@@ -338,6 +335,7 @@ class DiagonalGaussianDistribution(object):
                     + other_logvar,
                     dim=[1, 2, 3],
                 )
+                # fmt: on
 
     def nll(self, parameters: ms.Tensor, sample: ms.Tensor, dims: Tuple[int, ...] = (1, 2, 3)) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)

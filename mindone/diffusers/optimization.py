@@ -13,12 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """MindSpore optimization for diffusion models."""
-
+import logging
 import math
 from enum import Enum
-from typing import Optional, Union, List
-import logging
-
+from typing import List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -120,9 +118,7 @@ def get_piecewise_constant_schedule(lr: float, step_rules: str, num_training_ste
     return _builder(lr, rules_func, num_training_steps)
 
 
-def get_linear_schedule_with_warmup(
-    lr: float, num_warmup_steps: int, num_training_steps: int
-) -> List:
+def get_linear_schedule_with_warmup(lr: float, num_warmup_steps: int, num_training_steps: int) -> List:
     """
     Create a schedule with a learning rate that decreases linearly from the initial lr set in the optimizer to 0, after
     a warmup period during which it increases linearly from 0 to the initial lr set in the optimizer.
@@ -142,9 +138,7 @@ def get_linear_schedule_with_warmup(
     def lr_lambda(current_step: int):
         if current_step < num_warmup_steps:
             return float(current_step) / float(max(1, num_warmup_steps))
-        return max(
-            0.0, float(num_training_steps - current_step) / float(max(1, num_training_steps - num_warmup_steps))
-        )
+        return max(0.0, float(num_training_steps - current_step) / float(max(1, num_training_steps - num_warmup_steps)))
 
     return _builder(lr, lr_lambda, num_training_steps)
 
@@ -343,6 +337,4 @@ def get_scheduler(
             power=power,
         )
 
-    return schedule_func(
-        lr, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps
-    )
+    return schedule_func(lr, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)

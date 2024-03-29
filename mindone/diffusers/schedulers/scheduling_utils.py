@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import importlib
 import os
 from dataclasses import dataclass
 from enum import Enum
@@ -22,7 +21,6 @@ from huggingface_hub.utils import validate_hf_hub_args
 import mindspore as ms
 
 from ..utils import BaseOutput, PushToHubMixin, maybe_import_module_in_mindone
-
 
 SCHEDULER_CONFIG_NAME = "scheduler_config.json"
 

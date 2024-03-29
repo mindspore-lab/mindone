@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -22,7 +21,7 @@ def sigmoid(x):
     return ops.where(
         x >= 0.0,
         1.0 / (1.0 + ops.exp(-x)),  # For positive values
-        ops.exp(x) / (1.0 + ops.exp(x))  # For negative values
+        ops.exp(x) / (1.0 + ops.exp(x)),  # For negative values
     )
 
 

@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
@@ -21,11 +19,10 @@ import PIL.Image
 from PIL import Image, ImageFilter, ImageOps
 
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import ops
 
 from .configuration_utils import ConfigMixin, register_to_config
 from .utils import CONFIG_NAME, PIL_INTERPOLATION, deprecate
-
 
 PipelineImageInput = Union[
     PIL.Image.Image,
@@ -266,7 +263,8 @@ class VaeImageProcessor(ConfigMixin):
         height: int,
     ) -> PIL.Image.Image:
         """
-        Resize the image to fit within the specified width and height, maintaining the aspect ratio, and then center the image within the dimensions, filling empty with data from image.
+        Resize the image to fit within the specified width and height, maintaining the aspect ratio,
+        and then center the image within the dimensions, filling empty with data from image.
 
         Args:
             image: The image to resize.
@@ -310,7 +308,8 @@ class VaeImageProcessor(ConfigMixin):
         height: int,
     ) -> PIL.Image.Image:
         """
-        Resize the image to fit within the specified width and height, maintaining the aspect ratio, and then center the image within the dimensions, cropping the excess.
+        Resize the image to fit within the specified width and height, maintaining the aspect ratio,
+        and then center the image within the dimensions, cropping the excess.
 
         Args:
             image: The image to resize.

@@ -11,10 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..modeling_outputs import AutoencoderKLOutput
@@ -116,9 +116,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
 
-    def encode(
-        self, x: ms.Tensor, return_dict: bool = False
-    ) -> Union[AutoencoderKLOutput, Tuple[ms.Tensor]]:
+    def encode(self, x: ms.Tensor, return_dict: bool = False) -> Union[AutoencoderKLOutput, Tuple[ms.Tensor]]:
         """
         Encode a batch of images into latents.
 
@@ -151,9 +149,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
 
         return DecoderOutput(sample=dec)
 
-    def decode(
-        self, z: ms.Tensor, return_dict: bool = False
-    ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
+    def decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         """
         Decode a batch of images.
 

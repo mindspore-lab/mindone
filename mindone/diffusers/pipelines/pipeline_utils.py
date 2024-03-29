@@ -14,25 +14,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import fnmatch
-import importlib
 import inspect
 import os
 import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
 import requests
-from huggingface_hub import (
-    ModelCard,
-    create_repo,
-    hf_hub_download,
-    model_info,
-    snapshot_download,
-)
+from huggingface_hub import ModelCard, create_repo, hf_hub_download, model_info, snapshot_download
 from huggingface_hub.utils import OfflineModeIsEnabled, validate_hf_hub_args
 from packaging import version
 from requests.exceptions import HTTPError
@@ -40,7 +33,6 @@ from tqdm.auto import tqdm
 
 from .. import __version__
 from ..configuration_utils import ConfigMixin
-from ..models import AutoencoderKL
 from ..schedulers.scheduling_utils import SCHEDULER_CONFIG_NAME
 from ..utils import (
     CONFIG_NAME,
@@ -48,8 +40,8 @@ from ..utils import (
     BaseOutput,
     PushToHubMixin,
     deprecate,
-    maybe_import_module_in_mindone,
     logging,
+    maybe_import_module_in_mindone,
     numpy_to_pil,
 )
 from ..utils.hub_utils import load_or_create_model_card, populate_model_card
@@ -60,14 +52,12 @@ from .pipeline_loading_utils import (
     LOADABLE_CLASSES,
     _fetch_class_library_tuple,
     _get_pipeline_class,
-    _unwrap_model,
     is_safetensors_compatible,
     load_sub_model,
     maybe_raise_or_warn,
     variant_compatible_siblings,
     warn_deprecated_model_variant,
 )
-
 
 LIBRARIES = []
 for library in LOADABLE_CLASSES:
@@ -222,9 +212,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     break
 
             if save_method_name is None:
-                logger.warning(
-                    f"self.{pipeline_component_name}={sub_model} of type {type(sub_model)} cannot be saved."
-                )
+                logger.warning(f"self.{pipeline_component_name}={sub_model} of type {type(sub_model)} cannot be saved.")
                 # make sure that unsaveable components are not tried to be loaded afterward
                 self.register_to_config(**{pipeline_component_name: (None, None)})
                 continue
@@ -272,7 +260,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         If you get the error message below, you need to finetune the weights for your downstream task:
 
         ```
-        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:
+        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at
+        runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:
         - conv_in.weight: found shape torch.Size([320, 4, 3, 3]) in the checkpoint and torch.Size([320, 9, 3, 3]) in the model instantiated
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```
@@ -443,9 +432,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             for folder in os.listdir(cached_folder):
                 folder_path = os.path.join(cached_folder, folder)
                 is_folder = os.path.isdir(folder_path) and folder in config_dict
-                variant_exists = is_folder and any(
-                    p.split(".")[1].startswith(variant) for p in os.listdir(folder_path)
-                )
+                variant_exists = is_folder and any(p.split(".")[1].startswith(variant) for p in os.listdir(folder_path))
                 if variant_exists:
                     model_variants[folder] = variant
 
@@ -455,7 +442,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         if os.path.isfile(os.path.join(cached_folder, f"{custom_pipeline}.py")):
             custom_pipeline = os.path.join(cached_folder, f"{custom_pipeline}.py")
         elif isinstance(config_dict["_class_name"], (list, tuple)) and os.path.isfile(
-                os.path.join(cached_folder, f"{config_dict['_class_name'][0]}.py")
+            os.path.join(cached_folder, f"{config_dict['_class_name'][0]}.py")
         ):
             custom_pipeline = os.path.join(cached_folder, f"{config_dict['_class_name'][0]}.py")
             custom_class_name = config_dict["_class_name"][1]
@@ -779,7 +766,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     custom_components[component] = module_candidate
                 elif module_candidate not in LOADABLE_CLASSES and not hasattr(pipelines, module_candidate):
                     raise ValueError(
-                        f"{candidate_file} as defined in `model_index.json` does not exist in {pretrained_model_name} and is not a module in 'diffusers/pipelines'."
+                        f"{candidate_file} as defined in `model_index.json` does not exist in {pretrained_model_name} and is not a module in 'diffusers/pipelines'."  # noqa: E501
                     )
 
             if len(variant_filenames) == 0 and variant is not None:
@@ -833,15 +820,18 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
             if load_pipe_from_hub and not trust_remote_code:
                 raise ValueError(
-                    f"The repository for {pretrained_model_name} contains custom code in {custom_pipeline}.py which must be executed to correctly "
-                    f"load the model. You can inspect the repository content at https://hf.co/{pretrained_model_name}/blob/main/{custom_pipeline}.py.\n"
+                    f"The repository for {pretrained_model_name} contains custom code in {custom_pipeline}.py "
+                    f"which must be executed to correctly load the model. You can inspect the repository content at "
+                    f"https://hf.co/{pretrained_model_name}/blob/main/{custom_pipeline}.py.\n"
                     f"Please pass the argument `trust_remote_code=True` to allow custom code to be run."
                 )
 
             if load_components_from_hub and not trust_remote_code:
                 raise ValueError(
-                    f"The repository for {pretrained_model_name} contains custom code in {'.py, '.join([os.path.join(k, v) for k,v in custom_components.items()])} which must be executed to correctly "
-                    f"load the model. You can inspect the repository content at {', '.join([f'https://hf.co/{pretrained_model_name}/{k}/{v}.py' for k,v in custom_components.items()])}.\n"
+                    f"The repository for {pretrained_model_name} contains custom code in "
+                    f"{'.py, '.join([os.path.join(k, v) for k,v in custom_components.items()])} "
+                    f"which must be executed to correctly load the model. You can inspect the repository content at "
+                    f"{', '.join([f'https://hf.co/{pretrained_model_name}/{k}/{v}.py' for k,v in custom_components.items()])}.\n"
                     f"Please pass the argument `trust_remote_code=True` to allow custom code to be run."
                 )
 
@@ -863,9 +853,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             if (
                 use_safetensors
                 and not allow_pickle
-                and not is_safetensors_compatible(
-                    model_filenames, variant=variant, passed_components=passed_components
-                )
+                and not is_safetensors_compatible(model_filenames, variant=variant, passed_components=passed_components)
             ):
                 raise EnvironmentError(
                     f"Could not find the necessary `safetensors` weights in {model_filenames} (variant={variant})"
@@ -886,7 +874,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     and safetensors_model_filenames != safetensors_variant_filenames
                 ):
                     logger.warning(
-                        f"\nA mixture of {variant} and non-{variant} filenames will be loaded.\nLoaded {variant} filenames:\n[{', '.join(safetensors_variant_filenames)}]\nLoaded non-{variant} filenames:\n[{', '.join(safetensors_model_filenames - safetensors_variant_filenames)}\nIf this behavior is not expected, please check your folder structure."
+                        f"\nA mixture of {variant} and non-{variant} filenames will be loaded.\nLoaded {variant} filenames:\n[{', '.join(safetensors_variant_filenames)}]\nLoaded non-{variant} filenames:\n[{', '.join(safetensors_model_filenames - safetensors_variant_filenames)}\nIf this behavior is not expected, please check your folder structure."  # noqa: E501
                     )
             else:
                 ignore_patterns = ["*.safetensors", "*.msgpack"]
@@ -899,7 +887,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 bin_model_filenames = {f for f in model_filenames if f.endswith(".bin")}
                 if len(bin_variant_filenames) > 0 and bin_model_filenames != bin_variant_filenames:
                     logger.warning(
-                        f"\nA mixture of {variant} and non-{variant} filenames will be loaded.\nLoaded {variant} filenames:\n[{', '.join(bin_variant_filenames)}]\nLoaded non-{variant} filenames:\n[{', '.join(bin_model_filenames - bin_variant_filenames)}\nIf this behavior is not expected, please check your folder structure."
+                        f"\nA mixture of {variant} and non-{variant} filenames will be loaded.\nLoaded {variant} filenames:\n[{', '.join(bin_variant_filenames)}]\nLoaded non-{variant} filenames:\n[{', '.join(bin_model_filenames - bin_variant_filenames)}\nIf this behavior is not expected, please check your folder structure."  # noqa: E501
                     )
 
             # Don't download any objects that are passed

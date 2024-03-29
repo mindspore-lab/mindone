@@ -5,7 +5,6 @@ import PIL.ImageOps
 from packaging import version
 from PIL import Image
 
-
 if version.parse(version.parse(PIL.__version__).base_version) >= version.parse("9.1.0"):
     PIL_INTERPOLATION = {
         "linear": PIL.Image.Resampling.BILINEAR,

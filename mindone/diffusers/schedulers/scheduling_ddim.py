@@ -14,7 +14,6 @@
 
 # DISCLAIMER: This code is strongly influenced by https://github.com/pesser/pytorch_diffusion
 # and https://github.com/hojonathanho/diffusion
-
 import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
@@ -208,7 +207,9 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
             self.betas = ms.tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
-            self.betas = ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
+            self.betas = (
+                ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
+            )
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
@@ -457,9 +458,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 )
 
             if variance_noise is None:
-                variance_noise = randn_tensor(
-                    model_output.shape, generator=generator, dtype=model_output.dtype
-                )
+                variance_noise = randn_tensor(model_output.shape, generator=generator, dtype=model_output.dtype)
             variance = std_dev_t * variance_noise
 
             prev_sample = prev_sample + variance
@@ -493,15 +492,15 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_one_minus_alpha_prod = ops.reshape(
+            sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
+        )
 
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler.get_velocity
-    def get_velocity(
-        self, sample: ms.Tensor, noise: ms.Tensor, timesteps: ms.Tensor
-    ) -> ms.Tensor:
+    def get_velocity(self, sample: ms.Tensor, noise: ms.Tensor, timesteps: ms.Tensor) -> ms.Tensor:
         # Make sure alphas_cumprod and timestep have same device and dtype as sample
         self.alphas_cumprod = self.alphas_cumprod
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)

@@ -11,19 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from typing import TYPE_CHECKING
 
-from ..utils import (
-    _LazyModule,
-)
-
+from ..utils import _LazyModule
 
 _import_structure = {
     "scheduling_ddim": ["DDIMScheduler"],
     "scheduling_ddpm": ["DDPMScheduler"],
     "scheduling_euler_discrete": ["EulerDiscreteScheduler"],
-    "scheduling_utils": ["KarrasDiffusionSchedulers", "SchedulerMixin"]
+    "scheduling_utils": ["KarrasDiffusionSchedulers", "SchedulerMixin"],
 }
 
 if TYPE_CHECKING:
@@ -35,9 +31,4 @@ if TYPE_CHECKING:
 else:
     import sys
 
-    sys.modules[__name__] = _LazyModule(
-        __name__,
-        globals()["__file__"],
-        _import_structure,
-        module_spec=__spec__
-    )
+    sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure, module_spec=__spec__)

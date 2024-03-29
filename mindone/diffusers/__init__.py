@@ -2,10 +2,7 @@ __version__ = "0.27.1"
 
 from typing import TYPE_CHECKING
 
-from .utils import (
-    _LazyModule,
-)
-
+from .utils import _LazyModule
 
 # Lazy Import based on
 # https://github.com/huggingface/transformers/blob/main/src/transformers/__init__.py
@@ -49,11 +46,7 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
-    from .models import (
-        AutoencoderKL,
-        ModelMixin,
-        UNet2DConditionModel,
-    )
+    from .models import AutoencoderKL, ModelMixin, UNet2DConditionModel
     from .optimization import (
         get_constant_schedule,
         get_constant_schedule_with_warmup,
@@ -63,18 +56,8 @@ if TYPE_CHECKING:
         get_polynomial_decay_schedule_with_warmup,
         get_scheduler,
     )
-    from .pipelines import (
-        DDIMPipeline,
-        DDPMPipeline,
-        DiffusionPipeline,
-        StableDiffusionXLPipeline,
-    )
-    from .schedulers import (
-        DDIMScheduler,
-        DDPMScheduler,
-        EulerDiscreteScheduler,
-        SchedulerMixin,
-    )
+    from .pipelines import DDIMPipeline, DDPMPipeline, DiffusionPipeline, StableDiffusionXLPipeline
+    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, SchedulerMixin
     from .utils import logging
 
 else:

@@ -13,25 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Logging utilities."""
-
 import logging
 import os
 import sys
 import threading
-from logging import (
-    CRITICAL,  # NOQA
-    DEBUG,  # NOQA
-    ERROR,  # NOQA
-    FATAL,  # NOQA
-    INFO,  # NOQA
-    NOTSET,  # NOQA
-    WARN,  # NOQA
-    WARNING,  # NOQA
-)
+from logging import CRITICAL, DEBUG, ERROR, FATAL, INFO, NOTSET, WARN, WARNING  # noqa: F401
 from typing import Dict, Optional
 
 from tqdm import auto as tqdm_lib
-
 
 _lock = threading.Lock()
 _default_handler: Optional[logging.Handler] = None

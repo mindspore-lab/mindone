@@ -21,9 +21,9 @@ limitations under the License.
 > We've tried to provide a completely consistent interface and usage with the [huggingface/diffusers](https://github.com/huggingface/diffusers).
 > Only necessary changes are made to the [huggingface/diffusers](https://github.com/huggingface/diffusers) to make it seamless for users from torch.
 
-> [!IMPORTANT] 
+> [!IMPORTANT]
 > This project is still under active development and many features are not yet well-supported.
-> Development progress and plans are detailed in [Roadmap](#Roadmap). 
+> Development progress and plans are detailed in [Roadmap](#Roadmap).
 > Any contribution is welcome!
 
 > [!WARNING]
@@ -122,7 +122,7 @@ Most base, utility and mixin class are available.
 
 ### Output of `AutoencoderKL.encode`
 
-Unlike the output `posterior = DiagonalGaussianDistribution(latent)`, which can do sampling by `posterior.sample()`. 
+Unlike the output `posterior = DiagonalGaussianDistribution(latent)`, which can do sampling by `posterior.sample()`.
 We can only output the `latent` and then do sampling through `AutoencoderKL.diag_gauss_dist.sample(latent)`.
 
 ## Credits

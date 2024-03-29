@@ -1,9 +1,6 @@
 from typing import TYPE_CHECKING
 
-from ..utils import (
-    _LazyModule,
-)
-
+from ..utils import _LazyModule
 
 # These modules contain pipelines from multiple libraries/frameworks
 _import_structure = {
@@ -15,19 +12,14 @@ _import_structure = {
     "pipeline_utils": [
         "DiffusionPipeline",
         "ImagePipelineOutput",
-    ]
+    ],
 }
 
 if TYPE_CHECKING:
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
-    from .stable_diffusion_xl import (
-        StableDiffusionXLPipeline,
-    )
-    from .pipeline_utils import (
-        DiffusionPipeline,
-        ImagePipelineOutput,
-    )
+    from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+    from .stable_diffusion_xl import StableDiffusionXLPipeline
 else:
     import sys
 
