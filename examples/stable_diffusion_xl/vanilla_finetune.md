@@ -61,7 +61,7 @@ Prepare hccl [rank_table](./tools/rank_table_generation/README.md) file for sing
 ```shell
 # sdxl-base fine-tune with 8p
 mpirun --allow-run-as-root -n 8 python train.py \
-  --config configs/training/sd_xl_base_finetune_multi_graph_910b.yaml \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
   --weight "" \
   --data_path /PATH TO/YOUR DATASET/ \
   --max_device_memory "59GB" \
@@ -108,7 +108,8 @@ It is necessary to merge trained Unet weight and pre-trained weight before infer
 # merge weight
 python tools/weight_merge/merge_weight.py \
   --base_weight checkpoints/sd_xl_base_1.0_ms.ckpt \
-  --additional_weights unet.ckpt
+  --additional_weights unet.ckpt \
+  --save_path merged_weight.ckpt
 
 # sdxl-base run infer
 python demo/sampling_without_streamlit.py \

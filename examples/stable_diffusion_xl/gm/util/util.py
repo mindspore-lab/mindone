@@ -209,19 +209,13 @@ def auto_mixed_precision(network, amp_level="O0"):
         try:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST
-                + [
-                    nn.GroupNorm,
-                ],
+                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
                 ms.float16,
             )
         except Exception:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST
-                + [
-                    nn.GroupNorm,
-                ],
+                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
             )
     elif amp_level == "O3":
         network.to_float(ms.float16)

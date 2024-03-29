@@ -206,7 +206,6 @@ def run_txt2img(
     C = version_dict["C"]
     F = version_dict["f"]
 
-    prompts = []
     if os.path.exists(args.prompt):
         with open(args.prompt, "r") as f:
             prompts = f.read().splitlines()
@@ -252,7 +251,7 @@ def run_txt2img(
         images = []
         for j in range(num_samples):
             np.random.seed(args.seed + j)  # set seed for every sample
-            print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"], f"({j+1}/{num_samples})")
+            print(f"[{i + 1}/{len(prompts)}]: sampling prompt: ", prompt, f"({j + 1}/{num_samples})")
             value_dict["prompt"] = prompt
             s_time = time.time()
             sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
