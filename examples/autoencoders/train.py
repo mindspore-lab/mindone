@@ -29,6 +29,7 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
@@ -66,13 +67,7 @@ def main(args):
     # 2. build models
     #  autoencoder (G)
     model_config = OmegaConf.load(args.model_config)
-    # TODO: allow set bf16
-    if args.dtype == "fp32":
-        model_config.generator.params.use_fp16 = False
-    else:
-        model_config.generator.params.use_fp16 = True
     ae = instantiate_from_config(model_config.generator)
-    # TODO: allow loading pretrained weights
 
     # discriminator (D)
     use_discriminator = args.use_discriminator and (model_config.lossconfig.disc_weight > 0.0)
@@ -84,8 +79,17 @@ def main(args):
         disc = instantiate_from_config(model_config.discriminator)
     else:
         disc = None
-    # TODO: allow loading pretrained weights for D
 
+    # mixed precision
+    # TODO: keep sigmoid and softmax FP32 for better precision
+    dtype = {"fp16": ms.float16, "bf16": ms.bfloat16, "fp32": ms.float32}[args.dtype]
+    if args.dtype != "fp32":
+        ae = auto_mixed_precision(ae, amp_level="O2", dtype=dtype)
+        if use_discriminator:
+            disc = auto_mixed_precision(disc, "O2", dtype=dtype)
+        logger.info(f"Set mixed precision (O2) dtype to {args.dtype}")
+
+    # TODO: allow loading pretrained weights
     # 3. build net with loss (core)
     # G with loss
     ae_with_loss = GeneratorWithLoss(ae, discriminator=disc, **model_config.lossconfig)
@@ -97,8 +101,6 @@ def main(args):
 
     tot_params, trainable_params = count_params(ae_with_loss)
     logger.info("Total params {:,}; Trainable params {:,}".format(tot_params, trainable_params))
-    # trainable_ae = count_params(ae)[1]
-    # assert trainable_params <= trainable_ae+1, f"ae trainable: {trainable_ae}"
 
     # 4. build dataset
     ds_config = dict(

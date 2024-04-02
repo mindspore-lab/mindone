@@ -36,6 +36,145 @@ def cast_tuple(t, length=1):
 
 
 class CausalConv3d(ms.nn.Cell):
+    """
+    Temporal padding: Padding with the first frame, by repeating K_t-1 times.
+    Spatial padding: follow standard conv3d, determined by pad mode and padding
+    Ref: opensora plan
+
+    Args:
+        padding: controls the amount of padding applied to the input.
+        int or a tuple of ints giving the amount of implicit padding applied on both sides
+    """
+
+    def __init__(
+        self,
+        chan_in,
+        chan_out,
+        kernel_size: Union[int, Tuple[int, int, int]],
+        padding: Union[int, Tuple[int, int, int]] = 0,
+        dtype=ms.float32,
+        **kwargs,
+    ):
+        super().__init__()
+        kernel_size = cast_tuple(kernel_size, 3)
+        time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
+
+        assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
+
+        dilation = kwargs.pop("dilation", 1)
+        stride = kwargs.pop("stride", 1)
+
+        """
+        if isinstance(padding, str):
+            if padding == 'same':
+                height_pad = height_kernel_size // 2
+                width_pad = width_kernel_size // 2
+            elif padding == 'valid':
+                height_pad = 0
+                width_pad = 0
+            else:
+                raise ValueError
+        else:
+            padding = list(cast_tuple(padding, 3))
+        """
+
+        # pad temporal dimension by k-1, manually
+        self.time_pad = dilation * (time_kernel_size - 1) + (1 - stride)
+
+        # pad h,w dimensions if used, by conv3d API
+        # diff from torch: bias, pad_mode
+        stride = cast_tuple(stride, 3)  # (stride, 1, 1)
+        dilation = cast_tuple(dilation, 3)  # (dilation, 1, 1)
+
+        # TODO: why not use HeUniform init?
+        weight_init_value = 1.0 / (np.prod(kernel_size) * chan_in)
+        if padding == 0:
+            self.conv = nn.Conv3d(
+                chan_in,
+                chan_out,
+                kernel_size,
+                stride=stride,
+                dilation=dilation,
+                has_bias=True,
+                pad_mode="valid",
+                weight_init=weight_init_value,
+                bias_init="zeros",
+                **kwargs,
+            ).to_float(dtype)
+        else:
+            # axis order (t0, t1, h0 ,h1, w0, w2)
+            padding = list(cast_tuple(padding, 6))
+            padding[0] = 0
+            padding[1] = 0
+            padding = tuple(padding)
+
+            self.conv = nn.Conv3d(
+                chan_in,
+                chan_out,
+                kernel_size,
+                stride=stride,
+                dilation=dilation,
+                has_bias=True,
+                pad_mode="pad",
+                padding=padding,
+                weight_init=weight_init_value,
+                bias_init="zeros",
+                **kwargs,
+            ).to_float(dtype)
+
+    def construct(self, x):
+        # x: (bs, Cin, T, H, W )
+        first_frame = x[:, :, :1, :, :]
+        first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
+
+        x = ops.concat((first_frame_pad, x), axis=2)
+
+        return self.conv(x)
+
+
+class ResnetBlock3D(nn.Cell):
+    def __init__(self, *, in_channels, out_channels=None, conv_shortcut=False, dropout):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = in_channels if out_channels is None else out_channels
+        self.use_conv_shortcut = conv_shortcut
+
+        # FIXME: GroupNorm precision mismatch with PT.
+        self.norm1 = Normalize(in_channels, extend=True)
+        self.conv1 = CausalConv3d(in_channels, out_channels, 3, padding=1)
+        self.norm2 = Normalize(out_channels, extend=True)
+        self.dropout = nn.Dropout(p=dropout)
+        self.conv2 = CausalConv3d(out_channels, out_channels, 3, padding=1)
+        if self.in_channels != self.out_channels:
+            if self.use_conv_shortcut:
+                self.conv_shortcut = CausalConv3d(in_channels, out_channels, 3, padding=1)
+            else:
+                self.nin_shortcut = CausalConv3d(in_channels, out_channels, 1, padding=0)
+
+    def construct(self, x):
+        h = x
+        h = self.norm1(h)
+        h = nonlinearity(h)
+        h = self.conv1(h)
+        h = self.norm2(h)
+        h = nonlinearity(h)
+        h = self.dropout(h)
+        h = self.conv2(h)
+        if self.in_channels != self.out_channels:
+            if self.use_conv_shortcut:
+                x = self.conv_shortcut(x)
+            else:
+                x = self.nin_shortcut(x)
+        return x + h
+
+
+class CausalConv3dZeroPad(ms.nn.Cell):
+    """
+    Temporal Padding: pading with constant values (zero) by repeating t-1 times.
+    Spatial Padding: same padding, filled with zeros
+    Ref: magvit-v2 torch reproduction
+    """
+
     def __init__(self, chan_in, chan_out, kernel_size: Union[int, Tuple[int, int, int]], pad_mode="constant", **kwargs):
         super().__init__()
         kernel_size = cast_tuple(kernel_size, 3)
@@ -62,7 +201,10 @@ class CausalConv3d(ms.nn.Cell):
         )
 
     def construct(self, x):
+        # x: (bs, Cin, T, H, W )
+
         # FIXME: check dynamic shape issue in graph mode
+        # x.shape[2] -- T axis
         pad_mode = self.pad_mode if self.time_pad < x.shape[2] else "constant"
 
         # nn.Pad can be more efficient but it doesn't support 5-dim padding currently.
@@ -75,13 +217,28 @@ def nonlinearity(x, upcast=False):
     # swish
     ori_dtype = x.dtype
     if upcast:
-        return x * (ops.Sigmoid()(x.astype(ms.float32))).astype(ori_dtype)
+        return x * (ops.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
     else:
-        return x * (ops.Sigmoid()(x))
+        return x * (ops.sigmoid(x))
 
 
-def Normalize(in_channels, num_groups=32):
-    return nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+class GroupNormExtend(nn.GroupNorm):
+    # GroupNorm supporting tensors with more than 4 dim
+    def construct(self, x):
+        x_shape = x.shape
+        if x.ndim >= 3:
+            x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
+        y = super().construct(x)
+        return y.view(x_shape)
+
+
+def Normalize(in_channels, num_groups=32, extend=False):
+    if extend:
+        return GroupNormExtend(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(
+            ms.float32
+        )
+    else:
+        return nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
 
 
 class Upsample(nn.Cell):
@@ -238,11 +395,56 @@ class AttnBlock(nn.Cell):
         return x + h_
 
 
+class AttnBlock3D(nn.Cell):
+    def __init__(self, in_channels, dtype=ms.float32):
+        super().__init__()
+        self.in_channels = in_channels
+        self.dtype = dtype
+
+        self.bmm = ops.BatchMatMul()
+        self.norm = Normalize(in_channels)
+
+        # TODO: 1x1 conv3d can be replaced with Linear
+        self.q = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1).to_float(dtype)
+        self.k = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1).to_float(dtype)
+        self.v = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1).to_float(dtype)
+        self.proj_out = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1).to_float(dtype)
+
+    def construct(self, x):
+        h_ = x
+        h_ = self.norm(h_)
+        q = self.q(h_)
+        k = self.k(h_)
+        v = self.v(h_)
+
+        # compute attention
+        b, c, t, h, w = q.shape
+        q = ops.reshape(q, (b, c, h * w))
+        q = ops.transpose(q, (0, 2, 1))  # b,hw,c
+        k = ops.reshape(k, (b, c, h * w))  # b,c,hw
+        w_ = self.bmm(q, k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
+
+        w_ = w_ * (int(c) ** (-0.5))
+        w_ = ops.Softmax(axis=2)(w_)
+
+        # attend to values
+        v = ops.reshape(v, (b, c, h * w))
+        w_ = ops.transpose(w_, (0, 2, 1))  # b,hw,hw (first hw of k, second of q)
+        h_ = self.bmm(v, w_)  # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
+        h_ = ops.reshape(h_, (b, c, h, w))
+
+        h_ = self.proj_out(h_)
+
+        return x + h_
+
+
 def make_attn(in_channels, attn_type="vanilla", dtype=ms.float32):
-    assert attn_type == "vanilla", f"attn_type {attn_type} not supported"
+    assert attn_type in ["vanilla", "vanilla3D"], f"attn_type {attn_type} not supported"
     _logger.debug(f"making attention of type '{attn_type}' with {in_channels} in_channels")
     if attn_type == "vanilla":
         return AttnBlock(in_channels, dtype=dtype)
+    elif attn_type == "vanilla3D":
+        return AttnBlock3D(in_channels, dtype=dtype)
 
 
 # used in vae

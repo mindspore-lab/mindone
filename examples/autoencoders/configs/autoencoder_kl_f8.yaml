@@ -1,5 +1,5 @@
 generator:
-  target: mindone.models.autoencoders.autoencoder_kl.AutoencoderKL
+  target: ae.models.autoencoder_kl.AutoencoderKL
   params:
     embed_dim: 4
     monitor: val/rec_loss

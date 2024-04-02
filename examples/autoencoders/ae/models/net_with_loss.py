@@ -38,6 +38,10 @@ class GeneratorWithLoss(nn.Cell):
         # assert discriminator is None, "Discriminator is not supported yet"
 
     def kl(self, mean, logvar):
+        # cast to fp32 to avoid overflow in exp and sum ops.
+        mean = mean.astype(ms.float32)
+        logvar = logvar.astype(ms.float32)
+
         var = ops.exp(logvar)
         kl_loss = 0.5 * ops.sum(
             ops.pow(mean, 2) + var - 1.0 - logvar,
