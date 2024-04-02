@@ -1,17 +1,3 @@
-# Copyright 2022 Huawei Technologies Co., Ltd
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ============================================================================
 import logging
 from typing import Tuple, Union
 
@@ -35,7 +21,7 @@ def cast_tuple(t, length=1):
     return t if isinstance(t, tuple) else ((t,) * length)
 
 
-class CausalConv3d(ms.nn.Cell):
+class CausalConv3d(nn.Cell):
     """
     Temporal padding: Padding with the first frame, by repeating K_t-1 times.
     Spatial padding: follow standard conv3d, determined by pad mode and padding
@@ -168,7 +154,7 @@ class ResnetBlock3D(nn.Cell):
         return x + h
 
 
-class CausalConv3dZeroPad(ms.nn.Cell):
+class CausalConv3dZeroPad(nn.Cell):
     """
     Temporal Padding: pading with constant values (zero) by repeating t-1 times.
     Spatial Padding: same padding, filled with zeros
@@ -196,7 +182,7 @@ class CausalConv3dZeroPad(ms.nn.Cell):
         stride = (stride, 1, 1)
         dilation = (dilation, 1, 1)
         # diff from torch: bias, pad_mode
-        self.conv = ms.nn.Conv3d(
+        self.conv = nn.Conv3d(
             chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, has_bias=True, pad_mode="valid", **kwargs
         )
 
@@ -208,7 +194,7 @@ class CausalConv3dZeroPad(ms.nn.Cell):
         pad_mode = self.pad_mode if self.time_pad < x.shape[2] else "constant"
 
         # nn.Pad can be more efficient but it doesn't support 5-dim padding currently.
-        x = ms.ops.pad(x, self.time_causal_padding, mode=pad_mode)
+        x = ops.pad(x, self.time_causal_padding, mode=pad_mode)
 
         return self.conv(x)
 

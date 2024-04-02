@@ -10,11 +10,11 @@ output_path: "outputs/vae_celeba"
 use_discriminator: False
 batch_size: 4
 
-epochs: 100
+epochs: 60
 ckpt_save_interval: 1
 
 dtype: "fp32"
 init_loss_scale: 1.
 
 scheduler: "constant"
-use_ema: True
+use_ema: False
