@@ -107,7 +107,7 @@ def set_default(args):
     if args.device_target == "Ascend":
         device_id = int(os.getenv("DEVICE_ID", 0))
         context.set_context(device_id=device_id)
-    elif args.device_target == "GPU" and args.ms_enable_graph_kernel:
+    if args.ms_enable_graph_kernel:
         context.set_context(enable_graph_kernel=True)
     if args.max_device_memory is not None:
         context.set_context(max_device_memory=args.max_device_memory)
