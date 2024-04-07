@@ -4,7 +4,7 @@ The `train_text_to_image_sdxl.py` script shows how to fine-tune Stable Diffusion
 
 🚨 This script is experimental. The script fine-tunes the whole model and often times the model overfits and runs into issues like catastrophic forgetting. It's recommended to try different hyperparameters to get the best result on your dataset. 🚨
 
-## Running locally with PyTorch
+## Running locally with MindSpore
 
 ### Installing the dependencies
 
@@ -30,7 +30,7 @@ pip install -r requirements_sdxl.txt
 ```bash
 export MODEL_NAME="stabilityai/stable-diffusion-xl-base-1.0"
 export VAE_NAME="madebyollin/sdxl-vae-fp16-fix"
-export DATASET_NAME="lambdalabs/pokemon-blip-captions"
+export DATASET_NAME="YaYaB/onepiece-blip-captions"
 
 python train_text_to_image_sdxl.py \
   --pretrained_model_name_or_path=$MODEL_NAME \
@@ -42,9 +42,9 @@ python train_text_to_image_sdxl.py \
   --max_train_steps=10000 \
   --learning_rate=1e-06 --lr_scheduler="constant" --lr_warmup_steps=0 \
   --mixed_precision="fp16" \
-  --validation_prompt="a cute Sundar Pichai creature" --validation_epochs 5 \
+  --validation_prompt="a man in a green coat holding two swords" --validation_epochs 5 \
   --checkpointing_steps=5000 \
-  --output_dir="sdxl-pokemon-model-$(date +%Y%m%d%H%M%S)"
+  --output_dir="sdxl-onepiece-model-$(date +%Y%m%d%H%M%S)"
 ```
 
 **Notes**:
