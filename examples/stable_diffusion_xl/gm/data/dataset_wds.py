@@ -90,7 +90,7 @@ class T2I_BaseDataset:
         prompt_empty_probability=0.0,
         lpw=False,
         max_embeddings_multiples=4,
-        return_sample_name=True,
+        return_sample_name=False,
         **kwargs,
     ):
         super().__init__()
@@ -146,9 +146,7 @@ class T2I_BaseDataset:
                 bs_trans = instantiate_from_config(bs_trans_config)
                 self.batched_transforms.append(bs_trans)
                 print(
-                    f"Adding batch mapper {bs_trans.__class__.__name__} as batch tran"
-                    f"sform #{i} "
-                    f"to the datapipeline"
+                    f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
     def preprocess(self, image, caption: str, image_path="0000000000000"):
@@ -351,7 +349,11 @@ class T2I_Webdataset(T2I_BaseDataset):
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
-                sample = self.preprocess(image, caption, str(raw["__key__"]))
+                if "__key__" in raw:
+                    sample = self.preprocess(image, caption, str(getattr(raw, "__key__")))
+                else:
+                    print("=> WARNING: Fail to get the attribute __key__. using white space instead")
+                    sample = self.preprocess(image, caption, " ")
                 trials += 1
                 if sample is not None:
                     self.prev_ok_sample = copy.deepcopy(sample)
@@ -384,8 +386,11 @@ class T2I_Webdataset(T2I_BaseDataset):
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
-                sample = self.preprocess(image, caption, str(raw["__key__"]))
-
+                if "__key__" in raw:
+                    sample = self.preprocess(image, caption, str(getattr(raw, "__key__")))
+                else:
+                    print("=> WARNING: Fail to get the attribute __key__. using white space instead")
+                    sample = self.preprocess(image, caption, " ")
                 yield sample
             except StopIteration:
                 raise StopIteration
@@ -408,7 +413,6 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
         # shardlist_desc: path to a json file describing sample num for each tar
         super().__init__(*args, **kwargs)
         self.data_path = kwargs.get("data_path")
-        self.return_sample_name = kwargs.get("return_sample_name")
         if shardlist_desc is None:
             data_path = kwargs.get("data_path")
             if not os.path.exists(os.path.join(data_path, "data_info.json")):
