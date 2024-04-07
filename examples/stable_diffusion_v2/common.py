@@ -45,6 +45,7 @@ def init_env(
         _logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
 
+    enable_graph_kernel = bool(int(os.getenv("ENABLE_GRAPH_KERNEL", 0)))
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
@@ -52,6 +53,7 @@ def init_env(
             device_target=device_target,
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
+            enable_graph_kernel=enable_graph_kernel
         )
         init()
         device_num = get_group_size()
@@ -80,6 +82,7 @@ def init_env(
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             pynative_synchronize=debug,
+            enable_graph_kernel=enable_graph_kernel
         )
 
     return device_id, rank_id, device_num

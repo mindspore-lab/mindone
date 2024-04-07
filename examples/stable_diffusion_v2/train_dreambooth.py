@@ -55,12 +55,14 @@ def init_env(args):
         rank_id = 0
         args.rank = rank_id
 
+    enable_graph_kernel = bool(int(os.getenv("ENABLE_GRAPH_KERNEL", 0)))
     context.set_context(
         mode=args.mode,
         device_target="Ascend",
         device_id=device_id,
         max_device_memory="30GB",  # TODO: why limit?
         pynative_synchronize=False,  # for debug in pynative mode
+        enable_graph_kernel=enable_graph_kernel
     )
 
     return rank_id, device_id, device_num
