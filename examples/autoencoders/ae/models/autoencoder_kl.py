@@ -14,7 +14,6 @@ class AutoencoderKL(nn.Cell):
         ckpt_path=None,
         ignore_keys=[],
         image_key="image",
-        colorize_nlabels=None,
         monitor=None,
         use_fp16=False,
         upcast_sigmoid=False,
@@ -32,9 +31,7 @@ class AutoencoderKL(nn.Cell):
             embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True
         ).to_float(self.dtype)
         self.embed_dim = embed_dim
-        if colorize_nlabels is not None:
-            assert type(colorize_nlabels) == int
-            self.register_buffer("colorize", ms.ops.standard_normal(3, colorize_nlabels, 1, 1))
+
         if monitor is not None:
             self.monitor = monitor
         if ckpt_path is not None:
@@ -53,12 +50,15 @@ class AutoencoderKL(nn.Cell):
                 if k.startswith(ik):
                     print("Deleting key {} from state_dict.".format(k))
                     del sd[k]
-
+        vae_prefix = ["encoder.", "decoder.", "quant_conv.", "post_quant_conv."]
         for pname in keys:
             is_vae_param = False
             for pf in remove_prefix:
                 if pname.startswith(pf):
                     sd[pname.replace(pf, "")] = sd.pop(pname)
+                    is_vae_param = True
+            for pf in vae_prefix:
+                if pname.startswith(pf):
                     is_vae_param = True
             if not is_vae_param:
                 sd.pop(pname)
