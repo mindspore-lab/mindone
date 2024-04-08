@@ -15,8 +15,8 @@
 import gc
 import logging
 import os
+import random
 from collections import defaultdict
-from random import randint, shuffle
 
 import albumentations
 import imagesize
@@ -203,7 +203,7 @@ class ImageDataset:
         return len(self.local_images)
 
     def random_sample(self):
-        return self.__getitem__(randint(0, self.__len__() - 1))
+        return self.__getitem__(random.randint(0, self.__len__() - 1))
 
     def sequential_sample(self, ind):
         if ind >= self.__len__() - 1:
@@ -290,7 +290,7 @@ class BatchSampler:
     def __iter__(self):
         ids = self._create_ids()
         if self.shuffle:
-            shuffle(ids)
+            random.shuffle(ids)
         batches = [ids[i : i + self._batch_size] for i in range(0, len(ids), self._batch_size)]
         gc.collect()
         return iter(batches)
