@@ -1,0 +1,4 @@
+safetensors
+ftfy
+regex
+beautifulsoup4
