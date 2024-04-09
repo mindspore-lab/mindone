@@ -68,10 +68,13 @@ This will save the converted MindSpore checkpoint file to `models/t5-v1_1-xxl/mo
 To extract the text embedding and the mask using the T5 text encoder, you can use:
 
 ```python
+import os
+import mindspore as ms
+ms.set_context(mode=0) # 0: graph mode; 1: pynative mode
 from embedder import T5Embedder
+
 ckpt_path = "models/t5-v1_1-xxl/"
 text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
-tokenizer = text_encoder.tokenizer
 text_emb, mask = text_encoder.get_text_embeddings("a red ball rolling on the ground.")
 print(text_emb, mask)
 ```
