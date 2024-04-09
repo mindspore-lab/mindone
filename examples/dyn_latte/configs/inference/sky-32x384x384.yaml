@@ -1,16 +1,17 @@
 # model
-model_name: "FiT-XL/2"
+model_name: "DynLatte-XL/2"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215
 enable_flash_attention: False
-use_fp16: True
-embed_dim: 72 # 1152 / 16 (num_heads)
+dtype: "fp16"
+embed_dim: 72
 embed_method: "rotate"
 patch_size: 2
-image_size: 256
+image_size: 384
+max_frames: 32
 
 # sampling
-sampling_steps: 250
-guidance_scale: 4.0
+sampling_steps: 50
+guidance_scale: 1.0
 seed: 42
-ddim_sampling: False
+ddim_sampling: True

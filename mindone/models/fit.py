@@ -46,7 +46,7 @@ def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor) -> Tuple[Tensor, T
     # to complex
     q = ops.reshape(q, (q_shape[0], q_shape[1], q_shape[2], -1, 2))
     k = ops.reshape(k, (k_shape[0], k_shape[1], k_shape[2], -1, 2))  # b, h, n, d/2, 2
-    freqs_cis = ops.reshape(freqs_cis, (q_shape[0], 1, q_shape[2], -1, 2))  # b, 1, n, d/2, 2
+    freqs_cis = ops.reshape(freqs_cis, (freqs_cis.shape[0], 1, q_shape[2], -1, 2))  # b, 1, n, d/2, 2
     dtype = q.dtype
     q = complex_mult(q.to(ms.float32), freqs_cis).to(dtype)
     k = complex_mult(k.to(ms.float32), freqs_cis).to(dtype)
@@ -57,20 +57,26 @@ def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor) -> Tuple[Tensor, T
 
 
 class Attention(nn.Cell):
-    def __init__(self, dim_head: int, attn_drop: float = 0.0) -> None:
+    def __init__(self, dim_head: int, attn_drop: float = 0.0, k_norm: bool = False) -> None:
         super().__init__()
-        self.scale = dim_head**-0.5
+        self.scale = 1.0 if k_norm else dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
+        self.bmm = ops.BatchMatMul(transpose_b=True)
+        self.k_norm = k_norm
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
+        sim = self.bmm(q, k) * self.scale
+
+        if self.k_norm and exists(mask):
+            n = ops.sum(mask[:, None, None, :], dim=-1, keepdim=True, dtype=q.dtype)
+            sim = sim * ops.log(n) / ms.numpy.log(64.0, dtype=q.dtype)  # logn for length extrapolation
 
         # use fp32 for exponential inside
         sim = sim.to(ms.float32)
         if exists(mask):
             mask = mask[:, None, None, :]
             sim = ops.masked_fill(sim, ~mask, -ms.numpy.inf)
-        attn = ops.softmax(sim, axis=-1).astype(v.dtype)
+        attn = ops.softmax(sim, axis=-1).to(v.dtype)
         attn = self.attn_drop(attn)
         out = ops.matmul(attn, v)
         return out
@@ -85,6 +91,8 @@ class SelfAttention(nn.Cell):
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
         apply_rotate_embed: bool = False,
+        k_norm: bool = False,
+        norm_eps: float = 1e-6,
         enable_flash_attention: bool = False,
     ) -> None:
         super().__init__()
@@ -93,14 +101,16 @@ class SelfAttention(nn.Cell):
 
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
+        self.k_norm = k_norm
+        self.norm_eps = norm_eps
+        self.apply_rotate_embed = apply_rotate_embed
+
         head_dim = dim // num_heads
 
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias)
         self.proj = nn.Dense(dim, dim)
         self.proj_drop = nn.Dropout(p=proj_drop)
-        self.attention = Attention(head_dim, attn_drop=attn_drop)
-
-        self.apply_rotate_embed = apply_rotate_embed
+        self.attention = Attention(head_dim, attn_drop=attn_drop, k_norm=self.k_norm)
 
     @staticmethod
     def _rearange_in(x: Tensor, h: int) -> Tensor:
@@ -132,6 +142,9 @@ class SelfAttention(nn.Cell):
         q = self._rearange_in(q, h)
         k = self._rearange_in(k, h)
         v = self._rearange_in(v, h)
+
+        if self.k_norm:
+            k = k / (ops.norm(k, dim=-1, keepdim=True) + self.norm_eps)
 
         if self.apply_rotate_embed:
             q, k = apply_rotary_emb(q, k, freqs_cis)
@@ -189,13 +202,21 @@ class FiTBlock(nn.Cell):
         mlp_ratio: float = 4.0,
         ffn: Literal["swiglu", "mlp"] = "swiglu",
         pos: Literal["rotate", "absolute"] = "rotate",
+        k_norm: bool = False,
+        norm_eps: float = 1e-6,
         **block_kwargs: Any,
     ) -> None:
         super().__init__()
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         apply_rotate_embed = pos == "rotate"
         self.attn = SelfAttention(
-            hidden_size, num_heads=num_heads, qkv_bias=True, apply_rotate_embed=apply_rotate_embed, **block_kwargs
+            hidden_size,
+            num_heads=num_heads,
+            qkv_bias=True,
+            apply_rotate_embed=apply_rotate_embed,
+            k_norm=k_norm,
+            norm_eps=norm_eps,
+            **block_kwargs,
         )
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
@@ -263,7 +284,6 @@ class FiT(nn.Cell):
         self.in_channels = in_channels
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
-        self.num_heads = num_heads
         self.pos = pos
 
         assert pos in ["absolute", "rotate"]
@@ -310,38 +330,36 @@ class FiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x: Tensor) -> Tensor:
+    def unpatchify(self, x: Tensor, h: int, w: int) -> Tensor:
         """
         x: (N, T, patch_size**2 * C)
-        imgs: (N, H, W, C)
+        imgs: (N, C, H, W)
         """
         c = self.out_channels
-        h = w = int(x.shape[1] ** 0.5)
-        assert h * w == x.shape[1]
-
-        x = x.reshape((x.shape[0], h, w, self.patch_size, self.patch_size, c))
+        nh, nw = h // self.patch_size, w // self.patch_size
+        x = x.reshape((x.shape[0], nh, nw, self.patch_size, self.patch_size, c))
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
-        imgs = x.reshape((x.shape[0], c, h * self.patch_size, h * self.patch_size))
+        imgs = x.reshape((x.shape[0], c, nh * self.patch_size, nw * self.patch_size))
         return imgs
 
     def patchify(self, x: Tensor) -> Tensor:
-        if len(x.shape) == 4:
-            N, C, H, W = x.shape
-            nh, nw = H // self.patch_size, W // self.patch_size
-            x = ops.reshape(x, (N, C, nh, self.patch_size, nw, self.patch_size))
-            x = ops.transpose(x, (0, 2, 4, 3, 5, 1))  # N, nh, nw, patch, patch, C
-            x = ops.reshape(x, (N, nh * nw, -1))
+        N, C, H, W = x.shape
+        nh, nw = H // self.patch_size, W // self.patch_size
+        x = ops.reshape(x, (N, C, nh, self.patch_size, nw, self.patch_size))
+        x = ops.transpose(x, (0, 2, 4, 3, 5, 1))  # N, nh, nw, patch, patch, C
+        x = ops.reshape(x, (N, nh * nw, -1))
         return x
 
     def construct(self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor) -> Tensor:
         """
         Forward pass of FiT.
-        x: (N, T, D) or (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
+        x: (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
         pos: (N, T, D) tensor of positional embedding or precomputed cosine and sine frequencies
-        mask: (N, T) tensor of valid mask
+        mask: (N, T) tensor of valid mask, in spatial domain
         """
+        _, _, h, w = x.shape
         x = self.patchify(x)
         if self.pos == "absolute":
             x = self.x_embedder(x) + pos.to(x.dtype)  # (N, T, D), where T = H * W / patch_size ** 2
@@ -360,7 +378,7 @@ class FiT(nn.Cell):
         for block in self.blocks:
             x = block(x, c, mask=mask, freqs_cis=freqs_cis)  # (N, T, D)
         x = self.final_layer(x, c)  # (N, T, patch_size ** 2 * out_channels)
-        x = self.unpatchify(x)  # (N, out_channels, H, W)
+        x = self.unpatchify(x, h, w)  # (N, out_channels, H, W)
         return x
 
     @ms.jit

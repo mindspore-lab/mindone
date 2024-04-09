@@ -1,6 +1,5 @@
-#!/usr/bin/env python
 """
-FiT training pipeline
+Latte training script
 """
 import datetime
 import logging
@@ -13,17 +12,19 @@ sys.path.insert(0, mindone_lib_path)
 
 import yaml
 from args_train import parse_args
-from data.imagenet_dataset import create_dataloader_imagenet_latent
+from data.dataset import create_dataloader_video_latent
 from diffusion import create_diffusion
-from pipelines.train_pipeline import NetworkWithLoss
-from utils.model_utils import load_fit_ckpt_params
+from modules.text_encoders import initiate_clip_text_encoder
+from pipelines.train_pipeline import get_model_with_loss
+from utils.model_utils import load_dyn_latte_ckpt_params
 
+import mindspore as ms
 from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
 from mindone.env import init_train_env
-from mindone.models.fit import FiT_models
+from mindone.models.dyn_latte import DynLatte_models
 
 # load training modules
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -41,22 +42,6 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 logger = logging.getLogger(__name__)
 
 
-def set_fit_all_params(fit_model, train=True, **kwargs):
-    n_params_trainable = 0
-    for param in fit_model.get_parameters():
-        param.requires_grad = train
-        if train:
-            n_params_trainable += 1
-    logger.info(f"Set {n_params_trainable} params to train.")
-
-
-def set_fit_params(fit_model, ft_all_params, **kwargs):
-    if ft_all_params:
-        set_fit_all_params(fit_model, **kwargs)
-    else:
-        raise ValueError("Fintuning partial params is not supported!")
-
-
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     args.output_path = os.path.join(args.output_path, time_str)
@@ -68,61 +53,84 @@ def main(args):
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
+        ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
-    # 2.1 fit
+    # 2.1 latte
     logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-    fit_model = FiT_models[args.model_name](
-        num_classes=1000,
+    latte_model = DynLatte_models[args.model_name](
+        num_classes=args.num_classes,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        condition=args.condition,
+        num_frames=args.num_frames,
         pos=args.embed_method,
     )
-    if args.use_fp16:
-        fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
-    if args.fit_checkpoint:
-        fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
+    if args.dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
     else:
-        logger.info("Initialize FIT randomly.")
-    fit_model.set_train(True)
+        model_dtype = ms.float32
 
-    set_fit_params(fit_model, ft_all_params=True, train=True)
+    if args.dyn_latte_checkpoint:
+        latte_model = load_dyn_latte_ckpt_params(latte_model, args.dyn_latte_checkpoint)
+    else:
+        logger.info("Initialize DynLatte randomly.")
+    latte_model.set_train(True)
 
-    diffusion = create_diffusion(timestep_respacing="")
+    # set train
+    latte_model.set_train(True)
+    for param in latte_model.get_parameters():
+        param.requires_grad = True
 
-    model_config = dict(C=4, H=args.image_size // 8, W=args.image_size // 8, patch_size=args.patch_size)
-    latent_diffusion_with_loss = NetworkWithLoss(
-        fit_model,
-        diffusion,
-        vae=None,
-        scale_factor=args.sd_scale_factor,
-        condition=args.condition,
-        model_config=model_config,
+    if args.condition == "text":
+        text_encoder = initiate_clip_text_encoder(
+            use_fp16=True,  # TODO: set by config file
+            ckpt_path=args.clip_checkpoint,
+            trainable=False,
+        )
+        tokenizer = text_encoder.tokenizer
+    else:
+        text_encoder, tokenizer = None, None
+
+    data_config = dict(
+        data_folder=args.data_path,
+        sample_size=args.image_size,
+        batch_size=args.train_batch_size,
+        shuffle=True,
+        num_parallel_workers=args.num_parallel_workers,
+        patch_size=args.patch_size,
+        embed_dim=args.embed_dim,
+        embed_method=args.embed_method,
+        num_frames=args.num_frames,
     )
 
-    # image dataset
-    if args.imagenet_format:
-        data_config = dict(
-            data_folder=args.data_path,
-            sample_size=args.image_size,
-            batch_size=args.train_batch_size,
-            shuffle=True,
-            num_parallel_workers=args.num_parallel_workers,
-            patch_size=args.patch_size,
-            embed_dim=args.embed_dim,
-            embed_method=args.embed_method,
-        )
-        dataset = create_dataloader_imagenet_latent(
-            data_config,
-            device_num=device_num,
-            rank_id=rank_id,
-        )
-    else:
-        raise NotImplementedError("FiT support ImageNet format dataset only")
-
+    dataset = create_dataloader_video_latent(
+        data_config,
+        tokenizer=tokenizer,
+        device_num=device_num,
+        rank_id=rank_id,
+    )
     dataset_size = dataset.get_dataset_size()
+
+    diffusion = create_diffusion(timestep_respacing="")
+    model_config = dict(
+        N=args.train_batch_size, C=4, H=args.image_size // 8, W=args.image_size // 8, patch_size=args.patch_size
+    )
+    latent_diffusion_with_loss = get_model_with_loss(args.condition)(
+        latte_model,
+        diffusion,
+        args.sd_scale_factor,
+        args.condition,
+        text_encoder=text_encoder,
+        cond_stage_trainable=False,
+        model_config=model_config,
+    )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
@@ -171,7 +179,9 @@ def main(args):
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
 
-        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(fit_model, optimizer, resume_ckpt)
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
+            latte_model, optimizer, resume_ckpt
+        )
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
@@ -199,13 +209,13 @@ def main(args):
 
     model = Model(net_with_grads)
     # callbacks
-    callback = [TimeMonitor(args.callback_size)]
+    callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
     if rank_id == 0:
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.network,  # save fit only
+            network=latent_diffusion_with_loss.network,  # save latte only
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
@@ -213,10 +223,10 @@ def main(args):
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
-            log_interval=args.callback_size,
+            log_interval=args.log_interval,
             start_epoch=start_epoch,
-            model_name="FiT",
-            record_lr=True,
+            model_name="Latte",
+            record_lr=False,  # TODO: check LR retrival for new MS on 910b
         )
         callback.append(save_cb)
         if args.profile:
@@ -225,25 +235,25 @@ def main(args):
     # 5. log and save config
     if rank_id == 0:
         # 4. print key info
-        num_params_fit, num_params_fit_trainable = count_params(fit_model)
-        num_params = num_params_fit
-        num_params_trainable = num_params_fit_trainable
+
+        num_params_latte, num_params_latte_trainable = count_params(latte_model)
+        num_params = num_params_latte
+        num_params_trainable = num_params_latte_trainable
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
                 f"Distributed mode: {args.use_parallel}",
-                f"Data path: {args.data_path}",
-                f"Num params: {num_params:,} (fit: {num_params_fit:,})",
+                f"Num params: {num_params:,} (dit: {num_params_latte:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use FP16: {args.use_fp16}",
+                f"Use model dtype: {model_dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.train_batch_size}",
                 f"Image size: {args.image_size}",
+                f"Frames: {args.num_frames}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
-                f"Total training steps: {dataset_size * args.epochs:,}",
                 f"Loss scaler: {args.loss_scaler_type}",
                 f"Init loss scale: {args.init_loss_scale}",
                 f"Grad clipping: {args.clip_grad}",

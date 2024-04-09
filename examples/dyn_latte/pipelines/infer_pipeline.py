@@ -9,11 +9,11 @@ from mindspore import Tensor, nn, ops
 from mindone.models.modules import get_2d_sincos_pos_embed, precompute_freqs_cis_2d
 
 
-class FiTInferPipeline:
+class DynLatteInferPipeline:
     """
 
     Args:
-        fit (nn.Cell): A `FiT` to denoise the encoded image latents.
+        model (nn.Cell): model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         scale_factor (float): scale_factor for vae.
         guidance_rescale (float): A higher guidance scale value for noise rescale.
@@ -22,7 +22,7 @@ class FiTInferPipeline:
 
     def __init__(
         self,
-        fit: nn.Cell,
+        model: nn.Cell,
         vae: nn.Cell,
         text_encoder: Optional[nn.Cell] = None,
         scale_factor: float = 1.0,
@@ -33,10 +33,15 @@ class FiTInferPipeline:
     ):
         super().__init__()
         self.model_config = model_config
-        self.fit = fit
+        self.model = model
         self.vae = vae
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
+        if self.guidance_rescale > 1.0:
+            self.use_cfg = True
+        else:
+            self.use_cfg = False
+
         self.text_encoder = text_encoder
         self.diffusion = create_diffusion(str(num_inference_steps))
         if ddim_sampling:
@@ -66,49 +71,73 @@ class FiTInferPipeline:
 
         return y
 
+    def vae_decode_video(self, x):
+        """
+        Args:
+            x: (b f c h w), denoised latent
+        Return:
+            y: (b f H W 3), batch of images, normalized to [0, 1]
+        """
+        y = []
+        for x_sample in x:
+            y.append(self.vae_decode(x_sample))
+        y = ops.stack(y, axis=0)  # (b f H W 3)
+        return y
+
     def data_prepare(self, inputs):
         x = inputs["noise"]
-        y = ops.cat([inputs["y"], inputs["y_null"]], axis=0)
-        x_in = ops.concat([x] * 2, axis=0)
-        assert y.shape[0] == x_in.shape[0], "shape mismatch!"
+        if self.use_cfg:
+            y = ops.cat([inputs["y"], inputs["y_null"]], axis=0)
+            x_in = ops.concat([x] * 2, axis=0)
+            assert y.shape[0] == x_in.shape[0], "shape mismatch!"
+        else:
+            x_in = x
+            y = inputs["y"]
         return x_in, y
 
     def _patchify(self, x: Tensor, p: int) -> Tensor:
-        # N, C, H, W -> N, T, D
-        n, c, h, w = x.shape
+        # N, F, C, H, W -> N, T, D
+        n, f, c, h, w = x.shape
         nh, nw = h // p, w // p
-        x = ops.reshape(x, (n, c, nh, p, nw, p))
-        x = ops.transpose(x, (0, 2, 4, 3, 5, 1))
-        x = ops.reshape(x, (n, nh * nw, p * p * c))
+        x = ops.reshape(x, (n, f, c, nh, p, nw, p))
+        x = ops.transpose(x, (0, 1, 3, 5, 4, 6, 2))
+        x = ops.reshape(x, (n, f, nh * nw, p * p * c))
         return x
 
     def _unpatchify(self, x: Tensor, nh: int, nw: int, p: int, c: int) -> Tensor:
-        # N, T, D -> N, C, H, W
-        n, _, _ = x.shape
-        x = ops.reshape(x, (n, nh, nw, p, p, c))
-        x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
-        x = ops.reshape(x, (n, c, nh * p, nw * p))
+        # N, F, T, D -> N, F, C, H, W
+        n, _, _, _ = x.shape
+        x = ops.reshape(x, (n, -1, nh, nw, p, p, c))
+        x = ops.transpose(x, (0, 1, 6, 2, 4, 3, 5))
+        x = ops.reshape(x, (n, -1, c, nh * p, nw * p))
         return x
 
-    def _pad_latent(self, x: Tensor, p: int, max_size: int, max_length: int) -> Tensor:
-        # N, C, H, W -> N, C, max_size, max_size
-        n, c, _, _ = x.shape
-        nh, nw = max_size // p, max_size // p
+    def _pad_latent(self, x: Tensor, p: int, max_size: int, max_length: int, max_frames: int) -> Tensor:
+        # N, F, C, H, W -> N, max_frame, C, max_size, max_size
+        n, _, c, h, w = x.shape
 
         x_fill = self._patchify(x, p)
-        if x_fill.shape[1] > max_length:
+        if x_fill.shape[1] > max_frames and x_fill.shape[2] > max_length:
             return x
-        x = ops.zeros((n, max_length, p * p * c), dtype=x.dtype)
-        x[:, : x_fill.shape[1]] = x_fill
+
+        if h * w > max_size * max_size:
+            nh, nw = h // p, w // p
+        else:
+            nh, nw = max_size // p, max_size // p
+
+        fill_frames = max(x_fill.shape[1], max_frames)
+        fill_length = max(x_fill.shape[2], max_length)
+        x = ops.zeros((n, fill_frames, fill_length, p * p * c), dtype=x.dtype)
+        x[:, : x_fill.shape[1], : x_fill.shape[2]] = x_fill
         x = self._unpatchify(x, nh, nw, p, c)
         return x
 
-    def _unpad_latent(self, x: Tensor, valid_t: int, h: int, w: int, p: int) -> Tensor:
-        # N, C, max_size, max_size -> N, C, H, W
-        _, c, _, _ = x.shape
+    def _unpad_latent(self, x: Tensor, valid_t: int, valid_f: int, h: int, w: int, p: int) -> Tensor:
+        # N, max_frame, C, max_size, max_size -> N, F, C, H, W
+        _, _, c, _, _ = x.shape
         nh, nw = h // p, w // p
         x = self._patchify(x, p)
-        x = x[:, :valid_t]
+        x = x[:, :valid_f, :valid_t]
         x = self._unpatchify(x, nh, nw, p, c)
         return x
 
@@ -118,7 +147,8 @@ class FiTInferPipeline:
         # 1, T, D
         nh, nw = h // p, w // p
         if method == "rotate":
-            pos_embed_fill = precompute_freqs_cis_2d(embed_dim, nh, nw, max_length=max_length)
+            # we use key-norm instead of NTK
+            pos_embed_fill = precompute_freqs_cis_2d(embed_dim, nh, nw)
         else:
             pos_embed_fill = get_2d_sincos_pos_embed(embed_dim, nh, nw)
 
@@ -154,24 +184,32 @@ class FiTInferPipeline:
         p = self.model_config["patch_size"]
         max_size = self.model_config["max_size"]
         max_length = self.model_config["max_length"]
+        max_frames = self.model_config["max_frames"]
         embed_dim = self.model_config["embed_dim"]
         embed_method = self.model_config["embed_method"]
 
         z, y = self.data_prepare(inputs)
-        _, _, h, w = z.shape
+        _, f, _, h, w = z.shape
 
-        z = self._pad_latent(z, p, max_size, max_length)
+        z = self._pad_latent(z, p, max_size, max_length, max_frames)
         pos, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim, method=embed_method)
         mask_s = self._create_mask(valid_t, max_length)
+        mask_t = self._create_mask(f, max_frames)
 
-        model_kwargs = dict(y=y, pos=pos, mask_s=mask_s, cfg_scale=Tensor(self.guidance_rescale, dtype=ms.float32))
-        latents = self.sampling_func(
-            self.fit.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
-        )
-        latents, _ = latents.chunk(2, axis=0)
-        latents = self._unpad_latent(latents, valid_t, h, w, p)
-        assert latents.dim() == 4, f"Expect to have 4-dim latents, but got {latents.shape}"
+        if self.use_cfg:
+            model_kwargs = dict(y=y, pos=pos, mask_t=mask_t, mask_s=mask_s, cfg_scale=self.guidance_rescale)
+            latents = self.sampling_func(
+                self.model.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+            )
+            latents, _ = latents.chunk(2, axis=0)
+        else:
+            model_kwargs = dict(y=y, pos=pos, mask_t=mask_t, mask_s=mask_s)
+            latents = self.sampling_func(
+                self.model.construct, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+            )
 
-        images = self.vae_decode(latents)
+        latents = self._unpad_latent(latents, valid_t, f, h, w, p)
+
+        images = self.vae_decode_video(latents)
 
         return images

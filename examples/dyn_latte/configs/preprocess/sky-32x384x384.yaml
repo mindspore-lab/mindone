@@ -1,0 +1,11 @@
+# model
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+
+# data setting
+data_path: video/
+image_size: 384
+patch_size: 2
+max_frames: 32
+frame_stride: 4
+random_crop: False
+dataset_mode: sky

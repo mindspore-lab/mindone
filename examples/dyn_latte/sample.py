@@ -1,7 +1,3 @@
-#!/usr/bin/env python
-"""
-FiT inference pipeline
-"""
 import argparse
 import datetime
 import logging
@@ -9,11 +5,14 @@ import os
 import sys
 import time
 
-import numpy as np
 import yaml
-from PIL import Image
-from utils.model_utils import check_cfgs_in_parser, count_params, load_fit_ckpt_params, remove_pname_prefix, str2bool
-from utils.plot import image_grid
+from utils.model_utils import (
+    check_cfgs_in_parser,
+    count_params,
+    load_dyn_latte_ckpt_params,
+    remove_pname_prefix,
+    str2bool,
+)
 
 import mindspore as ms
 from mindspore import Tensor, ops
@@ -24,12 +23,13 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
-from pipelines.infer_pipeline import FiTInferPipeline
+from pipelines.infer_pipeline import DynLatteInferPipeline
 
-from mindone.models.fit import FiT_models
+from mindone.models.dyn_latte import DynLatte_models
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
+from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,8 @@ def init_env(args):
         device_target=args.device_target,
         device_id=device_id,
     )
-
+    if args.precision_mode is not None:
+        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
     return device_id
 
 
@@ -52,7 +53,7 @@ def parse_args():
     parser.add_argument(
         "--config",
         "-c",
-        default="configs/inference/fit-xl-2-256x256.yaml",
+        default="configs/inference/dynlatte-xl-2-256x256.yaml",
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
@@ -72,19 +73,55 @@ def parse_args():
         "--image_size",
         type=int,
         default=256,
-        help="image size",
+        help="image size in [256, 512]",
+    )
+    parser.add_argument(
+        "--num_frames",
+        type=int,
+        default=16,
+        help="number of frames",
+    )
+    parser.add_argument(
+        "--max_frames",
+        type=int,
+        default=32,
+        help="number of frames",
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        default=1000,
+        help="number of classes, applies only when condition is `class`",
+    )
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=3,
+        help="number of videos to be generated",
     )
     parser.add_argument(
         "--model_name",
         "-m",
         type=str,
-        default="FiT-XL/2",
-        help="Model name , such as FiT-XL/2",
+        default="DynLatte-XL/2",
+        help="Model name",
+    )
+    parser.add_argument(
+        "--condition",
+        default=None,
+        type=str,
+        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
+        " `class` means using class labels as conditions.",
     )
     parser.add_argument("--patch_size", type=int, default=2, help="Patch size")
     parser.add_argument("--embed_dim", type=int, default=72, help="Embed Dim")
     parser.add_argument("--embed_method", default="rotate", help="Embed Method")
-    parser.add_argument("--fit_checkpoint", type=str, required=True, help="the path to the FiT checkpoint.")
+    parser.add_argument(
+        "--dyn_latte_checkpoint",
+        type=str,
+        default="",
+        help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
+    )
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -107,13 +144,19 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--use_fp16",
-        default=True,
-        type=str2bool,
-        help="whether to use fp16 for FiT mode. Default is True",
+        "--dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--precision_mode",
+        default=None,
+        type=str,
+        help="If specified, set the precision mode for Ascend configurations.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
-    parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -138,27 +181,38 @@ if __name__ == "__main__":
     init_env(args)
     set_random_seed(args.seed)
 
+    # round the image
+    if args.image_height % 16 != 0 or args.image_width % 16 != 0:
+        args.image_height = round(args.image_height / 16) * 16
+        args.image_width = round(args.image_width / 16) * 16
+        logger.warning(f"Change the desired size to be {args.image_width}x{args.image_height}")
+
     # 2. model initiate and weight loading
-    # 2.1 fit
+    # 2.1 dynlatte
     logger.info(f"{args.model_name}-{args.image_width}x{args.image_height} init")
     latent_height, latent_width = args.image_height // 8, args.image_width // 8
-    fit_model = FiT_models[args.model_name](
-        num_classes=1000,
+    latte_model = DynLatte_models[args.model_name](
+        num_classes=args.num_classes,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         pos=args.embed_method,
+        condition=args.condition,
+        num_frames=args.num_frames,
     )
 
-    if args.use_fp16:
-        fit_model = auto_mixed_precision(fit_model, amp_level="O2")
+    if args.dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
 
-    try:
-        fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
-    except Exception:
-        param_dict = ms.load_checkpoint(args.fit_checkpoint)
-        param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        fit_model = load_fit_ckpt_params(fit_model, param_dict)
-    fit_model = fit_model.set_train(False)
-    for param in fit_model.get_parameters():  # freeze fit_model
+    param_dict = ms.load_checkpoint(args.dyn_latte_checkpoint)
+    param_dict = remove_pname_prefix(param_dict, prefix="network.")
+    latte_model = load_dyn_latte_ckpt_params(latte_model, param_dict)
+    latte_model = latte_model.set_train(False)
+    for param in latte_model.get_parameters():  # freeze fit_model
         param.requires_grad = False
 
     # 2.2 vae
@@ -174,13 +228,20 @@ if __name__ == "__main__":
         param.requires_grad = False
 
     # Labels to condition the model with (feel free to change):
-    class_labels = [207, 360, 387, 974, 88, 979, 417, 279]
     # Create sampling noise:
-    n = len(class_labels)
-    z = ops.randn((n, 4, latent_height, latent_width), dtype=ms.float32)
-    y = Tensor(class_labels)
-    y_null = ops.ones_like(y) * 1000
-
+    if args.condition == "class":
+        class_labels = [1, 13, 100]
+        n = len(class_labels)
+        y = Tensor(class_labels)
+        y_null = ops.ones_like(y) * args.num_classes
+    elif args.condition == "text":
+        # tokenizer
+        pass
+    else:
+        y, y_null = None, None
+        n = args.num_samples
+    z = ops.randn((n, args.num_frames, 4, latent_height, latent_width), dtype=ms.float32)
+    # 3. build inference pipeline
     model_config = dict(
         C=4,
         max_size=args.image_size // 8,
@@ -188,11 +249,11 @@ if __name__ == "__main__":
         embed_dim=args.embed_dim,
         embed_method=args.embed_method,
         max_length=args.image_size * args.image_size // 8 // 8 // args.patch_size // args.patch_size,
+        max_frames=args.max_frames,
     )
 
-    # 3. build inference pipeline
-    pipeline = FiTInferPipeline(
-        fit_model,
+    pipeline = DynLatteInferPipeline(
+        latte_model,
         vae,
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
@@ -203,17 +264,17 @@ if __name__ == "__main__":
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_fit, num_params_fit_trainable = count_params(fit_model)
-    num_params = num_params_vae + num_params_fit
-    num_params_trainable = num_params_vae_trainable + num_params_fit_trainable
+    num_params_latte, num_params_latte_trainable = count_params(latte_model)
+    num_params = num_params_vae + num_params_latte
+    num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-            f"Class labels: {class_labels}",
-            f"Num params: {num_params:,} (fit: {num_params_fit:,}, vae: {num_params_vae:,})",
+            f"Num of samples: {n}",
+            f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use FP16: {args.use_fp16}",
+            f"Use model dtype: {model_dtype}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",
@@ -221,6 +282,7 @@ if __name__ == "__main__":
     )
     key_info += "\n" + "=" * 50
     logger.info(key_info)
+
     # init inputs
     inputs = {}
     inputs["noise"] = z
@@ -228,7 +290,7 @@ if __name__ == "__main__":
     inputs["y_null"] = y_null
     inputs["scale"] = args.guidance_scale
 
-    logger.info(f"Sampling class labels: {class_labels}")
+    logger.info(f"Sampling for {n} samples with condition {args.condition}")
     start_time = time.time()
 
     # infer
@@ -238,14 +300,7 @@ if __name__ == "__main__":
     end_time = time.time()
 
     # save result
-    if not args.imagegrid:
-        for i, class_label in enumerate(class_labels, 0):
-            save_fp = f"{save_dir}/class-{class_label}.png"
-            img = Image.fromarray((x_samples[i] * 255).astype(np.uint8))
-            img.save(save_fp)
-            logger.info(f"save to {save_fp}")
-    else:
-        save_fp = f"{save_dir}/sample.png"
-        img = image_grid(x_samples)
-        img.save(save_fp)
+    for i in range(n):
+        save_fp = f"{save_dir}/{i}.gif"
+        save_videos(x_samples[i : i + 1], save_fp, loop=0)
         logger.info(f"save to {save_fp}")
