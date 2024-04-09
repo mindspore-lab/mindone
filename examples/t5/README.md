@@ -12,13 +12,6 @@ The T5 (Text-To-Text Transfer Transformer) model is a series of Transformer-base
   <em> Figure 1. The Diagram of the T5 model. [<a href="#references">1</a>] </em>
 </p>
 
-The T5 model has different sizes, which are listed below:
-
-- [google-t5/t5-small](https://huggingface.co/google-t5/t5-small)
-- [google-t5/t5-base](https://huggingface.co/google-t5/t5-base)
-- [google-t5/t5-large](https://huggingface.co/google-t5/t5-large)
-- [google-t5/t5-3b](https://huggingface.co/google-t5/t5-3b)
-- [google-t5/t5-11b](https://huggingface.co/google-t5/t5-11b)
 
 ## 2. Get Started
 In this tutorial, we will introduce how to run inference with T5 model.
@@ -43,7 +36,18 @@ pip install -r requirement.txt
 ```
 ### 2.2 Pretrained Checkpoints
 
-Taking `t5-v1_1-xxl` model as an example, please download the cache folder of the `t5-v1_1-xxl` model from HuggingFace [URL](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main), and place it under `models/`. The t5 cache folder looks like:
+The T5 model has different sizes, which are listed below:
+
+- [google-t5/t5-small](https://huggingface.co/google-t5/t5-small)
+- [google-t5/t5-base](https://huggingface.co/google-t5/t5-base)
+- [google-t5/t5-large](https://huggingface.co/google-t5/t5-large)
+- [google-t5/t5-3b](https://huggingface.co/google-t5/t5-3b)
+- [google-t5/t5-11b](https://huggingface.co/google-t5/t5-11b)
+
+The corresponding MindSpore checkpoints can be downloaded from [mindnlp/models/t5](https://download-mindspore.osinfra.cn/toolkits/mindnlp/models/t5/).
+
+
+We also support manually converting the T5 torch checkpoint and running inference. Taking `t5-v1_1-xxl` model as an example, please download the cache folder of the `t5-v1_1-xxl` model from HuggingFace [URL](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main), and place it under `models/`. The t5 cache folder looks like:
 
 ```bash
 models/t5-v1_1-xxl/
@@ -80,7 +84,6 @@ text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt
 text_emb, mask = text_encoder.get_text_embeddings("a red ball rolling on the ground.")
 print(text_emb, mask)
 ```
-
 
 ## 4. Text Decoder
 
