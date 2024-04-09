@@ -350,7 +350,7 @@ class T2I_Webdataset(T2I_BaseDataset):
             try:
                 image, caption = self.parse_raw_data(raw)
                 if "__key__" in raw:
-                    sample = self.preprocess(image, caption, str(getattr(raw, "__key__")))
+                    sample = self.preprocess(image, caption, str(raw["__key__"]))
                 else:
                     print("=> WARNING: Fail to get the attribute __key__. using white space instead")
                     sample = self.preprocess(image, caption, " ")
@@ -387,7 +387,7 @@ class T2I_Webdataset(T2I_BaseDataset):
             try:
                 image, caption = self.parse_raw_data(raw)
                 if "__key__" in raw:
-                    sample = self.preprocess(image, caption, str(getattr(raw, "__key__")))
+                    sample = self.preprocess(image, caption, str(raw["__key__"]))
                 else:
                     print("=> WARNING: Fail to get the attribute __key__. using white space instead")
                     sample = self.preprocess(image, caption, " ")
