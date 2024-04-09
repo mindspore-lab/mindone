@@ -1,5 +1,9 @@
+import numpy as np
+import math
 import mindspore as ms
 from mindspore import nn, ops
+from mindspore.common.initializer import XavierUniform, Zero, initializer
+
 from mindcv.models.layers import DropPath
 from .dit import Attention, SelfAttention, Mlp, LayerNorm, GELU
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
@@ -51,14 +55,21 @@ class MultiHeadCrossAttention(nn.Cell):
     def construct(self, x, cond, mask=None):
         # C = head_dim * num_heads
         # query/value: img tokens; key: condition; mask: if padding tokens
+        # mask is a seq_len list, e..g [44, 77, 89]. TODO: convert to sparse matrix
         B, N, C = x.shape
 
         q = self.q_linear(x).reshape((1, -1, self.num_heads, self.head_dim))
         kv = self.kv_linear(cond).reshape((1, -1, 2, self.num_heads, self.head_dim))
 
         k, v = kv.unbind(2)
+       
+        # TODO: support masking
+        #if mask is not None:
+        #     attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
+        #else: 
+        #   attn_bias = None
+        # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
 
-        attn_bias = None
         # print('D--', q.shape, k.shape, v.shape)
         if self.use_FA:
             # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
@@ -71,7 +82,10 @@ class MultiHeadCrossAttention(nn.Cell):
             k = self._rearange_in(k)
             v = self._rearange_in(v)
 
-            x = self.attention(q, k, v, mask)
+            # TODO: support masking
+            # x = self.attention(q, k, v, mask)
+            x = self.attention(q, k, v, mask=None)
+
             # (b*h, n, d) -> (b h n d) -> (b n h d) ->  (b n h*d)
             x = self._rearange_out(x, self.num_heads)
 
@@ -82,6 +96,9 @@ class MultiHeadCrossAttention(nn.Cell):
 
 def t2i_modulate(x, shift, scale):
     return x * (1 + scale) + shift
+
+
+approx_gelu = lambda: GELU(approximate="tanh")
 
 
 class STDiTBlock(nn.Cell):
@@ -116,7 +133,6 @@ class STDiTBlock(nn.Cell):
         self.cross_attn = self.mha_cls(hidden_size, num_heads)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
-        approx_gelu = lambda: GELU(approximate="tanh")
         self.mlp = Mlp(
             in_features=hidden_size, hidden_features=int(hidden_size * mlp_ratio), act_layer=approx_gelu, drop=0
         )
@@ -279,11 +295,11 @@ class PatchEmbed3D(nn.Cell):
         x = self.proj(x)  # (B C T H W)
         if self.norm is not None:
             D, Wh, Ww = x.shape[2], x.shape[3], x.shape[4]
-            x = x.flatten(2).transpose(1, 2)
+            x = x.flatten(start_dim=2).swapaxes(1, 2)
             x = self.norm(x)
-            x = x.transpose(1, 2).view(-1, self.embed_dim, D, Wh, Ww)
+            x = x.swapaxes(1, 2).view(-1, self.embed_dim, D, Wh, Ww)
         if self.flatten:
-            x = x.flatten(2).transpose(1, 2)  # BCTHW -> BNC
+            x = x.flatten(start_dim=2).swapaxes(1, 2)  # BCTHW -> BNC
         return x
 
 
@@ -340,7 +356,7 @@ class CaptionEmbedder(nn.Cell):
             in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
         )
         
-        y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5))
+        y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
         self.y_embedding =  ms.Parameter(ms.Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
 
         self.uncond_prob = uncond_prob
@@ -379,8 +395,8 @@ class T2IFinalLayer(nn.Cell):
         self.scale_shift_table = ms.Parameter(ops.randn(2, hidden_size) / hidden_size**0.5)
         self.out_channels = out_channels
 
-    def forward(self, x, t):
-        shift, scale = (self.scale_shift_table[None] + t[:, None]).chunk(2, dim=1)
+    def construct(self, x, t):
+        shift, scale = (self.scale_shift_table[None] + t[:, None]).chunk(2, axis=1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
         x = self.linear(x)
         return x
@@ -403,7 +419,7 @@ class STDiT(nn.Cell):
         no_temporal_pos_emb=False,
         caption_channels=4096,
         model_max_length=120,
-        dtype=torch.float32,
+        dtype=ms.float32,
         space_scale=1.0,
         time_scale=1.0,
         freeze=None,
@@ -441,7 +457,7 @@ class STDiT(nn.Cell):
 
         self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         self.t_embedder = TimestepEmbedder(hidden_size)
-        self.t_block = nn.Sequential(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
+        self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
         self.y_embedder = CaptionEmbedder(
             in_channels=caption_channels,
             hidden_size=hidden_size,
@@ -467,7 +483,7 @@ class STDiT(nn.Cell):
                 for i in range(self.depth)
             ]
         )
-        self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size), self.out_channels)
+        self.final_layer = T2IFinalLayer(hidden_size, int(np.prod(self.patch_size)), self.out_channels)
 
         # init model
         self.initialize_weights()
@@ -487,13 +503,13 @@ class STDiT(nn.Cell):
         """
         Forward pass of STDiT.
         Args:
-            x (torch.Tensor): latent representation of video; of shape [B, C, T, H, W]
-            timestep (torch.Tensor): diffusion time steps; of shape [B]
-            y (torch.Tensor): representation of prompts; of shape [B, 1, N_token, C]
-            mask (torch.Tensor): mask for selecting prompt tokens; of shape [B, N_token]
+            x (ms.Tensor): latent representation of video; of shape [B, C, T, H, W]
+            timestep (ms.Tensor): diffusion time steps; of shape [B]
+            y (ms.Tensor): representation of prompts; of shape [B, 1, N_token, C]
+            mask (ms.Tensor): mask for selecting prompt tokens; of shape [B, N_token]
 
         Returns:
-            x (torch.Tensor): output latent representation; of shape [B, C, T, H, W]
+            x (ms.Tensor): output latent representation; of shape [B, C, T, H, W]
         """
 
         x = x.to(self.dtype)
@@ -513,7 +529,8 @@ class STDiT(nn.Cell):
         t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
         t0 = self.t_block(t)  # [B, C]
         y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
-
+        
+        # TODO: graph mode, mask required for indicating text len
         if mask is not None:
             if mask.shape[0] != y.shape[0]:
                 mask = mask.repeat(y.shape[0] // mask.shape[0], 1)
@@ -521,6 +538,7 @@ class STDiT(nn.Cell):
             y = y.squeeze(1).masked_select(mask.unsqueeze(-1) != 0).view(1, -1, x.shape[-1])
             y_lens = mask.sum(dim=1).tolist()
         else:
+            # TODO: check dynamic shape issue
             y_lens = [y.shape[2]] * y.shape[0]
             y = y.squeeze(1).view(1, -1, x.shape[-1])
 
@@ -530,29 +548,33 @@ class STDiT(nn.Cell):
                 tpe = self.pos_embed_temporal
             else:
                 tpe = None
-            x = block(x, y, t0, y_lens, tpe)
+            # TODO: mask?
+            # x = block(x, y, t0, y_lens, tpe)
+            x = block(x, y, t0, mask=y_lens, tpe=tpe)
+
 
         # x.shape: [B, N, C]
         # final process
         x = self.final_layer(x, t)  # [B, N, C=T_p * H_p * W_p * C_out]
-        x = self.unpatchify(x)  # [B, C_out, T, H, W]
 
+        x = self.unpatchify(x)  # [B, C_out, T, H, W]
+        
         # cast to float32 for better accuracy
-        x = x.to(ms.float32)
+        x = x.astype(ms.float32)
         return x
 
     def unpatchify(self, x):
         """
         Args:
-            x (torch.Tensor): of shape [B, N, C]
+            x (ms.Tensor): of shape [B, N, C]
 
         Return:
-            x (torch.Tensor): of shape [B, C_out, T, H, W]
+            x (ms.Tensor): of shape [B, C_out, T, H, W]
         """
 
         N_t, N_h, N_w = [self.input_size[i] // self.patch_size[i] for i in range(3)]
         T_p, H_p, W_p = self.patch_size
-        C_out=self.out_channels,
+        C_out=self.out_channels
 
         # "B (N_t N_h N_w) (T_p H_p W_p C_out) -> B C_out (N_t T_p) (N_h H_p) (N_w W_p)"
         # TODO: double check
@@ -571,7 +593,8 @@ class STDiT(nn.Cell):
             (grid_size[0] // self.patch_size[1], grid_size[1] // self.patch_size[2]),
             scale=self.space_scale,
         )
-        pos_embed = torch.from_numpy(pos_embed).float().unsqueeze(0).requires_grad_(False)
+        # pos_embed = torch.from_numpy(pos_embed).float().unsqueeze(0).requires_grad_(False)
+        pos_embed = np.expand_dims(pos_embed, axis=0)
         return pos_embed
 
     def get_temporal_pos_embed(self):
@@ -580,7 +603,8 @@ class STDiT(nn.Cell):
             self.input_size[0] // self.patch_size[0],
             scale=self.time_scale,
         )
-        pos_embed = torch.from_numpy(pos_embed).float().unsqueeze(0).requires_grad_(False)
+        # pos_embed = torch.from_numpy(pos_embed).float().unsqueeze(0).requires_grad_(False)
+        pos_embed = np.expand_dims(pos_embed, axis=0)
         return pos_embed
 
     def freeze_not_temporal(self):
@@ -604,13 +628,15 @@ class STDiT(nn.Cell):
             if isinstance(module, nn.Dense):
                 xavier_uniform_(module.weight)
                 if module.bias is not None:
-                    nn.init.constant_(module.bias, 0)
+                    constant_(module.bias, 0)
 
         self.apply(_basic_init)
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight
-        xavier_uniform_(w.view([w.shape[0], -1]))
+        # xavier_uniform_(w.view([w.shape[0], -1]))
+        w_flatted = w.view(w.shape[0], -1)
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)

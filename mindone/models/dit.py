@@ -194,7 +194,8 @@ class Attention(nn.Cell):
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
+            # TODO: check and verify
+            mask = ops.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
             else:
