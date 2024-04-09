@@ -17,7 +17,6 @@ import fnmatch
 import inspect
 import os
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -58,11 +57,6 @@ from .pipeline_loading_utils import (
     variant_compatible_siblings,
     warn_deprecated_model_variant,
 )
-
-LIBRARIES = []
-for library in LOADABLE_CLASSES:
-    LIBRARIES.append(library)
-
 
 logger = logging.get_logger(__name__)
 
@@ -194,16 +188,15 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             save_method_name = None
             # search for the model's base class in LOADABLE_CLASSES
             for library_name, library_classes in LOADABLE_CLASSES.items():
-                if library_name in sys.modules:
-                    # library_name in LOADABLE_CLASSES if already with 'mindone' prefix, so we use import_module.
-                    library = maybe_import_module_in_mindone(library_name, force_original=True)
-                else:
-                    logger.info(
-                        f"{library_name} is not installed. Cannot save {pipeline_component_name} as {library_classes} from {library_name}"
-                    )
-
+                # we always have mindone.{library_name} installed, so there is no need to check
+                # TODO: what about "onnxruntime.training" in huggingface/diffusers?
+                library = maybe_import_module_in_mindone(library_name)
                 for base_class, save_load_methods in library_classes.items():
                     class_candidate = getattr(library, base_class, None)
+                    if class_candidate is None:
+                        # base_class is not implemented in mindone, try get it from huggingface library
+                        library_original = maybe_import_module_in_mindone(library_name, force_original=True)
+                        class_candidate = getattr(library_original, base_class, None)
                     if class_candidate is not None and issubclass(model_cls, class_candidate):
                         # if we found a suitable base class in LOADABLE_CLASSES then grab its save method
                         save_method_name = save_load_methods[0]
@@ -511,7 +504,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 # if the model is in a pipeline module, then we load it from the pipeline
                 # check that passed_class_obj has correct parent class
                 maybe_raise_or_warn(
-                    library_name, library, class_name, importable_classes, passed_class_obj, name, is_pipeline_module
+                    library_name, class_name, importable_classes, passed_class_obj, name, is_pipeline_module
                 )
 
                 loaded_sub_model = passed_class_obj[name]

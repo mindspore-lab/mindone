@@ -51,16 +51,15 @@ CONNECTED_PIPES_KEYS = ["prior"]
 logger = logging.get_logger(__name__)
 
 LOADABLE_CLASSES = {
-    "mindone.diffusers": {
+    "diffusers": {
         "ModelMixin": ["save_pretrained", "from_pretrained"],
         "SchedulerMixin": ["save_pretrained", "from_pretrained"],
         "DiffusionPipeline": ["save_pretrained", "from_pretrained"],
     },
-    "mindone.transformers": {
-        "MSPreTrainedModel": ["save_pretrained", "from_pretrained"],
-    },
     "transformers": {
+        "MSPreTrainedModel": ["save_pretrained", "from_pretrained"],
         "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
+        "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
     },
 }
 
@@ -210,19 +209,28 @@ def _unwrap_model(model):
     return model
 
 
-def maybe_raise_or_warn(
-    library_name, library, class_name, importable_classes, passed_class_obj, name, is_pipeline_module
-):
+def maybe_raise_or_warn(library_name, class_name, importable_classes, passed_class_obj, name, is_pipeline_module):
     """Simple helper method to raise or warn in case incorrect module has been passed"""
     if not is_pipeline_module:
-        library = maybe_import_module_in_mindone(library_name)
-        if hasattr(library, class_name):
+        if library_name == "diffusers":
+            library = maybe_import_module_in_mindone(library_name)
             class_obj = getattr(library, class_name)
             class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
-        else:  # class_name is not implemented in mindone, try get it from original pkg
-            library = maybe_import_module_in_mindone(library_name, force_original=True)
-            class_obj = getattr(library, class_name)
-            class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
+        elif library_name == "transformers":
+            library = maybe_import_module_in_mindone(library_name)
+            if hasattr(library, class_name):
+                class_obj = getattr(library, class_name)
+                class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
+            else:  # class_name is not implemented in mindone, try get it from huggingface library
+                library = maybe_import_module_in_mindone(library_name, force_original=True)
+                class_obj = getattr(library, class_name, None)
+                if class_obj is None or issubclass(class_obj, library.PreTrainedModel):
+                    # if class_name is a kind of model, we should notify the users.
+                    # 1. huggingface/transformers w/o torch; 2. w/ torch; what if with tensorflow/flax?
+                    raise NotImplementedError(f"{class_name} has not been implemented in mindone.transformers yet")
+                class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
+        else:
+            raise NotImplementedError(f"{library_name} has not been implemented in mindone yet.")
 
         expected_class_obj = None
         for class_name, class_candidate in class_candidates.items():
@@ -265,15 +273,25 @@ def get_class_obj_and_candidates(
         class_candidates = {c: class_obj for c in importable_classes.keys()}
     else:
         # else we just import it from the library.
-        library = maybe_import_module_in_mindone(library_name)
-
-        if hasattr(library, class_name):
+        if library_name == "diffusers":
+            library = maybe_import_module_in_mindone(library_name)
             class_obj = getattr(library, class_name)
             class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
-        else:  # class_name is not implemented in mindone, try get it from original pkg
-            library = maybe_import_module_in_mindone(library_name, force_original=True)
-            class_obj = getattr(library, class_name)
-            class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
+        elif library_name == "transformers":
+            library = maybe_import_module_in_mindone(library_name)
+            if hasattr(library, class_name):
+                class_obj = getattr(library, class_name)
+                class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
+            else:  # class_name is not implemented in mindone, try get it from huggingface library
+                library = maybe_import_module_in_mindone(library_name, force_original=True)
+                class_obj = getattr(library, class_name, None)
+                if class_obj is None or issubclass(class_obj, library.PreTrainedModel):
+                    # if class_name is a kind of model, we should notify the users.
+                    # 1. huggingface/transformers w/o torch; 2. w/ torch; what if with tensorflow/flax?
+                    raise NotImplementedError(f"{class_name} has not been implemented in mindone.transformers yet")
+                class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
+        else:
+            raise NotImplementedError(f"{library_name} has not been implemented in mindone yet.")
 
     return class_obj, class_candidates
 
@@ -430,8 +448,8 @@ def _fetch_class_library_tuple(module):
     # register the config from the original module, not the dynamo compiled one
     not_compiled_module = _unwrap_model(module)
     library = not_compiled_module.__module__.split(".")[0]
-    if library == "mindone":
-        library += f".{not_compiled_module.__module__.split('.')[1]}"
+    if library == "mindone":  # give the subpackage name like diffusers/transformers
+        library = not_compiled_module.__module__.split(".")[1]
 
     # check if the module is a pipeline module
     module_path_items = not_compiled_module.__module__.split(".")
