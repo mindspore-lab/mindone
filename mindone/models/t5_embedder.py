@@ -6,11 +6,11 @@ import urllib.parse as ul
 
 import ftfy
 from bs4 import BeautifulSoup
-from flan_t5_large.t5 import get_t5_encoder
-from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import Tensor, nn
+
+from mindone.models.flan_t5_large.t5 import get_t5_encoder, get_t5_tokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class T5Embedder(nn.Cell):
         self.cache_dir = cache_dir
         self.pretrained_ckpt = pretrained_ckpt
 
-        self.tokenizer = AutoTokenizer.from_pretrained(cache_dir)
+        self.tokenizer = get_t5_tokenizer(cache_dir)
         model = get_t5_encoder(cache_dir)
         if self.pretrained_ckpt:
             # load t5 ckpt into self.model

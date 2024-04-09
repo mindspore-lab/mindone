@@ -24,11 +24,12 @@ from typing import Dict, Optional, Tuple
 
 from mindspore import log as logger
 
+from .download import cached_path
+
 HF_CONFIG_URL_BASE = "https://huggingface.co/{}/resolve/main/config.json"
 HF_MODEL_URL_BASE = "https://huggingface.co/{}/resolve/main/pytorch_model.bin"
 HF_TOKENIZER_CONFIG_URL_BASE = "https://huggingface.co/{}/resolve/main/tokenizer.json"
 MINDNLP_MODEL_URL_BASE = "https://download.mindspore.cn/toolkits/mindnlp/models/{}/{}/mindspore.ckpt"
-from .download import cached_path
 
 
 class PreTrainedConfig:

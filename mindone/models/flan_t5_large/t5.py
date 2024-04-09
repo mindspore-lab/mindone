@@ -18,6 +18,7 @@ from .t5_config import T5_SUPPORT_LIST, T5Config
 __all__ = [
     "T5EncoderModel",
     "get_t5_encoder",
+    "get_t5_tokenizer",
 ]
 
 PRETRAINED_MODEL_ARCHIVE_MAP = {model: MINDNLP_MODEL_URL_BASE.format("t5", model) for model in T5_SUPPORT_LIST}
@@ -35,6 +36,13 @@ def get_t5_encoder(cache_folder, trainable=False):
             param.requires_grad = False
 
     return model
+
+
+def get_t5_tokenizer(cache_folder):
+    from transformers import AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(cache_folder)
+    return tokenizer
 
 
 class T5LayerNorm(nn.Cell):
