@@ -7,7 +7,7 @@ This repository contains MindSpore implementation of [Open-Sora-Plan](https://gi
     - [x] Causal 3D Autoencoder (Video AutoEncoder)
         - [x] Inference
         - [x] Training (experimental)
-    - [ ] Latte Text-to-Video 
+    - [ ] Latte Text-to-Video
         - [ ] Inference
         - [x] Training
 
@@ -17,7 +17,7 @@ This repository contains MindSpore implementation of [Open-Sora-Plan](https://gi
 pip install -r requirements.txt
 ```
 
-## Causal Video VAE 
+## Causal Video VAE
 
 **NOTE:** To run VAE 3D on Ascend 910b, mindspore 2.3.0rc1+20240409 or later version is required.
 
@@ -63,7 +63,7 @@ Here are some visualization results.
 
 #### Pretraine weights
 
-Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows 
+Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows
 
 ```
 python tools/model_conversion/inflate_vae2d_to_vae3d.py \

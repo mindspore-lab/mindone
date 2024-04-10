@@ -153,7 +153,7 @@ def parse_args():
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
     if default_args.config:
-        default_args.config = os.path.join(abs_path, '../../', default_args.config)
+        default_args.config = os.path.join(abs_path, "../../", default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
             cfg = _check_cfgs_in_parser(cfg, parser)

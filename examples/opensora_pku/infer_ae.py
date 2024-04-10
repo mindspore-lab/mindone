@@ -9,9 +9,9 @@ import time
 
 import imageio
 import numpy as np
+from omegaconf import OmegaConf
 from opensora.data.loader import create_dataloader
 from opensora.models.ae.lpips import LPIPS
-from omegaconf import OmegaConf
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
 from skimage.metrics import structural_similarity as calc_ssim
