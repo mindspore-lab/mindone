@@ -1,0 +1,31 @@
+generator:
+  target: ae.models.causal_vae_3d.CausalVAEModel
+  params:
+    embed_dim: 4
+    monitor: val/rec_loss
+    ddconfig:
+      resolution: 256
+      in_channels: 3
+      ch: 128
+      ch_mult:
+      - 1
+      - 2
+      - 4
+      - 4
+      out_ch: 3
+      z_channels: 4
+      double_z: True
+      num_res_blocks: 2  # 1 for debug
+      attn_resolutions: [16]
+      dropout: 0.0
+      attn_type: "vanilla3D"
+      time_compress: 2
+      split_time_upsample: True # if True, exclude 1st frame from temporal upsampling. The input frames need to be an odd number
+
+discriminator:
+  target: ae.models.discriminator.NLayerDiscriminator
+
+lossconfig:
+  disc_start: 50001
+  kl_weight: 1.0e-06
+  disc_weight: 0.5

@@ -1,0 +1,27 @@
+model_config: "configs/ae/causal_vae_488.yaml"
+
+dataset_name: "video"
+data_path:  "datasets/mixkit"
+frame_stride: 1
+num_frames: 17  # set odd when split_time_upsample True. should be 1+N, N=multiple of time compression rate.
+size: 256
+crop_size: 256
+flip: True
+
+pretrained: "models/ae/causal_vae_488_init.ckpt"
+output_path: "outputs/causal_vae"
+
+use_discriminator: False
+batch_size: 1
+base_learning_rate: 1.e-5
+scale_lr: False
+# gradient_accumulation_steps: 4
+
+epochs: 1000
+ckpt_save_interval: 100
+
+dtype: "fp16"  # TODO: change to bf16 once 910b support
+init_loss_scale: 1.
+
+scheduler: "constant"
+use_ema: False
