@@ -46,6 +46,14 @@ The T5 model has different sizes, which are listed below:
 
 The corresponding MindSpore checkpoints can be downloaded from [mindnlp/models/t5](https://download-mindspore.osinfra.cn/toolkits/mindnlp/models/t5/).
 
+To use the converted mindspore checkpoint in [mindnlp/models/t5](https://download-mindspore.osinfra.cn/toolkits/mindnlp/models/t5/), please download all files in the corresponding folder. Taking `t5-small` as an example, please download all files under `t5-small/` and put them in the same directory under `models`. The folder looks like:
+
+```bash
+models/t5-small/
+├── config.json
+├── mindspore.ckpt
+└── tokenizer.json
+```
 
 We also support manually converting the T5 torch checkpoint and running inference. Taking `t5-v1_1-xxl` model as an example, please download the cache folder of the `t5-v1_1-xxl` model from HuggingFace [URL](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main), and place it under `models/`. The t5 cache folder looks like:
 
@@ -79,7 +87,7 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.models.t5 import T5Embedder
 
-ckpt_path = "models/t5-v1_1-xxl/"
+ckpt_path = "models/t5-v1_1-xxl/" # t5 cache folder
 text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
 text_emb, mask = text_encoder.get_text_embeddings("a red ball rolling on the ground.")
 print(text_emb, mask)
