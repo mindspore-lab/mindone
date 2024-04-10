@@ -8,9 +8,9 @@ import sys
 import time
 
 import yaml
+from omegaconf import OmegaConf
 from opensora.data.loader import create_dataloader
 from opensora.models.ae.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
-from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Model, nn
