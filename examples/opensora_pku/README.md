@@ -9,9 +9,9 @@ We aim to achieve efficient training and inference on Ascend NPU devices based o
     - [x] Causal Video Autoencoder
         - [x] Inference
         - [x] Training (precision to be improved)
-    - [ ] Latte Text-to-Video
+    - [ ] Latte Text-to-Video (Coming soon)
         - [ ] Inference
-        - [x] Training
+        - [ ] Training
 
 ## Installation
 
