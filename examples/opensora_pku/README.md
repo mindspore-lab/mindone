@@ -1,6 +1,6 @@
 # Open-Sora-Plan with MindSpore
 
-This repository contains MindSpore implementation of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan), including the autoencoders and diffusion models with their training and inference pipelines. 
+This repository contains MindSpore implementation of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan), including the autoencoders and diffusion models with their training and inference pipelines.
 
 We aim to achieve efficient training and inference on Ascend NPU devices based on MindSpore framework.
 
