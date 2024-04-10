@@ -1,12 +1,14 @@
 # Open-Sora-Plan with MindSpore
 
-This repository contains MindSpore implementation of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan), including the autoencoders and diffusion models with their training and inference pipelines.
+This repository contains MindSpore implementation of [Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan), including the autoencoders and diffusion models with their training and inference pipelines. 
+
+We aim to achieve efficient training and inference on Ascend NPU devices based on MindSpore framework.
 
 ## Features
 - [ ] Open-Sora-Plan v1.0.0
-    - [x] Causal 3D Autoencoder (Video AutoEncoder)
+    - [x] Causal Video Autoencoder
         - [x] Inference
-        - [x] Training (experimental)
+        - [x] Training (precision to be improved)
     - [ ] Latte Text-to-Video
         - [ ] Inference
         - [x] Training
@@ -23,7 +25,7 @@ pip install -r requirements.txt
 
 ### Inference
 
-1. Download original model checkpoint from HF [Open-Sora-Plan-v1.0.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.0.0/tree/main/vae)
+1. Download the original model checkpoint from HF [Open-Sora-Plan-v1.0.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.0.0/tree/main/vae)
 
 
 2. Convert the checkpoint to mindspore format:
@@ -32,7 +34,7 @@ pip install -r requirements.txt
 python tools/model_conversion/convert_vae.py --src /path/to/diffusion_pytorch_model.safetensors  --target models/ae/causal_vae_488.ckpt
 ```
 
-3. Video reconstruction
+3. Run video reconstruction
 
 ```shell
 python infer_ae.py --model_config configs/ae/causal_vae_488.yaml \
@@ -52,11 +54,16 @@ After running, the reconstruction results will be saved in `--output_path` and e
 
 For detailed arguments, please run `python infer.py -h`.
 
-NOTE: for `dtype`, only fp16 is supported on 910b+MS currently, due to Conv3d operator only support fp16 currently. Bettr precision will be supported soon.
+NOTE: for `dtype`, only fp16 is supported on 910b+MS currently, due to Conv3d operator precision limitation. Better precision will be supported soon.
 
-Here are some visualization results.
+Here are some reconstruction results (left: source video clip, right: reconstructed).
 
----------------- Placeholder   --------
+![mixkit-step003-00](https://github.com/SamitHuang/mindone/assets/8156835/bb04783f-4cc1-4179-8882-940898803a6e)
+
+![mixkit-step000-00](https://github.com/SamitHuang/mindone/assets/8156835/1582f678-55dd-4ba1-9692-4d8961a37658)
+
+![mixkit-step002-00](https://github.com/SamitHuang/mindone/assets/8156835/f1a5e323-f3d9-4bc7-a5d2-7c6044ed52f7)
+
 
 
 ### Training
@@ -89,7 +96,7 @@ It's easy to config the model architecture in `configs/causal_vae_488.yaml` and 
 **Districuted Training**: For distributed training on multiple NPUs, please refer to this [doc](../stable_diffusion_v2/README.md#distributed-training)
 
 
-### Results
+### Performance
 
 The training task is under progress. The initial training performance without further optimization tuning is as follows.
 
@@ -101,4 +108,4 @@ The training task is under progress. The initial training performance without fu
 
 ## Video Diffusion Transformer
 
-TBC
+Coming soon
