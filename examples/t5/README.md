@@ -38,14 +38,32 @@ pip install -r requirement.txt
 
 The T5 model has different sizes, which are listed below:
 
-- [google-t5/t5-small](https://huggingface.co/google-t5/t5-small)
-- [google-t5/t5-base](https://huggingface.co/google-t5/t5-base)
-- [google-t5/t5-large](https://huggingface.co/google-t5/t5-large)
-- [google-t5/t5-3b](https://huggingface.co/google-t5/t5-3b)
-- [google-t5/t5-11b](https://huggingface.co/google-t5/t5-11b)
+- [google-t5/t5-small](https://huggingface.co/google-t5/t5-small) (60 million parameters)
+- [google-t5/t5-base](https://huggingface.co/google-t5/t5-base) (220 million parameters)
+- [google-t5/t5-large](https://huggingface.co/google-t5/t5-large) (770 million parameters)
+- [google-t5/t5-3b](https://huggingface.co/google-t5/t5-3b) (3 billion parameters)
+- [google-t5/t5-11b](https://huggingface.co/google-t5/t5-11b) (11 billion parameters)
 
 The corresponding MindSpore checkpoints can be downloaded from [mindnlp/models/t5](https://download-mindspore.osinfra.cn/toolkits/mindnlp/models/t5/).
 
+Besides, there are also some additional experimental pre-trained model checkpoints, for example:
+
+[**T5v1.1**](https://arxiv.org/abs/1910.10683): an improved version of the original T5 model.
+
+- [google/t5-v1_1-small](https://huggingface.co/google/t5-v1_1-small) (~77 million parameters)
+- [google/t5-v1_1-base](https://huggingface.co/google/t5-v1_1-base) (~250 million parameters)
+- [google/t5-v1_1-large](https://huggingface.co/google/t5-v1_1-large) (~800 million parameters)
+- [google/t5-v1_1-xl](https://huggingface.co/google/t5-v1_1-xl) (~3 billion parameters)
+- [google/t5-v1_1-xxl](https://huggingface.co/google/t5-v1_1-xxl) (~11 billion parameters)
+
+To use the converted mindspore checkpoint in [mindnlp/models/t5](https://download-mindspore.osinfra.cn/toolkits/mindnlp/models/t5/), please download all files in the corresponding folder. Taking `t5-small` as an example, please download all files under `t5-small/` and put them in the same directory under `models`. The folder looks like:
+
+```bash
+models/t5-small/
+├── config.json
+├── mindspore.ckpt
+└── tokenizer.json
+```
 
 We also support manually converting the T5 torch checkpoint and running inference. Taking `t5-v1_1-xxl` model as an example, please download the cache folder of the `t5-v1_1-xxl` model from HuggingFace [URL](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main), and place it under `models/`. The t5 cache folder looks like:
 
@@ -79,7 +97,7 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.models.t5 import T5Embedder
 
-ckpt_path = "models/t5-v1_1-xxl/"
+ckpt_path = "models/t5-v1_1-xxl/" # t5 cache folder
 text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
 text_emb, mask = text_encoder.get_text_embeddings("a red ball rolling on the ground.")
 print(text_emb, mask)
