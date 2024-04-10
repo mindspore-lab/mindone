@@ -1,13 +1,41 @@
+from typing import Optional
 import numpy as np
 import math
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, Tensor
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindcv.models.layers import DropPath
-from .dit import Attention, SelfAttention, Mlp, LayerNorm, GELU
+from .dit import SelfAttention, Mlp, LayerNorm, GELU
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 from .modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
+
+
+class Attention(nn.Cell):
+    def __init__(self, dim_head: int, attn_drop: float = 0.0) -> None:
+        super().__init__()
+        self.scale = dim_head**-0.5
+        self.attn_drop = nn.Dropout(p=attn_drop)
+
+    def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
+        '''
+        q: (b h n_q d)
+        k v: (b h n_k d), (b h n_v d)
+        mask: (b n_k)
+        '''
+        
+        # (b h n_q n_k) 
+        sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
+
+        sim = sim.to(ms.float32)
+        if exists(mask):
+            mask = mask[:, None, None, :]
+            sim = ops.masked_fill(sim, ~mask, -ms.numpy.inf)
+        attn = ops.softmax(sim, axis=-1).astype(v.dtype)
+        attn = self.attn_drop(attn)
+        out = ops.matmul(attn, v)
+        return out
+
 
 
 class MultiHeadCrossAttention(nn.Cell):
@@ -35,33 +63,38 @@ class MultiHeadCrossAttention(nn.Cell):
 
     @staticmethod
     def _rearange_in(x):
-        # (b, n, h, d) -> (b h n d) -> (b*h, n, d)
+        # (b, n, h, d) -> (b h n d)
         b, n, h, d = x.shape
         x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b * h, n, d))
         return x
 
     @staticmethod
-    def _rearange_out(x, h):
-        # (b*h, n, d) -> (b h n d) -> (b n h d) ->  (b n h*d)
-        bh, n, d = x.shape
-        b = bh // h
-
-        x = ops.reshape(x, (b, h, n, d))
+    def _rearange_out(x):
+        #  (b h n d) -> (b n h d) ->  (b n h*d)
+        b, h, n, d = x.shape
         x = ops.transpose(x, (0, 2, 1, 3))
         x = ops.reshape(x, (b, n, h*d))
         return x
 
     def construct(self, x, cond, mask=None):
-        # C = head_dim * num_heads
+        # x: (B, N, C)
+        # C = head_dim * num_heads, N = seq_len
         # query/value: img tokens; key: condition; mask: if padding tokens
-        # mask is a seq_len list, e..g [44, 77, 89]. TODO: convert to sparse matrix
+        # cond: (1, B*N_tokens, C_t)
+        # mask : (B, N_tokens)
         B, N, C = x.shape
 
+        # import pdb
+        # pdb.set_trace()
+        # q: (B N C) -> (1 , B*N, h, d)
+        # k: (B N_tokens C) -> (1 B*N_tokens h d)
         q = self.q_linear(x).reshape((1, -1, self.num_heads, self.head_dim))
         kv = self.kv_linear(cond).reshape((1, -1, 2, self.num_heads, self.head_dim))
 
         k, v = kv.unbind(2)
+
+        # (B, N_tokens) -> (1, B*N_tokens) 
+        mask = mask.reshape(1, -1)
        
         # TODO: support masking
         #if mask is not None:
@@ -75,20 +108,22 @@ class MultiHeadCrossAttention(nn.Cell):
             # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
             # x = x.reshape((B, -1, C))
             raise NotImplementedError
-            # (b, n, h, d) -> (b, n, h*d)
         else:
-            # (b, n, h, d) -> (b h n d) -> (b*h, n, d)
+            # (b, n, h, d) -> (b h n d)
+            # print("D--: ", q.shape, k.shape)
             q = self._rearange_in(q)
             k = self._rearange_in(k)
             v = self._rearange_in(v)
+            # print("D--: ", q.shape, k.shape)
 
             # TODO: support masking
-            # x = self.attention(q, k, v, mask)
-            x = self.attention(q, k, v, mask=None)
+            x = self.attention(q, k, v, mask)
+            # x = self.attention(q, k, v, mask=None)
 
-            # (b*h, n, d) -> (b h n d) -> (b n h d) ->  (b n h*d)
-            x = self._rearange_out(x, self.num_heads)
-
+            # (b h n d) -> (b n h d) ->  (b n h*d)
+            x = self._rearange_out(x)
+        
+        x = x.view(B, -1, C)
         x = self.proj(x)
         x = self.proj_drop(x)
 
@@ -186,6 +221,11 @@ class STDiTBlock(nn.Cell):
         return x
 
     def construct(self, x, y, t, mask=None, tpe=None):
+        '''
+        x: (B N C_x)
+        y: (1 B*N_tokens C_y)
+        t: (B C_t) 
+        '''
         B, N, C = x.shape
 
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
@@ -214,6 +254,9 @@ class STDiTBlock(nn.Cell):
         x = x + self.drop_path(gate_msa * x_t)
 
         # cross attn
+        # import pdb
+        # pdb.set_trace()
+
         x = x + self.cross_attn(x, y, mask)
 
         # mlp
@@ -288,7 +331,7 @@ class PatchEmbed3D(nn.Cell):
         if W % self.patch_size[2] != 0:
             x = ops.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
         if H % self.patch_size[1] != 0:
-            x = opd.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
+            x = ops.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
         if D % self.patch_size[0] != 0:
             x = ops.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
 
@@ -501,7 +544,6 @@ class STDiT(nn.Cell):
 
     def construct(self, x, timestep, y, mask=None):
         """
-        Forward pass of STDiT.
         Args:
             x (ms.Tensor): latent representation of video; of shape [B, C, T, H, W]
             timestep (ms.Tensor): diffusion time steps; of shape [B]
@@ -531,6 +573,7 @@ class STDiT(nn.Cell):
         y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
         
         # TODO: graph mode, mask required for indicating text len
+        '''
         if mask is not None:
             if mask.shape[0] != y.shape[0]:
                 mask = mask.repeat(y.shape[0] // mask.shape[0], 1)
@@ -540,7 +583,9 @@ class STDiT(nn.Cell):
         else:
             # TODO: check dynamic shape issue
             y_lens = [y.shape[2]] * y.shape[0]
-            y = y.squeeze(1).view(1, -1, x.shape[-1])
+        '''
+        # (b 1 max_tokens d_t) -> (b max_tokens d_t)  -> (1 b*max_tokens d_t)
+        y = y.squeeze(1).view(1, -1, x.shape[-1])
 
         # blocks
         for i, block in enumerate(self.blocks):
@@ -550,7 +595,7 @@ class STDiT(nn.Cell):
                 tpe = None
             # TODO: mask?
             # x = block(x, y, t0, y_lens, tpe)
-            x = block(x, y, t0, mask=y_lens, tpe=tpe)
+            x = block(x, y, t0, mask=mask, tpe=tpe)
 
 
         # x.shape: [B, N, C]

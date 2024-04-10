@@ -27,7 +27,7 @@ args = dict(
         enable_sequence_parallelism=False,
     )
 
-B, N, C = 1, T*S, hidden_size 
+B, N, C = 2, T*S, hidden_size 
 x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
 # condition, text, 
@@ -160,7 +160,7 @@ def test_stdit_raw():
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
+    ms.set_context(mode=1)
     compare_stdit()
 
 

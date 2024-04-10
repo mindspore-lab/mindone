@@ -191,6 +191,10 @@ class Attention(nn.Cell):
         self.attn_drop = nn.Dropout(p=attn_drop)
 
     def construct(self, q, k, v, mask):
+        # q: (b L_q dim), k v: (b L_k dim)
+        # mask: (b seq_len)
+
+        # (b L_q L_k)
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
