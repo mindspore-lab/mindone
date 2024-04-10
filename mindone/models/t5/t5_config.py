@@ -16,8 +16,8 @@
 T5 Model config
 """
 
-from .mininlp.configs import HF_CONFIG_URL_BASE
-from .mininlp.pretrained_config import PreTrainedConfig
+from .modules.configs import HF_CONFIG_URL_BASE
+from .modules.pretrained_config import PreTrainedConfig
 
 __all__ = ["T5Config"]
 

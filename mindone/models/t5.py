@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import mindspore as ms
 from mindspore import Tensor, nn
 
-from mindone.models.flan_t5_large.t5 import get_t5_encoder, get_t5_tokenizer
+from mindone.models.t5.t5 import get_t5_encoder, get_t5_tokenizer
 
 logger = logging.getLogger(__name__)
 

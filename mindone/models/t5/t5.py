@@ -9,10 +9,10 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
-from .mininlp.activations import ACT2FN
-from .mininlp.configs import MINDNLP_MODEL_URL_BASE
-from .mininlp.legacy import Dropout, arange
-from .mininlp.pretrained_model import PreTrainedModel
+from .modules.activations import ACT2FN
+from .modules.configs import MINDNLP_MODEL_URL_BASE
+from .modules.legacy import Dropout, arange
+from .modules.pretrained_model import PreTrainedModel
 from .t5_config import T5_SUPPORT_LIST, T5Config
 
 __all__ = [
