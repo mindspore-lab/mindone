@@ -90,7 +90,7 @@ python train.py --config configs/ae/training/causal_vae_video.yaml
 
 For detailed arguments, please run `python train.py -h` and check the config yaml file.
 
-It's easy to config the model architecture in `configs/causal_vae_488.yaml` and the training strategy in `configs/training/causal_vae_video.yaml`.
+It's easy to config the model architecture in `configs/ae/causal_vae_488.yaml` and the training strategy in `configs/ae/training/causal_vae_video.yaml`.
 
 
 **Districuted Training**: For distributed training on multiple NPUs, please refer to this [doc](../stable_diffusion_v2/README.md#distributed-training)
