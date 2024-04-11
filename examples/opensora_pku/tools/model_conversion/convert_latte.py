@@ -51,7 +51,11 @@ def torch_to_ms_weight(source_fp, target_fp):
     target_data = []
     for _name_pt in source_data:
         _name_ms = convert_pt_name_to_ms(_name_pt)
-        _source_data = source_data[_name_pt].cpu().detach().numpy()
+        _source_data = source_data[_name_pt]
+        if _source_data.dtype == torch.bfloat16:
+            _source_data = _source_data.to(torch.float16)
+            print(f"found bfloat16 parameter {_name_pt}, change to float16 data type.")
+        _source_data = _source_data.cpu().detach().numpy()
         target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
     ms.save_checkpoint(target_data, target_fp)
 
