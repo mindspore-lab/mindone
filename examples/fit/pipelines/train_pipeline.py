@@ -4,7 +4,7 @@ from diffusion import SpacedDiffusion
 from diffusion.diffusion_utils import discretized_gaussian_log_likelihood, extract_into_tensor, mean_flat, normal_kl
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 
 class NetworkWithLoss(nn.Cell):
@@ -112,7 +112,7 @@ class NetworkWithLoss(nn.Cell):
         x = ops.reshape(x, (x.shape[0], c, nh * p, nw * p))
         return x
 
-    def compute_loss(self, x, y, pos, mask):
+    def compute_loss(self, x: Tensor, y: Tensor, pos: Tensor, mask: Tensor) -> Tensor:
         D = x.shape[2]
         # convert x to 4-dim first for q_sample, prevent potential bug
         x = self.unpatchify(x)
