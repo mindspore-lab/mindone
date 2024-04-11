@@ -62,12 +62,6 @@ def parse_args():
         help="path to load a config yaml file that describes the VAE model",
     )
     parser.add_argument(
-        "--vae_ckpt_path",
-        type=str,
-        default="models/ae/causal_vae_488.ckpt",
-        help="path to the pretrained causal vae checkpoint",
-    )
-    parser.add_argument(
         "--image_size",
         type=int,
         default=256,
@@ -129,7 +123,7 @@ def parse_args():
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-mse.ckpt",
+        default="models/ae/causal_vae_488.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
@@ -223,7 +217,12 @@ if __name__ == "__main__":
             text_emb_dim = 4096
         t2v_model_extra_kwargs["context_dim"] = text_emb_dim
 
-    latte_model = LatteT2V.from_pretrained_2d("models/", video_length=args.num_frames)
+    latte_model = LatteT2V.from_pretrained_2d(
+        "models/",
+        subfolder=args.version,
+        video_length=args.num_frames,
+        enable_flash_attention=args.enable_flash_attention,
+    )
     if args.dtype == "fp16":
         model_dtype = ms.float16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
@@ -252,9 +251,9 @@ if __name__ == "__main__":
     logger.info("vae init")
     config = OmegaConf.load(args.vae_config)
     vae = instantiate_from_config(config.generator)
-    vae.init_from_ckpt(args.vae_ckpt_path)
+    vae.init_from_ckpt(args.vae_checkpoint)
     vae.set_train(False)
-    logger.info(f"Loaded checkpoint from  {args.vae_ckpt_path} into vae")
+    logger.info(f"Loaded checkpoint from  {args.vae_checkpoint} into vae")
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
