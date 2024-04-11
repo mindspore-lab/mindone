@@ -4,6 +4,7 @@ omegaconf
 einops
 ftfy
 regex
+beautifulsoup4
 albumentations
 pandas
 imagesize
