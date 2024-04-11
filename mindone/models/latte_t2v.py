@@ -593,6 +593,7 @@ class BasicTransformerBlock_(nn.Cell):
         # 0. Self-Attention
         batch_size = hidden_states.shape[0]
 
+        gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
         if self.use_ada_layer_norm:
             norm_hidden_states = self.norm1(hidden_states, timestep)
         elif self.use_ada_layer_norm_zero:
@@ -619,8 +620,11 @@ class BasicTransformerBlock_(nn.Cell):
 
         # 2. Prepare GLIGEN inputs
         cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
-        gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
-
+        if "gligen" in cross_attention_kwargs:
+            gligen_kwargs = cross_attention_kwargs["gligen"]
+            # del cross_attention_kwargs["gligen"]
+        else:
+            gligen_kwargs = None
         attn_output = self.attn1(
             norm_hidden_states,
             encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
@@ -818,7 +822,7 @@ class BasicTransformerBlock(nn.Cell):
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Self-Attention
         batch_size = hidden_states.shape[0]
-
+        gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
         if self.use_ada_layer_norm:
             norm_hidden_states = self.norm1(hidden_states, timestep)
         elif self.use_ada_layer_norm_zero:
@@ -845,8 +849,11 @@ class BasicTransformerBlock(nn.Cell):
 
         # 2. Prepare GLIGEN inputs
         cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
-        gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
-
+        if "gligen" in cross_attention_kwargs:
+            gligen_kwargs = cross_attention_kwargs["gligen"]
+            # del cross_attention_kwargs["gligen"]
+        else:
+            gligen_kwargs = None
         attn_output = self.attn1(
             norm_hidden_states,
             encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
@@ -977,11 +984,12 @@ class Latte(ModelMixin, ConfigMixin):
         dtype=ms.float32,
     ):
         super().__init__()
-        self.use_linear_projection = use_linear_projection
+        # self.use_linear_projection = use_linear_projection
         self.num_attention_heads = num_attention_heads
         self.attention_head_dim = attention_head_dim
         inner_dim = num_attention_heads * attention_head_dim
         self.video_length = video_length
+        self.norm_type = norm_type
 
         conv_cls = nn.Conv2d  # if USE_PEFT_BACKEND else LoRACompatibleConv
         linear_cls = nn.Dense  # if USE_PEFT_BACKEND else LoRACompatibleLinear
@@ -1222,22 +1230,25 @@ class Latte(ModelMixin, ConfigMixin):
         # lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
 
         # 1. Input
-        if self.is_input_patches:  # here
-            height, width = hidden_states.shape[-2] // self.patch_size, hidden_states.shape[-1] // self.patch_size
-            num_patches = height * width
+        assert self.is_input_patches, "Currently only support input patches!"
+        # if self.is_input_patches:  # here
+        height, width = hidden_states.shape[-2] // self.patch_size, hidden_states.shape[-1] // self.patch_size
+        num_patches = height * width
 
-            hidden_states = self.pos_embed(hidden_states.to(self.dtype))  # alrady add positional embeddings
+        hidden_states = self.pos_embed(hidden_states.to(self.dtype))  # alrady add positional embeddings
 
-            if self.adaln_single is not None:
-                if self.use_additional_conditions and added_cond_kwargs is None:
-                    raise ValueError(
-                        "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
-                    )
-                # batch_size = hidden_states.shape[0]
-                batch_size = input_batch_size
-                timestep, embedded_timestep = self.adaln_single(
-                    timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_states.dtype
+        if self.adaln_single is not None:
+            if self.use_additional_conditions and added_cond_kwargs is None:
+                raise ValueError(
+                    "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
                 )
+            # batch_size = hidden_states.shape[0]
+            batch_size = input_batch_size
+            timestep, embedded_timestep = self.adaln_single(
+                timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_states.dtype
+            )
+        else:
+            embedded_timestep = None
 
         # prepare timesteps for spatial and temporal block
         # b d -> (b f) d
@@ -1310,37 +1321,36 @@ class Latte(ModelMixin, ConfigMixin):
                         input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
                     )
 
-        if self.is_input_patches:
-            if self.config.norm_type != "ada_norm_single":
-                conditioning = self.transformer_blocks[0].norm1.emb(
-                    timestep, class_labels, hidden_dtype=hidden_states.dtype
-                )
-                shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
-                hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
-                hidden_states = self.proj_out_2(hidden_states)
-            elif self.config.norm_type == "ada_norm_single":
-                # b d -> (b f) d
-                embedded_timestep = embedded_timestep.repeat_interleave(frame + use_image_num, dim=0)
-                shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
-                hidden_states = self.norm_out(hidden_states)
-                # Modulation
-                hidden_states = hidden_states * (1 + scale) + shift
-                hidden_states = self.proj_out(hidden_states)
+        # if self.is_input_patches:
+        if self.norm_type != "ada_norm_single":
+            conditioning = self.transformer_blocks[0].norm1.emb(
+                timestep, class_labels, hidden_dtype=hidden_states.dtype
+            )
+            shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
+            hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
+            hidden_states = self.proj_out_2(hidden_states)
+        elif self.norm_type == "ada_norm_single":
+            # b d -> (b f) d
+            assert embedded_timestep is not None, "embedded_timestep should be not None"
+            embedded_timestep = embedded_timestep.repeat_interleave(frame + use_image_num, dim=0)
+            shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+            hidden_states = self.norm_out(hidden_states)
+            # Modulation
+            hidden_states = hidden_states * (1 + scale) + shift
+            hidden_states = self.proj_out(hidden_states)
 
-            # unpatchify
-            if self.adaln_single is None:
-                height = width = int(hidden_states.shape[1] ** 0.5)
-            hidden_states = hidden_states.reshape(
-                shape=(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-            )
-            # nhwpqc->nchpwq
-            hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
-            output = hidden_states.reshape(
-                shape=(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
-            )
-            # (b f) c h w -> b c f h w
-            output = output.view(input_batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1])
-            output = output.permute(0, 2, 1, 3, 4)
+        # unpatchify
+        if self.adaln_single is None:
+            height = width = int(hidden_states.shape[1] ** 0.5)
+        hidden_states = hidden_states.reshape(
+            shape=(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
+        )
+        # nhwpqc->nchpwq
+        hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
+        output = hidden_states.reshape(shape=(-1, self.out_channels, height * self.patch_size, width * self.patch_size))
+        # (b f) c h w -> b c f h w
+        output = output.view(input_batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1])
+        output = output.permute(0, 2, 1, 3, 4)
 
         return output
 
@@ -1454,11 +1464,12 @@ class LatteT2V(ModelMixin, ConfigMixin):
         enable_flash_attention: bool = False,
     ):
         super().__init__()
-        self.use_linear_projection = use_linear_projection
+        # self.use_linear_projection = use_linear_projection
         self.num_attention_heads = num_attention_heads
         self.attention_head_dim = attention_head_dim
         inner_dim = num_attention_heads * attention_head_dim
         self.video_length = video_length
+        self.norm_type = norm_type
 
         conv_cls = nn.Conv2d  # if USE_PEFT_BACKEND else LoRACompatibleConv
         linear_cls = nn.Dense  # if USE_PEFT_BACKEND else LoRACompatibleLinear
@@ -1735,22 +1746,25 @@ class LatteT2V(ModelMixin, ConfigMixin):
         # lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
 
         # 1. Input
-        if self.is_input_patches:  # here
-            height, width = hidden_states.shape[-2] // self.patch_size, hidden_states.shape[-1] // self.patch_size
-            num_patches = height * width
+        assert self.is_input_patches, "Only support input patches now!"
+        # if self.is_input_patches:  # here
+        height, width = hidden_states.shape[-2] // self.patch_size, hidden_states.shape[-1] // self.patch_size
+        num_patches = height * width
 
-            hidden_states = self.pos_embed(hidden_states.to(self.dtype))  # alrady add positional embeddings
+        hidden_states = self.pos_embed(hidden_states.to(self.dtype))  # alrady add positional embeddings
 
-            if self.adaln_single is not None:
-                if self.use_additional_conditions and added_cond_kwargs is None:
-                    raise ValueError(
-                        "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
-                    )
-                # batch_size = hidden_states.shape[0]
-                batch_size = input_batch_size
-                timestep, embedded_timestep = self.adaln_single(
-                    timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_states.dtype
+        if self.adaln_single is not None:
+            if self.use_additional_conditions and added_cond_kwargs is None:
+                raise ValueError(
+                    "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
                 )
+            # batch_size = hidden_states.shape[0]
+            batch_size = input_batch_size
+            timestep, embedded_timestep = self.adaln_single(
+                timestep, added_cond_kwargs, batch_size=batch_size, hidden_dtype=hidden_states.dtype
+            )
+        else:
+            embedded_timestep = None
 
         # 2. Blocks
         if self.caption_projection is not None:
@@ -1764,12 +1778,14 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 encoder_hidden_states_image = encoder_hidden_states[:, 1:, ...]
                 encoder_hidden_states = ops.cat([encoder_hidden_states_video, encoder_hidden_states_image], axis=1)
                 # b f t d -> (b f) t d
-                encoder_hidden_states = encoder_hidden_states.view(
+                encoder_hidden_states_spatial = encoder_hidden_states.view(
                     -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
                 )
             else:
                 # b t d -> (b f) t d
                 encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(frame, dim=0)
+        else:
+            encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(frame, dim=0)  # for graph mode
 
         # prepare timesteps for spatial and temporal block
         # b d -> (b f) d
@@ -1840,37 +1856,37 @@ class LatteT2V(ModelMixin, ConfigMixin):
                         input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
                     )
 
-        if self.is_input_patches:
-            if self.config.norm_type != "ada_norm_single":
-                conditioning = self.transformer_blocks[0].norm1.emb(
-                    timestep, class_labels, hidden_dtype=hidden_states.dtype
-                )
-                shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
-                hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
-                hidden_states = self.proj_out_2(hidden_states)
-            elif self.config.norm_type == "ada_norm_single":
-                # b d -> (b f) d
-                embedded_timestep = embedded_timestep.repeat_interleave(frame + use_image_num, dim=0)
-                shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
-                hidden_states = self.norm_out(hidden_states)
-                # Modulation
-                hidden_states = hidden_states * (1 + scale) + shift
-                hidden_states = self.proj_out(hidden_states)
+        # if self.is_input_patches:
+        if self.norm_type != "ada_norm_single":
+            conditioning = self.transformer_blocks[0].norm1.emb(
+                timestep, class_labels, hidden_dtype=hidden_states.dtype
+            )
+            shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
+            hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
+            hidden_states = self.proj_out_2(hidden_states)
+        elif self.norm_type == "ada_norm_single":
+            # b d -> (b f) d
+            assert embedded_timestep is not None, "embedded_timestep is expected to be not None"
+            embedded_timestep = embedded_timestep.repeat_interleave(frame + use_image_num, dim=0)
+            shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+            hidden_states = self.norm_out(hidden_states)
+            # Modulation
+            hidden_states = hidden_states * (1 + scale) + shift
+            hidden_states = self.proj_out(hidden_states)
 
-            # unpatchify
-            if self.adaln_single is None:
-                height = width = int(hidden_states.shape[1] ** 0.5)
-            hidden_states = hidden_states.reshape(
-                -1, height, width, self.patch_size, self.patch_size, self.out_channels
-            )
-            # nhwpqc->nchpwq
-            hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
-            output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
-            # (b f) c h w -> b c f h w
-            output = output.view(
-                input_batch_size, frame + use_image_num, output.shape[-3], output.shape[-2], output.shape[-1]
-            )
-            output = output.permute(0, 2, 1, 3, 4)
+        # unpatchify
+        if self.adaln_single is None:
+            height = width = int(hidden_states.shape[1] ** 0.5)
+
+        hidden_states = hidden_states.reshape(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
+        # nhwpqc->nchpwq
+        hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
+        output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
+        # (b f) c h w -> b c f h w
+        output = output.view(
+            input_batch_size, frame + use_image_num, output.shape[-3], output.shape[-2], output.shape[-1]
+        )
+        output = output.permute(0, 2, 1, 3, 4)
 
         return output
 
