@@ -90,7 +90,7 @@ def betas_for_alpha_bar(
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return ms.tensor(betas, dtype=ms.float32)
+    return ms.Tensor(betas, dtype=ms.float32)
 
 
 def rescale_zero_terminal_snr(betas):
@@ -202,13 +202,13 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         rescale_betas_zero_snr: bool = False,
     ):
         if trained_betas is not None:
-            self.betas = ms.tensor(trained_betas, dtype=ms.float32)
+            self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = ms.tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
+            self.betas = ms.Tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
             self.betas = (
-                ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
+                ms.Tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
             )
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
@@ -227,7 +227,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         # For the final step, there is no previous alphas_cumprod because we are already at 0
         # `set_alpha_to_one` decides whether we set this parameter simply to one or
         # whether we use the final alpha of the "non-previous" one.
-        self.final_alpha_cumprod = ms.tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
+        self.final_alpha_cumprod = ms.Tensor(1.0) if set_alpha_to_one else self.alphas_cumprod[0]
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0

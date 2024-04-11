@@ -32,7 +32,7 @@ def randn(
     if generator is None:
         generator = np.random.default_rng()
 
-    return ms.tensor(generator.standard_normal(size), dtype=dtype)
+    return ms.Tensor(generator.standard_normal(size), dtype=dtype)
 
 
 def randn_tensor(

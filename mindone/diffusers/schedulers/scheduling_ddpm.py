@@ -87,7 +87,7 @@ def betas_for_alpha_bar(
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return ms.tensor(betas, dtype=ms.float32)
+    return ms.Tensor(betas, dtype=ms.float32)
 
 
 # Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
@@ -200,18 +200,18 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         if trained_betas is not None:
             self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = ms.tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
+            self.betas = ms.Tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
             self.betas = (
-                ms.tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
+                ms.Tensor(np.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps), dtype=ms.float32) ** 2
             )
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
         elif beta_schedule == "sigmoid":
             # GeoDiff sigmoid schedule
-            betas = ms.tensor(np.linspace(-6, 6, num_train_timesteps), dtype=ms.float32)
+            betas = ms.Tensor(np.linspace(-6, 6, num_train_timesteps), dtype=ms.float32)
             self.betas = ops.sigmoid(betas) * (beta_end - beta_start) + beta_start
         else:
             raise NotImplementedError(f"{beta_schedule} does is not implemented for {self.__class__}")
