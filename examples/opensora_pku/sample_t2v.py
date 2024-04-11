@@ -228,8 +228,7 @@ if __name__ == "__main__":
         model_dtype = ms.float16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
     elif args.dtype == "bf16":
-        model_dtype = ms.bfloat16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+        raise ValueError("LatteT2V only support fp16 and fp32 now!")
     else:
         model_dtype = ms.float32
     video_length, image_size = latte_model.config.video_length, args.image_size
