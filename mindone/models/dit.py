@@ -2,8 +2,6 @@ import math
 import numbers
 from typing import Optional, Tuple, Type, Union
 
-import numpy as np
-
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
@@ -190,22 +188,14 @@ class Attention(nn.Cell):
         self.scale = dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
 
-    def construct(self, q, k, v, mask):
+    def construct(self, q, k, v, mask=None):
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
-
+        sim = sim.astype(ms.float32)
         if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
-            if sim.dtype == ms.float16:
-                finfo_type = np.float16
-            else:
-                finfo_type = np.float32
-            max_neg_value = -np.finfo(finfo_type).max
-            mask = mask.repeat(self.heads, axis=0)
-            mask = ops.expand_dims(mask, axis=1)
-            sim.masked_fill(mask, max_neg_value)
+            sim += mask
 
         # use fp32 for exponential inside
-        attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+        attn = self.softmax(sim).astype(v.dtype)
         attn = self.attn_drop(attn)
 
         out = ops.matmul(attn, v)
@@ -297,6 +287,16 @@ class SelfAttention(nn.Cell):
         v_b, v_n, _ = v.shape
 
         head_dim = q.shape[-1] // h
+        # convert sequence mask to attention mask: (b, q_n) to (b, q_n, k_n)
+        if mask is not None:
+            if mask.dim() == 2:
+                mask = self.reshape(mask, (mask.shape[0], -1))
+                attn_mask = ops.zeros((q_b, q_n, k_n), self.dtype)
+                mask = ops.expand_dims(mask, axis=1)  # (q_b, q_n, 1)
+                attn_mask = attn_mask.masked_fill(~mask, -ms.numpy.inf)
+                mask = attn_mask
+            elif mask.dim() != 3:
+                raise ValueError(f"mask should be 2D or 3D, but got {mask.dim()}D")
 
         if (
             self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
@@ -305,6 +305,8 @@ class SelfAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+            if mask is not None and mask.dim() != 4:
+                mask = ops.expand_dims(mask, axis=1)  # (q_b, 1, q_n, k_n)
             out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -314,7 +316,8 @@ class SelfAttention(nn.Cell):
             q = self._rearange_in(q, h)
             k = self._rearange_in(k, h)
             v = self._rearange_in(v, h)
-
+            if mask is not None and mask.shape[0] != q.shape[0]:
+                mask = mask.repeat(h, axis=0)
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)
             out = self._rearange_out(out, h)

@@ -83,6 +83,7 @@ class MSFlashAttention(nn.Cell):
 
     def construct(self, q, k, v, mask=None):
         q_b, h, q_n, d = q.shape  # (b, h, n, d)
+        _, h, k_n, d = k.shape  # (b, h, n, d)
         head_dim = d
 
         #   a trick to pad head dimensions to 2**n * 64
@@ -109,7 +110,7 @@ class MSFlashAttention(nn.Cell):
             )[3]
         else:
             if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+                mask = ops.zeros((q_b, q_n, k_n), self.fa_mask_dtype)
             out = self.flash_attention(
                 q.to(self.dtype),
                 k.to(self.dtype),
