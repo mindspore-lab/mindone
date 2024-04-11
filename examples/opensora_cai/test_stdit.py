@@ -19,9 +19,17 @@ y (torch.Tensor): representation of prompts; of shape [B, 1, N_token, C]
 
 hidden_size = 1024
 
-B, C, T, H, W = 2, 4, 1, 32, 32
+B, C, T, H, W = 2, 4, 5, 32, 32
 text_emb_dim = 4096
 max_tokens = 10
+
+model_extra_args = dict(
+    input_size=(T, H, W),
+    in_channels=C,
+    caption_channels=text_emb_dim,
+    model_max_length=max_tokens,
+    )
+
 # patch_size = (1, 2, 2)
 S = num_spatial = 16*16  # num_patches // self.num_temporal
 
@@ -55,8 +63,17 @@ args = dict(
 
 def test_stdit():
 
-    net = STDiT_XL_2()
+    net = STDiT_XL_2(**model_extra_args)
     net.set_train(False)
+
+    total_params = sum([param.size for param in net.get_parameters()])
+    total_trainable = sum([param.size for param in net.get_parameters() if param.requires_grad])
+    print("ms total params: ", total_params)
+    print("ms trainable: ", total_trainable)
+
+    for param in net.get_parameters():
+        # if param.requires_grad:
+        print(param.name, tuple(param.shape))
     
     out = net(ms.Tensor(x), ms.Tensor(t), ms.Tensor(y), mask=ms.Tensor(mask))
     print(out.shape)
@@ -66,16 +83,23 @@ def test_stdit_pt():
     sys.path.append(pt_code_path)
     from opensora.models.stdit.stdit import STDiT_XL_2 as STD_PT
 
-    net = STD_PT()
+    net = STD_PT(**model_extra_args)
     net.eval()
+
+    total_params = sum(p.numel() for p in net.parameters())
+    print("pt total params: ", total_params)
+    print("pt trainable: ", sum(p.numel() for p in net.parameters() if p.requires_grad))
+    for pname, p in net.named_parameters(): 
+        # if p.requires_grad:
+        print(pname, tuple(p.shape))
 
     out = net(torch.Tensor(x), torch.Tensor(t), torch.Tensor(y), mask=torch.Tensor(mask))
     print(out.shape)
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
-    test_stdit()
-    # test_stdit_pt()
+    ms.set_context(mode=1)
+    # test_stdit()
+    test_stdit_pt()
 
 
 

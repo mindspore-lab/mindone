@@ -59,7 +59,9 @@ def test_net_ms(x, ckpt=None, net_class=None, args=None):
     else:
         res_ms = net_ms(ms.Tensor(x, dtype=ms.float32))
     total_params = sum([param.size for param in net_ms.get_parameters()])
+    total_trainable = sum([param.size for param in net_ms.get_parameters() if param.requires_grad])
     print("ms total params: ", total_params)
+    print("ms trainable: ", total_trainable)
 
     print(res_ms.shape)
     return res_ms.asnumpy(), net_ms
@@ -85,6 +87,7 @@ def test_net_pt(x, ckpt=None, save_ckpt_fn=None, net_class=None, args=None):
 
     total_params = sum(p.numel() for p in net_pt.parameters())
     print("pt total params: ", total_params)
+    print("pt trainable: ", sum(p.numel() for p in net_pt.parameters() if p.requires_grad))
     print(res_pt.shape)
     return res_pt.detach().cpu().numpy(), net_pt
 

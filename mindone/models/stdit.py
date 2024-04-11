@@ -94,7 +94,8 @@ class MultiHeadCrossAttention(nn.Cell):
         k, v = kv.unbind(2)
 
         # (B, N_tokens) -> (1, B*N_tokens) 
-        mask = mask.reshape(1, -1)
+        if mask is not None:
+            mask = mask.reshape(1, -1)
        
         # TODO: support masking
         #if mask is not None:
@@ -400,6 +401,7 @@ class CaptionEmbedder(nn.Cell):
         )
         
         y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
+        # just for token dropping replacement, random
         self.y_embedding =  ms.Parameter(ms.Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
 
         self.uncond_prob = uncond_prob
@@ -413,7 +415,8 @@ class CaptionEmbedder(nn.Cell):
         else:
             drop_ids = force_drop_ids == 1
         # TODO: graph mode check
-        caption = ops.where(drop_ids[:, None, None, None], self.y_embedding, caption)
+        # print('D--: tk drop dtype: ',  self.y_embedding.dtype, caption.dtype)
+        caption = ops.where(drop_ids[:, None, None, None], self.y_embedding, caption.to(self.y_embedding.dtype))
         return caption
 
     def construct(self, caption, train, force_drop_ids=None):
@@ -509,7 +512,7 @@ class STDiT(nn.Cell):
             token_num=model_max_length,
         )
 
-        drop_path = [x.item() for x in ops.linspace(0, drop_path, depth)]
+        drop_path = np.linspace(0, drop_path, depth)
         self.blocks = nn.CellList(
             [
                 STDiTBlock(
@@ -553,6 +556,8 @@ class STDiT(nn.Cell):
         Returns:
             x (ms.Tensor): output latent representation; of shape [B, C, T, H, W]
         """
+
+        # print("D--: stdit inputs: ", x.shape, timestep.shape, mask.shape)
 
         x = x.to(self.dtype)
         timestep = timestep.to(self.dtype)
