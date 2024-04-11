@@ -1,0 +1,22 @@
+condition: "text"
+text_encoder: "t5"
+clip_checkpoint: ""
+t5_cache_folder: "models/t5-v1_1-xxl/"
+
+image_size: 512
+num_frames: 8
+model_name: "STDiT_16x512x512"
+checkpoint: "models/stdit_16x512x512.ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+dtype: "fp16"
+
+# sampling
+sampling_steps: 50
+guidance_scale: 7.0
+seed: 42
+ddim_sampling: False
+
+captions:
+- "The video captures the majestic beauty of a waterfall cascading down a cliff into a serene lake. The waterfall, with its powerful flow, is the central focus of the video. The surrounding landscape is lush and green, with trees and foliage adding to the natural beauty of the scene. The camera angle provides a bird's eye view of the waterfall, allowing viewers to appreciate the full height and grandeur of the waterfall. The video is a stunning representation of nature's power and beauty."
