@@ -1,0 +1,12 @@
+image_size: 256
+num_frames: 4 # 16
+batch_size: 1
+
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+
+dtype: "fp16"
+
+start_learning_rate: 1.e-5
+epochs: 300
+ckpt_save_interval: 50
