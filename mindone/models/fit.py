@@ -127,9 +127,10 @@ class SelfAttention(nn.Cell):
         if self.apply_rotate_embed:
             q, k = apply_rotary_emb(q, k, freqs_cis)
 
-        if self.flash_attention:
+        # FIXME: drop the shape requiremnt when flash-attention works ok
+        if self.flash_attention and q.shape[2] % 16 == 0 and k.shape[2] % 16 == 0 and q.shape[-1] <= 256:
             mask = ops.logical_and(mask[:, None, :], mask[:, :, None])
-            out = self.flash_attention(q, k, v, mask)
+            out = self.flash_attention(q, k, v, ~mask)
         else:
             out = self.attention(q, k, v, mask=mask)
 
