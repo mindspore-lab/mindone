@@ -4,7 +4,7 @@ clip_checkpoint: ""
 t5_cache_folder: "models/t5-v1_1-xxl/"
 
 image_size: 512
-num_frames: 8
+num_frames: 16
 model_name: "STDiT_16x512x512"
 checkpoint: "models/stdit_16x512x512.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
