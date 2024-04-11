@@ -180,6 +180,9 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument(
+        "--num_images_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
+    )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -316,7 +319,7 @@ if __name__ == "__main__":
             num_inference_steps=args.sampling_steps,
             guidance_scale=args.guidance_scale,
             enable_temporal_attentions=True,
-            num_images_per_prompt=1,
+            num_images_per_prompt=args.num_images_per_prompt,
             mask_feature=False,
         ).video.asnumpy()
         video_grids.append(videos)
@@ -326,6 +329,7 @@ if __name__ == "__main__":
 
     # save result
     for i in range(n):
-        save_fp = f"{save_dir}/{args.captions[i]}.gif"
-        save_videos(x_samples[i : i + 1], save_fp, loop=0)
-        logger.info(f"save to {save_fp}")
+        for i_image in range(args.num_images_per_prompt):
+            save_fp = f"{save_dir}/{i_image}-{args.captions[i]}.gif"
+            save_videos(x_samples[i : i + 1, i_image], save_fp, loop=0)
+            logger.info(f"save to {save_fp}")
