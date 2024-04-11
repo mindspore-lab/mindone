@@ -90,6 +90,7 @@ class T2I_BaseDataset:
         prompt_empty_probability=0.0,
         lpw=False,
         max_embeddings_multiples=4,
+        return_sample_name=False,
         **kwargs,
     ):
         super().__init__()
@@ -103,6 +104,9 @@ class T2I_BaseDataset:
         self.tokenizer = tokenizer
         self.token_nums = token_nums
         self.dataset_column_names = ["samples"]
+        self.return_sample_name = return_sample_name
+        self.data_path = data_path
+
         if self.tokenizer is None:
             self.dataset_output_column_names = self.dataset_column_names
         else:
@@ -124,7 +128,6 @@ class T2I_BaseDataset:
         self.caption_key = caption_key
         self.prev_ok_sample = None
         self.require_update_prev = True
-
         self.lpw = lpw
         self.max_embeddings_multiples = max_embeddings_multiples
 
@@ -146,8 +149,7 @@ class T2I_BaseDataset:
                     f"Adding batch mapper {bs_trans.__class__.__name__} as batch transform #{i} " f"to the datapipeline"
                 )
 
-    def preprocess(self, image, caption: str):
-        # preprocess image and caption
+    def preprocess(self, image, caption: str, image_path="0000000000000"):
         if not image.mode == "RGB":
             image = image.convert("RGB")
         image = np.array(image).astype(np.uint8)
@@ -168,7 +170,6 @@ class T2I_BaseDataset:
             else:
                 caption = " "
                 print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
-
         caption = np.array(caption)
 
         sample = {
@@ -183,6 +184,10 @@ class T2I_BaseDataset:
                 ]
             ),
         }
+
+        if self.return_sample_name:
+            self.dataset_output_column_names.append("sample_name")
+            sample["sample_name"] = np.array(image_path)
 
         for trans in self.transforms:
             sample = trans(sample)
@@ -208,16 +213,18 @@ class T2I_BaseDataset:
         data = {k: (np.stack(v, 0) if isinstance(v[0], np.ndarray) else v) for k, v in batch_samples.items()}
 
         if self.tokenizer:
-            data = {k: (v.tolist() if k == "txt" else v.astype(np.float32)) for k, v in data.items()}
-
+            data = {
+                k: (v.tolist() if (k == "txt" or k == "sample_name") else v.astype(np.float32)) for k, v in data.items()
+            }
             try:
                 tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
             except Exception as e:
                 print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
                 data["txt"] = [" " for _ in range(len(data["txt"]))]
                 tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
-
             outs = (data["image"],) + tuple(tokens)
+            if "sample_name" in data:
+                outs += (data["sample_name"],)
         else:
             outs = data
 
@@ -321,7 +328,8 @@ class T2I_Webdataset(T2I_BaseDataset):
         rank_id, device_num = get_device_rank_info()
         samples_per_rank = math.ceil(tot_samples / device_num)
         print(
-            f"INFO: Total samples in dataset {tot_samples}, device num {device_num}, rank id {rank_id}, num samples per device: {samples_per_rank}"
+            f"INFO: Total samples in dataset {tot_samples}, device num {device_num}, "
+            f"rank id {rank_id}, num samples per device: {samples_per_rank}"
         )
 
         # webdataset with shard split
@@ -341,7 +349,11 @@ class T2I_Webdataset(T2I_BaseDataset):
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
-                sample = self.preprocess(image, caption)
+                if "__key__" in raw:
+                    sample = self.preprocess(image, caption, str(raw["__key__"]))
+                else:
+                    print("=> WARNING: Fail to get the attribute __key__. using white space instead")
+                    sample = self.preprocess(image, caption, " ")
                 trials += 1
                 if sample is not None:
                     self.prev_ok_sample = copy.deepcopy(sample)
@@ -374,8 +386,11 @@ class T2I_Webdataset(T2I_BaseDataset):
         for raw in self.wds_iterator:
             try:
                 image, caption = self.parse_raw_data(raw)
-                sample = self.preprocess(image, caption)
-
+                if "__key__" in raw:
+                    sample = self.preprocess(image, caption, str(raw["__key__"]))
+                else:
+                    print("=> WARNING: Fail to get the attribute __key__. using white space instead")
+                    sample = self.preprocess(image, caption, " ")
                 yield sample
             except StopIteration:
                 raise StopIteration
@@ -397,6 +412,7 @@ class T2I_Webdataset_RndAcs(T2I_BaseDataset):
     def __init__(self, shardlist_desc=None, cache_dir=None, *args, **kwargs):
         # shardlist_desc: path to a json file describing sample num for each tar
         super().__init__(*args, **kwargs)
+        self.data_path = kwargs.get("data_path")
         if shardlist_desc is None:
             data_path = kwargs.get("data_path")
             if not os.path.exists(os.path.join(data_path, "data_info.json")):
@@ -521,7 +537,7 @@ if __name__ == "__main__":
             break
         tot_time += time.time() - s_time
         # print(f"{i}/{dataset_size}, image shape: {data.pop('image')}, {data}")
-        print(f"{i+1}/{dataset_size}, time cost: {(time.time()-s_time) * 1000} ms")
+        print(f"{i + 1}/{dataset_size}, time cost: {(time.time() - s_time) * 1000} ms")
         print(data["txt"])
         s_time = time.time()
     print("Total read time: ", tot_time)
