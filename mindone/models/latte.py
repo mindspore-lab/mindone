@@ -6,7 +6,7 @@ from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
 from .dit import DiTBlock, FinalLayer, LabelEmbedder, LinearPatchEmbed, PatchEmbed, TimestepEmbedder
-from .modules import get_1d_sincos_temp_embed, get_2d_sincos_pos_embed
+from .modules import get_1d_sincos_pos_embed, get_2d_sincos_pos_embed
 from .utils import constant_, normal_, xavier_uniform_
 
 logger = logging.getLogger(__name__)
@@ -116,7 +116,7 @@ class Latte(nn.Cell):
         # Initialize (and freeze) pos_embed (temp_embed) by sin-cos embedding:
         pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches**0.5))
         self.pos_embed.set_data(Tensor(pos_embed).float().unsqueeze(0))
-        temp_embed = get_1d_sincos_temp_embed(self.temp_embed.shape[-1], self.temp_embed.shape[-2])
+        temp_embed = get_1d_sincos_pos_embed(self.temp_embed.shape[-1], self.temp_embed.shape[-2])
         self.temp_embed.set_data(Tensor(temp_embed).float().unsqueeze(0))
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
@@ -248,10 +248,6 @@ class Latte(nn.Cell):
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
         model_out = self.construct(combined, t, y=y, text_embed=text_embed)
-        # For exact reproducibility reasons, we apply classifier-free guidance on only
-        # three channels by default. The standard approach to cfg applies it to all channels.
-        # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
         eps, rest = model_out[:, :, : self.in_channels], model_out[:, :, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)

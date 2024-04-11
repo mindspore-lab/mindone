@@ -22,8 +22,8 @@ class FiTInferPipeline:
 
     def __init__(
         self,
-        fit: Tensor,
-        vae: Tensor,
+        fit: nn.Cell,
+        vae: nn.Cell,
         text_encoder: Optional[nn.Cell] = None,
         scale_factor: float = 1.0,
         guidance_rescale: float = 0.0,
@@ -162,7 +162,6 @@ class FiTInferPipeline:
 
         z = self._pad_latent(z, p, max_size, max_length)
         pos, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim, method=embed_method)
-        pos = ops.tile(pos, (z.shape[0], 1, 1))
         mask = self._create_mask(valid_t, max_length)
 
         model_kwargs = dict(y=y, pos=pos, mask=mask, cfg_scale=Tensor(self.guidance_rescale, dtype=ms.float32))

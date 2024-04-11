@@ -145,6 +145,7 @@ if __name__ == "__main__":
     fit_model = FiT_models[args.model_name](
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        pos=args.embed_method,
     )
 
     if args.use_fp16:
