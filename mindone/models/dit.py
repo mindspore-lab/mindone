@@ -260,7 +260,8 @@ class SelfAttention(nn.Cell):
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-
+        # print("D--: self attn enable fa arg: ", enable_flash_attention, FLASH_IS_AVAILABLE)
+        # print("D--: self attn enable fa: ", self.enable_flash_attention)
         if self.enable_flash_attention:
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim, head_num=num_heads, fix_head_dims=[72], attention_dropout=attn_drop

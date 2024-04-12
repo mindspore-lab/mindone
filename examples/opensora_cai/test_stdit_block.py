@@ -8,6 +8,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from mindone.models.stdit import STDiTBlock
+from mindone.utils.amp import auto_mixed_precision
 
 ms.set_context(mode=1)
 
@@ -46,6 +47,9 @@ global_inputs = (x, y, t)
 def test_net_ms(x, ckpt=None, net_class=None, args=None):
     net_ms = net_class(**args)
     net_ms.set_train(False)
+
+    net_ms = auto_mixed_precision(net_ms, "O2", ms.float16)
+
     if ckpt:
        sd = ms.load_checkpoint(ckpt)
        m, u = ms.load_param_into_net(net_ms, sd)
@@ -123,7 +127,8 @@ def _diff_res(ms_val, pt_val):
     return mae, max_ae
 
 def compare_stdit():
-    pt_code_path = "/home/mindocr/yx/Open-Sora/"
+    # pt_code_path = "/home/mindocr/yx/Open-Sora/"
+    pt_code_path = "/data3/hyx/Open-Sora/"
     sys.path.append(pt_code_path)
     from opensora.models.stdit.stdit import STDiTBlock as STD_PT
 
@@ -138,12 +143,17 @@ def compare_stdit():
     # (0.0001554184, 0.0014244393)
 
 
-def test_stdit_raw():
+def test_stdit_ms():
 
     # model = STDiT(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
+    
+    args['enable_flashattn'] = True
+    # args['use_recompute'] = False
 
     net = STDiTBlock(**args)
     net.set_train(False)
+
+    net = auto_mixed_precision(net, "O2", ms.float16)
 
     B, N, C = 1, T*S, hidden_size 
     x = np.random.normal(size=(B, N, C)).astype(np.float32)
@@ -163,7 +173,8 @@ def test_stdit_raw():
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
-    compare_stdit()
+    ms.set_context(mode=0)
+    # compare_stdit()
+    test_stdit_ms()
 
 

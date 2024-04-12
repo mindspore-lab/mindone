@@ -8,6 +8,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from mindone.models.stdit import STDiTBlock, STDiT_XL_2
+from mindone.utils.amp import auto_mixed_precision
 
 ms.set_context(mode=1)
 
@@ -62,18 +63,22 @@ args = dict(
 
 
 def test_stdit():
+    model_extra_args['enable_flashattn'] = True
+    model_extra_args['use_recompute'] = True
 
     net = STDiT_XL_2(**model_extra_args)
     net.set_train(False)
+
+    net = auto_mixed_precision(net, "O2", ms.float16)
 
     total_params = sum([param.size for param in net.get_parameters()])
     total_trainable = sum([param.size for param in net.get_parameters() if param.requires_grad])
     print("ms total params: ", total_params)
     print("ms trainable: ", total_trainable)
 
-    for param in net.get_parameters():
-        # if param.requires_grad:
-        print(param.name, tuple(param.shape))
+    # for param in net.get_parameters():
+    #    # if param.requires_grad:
+    #    print(param.name, tuple(param.shape))
     
     out = net(ms.Tensor(x), ms.Tensor(t), ms.Tensor(y), mask=ms.Tensor(mask))
     print(out.shape)
@@ -97,9 +102,9 @@ def test_stdit_pt():
     print(out.shape)
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
-    # test_stdit()
-    test_stdit_pt()
+    ms.set_context(mode=0)
+    test_stdit()
+    # test_stdit_pt()
 
 
 

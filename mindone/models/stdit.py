@@ -165,6 +165,7 @@ class STDiTBlock(nn.Cell):
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
+            enable_flash_attention=enable_flashattn, # DDDD
         )
         self.cross_attn = self.mha_cls(hidden_size, num_heads)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
@@ -183,6 +184,7 @@ class STDiTBlock(nn.Cell):
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
+            enable_flash_attention=enable_flashattn,  # DDDDD
         )
 
     @staticmethod
@@ -472,6 +474,7 @@ class STDiT(nn.Cell):
         enable_flashattn=False,
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
+        use_recompute = False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -534,6 +537,7 @@ class STDiT(nn.Cell):
         # init model
         self.initialize_weights()
         self.initialize_temporal()
+
         if freeze is not None:
             assert freeze in ["not_temporal", "text"]
             if freeze == "not_temporal":
@@ -544,6 +548,20 @@ class STDiT(nn.Cell):
         # sequence parallel related configs
         self.enable_sequence_parallelism = enable_sequence_parallelism
         self.sp_rank = None
+
+        # recompute
+        print("D--: recompute!!: ", use_recompute)
+        if use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def construct(self, x, timestep, y, mask=None):
         """
@@ -686,7 +704,9 @@ class STDiT(nn.Cell):
         w = self.x_embedder.proj.weight
         # xavier_uniform_(w.view([w.shape[0], -1]))
         w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+
+        # TODO: FIXME: this line is compatible in optim parallel mode
+        # w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
