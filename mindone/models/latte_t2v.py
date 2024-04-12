@@ -1375,7 +1375,7 @@ class Latte(ModelMixin, ConfigMixin):
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        model_out = self.forward(combined, timestep, class_labels=class_labels, attention_mask=attention_mask)
+        model_out = self.construct(combined, timestep, class_labels=class_labels, attention_mask=attention_mask)
         # For exact reproducibility reasons, we apply classifier-free guidance on only
         # three channels by default. The standard approach to cfg applies it to all channels.
         # This can be done by uncommenting the following line and commenting-out the line following that.
@@ -1920,6 +1920,23 @@ class LatteT2V(ModelMixin, ConfigMixin):
         )
         if len(ckpt_not_load):
             print(f"{ckpt_not_load} not load")
+
+    def construct_with_cfg(self, x, timestep, class_labels=None, cfg_scale=7.0, attention_mask=None):
+        """
+        Forward pass of Latte, but also batches the unconditional forward pass for classifier-free guidance.
+        """
+        # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
+        half = x[: len(x) // 2]
+        combined = ops.cat([half, half], axis=0)
+        model_out = self.construct(combined, timestep, class_labels=class_labels, attention_mask=attention_mask)
+        # For exact reproducibility reasons, we apply classifier-free guidance on only
+        # three channels by default. The standard approach to cfg applies it to all channels.
+        # This can be done by uncommenting the following line and commenting-out the line following that.
+        eps, rest = model_out[:, :, : self.in_channels], model_out[:, :, self.in_channels :]
+        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+        eps = ops.cat([half_eps, half_eps], axis=0)
+        return ops.cat([eps, rest], axis=2)
 
 
 # depth = num_layers * 2
