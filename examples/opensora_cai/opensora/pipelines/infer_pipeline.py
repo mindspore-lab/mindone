@@ -90,13 +90,14 @@ class InferPipeline(ABC):
 
         return y
 
-    def data_prepare(self, inputs):
+    def data_prepare(self, inputs, save_npz=True):
         x = inputs["noise"]
 
         if self.condition == "text":
             text_tokens = inputs["text_tokens"]
             mask = inputs.get("mask", None)
             text_emb = self.get_condition_embeddings(text_tokens, **{"mask": mask})
+
             if self.use_cfg:
                 y, y_null = text_emb, ops.zeros_like(text_emb)
                 y = ops.cat([y, y_null], axis=0)
@@ -107,6 +108,10 @@ class InferPipeline(ABC):
             else:
                 x_in = x
                 y = text_emb
+
+            # to match stdit input format
+            y = ops.expand_dims(y, axis=1)
+
         else:
             if self.use_cfg:
                 y = ops.cat([inputs["y"], inputs["y_null"]], axis=0)
@@ -120,9 +125,10 @@ class InferPipeline(ABC):
     def get_condition_embeddings(self, text_tokens, **kwargs):
         # text conditions inputs for cross-attention
         text_emb = ops.stop_gradient(self.text_encoder(text_tokens, **kwargs))
+
         return text_emb
 
-    def __call__(self, inputs):
+    def __call__(self, inputs, skip_vae=False):
         """
         args:
             inputs: dict
@@ -137,7 +143,7 @@ class InferPipeline(ABC):
         # text condition, keys include "text_embed", "mask"(optional), "cfg_scale"(optional)
         if self.condition == "text":
             mask = inputs.get("mask", None)
-            model_kwargs = dict(text_embed=y)
+            model_kwargs = dict(y=y)
             if mask is not None:
                 model_kwargs["mask"] = mask
         else:
@@ -153,6 +159,9 @@ class InferPipeline(ABC):
             latents = self.sampling_func(
                 self.model.construct, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
             )
+        if skip_vae:
+            return latents
+
         if latents.dim() == 4:
             images = self.vae_decode(latents)
         else:

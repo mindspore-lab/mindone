@@ -564,6 +564,9 @@ class STDiT(nn.Cell):
         y = y.to(self.dtype)
 
         # embedding
+        import pdb
+        pdb.set_trace()
+
         x = self.x_embedder(x)  # [B, N, C]
         # x = rearrange(x, "B (T S) C -> B T S C", T=self.num_temporal, S=self.num_spatial)
         B, TS, C = x.shape
@@ -612,6 +615,21 @@ class STDiT(nn.Cell):
         # cast to float32 for better accuracy
         x = x.astype(ms.float32)
         return x
+
+    def construct_with_cfg(self, x, t, y, mask=None, cfg_scale=4.0):
+        """
+        Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
+        """
+        # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
+        half = x[: len(x) // 2]
+        combined = ops.cat([half, half], axis=0)
+        eps = self.construct(combined, t, y=y, mask=mask)
+
+        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
+        eps = ops.cat([half_eps, half_eps], axis=0)
+        return eps 
+
 
     def unpatchify(self, x):
         """

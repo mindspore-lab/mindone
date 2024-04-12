@@ -152,7 +152,7 @@ class GaussianDiffusion:
         if x.dim() == 4:
             B, C = x.shape[:2]
         elif x.dim() == 5:
-            B, F, C = x.shape[:3]
+            B, C, F = x.shape[:3]
         else:
             raise ValueError(f"Incorrect input shape. Expect to get 4 or 5 dimensional inputs, but got {x.dim()}")
 
@@ -167,8 +167,8 @@ class GaussianDiffusion:
                 assert model_output.shape == (B, C * 2, *x.shape[2:])
                 model_output, model_var_values = ops.split(model_output, C, axis=1)
             else:
-                assert model_output.shape == (B, F, C * 2, *x.shape[3:])
-                model_output, model_var_values = ops.split(model_output, C, axis=2)
+                assert model_output.shape == (B, C * 2, F, *x.shape[3:])
+                model_output, model_var_values = ops.split(model_output, C, axis=1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)

@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import time
+import numpy as np
 
 import yaml
 from modules.text_encoders import get_text_encoder_and_tokenizer
@@ -30,6 +31,7 @@ from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
+skip_vae = True
 
 def init_env(args):
     # no parallel mode currently
@@ -240,6 +242,8 @@ if __name__ == "__main__":
         # latte_model.load_params_from_ckpt(param_dict)
 
         sd = ms.load_checkpoint(args.checkpoint)
+        # skip loading temporal pos embedding to fit various num_frames
+        sd.pop('pos_embed_temporal') 
         m, u = ms.load_param_into_net(latte_model, sd)
         print('net param not load: ', m)
         print('ckpt param not load: ', u)
@@ -252,15 +256,18 @@ if __name__ == "__main__":
 
     # 2.2 vae
     logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        4,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
+    if skip_vae:
+        vae = AutoencoderKL(
+            SD_CONFIG,
+            4,
+            ckpt_path=args.vae_checkpoint,
+            use_fp16=False,  # disable amp for vae
+        )
+        vae = vae.set_train(False)
+        for param in vae.get_parameters():  # freeze vae
+            param.requires_grad = False
+    else:
+        vae = None
 
     if args.condition == "class":
         # Labels to condition the model with (feel free to change):
@@ -334,13 +341,16 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # infer
-    x_samples = pipeline(inputs)
+    x_samples = pipeline(inputs, skip_vae=skip_vae)
     x_samples = x_samples.asnumpy()
 
     end_time = time.time()
 
     # save result
-    for i in range(n):
-        save_fp = f"{save_dir}/{i}.gif"
-        save_videos(x_samples[i : i + 1], save_fp, loop=0)
-        logger.info(f"save to {save_fp}")
+    if skip_vae:
+        np.save('output_latents.npy', x_samples)
+    else:
+        for i in range(n):
+            save_fp = f"{save_dir}/{i}.gif"
+            save_videos(x_samples[i : i + 1], save_fp, loop=0)
+            logger.info(f"save to {save_fp}")
