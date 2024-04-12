@@ -982,6 +982,7 @@ class Latte(ModelMixin, ConfigMixin):
         video_length: int = 16,
         enable_flash_attention: bool = False,
         dtype=ms.float32,
+        use_recompute=False,
     ):
         super().__init__()
         # self.use_linear_projection = use_linear_projection
@@ -990,6 +991,7 @@ class Latte(ModelMixin, ConfigMixin):
         inner_dim = num_attention_heads * attention_head_dim
         self.video_length = video_length
         self.norm_type = norm_type
+        self.use_recompute = use_recompute
 
         conv_cls = nn.Conv2d  # if USE_PEFT_BACKEND else LoRACompatibleConv
         linear_cls = nn.Dense  # if USE_PEFT_BACKEND else LoRACompatibleLinear
@@ -1158,6 +1160,13 @@ class Latte(ModelMixin, ConfigMixin):
             inner_dim, video_length, interpolation_scale=interpolation_scale
         )  # 1152 hidden size
         self.temp_pos_embed = Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+
+        if self.use_recompute:
+            for block in self.transformer_blocks:
+                self.recompute(block)
+
+            for block in self.temporal_transformer_blocks:
+                self.recompute(block)
 
     def construct(
         self,
@@ -1402,6 +1411,14 @@ class Latte(ModelMixin, ConfigMixin):
         if len(ckpt_not_load):
             print(f"{ckpt_not_load} not load")
 
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
+
 
 class LatteT2V(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
@@ -1462,6 +1479,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         caption_channels: int = None,
         video_length: int = 16,
         enable_flash_attention: bool = False,
+        use_recompute=False,
     ):
         super().__init__()
         # self.use_linear_projection = use_linear_projection
@@ -1470,6 +1488,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         inner_dim = num_attention_heads * attention_head_dim
         self.video_length = video_length
         self.norm_type = norm_type
+        self.use_recompute = use_recompute
 
         conv_cls = nn.Conv2d  # if USE_PEFT_BACKEND else LoRACompatibleConv
         linear_cls = nn.Dense  # if USE_PEFT_BACKEND else LoRACompatibleLinear
@@ -1646,6 +1665,13 @@ class LatteT2V(ModelMixin, ConfigMixin):
         )  # 1152 hidden size
 
         self.temp_pos_embed = Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+
+        if self.use_recompute:
+            for block in self.transformer_blocks:
+                self.recompute(block)
+
+            for block in self.temporal_transformer_blocks:
+                self.recompute(block)
 
     def construct(
         self,
@@ -1937,6 +1963,14 @@ class LatteT2V(ModelMixin, ConfigMixin):
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=2)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
 
 # depth = num_layers * 2

@@ -222,6 +222,7 @@ if __name__ == "__main__":
         subfolder=args.model_version,
         video_length=args.num_frames,
         enable_flash_attention=args.enable_flash_attention,
+        use_recompute=args.use_recompute,
     )
     if args.dtype == "fp16":
         model_dtype = ms.float16
