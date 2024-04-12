@@ -115,7 +115,6 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     args.output_path = os.path.join(args.output_path, time_str)
@@ -143,6 +142,7 @@ def main(args):
     max_tokens = 120
 
     input_size = (args.num_frames//vae_t_compress, args.image_size//vae_s_compress,  args.image_size//vae_s_compress)
+    logger.info(f'STDiT input size: {input_size}')
     
     # FIXME: set this parameter by config file
     model_extra_args = dict(
@@ -156,6 +156,10 @@ def main(args):
         use_recompute=args.use_recompute,
         )
     latte_model = STDiT_XL_2(**model_extra_args)
+
+    if args.use_recompute:
+        logger.info("Apply whole model recompute!")
+        latte_model.recompute()
 
     if args.dtype == "fp16":
         model_dtype = ms.float16
@@ -296,9 +300,6 @@ def main(args):
         ema=ema,
     )
 
-    # import pdb
-    # pdb.set_trace()
-
     model = Model(net_with_grads)
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
@@ -324,7 +325,6 @@ def main(args):
         if args.profile:
             callback.append(ProfilerCallback())
     
-    # FIXME: debug
     # for param in latte_model.get_parameters():
     #    if param.requires_grad:
     #        print(param.name, tuple(param.shape))

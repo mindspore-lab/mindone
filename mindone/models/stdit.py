@@ -11,6 +11,9 @@ from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 from .modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
 
 
+from .modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+
+
 class Attention(nn.Cell):
     def __init__(self, dim_head: int, attn_drop: float = 0.0) -> None:
         super().__init__()
@@ -43,7 +46,7 @@ class MultiHeadCrossAttention(nn.Cell):
     Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
     due to the attention head dimension is 40, num heads=5. Require test on future versions
     """
-    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, use_FA=False):
+    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
 
@@ -59,7 +62,15 @@ class MultiHeadCrossAttention(nn.Cell):
         self.proj_drop = nn.Dropout(p=proj_drop)
 
         self.attention = Attention(self.head_dim, attn_drop=attn_drop)
-        self.use_FA = use_FA
+        
+        self.enable_flash_attention = enable_flash_attention
+        if enable_flash_attention:
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim, head_num=self.num_heads, fix_head_dims=[72], attention_dropout=attn_drop
+            )
+        else:
+            self.flash_attention = None
+
 
     @staticmethod
     def _rearange_in(x):
@@ -105,10 +116,24 @@ class MultiHeadCrossAttention(nn.Cell):
         # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
 
         # print('D--', q.shape, k.shape, v.shape)
-        if self.use_FA:
+        if self.enable_flash_attention:
             # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
             # x = x.reshape((B, -1, C))
-            raise NotImplementedError
+
+            #  -> (b h n d))
+            q = self._rearange_in(q)
+            k = self._rearange_in(k)
+            v = self._rearange_in(v)
+
+            # mask: (b n_k) -> (b n_q n_k)
+            mask = mask[:, None, :]
+            mask = ops.repeat_interleave(mask, q.shape[-2], axis=1)
+            
+            x = self.flash_attention(q, k, v, mask)
+
+            # (b h n d) -> (b n h d) ->  (b n h*d)
+            x = self._rearange_out(x)
+
         else:
             # (b, n, h, d) -> (b h n d)
             # print("D--: ", q.shape, k.shape)
@@ -167,7 +192,7 @@ class STDiTBlock(nn.Cell):
             qkv_bias=True,
             enable_flash_attention=enable_flashattn, # DDDD
         )
-        self.cross_attn = self.mha_cls(hidden_size, num_heads)
+        self.cross_attn = self.mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         self.mlp = Mlp(
@@ -184,7 +209,7 @@ class STDiTBlock(nn.Cell):
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
-            enable_flash_attention=enable_flashattn,  # DDDDD
+            enable_flash_attention=enable_flashattn,
         )
 
     @staticmethod
@@ -550,11 +575,11 @@ class STDiT(nn.Cell):
         self.sp_rank = None
 
         # recompute
-        print("D--: recompute!!: ", use_recompute)
-        if use_recompute:
-            for block in self.blocks:
-                self.recompute(block)
-
+        # print("D--: recompute!!: ", use_recompute)
+        # if use_recompute:
+        #    for block in self.blocks:
+        #        self.recompute(block)
+    '''
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -562,6 +587,7 @@ class STDiT(nn.Cell):
             self.recompute(b[-1])
         else:
             b.add_flags(output_no_recompute=True)
+    '''
 
     def construct(self, x, timestep, y, mask=None):
         """
@@ -597,7 +623,6 @@ class STDiT(nn.Cell):
         
         # TODO: graph mode, mask required for indicating text len
         '''
-        if mask is not None:
             if mask.shape[0] != y.shape[0]:
                 mask = mask.repeat(y.shape[0] // mask.shape[0], 1)
             mask = mask.squeeze(1).squeeze(1)
