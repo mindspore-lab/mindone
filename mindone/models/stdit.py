@@ -6,7 +6,7 @@ from mindspore import nn, ops, Tensor
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindcv.models.layers import DropPath
-from .dit import SelfAttention, Mlp, LayerNorm, GELU
+from .dit import SelfAttention, Mlp, LayerNorm, GELU, LinearPatchEmbed
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 from .modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
 
@@ -500,6 +500,7 @@ class STDiT(nn.Cell):
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
         use_recompute = False,
+        replace_patchify_3d=True,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -527,9 +528,16 @@ class STDiT(nn.Cell):
         pos_embed_temporal = self.get_temporal_pos_embed()
         self.pos_embed = ms.Parameter(ms.Tensor(pos_embed, dtype=ms.float32), requires_grad=False)
         self.pos_embed_temporal = ms.Parameter(ms.Tensor(pos_embed_temporal, dtype=ms.float32), requires_grad=False)
+        
+        self.replace_patchify_3d = replace_patchify_3d
+        if not replace_patchify_3d:
+            self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
+        else:
+            assert patch_size[0]==1 and patch_size[1]==patch_size[2]
+            assert input_size[1]==input_size[2]
+            print("D--: replace 3d patchify with linear")
+            self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
 
-
-        self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
         self.y_embedder = CaptionEmbedder(
@@ -602,13 +610,22 @@ class STDiT(nn.Cell):
         """
 
         # print("D--: stdit inputs: ", x.shape, timestep.shape, mask.shape)
-
+        
         x = x.to(self.dtype)
         timestep = timestep.to(self.dtype)
         y = y.to(self.dtype)
 
         # embedding
-        x = self.x_embedder(x)  # [B, N, C]
+        if not self.replace_patchify_3d:
+            x = self.x_embedder(x)  # out: [B, N, C]=[B, thw, C]
+        else:
+            # (b c t h w) -> (bt c h w)
+            _b, _c, _t, _h, _w = x.shape
+            x = x.permute(0, 2, 1, 3, 4).reshape((_b * _t, _c, _h, _w))
+            x = self.x_embedder(x)  # out: [bt, h'w', d]
+            # (bt, h'w', d] -> (b , t'h'w', d)
+            x = x.reshape((_b, -1, self.hidden_size))
+
         # x = rearrange(x, "B (T S) C -> B T S C", T=self.num_temporal, S=self.num_spatial)
         B, TS, C = x.shape
         x = ops.reshape(x, (B, TS//self.num_spatial, self.num_spatial, C))

@@ -95,4 +95,5 @@ def test_stdit_pt():
 if __name__ == "__main__":
     ms.set_context(mode=1)
     # test_stdit_pt()
-    test_stdit("models/stdit.ckpt")
+    # test_stdit("models/stdit.ckpt")
+    test_stdit(None)
