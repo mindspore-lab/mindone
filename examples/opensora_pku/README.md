@@ -15,6 +15,11 @@ We aim to achieve efficient training and inference on Ascend NPU devices based o
 
 ## Installation
 
+Please make sure the following frameworks are installed.
+
+- python >= 3.8
+- mindspore >= 2.3.0rc1+20240409  [[install](https://www.mindspore.cn/install)]
+
 ```
 pip install -r requirements.txt
 ```
@@ -108,4 +113,22 @@ The training task is under progress. The initial training performance without fu
 
 ## Video Diffusion Transformer
 
-Coming soon
+### Inference
+
+After the Causal Video VAE is prepared, you can take the following steps to run text-to-video inference.
+
+1. Please download the model checkpoints from HF [Open-Sora-Plan-v1.0.0](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.0.0/tree/main). There are three stages of model checkpoints, saved in `17x256x256`, `65x256x256`, and `65x512x512` sub-folders.
+
+Taking `17x256x256` as an example, please download the torch checkpoint from the given [URL](https://huggingface.co/LanguageBind/Open-Sora-Plan-v1.0.0/tree/main/17x256x256), and place it under `models/17x256x256/`.
+
+2. Convert the checkpoint to mindspore format:
+
+```shell
+tools/model_conversion/convert_latte.py --src models/17x256x256/diffusion_pytorch_model.safetensors  --target models/17x256x256/model.ckpt
+```
+
+3. Run text-to-video inference.
+
+```shell
+python sample_t2v.py --config configs/diffusion/latte_17x256x256_122.yaml
+```

@@ -88,11 +88,10 @@ def parse_args():
         " the number of samples will be defined by the number of class labels or text captions",
     )
     parser.add_argument(
-        "--model_name",
-        "-m",
+        "--model_version",
         type=str,
-        default="Latte-XL/2",
-        help="Model name ",
+        default="17x256x256",
+        help="Model version in ['17x256x256', '65x256x256', '65x512x512'] ",
     )
     parser.add_argument(
         "--condition",
@@ -219,8 +218,8 @@ if __name__ == "__main__":
         t2v_model_extra_kwargs["context_dim"] = text_emb_dim
 
     latte_model = LatteT2V.from_pretrained_2d(
-        "models/",
-        subfolder=args.version,
+        "models",
+        subfolder=args.model_version,
         video_length=args.num_frames,
         enable_flash_attention=args.enable_flash_attention,
     )
@@ -253,7 +252,6 @@ if __name__ == "__main__":
     vae = instantiate_from_config(config.generator)
     vae.init_from_ckpt(args.vae_checkpoint)
     vae.set_train(False)
-    logger.info(f"Loaded checkpoint from  {args.vae_checkpoint} into vae")
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
@@ -274,7 +272,12 @@ if __name__ == "__main__":
     scheduler = DDIMScheduler() if args.ddim_sampling else DDPMScheduler()
     text_encoder = text_encoder.model
     pipeline = VideoGenPipeline(
-        vae=vae, text_encoder=text_encoder, tokenizer=tokenizer, scheduler=scheduler, transformer=latte_model
+        vae=vae,
+        text_encoder=text_encoder,
+        tokenizer=tokenizer,
+        scheduler=scheduler,
+        transformer=latte_model,
+        vae_scale_factor=args.sd_scale_factor,
     )
 
     # 4. print key info
