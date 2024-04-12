@@ -218,7 +218,7 @@ python demo/sampling_without_streamlit.py \
   --support_long_prompts True \  # allow long text prompts
   ```
 
-在使用 `demo/sampling.py` 进行推断时，您只需输入您的长提示，并在提示下方点击“使用长文本提示支持（令牌长度 > 77）”按钮，然后开始抽样。
+在使用 `demo/sampling.py` 进行推断时，您只需输入您的长提示，并在提示下方点击“使用长文本提示支持（Token长度 > 77）”按钮，然后开始抽样。
 
 </details>
 

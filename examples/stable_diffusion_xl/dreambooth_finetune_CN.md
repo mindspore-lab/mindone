@@ -1,8 +1,9 @@
-## DreamBooth为Stable Diffusion XL (SDXL)的微调
+## DreamBooth为Stable Diffusion XL (SDXL)的微调方法
 
 [DreamBooth: Fine Tuning Text-to-Image Diffusion Models for Subject-Driven Generation](https://arxiv.org/abs/2208.12242)
 
-DreamBooth是一种用于个性化文本到图像扩散模型的方法，只需几张主体的图片（3~5）和其作为唯一标识符的名称。在微调过程中，会并行应用特定于类别的先验保留损失，利用模型对类别的语义先验，并鼓励输出的多样性。
+DreamBooth是一种基于少量图像对文生图模型进行微调的技术。 它允许用户将自定义的图片信息“喂给”模型，并通过简单的命名和提示词生成各种各样的图片。
+
 
 例如，我们有一组特定[狗](https://github.com/google/dreambooth/tree/main/dataset/dog)的5张图片，属于微调的提示“一个 sks 狗”，其中“sks”是唯一标识符。同时，还会输入一般狗的图片，这些是文本提示“一个狗”中的类别图片，以便模型不会忘记其他狗的外观。
 
