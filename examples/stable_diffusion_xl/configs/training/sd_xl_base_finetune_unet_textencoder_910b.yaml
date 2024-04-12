@@ -3,7 +3,7 @@ model:
     target: gm.models.diffusion.DiffusionEngine
     params:
         scale_factor: 0.13025
-        disable_first_stage_amp: False
+        disable_first_stage_amp: True
 
         denoiser_config:
             target: gm.modules.diffusionmodules.denoiser.DiscreteDenoiser
@@ -52,7 +52,7 @@ model:
                       version: openai/clip-vit-large-patch14
                       # pretrained: ''
                   # crossattn and vector cond
-                  - is_trainable: False
+                  - is_trainable: True
                     input_key: txt
                     target: gm.modules.embedders.modules.FrozenOpenCLIPEmbedder2
                     params:

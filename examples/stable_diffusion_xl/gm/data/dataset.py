@@ -147,10 +147,9 @@ class Text2ImageDataset:
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            # FIXME: Unable to get the correct batch_info on MindSpore 2.2.10
-            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            # cur_seed = epoch_num * 10 + batch_num
-            # random.seed(cur_seed)
+            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            cur_seed = epoch_num * 10 + batch_num
+            random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:
@@ -368,10 +367,9 @@ class Text2ImageDatasetDreamBooth:
     def collate_fn(self, instance_samples, class_samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            # FIXME: Unable to get the correct batch_info on MindSpore 2.2.10
-            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            # cur_seed = epoch_num * 10 + batch_num
-            # random.seed(cur_seed)
+            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            cur_seed = epoch_num * 10 + batch_num
+            random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:

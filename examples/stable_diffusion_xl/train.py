@@ -18,7 +18,6 @@ from gm.helpers import (
     get_loss_scaler,
     get_optimizer,
     load_checkpoint,
-    pre_compile_graph,
     save_checkpoint,
     set_default,
 )
@@ -131,6 +130,7 @@ def get_parser_train():
     parser.add_argument("--save_optimizer", type=ast.literal_eval, default=False, help="enable save optimizer")
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
+    parser.add_argument("--sink_queue_size", type=int, default=-1, help="export MS_DATASET_SINK_QUEUE")
     parser.add_argument(
         "--dataset_load_tokenizer", type=ast.literal_eval, default=True, help="create dataset with tokenizer"
     )
@@ -218,7 +218,7 @@ def train(args):
         max_embeddings_multiples=args.max_embeddings_multiples,
         **config.data,
     )
-    total_step = config.data.total_step if hasattr(config.data, "total_step") else dataloader.get_dataset_size()
+    total_step = dataloader.get_dataset_size()
     random.seed(args.seed)  # for multi_aspect
 
     # 4. Create train step func
@@ -341,9 +341,8 @@ def train_txt2img(
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
 
-    # pre compile graph
-    if args.lpw:
-        pre_compile_graph(args.config, args.per_batch_size, train_step_fn, args.rank, args.max_embeddings_multiples)
+    print(f"Train total step: {total_step}")
+    print("The first step will be compiled for the graph, which may take a long time; You can come back later :)")
 
     s_time = time.time()
     ckpt_queue = []
@@ -365,12 +364,6 @@ def train_txt2img(
             tokens = [Tensor(t) for t in tokens]
 
         # Train a step
-        if i == 0:
-            print(
-                "The first step will be compiled for the graph, which may take a long time; "
-                "You can come back later :)",
-                flush=True,
-            )
         loss, overflow = train_step_fn(image, *tokens)
 
         # Print meg
@@ -560,9 +553,10 @@ def cache_data(args):
 
     # 3. Create Dataloader
     assert "data" in config
-    config.data.pop("per_batch_size")
-    config.data.pop("total_step")
-    config.data.pop("shuffle")
+    config.data.pop("per_batch_size", None)
+    config.data.pop("total_step", None)
+    config.data.pop("shuffle", None)
+    config.data.pop("num_epochs", None)
     dataloader = create_loader(
         data_path=args.data_path,
         rank=args.rank,
@@ -571,6 +565,7 @@ def cache_data(args):
         token_nums=len(model.conditioner.embedders) if args.dataset_load_tokenizer else None,
         per_batch_size=1,
         total_step=1,
+        num_epochs=1,
         shuffle=False,
         return_sample_name=True,
         **config.data,

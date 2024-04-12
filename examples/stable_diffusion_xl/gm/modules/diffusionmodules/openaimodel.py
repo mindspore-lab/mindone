@@ -15,6 +15,7 @@ from gm.modules.diffusionmodules.util import (
 )
 from gm.util import default, exists
 
+import mindspore as ms
 from mindspore import jit, nn, ops
 
 _logger = logging.getLogger(__name__)
@@ -321,7 +322,8 @@ class QKVAttentionLegacy(nn.Cell):
         # )  # More stable with f16 than dividing afterwards
         weight = ops.BatchMatMul()((q * scale).transpose(0, 2, 1), (k * scale))  # (b, c, t) -> (b, t, c)  # (b, c, s)
 
-        weight = ops.softmax(weight, axis=-1)
+        _weight_dtype = weight.dtype
+        weight = ops.softmax(weight.astype(ms.float32), axis=-1).astype(_weight_dtype)
 
         # a = th.einsum("bts,bcs->bct", weight, v)
         a = ops.BatchMatMul()(weight, v.transpose(0, 2, 1)).transpose(  # (b, t, s)  # (b, c, s) -> (b, s, c)
@@ -362,7 +364,8 @@ class QKVAttention(nn.Cell):
             (k * scale).view(bs * self.n_heads, ch, length),  # (b, c, s)
         )
 
-        weight = ops.softmax(weight, axis=-1)
+        _weight_dtype = weight.dtype
+        weight = ops.softmax(weight.astype(ms.float32), axis=-1).astype(_weight_dtype)
 
         # a = th.einsum("bts,bcs->bct", weight, v.reshape(bs * self.n_heads, ch, length))
         a = ops.BatchMatMul()(
