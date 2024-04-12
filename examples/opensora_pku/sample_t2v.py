@@ -204,7 +204,7 @@ if __name__ == "__main__":
 
     # 2. model initiate and weight loading
     # 2.1 latte
-    logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
+    logger.info(f"Latte-{args.model_version} init")
     latent_size = args.image_size // 8
     # MODELS_DICT = Latte_models if args.condition != "text" else Latte_T2V_models
 
@@ -252,6 +252,9 @@ if __name__ == "__main__":
     vae = instantiate_from_config(config.generator)
     vae.init_from_ckpt(args.vae_checkpoint)
     vae.set_train(False)
+
+    if args.dtype == "fp16":
+        vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
