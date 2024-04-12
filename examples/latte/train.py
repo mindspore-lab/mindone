@@ -93,8 +93,6 @@ def main(args):
         logger.info("Use random initialization for Latte")
     # set train
     latte_model.set_train(True)
-    for param in latte_model.get_parameters():
-        param.requires_grad = True
 
     # select dataset
     data_config = OmegaConf.load(args.data_config_file).data_config

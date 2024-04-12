@@ -46,22 +46,6 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 logger = logging.getLogger(__name__)
 
 
-def set_dit_all_params(dit_model, train=True, **kwargs):
-    n_params_trainable = 0
-    for param in dit_model.get_parameters():
-        param.requires_grad = train
-        if train:
-            n_params_trainable += 1
-    logger.info(f"Set {n_params_trainable} params to train.")
-
-
-def set_dit_params(dit_model, ft_all_params, **kwargs):
-    if ft_all_params:
-        set_dit_all_params(dit_model, **kwargs)
-    else:
-        raise ValueError("Fintuning partial params is not supported!")
-
-
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     args.output_path = os.path.join(args.output_path, time_str)
@@ -102,8 +86,6 @@ def main(args):
     else:
         logger.info("Initialize DIT ramdonly")
     dit_model.set_train(True)
-
-    set_dit_params(dit_model, ft_all_params=True, train=True)
 
     # 2.2 vae
     logger.info("vae init")
