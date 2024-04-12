@@ -20,9 +20,9 @@ y (torch.Tensor): representation of prompts; of shape [B, 1, N_token, C]
 
 hidden_size = 1024
 
-B, C, T, H, W = 2, 4, 5, 32, 32
+B, C, T, H, W = 2, 4, 16, 32*2, 32*2
 text_emb_dim = 4096
-max_tokens = 10
+max_tokens = 120
 
 model_extra_args = dict(
     input_size=(T, H, W),
@@ -32,7 +32,7 @@ model_extra_args = dict(
     )
 
 # patch_size = (1, 2, 2)
-S = num_spatial = 16*16  # num_patches // self.num_temporal
+# S = num_spatial = 16*16  # num_patches // self.num_temporal
 
 x = np.random.normal(size=(B, C, T, H , W)).astype(np.float32)
 t = np.random.randint(low=0, high=1000, size=B)
@@ -46,28 +46,19 @@ for i in range(B):
     mask[i, :y_lens[i]] = np.ones(y_lens[i])
 print("mask: ", mask)
 
-global_inputs = (x, t, y)
 
-
-args = dict(
-        hidden_size=hidden_size,
-        num_heads=8,
-        d_s=S,
-        d_t=T,
-        mlp_ratio=4.0,
-        drop_path=0.0,
-        enable_flashattn=False,
-        enable_layernorm_kernel=False,
-        enable_sequence_parallelism=False,
-    )
-
-
-def test_stdit():
+def test_stdit(ckpt_path=None):
     model_extra_args['enable_flashattn'] = True
     model_extra_args['use_recompute'] = True
 
     net = STDiT_XL_2(**model_extra_args)
     net.set_train(False)
+    
+    if ckpt_path is not None:
+        sd = ms.load_checkpoint(ckpt_path)
+        m, u = ms.load_param_into_net(net, sd)
+        print('net param not load: ', m)
+        print('ckpt param not load: ', u)
 
     net = auto_mixed_precision(net, "O2", ms.float16)
 
@@ -102,9 +93,6 @@ def test_stdit_pt():
     print(out.shape)
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
-    test_stdit()
+    ms.set_context(mode=1)
     # test_stdit_pt()
-
-
-
+    test_stdit("models/stdit.ckpt")

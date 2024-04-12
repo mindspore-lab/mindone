@@ -77,14 +77,17 @@ class InferPipeline(ABC):
     def vae_decode_video(self, x):
         """
         Args:
-            x: (b f c h w), denoised latent
+            x: (b c t h w), denoised latent
         Return:
             y: (b f H W 3), batch of images, normalized to [0, 1]
         """
         y = []
         for x_sample in x:
+            # c t h w -> t c h w
+            x_sample = x_sample.permute(1, 0, 2, 3)
             y.append(self.vae_decode(x_sample))
-        y = ops.stack(y, axis=0)  # (b f H W 3)
+        y = ops.stack(y, axis=0)
+
         return y
 
     def data_prepare(self, inputs):
@@ -151,10 +154,9 @@ class InferPipeline(ABC):
                 self.model.construct, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
             )
         if latents.dim() == 4:
-            # latents: (b c h w)
             images = self.vae_decode(latents)
         else:
-            # latents: (b f c h w)
+            # latents: (b c t h w)
+            # out: (b T H W C)
             images = self.vae_decode_video(latents)
-            # output (b, f, h, w, 3)
         return images
