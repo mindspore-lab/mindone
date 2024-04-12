@@ -6,9 +6,12 @@ from mindspore import nn, ops, Tensor
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindcv.models.layers import DropPath
-from .dit import SelfAttention, Mlp, LayerNorm, GELU
+from .dit import SelfAttention, Mlp, LayerNorm, GELU, LinearPatchEmbed
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 from .modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
+
+
+from .modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 
 class Attention(nn.Cell):
@@ -43,7 +46,7 @@ class MultiHeadCrossAttention(nn.Cell):
     Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
     due to the attention head dimension is 40, num heads=5. Require test on future versions
     """
-    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, use_FA=False):
+    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
 
@@ -59,7 +62,15 @@ class MultiHeadCrossAttention(nn.Cell):
         self.proj_drop = nn.Dropout(p=proj_drop)
 
         self.attention = Attention(self.head_dim, attn_drop=attn_drop)
-        self.use_FA = use_FA
+        
+        self.enable_flash_attention = enable_flash_attention
+        if enable_flash_attention:
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim, head_num=self.num_heads, fix_head_dims=[72], attention_dropout=attn_drop
+            )
+        else:
+            self.flash_attention = None
+
 
     @staticmethod
     def _rearange_in(x):
@@ -105,10 +116,24 @@ class MultiHeadCrossAttention(nn.Cell):
         # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
 
         # print('D--', q.shape, k.shape, v.shape)
-        if self.use_FA:
+        if self.enable_flash_attention:
             # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
             # x = x.reshape((B, -1, C))
-            raise NotImplementedError
+
+            #  -> (b h n d))
+            q = self._rearange_in(q)
+            k = self._rearange_in(k)
+            v = self._rearange_in(v)
+
+            # mask: (b n_k) -> (b n_q n_k)
+            mask = mask[:, None, :]
+            mask = ops.repeat_interleave(mask, q.shape[-2], axis=1)
+            
+            x = self.flash_attention(q, k, v, mask)
+
+            # (b h n d) -> (b n h d) ->  (b n h*d)
+            x = self._rearange_out(x)
+
         else:
             # (b, n, h, d) -> (b h n d)
             # print("D--: ", q.shape, k.shape)
@@ -165,8 +190,9 @@ class STDiTBlock(nn.Cell):
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
+            enable_flash_attention=enable_flashattn, # DDDD
         )
-        self.cross_attn = self.mha_cls(hidden_size, num_heads)
+        self.cross_attn = self.mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         self.mlp = Mlp(
@@ -183,6 +209,7 @@ class STDiTBlock(nn.Cell):
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
+            enable_flash_attention=enable_flashattn,
         )
 
     @staticmethod
@@ -472,6 +499,8 @@ class STDiT(nn.Cell):
         enable_flashattn=False,
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
+        use_recompute = False,
+        replace_patchify_3d=True,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -499,9 +528,16 @@ class STDiT(nn.Cell):
         pos_embed_temporal = self.get_temporal_pos_embed()
         self.pos_embed = ms.Parameter(ms.Tensor(pos_embed, dtype=ms.float32), requires_grad=False)
         self.pos_embed_temporal = ms.Parameter(ms.Tensor(pos_embed_temporal, dtype=ms.float32), requires_grad=False)
+        
+        self.replace_patchify_3d = replace_patchify_3d
+        if not replace_patchify_3d:
+            self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
+        else:
+            assert patch_size[0]==1 and patch_size[1]==patch_size[2]
+            assert input_size[1]==input_size[2]
+            print("D--: replace 3d patchify with linear")
+            self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
 
-
-        self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
         self.y_embedder = CaptionEmbedder(
@@ -534,6 +570,7 @@ class STDiT(nn.Cell):
         # init model
         self.initialize_weights()
         self.initialize_temporal()
+
         if freeze is not None:
             assert freeze in ["not_temporal", "text"]
             if freeze == "not_temporal":
@@ -544,6 +581,21 @@ class STDiT(nn.Cell):
         # sequence parallel related configs
         self.enable_sequence_parallelism = enable_sequence_parallelism
         self.sp_rank = None
+
+        # recompute
+        # print("D--: recompute!!: ", use_recompute)
+        # if use_recompute:
+        #    for block in self.blocks:
+        #        self.recompute(block)
+    '''
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
+    '''
 
     def construct(self, x, timestep, y, mask=None):
         """
@@ -558,16 +610,22 @@ class STDiT(nn.Cell):
         """
 
         # print("D--: stdit inputs: ", x.shape, timestep.shape, mask.shape)
-
+        
         x = x.to(self.dtype)
         timestep = timestep.to(self.dtype)
         y = y.to(self.dtype)
 
         # embedding
-        import pdb
-        pdb.set_trace()
+        if not self.replace_patchify_3d:
+            x = self.x_embedder(x)  # out: [B, N, C]=[B, thw, C]
+        else:
+            # (b c t h w) -> (bt c h w)
+            _b, _c, _t, _h, _w = x.shape
+            x = x.permute(0, 2, 1, 3, 4).reshape((_b * _t, _c, _h, _w))
+            x = self.x_embedder(x)  # out: [bt, h'w', d]
+            # (bt, h'w', d] -> (b , t'h'w', d)
+            x = x.reshape((_b, -1, self.hidden_size))
 
-        x = self.x_embedder(x)  # [B, N, C]
         # x = rearrange(x, "B (T S) C -> B T S C", T=self.num_temporal, S=self.num_spatial)
         B, TS, C = x.shape
         x = ops.reshape(x, (B, TS//self.num_spatial, self.num_spatial, C))
@@ -582,7 +640,6 @@ class STDiT(nn.Cell):
         
         # TODO: graph mode, mask required for indicating text len
         '''
-        if mask is not None:
             if mask.shape[0] != y.shape[0]:
                 mask = mask.repeat(y.shape[0] // mask.shape[0], 1)
             mask = mask.squeeze(1).squeeze(1)
@@ -702,9 +759,15 @@ class STDiT(nn.Cell):
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight
-        # xavier_uniform_(w.view([w.shape[0], -1]))
-        w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+
+        # TODO: FIXME: this line is compatible in optim parallel mode
+        if self.replace_patchify_3d: 
+            # xavier_uniform_(w.view([w.shape[0], -1]))
+            w_flatted = w.view(w.shape[0], -1)
+            w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        else:
+            pass
+            # FIXME: TBC for conv3d patchifying:
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)

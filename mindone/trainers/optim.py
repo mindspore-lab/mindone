@@ -7,6 +7,8 @@ from typing import List, Optional, Union
 from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
+from .adamw_zero1 import AdamWeightDecayZeRO1
+
 _logger = logging.getLogger(__name__)
 
 
@@ -71,6 +73,9 @@ def create_optimizer(
         optim_cls = Adam
     elif name.lower() == "adamw":
         optim_cls = AdamWeightDecay
+    elif name.lower() == "adamw_zero1":
+        optim_cls = AdamWeightDecayZeRO1
+        print("D--: apply adamw_zero1")
     elif name.lower() in ["sgd", "momentum"]:
         optim_cls = Momentum
     else:

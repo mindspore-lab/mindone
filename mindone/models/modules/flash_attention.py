@@ -9,17 +9,18 @@ from mindspore import nn, ops
 
 from mindone.utils.version_control import MS_VERSION, check_valid_flash_attention, choose_flash_attention_dtype
 
-# try import fa
-try:
-    if MS_VERSION >= "2.3.0":
-        from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
-    else:
-        from mindspore.nn.layer.flash_attention import FlashAttention
-    import_fa_success = True
-except Exception:
-    import_fa_success = False
 
-FLASH_IS_AVAILABLE = check_valid_flash_attention(import_fa_success)
+FLASH_IS_AVAILABLE = check_valid_flash_attention()
+USE_NEW_FA = False
+if FLASH_IS_AVAILABLE:
+    try:
+        from mindspore.nn.layer.flash_attention import FlashAttention
+    except Exception:
+        # for ms2.3 >= 20240219, FA API changed
+        from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
+        USE_NEW_FA = True
+        print("Get MS2.3 FA API! ")
+
 
 logger = logging.getLogger(__name__)
 if FLASH_IS_AVAILABLE:
@@ -62,7 +63,7 @@ class MSFlashAttention(nn.Cell):
     ):
         super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
-        self.use_new_flash_attention = MS_VERSION >= "2.3.0"
+        self.use_new_flash_attention = USE_NEW_FA
         if self.use_new_flash_attention:
             self.flash_attention = FlashAttention(
                 scale_value=1.0 / math.sqrt(head_dim),

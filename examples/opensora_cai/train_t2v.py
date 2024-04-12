@@ -7,11 +7,13 @@ import os
 import sys
 from omegaconf import OmegaConf
 import yaml
+from typing import Tuple
 
 import mindspore as ms
 from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
+from mindspore.communication.management import get_group_size, get_rank, init
 
 from args_train import parse_args
 from opensora.data.dataset import create_dataloader
@@ -23,7 +25,6 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.env import init_train_env
 from mindone.models.stdit import STDiT_XL_2
 
 # load training modules
@@ -35,6 +36,7 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
+from mindone.utils.seed import set_random_seed
 from mindone.utils.params import count_params
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
@@ -42,20 +44,93 @@ os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 logger = logging.getLogger(__name__)
 
 
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    parallel_mode : str= "data",
+) -> Tuple[int, int, int]:
+    """
+    Initialize MindSpore environment.
+
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
+    if distributed:
+        device_id = int(os.getenv("DEVICE_ID"))
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            device_id=device_id,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
+        )
+        if parallel_mode == 'optim':
+            print("D--: use optim parallel")
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL, 
+                enable_parallel_optimizer=True,
+                )
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+        else:
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+ 
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+                device_num=device_num,
+            )
+
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        logger.info(dict(zip(var_info, var_value)))
+
+    else:
+        device_num = 1
+        device_id = int(os.getenv("DEVICE_ID", 0))
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            device_id=device_id,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
+        )
+
+    return device_id, rank_id, device_num
+
+
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_train_env(
+    _, rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
-        ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
+        parallel_mode=args.parallel_mode,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+
+    print("D--: rank id, device num: ", rank_id, device_num)
 
     # 2. model initiate and weight loading
     # 2.1 latte
@@ -67,6 +142,7 @@ def main(args):
     max_tokens = 120
 
     input_size = (args.num_frames//vae_t_compress, args.image_size//vae_s_compress,  args.image_size//vae_s_compress)
+    logger.info(f'STDiT input size: {input_size}')
     
     # FIXME: set this parameter by config file
     model_extra_args = dict(
@@ -76,8 +152,14 @@ def main(args):
         model_max_length=max_tokens,
         space_scale=0.5,  # 0.5 for 256x256. diff for 512. # TODO: align to torch
         time_scale=1.0,
+        enable_flashattn=args.enable_flash_attention,
+        use_recompute=args.use_recompute,
         )
     latte_model = STDiT_XL_2(**model_extra_args)
+
+    if args.use_recompute:
+        logger.info("Apply whole model recompute!")
+        latte_model.recompute()
 
     if args.dtype == "fp16":
         model_dtype = ms.float16
@@ -98,7 +180,7 @@ def main(args):
         logger.info("Use random initialization for Latte")
     # set train
     latte_model.set_train(True)
-    # TODO: tell ddd it's risk. non-trainable params like PE, norm should not be set requires_grad.
+    # TODO: non-trainable params like PE, norm should not be set requires_grad.
     # for param in latte_model.get_parameters():
     #    param.requires_grad = True
     
@@ -106,16 +188,29 @@ def main(args):
     # TODO: set vae and t5 non-trainable
 
     # select dataset
-    ds_config = dict(
-        sample_size=args.image_size,
-        sample_n_frames=args.num_frames,
-        space_compress=vae_s_compress,
-        time_compress=vae_t_compress,
-        vae_embed_dim=vae_out_channels,
-        text_embed_dim=text_emb_dim,
-        num_tokens=max_tokens,
+    use_dump = True
+    if use_dump:
+        ds_config = dict(
+            sample_size=args.image_size,
+            sample_n_frames=args.num_frames,
+            space_compress=vae_s_compress,
+            time_compress=vae_t_compress,
+            vae_embed_dim=vae_out_channels,
+            text_embed_dim=text_emb_dim,
+            num_tokens=max_tokens,
+            )
+    else:
+        ds_config = dict(
+            video_folder,
+            sample_size=args.image_size,
+            sample_stride=args.frame_stride,
+            sample_n_frames=args.num_frames,
+            transform_backend="al",  # ms, pt, al
+            use_image_num=None,
+            condition="text",
+            return_token_mask=True,
         )
-    dataset = create_dataloader(ds_config, batch_size=args.batch_size, shuffle=True, device_num=1, rank_id=0)
+    dataset = create_dataloader(ds_config, batch_size=args.batch_size, shuffle=True, device_num=device_num, rank_id=rank_id, use_dump_data=use_dump)
     dataset_size = dataset.get_dataset_size()
 
     diffusion = create_diffusion(timestep_respacing="")
@@ -205,9 +300,6 @@ def main(args):
         ema=ema,
     )
 
-    # import pdb
-    # pdb.set_trace()
-
     model = Model(net_with_grads)
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
@@ -233,10 +325,9 @@ def main(args):
         if args.profile:
             callback.append(ProfilerCallback())
     
-    # FIXME: debug
-    for param in latte_model.get_parameters():
-        if param.requires_grad:
-            print(param.name, tuple(param.shape))
+    # for param in latte_model.get_parameters():
+    #    if param.requires_grad:
+    #        print(param.name, tuple(param.shape))
 
     # 5. log and save config
     if rank_id == 0:
