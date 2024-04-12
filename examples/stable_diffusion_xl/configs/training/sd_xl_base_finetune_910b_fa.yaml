@@ -3,7 +3,7 @@ model:
     target: gm.models.diffusion.DiffusionEngine
     params:
         scale_factor: 0.13025
-        disable_first_stage_amp: False
+        disable_first_stage_amp: True
 
         denoiser_config:
             target: gm.modules.diffusionmodules.denoiser.DiscreteDenoiser

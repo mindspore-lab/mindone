@@ -55,11 +55,15 @@ class Upsample(nn.Cell):
                 dims, self.channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
             ).to_float(dtype)
 
-    def construct(self, x, emb=None, context=None):
-        if self.dims == 3:
-            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))(x)
+    def construct(self, x, emb=None, context=None, target_size=None):
+        if target_size is None:
+            if self.dims == 3:
+                x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))(x)
+            else:
+                x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
         else:
-            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
+            x = ops.ResizeNearestNeighbor(size=target_size)(x)
+
         if self.use_conv:
             x = self.conv(x)
         return x

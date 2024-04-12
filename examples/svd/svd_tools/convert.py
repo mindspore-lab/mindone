@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -10,7 +11,7 @@ from safetensors.torch import load_file
 
 from mindspore import Parameter, load_param_into_net, save_checkpoint
 
-sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
+sys.path.append(os.path.join(os.path.dirname(__file__), "../../stable_diffusion_xl"))  # FIXME: remove in the future
 from gm.helpers import create_model
 
 Path_dcc = path_type("dcc")  # path to a directory that can be created if it does not exist

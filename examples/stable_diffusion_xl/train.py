@@ -18,7 +18,6 @@ from gm.helpers import (
     get_loss_scaler,
     get_optimizer,
     load_checkpoint,
-    pre_compile_graph,
     save_checkpoint,
     set_default,
 )
@@ -118,6 +117,7 @@ def get_parser_train():
     parser.add_argument("--save_path", type=str, default="./runs")
     parser.add_argument("--save_path_with_time", type=ast.literal_eval, default=True)
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+    parser.add_argument("--save_ckpt_only_rank_zero", type=ast.literal_eval, default=False)
     parser.add_argument("--save_ckpt_interval", type=int, default=1000, help="save ckpt interval")
     parser.add_argument(
         "--max_num_ckpt",
@@ -125,10 +125,12 @@ def get_parser_train():
         default=None,
         help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
     )
+    parser.add_argument("--resume_step", type=int, default=0, help="resume from step_n")
     parser.add_argument("--optimizer_weight", type=str, default=None, help="load optimizer weight")
     parser.add_argument("--save_optimizer", type=ast.literal_eval, default=False, help="enable save optimizer")
     parser.add_argument("--data_sink", type=ast.literal_eval, default=False)
     parser.add_argument("--sink_size", type=int, default=1000)
+    parser.add_argument("--sink_queue_size", type=int, default=-1, help="export MS_DATASET_SINK_QUEUE")
     parser.add_argument(
         "--dataset_load_tokenizer", type=ast.literal_eval, default=True, help="create dataset with tokenizer"
     )
@@ -216,16 +218,20 @@ def train(args):
         max_embeddings_multiples=args.max_embeddings_multiples,
         **config.data,
     )
+    total_step = dataloader.get_dataset_size()
     random.seed(args.seed)  # for multi_aspect
 
     # 4. Create train step func
     assert "sigma_sampler_config" in config.model.params
-    num_timesteps = config.model.params.sigma_sampler_config.params.num_idx
+    num_timesteps = config.model.params.sigma_sampler_config.params.get("num_idx", None)
     timestep_bias_weighting = generate_timestep_weights(args, num_timesteps)
 
     assert "optim" in config
     scaler = args.rank_size * dataloader.get_batch_size() * args.gradient_accumulation_steps if args.scale_lr else 1.0
-    lr = get_learning_rate(config.optim, config.data.total_step, scaler)
+    lr = get_learning_rate(config.optim, total_step, scaler)
+    if "scheduler_config" in config.optim and args.resume_step:
+        lr = lr[args.resume_step :]
+
     scaler = get_loss_scaler(ms_loss_scaler="static", scale_value=1024)
     if args.ms_enable_allreduce_fusion and args.rank_size > 1:
         trainable_params, all_reduce_fusion_config = get_all_reduce_config(model)
@@ -335,13 +341,15 @@ def train_txt2img(
     total_step = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
 
-    # pre compile graph
-    if args.lpw:
-        pre_compile_graph(args.config, args.per_batch_size, train_step_fn, args.rank, args.max_embeddings_multiples)
+    print(f"Train total step: {total_step}")
+    print("The first step will be compiled for the graph, which may take a long time; You can come back later :)")
 
     s_time = time.time()
     ckpt_queue = []
     for i, data in enumerate(loader):
+        if i > total_step - args.resume_step:
+            break
+        i += args.resume_step
         if args.dataset_load_tokenizer or args.cache_text_embedding:
             image, tokens = data[0], data[1:]
             image, tokens = Tensor(image), [Tensor(t) for t in tokens]
@@ -356,12 +364,6 @@ def train_txt2img(
             tokens = [Tensor(t) for t in tokens]
 
         # Train a step
-        if i == 0:
-            print(
-                "The first step will be compiled for the graph, which may take a long time; "
-                "You can come back later :)",
-                flush=True,
-            )
         loss, overflow = train_step_fn(image, *tokens)
 
         # Print meg
@@ -378,7 +380,8 @@ def train_txt2img(
             s_time = time.time()
 
         # Save checkpoint
-        if (i + 1) % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
+        is_rank_to_save = args.rank == 0 if args.save_ckpt_only_rank_zero else args.rank % 8 == 0
+        if (i + 1) % args.save_ckpt_interval == 0 and is_rank_to_save:
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{(i + 1)}.ckpt")
             if args.cache_latent and args.cache_text_embedding:
                 save_ckpt_dir = os.path.join(args.save_path, "weights", f"unet_{(i + 1)}.ckpt")
@@ -452,7 +455,8 @@ def train_txt2img_datasink(
             )
 
         # Save checkpoint
-        if cur_step % args.save_ckpt_interval == 0 and args.rank % 8 == 0:
+        is_rank_to_save = args.rank == 0 if args.save_ckpt_only_rank_zero else args.rank % 8 == 0
+        if cur_step % args.save_ckpt_interval == 0 and is_rank_to_save:
             save_ckpt_dir = os.path.join(args.save_path, "weights", args.version + f"_{cur_step}.ckpt")
             if args.cache_latent and args.cache_text_embedding:
                 save_ckpt_dir = os.path.join(args.save_path, "weights", f"unet_{cur_step}.ckpt")
@@ -525,6 +529,10 @@ def infer_during_train(model, prompt, save_path, lpw=False):
 
 
 def cache_data(args):
+    import csv
+
+    from tqdm import tqdm
+
     # 1. Init Env
     args = set_default(args)
 
@@ -545,9 +553,10 @@ def cache_data(args):
 
     # 3. Create Dataloader
     assert "data" in config
-    config.data.pop("per_batch_size")
-    config.data.pop("total_step")
-    config.data.pop("shuffle")
+    config.data.pop("per_batch_size", None)
+    config.data.pop("total_step", None)
+    config.data.pop("shuffle", None)
+    config.data.pop("num_epochs", None)
     dataloader = create_loader(
         data_path=args.data_path,
         rank=args.rank,
@@ -556,19 +565,23 @@ def cache_data(args):
         token_nums=len(model.conditioner.embedders) if args.dataset_load_tokenizer else None,
         per_batch_size=1,
         total_step=1,
+        num_epochs=1,
         shuffle=False,
         return_sample_name=True,
         **config.data,
     )
 
     # 4. Cache Data
-    os.makedirs(args.cache_path, exist_ok=False)
+    os.makedirs(args.cache_path, exist_ok=True)
     if args.cache_latent:
-        os.makedirs(os.path.join(args.cache_path, "latent_cache"), exist_ok=False)
+        os.makedirs(os.path.join(args.cache_path, "latent_cache"), exist_ok=True)
     if args.cache_text_embedding:
-        os.makedirs(os.path.join(args.cache_path, "vector_cache"), exist_ok=False)
-        os.makedirs(os.path.join(args.cache_path, "crossattn_cache"), exist_ok=False)
+        os.makedirs(os.path.join(args.cache_path, "vector_cache"), exist_ok=True)
+        os.makedirs(os.path.join(args.cache_path, "crossattn_cache"), exist_ok=True)
+    # sample list files
+    prompt_list_path = os.path.join(args.cache_path, f"img_txt_rank{args.rank}.csv")
 
+    sample_list = [["dir", "text"]]
     dtype = ms.float32 if args.ms_amp_level not in ("O2", "O3") else ms.float16
     total_num = dataloader.get_dataset_size()
     loader = dataloader.create_tuple_iterator(output_numpy=True, num_epochs=1)
@@ -597,6 +610,11 @@ def cache_data(args):
             np.save(os.path.join(args.cache_path, "vector_cache", f"{sample_name}.npy"), vector.asnumpy())
             np.save(os.path.join(args.cache_path, "crossattn_cache", f"{sample_name}.npy"), crossattn.asnumpy())
 
+        txt = " " if args.dataset_load_tokenizer else data["txt"]
+        sample_list += [
+            [f"{sample_name}.jpg", txt],
+        ]
+
         # Print meg
         if (i + 1) % args.log_interval == 0:
             print(
@@ -613,8 +631,17 @@ def cache_data(args):
 
     print(f"Rank {args.rank + 1}/{args.rank_size}, Cache sample {total_num}, Done.")
 
+    with open(prompt_list_path, mode="w") as file:
+        writer = csv.writer(file)
+        for row in tqdm(sample_list):
+            writer.writerow(row)
+    print(f"Rank {args.rank + 1}/{args.rank_size}, Save image-text file to {prompt_list_path}, Done.")
+
 
 def generate_timestep_weights(args, num_timesteps):
+    if num_timesteps is None:
+        return None
+
     weights = np.ones(num_timesteps)
 
     # Determine the indices to bias

@@ -77,7 +77,7 @@ def seed_everything(seed):
     ms.set_seed(seed)
 
 
-@ms.constexpr
+@ms.constexpr(reuse_result=False)
 def get_timestep_multinomial(p, size=1):
     p = p.asnumpy()
     out = np.random.multinomial(1, p / p.sum(), size=size).argmax(-1)
@@ -209,19 +209,13 @@ def auto_mixed_precision(network, amp_level="O0"):
         try:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST
-                + [
-                    nn.GroupNorm,
-                ],
+                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
                 ms.float16,
             )
         except Exception:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST
-                + [
-                    nn.GroupNorm,
-                ],
+                AMP_BLACK_LIST + [nn.GroupNorm, nn.SiLU],
             )
     elif amp_level == "O3":
         network.to_float(ms.float16)

@@ -26,6 +26,15 @@ class EpsScaling(nn.Cell):
         return c_skip, c_out, c_in, c_noise
 
 
+class EpsScaling2(nn.Cell):
+    def construct(self, sigma):
+        c_skip = ops.ones_like(sigma)
+        c_out = -sigma
+        c_in = ops.ones_like(sigma)  # c_in = 1 / (sigma**2 + 1.0) ** 0.5
+        c_noise = sigma.copy()
+        return c_skip, c_out, c_in, c_noise
+
+
 class VScaling(nn.Cell):
     def construct(self, sigma):
         c_skip = 1.0 / (sigma**2 + 1.0)

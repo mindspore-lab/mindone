@@ -64,6 +64,8 @@ class BaseDiffusionSampler:
             print(f"Sampler: {self.__class__.__name__}")
             print(f"Discretization: {self.discretization.__class__.__name__}")
             print(f"Guider: {self.guider.__class__.__name__}")
+            if self.guider.__class__.__name__ == "VanillaCFG":
+                print(f"Thresholding: {self.guider.dyn_thresh.__class__.__name__}")
             sigma_generator = tqdm(
                 sigma_generator,
                 total=(num_sigmas - 1),

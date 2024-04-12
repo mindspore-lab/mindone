@@ -27,7 +27,13 @@ def parse_args():
     )
     # the following args's defualt value will be overrided if specified in config yaml
     parser.add_argument("--model_config", default="configs/v1-train-chinese.yaml", type=str, help="model config path")
-    parser.add_argument("--data_path", default="dataset", type=str, help="data path")
+    parser.add_argument("--data_path", default="dataset", type=str, help="path to video root folder")
+    parser.add_argument(
+        "--csv_path",
+        default=None,
+        type=str,
+        help="path to csv annotation file. If None, video_caption.csv is expected to live under `data_path`",
+    )
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
@@ -83,7 +89,12 @@ def parse_args():
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--train_batch_size", default=10, type=int, help="batch size")
-    parser.add_argument("--callback_size", default=1, type=int, help="callback size.")
+    parser.add_argument(
+        "--log_interval",
+        default=1,
+        type=int,
+        help="log interval in the unit of data sink size.. E.g. if data sink size = 10, log_inteval=2, log every 20 steps",
+    )
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
@@ -93,10 +104,11 @@ def parse_args():
     parser.add_argument("--sink_size", default=-1, type=int, help="dataset sink size. If -1, sink size = dataset size.")
     parser.add_argument(
         "--epochs",
-        default=10,
+        default=100,
         type=int,
-        help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
+        help="iterate the whole dataset for this much epochs in training. If -1, apply `train_steps`",
     )
+    parser.add_argument("--train_steps", default=-1, type=int, help="number of training steps")
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
     parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
@@ -109,6 +121,9 @@ def parse_args():
         default=None,
         type=str2bool,
         help="whether use recompute. If None, controlled by unet config.",
+    )
+    parser.add_argument(
+        "--recompute_strategy", default=None, type=str, help="options: down_blocks, down_mm, up_mm, down_up"
     )
     parser.add_argument(
         "--enable_flash_attention",
@@ -125,13 +140,14 @@ def parse_args():
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
 
-    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument("--ckpt_save_epochs", default=100, type=int, help="save checkpoint every this epochs")
+    parser.add_argument("--ckpt_save_steps", default=-1, type=int, help="save checkpoint every this steps")
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
         "--step_mode",
-        default=False,
+        default=None,
         type=str2bool,
-        help="whether save ckpt by steps. If False, save ckpt by epochs.",
+        help="whether save ckpt by steps. If False, save ckpt by epochs.If None, it will set True if ckpt_save_steps>0 and dataset sink mode is disabled",
     )
     parser.add_argument("--random_crop", default=False, type=str2bool, help="random crop")
     parser.add_argument("--filter_small_size", default=True, type=str2bool, help="filter small images")
@@ -163,18 +179,64 @@ def parse_args():
         type=str2bool,
         help="if True, set mixed precision O2 for MM. Otherwise, use manually defined precision according to use_fp16 flag",
     )
+    parser.add_argument(
+        "--vae_fp16",
+        default=None,
+        type=str2bool,
+        help="whether use fp16 precision in vae. If None, it will be set by the value in stable diffusion config yaml",
+    )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
     parser.add_argument("--num_frames", default=16, type=int, help="num frames")
     parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
+    parser.add_argument(
+        "--random_drop_text", default=True, type=str2bool, help="set caption to empty string randomly if enabled"
+    )
+    parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
+    parser.add_argument(
+        "--snr_gamma",
+        default=None,
+        type=float,
+        help="min-SNR weighting used to improve diffusion training convergence."
+        "If not None, it will overwrite the value defined in config yaml(stable_diffusion/v1-train_xx.yaml)."
+        "If use, 5.0 is a common choice. To disable min-SNR weighting, set it to 0",
+    )
+    parser.add_argument(
+        "--disable_flip",
+        default=True,
+        type=str2bool,
+        help="disable random flip video (to avoid motion direction and text mismatch)",
+    )
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(
         "--motion_module_path", default="", type=str, help="path to pretrained motion mdule. Load it if not empty"
+    )
+    parser.add_argument(
+        "--train_data_type",
+        default="video_file",
+        type=str,
+        choices=["video_file", "npz", "mindrecord"],
+        help="type of data for training",
     )
     parser.add_argument("--motion_lora_finetune", default=False, type=str2bool, help="True if finetune motion lora.")
     parser.add_argument("--motion_lora_rank", default=64, type=int, help="motion lora rank.")
     parser.add_argument(
         "--motion_lora_alpha", default=1.0, type=int, help="alpha: the strength of LoRA, typically in range [0, 1]"
     )
+
+    # For embedding cache
+    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument(
+        "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
+    )
+    parser.add_argument(
+        "--save_data_type",
+        default="float32",
+        type=str,
+        choices=["float16", "float32"],
+        help="data type when saving embedding cache",
+    )
+
+    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()

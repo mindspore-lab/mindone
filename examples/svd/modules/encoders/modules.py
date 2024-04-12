@@ -1,11 +1,11 @@
+import sys
 from typing import Optional, Tuple, Union
 
+from mindspore import Tensor, ops
+
+sys.path.append("../stable_diffusion_xl")
 from gm.modules.embedders.modules import AbstractEmbModel
 from gm.util import append_dims, instantiate_from_config
-
-from mindspore import Tensor
-from mindspore import dtype as ms_dtype
-from mindspore import ops
 
 
 class VideoPredictionEmbedderWithEncoder(AbstractEmbModel):
@@ -33,9 +33,6 @@ class VideoPredictionEmbedderWithEncoder(AbstractEmbModel):
         self.disable_encoder_amp = disable_encoder_amp
         self.en_and_decode_n_samples_a_time = en_and_decode_n_samples_a_time
 
-        if disable_encoder_amp:
-            self.encoder.to_float(ms_dtype.float32)
-
     def construct(
         self, vid: Tensor
     ) -> Union[Tensor, Tuple[Tensor, Tensor], Tuple[Tensor, dict], Tuple[Tuple[Tensor, Tensor], dict]]:
@@ -49,9 +46,6 @@ class VideoPredictionEmbedderWithEncoder(AbstractEmbModel):
             sigmas = sigmas.repeat(self.n_copies, axis=0)  # b -> (b t)
             noise = ops.randn_like(vid)
             vid = vid + noise * append_dims(sigmas, vid.ndim)
-
-        if self.disable_encoder_amp:
-            vid = vid.astype(ms_dtype.float32)
 
         n_samples = self.en_and_decode_n_samples_a_time or vid.shape[0]
         all_out = []

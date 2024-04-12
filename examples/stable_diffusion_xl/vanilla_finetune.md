@@ -61,7 +61,7 @@ Prepare hccl [rank_table](./tools/rank_table_generation/README.md) file for sing
 ```shell
 # sdxl-base fine-tune with 8p
 mpirun --allow-run-as-root -n 8 python train.py \
-  --config configs/training/sd_xl_base_finetune_multi_graph_910b.yaml \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
   --weight "" \
   --data_path /PATH TO/YOUR DATASET/ \
   --max_device_memory "59GB" \
@@ -90,14 +90,14 @@ python train.py \
   --cache_text_embedding True \
   --cache_path ./cache_data
 or
-bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
+bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to_dataset/ /path_to_cache/ # cache data
 ```
 
 #### 3.2. train with cache data
 
 ```shell
 # sdxl-base fine-tune with cache on Ascend
-bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
+bash scripts/run_distribute_vanilla_ft_910b_cache.sh /path_to/hccl_8p.json 0 8 8 /path_to_dataset/  # run on server 1
 ```
 
 #### 3.3. merge weight and infer
@@ -108,7 +108,8 @@ It is necessary to merge trained Unet weight and pre-trained weight before infer
 # merge weight
 python tools/weight_merge/merge_weight.py \
   --base_weight checkpoints/sd_xl_base_1.0_ms.ckpt \
-  --additional_weights unet.ckpt
+  --additional_weights unet.ckpt \
+  --save_path merged_weight.ckpt
 
 # sdxl-base run infer
 python demo/sampling_without_streamlit.py \
@@ -116,16 +117,33 @@ python demo/sampling_without_streamlit.py \
   --prompt "your prompt"
 ```
 
-### 4. Support List
+### 4. resume vanilla fine-tune
+
+```shell
+# resume sdxl-base fine-tune from specified training step
+python train.py \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
+  --data_path /PATH TO/YOUR DATASET/ \
+  --optimizer_weight /PATH/TO/SAVED/OPTIMIZER/WEIGHT \
+  --resume_step 1000
+```
+
+
+### 5. Support List
+
+[MindSpore 2.2.11](https://www.mindspore.cn/versions#2.2.11)
 
 <div align="center">
 
-| Model Name | Device      | Cards  | MindSpore        | CANN | ImageSize | Compile Cost | PerBatchSize | FlashAttention | Cache | DataSink | Step Time |
-|------------|-------------|--------|------------------|------|-----------|--------------|--------------|----------------|-------|----------|-----------|
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 1            | False          | False | False    | 1.10s     |
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 1            | True           | True  | True     | 0.74s     |
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 6            | True           | False | False    | 2.70s     |
-| SDXL-Base  | Ascend 910* | 1*8p   | mindspore 2.2.10 | C15  | 1024x1024 | 30min        | 6            | True           | True  | True     | 2.15s     |
+| model name | device | cards | imagesize | graph compile | bs  | amp fp16 | fa  | cache | sink | step time |  fps  |
+|:----------:|:------:|:-----:|:---------:|:-------------:|:---:|:--------:|:---:|:-----:|:----:|:---------:|:-----:|
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 1*8 |    on    | off |  off  | off  |   1.10s   | 7.27  |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 1*8 |    on    | on  |  on   |  on  |   0.74s   | 10.81 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 2*8 |    on    | on  |  on   |  on  |   0.87s   | 18.39 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 4*8 |    on    | on  |  on   |  on  |   1.38s   | 23.18 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 6*8 |    on    | on  |  on   |  on  |   1.96s   | 24.48 |
+| SDXL-Base  |  910*  | 1*8p  | 1024x1024 |  30~38 mins   | 8*8 |    on    | on  |  on   |  on  |   2.51s   | 25.52 |
 
 </div>
 <br>

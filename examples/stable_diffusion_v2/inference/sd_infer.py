@@ -139,8 +139,9 @@ def main(args):
         )
 
         image = cv2.imread(args.inputs.image_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
         input_image = np.array(image, dtype=np.uint8)
-        # TODO: forgot to convert BGR to RGB format ?? only used for canny extract
         img = resize_image(HWC3(input_image), args.inputs.image_resolution)
         H, W, C = img.shape
         args.inputs.H = H
@@ -174,13 +175,12 @@ def main(args):
                 logger.debug(f"D---: use input openpose image: {args.control_path}")
             else:
                 if os.path.exists(args.inputs.condition_ckpt_path):
-                    apply_segment = OpenposeDetector(annotator_ckpts_path=args.inputs.condition_ckpt_path)
+                    apply_openpose = OpenposeDetector(annotator_ckpts_path=args.inputs.condition_ckpt_path)
                 else:
                     apply_openpose = OpenposeDetector()
 
-                # cong TODO: make sure the resolution is correct
-                # resize_image(input_image, detect_resolution)
-                detected_map, _ = apply_openpose(img)
+                detected_map, _ = apply_openpose(img, hand=args.hand)
+                detected_map = cv2.cvtColor(detected_map, cv2.COLOR_BGR2RGB)
                 detected_map = HWC3(detected_map)
             logging.debug(f"D--: sum openpose: {(detected_map / 255.0).sum()}")
 
@@ -321,9 +321,11 @@ if __name__ == "__main__":
         "--controlnet_mode",
         type=str,
         default="canny",
-        help="control mode for controlnet, should be in [canny, segmentation]",
+        help="control mode for controlnet, should be in [canny, segmentation, openpose]",
     )
-
+    parser.add_argument(
+        "--hand", type=bool, default=False, help="required by openpose task, set as True when the img contains hand"
+    )
     args = parser.parse_args()
 
     os.makedirs(args.output_path, exist_ok=True)
@@ -361,6 +363,7 @@ if __name__ == "__main__":
         raise ValueError(f"{args.task} is invalid, should be in [text2img, img2img, inpaint]")
     inputs = OmegaConf.load(inputs_config_path)
 
+    # override
     if args.image_path is not None:
         inputs.image_path = args.image_path
     if args.prompt is not None:
@@ -369,6 +372,8 @@ if __name__ == "__main__":
         inputs.a_prompt = args.a_prompt
     if args.negative_prompt is not None:
         inputs.negative_prompt = args.negative_prompt
+    if args.condition_ckpt_path is not None:
+        inputs.condition_ckpt_path = args.condition_ckpt_path
 
     key_settings_info = ["Key Settings:\n" + "=" * 50]
     key_settings_info += [
@@ -381,6 +386,7 @@ if __name__ == "__main__":
         f"Sampler: {args.sampler}",
         f"Sampling steps: {args.sampling_steps}",
         f"Uncondition guidance scale: {args.scale}",
+        f"hand (for openpose task): {args.hand}",
     ]
     for key in inputs.keys():
         key_settings_info.append(f"{key}: {inputs[key]}")

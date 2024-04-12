@@ -38,8 +38,10 @@ class EvalSaveCallback(Callback):
         ckpt_max_keep=10,
         step_mode=False,
         ckpt_save_interval=1,
+        use_step_unit=False,
+        data_sink_mode=True,
         lora_rank=None,
-        log_interval=10,
+        log_interval=1,
         start_epoch=0,
         record_lr=True,
         model_name="sd",
@@ -48,6 +50,7 @@ class EvalSaveCallback(Callback):
     ):
         """
         Args:
+            step_mode: if True, ckpt_save_interval is counted in steps. otherwise, in epochs.
             param_save_filter: indicates what parameters to save in checkpoint. If None, save all parameters in network. \
                 Otherwise, only params that contain one of the keyword in param_save_filter list will be saved.
         """
@@ -107,34 +110,34 @@ class EvalSaveCallback(Callback):
             self.net_to_save = network
         self.use_lora = use_lora
 
+        self.use_step_unit = use_step_unit
+
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
         cur_step = cb_params.cur_step_num + self.start_epoch * cb_params.batch_num
         step_num = cb_params.batch_num * cb_params.epoch_num
+
         if cur_step % cb_params.batch_num == 0:
             cur_epoch = cb_params.cur_epoch_num
         else:
             cur_epoch = cb_params.cur_epoch_num - 1
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
-
         if self.is_main_device:
+            # if data sink, train step callback will not be invokded
             if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
+                ckpt_name = (
+                    f"{self.model_name}-s{cur_step}.ckpt"
+                    if self.use_step_unit
+                    else f"{self.model_name}-e{cur_epoch}.ckpt"
+                )
                 if self.ema is not None:
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
-                    # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                self.ckpt_manager.save(
-                    self.net_to_save, None, ckpt_name=f"{self.model_name}-{cur_step}.ckpt", append_dict=append_dict
-                )
+                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 # TODO: resume training for step.
                 ms.save_checkpoint(
@@ -143,7 +146,7 @@ class EvalSaveCallback(Callback):
                     append_dict={
                         "epoch_num": cur_epoch,
                         "cur_step": cur_step,
-                        "loss_scale": loss_scale_manager.get_loss_scale(),
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
                     },
                 )
 
@@ -162,13 +165,23 @@ class EvalSaveCallback(Callback):
                 self.rec.add(*step_pref_value)
 
                 self.step_start_time = time.time()
-                _logger.info(
-                    "epoch: %d step: %d, loss is %.6f",
-                    cb_params.cur_epoch_num,
-                    (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
-                    loss.asnumpy().item(),
-                    # train_time / self.log_interval,  # TODO: divide by data sink size
-                )
+                if self.record_lr:
+                    _logger.info(
+                        "epoch: %d step: %d, lr: %.7f, loss: %.6f, loss scale: %d.",
+                        cb_params.cur_epoch_num,
+                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                        cur_lr.asnumpy().item(),
+                        loss.asnumpy().item(),
+                        self._get_scaling_value_from_cbp(cb_params),
+                    )
+                else:
+                    _logger.info(
+                        "epoch: %d step: %d, loss: %.6f, loss scale: %d.",
+                        cb_params.cur_epoch_num,
+                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                        loss.asnumpy().item(),
+                        self._get_scaling_value_from_cbp(cb_params),
+                    )
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -189,36 +202,36 @@ class EvalSaveCallback(Callback):
         cur_epoch = cb_params.cur_epoch_num
         epoch_num = cb_params.epoch_num
 
-        data_sink_mode = cb_params.dataset_sink_mode
-        if data_sink_mode:
-            loss_scale_manager = cb_params.train_network.network.loss_scaling_manager
-        else:
-            loss_scale_manager = cb_params.train_network.loss_scaling_manager
+        cur_step = cur_epoch * cb_params.batch_num
 
-        if self.is_main_device and not self.step_mode:
+        if self.is_main_device and (not self.step_mode):
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
+                ckpt_name = (
+                    f"{self.model_name}-s{cur_step}.ckpt"
+                    if self.use_step_unit
+                    else f"{self.model_name}-e{cur_epoch}.ckpt"
+                )
                 if self.ema is not None:
                     # swap ema weight and network weight
                     self.ema.swap_before_eval()
-                    # print('DEBUG: Store ema weights to save checkpoint.')
 
                 # save history checkpoints
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
-                self.ckpt_manager.save(
-                    self.net_to_save, None, ckpt_name=f"{self.model_name}-{cur_epoch}.ckpt", append_dict=append_dict
-                )
+                self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 ms.save_checkpoint(
                     cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={"epoch_num": cur_epoch, "loss_scale": loss_scale_manager.get_loss_scale()},
+                    append_dict={
+                        "epoch_num": cur_epoch,
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                    },
                 )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
                     self.ema.swap_after_eval()
 
-            # tot_time = time.time() - self.last_epoch_end_time
             self.last_epoch_end_time = time.time()
 
     def on_train_end(self, run_context):
@@ -237,12 +250,17 @@ class EvalSaveCallback(Callback):
             optimizer = cb_params.train_network.optimizer
         return optimizer
 
-    def _fetch_optimizer_lr(self, cb_params):
+    def _get_scaling_value_from_cbp(self, cb_params):
+        if cb_params.dataset_sink_mode:
+            return cb_params.train_network.network.scale_sense.asnumpy().item()
+        else:
+            return cb_params.train_network.scale_sense.asnumpy().item()
+
+    def _fetch_optimizer_lr(self, cb_params) -> ms.Tensor:
         opt = self._get_optimizer_from_cbp(cb_params)
         lr = opt.learning_rate
         if opt.dynamic_lr:
             lr = opt.learning_rate(opt.global_step - 1)[0]
-            # lr = opt.learning_rate.asnumpy()(int(opt.global_step.asnumpy()) - 1)[0]
         return lr
 
 

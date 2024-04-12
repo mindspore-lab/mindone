@@ -1,0 +1,40 @@
+# task
+condition: "class"
+output_path: outputs/class_cond_finetune
+
+# model setting
+image_size: 256 # or 512
+model_name: "DiT-XL/2"
+dit_checkpoint: "models/DiT-XL-2-256x256.ckpt"
+vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+dtype: "fp16"
+use_recompute: False
+patch_embedder: "conv"
+
+# data setting
+data_path: imagenet_samples/images/
+dataset_sink_mode: True
+
+# training hyper-params
+start_learning_rate: 5e-5  # small lr for finetuning exps. Change it to 1e-4 for regular training tasks.
+scheduler: "constant"
+warmup_steps: 10
+train_batch_size: 2  # adjust batch size and epochs
+gradient_accumulation_steps: 1
+weight_decay: 0.01
+epochs: 3000
+
+use_ema: True  # same to offical repo
+clip_grad: True
+ckpt_max_keep: 3
+init_loss_scale: 65536
+
+betas: [0.9, 0.999]
+optim_eps: 1.e-6
+
+# training process
+log_interval: 1
+ckpt_save_interval: 1000  # save ckpt every n epochs
+step_mode: False
