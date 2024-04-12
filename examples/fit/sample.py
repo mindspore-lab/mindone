@@ -151,12 +151,9 @@ if __name__ == "__main__":
     if args.use_fp16:
         fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
-    try:
-        fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
-    except Exception:
-        param_dict = ms.load_checkpoint(args.fit_checkpoint)
-        param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        fit_model = load_fit_ckpt_params(fit_model, param_dict)
+    param_dict = ms.load_checkpoint(args.fit_checkpoint)
+    param_dict = remove_pname_prefix(param_dict, prefix="network.")
+    fit_model = load_fit_ckpt_params(fit_model, param_dict)
     fit_model = fit_model.set_train(False)
     for param in fit_model.get_parameters():  # freeze fit_model
         param.requires_grad = False
