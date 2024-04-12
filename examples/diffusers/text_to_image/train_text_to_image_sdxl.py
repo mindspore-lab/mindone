@@ -24,7 +24,7 @@ import os
 import random
 import shutil
 import time
-from multiprocessing import Process, SimpleQueue
+from multiprocessing import Process, Queue
 from pathlib import Path
 
 import numpy as np
@@ -48,6 +48,58 @@ logger = logging.getLogger(__name__)
 DATASET_NAME_MAPPING = {
     "lambdalabs/pokemon-blip-captions": ("image", "text"),
 }
+
+
+class CompileProgressBar:
+    def __init__(self, duration, enable):
+        self.duration = duration
+        self.enable = enable
+        self.q: Queue = None
+        self.p: Process = None
+
+    def compile_progress_bar(self):
+        pb = tqdm(total=self.duration, bar_format="{l_bar}{bar}| [{elapsed}<{remaining}]")
+        while True:
+            if self.q.empty():
+                time.sleep(1)
+                if pb.last_print_n < self.duration:
+                    pb.update(1)
+                else:
+                    pb.refresh(lock_args=pb.lock_args)
+            else:
+                if self.q.get():
+                    pb.update(self.duration - pb.last_print_n)
+                pb.close()
+                break
+
+    def __enter__(self):
+        if self.enable:
+            self.q = Queue()
+            self.p = Process(target=self.compile_progress_bar)
+            self.p.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.enable:
+            if exc_type:
+                logger.error(f"Oops! Error happens when compiling. {exc_type}: {exc_val}.")
+                self.q.put(False)
+            else:
+                self.q.put(True)
+            self.p.join()
+            self.p.close()
+            self.q.close()
+
+
+def maybe_compile(m: nn.Cell, enable_progress_bar: bool, *model_args, **model_kwargs):
+    if os.getenv("MS_JIT") != "0" and context._get_mode() == context.GRAPH_MODE:
+        logger.info(f"Compiling {m.__class__.__name__}...")
+        estimated_duration = sum(p.numel() for p in m.get_parameters()) * 2e-7
+        with CompileProgressBar(estimated_duration, enable_progress_bar):
+            compile_begin = time.perf_counter()
+            m.compile(*model_args, **model_kwargs)
+            compile_end = time.perf_counter()
+        logger.info(f"Compiling is finished, elapsed time {compile_end - compile_begin:.2f} s")
 
 
 def import_model_class_from_model_name_or_path(
@@ -343,9 +395,17 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--dataloader_num_workers",
         type=int,
-        default=0,
+        default=1,
+        help="Number of subprocesses to use for data loading.",
+    )
+    parser.add_argument(
+        "--enable_mindspore_data_sink",
+        action="store_true",
         help=(
-            "Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
+            "Whether or not to enable `Data Sinking` feature from MindData which boosting data "
+            "fetching and transferring from host to device. For more information, see "
+            "https://www.mindspore.cn/tutorials/experts/en/r2.2/optimize/execution_opt.html#data-sinking. "
+            "Note: To avoid breaking the iteration logic of the training, the size of data sinking is set to 1."
         ),
     )
     parser.add_argument(
@@ -658,12 +718,21 @@ def main():
     # In distributed training, the load_dataset function guarantees that only one local process can concurrently
     # download the dataset.
     if args.dataset_name is not None:
-        # Downloading and loading a dataset from the hub.
-        dataset = load_dataset(
-            args.dataset_name,
-            args.dataset_config_name,
-            cache_dir=args.cache_dir,
-        )
+        if args.dataset_name == "webdataset" or args.dataset_name == "imagefolder":
+            # Packaged dataset
+            dataset = load_dataset(
+                args.dataset_name,
+                data_dir=args.train_data_dir,
+                cache_dir=args.cache_dir,
+                # setting streaming=True when using webdataset gives DatasetIter which has different process apis
+            )
+        else:
+            # Downloading and loading a dataset from the hub.
+            dataset = load_dataset(
+                args.dataset_name,
+                args.dataset_config_name,
+                cache_dir=args.cache_dir,
+            )
     else:
         data_files = {}
         if args.train_data_dir is not None:
@@ -804,6 +873,7 @@ def main():
         num_parallel_workers=args.dataloader_num_workers,
     ).batch(
         batch_size=args.train_batch_size,
+        num_parallel_workers=args.dataloader_num_workers,
     )
 
     # Scheduler and math around the number of training steps.
@@ -821,7 +891,7 @@ def main():
 
     # Prepare everything with our `accelerator`.
     # todo: auto mixed precision here
-    unet.to(weight_dtype)  # maybe using `to_float(weight_dtype)` give higher accuracy?
+    unet.to_float(weight_dtype)  # maybe using `to(weight_dtype)` gives faster performance?
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -853,35 +923,15 @@ def main():
         args=args,
     ).set_train()
 
-    def compile_progress_bar(q: SimpleQueue, duration: int):
-        pb = tqdm(total=duration, bar_format="{l_bar}{bar}| [{elapsed}<{remaining}]", disable=not is_master(args))
-        while True:
-            if q.empty():
-                time.sleep(1)
-                if pb.last_print_n < duration:
-                    pb.update(1)
-                else:
-                    pb.refresh(lock_args=pb.lock_args)
-            else:
-                pb.update(duration - pb.last_print_n)
-                pb.close()
-                break
-
-    def maybe_compile(m: nn.Cell, *model_args, **model_kwargs):
-        if os.getenv("MS_JIT") != "0" and context._get_mode() == context.GRAPH_MODE:
-            logger.info(f"Compiling {m.__class__.__name__}...")
-            estimated_duration = sum(p.numel() for p in m.get_parameters()) * 2e-7
-            q = SimpleQueue()
-            p = Process(target=compile_progress_bar, args=(q, estimated_duration))
-            p.start()
-            compile_begin = time.perf_counter()
-            m.compile(*model_args, **model_kwargs)
-            compile_end = time.perf_counter()
-            q.put(compile_end - compile_begin)
-            p.join()
-            logger.info(f"Compiling is finished, elapsed time {compile_end - compile_begin:.2f} s")
-
-    maybe_compile(train_step, *[x.to(weight_dtype) for x in next(iter(train_dataloader))])
+    if args.enable_mindspore_data_sink:
+        sink_process = ms.data_sink(train_step, train_dataloader)
+        logger.warning(
+            "Data sinking is enable by setting `--enable_mindspore_data_sink`. "
+            "Model compiling will be done implicitly in the first step of first epoch if you are using `Graph Mode`"
+        )
+    else:
+        sink_process = None
+        maybe_compile(train_step, is_master(args), *[x.to(weight_dtype) for x in next(iter(train_dataloader))])
 
     # create pipeline for validation
     pipeline = StableDiffusionXLPipeline(
@@ -951,10 +1001,17 @@ def main():
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.set_train(True)
-        for step, batch in enumerate(train_dataloader):
+        for step, batch in (
+            ((_, None) for _ in range(len(train_dataloader)))  # dummy iterator
+            if args.enable_mindspore_data_sink
+            else enumerate(train_dataloader.create_tuple_iterator())
+        ):
             # todo: support accumulation
-            batch = [x.to(weight_dtype) for x in batch]
-            loss = train_step(*batch)
+            if args.enable_mindspore_data_sink:
+                loss = sink_process()
+            else:
+                batch = [x.to(weight_dtype) for x in batch]
+                loss = train_step(*batch)
 
             progress_bar.update(1)
             global_step += 1
@@ -1057,10 +1114,11 @@ class TrainStep(nn.Cell):
 
     def forward(self, model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input)
+        noise = ops.randn_like(model_input, dtype=model_input.dtype)
         if self.args.noise_offset:
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-            noise += self.args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
+            noise_offset = self.args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
+            noise += noise_offset.to(noise.dtype)
 
         bsz = model_input.shape[0]
         if self.args.timestep_bias_strategy == "none":

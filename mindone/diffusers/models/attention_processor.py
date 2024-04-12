@@ -290,19 +290,18 @@ class Attention(nn.Cell):
             key = key.float()
 
         if attention_mask is None:
-            baddbmm_input = ops.randn(query.shape[0], query.shape[1], key.shape[1], dtype=query.dtype)
-            beta = 0
+            attention_scores = self.scale * ops.bmm(
+                query,
+                key.swapaxes(-1, -2),
+            )
         else:
-            baddbmm_input = attention_mask
-            beta = 1
-
-        attention_scores = ops.baddbmm(
-            baddbmm_input,
-            query,
-            key.swapaxes(-1, -2),
-            beta=beta,
-            alpha=self.scale,
-        )
+            attention_scores = ops.baddbmm(
+                attention_mask,
+                query,
+                key.swapaxes(-1, -2),
+                beta=1,
+                alpha=self.scale,
+            )
 
         if self.upcast_softmax:
             attention_scores = attention_scores.float()
