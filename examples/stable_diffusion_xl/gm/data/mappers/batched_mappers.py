@@ -69,7 +69,7 @@ class BatchedResizedAndRandomCrop:
                 assert delta_w >= 0
                 top, left = 0, np.random.randint(0, delta_w + 1)
 
-            img = cv2.resize(img, size)
+            img = cv2.resize(img, (size[1], size[0]))
             img = img[top : top + h_t, left : left + w_t, :]
 
             s[self.image_key] = img

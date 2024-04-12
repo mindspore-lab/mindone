@@ -1,7 +1,6 @@
 import copy
 import logging
 import os
-import time
 from datetime import datetime
 from typing import List, Union
 
@@ -24,7 +23,7 @@ from gm.modules.diffusionmodules.sampler import (
     LinearMultistepSampler,
 )
 from gm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
-from omegaconf import DictConfig, ListConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig
 from PIL import Image
 
 import mindspore as ms
@@ -126,9 +125,15 @@ def set_default(args):
 
     # data sink step
     if args.data_sink:
-        if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
-            os.environ["MS_DATASET_SINK_QUEUE"] = "10"
-            print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+        if args.sink_queue_size > 1:
+            os.environ["MS_DATASET_SINK_QUEUE"] = f"{args.sink_queue_size}"
+            print(f"WARNING: Set env `MS_DATASET_SINK_QUEUE` to {args.sink_queue_size}.")
+        else:
+            if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
+                os.environ["MS_DATASET_SINK_QUEUE"] = "10"
+                print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+            else:
+                print(f"env `MS_DATASET_SINK_QUEUE`: {os.environ.get('MS_DATASET_SINK_QUEUE')}")
 
         assert args.dataset_load_tokenizer
         args.log_interval = args.sink_size
@@ -349,7 +354,37 @@ def get_learning_rate(optim_config, total_step, scaler=1.0):
     return lr
 
 
-def get_optimizer(optim_config, lr, params, filtering=True):
+def _scale_lr(group_params, lr, scaler):
+    """scale lr of a particular group of params"""
+    new_groups = list()
+    for group in group_params:
+        scale_params, unscale_params = list(), list()
+        for params in group["params"]:
+            name = params.name.lower()
+            # keys below are adapted for ControlNet training
+            if "zero_conv" in name or "input_hint_block" in name or "middle_block_out" in name:
+                scale_params.append(params)
+            else:
+                unscale_params.append(params)
+
+        new_groups.append(
+            {
+                "params": scale_params,
+                "weight_decay": group["weight_decay"],
+                "lr": lr * scaler,
+            }
+        )
+        new_groups.append(
+            {
+                "params": unscale_params,
+                "weight_decay": group["weight_decay"],
+                "lr": lr,
+            }
+        )
+    return new_groups
+
+
+def get_optimizer(optim_config, lr, params, filtering=True, group_lr_scaler=None):
     optimizer_config = optim_config.get("optimizer_config", {"target": "mindspore.nn.SGD"})
 
     def decay_filter(x):
@@ -365,14 +400,16 @@ def get_optimizer(optim_config, lr, params, filtering=True):
             group_params.append({"params": decay_params, "weight_decay": weight_decay})
         if len(other_params) > 0:
             group_params.append({"params": other_params, "weight_decay": 0.0})
-        group_params.append({"order_params": params})
-        params = group_params
         print(
             f"Enable optimizer group param, "
             f"decay params num: {len(decay_params)}, "
             f"no decay params num: {len(other_params)}, "
             f"full params num: {len(decay_params) + len(other_params)}"
         )
+        if isinstance(group_lr_scaler, float) or isinstance(group_lr_scaler, int):
+            group_params = _scale_lr(group_params, lr, group_lr_scaler)
+        group_params.append({"order_params": params})
+        params = group_params
 
     # build optimizer
     optimizer = get_obj_from_str(optimizer_config["target"])(
@@ -892,42 +929,6 @@ def load_img(image):
     image = image[None].transpose(0, 3, 1, 2)  # (h, w, c) -> (1, c, h, w)
     image = image / 127.5 - 1.0  # norm to (-1, 1)
     return image
-
-
-def pre_compile_graph(config_path, per_batch_size, train_step_fn, rank, max_embeddings_multiples):
-    config = OmegaConf.load(config_path)
-    dataset_config = config.data.dataset_config
-    per_batch_size = config.data.pop("per_batch_size") if per_batch_size is None else per_batch_size
-
-    if "target_size" in dataset_config["params"]:
-        img_size = dataset_config["params"]["target_size"]
-    else:
-        img_size = dataset_config["params"]["multi_aspect"]
-    for i in range(max_embeddings_multiples):
-        if isinstance(img_size, int):
-            h, w = img_size, img_size
-            s_time = time.time()
-            image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
-                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
-                Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
-                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
-                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
-                Tensor(np.random.rand(per_batch_size, 2), ms.float32),
-            )
-            loss, overflow = train_step_fn(image, *tokens)
-            print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
-        else:
-            for h, w in img_size:
-                s_time = time.time()
-                image, tokens = Tensor(np.random.rand(per_batch_size, 3, h, w), ms.float32), (
-                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
-                    Tensor(np.random.rand(per_batch_size, 75 * (i + 1) + 2), ms.int32),
-                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
-                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
-                    Tensor(np.random.rand(per_batch_size, 2), ms.float32),
-                )
-                loss, overflow = train_step_fn(image, *tokens)
-                print(f"Pre Compile, Rank: {rank}, time cost: {(time.time()-s_time) * 1000} ms")
 
 
 class EMA(nn.Cell):

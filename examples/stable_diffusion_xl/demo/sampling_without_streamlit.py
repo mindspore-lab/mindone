@@ -159,15 +159,16 @@ def get_parser_sample():
     )
 
     # for controlnet
-    parser.add_argument("--controlnet_mode", type=str, choices=["canny"])
-    parser.add_argument("--image_path", type=str, help="path of original image for controlnet")
     parser.add_argument(
-        "--control_path",
+        "--controlnet_mode",
         type=str,
-        help="path of control image (canny edge) for controlnet, if not None, --image_path is not in effect, use --control_path as control.",
+        choices=["raw", "canny"],
+        help="'raw': use the image itself as control signal; 'canny': use canny edge detector to extract control signal from input image",
     )
+    parser.add_argument("--control_image_path", type=str, help="path of input image for controlnet")
     parser.add_argument("--low_threshold", type=int, default=100, help="param of cv2.Canny()")
     parser.add_argument("--high_threshold", type=int, default=200, help="param of cv2.Canny()")
+    parser.add_argument("--save_detected_map", type=ast.literal_eval, default=False, help="save detection map")
 
     # args for ModelArts
     parser.add_argument("--enable_modelarts", type=ast.literal_eval, default=False, help="enable modelarts")
@@ -206,31 +207,13 @@ def run_txt2img(
     C = version_dict["C"]
     F = version_dict["f"]
 
-    prompts = []
     if os.path.exists(args.prompt):
         with open(args.prompt, "r") as f:
             prompts = f.read().splitlines()
     else:
         prompts = [args.prompt]
 
-    num_samples = args.num_rows * args.num_cols
-    control = None
-    if args.controlnet_mode is not None:
-        control, H, W = get_control(args, num_samples, min(H, W))
-
-    value_dict = {
-        "prompt": prompts[0],
-        "negative_prompt": args.negative_prompt,
-        "orig_width": args.orig_width if args.orig_width else W,
-        "orig_height": args.orig_height if args.orig_height else H,
-        "target_width": args.target_width if args.target_width else W,
-        "target_height": args.target_height if args.target_height else H,
-        "crop_coords_top": max(args.crop_coords_top if args.crop_coords_top else 0, 0),
-        "crop_coords_left": max(args.crop_coords_left if args.crop_coords_left else 0, 0),
-        "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
-        "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
-    }
-    sampler, _, _ = init_sampling(
+    sampler, num_rows, num_cols = init_sampling(
         sampler=args.sampler,
         num_cols=args.num_cols,
         guider=args.guider,
@@ -245,6 +228,24 @@ def run_txt2img(
         steps=args.sample_step,
         stage2strength=stage2strength,
     )
+    num_samples = num_rows * num_cols
+
+    control = None
+    if args.controlnet_mode is not None:
+        control, H, W = get_control(args, num_cols, save_detected_map=args.save_detected_map)
+
+    value_dict = {
+        "prompt": prompts[0],
+        "negative_prompt": args.negative_prompt,
+        "orig_width": args.orig_width if args.orig_width else W,
+        "orig_height": args.orig_height if args.orig_height else H,
+        "target_width": args.target_width if args.target_width else W,
+        "target_height": args.target_height if args.target_height else H,
+        "crop_coords_top": max(args.crop_coords_top if args.crop_coords_top else 0, 0),
+        "crop_coords_left": max(args.crop_coords_left if args.crop_coords_left else 0, 0),
+        "aesthetic_score": args.aesthetic_score if args.aesthetic_score else 6.0,
+        "negative_aesthetic_score": args.negative_aesthetic_score if args.negative_aesthetic_score else 2.5,
+    }
 
     print("Txt2Img Sampling")
     outs = []
@@ -252,7 +253,7 @@ def run_txt2img(
         images = []
         for j in range(num_samples):
             np.random.seed(args.seed + j)  # set seed for every sample
-            print(f"[{i+1}/{len(prompts)}]: sampling prompt: ", value_dict["prompt"], f"({j+1}/{num_samples})")
+            print(f"[{i + 1}/{len(prompts)}]: sampling prompt: ", prompt, f"({j + 1}/{num_samples})")
             value_dict["prompt"] = prompt
             s_time = time.time()
             sampling_func = partial(do_sample_long_prompts, model) if args.support_long_prompts else model.do_sample
@@ -284,7 +285,9 @@ def run_txt2img(
     return outs
 
 
-def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0"):
+def run_img2img(
+    args, model, is_legacy=False, return_latents=False, filter=None, stage2strength=None, amp_level="O0", save_path="./"
+):
     dtype = ms.float32 if amp_level not in ("O2", "O3") else ms.float16
 
     img = load_img(args.img)
@@ -333,6 +336,11 @@ def run_img2img(args, model, is_legacy=False, return_latents=False, filter=None,
         amp_level=amp_level,
     )
     print(f"Img2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
+
+    out = out if isinstance(out, (tuple, list)) else [out, None]
+    (samples, samples_z) = out
+
+    perform_save_locally(save_path, samples)
 
     return out
 
@@ -489,32 +497,30 @@ def sample(args):
             filter=filter,
             stage2strength=stage2strength,
             amp_level=args.ms_amp_level,
+            save_path=save_path,
         )
     else:
         raise ValueError(f"Unknown task {task}")
 
-    if task != "txt2img":
-        out = out if isinstance(out, (tuple, list)) else [out, None]
-        (samples, samples_z) = out
-
-        perform_save_locally(save_path, samples)
-
     if add_pipeline:
         print("**Running Refinement Stage**")
-        assert samples_z is not None
+        outs = out if task == "txt2img" else [out]
+        for out in outs:
+            (samples, samples_z) = out
+            assert samples_z is not None
 
-        samples = apply_refiner(
-            samples_z,
-            model=model2,
-            sampler=sampler2,
-            num_samples=samples_z.shape[0],
-            prompt=args.prompt,
-            negative_prompt=args.negative_prompt if is_legacy else "",
-            filter=filter2,
-            finish_denoising=args.finish_denoising,
-        )
+            samples = apply_refiner(
+                samples_z,
+                model=model2,
+                sampler=sampler2,
+                num_samples=samples_z.shape[0],
+                prompt=args.prompt,
+                negative_prompt=args.negative_prompt if is_legacy else "",
+                filter=filter2,
+                finish_denoising=args.finish_denoising,
+            )
 
-        perform_save_locally(os.path.join(save_path, "pipeline"), samples)
+            perform_save_locally(os.path.join(save_path, "pipeline"), samples)
 
 
 if __name__ == "__main__":

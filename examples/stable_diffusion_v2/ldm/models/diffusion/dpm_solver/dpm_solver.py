@@ -112,7 +112,7 @@ class NoiseScheduleVP:
             self.total_N = len(log_alphas)
             self.T = 1.0
             self.t_array = self.cast(
-                ops.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(1.0, ms.float32), self.total_N + 1)[1:].reshape(
+                ms.numpy.linspace(ms.Tensor(0.0, ms.float32), ms.Tensor(1.0, ms.float32), self.total_N + 1)[1:].reshape(
                     (1, -1)
                 ),
                 ms.float16,
@@ -521,7 +521,9 @@ class DPM_Solver:
             logSNR_steps = ops.linspace(lambda_T, lambda_0, N + 1)
             return self.noise_schedule.inverse_lambda(logSNR_steps)
         elif skip_type == "time_uniform":
-            return self.cast(ops.linspace(ms.Tensor(t_T, ms.float32), ms.Tensor(t_0, ms.float32), N + 1), ms.float16)
+            return self.cast(
+                ms.numpy.linspace(ms.Tensor(t_T, ms.float32), ms.Tensor(t_0, ms.float32), N + 1), ms.float16
+            )
         elif skip_type == "time_quadratic":
             t_order = 2
             t = ops.pow(

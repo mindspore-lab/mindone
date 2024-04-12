@@ -24,7 +24,7 @@ from mindspore import nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.utils.version_control import (
-    MSVersion,
+    MS_VERSION,
     check_valid_flash_attention,
     choose_flash_attention_dtype,
     is_old_ms_version,
@@ -176,9 +176,9 @@ class CrossAttention(nn.Cell):
 
         # TODO: due to FA supports well for head dimensions: 64, 80, 96, 120, 128 and 256
         self.FA_max_head_dim = 256
-        if MSVersion >= "2.2" and MSVersion < "2.3":
+        if MS_VERSION >= "2.2" and MS_VERSION < "2.3":
             self.FA_pad_head_dim = 160
-        elif MSVersion >= "2.3":
+        elif MS_VERSION >= "2.3":
             self.FA_pad_head_dim = 40
             # if self.enable_flash_attention:
             # logger.warning("Will head_dim 40 to 64 for Flash Attention for MS2.3-dev. This can be removed in later MS version after check.")

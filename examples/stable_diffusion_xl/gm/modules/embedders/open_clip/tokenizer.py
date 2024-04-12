@@ -209,6 +209,55 @@ def lpw_tokenize(
     return prompt_tokens, prompt_tokens_length
 
 
+def lpw_tokenize2(
+    texts: Union[str, List[str]],
+    context_length: int = 77,
+    max_embeddings_multiples: int = 4,
+) -> [np.ndarray, np.ndarray]:
+    """
+    Returns the tokenized representation of given input string(s)
+
+    Parameters
+    ----------
+    texts : Union[str, List[str]]
+        An input string or a list of input strings to tokenize
+    context_length : int
+        The context length to use; all CLIP models use 77 as the context length
+
+    Returns
+    -------
+    A two-dimensional tensor containing the resulting tokens, shape = [number of input strings, context_length]
+    """
+    if isinstance(texts, str):
+        texts = [texts]
+    max_length = (context_length - 2) * max_embeddings_multiples + 2
+    prompt_tokens = [
+        _tokenizer.encode(text)
+        if len(_tokenizer.encode(text)) <= max_length - 2
+        else _tokenizer.encode(text)[: max_length - 2]
+        for text in texts
+    ]
+    prompt_tokens_length = np.array([len(p) + 2 for p in prompt_tokens], np.int32)
+
+    # max_length = max([len(token) for token in prompt_tokens])
+    # max_embeddings_multiples = min(
+    #     max_embeddings_multiples,
+    #     (max_length - 1) // (context_length - 2) + 1,
+    # )
+    # max_embeddings_multiples = max(1, max_embeddings_multiples)
+
+    max_length = (context_length - 2) * max_embeddings_multiples + 2
+    # pad the length of tokens and weights
+    bos = _tokenizer.encoder["<start_of_text>"]
+    eos = _tokenizer.encoder["<end_of_text>"]
+    pad = 0
+    for i in range(len(prompt_tokens)):
+        prompt_tokens[i] = [bos] + prompt_tokens[i] + [pad] * (max_length - 1 - len(prompt_tokens[i]) - 1) + [eos]
+    prompt_tokens = np.array(prompt_tokens, np.int32)
+
+    return prompt_tokens, prompt_tokens_length
+
+
 def tokenize(texts: Union[str, List[str]], context_length: int = 77) -> [np.ndarray, np.ndarray]:
     """
     Returns the tokenized representation of given input string(s)

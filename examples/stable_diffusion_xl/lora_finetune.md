@@ -22,6 +22,17 @@ python train.py \
   --gradient_accumulation_steps 4 \
 ```
 
+### inference, run lora(unmerge weight) without streamlit on Ascend
+
+```shell
+python demo/sampling_without_streamlit.py \
+  --task txt2img \
+  --config configs/training/sd_xl_base_finetune_lora.yaml \
+  --weight checkpoints/sd_xl_base_1.0_ms.ckpt,SDXL-base-1.0_2000_lora.ckpt \
+  --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
+  --device_target Ascend
+```
+
 
 ### Benchmark
 

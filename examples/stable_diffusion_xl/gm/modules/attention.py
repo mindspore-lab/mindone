@@ -74,7 +74,8 @@ class LinearAttention(nn.Cell):
         q, k, v = ops.split(qkv, 1)
         q, k, v = q.squeeze(0), k.squeeze(0), v.squeeze(0)
 
-        k = ops.softmax(k, axis=-1)
+        _k_dtype = k.dtype
+        k = ops.softmax(k.astype(ms.float32), axis=-1).astype(_k_dtype)
 
         # context = ops.einsum("bhdn,bhen->bhde", k, v)
         context = ops.BatchMatMul(transpose_b=True)(k, v)  # bhdn  # bhen  # bhde

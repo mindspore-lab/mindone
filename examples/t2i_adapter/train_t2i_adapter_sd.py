@@ -14,7 +14,7 @@ from mindspore import Model, nn
 from mindspore.train.callback import LossMonitor, TimeMonitor
 
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
-from mindone.data import build_dataloader
+from mindone.data import create_dataloader
 from mindone.env import init_train_env
 
 sys.path.append("../stable_diffusion_v2/")
@@ -43,7 +43,7 @@ def main(args, initializer):
     # step 3: prepare train dataset and dataloader
     dataset = initializer.train.dataset
     transforms = dataset.train_transforms(args.adapter.condition, TokenizerWrapper(sd_model.cond_stage_model.tokenizer))
-    train_dataloader = build_dataloader(
+    train_dataloader = create_dataloader(
         dataset,
         transforms=transforms,
         device_num=device_num,
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     )
     parser.add_subclass_arguments(CondDataset, "train.dataset")
     parser.add_function_arguments(
-        build_dataloader,
+        create_dataloader,
         "train.dataloader",
         skip={"dataset", "transforms", "device_num", "rank_id", "debug", "enable_modelarts"},
     )

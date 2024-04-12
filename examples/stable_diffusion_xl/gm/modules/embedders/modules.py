@@ -10,9 +10,9 @@ from gm.modules.embedders.clip import CLIPTextModel
 
 # OpenCLIP model
 from gm.modules.embedders.open_clip import create_model as openclip_create_model
-from gm.modules.embedders.open_clip import lpw_tokenize as lpw_openclip_tokenize
+from gm.modules.embedders.open_clip import lpw_tokenize2 as lpw_openclip_tokenize2
 from gm.modules.embedders.open_clip import tokenize as openclip_tokenize
-from gm.util import count_params, expand_dims_like, get_text_index, instantiate_from_config
+from gm.util import count_params, expand_dims_like, instantiate_from_config
 from omegaconf import ListConfig
 
 # CLIP & Chinese-CLIP model
@@ -290,7 +290,7 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
 
     def tokenize(self, text, lpw=False, max_embeddings_multiples=4):
         if lpw:
-            tokens, length = get_text_index(self.tokenizer, text, max_embeddings_multiples)
+            tokens, length = self.get_text_index(self.tokenizer, text, max_embeddings_multiples)
         else:
             batch_encoding = self.tokenizer(
                 text,
@@ -381,6 +381,54 @@ class FrozenCLIPEmbedder(AbstractEmbModel):
             if i != 7:
                 self.transformer.text_model.encoder.layers[i].recompute()
         # self.transformer.text_model.final_layer_norm.recompute()
+
+    def pad_tokens(self, tokens, max_length, bos, eos, pad, no_boseos_middle=True, chunk_length=77):
+        r"""
+        Pad the tokens (with starting and ending tokens) and weights (with 1.0) to max_length.
+        """
+        for i in range(len(tokens)):
+            tokens[i] = [bos] + tokens[i] + [pad] * (max_length - 1 - len(tokens[i]) - 1) + [eos]
+
+        return tokens
+
+    def get_text_index(
+        self,
+        tokenizer,
+        prompt: Union[str, List[str]],
+        max_embeddings_multiples: Optional[int] = 4,
+        no_boseos_middle: Optional[bool] = False,
+    ):
+        max_length = (tokenizer.model_max_length - 2) * max_embeddings_multiples + 2
+        if isinstance(prompt, str):
+            prompt = [prompt]
+
+        prompt_tokens = [token[1:-1] for token in tokenizer(prompt, max_length=max_length, truncation=True).input_ids]
+        prompt_tokens_length = np.array([len(p) + 2 for p in prompt_tokens], np.int32)
+        # round up the longest length of tokens to a multiple of (model_max_length - 2)
+
+        # max_length = max([len(token) for token in prompt_tokens])
+        # max_embeddings_multiples = min(
+        #     max_embeddings_multiples,
+        #     (max_length - 1) // (tokenizer.model_max_length - 2) + 1,
+        # )
+        # max_embeddings_multiples = max(1, max_embeddings_multiples)
+        max_length = (tokenizer.model_max_length - 2) * max_embeddings_multiples + 2
+
+        # pad the length of tokens and weights
+        bos = tokenizer.bos_token_id
+        eos = tokenizer.eos_token_id
+        pad = getattr(tokenizer, "pad_token_id", eos)
+        prompt_tokens = self.pad_tokens(
+            prompt_tokens,
+            max_length,
+            bos,
+            eos,
+            pad,
+            no_boseos_middle=no_boseos_middle,
+            chunk_length=tokenizer.model_max_length,
+        )
+        prompt_tokens = np.array(prompt_tokens, np.int32)
+        return prompt_tokens, prompt_tokens_length
 
 
 class FrozenCLIPEmbedder_lora(FrozenCLIPEmbedder):
@@ -569,63 +617,18 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
 
     def tokenize(self, text, lpw=False, max_embeddings_multiples=4):
         if lpw:
-            tokens, lengths = lpw_openclip_tokenize(text, max_embeddings_multiples=max_embeddings_multiples)
+            tokens, lengths = lpw_openclip_tokenize2(text, max_embeddings_multiples=max_embeddings_multiples)
         else:
             tokens, lengths = openclip_tokenize(text)
         tokens = np.array(tokens, dtype=np.int32)
         lengths = np.array(lengths, dtype=np.int32)
         return tokens, lengths
 
-    def get_unweighted_text_embeddings_SDXL2(self, tokens, max_embeddings_multiples):
-        tokens_embeds_all = []
-        last_embeds_all = []
-        for i in range(max_embeddings_multiples):
-            # extract the i-th chunk
-            text_input_chunk = tokens[:, i * (self.max_length - 2) : (i + 1) * (self.max_length - 2) + 2].copy()
-            # cover the head and the tail by the starting and the ending tokens
-            text_input_chunk[:, 0] = tokens[0, 0]
-            text_input_chunk[:, -1] = tokens[0, -1]
-            z = self.encode_with_transformer(text_input_chunk)
-            if not self.return_pooled and self.legacy:
-                tokens_embeds = z
-            elif not self.return_pooled and not self.legacy:
-                tokens_embeds = z[self.layer_idx]
-            else:
-                assert not self.legacy
-                tokens_embeds = z[self.layer_idx]
-                last_embeds = z[0]
-                last_embeds = self.model.ln_final(last_embeds)
-            # no_boseos_middle
-            if i == 0:
-                # discard the ending token
-                tokens_embeds = tokens_embeds[:, :-1]
-                if self.return_pooled and not self.legacy:
-                    last_embeds = last_embeds[:, :-1]
-            elif i == max_embeddings_multiples - 1:
-                # discard the starting token
-                tokens_embeds = tokens_embeds[:, 1:]
-                if self.return_pooled and not self.legacy:
-                    last_embeds = last_embeds[:, 1:]
-            else:
-                # discard both starting and ending tokens
-                tokens_embeds = tokens_embeds[:, 1:-1]
-                if self.return_pooled and not self.legacy:
-                    last_embeds = last_embeds[:, 1:-1]
-            tokens_embeds_all.append(tokens_embeds)
-            if self.return_pooled and not self.legacy:
-                last_embeds_all.append(last_embeds)
-        tokens_embeds = ops.concat(tokens_embeds_all, axis=1)
-        if self.return_pooled and not self.legacy:
-            last_embeds = ops.concat(last_embeds_all, axis=1)
-            pooled = self.pool(last_embeds, tokens)
-            return tokens_embeds, pooled
-        return tokens_embeds
-
     @ms.jit
     def construct(self, tokens):
         max_embeddings_multiples = (tokens.shape[1] - 2) // (self.max_length - 2)
         if max_embeddings_multiples > 1:
-            z = self.get_unweighted_text_embeddings_SDXL2(tokens, max_embeddings_multiples)
+            z = self.get_unweighted_text_embeddings_SDXL3(tokens, max_embeddings_multiples)
             return z
         else:
             z = self.encode_with_transformer(tokens)
@@ -676,6 +679,123 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
 
     def encode(self, text):
         return self(text)
+
+    def get_unweighted_text_embeddings_SDXL2(self, tokens, max_embeddings_multiples):
+        tokens_embeds_all = []
+        last_embeds_all = []
+        for i in range(max_embeddings_multiples):
+            # extract the i-th chunk
+            text_input_chunk = tokens[:, i * (self.max_length - 2) : (i + 1) * (self.max_length - 2) + 2].copy()
+            # cover the head and the tail by the starting and the ending tokens
+            text_input_chunk[:, 0] = tokens[0, 0]
+            text_input_chunk[:, -1] = tokens[0, -1]
+            z = self.encode_with_transformer(text_input_chunk)
+            if not self.return_pooled and self.legacy:
+                tokens_embeds = z
+            elif not self.return_pooled and not self.legacy:
+                tokens_embeds = z[self.layer_idx]
+            else:
+                assert not self.legacy
+                tokens_embeds = z[self.layer_idx]
+                last_embeds = z[0]
+                last_embeds = self.model.ln_final(last_embeds)
+            # no_boseos_middle
+            if i == 0:
+                # discard the ending token
+                tokens_embeds = tokens_embeds[:, :-1]
+                if self.return_pooled and not self.legacy:
+                    last_embeds = last_embeds[:, :-1]
+            elif i == max_embeddings_multiples - 1:
+                # discard the starting token
+                tokens_embeds = tokens_embeds[:, 1:]
+                if self.return_pooled and not self.legacy:
+                    last_embeds = last_embeds[:, 1:]
+            else:
+                # discard both starting and ending tokens
+                tokens_embeds = tokens_embeds[:, 1:-1]
+                if self.return_pooled and not self.legacy:
+                    last_embeds = last_embeds[:, 1:-1]
+            tokens_embeds_all.append(tokens_embeds)
+            if self.return_pooled and not self.legacy:
+                last_embeds_all.append(last_embeds)
+        tokens_embeds = ops.concat(tokens_embeds_all, axis=1)
+        if self.return_pooled and not self.legacy:
+            last_embeds = ops.concat(last_embeds_all, axis=1)
+            pooled = self.pool(last_embeds, tokens)
+            return tokens_embeds, pooled
+        return tokens_embeds
+
+    def get_unweighted_text_embeddings_SDXL3(self, tokens, max_embeddings_multiples):
+        max_ids, text_embeddings = None, None
+
+        tokens_embeds_all = []
+        text_embeddings_all = []
+        weight_all = []
+        for i in range(max_embeddings_multiples):
+            # extract the i-th chunk
+            text_input_chunk = tokens[:, i * (self.max_length - 2) : (i + 1) * (self.max_length - 2) + 2].copy()
+            # cover the head and the tail by the starting and the ending tokens
+            text_input_chunk[:, 0] = tokens[0, 0]
+            text_input_chunk[:, -1] = tokens[0, -1]
+            z = self.encode_with_transformer(text_input_chunk)
+
+            assert self.return_pooled and (not self.legacy)
+            tokens_embeds = z[self.layer_idx]
+            pooled = z[-1]
+
+            # last_embeds = z[0]
+            # last_embeds = self.model.ln_final(last_embeds)
+            # # last_embeds = ops.concat(last_embeds_all, axis=1)
+            # pooled = self.pool(last_embeds, tokens)
+
+            # no_boseos_middle: True
+            if i == 0:
+                # discard the ending token
+                tokens_embeds = tokens_embeds[:, :-1]
+                # if self.return_pooled and not self.legacy:
+                #     last_embeds = last_embeds[:, :-1]
+            elif i == max_embeddings_multiples - 1:
+                # discard the starting token
+                tokens_embeds = tokens_embeds[:, 1:]
+                # if self.return_pooled and not self.legacy:
+                #     last_embeds = last_embeds[:, 1:]
+            else:
+                # discard both starting and ending tokens
+                tokens_embeds = tokens_embeds[:, 1:-1]
+                # if self.return_pooled and not self.legacy:
+                #     last_embeds = last_embeds[:, 1:-1]
+
+            if i == 0:
+                text_embeddings = pooled
+                max_ids = ops.max(text_input_chunk, axis=1, keepdims=True)[0].view(-1, 1)
+            else:
+                now_max_ids = ops.max(text_input_chunk, axis=1, keepdims=True)[0].view(-1, 1)
+                text_embeddings = ops.where(ops.cast(max_ids > now_max_ids, ms.bool_), text_embeddings, pooled)
+
+            # [[499, ...], [40970, ..., 0, 0, 0],]
+            # [[0, 0,...], [0, 0, ..., 1, 1, 1],]
+            # [0, 60]
+            # indices = [75, 60]
+            indices = ops.argmax(ops.eq(text_input_chunk, 0).astype(ms.int32), dim=1)
+            indices = ops.where(ops.cast(indices == 0, ms.bool_), 75 * ops.ones_like(indices), indices)
+
+            weight_all.append(indices.unsqueeze(1))
+            # shape: (bs, 1, 77)
+            text_embeddings_all.append(text_embeddings.unsqueeze(1))
+            tokens_embeds_all.append(tokens_embeds)
+
+        tokens_embeds = ops.concat(tokens_embeds_all, axis=1)
+
+        # [[75, 75], [75, 60]]
+        weight = ops.concat(weight_all, axis=1).astype(text_embeddings.dtype)
+        # [[0.5, 0.5], [0.55, 0.44]]
+        weight = weight / ops.sum(weight, dim=-1).unsqueeze(1)
+        # shape: (bs, n_chunk, 77)
+        text_embeddings_all = ops.concat(text_embeddings_all, axis=1)
+        # shape: (bs, 77)
+        pooled = ops.sum(weight.unsqueeze(-1) * text_embeddings_all, dim=1)
+
+        return tokens_embeds, pooled
 
 
 class FrozenOpenCLIPEmbedder2_lora(FrozenOpenCLIPEmbedder2):
