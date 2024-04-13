@@ -37,15 +37,15 @@ input_size = (num_frames//vae_t_compress, image_size//vae_s_compress,  image_siz
 B, C, T, H, W = 2, vae_out_channels, input_size[0], input_size[1], input_size[2]
 
 x = np.random.normal(size=(B, C, T, H , W)).astype(np.float32)
-t = np.random.randint(low=0, high=1000, size=B)
+t = np.random.randint(low=0, high=1000, size=B).astype(np.float32)
 # condition, text, 
 y = np.random.normal(size=(B, 1, max_tokens, text_emb_dim)).astype(np.float32)
 y_lens = np.random.randint(low=4, high=max_tokens, size=[B])
 
 # mask (B, max_tokens)
-mask = np.zeros(shape=[B, max_tokens]).astype(np.uint8)  # TODO: use bool?
+mask = np.zeros(shape=[B, max_tokens]).astype(np.int8)  # TODO: use bool?
 for i in range(B):
-    mask[i, :y_lens[i]] = np.ones(y_lens[i])
+    mask[i, :y_lens[i]] = np.ones(y_lens[i]).astype(np.int8)
 
 print('input x, y: ', x.shape, y.shape)
 print("mask: ", mask.shape)
@@ -60,7 +60,7 @@ model_extra_args = dict(
     )
 
 
-def test_stdit(ckpt_path=None):
+def test_stdit(ckpt_path=None, amp=True):
     model_extra_args['enable_flashattn'] = False
     model_extra_args['use_recompute'] = False
 
@@ -72,8 +72,9 @@ def test_stdit(ckpt_path=None):
         m, u = ms.load_param_into_net(net, sd)
         print('net param not load: ', m)
         print('ckpt param not load: ', u)
-
-    net = auto_mixed_precision(net, "O2", ms.float16)
+    
+    if amp:
+        net = auto_mixed_precision(net, "O2", ms.float16)
 
     total_params = sum([param.size for param in net.get_parameters()])
     total_trainable = sum([param.size for param in net.get_parameters() if param.requires_grad])
@@ -135,5 +136,5 @@ def compare_stdit():
 if __name__ == "__main__":
     ms.set_context(mode=1)
     # test_stdit_pt('models/OpenSora-v1-HQ-16x256x256.pth')
-    # test_stdit('models/OpenSora-v1-HQ-16x256x256.ckpt')
-    compare_stdit()
+    test_stdit('models/OpenSora-v1-HQ-16x256x256.ckpt')
+    # compare_stdit()

@@ -11,7 +11,7 @@ from mindone.models.stdit import STDiTBlock
 from mindone.utils.amp import auto_mixed_precision
 
 
-use_mask = False
+use_mask = True
 
 # input args
 hidden_size = 1152
@@ -35,26 +35,48 @@ args = dict(
     )
 
 B, N, C = 2, T*S, hidden_size 
-x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
-y = np.random.normal(size=(1, B*max_tokens, C)).astype(np.float32)
-y_lens = [max_tokens] * B
+fp = 'tests/stdit_block_inp.npz'
 
-# time embedding
-t = np.random.normal(size=(B, 6*C)).astype(np.float32)
+def get_inputs(npz=None):
+    if npz is not None:
+        data = np.load(npz)
+        x, y, t, mask = data['x'], data['y'], data['t'], data['mask']
+    else:
+        x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
-# mask (B, max_tokens)
-if use_mask:
-    mask = np.zeros(shape=[B, max_tokens]).astype(np.uint8)
-    for i in range(B):
-        mask[i, :y_lens[i]] = np.ones(y_lens[i])
-else:
-    mask = None
+        y = np.random.normal(size=(1, B*max_tokens, C)).astype(np.float32)
+        y_lens = np.random.randint(low=max_tokens//2, high=max_tokens, size=[B])
+        print('y_lens: ', y_lens)
 
-tpe = None
+        # time embedding
+        t = np.random.normal(size=(B, 6*C)).astype(np.float32)
 
+        save_dict = dict(x=x, y=y, t=t) 
 
-global_inputs = (x, y, t, mask)
+        # mask (B, max_tokens)
+        if use_mask:
+            mask = np.zeros(shape=[B, max_tokens]).astype(np.uint8)
+            for i in range(B):
+                mask[i, :y_lens[i]] = np.ones(y_lens[i])
+        else:
+            mask = None
+        
+        if mask is not None:
+            save_dict['mask'] = mask
+
+        np.savez(fp, **save_dict)
+        print('inputs saved in', fp)
+
+    if not use_mask:
+        mask = None
+
+    tpe = None
+    return x, y, t, mask, tpe
+
+x, y, t, mask, tpe = get_inputs(fp)
+
+global_inputs = (x, y, t, mask, tpe)
 
 
 def test_net_ms(x, ckpt=None, net_class=None, args=None):
@@ -84,26 +106,47 @@ def test_net_ms(x, ckpt=None, net_class=None, args=None):
     print(res_ms.shape)
     return res_ms.asnumpy(), net_ms
 
-def test_net_pt(x, ckpt=None, save_ckpt_fn=None, net_class=None, args=None):
+
+def torch_mask_convert(mask, y):
+    # mask: [B, n_tokens], y: (1, B*N_token, C)
+    
+    _B = mask.shape[0]
+    y = y.reshape((_B, -1, y.shape[-1])) 
+    y = y.reshape((_B, 1, -1, y.shape[-1])) 
+
+    # y: text, [B, 1, N_token, C]
+    if mask.shape[0] != y.shape[0]:
+        mask = mask.repeat(y.shape[0] // mask.shape[0], 1)
+    mask = mask.squeeze(1).squeeze(1)
+    y = y.squeeze(1).masked_select(mask.unsqueeze(-1) != 0).view(1, -1, x.shape[-1])
+    y_lens = mask.sum(dim=1).tolist()
+    
+    return y_lens 
+
+# inputs only for stdit block
+def test_net_pt(x, y, t, mask=None, tpe=None, ckpt=None, save_ckpt_fn=None, net_class=None, args=None):
     # 
     net_pt = net_class(**args).cuda()
     net_pt.eval()
-    if ckpt is not None:
+    if ckpt is not None and os.path.exists(ckpt):
         checkpoint = torch.load(ckpt)
         net_pt.load_state_dict(checkpoint['model_state_dict'])
-
-    if save_ckpt_fn:
-        torch.save({'model_state_dict': net_pt.state_dict(),
-                    }, f"tests/{save_ckpt_fn}.pth")
-
-    if isinstance(x, (list, tuple)):
-        inputs = []
-        for xi in x:
-            if xi is not None:
-                inputs.append(torch.Tensor(xi).cuda())
-        res_pt = net_pt(*inputs)
     else:
-        res_pt = net_pt(torch.Tensor(x))
+        if save_ckpt_fn:
+            torch.save({'model_state_dict': net_pt.state_dict(),
+                        }, f"tests/{save_ckpt_fn}.pth")
+
+    x = torch.Tensor(x).cuda()
+    y = torch.Tensor(y).cuda()
+    t = torch.Tensor(t).cuda()
+    if mask is not None:
+        mask = torch.Tensor(mask).cuda()
+        mask = torch_mask_convert(mask, y)        
+        print('converted mask for pt: ', mask)
+    if tpe is not None:
+        tpe = torch.Tensor(tpe).cuda()
+
+    res_pt = net_pt(x, y, t, mask, tpe)
 
     total_params = sum(p.numel() for p in net_pt.parameters())
     print("pt total params: ", total_params)
@@ -142,6 +185,7 @@ def _diff_res(ms_val, pt_val):
     max_ae = abs_diff.max()
     return mae, max_ae
 
+
 def compare_stdit():
     # pt_code_path = "/home/mindocr/yx/Open-Sora/"
     pt_code_path = "/srv/hyx/Open-Sora/"
@@ -149,7 +193,8 @@ def compare_stdit():
     from opensora.models.stdit.stdit import STDiTBlock as STD_PT
 
     ckpt_fn = 'stdb'
-    pt_res, net_pt = test_net_pt(global_inputs, save_ckpt_fn=ckpt_fn, net_class=STD_PT, args=args)
+    ckpt_fp_pt = f'tests/{ckpt_fn}.pth'
+    pt_res, net_pt = test_net_pt(x, y, t, mask, tpe, ckpt=ckpt_fp_pt, save_ckpt_fn=ckpt_fn, net_class=STD_PT, args=args)
     print("pt out range: ", pt_res.min(), pt_res.max())
 
     ckpt = _convert_ckpt(f"tests/{ckpt_fn}.pth")

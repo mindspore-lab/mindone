@@ -22,29 +22,39 @@ class Attention(nn.Cell):
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         '''
-        q: (b h n_q d)
+        q: (b h n_q d), h - num_head, n_q - seq_len of q
         k v: (b h n_k d), (b h n_v d)
-        mask: (b n_k)
+        mask: (b 1 n_q n_k), 0 indicates retain, 1 indicates discard.
         '''
         
         # (b h n_q n_k) 
         sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
-
+        
+        # TODO: better precision but this can be costy.
         sim = sim.to(ms.float32)
-        if exists(mask):
-            mask = mask[:, None, None, :]
-            sim = ops.masked_fill(sim, ~mask, -ms.numpy.inf)
+
+        if mask is not None:
+            # (b 1 n_q n_k) -> (b h n_q n_k) 
+            num_head = q.shape[1]
+            mask = ops.repeat_interleave(mask, num_head, axis=1).to(ms.bool_)
+
+            # import pdb; pdb.set_trace()
+
+            sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
+            # sim = ops.masked_fill(sim, mask, ops.cast(float("-inf"), sim.dtype))
+
+        # (b h n_q n_k) 
         attn = ops.softmax(sim, axis=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
         out = ops.matmul(attn, v)
         return out
 
 
-
-class MultiHeadCrossAttentionOld(nn.Cell):
+class MultiHeadCrossAttentionXFormer(nn.Cell):
     """
-    Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
-    due to the attention head dimension is 40, num heads=5. Require test on future versions
+    Note: this implementation flatten the batch dim B into sequence dim N, i.e. (B,N,C)->(1, BN, C), aligning to torch version using xformers. It can cause huge memory cost without dynamic shape support (to get rid of padding).
+        To get the same compute result and reduce cost, we need mindspore version of BlockDiagonalMask and memory_efficient_attention, and dynamic shape support, which are not available currently.
+
     """
     def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
@@ -88,14 +98,13 @@ class MultiHeadCrossAttentionOld(nn.Cell):
         return x
 
     def construct(self, x, cond, mask=None):
-        # x: (B, N, C)
-        # C = head_dim * num_heads, N = seq_len
-        # query/value: img tokens; key: condition; mask: if padding tokens
-        # cond: (1, B*N_tokens, C_t)
+        '''
+        # x: (B, N, C) = (B, thw, C), C = head_dim * num_heads, N = seq_len
+        # cond: (1, B*N_tokens, C) = (1, B*S, C), S - text token seq len
         # mask : (B, N_tokens)
+        '''
         B, N, C = x.shape
 
-        # import pdb
         # pdb.set_trace()
         # q: (B N C) -> (1 , B*N, h, d)
         # k: (B N_tokens C) -> (1 B*N_tokens h d)
@@ -104,51 +113,44 @@ class MultiHeadCrossAttentionOld(nn.Cell):
 
         k, v = kv.unbind(2)
 
-        # (B, N_tokens) -> (1, B*N_tokens) 
+        # q: (b, n_q, h, d) -> (b h n_q d) = (1, h, B*thw, d)
+        # k: (b, n_k, h, d) -> (b h n_k d) = (1, h, B*n_tokens, d)
+        q = self._rearange_in(q)
+        k = self._rearange_in(k)
+        v = self._rearange_in(v)
+
         if mask is not None:
+            # (B, N_tokens) -> (1, B*N_tokens)
             mask = mask.reshape(1, -1)
-       
-        # TODO: support masking
+
+            # (b n_k) -> (b 1 1 n_k) -> (b 1 n_q n_k) = (1 1 B*thw B*n_tokens)   # Super large mask!!! FIXME. it's not equivalent to xformer DiagnonalMask!
+            mask = mask[:, None, None, :]
+            mask = ops.repeat_interleave(mask, q.shape[-2], axis=2)
+
+            # flip mask, since ms FA treats 1 as discard, 0 as retain.
+            mask = 1 - mask
+
         #if mask is not None:
-        #     attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
-        #else: 
-        #   attn_bias = None
-        # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
+        #   attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
+        #   x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
 
         # print('D--', q.shape, k.shape, v.shape)
         if self.enable_flash_attention:
             # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
             # x = x.reshape((B, -1, C))
 
-            #  -> (b h n d))
-            q = self._rearange_in(q)
-            k = self._rearange_in(k)
-            v = self._rearange_in(v)
-
-            # mask: (b n_k) -> (b n_q n_k)
-            mask = mask[:, None, :]
-            mask = ops.repeat_interleave(mask, q.shape[-2], axis=1)
-            
-            x = self.flash_attention(q, k, v, mask)
-
-            # (b h n d) -> (b n h d) ->  (b n h*d)
-            x = self._rearange_out(x)
+            # - **attn_mask** (Union[Tensor[uint8], None]) - The attention mask tensor. For each element, 0 indicat
+            # retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
+            x = self.flash_attention(q, k, v, attn_mask=mask)
 
         else:
-            # (b, n, h, d) -> (b h n d)
-            # print("D--: ", q.shape, k.shape)
-            q = self._rearange_in(q)
-            k = self._rearange_in(k)
-            v = self._rearange_in(v)
-            # print("D--: ", q.shape, k.shape)
-
             # TODO: support masking
             x = self.attention(q, k, v, mask)
             # x = self.attention(q, k, v, mask=None)
 
-            # (b h n d) -> (b n h d) ->  (b n h*d)
-            x = self._rearange_out(x)
-        
+        # (b h n d) -> (b n h d) ->  (b n h*d)
+        x = self._rearange_out(x)
+
         x = x.view(B, -1, C)
         x = self.proj(x)
         x = self.proj_drop(x)
@@ -158,8 +160,10 @@ class MultiHeadCrossAttentionOld(nn.Cell):
 
 class MultiHeadCrossAttention(nn.Cell):
     """
-    Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
-    due to the attention head dimension is 40, num heads=5. Require test on future versions
+    This implementation is more friendly to mindspore in graph mode currently. Overhead computation lies in the padded tokens in a batch, which is padded to a fixed length max_tokens. If the prompts are short, this overhead can be high.
+    TODO: remove the computation on the padded sequence, referring to xformers, or reduce it by padding to the max prompt length in the batch instead of a fixed large value.
+    
+    Precision: w/o masking: MAE ~5e-4. w/ masking: MAE ~8e-3
     """
     def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
@@ -204,29 +208,41 @@ class MultiHeadCrossAttention(nn.Cell):
         Return:
             (B, N, C)
         '''
-        B, N, C = x.shape
+        B_ori, _, C = x.shape
         
-        # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
-        cond = ops.reshape(cond, (B, -1, C))
+        if mask is None:
+            # this branch is redundant. FIXME: remove later. mask is always not None in real scene
+            # to fully align with torch when mask is None, B dim is flatten to the seq_len dim
+            x = x.reshape((1, -1, C))
+        else:
+            # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
+            cond = ops.reshape(cond, (B_ori, -1, C))
+        
+        B, N, C = x.shape
         N_k = cond.shape[1]
 
         # 1. q, kv linear projection
         q = self.q_linear(x)   # .reshape((1, -1, self.num_heads, self.head_dim))
         kv = self.kv_linear(cond)  #.reshape((1, -1, 2, self.num_heads, self.head_dim))
         
-        # 2. reshape for multi-head attn compute
+        # 2. reshape qkv for multi-head attn
         # q: (B N C) -> (B N num_head head_dim) -> (B num_head N head_dim)
         q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
         q = ops.transpose(q, (0, 2, 1, 3))
 
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim)-> (B num_head 2 N_k head_dim), split.
-        # TODO: check consistency compared to two steps
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
         kv = ops.transpose(kv, (0, 3, 2, 1, 4))
         k, v = ops.unbind(kv, dim=2)  # TODO: check unbind op efficiency
 
-        # import pdb; pdb.set_trace()
-        # TODO: check shape
+        # 2+: mask adaptation for multi-head attention
+        if mask is not None:
+            # (b n_k) -> (b 1 1 n_k) -> (b 1 n_q n_k) = (B 1 thw n_tokens)
+            mask = mask[:, None, None, :]
+            mask = ops.repeat_interleave(mask, q.shape[-2], axis=2)
+
+            # flip mask, since ms FA treats 1 as discard, 0 as retain.
+            mask = 1 - mask
 
         # TODO: support dynamic text length in a batch. diagnonal maksing for valid texts. more memory efficient for short prompts.
         # attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
@@ -236,16 +252,17 @@ class MultiHeadCrossAttention(nn.Cell):
         # print('D--', q.shape, k.shape, v.shape)
         if self.enable_flash_attention:
             # q: (b h n_q d), k: (b h n_k d)
-            # mask: (b n_k) -> (b n_q n_k)
-            mask = mask[:, None, :]
-            mask = ops.repeat_interleave(mask, q.shape[-2], axis=1)
-            
+            # mask: (b n_k) -> (b 1 n_q n_k)
             x = self.flash_attention(q, k, v, mask)
         else:
             x = self.attention(q, k, v, mask)
         
         # (b h n d) -> (b n h d) ->  (b n h*d)
         x = self._rearange_out(x)
+        
+        # TODO: remove it later. FIXME
+        if mask is None:
+            x = x.view(B_ori, -1, C)
         
         # 4. output projection
         x = self.proj(x)
