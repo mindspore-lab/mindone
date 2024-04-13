@@ -17,6 +17,9 @@ timestep (torch.Tensor): diffusion time steps; of shape [B]
 y (torch.Tensor): representation of prompts; of shape [B, 1, N_token, C]
 '''
 
+use_mask = True
+print("use mask: ", use_mask)
+
 # data config
 hidden_size = 1152
 
@@ -36,20 +39,34 @@ max_tokens = 120
 input_size = (num_frames//vae_t_compress, image_size//vae_s_compress,  image_size//vae_s_compress)
 B, C, T, H, W = 2, vae_out_channels, input_size[0], input_size[1], input_size[2]
 
-x = np.random.normal(size=(B, C, T, H , W)).astype(np.float32)
-t = np.random.randint(low=0, high=1000, size=B).astype(np.float32)
-# condition, text, 
-y = np.random.normal(size=(B, 1, max_tokens, text_emb_dim)).astype(np.float32)
-y_lens = np.random.randint(low=4, high=max_tokens, size=[B])
+npz = 'input_256.npz'
 
-# mask (B, max_tokens)
-mask = np.zeros(shape=[B, max_tokens]).astype(np.int8)  # TODO: use bool?
-for i in range(B):
-    mask[i, :y_lens[i]] = np.ones(y_lens[i]).astype(np.int8)
+if npz is not None:
+    d = np.load(npz)
+    x, y = d['x'], d['y']
+    mask = d['mask']
+    mask = np.repeat(mask, x.shape[0]//mask.shape[0], axis=0)
+    
+    # TODO: fix it
+    t = np.random.randint(low=0, high=1000, size=B).astype(np.float32)
+    
+else:
+    x = np.random.normal(size=(B, C, T, H , W)).astype(np.float32)
+    t = np.random.randint(low=0, high=1000, size=B).astype(np.float32)
+    # condition, text, 
+    y = np.random.normal(size=(B, 1, max_tokens, text_emb_dim)).astype(np.float32)
+    y_lens = np.random.randint(low=4, high=max_tokens, size=[B])
 
-print('input x, y: ', x.shape, y.shape)
-print("mask: ", mask.shape)
+    # mask (B, max_tokens)
+    mask = np.zeros(shape=[B, max_tokens]).astype(np.int8)  # TODO: use bool?
+    for i in range(B):
+        mask[i, :y_lens[i]] = np.ones(y_lens[i]).astype(np.int8)
 
+    print('input x, y: ', x.shape, y.shape)
+    print("mask: ", mask.shape)
+
+if not use_mask:
+    mask = None
 
 # model config
 model_extra_args = dict(
@@ -60,7 +77,7 @@ model_extra_args = dict(
     )
 
 
-def test_stdit(ckpt_path=None, amp=True):
+def test_stdit(ckpt_path=None, amp=False):
     model_extra_args['enable_flashattn'] = False
     model_extra_args['use_recompute'] = False
 
@@ -74,6 +91,7 @@ def test_stdit(ckpt_path=None, amp=True):
         print('ckpt param not load: ', u)
     
     if amp:
+        print('use AMP')
         net = auto_mixed_precision(net, "O2", ms.float16)
 
     total_params = sum([param.size for param in net.get_parameters()])
@@ -85,8 +103,13 @@ def test_stdit(ckpt_path=None, amp=True):
     #    # if param.requires_grad:
     #    print(param.name, tuple(param.shape))
     
-    out = net(ms.Tensor(x), ms.Tensor(t), ms.Tensor(y), mask=ms.Tensor(mask))
+    if use_mask: 
+        out = net(ms.Tensor(x), ms.Tensor(t), ms.Tensor(y), mask=ms.Tensor(mask))
+    else:
+        out = net(ms.Tensor(x), ms.Tensor(t), ms.Tensor(y))
+
     print(out.shape)
+    print(out.mean(), out.std())
 
     return out.asnumpy()
 
@@ -109,8 +132,12 @@ def test_stdit_pt(ckpt):
     #for pname, p in net.named_parameters(): 
     #    # if p.requires_grad:
     #    print(pname, tuple(p.shape))
+    
+    if use_mask: 
+        out = net(torch.Tensor(x).cuda(), torch.Tensor(t).cuda(), torch.Tensor(y).cuda(), mask=torch.Tensor(mask).cuda())
+    else:
+        out = net(torch.Tensor(x).cuda(), torch.Tensor(t).cuda(), torch.Tensor(y).cuda())
 
-    out = net(torch.Tensor(x).cuda(), torch.Tensor(t).cuda(), torch.Tensor(y).cuda(), mask=torch.Tensor(mask).cuda())
 
     print(out.shape)
 
@@ -130,11 +157,11 @@ def compare_stdit():
     ms_ckpt = 'models/OpenSora-v1-HQ-16x256x256.ckpt'
     ms_out = test_stdit(ms_ckpt)
     
-    import pdb; pdb.set_trace() 
     print(_diff_res(ms_out, pt_out))
+    # (5.4196875e-07, 1.5079975e-05)
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
+    ms.set_context(mode=0)
     # test_stdit_pt('models/OpenSora-v1-HQ-16x256x256.pth')
-    test_stdit('models/OpenSora-v1-HQ-16x256x256.ckpt')
-    # compare_stdit()
+    # test_stdit('models/OpenSora-v1-HQ-16x256x256.ckpt')
+    compare_stdit()

@@ -766,6 +766,8 @@ class STDiT(nn.Cell):
         '''
         # (b 1 max_tokens d_t) -> (b max_tokens d_t)  -> (1 b*max_tokens d_t)
         y = y.squeeze(1).view(1, -1, x.shape[-1])
+        
+        # import pdb; pdb.set_trace()
 
         # blocks
         for i, block in enumerate(self.blocks):

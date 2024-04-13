@@ -10,7 +10,6 @@ sys.path.insert(0, mindone_lib_path)
 from mindone.models.stdit import STDiTBlock
 from mindone.utils.amp import auto_mixed_precision
 
-
 use_mask = True
 
 # input args
