@@ -41,7 +41,7 @@ class Attention(nn.Cell):
 
 
 
-class MultiHeadCrossAttention(nn.Cell):
+class MultiHeadCrossAttentionOld(nn.Cell):
     """
     Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
     due to the attention head dimension is 40, num heads=5. Require test on future versions
@@ -155,6 +155,104 @@ class MultiHeadCrossAttention(nn.Cell):
 
         return x
 
+
+class MultiHeadCrossAttention(nn.Cell):
+    """
+    Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
+    due to the attention head dimension is 40, num heads=5. Require test on future versions
+    """
+    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
+        super().__init__()
+        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.head_dim = d_model // num_heads
+
+        # TODO: it's better to remove bias 
+        self.q_linear = nn.Dense(d_model, d_model, has_bias=has_bias)
+        self.kv_linear = nn.Dense(d_model, d_model * 2, has_bias=has_bias)
+        self.attn_drop = nn.Dropout(p=attn_drop)
+        self.proj = nn.Dense(d_model, d_model, has_bias=has_bias)
+        self.proj_drop = nn.Dropout(p=proj_drop)
+
+        self.attention = Attention(self.head_dim, attn_drop=attn_drop)
+        
+        self.enable_flash_attention = enable_flash_attention
+        if enable_flash_attention:
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim, head_num=self.num_heads, fix_head_dims=[72], attention_dropout=attn_drop
+            )
+        else:
+            self.flash_attention = None
+
+    @staticmethod
+    def _rearange_out(x):
+        #  (b h n d) -> (b n h d) ->  (b n h*d)
+        b, h, n, d = x.shape
+        x = ops.transpose(x, (0, 2, 1, 3))
+        x = ops.reshape(x, (b, n, h*d))
+        return x
+
+    # TODO: just let cond input shape be (B, N_tokens, D), no need to flatten, to save memory.
+    def construct(self, x, cond, mask=None):
+        '''
+        Inputs:
+            x: (B, N, C), N=seq_len=h*w*t, C = hidden_size = head_dim * num_heads
+            cond: (1, B*N_tokens, C)
+            mask : (B, N_tokens)
+        Return:
+            (B, N, C)
+        '''
+        B, N, C = x.shape
+        
+        # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
+        cond = ops.reshape(cond, (B, -1, C))
+        N_k = cond.shape[1]
+
+        # 1. q, kv linear projection
+        q = self.q_linear(x)   # .reshape((1, -1, self.num_heads, self.head_dim))
+        kv = self.kv_linear(cond)  #.reshape((1, -1, 2, self.num_heads, self.head_dim))
+        
+        # 2. reshape for multi-head attn compute
+        # q: (B N C) -> (B N num_head head_dim) -> (B num_head N head_dim)
+        q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
+        q = ops.transpose(q, (0, 2, 1, 3))
+
+        # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim)-> (B num_head 2 N_k head_dim), split.
+        # TODO: check consistency compared to two steps
+        kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
+        kv = ops.transpose(kv, (0, 3, 2, 1, 4))
+        k, v = ops.unbind(kv, dim=2)  # TODO: check unbind op efficiency
+
+        # import pdb; pdb.set_trace()
+        # TODO: check shape
+
+        # TODO: support dynamic text length in a batch. diagnonal maksing for valid texts. more memory efficient for short prompts.
+        # attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
+        # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
+
+        # 3. attn compute 
+        # print('D--', q.shape, k.shape, v.shape)
+        if self.enable_flash_attention:
+            # q: (b h n_q d), k: (b h n_k d)
+            # mask: (b n_k) -> (b n_q n_k)
+            mask = mask[:, None, :]
+            mask = ops.repeat_interleave(mask, q.shape[-2], axis=1)
+            
+            x = self.flash_attention(q, k, v, mask)
+        else:
+            x = self.attention(q, k, v, mask)
+        
+        # (b h n d) -> (b n h d) ->  (b n h*d)
+        x = self._rearange_out(x)
+        
+        # 4. output projection
+        x = self.proj(x)
+        x = self.proj_drop(x)
+
+        return x
+
 def t2i_modulate(x, shift, scale):
     return x * (1 + scale) + shift
 
@@ -253,6 +351,7 @@ class STDiTBlock(nn.Cell):
         x: (B N C_x)
         y: (1 B*N_tokens C_y)
         t: (B C_t) 
+        mask: (B, N_tokens)
         '''
         B, N, C = x.shape
 
@@ -282,8 +381,7 @@ class STDiTBlock(nn.Cell):
         x = x + self.drop_path(gate_msa * x_t)
 
         # cross attn
-        # import pdb
-        # pdb.set_trace()
+        # import pdb; pdb.set_trace()
 
         x = x + self.cross_attn(x, y, mask)
 
@@ -500,7 +598,7 @@ class STDiT(nn.Cell):
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
         use_recompute = False,
-        replace_patchify_3d=True,
+        replace_patchify_3d=False,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma

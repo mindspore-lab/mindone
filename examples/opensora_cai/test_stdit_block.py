@@ -10,15 +10,21 @@ sys.path.insert(0, mindone_lib_path)
 from mindone.models.stdit import STDiTBlock
 from mindone.utils.amp import auto_mixed_precision
 
-ms.set_context(mode=1)
 
-hidden_size = 1024
-T = num_temporal = 1
-S = num_spatial = 16*16  # num_patches // self.num_temporal
+use_mask = False
+
+# input args
+hidden_size = 1152
+num_head = 16  # head_dim=72
+
+max_tokens = 120
+
+T = num_temporal = 16
+S = num_spatial = 16*16  # 256x256
 
 args = dict(
         hidden_size=hidden_size,
-        num_heads=8,
+        num_heads=num_head,
         d_s=S,
         d_t=T,
         mlp_ratio=4.0,
@@ -31,17 +37,24 @@ args = dict(
 B, N, C = 2, T*S, hidden_size 
 x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
-# condition, text, 
-N_tokens = 64
-y = np.random.normal(size=(1, B*N_tokens, C)).astype(np.float32)
-y_lens = [N_tokens] * B
-
-tpe = None
+y = np.random.normal(size=(1, B*max_tokens, C)).astype(np.float32)
+y_lens = [max_tokens] * B
 
 # time embedding
 t = np.random.normal(size=(B, 6*C)).astype(np.float32)
 
-global_inputs = (x, y, t)
+# mask (B, max_tokens)
+if use_mask:
+    mask = np.zeros(shape=[B, max_tokens]).astype(np.uint8)
+    for i in range(B):
+        mask[i, :y_lens[i]] = np.ones(y_lens[i])
+else:
+    mask = None
+
+tpe = None
+
+
+global_inputs = (x, y, t, mask)
 
 
 def test_net_ms(x, ckpt=None, net_class=None, args=None):
@@ -58,7 +71,8 @@ def test_net_ms(x, ckpt=None, net_class=None, args=None):
     if isinstance(x, (list, tuple)):
         inputs = []
         for xi in x:
-            inputs.append(ms.Tensor(xi, dtype=ms.float32))
+            if xi is not None:
+                inputs.append(ms.Tensor(xi, dtype=ms.float32))
         res_ms = net_ms(*inputs)
     else:
         res_ms = net_ms(ms.Tensor(x, dtype=ms.float32))
@@ -71,6 +85,7 @@ def test_net_ms(x, ckpt=None, net_class=None, args=None):
     return res_ms.asnumpy(), net_ms
 
 def test_net_pt(x, ckpt=None, save_ckpt_fn=None, net_class=None, args=None):
+    # 
     net_pt = net_class(**args).cuda()
     net_pt.eval()
     if ckpt is not None:
@@ -84,7 +99,8 @@ def test_net_pt(x, ckpt=None, save_ckpt_fn=None, net_class=None, args=None):
     if isinstance(x, (list, tuple)):
         inputs = []
         for xi in x:
-            inputs.append(torch.Tensor(xi).cuda())
+            if xi is not None:
+                inputs.append(torch.Tensor(xi).cuda())
         res_pt = net_pt(*inputs)
     else:
         res_pt = net_pt(torch.Tensor(x))
@@ -128,7 +144,7 @@ def _diff_res(ms_val, pt_val):
 
 def compare_stdit():
     # pt_code_path = "/home/mindocr/yx/Open-Sora/"
-    pt_code_path = "/data3/hyx/Open-Sora/"
+    pt_code_path = "/srv/hyx/Open-Sora/"
     sys.path.append(pt_code_path)
     from opensora.models.stdit.stdit import STDiTBlock as STD_PT
 
@@ -147,7 +163,7 @@ def test_stdit_ms():
 
     # model = STDiT(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
     
-    args['enable_flashattn'] = True
+    args['enable_flashattn'] = False
     # args['use_recompute'] = False
 
     net = STDiTBlock(**args)
@@ -159,9 +175,9 @@ def test_stdit_ms():
     x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
     # condition, text, 
-    N_tokens = 64
-    y = np.random.normal(size=(1, B*N_tokens, C)).astype(np.float32)
-    y_lens = [N_tokens] * B
+    max_tokens = 120
+    y = np.random.normal(size=(1, B*max_tokens, C)).astype(np.float32)
+    y_lens = [max_tokens] * B
 
     tpe = None
 
@@ -173,8 +189,8 @@ def test_stdit_ms():
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
-    # compare_stdit()
-    test_stdit_ms()
+    ms.set_context(mode=1)
+    compare_stdit()
+    # test_stdit_ms()
 
 
