@@ -46,7 +46,7 @@ class Attention(nn.Cell):
         # (b h n_q n_k) 
         attn = ops.softmax(sim, axis=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
-        out = ops.matmul(attn, v)
+        out = ops.bmm(attn, v)
         return out
 
 

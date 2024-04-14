@@ -195,7 +195,7 @@ class Attention(nn.Cell):
         # mask: (b seq_len)
 
         # (b L_q L_k)
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+        sim = ops.bmm(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
             # TODO: check and verify
@@ -213,7 +213,7 @@ class Attention(nn.Cell):
         attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
         attn = self.attn_drop(attn)
 
-        out = ops.matmul(attn, v)
+        out = ops.bmm(attn, v)
 
         return out
 
@@ -244,6 +244,7 @@ class SelfAttention(nn.Cell):
         self.dtype = dtype
         self.num_heads = num_heads
         head_dim = dim // num_heads
+        self.head_dim = head_dim
         self.scale = head_dim**-0.5
 
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
@@ -268,6 +269,8 @@ class SelfAttention(nn.Cell):
             )
         else:
             self.flash_attention = None
+
+        self.unstack = ops.Unstack(axis=2)
 
     @staticmethod
     def _rearange_in(x, h):
@@ -296,22 +299,23 @@ class SelfAttention(nn.Cell):
         h = self.num_heads
         B, N, C = x.shape
         # (b, n, 3*h*d) -> (b, n, 3, h*d)  -> (3, b, n, h*d)
-        qkv = self.qkv(x).reshape(B, N, 3, -1).permute((2, 0, 1, 3))
-        q, k, v = qkv.unbind(0)
-        q_b, q_n, _ = q.shape  # (b n h*d)
-        k_b, k_n, _ = k.shape
-        v_b, v_n, _ = v.shape
 
-        head_dim = q.shape[-1] // h
+        # qkv = self.qkv(x).reshape(B, N, 3, -1).permute((2, 0, 1, 3))
+        # q, k, v = qkv.unbind(0)
+
+        qkv = self.qkv(x)
+        qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
+        # qkv = ops.transpose(qkv, (2, 0, 3, 1, 4))
+        q, k, v = self.unstack(qkv) # (b n h d)
+
+        # (b n h d) -> (b h n d)
+        q = q.transpose(0, 2, 1, 3)
+        k = k.transpose(0, 2, 1, 3)
+        v = v.transpose(0, 2, 1, 3)
 
         if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
+            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256
         ):
-
-            # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
-            q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
-            k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
-            v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
 
             out = self.flash_attention(q, k, v, mask)
 
@@ -319,10 +323,10 @@ class SelfAttention(nn.Cell):
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
         else:
-            # (b, n, h*d) -> (b*h, n, d)
-            q = self._rearange_in(q, h)
-            k = self._rearange_in(k, h)
-            v = self._rearange_in(v, h)
+            # (b, h ,n, d) -> (b*h, n, d)
+            q = ops.reshape(q, (B*h, -1, self.head_dim))
+            k = ops.reshape(k, (B*h, -1, self.head_dim))
+            v = ops.reshape(v, (B*h, -1, self.head_dim))
 
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)

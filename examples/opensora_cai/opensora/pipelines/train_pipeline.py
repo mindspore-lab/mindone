@@ -189,6 +189,9 @@ class DiffusionWithLoss(nn.Cell):
         # TODO: upcast to fp32 before kl compute, exp involoved?
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
         decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
+
+        # print('D--: shapes', t.shape, decoder_nll.shape,  kl.shape) 
+
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         vb = ops.where((t == 0), decoder_nll.to(kl.dtype), kl)
 

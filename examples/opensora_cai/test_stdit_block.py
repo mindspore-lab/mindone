@@ -10,7 +10,7 @@ sys.path.insert(0, mindone_lib_path)
 from mindone.models.stdit import STDiTBlock
 from mindone.utils.amp import auto_mixed_precision
 
-use_mask = True
+use_mask = False
 
 # input args
 hidden_size = 1152
@@ -38,9 +38,11 @@ B, N, C = 2, T*S, hidden_size
 fp = 'tests/stdit_block_inp.npz'
 
 def get_inputs(npz=None):
-    if npz is not None:
+    if npz is not None and os.path.exists(npz):
         data = np.load(npz)
-        x, y, t, mask = data['x'], data['y'], data['t'], data['mask']
+        x, y, t = data['x'], data['y'], data['t']
+        if use_mask:
+            mask = data['mask']
     else:
         x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
@@ -186,8 +188,8 @@ def _diff_res(ms_val, pt_val):
 
 
 def compare_stdit():
-    # pt_code_path = "/home/mindocr/yx/Open-Sora/"
-    pt_code_path = "/srv/hyx/Open-Sora/"
+    pt_code_path = "/home/mindocr/yx/Open-Sora/"
+    # pt_code_path = "/srv/hyx/Open-Sora/"
     sys.path.append(pt_code_path)
     from opensora.models.stdit.stdit import STDiTBlock as STD_PT
 
