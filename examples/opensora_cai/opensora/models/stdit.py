@@ -1,280 +1,23 @@
 from typing import Optional
 import numpy as np
 import math
+
 import mindspore as ms
 from mindspore import nn, ops, Tensor
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindcv.models.layers import DropPath
-from .dit import SelfAttention, Mlp, LayerNorm, GELU, LinearPatchEmbed
-from .utils import constant_, exists, modulate, normal_, xavier_uniform_
-from .modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
-
-
-from .modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-
-
-class Attention(nn.Cell):
-    def __init__(self, dim_head: int, attn_drop: float = 0.0) -> None:
-        super().__init__()
-        self.scale = dim_head**-0.5
-        self.attn_drop = nn.Dropout(p=attn_drop)
-
-    def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        '''
-        q: (b h n_q d), h - num_head, n_q - seq_len of q
-        k v: (b h n_k d), (b h n_v d)
-        mask: (b 1 n_q n_k), 0 indicates retain, 1 indicates discard.
-        '''
-        
-        # (b h n_q n_k) 
-        sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
-        
-        # TODO: better precision but this can be costy.
-        sim = sim.to(ms.float32)
-
-        if mask is not None:
-            # (b 1 n_q n_k) -> (b h n_q n_k) 
-            num_head = q.shape[1]
-            mask = ops.repeat_interleave(mask, num_head, axis=1).to(ms.bool_)
-
-            # import pdb; pdb.set_trace()
-
-            sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
-            # sim = ops.masked_fill(sim, mask, ops.cast(float("-inf"), sim.dtype))
-
-        # (b h n_q n_k) 
-        attn = ops.softmax(sim, axis=-1).astype(v.dtype)
-        attn = self.attn_drop(attn)
-        out = ops.bmm(attn, v)
-        return out
-
-
-class MultiHeadCrossAttentionXFormer(nn.Cell):
-    """
-    Note: this implementation flatten the batch dim B into sequence dim N, i.e. (B,N,C)->(1, BN, C), aligning to torch version using xformers. It can cause huge memory cost without dynamic shape support (to get rid of padding).
-        To get the same compute result and reduce cost, we need mindspore version of BlockDiagonalMask and memory_efficient_attention, and dynamic shape support, which are not available currently.
-
-    """
-    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
-        super().__init__()
-        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
-
-        self.d_model = d_model
-        self.num_heads = num_heads
-        self.head_dim = d_model // num_heads
-
-        # TODO: it's better to remove bias 
-        self.q_linear = nn.Dense(d_model, d_model, has_bias=has_bias)
-        self.kv_linear = nn.Dense(d_model, d_model * 2, has_bias=has_bias)
-        self.attn_drop = nn.Dropout(p=attn_drop)
-        self.proj = nn.Dense(d_model, d_model, has_bias=has_bias)
-        self.proj_drop = nn.Dropout(p=proj_drop)
-
-        self.attention = Attention(self.head_dim, attn_drop=attn_drop)
-        
-        self.enable_flash_attention = enable_flash_attention
-        if enable_flash_attention:
-            self.flash_attention = MSFlashAttention(
-                head_dim=self.head_dim, head_num=self.num_heads, fix_head_dims=[72], attention_dropout=attn_drop
-            )
-        else:
-            self.flash_attention = None
-
-
-    @staticmethod
-    def _rearange_in(x):
-        # (b, n, h, d) -> (b h n d)
-        b, n, h, d = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3))
-        return x
-
-    @staticmethod
-    def _rearange_out(x):
-        #  (b h n d) -> (b n h d) ->  (b n h*d)
-        b, h, n, d = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h*d))
-        return x
-
-    def construct(self, x, cond, mask=None):
-        '''
-        # x: (B, N, C) = (B, thw, C), C = head_dim * num_heads, N = seq_len
-        # cond: (1, B*N_tokens, C) = (1, B*S, C), S - text token seq len
-        # mask : (B, N_tokens)
-        '''
-        B, N, C = x.shape
-
-        # pdb.set_trace()
-        # q: (B N C) -> (1 , B*N, h, d)
-        # k: (B N_tokens C) -> (1 B*N_tokens h d)
-        q = self.q_linear(x).reshape((1, -1, self.num_heads, self.head_dim))
-        kv = self.kv_linear(cond).reshape((1, -1, 2, self.num_heads, self.head_dim))
-
-        k, v = kv.unbind(2)
-
-        # q: (b, n_q, h, d) -> (b h n_q d) = (1, h, B*thw, d)
-        # k: (b, n_k, h, d) -> (b h n_k d) = (1, h, B*n_tokens, d)
-        q = self._rearange_in(q)
-        k = self._rearange_in(k)
-        v = self._rearange_in(v)
-
-        if mask is not None:
-            # (B, N_tokens) -> (1, B*N_tokens)
-            mask = mask.reshape(1, -1)
-
-            # (b n_k) -> (b 1 1 n_k) -> (b 1 n_q n_k) = (1 1 B*thw B*n_tokens)   # Super large mask!!! FIXME. it's not equivalent to xformer DiagnonalMask!
-            mask = mask[:, None, None, :]
-            mask = ops.repeat_interleave(mask, q.shape[-2], axis=2)
-
-            # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
-
-        #if mask is not None:
-        #   attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
-        #   x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
-
-        # print('D--', q.shape, k.shape, v.shape)
-        if self.enable_flash_attention:
-            # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
-            # x = x.reshape((B, -1, C))
-
-            # - **attn_mask** (Union[Tensor[uint8], None]) - The attention mask tensor. For each element, 0 indicat
-            # retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
-            x = self.flash_attention(q, k, v, attn_mask=mask)
-
-        else:
-            # TODO: support masking
-            x = self.attention(q, k, v, mask)
-            # x = self.attention(q, k, v, mask=None)
-
-        # (b h n d) -> (b n h d) ->  (b n h*d)
-        x = self._rearange_out(x)
-
-        x = x.view(B, -1, C)
-        x = self.proj(x)
-        x = self.proj_drop(x)
-
-        return x
-
-
-class MultiHeadCrossAttention(nn.Cell):
-    """
-    This implementation is more friendly to mindspore in graph mode currently. Overhead computation lies in the padded tokens in a batch, which is padded to a fixed length max_tokens. If the prompts are short, this overhead can be high.
-    TODO: remove the computation on the padded sequence, referring to xformers, or reduce it by padding to the max prompt length in the batch instead of a fixed large value.
-    
-    Precision: w/o masking: MAE ~5e-4. w/ masking: MAE ~8e-3
-    """
-    def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
-        super().__init__()
-        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
-
-        self.d_model = d_model
-        self.num_heads = num_heads
-        self.head_dim = d_model // num_heads
-
-        # TODO: it's better to remove bias 
-        self.q_linear = nn.Dense(d_model, d_model, has_bias=has_bias)
-        self.kv_linear = nn.Dense(d_model, d_model * 2, has_bias=has_bias)
-        self.attn_drop = nn.Dropout(p=attn_drop)
-        self.proj = nn.Dense(d_model, d_model, has_bias=has_bias)
-        self.proj_drop = nn.Dropout(p=proj_drop)
-
-        self.attention = Attention(self.head_dim, attn_drop=attn_drop)
-        
-        self.enable_flash_attention = enable_flash_attention
-        if enable_flash_attention:
-            self.flash_attention = MSFlashAttention(
-                head_dim=self.head_dim, head_num=self.num_heads, fix_head_dims=[72], attention_dropout=attn_drop
-            )
-        else:
-            self.flash_attention = None
-
-    @staticmethod
-    def _rearange_out(x):
-        #  (b h n d) -> (b n h d) ->  (b n h*d)
-        b, h, n, d = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h*d))
-        return x
-
-    # TODO: just let cond input shape be (B, N_tokens, D), no need to flatten, to save memory.
-    def construct(self, x, cond, mask=None):
-        '''
-        Inputs:
-            x: (B, N, C), N=seq_len=h*w*t, C = hidden_size = head_dim * num_heads
-            cond: (1, B*N_tokens, C)
-            mask : (B, N_tokens)
-        Return:
-            (B, N, C)
-        '''
-        B_ori, _, C = x.shape
-        
-        if mask is None:
-            # this branch is redundant. FIXME: remove later. mask is always not None in real scene
-            # to fully align with torch when mask is None, B dim is flatten to the seq_len dim
-            x = x.reshape((1, -1, C))
-        else:
-            # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
-            cond = ops.reshape(cond, (B_ori, -1, C))
-        
-        B, N, C = x.shape
-        N_k = cond.shape[1]
-
-        # 1. q, kv linear projection
-        q = self.q_linear(x)   # .reshape((1, -1, self.num_heads, self.head_dim))
-        kv = self.kv_linear(cond)  #.reshape((1, -1, 2, self.num_heads, self.head_dim))
-        
-        # 2. reshape qkv for multi-head attn
-        # q: (B N C) -> (B N num_head head_dim) -> (B num_head N head_dim)
-        q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
-        q = ops.transpose(q, (0, 2, 1, 3))
-
-        # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim)-> (B num_head 2 N_k head_dim), split.
-        kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        kv = ops.transpose(kv, (0, 3, 2, 1, 4))
-        k, v = ops.unbind(kv, dim=2)  # TODO: check unbind op efficiency
-
-        # 2+: mask adaptation for multi-head attention
-        if mask is not None:
-            # (b n_k) -> (b 1 1 n_k) -> (b 1 n_q n_k) = (B 1 thw n_tokens)
-            mask = mask[:, None, None, :]
-            mask = ops.repeat_interleave(mask, q.shape[-2], axis=2)
-
-            # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
-
-        # TODO: support dynamic text length in a batch. diagnonal maksing for valid texts. more memory efficient for short prompts.
-        # attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
-        # x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
-
-        # 3. attn compute 
-        # print('D--', q.shape, k.shape, v.shape)
-        if self.enable_flash_attention:
-            # q: (b h n_q d), k: (b h n_k d)
-            # mask: (b n_k) -> (b 1 n_q n_k)
-            x = self.flash_attention(q, k, v, mask)
-        else:
-            x = self.attention(q, k, v, mask)
-        
-        # (b h n d) -> (b n h d) ->  (b n h*d)
-        x = self._rearange_out(x)
-        
-        # TODO: remove it later. FIXME
-        if mask is None:
-            x = x.view(B_ori, -1, C)
-        
-        # 4. output projection
-        x = self.proj(x)
-        x = self.proj_drop(x)
-
-        return x
-
-def t2i_modulate(x, shift, scale):
-    return x * (1 + scale) + shift
-
-
-approx_gelu = lambda: GELU(approximate="tanh")
+from mindone.models.modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
+from mindone.models.utils import constant_, exists, modulate, normal_, xavier_uniform_
+from opensora.models.layers.blocks import (
+        SelfAttention,
+        MultiHeadCrossAttention,
+        Mlp, 
+        LayerNorm,
+        LinearPatchEmbed,
+        t2i_modulate,
+        approx_gelu,
+        )
 
 
 class STDiTBlock(nn.Cell):
@@ -293,8 +36,7 @@ class STDiTBlock(nn.Cell):
         super().__init__()
         self.hidden_size = hidden_size
         assert not enable_layernorm_kernel, "Not implemented" 
-        # self.enable_flashattn = enable_flashattn
-        # self._enable_sequence_parallelism = enable_sequence_parallelism
+        assert not enable_sequence_parallelism, "Not implemented" 
 
         self.attn_cls = SelfAttention
         self.mha_cls = MultiHeadCrossAttention
@@ -305,7 +47,7 @@ class STDiTBlock(nn.Cell):
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
-            enable_flash_attention=enable_flashattn, # DDDD
+            enable_flash_attention=enable_flashattn,
         )
         self.cross_attn = self.mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
@@ -378,28 +120,22 @@ class STDiTBlock(nn.Cell):
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
 
         # spatial branch
-        # x_s = rearrange(x_m, "B (T S) C -> (B T) S C", T=self.d_t, S=self.d_s)
         x_s = self._rearrange_in_S(x_m, T=self.d_t)
         x_s = self.attn(x_s)
 
-        # x_s = rearrange(x_s, "(B T) S C -> B (T S) C", T=self.d_t, S=self.d_s)
         x_s = self._rearrange_out_S(x_s, T=self.d_t)
         x = x + self.drop_path(gate_msa * x_s)
 
         # temporal branch
-        # x_t = rearrange(x, "B (T S) C -> (B S) T C", T=self.d_t, S=self.d_s)
         x_t = self._rearrange_in_T(x, T=self.d_t)
         if tpe is not None:
             x_t = x_t + tpe
         x_t = self.attn_temp(x_t)
 
-        # x_t = rearrange(x_t, "(B S) T C -> B (T S) C", T=self.d_t, S=self.d_s)
         x_t = self._rearrange_out_T(x_t, S=self.d_s)
         x = x + self.drop_path(gate_msa * x_t)
 
         # cross attn
-        # import pdb; pdb.set_trace()
-
         x = x + self.cross_attn(x, y, mask)
 
         # mlp
@@ -543,8 +279,8 @@ class CaptionEmbedder(nn.Cell):
         )
         
         y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
-        # just for token dropping replacement, random
-        self.y_embedding =  ms.Parameter(ms.Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
+        # just for token dropping replacement, not learnable
+        self.y_embedding =  ms.Tensor(y_embedding, dtype=ms.float32)
 
         self.uncond_prob = uncond_prob
 
@@ -641,8 +377,8 @@ class STDiT(nn.Cell):
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()
-        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed, dtype=ms.float32), requires_grad=False)
-        self.pos_embed_temporal = ms.Parameter(ms.Tensor(pos_embed_temporal, dtype=ms.float32), requires_grad=False)
+        self.pos_embed = ms.Tensor(pos_embed, dtype=ms.float32)
+        self.pos_embed_temporal = ms.Tensor(pos_embed_temporal, dtype=ms.float32)
         
         self.replace_patchify_3d = replace_patchify_3d
         if not replace_patchify_3d:
@@ -877,14 +613,14 @@ class STDiT(nn.Cell):
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight
 
-        # TODO: FIXME: this line is compatible in optim parallel mode
         if self.replace_patchify_3d: 
             # xavier_uniform_(w.view([w.shape[0], -1]))
             w_flatted = w.view(w.shape[0], -1)
+            # FIXME: incompatible in optim parallel mode
             w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
         else:
             pass
-            # FIXME: TBC for conv3d patchifying:
+            # FIXME: TBC for conv3d patchifying
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)

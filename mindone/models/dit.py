@@ -198,7 +198,6 @@ class Attention(nn.Cell):
         sim = ops.bmm(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
-            # TODO: check and verify
             mask = ops.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
@@ -270,8 +269,6 @@ class SelfAttention(nn.Cell):
         else:
             self.flash_attention = None
 
-        self.unstack = ops.Unstack(axis=2)
-
     @staticmethod
     def _rearange_in(x, h):
         # (b, n, h*d) -> (b*h, n, d)
@@ -295,28 +292,27 @@ class SelfAttention(nn.Cell):
         return x
 
     def construct(self, x, mask=None):
+        '''
+        x: (b n c)
+        mask: (b n), 1 - valid, 0 - padded
+        '''
         x_dtype = x.dtype
         h = self.num_heads
         B, N, C = x.shape
-        # (b, n, 3*h*d) -> (b, n, 3, h*d)  -> (3, b, n, h*d)
-
-        # qkv = self.qkv(x).reshape(B, N, 3, -1).permute((2, 0, 1, 3))
-        # q, k, v = qkv.unbind(0)
 
         qkv = self.qkv(x)
+        # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        # qkv = ops.transpose(qkv, (2, 0, 3, 1, 4))
-        q, k, v = self.unstack(qkv) # (b n h d)
+        q, k, v = ops.unstack(qkv, axis=2) # (b n h d)
 
         # (b n h d) -> (b h n d)
         q = q.transpose(0, 2, 1, 3)
         k = k.transpose(0, 2, 1, 3)
         v = v.transpose(0, 2, 1, 3)
-
+        
         if (
             self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256
         ):
-
             out = self.flash_attention(q, k, v, mask)
 
             b, h, n, d = out.shape

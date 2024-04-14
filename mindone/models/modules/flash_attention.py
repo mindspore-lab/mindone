@@ -16,10 +16,9 @@ if FLASH_IS_AVAILABLE:
     try:
         from mindspore.nn.layer.flash_attention import FlashAttention
     except Exception:
-        # for ms2.3 >= 20240219, FA API changed
         from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
         USE_NEW_FA = True
-        print("Get MS2.3 FA API! ")
+        print("Get New FA API! ")
 
 
 logger = logging.getLogger(__name__)
@@ -87,6 +86,7 @@ class MSFlashAttention(nn.Cell):
     def construct(self, q, k, v, mask=None):
         q_b, h, q_n, d = q.shape  # (b, h, n, d)
         head_dim = d
+
         #   a trick to pad head dimensions to 2**n * 64
         if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
             # pad to 2**n * 64 to avoid accuracy errors

@@ -7,7 +7,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.models.stdit import STDiTBlock, STDiT_XL_2
+from opensora.models.stdit import STDiTBlock, STDiT_XL_2
 from mindone.utils.amp import auto_mixed_precision
 
 
