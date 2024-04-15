@@ -38,6 +38,8 @@ def load_dit_ckpt_params(model, ckpt):
         )
 
     logger.info("Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load)))
+    if "pos_embed" in ckpt_not_load:
+        ckpt_not_load.remove("pos_embed")
     logger.info("Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load)))
     return model
 
