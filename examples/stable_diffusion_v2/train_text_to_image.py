@@ -140,6 +140,7 @@ def parse_args():
     parser.add_argument(
         "--pretrained_model_path", default="", type=str, help="Specify the pretrained model from this checkpoint"
     )
+    parser.add_argument("--max_device_memory", type=str, default="30GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="use lora finetuning")
     parser.add_argument("--lora_ft_unet", default=True, type=str2bool, help="whether to apply lora finetune to unet")
     parser.add_argument(
@@ -245,6 +246,7 @@ def main(args):
         enable_modelarts=args.enable_modelarts,
         num_workers=args.num_workers,
         json_data_path=args.json_data_path,
+        max_device_memory=args.max_device_memory
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 

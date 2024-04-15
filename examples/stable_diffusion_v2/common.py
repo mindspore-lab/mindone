@@ -21,6 +21,7 @@ def init_env(
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
+    max_device_memory: Optional[str] = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -53,7 +54,8 @@ def init_env(
             device_target=device_target,
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
-            enable_graph_kernel=enable_graph_kernel
+            enable_graph_kernel=enable_graph_kernel,
+            max_device_memory=max_device_memory
         )
         init()
         device_num = get_group_size()
@@ -82,7 +84,8 @@ def init_env(
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             pynative_synchronize=debug,
-            enable_graph_kernel=enable_graph_kernel
+            enable_graph_kernel=enable_graph_kernel,
+            max_device_memory=max_device_memory
         )
 
     return device_id, rank_id, device_num
