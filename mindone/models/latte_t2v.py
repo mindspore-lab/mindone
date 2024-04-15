@@ -112,7 +112,7 @@ class MultiHeadAttention(nn.Cell):
             Set to `True` for the query, key, and value linear layers to contain a bias parameter.
         upcast_attention (`bool`, *optional*, defaults to False):
             Set to `True` to upcast the attention computation to `float32`.
-        upcast_softmax (`bool`, *optional*, defaults to False):
+        upcast_softmax (`bool`, *optional*, defaults to True):
             Set to `True` to upcast the softmax computation to `float32`.
         out_bias (`bool`, *optional*, defaults to `True`):
             Set to `True` to use a bias in the output linear layer.
@@ -133,7 +133,7 @@ class MultiHeadAttention(nn.Cell):
         attn_drop: float = 0.0,
         bias: bool = False,
         upcast_attention: bool = False,
-        upcast_softmax: bool = False,
+        upcast_softmax: bool = True,
         out_bias: bool = True,
         only_cross_attention: bool = False,
         dtype=ms.float32,
