@@ -174,7 +174,7 @@ def parse_args():
         help="A list of text captions to be generated with",
     )
     parser.add_argument(
-        "--num_images_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
+        "--num_videos_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
@@ -207,14 +207,8 @@ if __name__ == "__main__":
     latent_size = args.image_size // 8
     # MODELS_DICT = Latte_models if args.condition != "text" else Latte_T2V_models
 
-    t2v_model_extra_kwargs = {}
-    text_emb_dim = None
-    if args.condition == "text":
-        if args.text_encoder == "clip":
-            text_emb_dim = 768
-        elif args.text_encoder == "t5":
-            text_emb_dim = 4096
-        t2v_model_extra_kwargs["context_dim"] = text_emb_dim
+    assert args.condition == "text", "LatteT2V only support text condition now!"
+    assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder now!"
 
     latte_model = LatteT2V.from_pretrained_2d(
         "models",
@@ -253,8 +247,8 @@ if __name__ == "__main__":
     vae.init_from_ckpt(args.vae_checkpoint)
     vae.set_train(False)
 
-    if args.dtype == "fp16":
-        vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+    logger.info("Use amp level O2 for causal 3D VAE.")
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
@@ -323,7 +317,7 @@ if __name__ == "__main__":
             num_inference_steps=args.sampling_steps,
             guidance_scale=args.guidance_scale,
             enable_temporal_attentions=True,
-            num_images_per_prompt=args.num_images_per_prompt,
+            num_videos_per_prompt=args.num_videos_per_prompt,
             mask_feature=False,
         ).video.asnumpy()
         video_grids.append(videos)
@@ -333,7 +327,8 @@ if __name__ == "__main__":
 
     # save result
     for i in range(n):
-        for i_image in range(args.num_images_per_prompt):
-            save_fp = f"{save_dir}/{i_image}-{args.captions[i]}.gif"
-            save_videos(x_samples[i : i + 1, i_image], save_fp, loop=0)
+        for i_video in range(args.num_videos_per_prompt):
+            save_fp = f"{save_dir}/{i_video}-{args.captions[i]}.gif"
+            save_video_data = x_samples[i : i + 1, i_video].permute(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+            save_videos(save_video_data, save_fp, loop=0)
             logger.info(f"save to {save_fp}")

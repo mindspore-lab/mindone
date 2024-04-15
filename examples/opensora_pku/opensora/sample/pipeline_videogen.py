@@ -710,7 +710,7 @@ class VideoGenPipeline(DiffusionPipeline):
 
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
+                    noise_pred = noise_pred.chunk(2, axis=2)[0]
                 else:
                     noise_pred = noise_pred
 
@@ -726,8 +726,9 @@ class VideoGenPipeline(DiffusionPipeline):
 
         if not output_type == "latents":
             # b f c h w -> b c f h w
-            video = self.decode_latents(latents.permute(0, 2, 1, 3, 4))  # applied for causal 3d vae
-            # video = self.sd_vae_decode_video(latents.permute(0, 2, 1, 3, 4))  # applied for stable diffusion 2D vae
+            video = self.decode_latents(
+                latents.permute(0, 2, 1, 3, 4)
+            )  # applied for causal 3d vae, which accepts (b, c, t, h, w) inputs
         else:
             video = latents
             return VideoPipelineOutput(video=video)
@@ -741,21 +742,4 @@ class VideoGenPipeline(DiffusionPipeline):
         # video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2)
         video = ops.clip_by_value((video + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
-        video = video.permute(0, 2, 3, 4, 1)  # b t h w c
-        return video
-
-    def sd_vae_decode_video(self, x):
-        """
-        Args:
-            x: (b f c h w), denoised latent
-        Return:
-            y: (b f H W 3), batch of images, normalized to [0, 1]
-        """
-        y = []
-        for x_sample in x:
-            decoded = self.vae.decode(x_sample / 0.18215)
-            decoded = ops.clip_by_value((decoded + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-            decoded = ops.transpose(decoded, (0, 2, 3, 1))
-            y.append(decoded)
-        y = ops.stack(y, axis=0)  # (b f H W 3)
-        return y
+        return video  # b c t h w
