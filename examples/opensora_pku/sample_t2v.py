@@ -329,6 +329,6 @@ if __name__ == "__main__":
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
             save_fp = f"{save_dir}/{i_video}-{args.captions[i]}.gif"
-            save_video_data = x_samples[i : i + 1, i_video].permute(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+            save_video_data = x_samples[i : i + 1, i_video].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
             save_videos(save_video_data, save_fp, loop=0)
             logger.info(f"save to {save_fp}")
