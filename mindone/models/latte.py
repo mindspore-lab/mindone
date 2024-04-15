@@ -5,6 +5,9 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
+from mindone.utils.params import load_param_into_net_with_filter
+from mindone.utils.version_control import is_old_ms_version
+
 from .dit import DiTBlock, FinalLayer, LabelEmbedder, LinearPatchEmbed, PatchEmbed, TimestepEmbedder
 from .modules import get_1d_sincos_temp_embed, get_2d_sincos_pos_embed
 from .utils import constant_, normal_, xavier_uniform_
@@ -268,11 +271,21 @@ class Latte(nn.Cell):
             param_dict = ckpt
         else:
             raise ValueError("Expect to receive a ckpt path or parameter dictionary as input!")
-        _, ckpt_not_load = ms.load_param_into_net(
-            self,
-            param_dict,
+        keys_excluding_pos_embed = [key for key in param_dict.keys() if "pos_embed" != key and "temp_embed" != key]
+
+        if is_old_ms_version():
+            param_not_load = ms.load_param_into_net(self, param_dict, filter=keys_excluding_pos_embed)
+        else:
+            param_not_load, ckpt_not_load = load_param_into_net_with_filter(
+                self, param_dict, filter=keys_excluding_pos_embed
+            )
+
+        logger.info(
+            "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
         )
-        assert len(ckpt_not_load) == 0, f"ckpt params should be all loaded, but found {ckpt_not_load} are not loaded."
+        logger.info(
+            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+        )
 
 
 #################################################################################

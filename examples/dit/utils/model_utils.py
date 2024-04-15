@@ -3,6 +3,9 @@ import logging
 
 import mindspore as ms
 
+from mindone.utils.params import load_param_into_net_with_filter
+from mindone.utils.version_control import is_old_ms_version
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,13 +28,17 @@ def load_dit_ckpt_params(model, ckpt):
     else:
         param_dict = ckpt
 
-    param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
-    assert (
-        len(param_not_load) == len(ckpt_not_load) == 0
-    ), "Exist ckpt params not loaded: {} (total: {})\nor net params not loaded: {} (total: {})".format(
-        ckpt_not_load, len(ckpt_not_load), param_not_load, len(param_not_load)
-    )
-    return model
+    keys_excluding_pos_embed = [key for key in param_dict.keys() if "pos_embed" != key]
+
+    if is_old_ms_version():
+        param_not_load = ms.load_param_into_net(model, param_dict, filter=keys_excluding_pos_embed)
+    else:
+        param_not_load, ckpt_not_load = load_param_into_net_with_filter(
+            model, param_dict, filter=keys_excluding_pos_embed
+        )
+
+    logger.info("Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load)))
+    logger.info("Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load)))
 
 
 def str2bool(b):
