@@ -127,15 +127,15 @@ class vgg16(nn.Cell):
 
     def construct(self, X):
         h = self.slice1(X)
-        h_relu1_2 = ops.stop_gradient(h)
+        h_relu1_2 = h
         h = self.slice2(h)
-        h_relu2_2 = ops.stop_gradient(h)
+        h_relu2_2 = h
         h = self.slice3(h)
-        h_relu3_3 = ops.stop_gradient(h)
+        h_relu3_3 = h
         h = self.slice4(h)
-        h_relu4_3 = ops.stop_gradient(h)
+        h_relu4_3 = h
         h = self.slice5(h)
-        h_relu5_3 = ops.stop_gradient(h)
+        h_relu5_3 = h
         out = (h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3, h_relu5_3)
         return out
 
