@@ -1,11 +1,12 @@
 import logging
 import os
 import sys
+
+from opensora.utils.model_utils import remove_pname_prefix
+
 import mindspore as ms
 
 from .t5 import T5Embedder
-
-from opensora.utils.model_utils import remove_pname_prefix
 
 sys.path.append("../stable_diffusion_v2")
 from ldm.modules.encoders.modules import FrozenCLIPEmbedder

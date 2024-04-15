@@ -1,25 +1,25 @@
-from typing import Optional
-import numpy as np
 import math
+from typing import Optional
+
+import numpy as np
+from mindcv.models.layers import DropPath
+from opensora.models.layers.blocks import (
+    LayerNorm,
+    LinearPatchEmbed,
+    Mlp,
+    MultiHeadCrossAttention,
+    PatchEmbed,
+    SelfAttention,
+    approx_gelu,
+    t2i_modulate,
+)
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor
+from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
-from mindcv.models.layers import DropPath
-from mindone.models.modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
+from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
 from mindone.models.utils import constant_, exists, modulate, normal_, xavier_uniform_
-
-from opensora.models.layers.blocks import (
-        SelfAttention,
-        MultiHeadCrossAttention,
-        Mlp, 
-        LayerNorm,
-        LinearPatchEmbed,
-        PatchEmbed,
-        t2i_modulate,
-        approx_gelu,
-        )
 
 
 class STDiTBlock(nn.Cell):
@@ -37,8 +37,8 @@ class STDiTBlock(nn.Cell):
     ):
         super().__init__()
         self.hidden_size = hidden_size
-        assert not enable_layernorm_kernel, "Not implemented" 
-        assert not enable_sequence_parallelism, "Not implemented" 
+        assert not enable_layernorm_kernel, "Not implemented"
+        assert not enable_sequence_parallelism, "Not implemented"
 
         self.attn_cls = SelfAttention
         self.mha_cls = MultiHeadCrossAttention
@@ -76,7 +76,7 @@ class STDiTBlock(nn.Cell):
         # x_s = rearrange(x_m, "B (T S) C -> (B T) S C", T=self.d_t, S=self.d_s)
         B, TS, C = x.shape
         S = TS // T
-        x = ops.reshape(x, (B*T, S, C))
+        x = ops.reshape(x, (B * T, S, C))
         return x
 
     @staticmethod
@@ -84,7 +84,7 @@ class STDiTBlock(nn.Cell):
         # x_s = rearrange(x_s, "(B T) S C -> B (T S) C", T=self.d_t, S=self.d_s)
         BT, S, C = x.shape
         B = BT // T
-        x = ops.reshape(x, (B, T*S, C))
+        x = ops.reshape(x, (B, T * S, C))
         return x
 
     @staticmethod
@@ -94,7 +94,7 @@ class STDiTBlock(nn.Cell):
         S = TS // T
         x = ops.reshape(x, (B, T, S, C))
         x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (B*S, T, C))
+        x = ops.reshape(x, (B * S, T, C))
         return x
 
     @staticmethod
@@ -104,16 +104,16 @@ class STDiTBlock(nn.Cell):
         B = BS // S
         x = ops.reshape(x, (B, S, T, C))
         x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (B, T*S, C))
+        x = ops.reshape(x, (B, T * S, C))
         return x
 
     def construct(self, x, y, t, mask=None, tpe=None):
-        '''
+        """
         x: (B N C_x)
         y: (1 B*N_tokens C_y)
-        t: (B C_t) 
+        t: (B C_t)
         mask: (B, N_tokens)
-        '''
+        """
         B, N, C = x.shape
 
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
@@ -200,7 +200,9 @@ class PatchEmbed3D(nn.Cell):
         self.in_chans = in_chans
         self.embed_dim = embed_dim
 
-        self.proj = nn.Conv3d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode='valid', has_bias=True)
+        self.proj = nn.Conv3d(
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="valid", has_bias=True
+        )
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
         else:
@@ -279,10 +281,10 @@ class CaptionEmbedder(nn.Cell):
         self.y_proj = Mlp(
             in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
         )
-        
+
         y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
         # just for token dropping replacement, not learnable
-        self.y_embedding =  ms.Tensor(y_embedding, dtype=ms.float32)
+        self.y_embedding = ms.Tensor(y_embedding, dtype=ms.float32)
 
         self.uncond_prob = uncond_prob
 
@@ -351,7 +353,7 @@ class STDiT(nn.Cell):
         enable_flashattn=False,
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
-        use_recompute = False,
+        use_recompute=False,
         patchify_conv3d_replace=None,
     ):
         super().__init__()
@@ -374,26 +376,26 @@ class STDiT(nn.Cell):
         self.enable_layernorm_kernel = enable_layernorm_kernel
         self.space_scale = space_scale
         self.time_scale = time_scale
-        
-        assert patchify_conv3d_replace in [None, 'linear', 'conv2d']
+
+        assert patchify_conv3d_replace in [None, "linear", "conv2d"]
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()
         self.pos_embed = ms.Tensor(pos_embed, dtype=ms.float32)
         self.pos_embed_temporal = ms.Tensor(pos_embed_temporal, dtype=ms.float32)
-        
+
         # conv3d replacement. FIXME: after CANN+MS support bf16 and fp32, remove redundancy
-        self.patchify_conv3d_replace= patchify_conv3d_replace 
+        self.patchify_conv3d_replace = patchify_conv3d_replace
         if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
-        elif patchify_conv3d_replace == 'linear':
-            assert patch_size[0]==1 and patch_size[1]==patch_size[2]
-            assert input_size[1]==input_size[2]
+        elif patchify_conv3d_replace == "linear":
+            assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
+            assert input_size[1] == input_size[2]
             print("D--: replace 3d patchify with linear")
             self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
-        elif patchify_conv3d_replace == 'conv2d': 
-            assert patch_size[0]==1 and patch_size[1]==patch_size[2]
-            assert input_size[1]==input_size[2]
+        elif patchify_conv3d_replace == "conv2d":
+            assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
+            assert input_size[1] == input_size[2]
             print("D--: replace 3d patchify with 2d")
             self.x_embedder = PatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
 
@@ -441,12 +443,11 @@ class STDiT(nn.Cell):
         self.enable_sequence_parallelism = enable_sequence_parallelism
         self.sp_rank = None
 
-        # recompute
-        # print("D--: recompute!!: ", use_recompute)
-        # if use_recompute:
-        #    for block in self.blocks:
-        #        self.recompute(block)
-    '''
+        print("D--: recompute!!: ", use_recompute)
+        if use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()
@@ -454,7 +455,6 @@ class STDiT(nn.Cell):
             self.recompute(b[-1])
         else:
             b.add_flags(output_no_recompute=True)
-    '''
 
     def construct(self, x, timestep, y, mask=None):
         """
@@ -469,7 +469,7 @@ class STDiT(nn.Cell):
         """
 
         # print("D--: stdit inputs: ", x.shape, timestep.shape, mask.shape)
-        
+
         x = x.to(self.dtype)
         timestep = timestep.to(self.dtype)
         y = y.to(self.dtype)
@@ -487,7 +487,7 @@ class STDiT(nn.Cell):
 
         # x = rearrange(x, "B (T S) C -> B T S C", T=self.num_temporal, S=self.num_spatial)
         B, TS, C = x.shape
-        x = ops.reshape(x, (B, TS//self.num_spatial, self.num_spatial, C))
+        x = ops.reshape(x, (B, TS // self.num_spatial, self.num_spatial, C))
 
         x = x + self.pos_embed
         # x = rearrange(x, "B T S C -> B (T S) C")
@@ -496,21 +496,10 @@ class STDiT(nn.Cell):
         t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
         t0 = self.t_block(t)  # [B, C]
         y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
-        
-        # TODO: graph mode, mask required for indicating text len
-        '''
-            if mask.shape[0] != y.shape[0]:
-                mask = mask.repeat(y.shape[0] // mask.shape[0], 1)
-            mask = mask.squeeze(1).squeeze(1)
-            y = y.squeeze(1).masked_select(mask.unsqueeze(-1) != 0).view(1, -1, x.shape[-1])
-            y_lens = mask.sum(dim=1).tolist()
-        else:
-            # TODO: check dynamic shape issue
-            y_lens = [y.shape[2]] * y.shape[0]
-        '''
+
         # (b 1 max_tokens d_t) -> (b max_tokens d_t)  -> (1 b*max_tokens d_t)
         y = y.squeeze(1).view(1, -1, x.shape[-1])
-        
+
         # import pdb; pdb.set_trace()
 
         # blocks
@@ -519,17 +508,15 @@ class STDiT(nn.Cell):
                 tpe = self.pos_embed_temporal
             else:
                 tpe = None
-            # TODO: mask?
-            # x = block(x, y, t0, y_lens, tpe)
-            x = block(x, y, t0, mask=mask, tpe=tpe)
 
+            x = block(x, y, t0, mask=mask, tpe=tpe)
 
         # x.shape: [B, N, C]
         # final process
         x = self.final_layer(x, t)  # [B, N, C=T_p * H_p * W_p * C_out]
 
         x = self.unpatchify(x)  # [B, C_out, T, H, W]
-        
+
         # cast to float32 for better accuracy
         x = x.astype(ms.float32)
         return x
@@ -546,8 +533,7 @@ class STDiT(nn.Cell):
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
-        return eps 
-
+        return eps
 
     def unpatchify(self, x):
         """
@@ -560,14 +546,13 @@ class STDiT(nn.Cell):
 
         N_t, N_h, N_w = [self.input_size[i] // self.patch_size[i] for i in range(3)]
         T_p, H_p, W_p = self.patch_size
-        C_out=self.out_channels
+        C_out = self.out_channels
 
         # "B (N_t N_h N_w) (T_p H_p W_p C_out) -> B C_out (N_t T_p) (N_h H_p) (N_w W_p)"
-        # TODO: double check
         B, Nthw, THWC = x.shape
         x = ops.reshape(x, (B, N_t, N_h, N_w, T_p, H_p, W_p, C_out))
         x = ops.transpose(x, (0, 7, 1, 4, 2, 5, 3, 6))
-        x = ops.reshape(x, (B, C_out, N_t*T_p, N_h*H_p, N_w*W_p))
+        x = ops.reshape(x, (B, C_out, N_t * T_p, N_h * H_p, N_w * W_p))
 
         return x
 
@@ -646,28 +631,26 @@ class STDiT(nn.Cell):
 
     def load_from_checkpoint(self, ckpt_path):
         sd = ms.load_checkpoint(ckpt_path)
-        
+
         # conv3d weights to dense
-        if self.patchify_conv3d_replace == 'linear':
-            # TODO: the compute result with pre-trained conv3d weights are not equivalent.
-            key_3d = 'x_embedder.proj.weight'
+        key_3d = "x_embedder.proj.weight"
+        if self.patchify_conv3d_replace == "linear":
+            raise ValueError("Not supported for loading linear layer with conv3d weight")
             conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-            assert conv3d_weight.shape[-3]==1
+            assert conv3d_weight.shape[-3] == 1
             cout, cin, kt, kh, kw = conv3d_weight.shape
             linear_weight = conv3d_weight.reshape(cout, -1)
-            new_param = ms.Parameter(linear_weight, name=key_3d)
-            sd[key_3d] = new_param
-        elif self.patchify_conv3d_replace == 'conv2d':
-            key_3d = 'x_embedder.proj.weight'
-            conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-            assert conv3d_weight.shape[-3]==1
-            cout, cin, kt, kh, kw = conv3d_weight.shape
-            new_param = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
-            sd[key_3d] = new_param
+            sd[key_3d] = ms.Parameter(linear_weight, name=key_3d)
+        elif self.patchify_conv3d_replace == "conv2d":
+            if len(sd[key_3d].shape) == 5:
+                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                assert conv3d_weight.shape[-3] == 1
+                cout, cin, kt, kh, kw = conv3d_weight.shape
+                sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
         m, u = ms.load_param_into_net(self, sd)
-        print('net param not load: ', m)
-        print('ckpt param not load: ', u)
+        print("net param not load: ", m)
+        print("ckpt param not load: ", u)
 
 
 def STDiT_XL_2(from_pretrained=None, **kwargs):
@@ -675,4 +658,3 @@ def STDiT_XL_2(from_pretrained=None, **kwargs):
     if from_pretrained is not None:
         ms.load_checkpoint(from_pretrained, model)
     return model
-

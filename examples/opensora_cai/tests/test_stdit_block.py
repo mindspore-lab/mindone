@@ -1,13 +1,17 @@
-import os, sys
-import torch
-import mindspore as ms
+import os
+import sys
+
 import numpy as np
+import torch
+
+import mindspore as ms
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from opensora.models.stdit import STDiTBlock
+
 from mindone.utils.amp import auto_mixed_precision
 
 use_mask = False
@@ -19,61 +23,63 @@ num_head = 16  # head_dim=72
 max_tokens = 120
 
 T = num_temporal = 16
-S = num_spatial = 16*16  # 256x256
+S = num_spatial = 16 * 16  # 256x256
 
 args = dict(
-        hidden_size=hidden_size,
-        num_heads=num_head,
-        d_s=S,
-        d_t=T,
-        mlp_ratio=4.0,
-        drop_path=0.0,
-        enable_flashattn=False,
-        enable_layernorm_kernel=False,
-        enable_sequence_parallelism=False,
-    )
+    hidden_size=hidden_size,
+    num_heads=num_head,
+    d_s=S,
+    d_t=T,
+    mlp_ratio=4.0,
+    drop_path=0.0,
+    enable_flashattn=False,
+    enable_layernorm_kernel=False,
+    enable_sequence_parallelism=False,
+)
 
-B, N, C = 2, T*S, hidden_size 
+B, N, C = 2, T * S, hidden_size
 
-fp = 'tests/stdit_block_inp.npz'
+fp = "tests/stdit_block_inp.npz"
+
 
 def get_inputs(npz=None):
     if npz is not None and os.path.exists(npz):
         data = np.load(npz)
-        x, y, t = data['x'], data['y'], data['t']
+        x, y, t = data["x"], data["y"], data["t"]
         if use_mask:
-            mask = data['mask']
+            mask = data["mask"]
     else:
         x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
-        y = np.random.normal(size=(1, B*max_tokens, C)).astype(np.float32)
-        y_lens = np.random.randint(low=max_tokens//2, high=max_tokens, size=[B])
-        print('y_lens: ', y_lens)
+        y = np.random.normal(size=(1, B * max_tokens, C)).astype(np.float32)
+        y_lens = np.random.randint(low=max_tokens // 2, high=max_tokens, size=[B])
+        print("y_lens: ", y_lens)
 
         # time embedding
-        t = np.random.normal(size=(B, 6*C)).astype(np.float32)
+        t = np.random.normal(size=(B, 6 * C)).astype(np.float32)
 
-        save_dict = dict(x=x, y=y, t=t) 
+        save_dict = dict(x=x, y=y, t=t)
 
         # mask (B, max_tokens)
         if use_mask:
             mask = np.zeros(shape=[B, max_tokens]).astype(np.uint8)
             for i in range(B):
-                mask[i, :y_lens[i]] = np.ones(y_lens[i])
+                mask[i, : y_lens[i]] = np.ones(y_lens[i])
         else:
             mask = None
-        
+
         if mask is not None:
-            save_dict['mask'] = mask
+            save_dict["mask"] = mask
 
         np.savez(fp, **save_dict)
-        print('inputs saved in', fp)
+        print("inputs saved in", fp)
 
     if not use_mask:
         mask = None
 
     tpe = None
     return x, y, t, mask, tpe
+
 
 x, y, t, mask, tpe = get_inputs(fp)
 
@@ -87,10 +93,10 @@ def test_net_ms(x, ckpt=None, net_class=None, args=None):
     net_ms = auto_mixed_precision(net_ms, "O2", ms.float16)
 
     if ckpt:
-       sd = ms.load_checkpoint(ckpt)
-       m, u = ms.load_param_into_net(net_ms, sd)
-       print("net param not loaded: ", m)
-       print("ckpt param not loaded: ", u)
+        sd = ms.load_checkpoint(ckpt)
+        m, u = ms.load_param_into_net(net_ms, sd)
+        print("net param not loaded: ", m)
+        print("ckpt param not loaded: ", u)
     if isinstance(x, (list, tuple)):
         inputs = []
         for xi in x:
@@ -110,10 +116,10 @@ def test_net_ms(x, ckpt=None, net_class=None, args=None):
 
 def torch_mask_convert(mask, y):
     # mask: [B, n_tokens], y: (1, B*N_token, C)
-    
+
     _B = mask.shape[0]
-    y = y.reshape((_B, -1, y.shape[-1])) 
-    y = y.reshape((_B, 1, -1, y.shape[-1])) 
+    y = y.reshape((_B, -1, y.shape[-1]))
+    y = y.reshape((_B, 1, -1, y.shape[-1]))
 
     # y: text, [B, 1, N_token, C]
     if mask.shape[0] != y.shape[0]:
@@ -121,29 +127,34 @@ def torch_mask_convert(mask, y):
     mask = mask.squeeze(1).squeeze(1)
     y = y.squeeze(1).masked_select(mask.unsqueeze(-1) != 0).view(1, -1, x.shape[-1])
     y_lens = mask.sum(dim=1).tolist()
-    
-    return y_lens 
+
+    return y_lens
+
 
 # inputs only for stdit block
 def test_net_pt(x, y, t, mask=None, tpe=None, ckpt=None, save_ckpt_fn=None, net_class=None, args=None):
-    # 
+    #
     net_pt = net_class(**args).cuda()
     net_pt.eval()
     if ckpt is not None and os.path.exists(ckpt):
         checkpoint = torch.load(ckpt)
-        net_pt.load_state_dict(checkpoint['model_state_dict'])
+        net_pt.load_state_dict(checkpoint["model_state_dict"])
     else:
         if save_ckpt_fn:
-            torch.save({'model_state_dict': net_pt.state_dict(),
-                        }, f"tests/{save_ckpt_fn}.pth")
+            torch.save(
+                {
+                    "model_state_dict": net_pt.state_dict(),
+                },
+                f"tests/{save_ckpt_fn}.pth",
+            )
 
     x = torch.Tensor(x).cuda()
     y = torch.Tensor(y).cuda()
     t = torch.Tensor(t).cuda()
     if mask is not None:
         mask = torch.Tensor(mask).cuda()
-        mask = torch_mask_convert(mask, y)        
-        print('converted mask for pt: ', mask)
+        mask = torch_mask_convert(mask, y)
+        print("converted mask for pt: ", mask)
     if tpe is not None:
         tpe = torch.Tensor(tpe).cuda()
 
@@ -155,20 +166,21 @@ def test_net_pt(x, y, t, mask=None, tpe=None, ckpt=None, save_ckpt_fn=None, net_
     print(res_pt.shape)
     return res_pt.detach().cpu().numpy(), net_pt
 
+
 def _convert_ckpt(pt_ckpt):
     # sd = torch.load(pt_ckpt, map_location="CPU")['model_state_dict']
-    sd = torch.load(pt_ckpt)['model_state_dict']
+    sd = torch.load(pt_ckpt)["model_state_dict"]
     target_data = []
 
     # import pdb
     # pdb.set_trace()
 
     for k in sd:
-        if '.' not in k:
+        if "." not in k:
             # only for GroupNorm
             ms_name = k.replace("weight", "gamma").replace("bias", "beta")
         else:
-            if 'norm' in k:
+            if "norm" in k:
                 ms_name = k.replace(".weight", ".gamma").replace(".bias", ".beta")
             else:
                 ms_name = k
@@ -193,8 +205,8 @@ def compare_stdit():
     sys.path.append(pt_code_path)
     from opensora.models.stdit.stdit import STDiTBlock as STD_PT
 
-    ckpt_fn = 'stdb'
-    ckpt_fp_pt = f'tests/{ckpt_fn}.pth'
+    ckpt_fn = "stdb"
+    ckpt_fp_pt = f"tests/{ckpt_fn}.pth"
     pt_res, net_pt = test_net_pt(x, y, t, mask, tpe, ckpt=ckpt_fp_pt, save_ckpt_fn=ckpt_fn, net_class=STD_PT, args=args)
     print("pt out range: ", pt_res.min(), pt_res.max())
 
@@ -206,10 +218,9 @@ def compare_stdit():
 
 
 def test_stdit_ms():
-
     # model = STDiT(depth=28, hidden_size=1152, patch_size=(1, 2, 2), num_heads=16, **kwargs)
-    
-    args['enable_flashattn'] = False
+
+    args["enable_flashattn"] = False
     # args['use_recompute'] = False
 
     net = STDiTBlock(**args)
@@ -217,18 +228,18 @@ def test_stdit_ms():
 
     net = auto_mixed_precision(net, "O2", ms.float16)
 
-    B, N, C = 1, T*S, hidden_size 
+    B, N, C = 1, T * S, hidden_size
     x = np.random.normal(size=(B, N, C)).astype(np.float32)
 
-    # condition, text, 
+    # condition, text,
     max_tokens = 120
-    y = np.random.normal(size=(1, B*max_tokens, C)).astype(np.float32)
+    y = np.random.normal(size=(1, B * max_tokens, C)).astype(np.float32)
     y_lens = [max_tokens] * B
 
     tpe = None
 
     # time embedding
-    t = np.random.normal(size=(B, 6*C)).astype(np.float32)
+    t = np.random.normal(size=(B, 6 * C)).astype(np.float32)
 
     out = net(ms.Tensor(x), ms.Tensor(y), ms.Tensor(t), mask=None, tpe=None)
     print(out.shape)
@@ -238,5 +249,3 @@ if __name__ == "__main__":
     ms.set_context(mode=1)
     compare_stdit()
     # test_stdit_ms()
-
-

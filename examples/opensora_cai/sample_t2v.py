@@ -4,9 +4,10 @@ import logging
 import os
 import sys
 import time
-import numpy as np
 
+import numpy as np
 import yaml
+
 import mindspore as ms
 from mindspore import Tensor, ops
 
@@ -14,17 +15,16 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.logger import set_logger
-from mindone.utils.seed import set_random_seed
-from mindone.visualize.videos import save_videos
-
-from opensora.models.stdit import STDiT_XL_2
 from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.stdit import STDiT_XL_2
 from opensora.models.text_encoders import get_text_encoder_and_tokenizer
 from opensora.pipelines import InferPipeline
 from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
 
+from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.logger import set_logger
+from mindone.utils.seed import set_random_seed
+from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +104,7 @@ def parse_args():
         choices=["clip", "t5"],
         help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
     )
-    parser.add_argument("--t5_cache_folder", default=None, type=str, help="the T5 cache folder path")
+    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--clip_checkpoint",
         type=str,
@@ -208,8 +208,12 @@ def main(args):
     else:
         raise ValueError
 
-    input_size = (args.num_frames//vae_t_compress, args.image_size//vae_s_compress,  args.image_size//vae_s_compress)
-    
+    input_size = (
+        args.num_frames // vae_t_compress,
+        args.image_size // vae_s_compress,
+        args.image_size // vae_s_compress,
+    )
+
     # FIXME: set this parameter by config file
     model_extra_args = dict(
         input_size=input_size,
@@ -218,7 +222,8 @@ def main(args):
         model_max_length=max_tokens,
         space_scale=space_scale,  # 0.5 for 256x256. 1. for 512. # TODO: align to torch
         time_scale=1.0,
-        )
+        patchify_conv3d_replace="conv2d",  # for Ascend
+    )
     latte_model = STDiT_XL_2(**model_extra_args)
 
     if args.dtype == "fp16":
@@ -260,7 +265,7 @@ def main(args):
         y_null = ops.ones_like(y) * args.num_classes
     elif args.condition == "text":
         if args.text_encoder == "t5":
-            ckpt_path = args.t5_cache_folder
+            ckpt_path = args.t5_model_dir
         elif args.text_encoder == "clip":
             ckpt_path = args.clip_checkpoint
         # extracting text tokends and attention mask?
@@ -271,16 +276,16 @@ def main(args):
             text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
             text_emb = None
         else:
-            dat = np.load(args.embed_path) 
-            text_tokens, mask, text_emb = dat['tokens'], dat['mask'], dat['text_emb']
+            dat = np.load(args.embed_path)
+            text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
             n = text_emb.shape[0]
             text_tokens = ms.Tensor(text_tokens)
             mask = ms.Tensor(mask)
             text_emb = ms.Tensor(text_emb)
             text_encoder = None
             tokenizer = None
-        
-        logger.info(f"Num tokens: {mask.asnumpy().sum(1)}") 
+
+        logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
 
         y, y_null = None, None
     else:
@@ -323,8 +328,8 @@ def main(args):
     # init inputs
     inputs = {}
     # TODO: don't infer all at one to reduce memory cost
-    # b c t h w  
-    z = ops.randn([n, vae_out_channels]+list(input_size), dtype=ms.float32)
+    # b c t h w
+    z = ops.randn([n, vae_out_channels] + list(input_size), dtype=ms.float32)
     inputs["noise"] = z
     inputs["y"] = y  # None if condition is None; otherwise, a tensor with shape (n, )
     inputs["y_null"] = y_null
@@ -336,12 +341,12 @@ def main(args):
 
     logger.info(f"Sampling for {n} samples with captions: ")
     for i in range(n):
-        logger.info(args.captions[i]) 
+        logger.info(args.captions[i])
 
     start_time = time.time()
 
     # infer
-    x_samples = pipeline(inputs, latent_save_fp='outputs/denoised_latent.npy')
+    x_samples = pipeline(inputs, latent_save_fp="outputs/denoised_latent.npy")
     x_samples = x_samples.asnumpy()
 
     end_time = time.time()
@@ -356,4 +361,3 @@ def main(args):
 if __name__ == "__main__":
     args = parse_args()
     main(args)
-    

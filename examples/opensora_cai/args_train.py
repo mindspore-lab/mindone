@@ -17,8 +17,21 @@ def parse_train_args(parser):
         help="path to load a config yaml file that describes the training recipes which will override the default arguments",
     )
     # the following args's defualt value will be overrided if specified in config yaml
-    parser.add_argument("--data_config_file", default="", type=str, help="data configuration file path")
+
+    # data
     parser.add_argument("--dataset_name", default="", type=str, help="dataset name")
+    parser.add_argument(
+        "--csv_path",
+        default="",
+        type=str,
+        help="path to csv annotation file. columns: video, caption. video indicates the relative path of video file in video_folder. caption - the text caption for video",
+    )
+    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument(
+        "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
+    )
+    parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
+    parser.add_argument("--embed_folder", default="", type=str, help="root dir for the text embeding data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--pretrained_model_path",
@@ -26,12 +39,17 @@ def parse_train_args(parser):
         type=str,
         help="Specify the pretrained model path, either a pretrained " "DiT model or a pretrained Latte model.",
     )
+    # model
+    parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
+    parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
     # ms
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-    parser.add_argument("--parallel_mode", default='data', type=str, choices=['data', 'optim'], help="parallel mode: data, optim")
+    parser.add_argument(
+        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+    )
 
     # modelarts
     parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
@@ -126,7 +144,7 @@ def parse_train_args(parser):
         default="Latte-XL/2",
         help="Model name , such as Latte-XL/2, Latte-L/2",
     )
-
+    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -134,22 +152,22 @@ def parse_train_args(parser):
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
-        "--clip_checkpoint",
-        type=str,
-        default=None,
-        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
-    )
-    parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument("--image_size", default=256, type=int, help="the image size used to initiate model")
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
+    parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
+
     parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=1000,
-        help="number of classes, applies only when condition is `class`",
+        "--random_drop_text", default=False, type=str2bool, help="set caption to empty string randomly if enabled"
     )
+    parser.add_argument(
+        "--disable_flip",
+        default=True,
+        type=str2bool,
+        help="disable random flip video (to avoid motion direction and text mismatch)",
+    )
+    parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
@@ -181,22 +199,6 @@ def parse_train_args(parser):
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-
-    parser.add_argument(
-        "--condition",
-        default=None,
-        type=str,
-        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
-        " `class` means using class labels as conditions.",
-    )
-    parser.add_argument(
-        "--text_encoder",
-        default=None,
-        type=str,
-        choices=["clip", "t5"],
-        help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
-    )
-    parser.add_argument("--t5_cache_folder", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     return parser
 

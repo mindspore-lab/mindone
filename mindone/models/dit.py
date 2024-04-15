@@ -292,10 +292,10 @@ class SelfAttention(nn.Cell):
         return x
 
     def construct(self, x, mask=None):
-        '''
+        """
         x: (b n c)
         mask: (b n), 1 - valid, 0 - padded
-        '''
+        """
         x_dtype = x.dtype
         h = self.num_heads
         B, N, C = x.shape
@@ -303,16 +303,14 @@ class SelfAttention(nn.Cell):
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = ops.unstack(qkv, axis=2) # (b n h d)
+        q, k, v = ops.unstack(qkv, axis=2)  # (b n h d)
 
         # (b n h d) -> (b h n d)
         q = q.transpose(0, 2, 1, 3)
         k = k.transpose(0, 2, 1, 3)
         v = v.transpose(0, 2, 1, 3)
-        
-        if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256
-        ):
+
+        if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
             out = self.flash_attention(q, k, v, mask)
 
             b, h, n, d = out.shape
@@ -320,9 +318,9 @@ class SelfAttention(nn.Cell):
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
         else:
             # (b, h ,n, d) -> (b*h, n, d)
-            q = ops.reshape(q, (B*h, -1, self.head_dim))
-            k = ops.reshape(k, (B*h, -1, self.head_dim))
-            v = ops.reshape(v, (B*h, -1, self.head_dim))
+            q = ops.reshape(q, (B * h, -1, self.head_dim))
+            k = ops.reshape(k, (B * h, -1, self.head_dim))
+            v = ops.reshape(v, (B * h, -1, self.head_dim))
 
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)

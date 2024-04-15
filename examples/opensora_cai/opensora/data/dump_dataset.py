@@ -18,6 +18,7 @@ import mindspore as ms
 
 logger = logging.getLogger()
 
+
 class DumpEmbeddingDataet:
     def __init__(
         self,
@@ -30,13 +31,13 @@ class DumpEmbeddingDataet:
         num_tokens=120,
         dataset_size=200,
     ):
-        self.num_tokens = num_tokens 
+        self.num_tokens = num_tokens
         self.h = self.w = sample_size // space_compress
         self.t = sample_n_frames // time_compress
         self.dim_vae = vae_embed_dim
         self.dim_text = text_embed_dim
 
-        self.length= dataset_size
+        self.length = dataset_size
 
     def __len__(self):
         return self.length
@@ -45,12 +46,12 @@ class DumpEmbeddingDataet:
         """
         Returns:
             tuple (video_embed, text_embed, text_mask), input to network
-                - video: (d t h w) 
-                - text: (n_tokens d_t)   
+                - video: (d t h w)
+                - text: (n_tokens d_t)
                 - text_mask: (n_tokens)
         """
-        video_emb = np.random.normal(size=(self.dim_vae, self.t, self.h , self.w)).astype(np.float32)
-        
+        video_emb = np.random.normal(size=(self.dim_vae, self.t, self.h, self.w)).astype(np.float32)
+
         y_len = random.randint(3, self.num_tokens)
         text_mask = np.zeros(shape=[self.num_tokens]).astype(np.int8)
         text_mask[:y_len] = np.ones(y_len)
@@ -58,11 +59,11 @@ class DumpEmbeddingDataet:
 
         return video_emb, text_emb, text_mask
 
+
 def read_gif(gif_path, mode="RGB"):
     with Image.open(gif_path) as fp:
         frames = np.array([np.array(frame.convert(mode)) for frame in ImageSequence.Iterator(fp)])
     return frames
-
 
 
 class CSVDataset:
@@ -266,7 +267,7 @@ class CSVDataset:
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
         pixel_values, class_label, tokens, mask = self.get_batch(idx)
-    
+
         pixel_values = np.transpose(pixel_values, (1, 0, 2, 3))
 
         return_values = (pixel_values,)
@@ -703,7 +704,7 @@ class CSVDatasetWithEmbeddingPKL(CSVDataset):
                 - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
         """
         pixel_values, class_label, tokens, mask = self.get_batch(idx)
-    
+
         return_values = (pixel_values,)
 
         if self.condition == "text":
@@ -749,4 +750,3 @@ def create_dataloader(config, batch_size, shuffle=True, device_num=1, rank_id=0,
     )
 
     return dl
-

@@ -9,7 +9,6 @@ from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-
 from mindone.models.utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 
@@ -20,22 +19,22 @@ class Attention(nn.Cell):
         self.attn_drop = nn.Dropout(p=attn_drop)
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        '''
+        """
         q: (b h n_q d), h - num_head, n_q - seq_len of q
         k v: (b h n_k d), (b h n_v d)
-        mask: (b 1 1 n_k), 0 - keep, 1 indicates discard. 
-        '''
-        
+        mask: (b 1 1 n_k), 0 - keep, 1 indicates discard.
+        """
+
         sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
-        sim = sim.to(ms.float32)    # (b h n_q n_k) 
+        sim = sim.to(ms.float32)  # (b h n_q n_k)
 
         if mask is not None:
-            # (b 1 n_q n_k) -> (b h n_q n_k) 
+            # (b 1 n_q n_k) -> (b h n_q n_k)
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
             # sim = ops.masked_fill(sim, mask, ops.cast(float("-inf"), sim.dtype))
 
-        # (b h n_q n_k) 
+        # (b h n_q n_k)
         attn = ops.softmax(sim, axis=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
         out = ops.bmm(attn, v)
@@ -53,6 +52,7 @@ class MultiHeadCrossAttention(nn.Cell):
         x = xformers.ops.memory_efficient_attention(q, k, v, p=self.attn_drop.p, attn_bias=attn_bias)
         ```
     """
+
     def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
@@ -69,7 +69,7 @@ class MultiHeadCrossAttention(nn.Cell):
         self.proj_drop = nn.Dropout(p=proj_drop)
 
         self.attention = Attention(self.head_dim, attn_drop=attn_drop)
-        
+
         self.enable_flash_attention = enable_flash_attention
         if enable_flash_attention:
             self.flash_attention = MSFlashAttention(
@@ -83,20 +83,20 @@ class MultiHeadCrossAttention(nn.Cell):
         #  (b h n d) -> (b n h d) ->  (b n h*d)
         b, h, n, d = x.shape
         x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h*d))
+        x = ops.reshape(x, (b, n, h * d))
         return x
 
     def construct(self, x, cond, mask=None):
-        '''
+        """
         Inputs:
             x: (B, N, C), N=seq_len=h*w*t, C = hidden_size = head_dim * num_heads
             cond: (1, B*N_tokens, C)
             mask : (B, N_tokens), 1 - valid tokens, 0 - padding tokens
         Return:
             (B, N, C)
-        '''
+        """
         B_ori, _, C = x.shape
-        
+
         if mask is None:
             # FIXME: this branch is used to test the align with torch when mask is None, B dim is flatten to the seq_len dim, but never used in real training or inference. Remove after all precision check are done.
             x = x.reshape((1, -1, C))
@@ -104,14 +104,14 @@ class MultiHeadCrossAttention(nn.Cell):
             # TODO: directly input cond (B, N_tokens, D), no need to flatten, to save memory.
             # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
             cond = ops.reshape(cond, (B_ori, -1, C))
-        
+
         B, N, C = x.shape
         N_k = cond.shape[1]
 
         # 1. q, kv linear projection
-        q = self.q_linear(x)   # .reshape((1, -1, self.num_heads, self.head_dim))
-        kv = self.kv_linear(cond)  #.reshape((1, -1, 2, self.num_heads, self.head_dim))
-        
+        q = self.q_linear(x)  # .reshape((1, -1, self.num_heads, self.head_dim))
+        kv = self.kv_linear(cond)  # .reshape((1, -1, 2, self.num_heads, self.head_dim))
+
         # 2. reshape qkv for multi-head attn
         # q: (B N C) -> (B N num_head head_dim) -> (B num_head N head_dim)
         q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
@@ -126,10 +126,10 @@ class MultiHeadCrossAttention(nn.Cell):
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
             mask = 1 - mask
-            # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k) 
+            # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
             mask = mask[:, None, None, :]
 
-        # 3. attn compute 
+        # 3. attn compute
         if self.enable_flash_attention:
             # TODO: test on 910b
             # (b 1 1 n_k) -> (b 1 n_q n_k)
@@ -141,14 +141,14 @@ class MultiHeadCrossAttention(nn.Cell):
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
         else:
             x = self.attention(q, k, v, mask)
-        
+
         # (b h n d) -> (b n h d) ->  (b n h*d)
         x = self._rearange_out(x)
-        
+
         # FIXME: remove it later
         if mask is None:
             x = x.view(B_ori, -1, C)
-        
+
         # 4. output projection
         x = self.proj(x)
         x = self.proj_drop(x)
@@ -209,10 +209,10 @@ class SelfAttention(nn.Cell):
             self.flash_attention = None
 
     def construct(self, x, mask=None):
-        '''
+        """
         x: (b n c)
         mask: (b n), 1 - valid, 0 - padded
-        '''
+        """
         x_dtype = x.dtype
         h = self.num_heads
         B, N, C = x.shape
@@ -220,7 +220,7 @@ class SelfAttention(nn.Cell):
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = ops.unstack(qkv, axis=2) # (b n h d)
+        q, k, v = ops.unstack(qkv, axis=2)  # (b n h d)
 
         # (b n h d) -> (b h n d)
         q = q.transpose(0, 2, 1, 3)
@@ -231,10 +231,8 @@ class SelfAttention(nn.Cell):
         if mask is not None:
             mask = 1 - mask
             mask = mask[:, None, None, :]
-        
-        if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256
-        ):
+
+        if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
             # mask: (b n_k) -> (b 1 n_q n_k)
             mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
             out = self.flash_attention(q, k, v, mask=mask)
@@ -278,6 +276,7 @@ class GELU(nn.GELU):
             super().__init__(True)
         else:
             raise ValueError(f"approximate must be one of ['none', 'tanh'], but got {approximate}.")
+
 
 approx_gelu = lambda: GELU(approximate="tanh")
 

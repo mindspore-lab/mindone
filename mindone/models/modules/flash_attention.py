@@ -9,7 +9,6 @@ from mindspore import nn, ops
 
 from mindone.utils.version_control import MS_VERSION, check_valid_flash_attention, choose_flash_attention_dtype
 
-
 FLASH_IS_AVAILABLE = check_valid_flash_attention()
 USE_NEW_FA = False
 if FLASH_IS_AVAILABLE:
@@ -17,6 +16,7 @@ if FLASH_IS_AVAILABLE:
         from mindspore.nn.layer.flash_attention import FlashAttention
     except Exception:
         from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
+
         USE_NEW_FA = True
         print("Get New FA API! ")
 

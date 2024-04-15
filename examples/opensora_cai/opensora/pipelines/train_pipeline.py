@@ -1,10 +1,10 @@
 import logging
 
-from ..diffusion import SpacedDiffusion
-from ..diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
-
 import mindspore as ms
 from mindspore import nn, ops
+
+from ..diffusion import SpacedDiffusion
+from ..diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
 
 __all__ = ["DiffusionWithLoss"]
 
@@ -38,7 +38,8 @@ class DiffusionWithLoss(nn.Cell):
         condition: str = "class",
         text_encoder: nn.Cell = None,
         cond_stage_trainable: bool = False,
-        train_with_embed: bool = False,
+        text_emb_cached: bool = True,
+        video_emb_cached: bool = False,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -53,13 +54,17 @@ class DiffusionWithLoss(nn.Cell):
 
         self.scale_factor = scale_factor
         self.cond_stage_trainable = cond_stage_trainable
-        self.train_with_embed = train_with_embed
-        if self.condition == "text" and not self.train_with_embed:
-            assert self.text_encoder is not None, "Expect to get text encoder"
-        if self.train_with_embed:
-            self.vae = None
+
+        self.text_emb_cached = text_emb_cached
+        self.video_emb_cached = video_emb_cached
+
+        if self.text_emb_cached:
             self.text_encoder = None
-            logger.info("Train with Embedding inputs and set vae and text encoder to None")
+            logger.info("Train with text embedding inputs")
+        else:
+            raise NotImplementedError
+        if self.video_emb_cached:
+            raise NotImplementedError
 
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
@@ -152,13 +157,11 @@ class DiffusionWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
-        if not self.train_with_embed:
-            x = self.get_latents(x)
-            # 2. get conditions
-            if self.condition == "text":
-                text_embed = self.get_condition_embeddings(text_tokens, **kwargs)
-            else:
-                text_embed = None
+        x = self.get_latents(x)
+
+        # 2. get conditions
+        if not self.text_emb_cached:
+            text_embed = self.get_condition_embeddings(text_tokens, **kwargs)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
 
@@ -184,13 +187,13 @@ class DiffusionWithLoss(nn.Cell):
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl) / ms.numpy.log(2.0)
 
-        # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype) 
+        # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype)
 
         # TODO: upcast to fp32 before kl compute, exp involoved?
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
         decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
 
-        # print('D--: shapes', t.shape, decoder_nll.shape,  kl.shape) 
+        # print('D--: shapes', t.shape, decoder_nll.shape,  kl.shape)
 
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         vb = ops.where((t == 0), decoder_nll.to(kl.dtype), kl)
@@ -201,11 +204,11 @@ class DiffusionWithLoss(nn.Cell):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
-        
+
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         text_embed = ops.expand_dims(text_embed, axis=1)
-        
+
         model_output = self.apply_model(x_t, t, text_embed, mask)
 
         if x_t.dim() == 5:

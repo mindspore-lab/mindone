@@ -1,7 +1,7 @@
 condition: "text"
 text_encoder: "t5"
 clip_checkpoint: ""
-t5_cache_folder: "models/t5-v1_1-xxl/"
+t5_model_dir: "models/t5-v1_1-xxl/"
 
 image_size: 256
 num_frames: 16

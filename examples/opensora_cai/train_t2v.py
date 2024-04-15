@@ -5,21 +5,28 @@ import datetime
 import logging
 import os
 import sys
-from omegaconf import OmegaConf
-import yaml
 from typing import Tuple
+
+import yaml
+from args_train import parse_args
+from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Model, nn
+from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
-from mindspore.communication.management import get_group_size, get_rank, init
-
-from args_train import parse_args
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
+from opensora.data.t2v_dataset import create_dataloader
+from opensora.diffusion import create_diffusion
+from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.stdit import STDiT_XL_2
+from opensora.pipelines import DiffusionWithLoss
+from opensora.utils.model_utils import remove_pname_prefix
+
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
@@ -28,15 +35,8 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
-from mindone.utils.seed import set_random_seed
 from mindone.utils.params import count_params
-
-from opensora.models.stdit import STDiT_XL_2
-from opensora.data.dataset import create_dataloader
-from opensora.pipelines import DiffusionWithLoss 
-from opensora.utils.model_utils import remove_pname_prefix
-from opensora.diffusion import create_diffusion
-
+from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
@@ -49,7 +49,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    parallel_mode : str= "data",
+    parallel_mode: str = "data",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -74,12 +74,12 @@ def init_env(
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
-        if parallel_mode == 'optim':
+        if parallel_mode == "optim":
             print("D--: use optim parallel")
             ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL, 
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
                 enable_parallel_optimizer=True,
-                )
+            )
             init()
             device_num = get_group_size()
             rank_id = get_rank()
@@ -89,7 +89,7 @@ def init_env(
             rank_id = get_rank()
             logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
             ms.reset_auto_parallel_context()
- 
+
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.DATA_PARALLEL,
                 gradients_mean=True,
@@ -129,99 +129,94 @@ def main(args):
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    print("D--: rank id, device num: ", rank_id, device_num)
-
     # 2. model initiate and weight loading
     # 2.1 latte
     vae_t_compress = 1
     vae_s_compress = 8
     vae_out_channels = 4
-
-    text_emb_dim = 4096
-    max_tokens = 120
-
-    input_size = (args.num_frames//vae_t_compress, args.image_size//vae_s_compress,  args.image_size//vae_s_compress)
-    logger.info(f'STDiT input size: {input_size}')
-    
-    # FIXME: set this parameter by config file
+    input_size = (
+        args.num_frames // vae_t_compress,
+        args.image_size // vae_s_compress,
+        args.image_size // vae_s_compress,
+    )
     model_extra_args = dict(
         input_size=input_size,
         in_channels=vae_out_channels,
-        caption_channels=text_emb_dim,
-        model_max_length=max_tokens,
-        space_scale=0.5,  # 0.5 for 256x256. diff for 512. # TODO: align to torch
-        time_scale=1.0,
+        space_scale=args.space_scale,  # 0.5 for 256x256. 1. for 512
+        time_scale=args.time_scale,
+        patchify_conv3d_replace="conv2d",  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
-        )
+    )
+    logger.info(f"STDiT input size: {input_size}")
     latte_model = STDiT_XL_2(**model_extra_args)
 
-    if args.use_recompute:
-        logger.info("Apply whole model recompute!")
-        latte_model.recompute()
-
+    # mixed precision
     if args.dtype == "fp16":
         model_dtype = ms.float16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
     elif args.dtype == "bf16":
+        # TODO: support it
         model_dtype = ms.bfloat16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
     else:
         model_dtype = ms.float32
 
+    # load checkpoint
     if len(args.pretrained_model_path) > 0:
-        param_dict = ms.load_checkpoint(args.pretrained_model_path)
         logger.info(f"Loading ckpt {args.pretrained_model_path} into Latte...")
-        # in case a save ckpt with "network." prefix, removing it before loading
-        param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        latte_model.load_params_from_ckpt(param_dict)
+        param_dict = latte_model.load_from_checkpoint(args.pretrained_model_path)
     else:
         logger.info("Use random initialization for Latte")
-    # set train
     latte_model.set_train(True)
-    # TODO: non-trainable params like PE, norm should not be set requires_grad.
-    # for param in latte_model.get_parameters():
-    #    param.requires_grad = True
-    
-    vae = None
-    # TODO: set vae and t5 non-trainable
 
+    # 2.2 vae
+    # TODO: use mindone/models/autoencoders in future
+    logger.info("vae init")
+    vae = AutoencoderKL(
+        SD_CONFIG,
+        4,
+        ckpt_path=args.vae_checkpoint,
+        use_fp16=False,  # disable amp for vae
+    )
+    vae = vae.set_train(False)
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
+
+    # 3. create dataset
     # select dataset
-    use_dump = True
-    if use_dump:
-        ds_config = dict(
-            sample_size=args.image_size,
-            sample_n_frames=args.num_frames,
-            space_compress=vae_s_compress,
-            time_compress=vae_t_compress,
-            vae_embed_dim=vae_out_channels,
-            text_embed_dim=text_emb_dim,
-            num_tokens=max_tokens,
-            )
-    else:
-        ds_config = dict(
-            video_folder,
-            sample_size=args.image_size,
-            sample_stride=args.frame_stride,
-            sample_n_frames=args.num_frames,
-            transform_backend="al",  # ms, pt, al
-            use_image_num=None,
-            condition="text",
-            return_token_mask=True,
-        )
-    dataset = create_dataloader(ds_config, batch_size=args.batch_size, shuffle=True, device_num=device_num, rank_id=rank_id, use_dump_data=use_dump)
+    ds_config = dict(
+        csv_path=args.csv_path,
+        video_folder=args.video_folder,
+        text_emb_folder=args.embed_folder,
+        return_text_emb=True,
+        sample_size=args.image_size,
+        sample_stride=args.frame_stride,
+        sample_n_frames=args.num_frames,
+        tokenizer=None,
+        video_column=args.video_column,
+        caption_column=args.caption_column,
+        random_drop_text=args.random_drop_text,
+        random_drop_text_ratio=args.random_drop_text_ratio,
+        disable_flip=args.disable_flip,
+    )
+
+    dataset = create_dataloader(
+        ds_config, batch_size=args.batch_size, shuffle=True, device_num=device_num, rank_id=rank_id
+    )
     dataset_size = dataset.get_dataset_size()
 
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
         diffusion,
-        vae=None,
+        vae=vae,
         scale_factor=args.sd_scale_factor,
-        condition='text',
+        condition="text",
         text_encoder=None,
         cond_stage_trainable=False,
-        train_with_embed=True,
+        text_emb_cached=True,
+        video_emb_cached=False,
     )
 
     # 4. build training utils: lr, optim, callbacks, trainer
@@ -323,10 +318,6 @@ def main(args):
         callback.append(save_cb)
         if args.profile:
             callback.append(ProfilerCallback())
-    
-    # for param in latte_model.get_parameters():
-    #    if param.requires_grad:
-    #        print(param.name, tuple(param.shape))
 
     # 5. log and save config
     if rank_id == 0:

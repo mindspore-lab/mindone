@@ -1,10 +1,11 @@
 from abc import ABC
-import numpy as np
 
-from ..diffusion import create_diffusion
+import numpy as np
 
 import mindspore as ms
 from mindspore import ops
+
+from ..diffusion import create_diffusion
 
 __all__ = ["InferPipeline"]
 
@@ -95,15 +96,14 @@ class InferPipeline(ABC):
         x = inputs["noise"]
 
         if self.condition == "text":
-
             text_tokens = inputs["text_tokens"]
             mask = inputs.get("mask", None)
 
-            if inputs['text_emb'] is None:
+            if inputs["text_emb"] is None:
                 text_emb = self.get_condition_embeddings(text_tokens, **{"mask": mask})
             else:
                 print("D--: use cached text embedding")
-                text_emb = inputs['text_emb']
+                text_emb = inputs["text_emb"]
 
             if self.use_cfg:
                 y, y_null = text_emb, ops.zeros_like(text_emb)
@@ -166,10 +166,10 @@ class InferPipeline(ABC):
             latents = self.sampling_func(
                 self.model.construct, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
             )
-        
+
         if latent_save_fp is not None:
             np.save(latent_save_fp, latents.asnumpy())
-            print(f'Denoised latents saved in {latent_save_fp}')
+            print(f"Denoised latents saved in {latent_save_fp}")
 
         if latents.dim() == 4:
             images = self.vae_decode(latents)

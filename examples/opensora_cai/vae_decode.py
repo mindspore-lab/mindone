@@ -4,16 +4,16 @@ import logging
 import os
 import sys
 import time
-import numpy as np
 
+import numpy as np
 import yaml
 from modules.text_encoders import get_text_encoder_and_tokenizer
+from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
 from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
 
 import mindspore as ms
 from mindspore import Tensor, ops
-from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -27,6 +27,7 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 skip_vae = True
+
 
 def init_env(args):
     # no parallel mode currently
@@ -58,7 +59,9 @@ def parse_args():
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    parser.add_argument("--latent_path", type=str, default="outputs/denoised_latent.npz", help="path to save t5 embedding")
+    parser.add_argument(
+        "--latent_path", type=str, default="outputs/denoised_latent.npz", help="path to save t5 embedding"
+    )
     parser.add_argument(
         "--use_fp16",
         default=False,
@@ -122,7 +125,7 @@ if __name__ == "__main__":
         y = ops.transpose(y, (0, 2, 3, 1))
 
         return y
-    
+
     def vae_decode_video(x):
         out = []
         for x_sample in x:
@@ -135,11 +138,11 @@ if __name__ == "__main__":
 
     z = np.load(args.latent_path)
     z = ms.Tensor(z)
-    
+
     logger.info(f"Decoding for latent of shape {z.shape}, from {args.latent_path}")
     vids = vae_decode_video(z)
     vids = vids.asnumpy()
-    
+
     for i in range(vids.shape[0]):
         save_fp = f"{save_dir}/{i}.gif"
         save_videos(vids[i : i + 1], save_fp, loop=0)
