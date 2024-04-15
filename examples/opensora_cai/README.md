@@ -18,6 +18,15 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [ ] Zero2 and sequence-parallel training
 
 
+## Requirements
+
+```
+pip install -r requirements.txt
+```
+
+MindSpore version: >= 2.2.12 
+
+
 ## Prepartion
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder.
@@ -55,6 +64,8 @@ To get t5 embedding for a few captions:
 ```
 python infer_t5.py --config configs/inference/stdit_256x256x16.yaml --output_path=outputs/t5_embed.npz
 ```
+
+!!NOTE: the inference precision is still under optimization on Ascend.
 
 ## Training
 
