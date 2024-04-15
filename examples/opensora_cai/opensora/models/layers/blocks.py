@@ -299,7 +299,7 @@ class PatchEmbed(nn.Cell):
     def __init__(
         self,
         image_size: Optional[int] = 224,
-        patch_size: int = 4,
+        patch_size: int = 2,
         in_chans: int = 3,
         embed_dim: int = 96,
         bias: bool = True,
@@ -372,6 +372,7 @@ class LinearPatchEmbed(nn.Cell):
             ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         ph, pw = h // self.patch_size[0], w // self.patch_size[1]
         x = x.reshape((b, c, self.patch_size[0], ph, self.patch_size[1], pw))  # (B, C, P, Ph, P, Pw)
+        # x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
         x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
         x = x.reshape((b, ph * pw, self.patch_size[0] * self.patch_size[1] * c))  # (B, Ph*Pw, P*P*C)
 

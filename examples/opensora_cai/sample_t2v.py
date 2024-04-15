@@ -81,7 +81,7 @@ def parse_args():
         "--model_name",
         "-m",
         type=str,
-        default="Latte-XL/2",
+        default="STDiT-XL/2",
         help="Model name ",
     )
     parser.add_argument(
@@ -231,20 +231,10 @@ def main(args):
         model_dtype = ms.float32
 
     if len(args.checkpoint) > 0:
-        logger.info(f"Loading ckpt {args.checkpoint} into Latte")
-        param_dict = ms.load_checkpoint(args.checkpoint)
-        # in case a save ckpt with "network." prefix, removing it before loading
-        # param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        # latte_model.load_params_from_ckpt(param_dict)
-
-        sd = ms.load_checkpoint(args.checkpoint)
-        # skip loading temporal pos embedding to fit various num_frames
-        sd.pop('pos_embed_temporal') 
-        m, u = ms.load_param_into_net(latte_model, sd)
-        print('net param not load: ', m)
-        print('ckpt param not load: ', u)
+        logger.info(f"Loading ckpt {args.checkpoint} into STDiT")
+        latte_model.load_from_checkpoint(args.checkpoint)
     else:
-        logger.warning("Latte uses random initialization!")
+        logger.warning("STDiT uses random initialization!")
 
     latte_model = latte_model.set_train(False)
     for param in latte_model.get_parameters():  # freeze latte_model

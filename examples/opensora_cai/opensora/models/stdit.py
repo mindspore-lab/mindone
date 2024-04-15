@@ -16,6 +16,7 @@ from opensora.models.layers.blocks import (
         Mlp, 
         LayerNorm,
         LinearPatchEmbed,
+        PatchEmbed,
         t2i_modulate,
         approx_gelu,
         )
@@ -327,7 +328,6 @@ class T2IFinalLayer(nn.Cell):
         return x
 
 
-
 class STDiT(nn.Cell):
     def __init__(
         self,
@@ -352,7 +352,7 @@ class STDiT(nn.Cell):
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
         use_recompute = False,
-        replace_patchify_3d=False,
+        patchify_conv3d_replace=None,
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -374,21 +374,28 @@ class STDiT(nn.Cell):
         self.enable_layernorm_kernel = enable_layernorm_kernel
         self.space_scale = space_scale
         self.time_scale = time_scale
-
+        
+        assert patchify_conv3d_replace in [None, 'linear', 'conv2d']
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()
         self.pos_embed = ms.Tensor(pos_embed, dtype=ms.float32)
         self.pos_embed_temporal = ms.Tensor(pos_embed_temporal, dtype=ms.float32)
         
-        self.replace_patchify_3d = replace_patchify_3d
-        if not replace_patchify_3d:
+        # conv3d replacement. FIXME: after CANN+MS support bf16 and fp32, remove redundancy
+        self.patchify_conv3d_replace= patchify_conv3d_replace 
+        if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
-        else:
+        elif patchify_conv3d_replace == 'linear':
             assert patch_size[0]==1 and patch_size[1]==patch_size[2]
             assert input_size[1]==input_size[2]
             print("D--: replace 3d patchify with linear")
             self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+        elif patchify_conv3d_replace == 'conv2d': 
+            assert patch_size[0]==1 and patch_size[1]==patch_size[2]
+            assert input_size[1]==input_size[2]
+            print("D--: replace 3d patchify with 2d")
+            self.x_embedder = PatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
@@ -468,7 +475,7 @@ class STDiT(nn.Cell):
         y = y.to(self.dtype)
 
         # embedding
-        if not self.replace_patchify_3d:
+        if self.patchify_conv3d_replace is None:
             x = self.x_embedder(x)  # out: [B, N, C]=[B, thw, C]
         else:
             # (b c t h w) -> (bt c h w)
@@ -612,16 +619,12 @@ class STDiT(nn.Cell):
         self.apply(_basic_init)
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
+        # xavier_uniform_(w.view([w.shape[0], -1]))
         w = self.x_embedder.proj.weight
-
-        if self.replace_patchify_3d: 
-            # xavier_uniform_(w.view([w.shape[0], -1]))
-            w_flatted = w.view(w.shape[0], -1)
-            # FIXME: incompatible in optim parallel mode
-            w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
-        else:
-            pass
-            # FIXME: TBC for conv3d patchifying
+        w_flatted = w.reshape(w.shape[0], -1)
+        # FIXME: incompatible in optim parallel mode
+        # FIXME: impl in torch can be incorrect. can be reshape order mismatch
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
@@ -640,6 +643,31 @@ class STDiT(nn.Cell):
         # Zero-out output layers:
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
+
+    def load_from_checkpoint(self, ckpt_path):
+        sd = ms.load_checkpoint(ckpt_path)
+        
+        # conv3d weights to dense
+        if self.patchify_conv3d_replace == 'linear':
+            # TODO: the compute result with pre-trained conv3d weights are not equivalent.
+            key_3d = 'x_embedder.proj.weight'
+            conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+            assert conv3d_weight.shape[-3]==1
+            cout, cin, kt, kh, kw = conv3d_weight.shape
+            linear_weight = conv3d_weight.reshape(cout, -1)
+            new_param = ms.Parameter(linear_weight, name=key_3d)
+            sd[key_3d] = new_param
+        elif self.patchify_conv3d_replace == 'conv2d':
+            key_3d = 'x_embedder.proj.weight'
+            conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+            assert conv3d_weight.shape[-3]==1
+            cout, cin, kt, kh, kw = conv3d_weight.shape
+            new_param = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+            sd[key_3d] = new_param
+
+        m, u = ms.load_param_into_net(self, sd)
+        print('net param not load: ', m)
+        print('ckpt param not load: ', u)
 
 
 def STDiT_XL_2(from_pretrained=None, **kwargs):
