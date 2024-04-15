@@ -16,18 +16,10 @@ from mindspore.train.callback import TimeMonitor
 from mindspore.communication.management import get_group_size, get_rank, init
 
 from args_train import parse_args
-from opensora.data.dataset import create_dataloader
-from opensora.pipelines import DiffusionWithLoss 
-from opensora.utils.model_utils import remove_pname_prefix
-from opensora.diffusion import create_diffusion
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
-
-from mindone.models.stdit import STDiT_XL_2
-
-# load training modules
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
@@ -38,6 +30,13 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.utils.params import count_params
+
+from opensora.models.stdit import STDiT_XL_2
+from opensora.data.dataset import create_dataloader
+from opensora.pipelines import DiffusionWithLoss 
+from opensora.utils.model_utils import remove_pname_prefix
+from opensora.diffusion import create_diffusion
+
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 

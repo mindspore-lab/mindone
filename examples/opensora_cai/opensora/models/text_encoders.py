@@ -1,10 +1,11 @@
 import logging
 import os
 import sys
+import mindspore as ms
+
+from .t5 import T5Embedder
 
 from opensora.utils.model_utils import remove_pname_prefix
-
-import mindspore as ms
 
 sys.path.append("../stable_diffusion_v2")
 from ldm.modules.encoders.modules import FrozenCLIPEmbedder
@@ -55,8 +56,6 @@ def get_text_encoder_and_tokenizer(name, ckpt_path):
         tokenizer = text_encoder.tokenizer
     elif name == "t5":
         logger.info("T5 init")
-        from modules.t5 import T5Embedder
-
         text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
         tokenizer = text_encoder.tokenizer
     return text_encoder, tokenizer

@@ -7,35 +7,31 @@ import time
 import numpy as np
 
 import yaml
-from modules.text_encoders import get_text_encoder_and_tokenizer
-from opensora.pipelines import InferPipeline
-from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
-
 import mindspore as ms
 from mindspore import Tensor, ops
 
-# TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
-
-
-from modules.autoencoder import SD_CONFIG, AutoencoderKL
-
-from mindone.models.stdit import STDiT_XL_2
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
+from opensora.models.stdit import STDiT_XL_2
+from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.text_encoders import get_text_encoder_and_tokenizer
+from opensora.pipelines import InferPipeline
+from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
+
+
 logger = logging.getLogger(__name__)
 
-skip_vae = True
 
 def init_env(args):
     # no parallel mode currently
-    ms.set_context(mode=args.mode)  # needed for MS2.0
+    ms.set_context(mode=args.mode)
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(
         mode=args.mode,
@@ -169,6 +165,7 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -183,14 +180,13 @@ def parse_args():
     return args
 
 
-if __name__ == "__main__":
+def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     save_dir = f"samples/{time_str}"
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    args = parse_args()
     init_env(args)
     set_random_seed(args.seed)
 
@@ -235,8 +231,8 @@ if __name__ == "__main__":
         model_dtype = ms.float32
 
     if len(args.checkpoint) > 0:
-        param_dict = ms.load_checkpoint(args.checkpoint)
         logger.info(f"Loading ckpt {args.checkpoint} into Latte")
+        param_dict = ms.load_checkpoint(args.checkpoint)
         # in case a save ckpt with "network." prefix, removing it before loading
         # param_dict = remove_pname_prefix(param_dict, prefix="network.")
         # latte_model.load_params_from_ckpt(param_dict)
@@ -256,18 +252,15 @@ if __name__ == "__main__":
 
     # 2.2 vae
     logger.info("vae init")
-    if skip_vae:
-        vae = AutoencoderKL(
-            SD_CONFIG,
-            4,
-            ckpt_path=args.vae_checkpoint,
-            use_fp16=False,  # disable amp for vae
-        )
-        vae = vae.set_train(False)
-        for param in vae.get_parameters():  # freeze vae
-            param.requires_grad = False
-    else:
-        vae = None
+    vae = AutoencoderKL(
+        SD_CONFIG,
+        4,
+        ckpt_path=args.vae_checkpoint,
+        use_fp16=False,  # disable amp for vae
+    )
+    vae = vae.set_train(False)
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
 
     if args.condition == "class":
         # Labels to condition the model with (feel free to change):
@@ -280,12 +273,25 @@ if __name__ == "__main__":
             ckpt_path = args.t5_cache_folder
         elif args.text_encoder == "clip":
             ckpt_path = args.clip_checkpoint
-        text_encoder, tokenizer = get_text_encoder_and_tokenizer(args.text_encoder, ckpt_path)
         # extracting text tokends and attention mask?
-        n = len(args.captions)
-        assert n > 0, "No captions provided"
-        text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
-        print("D--: mask ", mask)
+        if args.embed_path is None:
+            text_encoder, tokenizer = get_text_encoder_and_tokenizer(args.text_encoder, ckpt_path)
+            n = len(args.captions)
+            assert n > 0, "No captions provided"
+            text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
+            text_emb = None
+        else:
+            dat = np.load(args.embed_path) 
+            text_tokens, mask, text_emb = dat['tokens'], dat['mask'], dat['text_emb']
+            n = text_emb.shape[0]
+            text_tokens = ms.Tensor(text_tokens)
+            mask = ms.Tensor(mask)
+            text_emb = ms.Tensor(text_emb)
+            text_encoder = None
+            tokenizer = None
+        
+        logger.info(f"Num tokens: {mask.asnumpy().sum(1)}") 
+
         y, y_null = None, None
     else:
         y, y_null = None, None
@@ -336,21 +342,28 @@ if __name__ == "__main__":
     if args.condition == "text":
         inputs["text_tokens"] = text_tokens
         inputs["mask"] = mask
+        inputs["text_emb"] = text_emb
 
-    logger.info(f"Sampling for {n} samples with condition {args.condition}")
+    logger.info(f"Sampling for {n} samples with captions: ")
+    for i in range(n):
+        logger.info(args.captions[i]) 
+
     start_time = time.time()
 
     # infer
-    x_samples = pipeline(inputs, skip_vae=skip_vae)
+    x_samples = pipeline(inputs, latent_save_fp='outputs/denoised_latent.npy')
     x_samples = x_samples.asnumpy()
 
     end_time = time.time()
 
     # save result
-    if skip_vae:
-        np.save('output_latents.npy', x_samples)
-    else:
-        for i in range(n):
-            save_fp = f"{save_dir}/{i}.gif"
-            save_videos(x_samples[i : i + 1], save_fp, loop=0)
-            logger.info(f"save to {save_fp}")
+    for i in range(n):
+        save_fp = f"{save_dir}/{i}.gif"
+        save_videos(x_samples[i : i + 1], save_fp, loop=0)
+        logger.info(f"save to {save_fp}")
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    main(args)
+    

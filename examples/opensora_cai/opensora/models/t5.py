@@ -6,11 +6,12 @@ import urllib.parse as ul
 
 import ftfy
 from bs4 import BeautifulSoup
-from flan_t5_large.t5 import get_t5_encoder
 from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import Tensor, nn
+
+from .flan_t5_large.t5 import get_t5_encoder
 
 logger = logging.getLogger(__name__)
 

@@ -9,6 +9,7 @@ from mindspore.common.initializer import XavierUniform, Zero, initializer
 from mindcv.models.layers import DropPath
 from mindone.models.modules.pos_embed import _get_2d_sincos_pos_embed_from_grid, _get_1d_sincos_pos_embed_from_grid
 from mindone.models.utils import constant_, exists, modulate, normal_, xavier_uniform_
+
 from opensora.models.layers.blocks import (
         SelfAttention,
         MultiHeadCrossAttention,
