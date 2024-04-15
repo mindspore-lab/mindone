@@ -136,7 +136,7 @@ class VideoGenPipeline(DiffusionPipeline):
         prompt: Union[str, List[str]],
         do_classifier_free_guidance: bool = True,
         negative_prompt: str = "",
-        num_images_per_prompt: int = 1,
+        num_videos_per_prompt: int = 1,
         prompt_embeds: Optional[ms.Tensor] = None,
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         clean_caption: bool = False,
@@ -154,8 +154,8 @@ class VideoGenPipeline(DiffusionPipeline):
                 PixArt-Alpha, this should be "".
             do_classifier_free_guidance (`bool`, *optional*, defaults to `True`):
                 whether to use classifier free guidance or not
-            num_images_per_prompt (`int`, *optional*, defaults to 1):
-                number of images that should be generated per prompt
+            num_videos_per_prompt (`int`, *optional*, defaults to 1):
+                number of videos that should be generated per prompt
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
@@ -220,10 +220,10 @@ class VideoGenPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, 1)
-        prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_videos_per_prompt, 1)
+        prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
         prompt_embeds_attention_mask = prompt_embeds_attention_mask.view(bs_embed, -1)
-        prompt_embeds_attention_mask = prompt_embeds_attention_mask.repeat_interleave(num_images_per_prompt, 0)
+        prompt_embeds_attention_mask = prompt_embeds_attention_mask.repeat_interleave(num_videos_per_prompt, 0)
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -252,8 +252,8 @@ class VideoGenPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_images_per_prompt, 1)
-            negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
+            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_videos_per_prompt, 1)
+            negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
@@ -525,7 +525,7 @@ class VideoGenPipeline(DiffusionPipeline):
         num_inference_steps: int = 20,
         timesteps: List[int] = None,
         guidance_scale: float = 4.5,
-        num_images_per_prompt: Optional[int] = 1,
+        num_videos_per_prompt: Optional[int] = 1,
         video_length: Optional[int] = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -564,8 +564,8 @@ class VideoGenPipeline(DiffusionPipeline):
                 Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
                 1`. Higher guidance scale encourages to generate images that are closely linked to the text `prompt`,
                 usually at the expense of lower image quality.
-            num_images_per_prompt (`int`, *optional*, defaults to 1):
-                The number of images to generate per prompt.
+            num_videos_per_prompt (`int`, *optional*, defaults to 1):
+                The number of videos to generate per prompt.
             height (`int`, *optional*, defaults to self.unet.config.sample_size):
                 The height in pixels of the generated image.
             width (`int`, *optional*, defaults to self.unet.config.sample_size):
@@ -632,7 +632,7 @@ class VideoGenPipeline(DiffusionPipeline):
             prompt,
             do_classifier_free_guidance,
             negative_prompt=negative_prompt,
-            num_images_per_prompt=num_images_per_prompt,
+            num_videos_per_prompt=num_videos_per_prompt,
             prompt_embeds=prompt_embeds,
             negative_prompt_embeds=negative_prompt_embeds,
             clean_caption=clean_caption,
@@ -655,7 +655,7 @@ class VideoGenPipeline(DiffusionPipeline):
         # 5. Prepare latents.
         latent_channels = self.transformer.config.in_channels
         latents = self.prepare_latents(
-            batch_size * num_images_per_prompt,
+            batch_size * num_videos_per_prompt,
             latent_channels,
             video_length,
             height,
