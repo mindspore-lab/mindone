@@ -12,7 +12,6 @@ from args_train import parse_args
 from data.dataset import create_dataloader
 from data.imagenet_dataset import create_dataloader_imagenet
 from pipelines.train_pipeline import DiTWithLoss
-from utils.model_utils import load_dit_ckpt_params
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -26,6 +25,7 @@ sys.path.insert(0, mindone_lib_path)
 
 from diffusion import create_diffusion
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
+from utils.model_utils import load_dit_ckpt_params
 
 from mindone.env import init_train_env
 from mindone.models.dit import DiT_models

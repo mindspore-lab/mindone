@@ -8,7 +8,6 @@ import time
 import numpy as np
 import yaml
 from PIL import Image
-from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
 from utils.plot import image_grid
 
 import mindspore as ms
@@ -20,6 +19,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from modules.autoencoder import SD_CONFIG, AutoencoderKL
+from utils.model_utils import _check_cfgs_in_parser, count_params, load_dit_ckpt_params, remove_pname_prefix, str2bool
 
 from examples.dit.pipelines.infer_pipeline import DiTInferPipeline
 from mindone.models.dit import DiT_models
