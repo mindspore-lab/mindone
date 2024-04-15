@@ -191,10 +191,14 @@ class Attention(nn.Cell):
         self.attn_drop = nn.Dropout(p=attn_drop)
 
     def construct(self, q, k, v, mask):
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+        # q: (b L_q dim), k v: (b L_k dim)
+        # mask: (b seq_len)
+
+        # (b L_q L_k)
+        sim = ops.bmm(q, self.transpose(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
+            mask = ops.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
             else:
@@ -208,7 +212,7 @@ class Attention(nn.Cell):
         attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
         attn = self.attn_drop(attn)
 
-        out = ops.matmul(attn, v)
+        out = ops.bmm(attn, v)
 
         return out
 
@@ -239,6 +243,7 @@ class SelfAttention(nn.Cell):
         self.dtype = dtype
         self.num_heads = num_heads
         head_dim = dim // num_heads
+        self.head_dim = head_dim
         self.scale = head_dim**-0.5
 
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
@@ -255,7 +260,8 @@ class SelfAttention(nn.Cell):
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-
+        # print("D--: self attn enable fa arg: ", enable_flash_attention, FLASH_IS_AVAILABLE)
+        # print("D--: self attn enable fa: ", self.enable_flash_attention)
         if self.enable_flash_attention:
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim, head_num=num_heads, fix_head_dims=[72], attention_dropout=attn_drop
@@ -286,34 +292,35 @@ class SelfAttention(nn.Cell):
         return x
 
     def construct(self, x, mask=None):
+        """
+        x: (b n c)
+        mask: (b n), 1 - valid, 0 - padded
+        """
         x_dtype = x.dtype
         h = self.num_heads
         B, N, C = x.shape
-        # (b, n, 3*h*d) -> (b, n, 3, h*d)  -> (3, b, n, h*d)
-        qkv = self.qkv(x).reshape(B, N, 3, -1).permute((2, 0, 1, 3))
-        q, k, v = qkv.unbind(0)
-        q_b, q_n, _ = q.shape  # (b n h*d)
-        k_b, k_n, _ = k.shape
-        v_b, v_n, _ = v.shape
 
-        head_dim = q.shape[-1] // h
+        qkv = self.qkv(x)
+        # (b, n, 3*h*d) -> (b, n, 3, h, d)
+        qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
+        q, k, v = ops.unstack(qkv, axis=2)  # (b n h d)
 
-        if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
-        ):  # TODO: why restrict head_dim?
-            # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
-            q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
-            k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
-            v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+        # (b n h d) -> (b h n d)
+        q = q.transpose(0, 2, 1, 3)
+        k = k.transpose(0, 2, 1, 3)
+        v = v.transpose(0, 2, 1, 3)
+
+        if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
             out = self.flash_attention(q, k, v, mask)
+
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
         else:
-            # (b, n, h*d) -> (b*h, n, d)
-            q = self._rearange_in(q, h)
-            k = self._rearange_in(k, h)
-            v = self._rearange_in(v, h)
+            # (b, h ,n, d) -> (b*h, n, d)
+            q = ops.reshape(q, (B * h, -1, self.head_dim))
+            k = ops.reshape(k, (B * h, -1, self.head_dim))
+            v = ops.reshape(v, (B * h, -1, self.head_dim))
 
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)
