@@ -8,7 +8,7 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [x] video generation in FP32 precision on GPUs: 256x256x16, 512x512x16
     - [ ] video generation in FP32 precision on Ascends
     - [ ] Mixed precision optimization (BF16)  on Ascend
-    - [ ] Flash attention optimiation on Ascend
+    - [ ] Flash attention optimization on Ascend
 - [ ] Training  (**Experimental**)
     - [x] Text embedding-cached STDiT training on GPUs and Ascends
         - [x] small dataset
@@ -50,7 +50,7 @@ To generate video conditioning on captions:
 ```
 python sample_t2v.py --config configs/inference/stdit_256x256x16.yaml
 ```
-> By default, FP32 is used to ensure best precision. if use fp16, nan values may incur in stdit forward pass, resulting in dark videos.
+> By default, FP32 is used to ensure the best precision. Nan values may incur in stdit forward pass using fp16, resulting in dark videos.
 
 - To run on GPU, append
 `--device_target GPU`
@@ -65,11 +65,16 @@ To get t5 embedding for a few captions:
 python infer_t5.py --config configs/inference/stdit_256x256x16.yaml --output_path=outputs/t5_embed.npz
 ```
 
+Here are some generation results in 256x256 resolution.
+
+![0](https://github.com/SamitHuang/mindone/assets/8156835/f24f6ecb-84e3-4651-870a-ad562b30fc6e)
+![1](https://github.com/SamitHuang/mindone/assets/8156835/65268e97-6bcb-4b23-a3c9-3f0c74b0b624)
+
 !!NOTE: the inference precision is still under optimization on Ascend.
 
 ## Training
 
-### Generate T5 embeddings
+### 1. Generate T5 embeddings
 ```
 python infer_t5.py \
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
@@ -80,7 +85,7 @@ After running, the text embeddings saved as npz file for each caption will be in
 
 Please change `csv_path` to your video-caption annotation file accordingly.
 
-### Train STDiT
+### 2. Train STDiT
 
 ```
 python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
@@ -95,4 +100,4 @@ For detailed usage, please check `python train_t2v.py -h`
 
 !!NOTE: currently, the training script is **experimental** and is mainly used to evaluate the training performance (i.e. max frames and step training time).
 
-It's under continously optimization.
+It's under continuous optimization.
