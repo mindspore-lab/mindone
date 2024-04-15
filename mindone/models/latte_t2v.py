@@ -1,5 +1,6 @@
 import json
 import logging
+import numbers
 import os
 from typing import Any, Dict, Optional, Tuple
 
@@ -7,6 +8,7 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, nn, ops
+from mindspore.common.initializer import initializer
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.activations import GEGLU, GELU, ApproximateGELU
@@ -21,7 +23,7 @@ from mindone.diffusers.models.embeddings import (
     get_1d_sincos_pos_embed_from_grid,
 )
 from mindone.diffusers.models.modeling_utils import ModelMixin
-from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormZero, LayerNorm
+from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormZero
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 # from mindone.diffusers.models.lora import LoRACompatibleConv, LoRACompatibleLinear
@@ -34,6 +36,28 @@ def get_1d_sincos_pos_embed(embed_dim, length, interpolation_scale=1.0, base_siz
     pos = np.arange(0, length)[:, None] / interpolation_scale
     pos_embed = get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
     return pos_embed
+
+
+class LayerNorm(nn.Cell):
+    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32):
+        super().__init__()
+        if isinstance(normalized_shape, numbers.Integral):
+            normalized_shape = (normalized_shape,)
+        self.normalized_shape = tuple(normalized_shape)
+        self.eps = eps
+        self.elementwise_affine = elementwise_affine
+        if self.elementwise_affine:
+            self.gamma = Parameter(initializer("ones", normalized_shape, dtype=dtype))
+            self.beta = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
+        else:
+            self.gamma = ops.ones(normalized_shape, dtype=dtype)
+            self.beta = ops.zeros(normalized_shape, dtype=dtype)
+        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
+
+    def construct(self, x: ms.Tensor):
+        oridtype = x.dtype
+        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
+        return x.to(oridtype)
 
 
 class Attention(nn.Cell):
@@ -387,8 +411,8 @@ class GatedSelfAttentionDense(nn.Cell):
         self.norm1 = LayerNorm(query_dim)
         self.norm2 = LayerNorm(query_dim)
 
-        self.register_parameter("alpha_attn", ms.Parameter(ms.Tensor(0.0)))
-        self.register_parameter("alpha_dense", ms.Parameter(ms.Tensor(0.0)))
+        self.alpha_attn = ms.Tensor(0.0)
+        self.alpha_dense = ms.Tensor(0.0)
 
         self.enabled = True
 
@@ -547,8 +571,10 @@ class BasicTransformerBlock_(nn.Cell):
         # 1. Self-Attn
         if self.use_ada_layer_norm:
             self.norm1 = AdaLayerNorm(dim, num_embeds_ada_norm)
+            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
         elif self.use_ada_layer_norm_zero:
             self.norm1 = AdaLayerNormZero(dim, num_embeds_ada_norm)
+            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
         else:
             self.norm1 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
@@ -746,8 +772,10 @@ class BasicTransformerBlock(nn.Cell):
         # 1. Self-Attn
         if self.use_ada_layer_norm:
             self.norm1 = AdaLayerNorm(dim, num_embeds_ada_norm)
+            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
         elif self.use_ada_layer_norm_zero:
             self.norm1 = AdaLayerNormZero(dim, num_embeds_ada_norm)
+            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
         else:
             self.norm1 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
@@ -767,11 +795,12 @@ class BasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            self.norm2 = (
-                AdaLayerNorm(dim, num_embeds_ada_norm)
-                if self.use_ada_layer_norm
-                else LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
-            )
+            if self.use_ada_layer_norm:
+                self.norm2 = AdaLayerNorm(dim, num_embeds_ada_norm)
+                self.norm2.norm = LayerNorm(dim, elementwise_affine=False)
+            else:
+                self.norm2 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
             self.attn2 = MultiHeadAttention(
                 query_dim=dim,
                 cross_attention_dim=cross_attention_dim if not double_self_attention else None,
