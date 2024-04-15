@@ -3,20 +3,24 @@ import html
 import logging
 import re
 import urllib.parse as ul
+from typing import Optional, Sequence, Tuple, Union
 
 import ftfy
+import numpy as np
 from bs4 import BeautifulSoup
 
 import mindspore as ms
 from mindspore import Tensor, nn
 
-from mindone.models.t5.t5_modeling import get_t5_encoder, get_t5_tokenizer
+from .t5_modeling import get_t5_encoder, get_t5_tokenizer
 
 logger = logging.getLogger(__name__)
 
 
-class T5Embedder(nn.Cell):
-    available_models = ["t5-v1_1-xxl"]
+__all__ = ["T5Tokenizer", "T5Encoder", "T5Embedder"]
+
+
+class T5Tokenizer:
     bad_punct_regex = re.compile(
         r"["
         + "#®•©™&@·º½¾¿¡§~"
@@ -33,46 +37,22 @@ class T5Embedder(nn.Cell):
         + r"]{1,}"
     )  # noqa
 
-    def __init__(
-        self,
-        cache_dir,
-        use_text_preprocessing=True,
-        model_max_length=120,
-        pretrained_ckpt=None,
-    ):
-        super().__init__()
+    def __init__(self, cache_dir: str, use_text_preprocessing: bool = True, max_length: int = 120):
         self.use_text_preprocessing = use_text_preprocessing
         self.cache_dir = cache_dir
-        self.pretrained_ckpt = pretrained_ckpt
-
         self.tokenizer = get_t5_tokenizer(cache_dir)
-        model = get_t5_encoder(cache_dir)
-        if self.pretrained_ckpt:
-            # load t5 ckpt into self.model
-            logger.info("Loading t5 checkpoint from {}".format(self.pretrained_ckpt))
-            param_dict = ms.load_checkpoint(self.pretrained_ckpt)
-            param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
-            assert len(param_not_load) == 0 and len(ckpt_not_load) == 1  # shared.embedding_table
-        self.model_max_length = model_max_length
-        self.tokenizer.context_length = model_max_length
-        self.model = model
+        self.max_length = max_length
+        self.tokenizer.context_length = max_length
 
-    def construct(self, text_tokens: Tensor, mask: Tensor = None):
-        text_encoder_embs = self.model(
-            input_ids=text_tokens,
-            attention_mask=mask,
-        )
-        if isinstance(text_encoder_embs, (list, tuple)):
-            text_encoder_embs = text_encoder_embs[0]
-        return text_encoder_embs
-
-    def get_text_tokens_and_mask(self, texts, return_tensor=True):
+    def __call__(
+        self, texts: Union[str, Sequence[str]], return_tensor: bool = True
+    ) -> Union[Tuple[Tensor, Tensor], Tuple[np.ndarray, np.ndarray]]:
         if isinstance(texts, str):
             texts = [texts]
-        texts = [self.text_preprocessing(text) for text in texts]
+        texts = [self._text_preprocessing(text) for text in texts]
         text_tokens_and_mask = self.tokenizer(
             texts,
-            max_length=self.model_max_length,
+            max_length=self.max_length,
             padding="max_length",
             truncation=True,
             return_attention_mask=True,
@@ -85,12 +65,7 @@ class T5Embedder(nn.Cell):
         else:
             return text_tokens, mask
 
-    def get_text_embeddings(self, texts):
-        text_tokens, mask = self.get_text_tokens_and_mask(texts)
-        text_encoder_embs = self.construct(text_tokens, mask)
-        return text_encoder_embs, mask
-
-    def text_preprocessing(self, text):
+    def _text_preprocessing(self, text: str) -> str:
         if self.use_text_preprocessing:
             # The exact text cleaning as was in the training stage:
             text = self.clean_caption(text)
@@ -217,3 +192,49 @@ class T5Embedder(nn.Cell):
         caption = re.sub(r"^\.\S+$", "", caption)
 
         return caption.strip()
+
+
+class T5Encoder(nn.Cell):
+    def __init__(self, cache_dir: str, pretrained_ckpt: Optional[str] = None) -> None:
+        super().__init__()
+        model = get_t5_encoder(cache_dir)
+        if pretrained_ckpt:
+            # load t5 ckpt into self.model
+            logger.info("Loading t5 checkpoint from {}".format(pretrained_ckpt))
+            param_dict = ms.load_checkpoint(pretrained_ckpt)
+            param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
+            assert len(param_not_load) == 0 and len(ckpt_not_load) == 1  # shared.embedding_table
+        self.model = model
+
+    def construct(self, text_tokens: Tensor, mask: Tensor = None) -> Tensor:
+        text_encoder_embs = self.model(
+            input_ids=text_tokens,
+            attention_mask=mask,
+        )
+        if isinstance(text_encoder_embs, (list, tuple)):
+            text_encoder_embs = text_encoder_embs[0]
+        return text_encoder_embs
+
+
+class T5Embedder(nn.Cell):
+    def __init__(
+        self,
+        cache_dir: str,
+        use_text_preprocessing: bool = True,
+        model_max_length: int = 120,
+        pretrained_ckpt: Optional[str] = None,
+    ) -> None:
+        super().__init__(auto_prefix=False)
+        self.tokenizer = T5Tokenizer(
+            cache_dir, use_text_preprocessing=use_text_preprocessing, max_length=model_max_length
+        )
+        self.encoder = T5Encoder(cache_dir, pretrained_ckpt=pretrained_ckpt)
+
+    def get_text_embeddings(self, texts: Union[str, Sequence[str]]) -> Tuple[Tensor, Tensor]:
+        text_tokens, mask = self.tokenizer(texts)
+        text_encoder_embs = self.encoder(text_tokens, mask)
+        return text_encoder_embs, mask
+
+    def construct(self, text_tokens: Tensor, mask: Tensor = None) -> Tensor:
+        text_encoder_embs = self.encoder(text_tokens, mask)
+        return text_encoder_embs
