@@ -16,7 +16,7 @@
 import copy
 import os
 import warnings
-from typing import Callable, Optional, Union, Tuple
+from typing import Callable, Optional, Tuple, Union
 
 import numpy as np
 from transformers.configuration_utils import PretrainedConfig
@@ -183,10 +183,10 @@ class ModuleUtilsMixin:
         Invert an attention mask (e.g., switches 0. and 1.).
 
         Args:
-            encoder_attention_mask (`torch.Tensor`): An attention mask.
+            encoder_attention_mask (`Tensor`): An attention mask.
 
         Returns:
-            `torch.Tensor`: The inverted attention mask.
+            `Tensor`: The inverted attention mask.
         """
         encoder_extended_attention_mask = None
         if encoder_attention_mask.dim() == 3:
@@ -213,8 +213,6 @@ class ModuleUtilsMixin:
         batch_size, seq_length = input_shape
         seq_ids = ops.arange(seq_length)
         causal_mask = seq_ids[None, None, :].tile((batch_size, seq_length, 1)) <= seq_ids[None, :, None]
-        # in case past_key_values are used we need to add a prefix ones mask to the causal mask
-        # causal and attention masks must have same type with pytorch version < 1.3
         causal_mask = causal_mask.to(attention_mask.dtype)
 
         if causal_mask.shape[1] < attention_mask.shape[1]:
@@ -239,13 +237,13 @@ class ModuleUtilsMixin:
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
 
         Arguments:
-            attention_mask (`torch.Tensor`):
+            attention_mask (`Tensor`):
                 Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
             input_shape (`Tuple[int]`):
                 The shape of the input to the model.
 
         Returns:
-            `torch.Tensor` The extended attention mask, with a the same dtype as `attention_mask.dtype`.
+            `Tensor` The extended attention mask, with the same dtype as `attention_mask.dtype`.
         """
         if dtype is None:
             dtype = self.dtype
@@ -287,7 +285,7 @@ class ModuleUtilsMixin:
         Prepare the head mask if needed.
 
         Args:
-            head_mask (`torch.Tensor` with shape `[num_heads]` or `[num_hidden_layers x num_heads]`, *optional*):
+            head_mask (`Tensor` with shape `[num_heads]` or `[num_hidden_layers x num_heads]`, *optional*):
                 The mask indicating if we should keep the heads or not (1.0 for keep, 0.0 for discard).
             num_hidden_layers (`int`):
                 The number of hidden layers in the model.
@@ -295,7 +293,7 @@ class ModuleUtilsMixin:
                 Whether or not the attentions scores are computed by chunks or not.
 
         Returns:
-            `torch.Tensor` with shape `[num_hidden_layers x batch x num_heads x seq_length x seq_length]` or list with
+            `Tensor` with shape `[num_hidden_layers x batch x num_heads x seq_length x seq_length]` or list with
             `[None]` for each layer.
         """
         if head_mask is not None:
@@ -1086,11 +1084,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
                     mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
                 elif isinstance(cell, nn.Embedding):
                     if "shared" in name:
-                        mappings["encoder.embed_tokens.embedding_table"] = (
+                        mappings[f"{name}.weight"] = (
                             "encoder.embed_tokens.embedding_table",
                             lambda x: x,
                         )
-                        mappings["decoder.embed_tokens.embedding_table"] = (
+                        mappings[f"{name}.weight"] = (
                             "decoder.embed_tokens.embedding_table",
                             lambda x: x,
                         )

@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" PyTorch T5 model."""
+""" MindSpore T5 model."""
 
 import copy
 from typing import List, Optional, Tuple
@@ -179,7 +179,7 @@ class T5Attention(nn.Cell):
             already_pruned_heads (`Set[int]`): A set of already pruned heads.
 
         Returns:
-            `Tuple[Set[int], torch.LongTensor]`: A tuple with the indices of heads to prune taking `already_pruned_heads`
+            `Tuple[Set[int], Tensor]`: A tuple with the indices of heads to prune taking `already_pruned_heads`
             into account and the indices of rows/columns to keep in the layer weight.
         """
         mask = ops.ones((n_heads, head_size))
@@ -202,12 +202,12 @@ class T5Attention(nn.Cell):
         Used to remove heads.
 
         Args:
-            layer (`torch.nn.Linear`): The layer to prune.
-            index (`torch.LongTensor`): The indices to keep in the layer.
+            layer (`nn.Dense`): The layer to prune.
+            index (`Tensor`): The indices to keep in the layer.
             dim (`int`, *optional*, defaults to 0): The dimension on which to keep the indices.
 
         Returns:
-            `torch.nn.Linear`: The pruned layer as a new layer with `requires_grad=True`.
+            `nn.Dense`: The pruned layer as a new layer with `requires_grad=True`.
         """
         index = index
         W = layer.weight.index_select(dim, index).copy()
@@ -271,7 +271,6 @@ class T5Attention(nn.Cell):
             a Tensor with the same shape as relative_position, containing int32 values in the range [0, num_buckets)
         """
         relative_buckets = 0
-        # print("bidirectional check", bidirectional)
         if bidirectional:
             num_buckets //= 2
             relative_buckets += (relative_position > 0).long() * num_buckets
@@ -396,7 +395,7 @@ class T5Attention(nn.Cell):
         # compute scores
         scores = ops.matmul(
             query_states, key_states.swapaxes(3, 2)
-        )  # equivalent of torch.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
+        )  # equivalent of ops.einsum("bnqd,bnkd->bnqk", query_states, key_states), compatible with onnx op>9
 
         if position_bias is None:
             if not self.has_relative_attention_bias:
@@ -441,7 +440,6 @@ class T5Attention(nn.Cell):
 
         if output_attentions:
             outputs = outputs + (attn_weights,)
-        # ops.print_("T5attention outputs", len(outputs))
         return outputs
 
 
@@ -673,60 +671,7 @@ class T5PreTrainedModel(MSPreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        factor = self.config.initializer_factor  # Used for testing weights initialization
-        if isinstance(module, T5LayerNorm):
-            module.weight.data.fill_(factor * 1.0)
-        elif isinstance(
-            module,
-            (T5Model, T5EncoderModel),
-        ):
-            # Mesh TensorFlow embeddings initialization
-            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L1624
-            module.shared.weight.data.normal_(mean=0.0, std=factor * 1.0)
-            if hasattr(module, "lm_head") and not self.config.tie_word_embeddings:
-                module.lm_head.weight.data.normal_(mean=0.0, std=factor * 1.0)
-            if hasattr(module, "qa_outputs"):
-                module.qa_outputs.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
-                module.qa_outputs.bias.data.zero_()
-        elif isinstance(module, T5ClassificationHead):
-            module.dense.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
-            if hasattr(module.dense, "bias") and module.dense.bias is not None:
-                module.dense.bias.data.zero_()
-            module.out_proj.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
-            if hasattr(module.out_proj, "bias") and module.out_proj.bias is not None:
-                module.out_proj.bias.data.zero_()
-        elif isinstance(module, T5DenseActDense):
-            # Mesh TensorFlow FF initialization
-            # See https://github.com/tensorflow/mesh/blob/master/mesh_tensorflow/transformer/transformer_layers.py#L56
-            # and https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L89
-            module.wi.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
-            if hasattr(module.wi, "bias") and module.wi.bias is not None:
-                module.wi.bias.data.zero_()
-            module.wo.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
-            if hasattr(module.wo, "bias") and module.wo.bias is not None:
-                module.wo.bias.data.zero_()
-        elif isinstance(module, T5DenseGatedActDense):
-            module.wi_0.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
-            if hasattr(module.wi_0, "bias") and module.wi_0.bias is not None:
-                module.wi_0.bias.data.zero_()
-            module.wi_1.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_model) ** -0.5))
-            if hasattr(module.wi_1, "bias") and module.wi_1.bias is not None:
-                module.wi_1.bias.data.zero_()
-            module.wo.weight.data.normal_(mean=0.0, std=factor * ((self.config.d_ff) ** -0.5))
-            if hasattr(module.wo, "bias") and module.wo.bias is not None:
-                module.wo.bias.data.zero_()
-        elif isinstance(module, T5Attention):
-            # Mesh TensorFlow attention initialization to avoid scaling before softmax
-            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/attention.py#L136
-            d_model = self.config.d_model
-            key_value_proj_dim = self.config.d_kv
-            n_heads = self.config.num_heads
-            module.q.weight.data.normal_(mean=0.0, std=factor * ((d_model * key_value_proj_dim) ** -0.5))
-            module.k.weight.data.normal_(mean=0.0, std=factor * (d_model**-0.5))
-            module.v.weight.data.normal_(mean=0.0, std=factor * (d_model**-0.5))
-            module.o.weight.data.normal_(mean=0.0, std=factor * ((n_heads * key_value_proj_dim) ** -0.5))
-            if module.has_relative_attention_bias:
-                module.relative_attention_bias.weight.data.normal_(mean=0.0, std=factor * ((d_model) ** -0.5))
+        pass
 
     def _shift_right(self, input_ids):
         decoder_start_token_id = self.config.decoder_start_token_id
@@ -837,7 +782,6 @@ class T5Stack(T5PreTrainedModel):
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
         if self.is_decoder and encoder_hidden_states is not None:
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
-            # ops.print_("encoder shape check", encoder_hidden_states.shape)
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
                 encoder_attention_mask = ops.ones(encoder_hidden_shape, dtype=ms.int64)
@@ -889,7 +833,6 @@ class T5Stack(T5PreTrainedModel):
                     output_attentions,
                 )
             else:
-                # ops.print_("T5Stack check")
                 layer_outputs = layer_module(
                     hidden_states,
                     attention_mask=extended_attention_mask,
@@ -1040,7 +983,7 @@ class T5Model(T5PreTrainedModel):
         >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="pt").input_ids  # Batch size 1
 
         >>> # preprocess: Prepend decoder_input_ids with start token which is pad token for T5Model.
-        >>> # This is not needed for torch's T5ForConditionalGeneration as it does this internally using labels arg.
+        >>> # This is not needed for T5ForConditionalGeneration as it does this internally using labels arg.
         >>> decoder_input_ids = model._shift_right(decoder_input_ids)
 
         >>> # forward pass
