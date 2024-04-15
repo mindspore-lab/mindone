@@ -6,7 +6,6 @@ t5_cache_folder: "models/t5-v1_1-xxl/"
 
 # model
 image_size: 256
-num_frames: 16
 model_version: "17x256x256"
 checkpoint: "models/17x256x256/model.ckpt"
 vae_checkpoint: "models/ae/causal_vae_488.ckpt"

@@ -67,12 +67,12 @@ def parse_args():
         default=256,
         help="image size in [256, 512]",
     )
-    parser.add_argument(
-        "--num_frames",
-        type=int,
-        default=16,
-        help="number of frames",
-    )
+    # parser.add_argument(
+    #     "--num_frames",
+    #     type=int,
+    #     default=16,
+    #     help="number of frames",
+    # )
     parser.add_argument(
         "--num_classes",
         type=int,
@@ -204,8 +204,6 @@ if __name__ == "__main__":
     # 2. model initiate and weight loading
     # 2.1 latte
     logger.info(f"Latte-{args.model_version} init")
-    latent_size = args.image_size // 8
-    # MODELS_DICT = Latte_models if args.condition != "text" else Latte_T2V_models
 
     assert args.condition == "text", "LatteT2V only support text condition now!"
     assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder now!"
@@ -213,7 +211,6 @@ if __name__ == "__main__":
     latte_model = LatteT2V.from_pretrained_2d(
         "models",
         subfolder=args.model_version,
-        video_length=args.num_frames,
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
@@ -226,6 +223,7 @@ if __name__ == "__main__":
         model_dtype = ms.float32
     video_length, image_size = latte_model.config.video_length, args.image_size
     # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
+    latent_size = args.image_size // 8
 
     if len(args.checkpoint) > 0:
         param_dict = ms.load_checkpoint(args.checkpoint)
@@ -311,7 +309,7 @@ if __name__ == "__main__":
         print("Processing the ({}) prompt".format(prompt))
         videos = pipeline(
             prompt,
-            video_length=args.num_frames,
+            video_length=video_length,
             height=args.image_size,
             width=args.image_size,
             num_inference_steps=args.sampling_steps,
@@ -328,7 +326,7 @@ if __name__ == "__main__":
     # save result
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
-            save_fp = f"{save_dir}/{i_video}-{args.captions[i]}.gif"
+            save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
             save_video_data = x_samples[i : i + 1, i_video].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
             save_videos(save_video_data, save_fp, loop=0)
             logger.info(f"save to {save_fp}")
