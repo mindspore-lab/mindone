@@ -1017,6 +1017,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
 
             if is_sharded:
                 loaded_state_dict_keys = sharded_metadata["all_checkpoint_keys"]
+                for sharded_file in resolved_archive_file:
+                    if state_dict is None:
+                        state_dict = safe_load_file(sharded_file)
+                    else:
+                        state_dict.update(safe_load_file(sharded_file))
             else:
                 loaded_state_dict_keys = list(state_dict.keys())
 
@@ -1084,14 +1089,16 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
                     mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
                 elif isinstance(cell, nn.Embedding):
                     if "shared" in name:
-                        mappings[f"{name}.weight"] = (
-                            "encoder.embed_tokens.embedding_table",
-                            lambda x: x,
-                        )
-                        mappings[f"{name}.weight"] = (
-                            "decoder.embed_tokens.embedding_table",
-                            lambda x: x,
-                        )
+                        if "decoder" in loaded_keys:
+                            mappings[f"{name}.weight"] = (
+                                "decoder.embed_tokens.embedding_table",
+                                lambda x: x,
+                            )
+                        else:
+                            mappings[f"{name}.weight"] = (
+                                "encoder.embed_tokens.embedding_table",
+                                lambda x: x,
+                            )
                     else:
                         mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
                 elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
