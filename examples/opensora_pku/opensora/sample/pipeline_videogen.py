@@ -502,7 +502,7 @@ class VideoGenPipeline(DiffusionPipeline):
     def prepare_latents(
         self, batch_size, num_channels_latents, video_length, height, width, dtype, generator, latents=None
     ):
-        shape = (batch_size, num_channels_latents, video_length, self.vae.latent_size[0], self.vae.latent_size[1])
+        shape = (batch_size, video_length, num_channels_latents, self.vae.latent_size[0], self.vae.latent_size[1])
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -725,7 +725,8 @@ class VideoGenPipeline(DiffusionPipeline):
                         callback(step_idx, t, latents)
 
         if not output_type == "latents":
-            video = self.decode_latents(latents)  # applied for causal 3d vae
+            # b f c h w -> b c f h w
+            video = self.decode_latents(latents.permute(0, 2, 1, 3, 4))  # applied for causal 3d vae
             # video = self.sd_vae_decode_video(latents.permute(0, 2, 1, 3, 4))  # applied for stable diffusion 2D vae
         else:
             video = latents

@@ -1212,10 +1212,10 @@ class Latte(ModelMixin, ConfigMixin):
                 If `ndim == 2`: will be interpreted as a mask, then converted into a bias consistent with the format
                 above. This bias will be added to the cross-attention scores.
         """
-        input_batch_size, c, frame, h, w = hidden_states.shape
+        input_batch_size, frame, c, h, w = hidden_states.shape
         frame = frame - use_image_num
-        # b c f h w -> (b f) c h w
-        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).view(-1, c, h, w)
+        # b f c h w -> (b f) c h w
+        hidden_states = hidden_states.view(-1, c, h, w)
 
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
         #   we may have done this conversion already, e.g. if we came here via UNet2DConditionModel#forward.
@@ -1357,9 +1357,8 @@ class Latte(ModelMixin, ConfigMixin):
         # nhwpqc->nchpwq
         hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
         output = hidden_states.reshape(shape=(-1, self.out_channels, height * self.patch_size, width * self.patch_size))
-        # (b f) c h w -> b c f h w
+        # (b f) c h w -> b f c h w
         output = output.view(input_batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1])
-        output = output.permute(0, 2, 1, 3, 4)
 
         return output
 
@@ -1382,6 +1381,7 @@ class Latte(ModelMixin, ConfigMixin):
         Forward pass of Latte, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
+        # x shape : b f c h w
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
         model_out = self.construct(combined, timestep, class_labels=class_labels, attention_mask=attention_mask)
@@ -1718,16 +1718,14 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 above. This bias will be added to the cross-attention scores.
 
         """
-        input_batch_size, c, frame, h, w = hidden_states.shape
+        input_batch_size, frame, c, h, w = hidden_states.shape
         # print(hidden_states.shape, input_batch_size, c, frame, h, w, use_image_num)
         # print(timestep)
         # print(encoder_hidden_states.shape)
         # print(encoder_attention_mask.shape)
         frame = frame - use_image_num  # 20-4=16
-        # b c f h w -> (b f) c h w
-        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).reshape(
-            input_batch_size * (frame + use_image_num), c, h, w
-        )
+        # b f c h w -> (b f) c h w
+        hidden_states = hidden_states.reshape(input_batch_size * (frame + use_image_num), c, h, w)
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension.
         #   we may have done this conversion already, e.g. if we came here via UNet2DConditionModel#forward.
         #   we can tell by counting dims; if ndim == 2: it's a mask rather than a bias.
@@ -1908,11 +1906,10 @@ class LatteT2V(ModelMixin, ConfigMixin):
         # nhwpqc->nchpwq
         hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
         output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
-        # (b f) c h w -> b c f h w
+        # (b f) c h w -> b f c h w
         output = output.view(
             input_batch_size, frame + use_image_num, output.shape[-3], output.shape[-2], output.shape[-1]
         )
-        output = output.permute(0, 2, 1, 3, 4)
 
         return output
 

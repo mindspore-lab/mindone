@@ -11,7 +11,6 @@ from omegaconf import OmegaConf
 from utils.model_utils import _check_cfgs_in_parser, remove_pname_prefix
 
 import mindspore as ms
-from mindspore import ops
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -271,7 +270,6 @@ if __name__ == "__main__":
     n = len(args.captions)
     assert n > 0, "No captions provided"
 
-    z = ops.randn((n, args.num_frames, 4, latent_size, latent_size), dtype=ms.float32)
     # 3. build inference pipeline
     scheduler = DDIMScheduler() if args.ddim_sampling else DDPMScheduler()
     text_encoder = text_encoder.model
