@@ -490,8 +490,8 @@ class DiT(nn.Cell):
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
         num_patches = self.x_embedder.num_patches
-        # Will use fixed sin-cos embedding:
-        self.pos_embed = Parameter(ops.zeros((1, num_patches, hidden_size)), requires_grad=False)
+        # Will use fixed sin-cos embedding (saved in tensor):
+        self.pos_embed = ops.zeros((1, num_patches, hidden_size))
 
         self.blocks = nn.CellList(
             [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]
@@ -523,7 +523,7 @@ class DiT(nn.Cell):
 
         # Initialize (and freeze) pos_embed by sin-cos embedding:
         pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches**0.5))
-        self.pos_embed.set_data(Tensor(pos_embed).float().unsqueeze(0))
+        self.pos_embed = Tensor(pos_embed).float().unsqueeze(0)
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight

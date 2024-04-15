@@ -81,8 +81,8 @@ class Latte(nn.Cell):
             )
         num_patches = self.x_embedder.num_patches
         # Will use fixed sin-cos embedding:
-        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
-        self.temp_embed = ms.Parameter(ops.zeros((1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
+        self.pos_embed = ops.zeros((1, num_patches, hidden_size), dtype=ms.float32)
+        self.temp_embed = ops.zeros((1, num_frames, hidden_size), dtype=ms.float32)
 
         self.blocks = nn.CellList(
             [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth)]
@@ -115,9 +115,9 @@ class Latte(nn.Cell):
 
         # Initialize (and freeze) pos_embed (temp_embed) by sin-cos embedding:
         pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches**0.5))
-        self.pos_embed.set_data(Tensor(pos_embed).float().unsqueeze(0))
+        self.pos_embed = Tensor(pos_embed).float().unsqueeze(0)
         temp_embed = get_1d_sincos_temp_embed(self.temp_embed.shape[-1], self.temp_embed.shape[-2])
-        self.temp_embed.set_data(Tensor(temp_embed).float().unsqueeze(0))
+        self.temp_embed = Tensor(temp_embed).float().unsqueeze(0)
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight
