@@ -132,6 +132,7 @@ def main(args):
         neg_text_emb, neg_mask = text_encoder.get_text_embeddings(args.neg_prompts)
         np.savez("outputs/empty_t5.npz", mask=neg_mask.asnumpy(), text_emb=neg_text_emb.asnumpy())
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(

@@ -155,11 +155,19 @@ def main(args):
     # mixed precision
     if args.dtype == "fp16":
         model_dtype = ms.float16
+<<<<<<< HEAD
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype, fp32_cells= []) # [LayerNorm, Attention])
     elif args.dtype == "bf16":
         # TODO: support it
         model_dtype = ms.bfloat16
         latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype, fp32_cells=[]) # [LayerNorm, Attention])
+=======
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        # TODO: support it
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+>>>>>>> 04a1828622592bd61c23d4de3ce69ad6a584d2b0
     else:
         model_dtype = ms.float32
 

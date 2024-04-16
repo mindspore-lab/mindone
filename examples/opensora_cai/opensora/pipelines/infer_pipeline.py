@@ -126,7 +126,6 @@ class InferPipeline(ABC):
 
         # to match stdit input format
         y = ops.expand_dims(y, axis=1)
-
         return x_in, y
 
     def get_condition_embeddings(self, text_tokens, **kwargs):
