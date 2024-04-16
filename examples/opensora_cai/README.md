@@ -67,8 +67,19 @@ python infer_t5.py --config configs/inference/stdit_256x256x16.yaml --output_pat
 
 Here are some generation results in 256x256 resolution.
 
-![0](https://github.com/SamitHuang/mindone/assets/8156835/f24f6ecb-84e3-4651-870a-ad562b30fc6e)
-![1](https://github.com/SamitHuang/mindone/assets/8156835/65268e97-6bcb-4b23-a3c9-3f0c74b0b624)
+<p float="left">
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/16fe702e-31ac-4651-bce8-876aec7212f9 width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/864a8a41-fd68-4343-ae71-6c25b28f1e6b width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/bd63e6fb-c498-4673-b260-505a168b0efa width="30%" />
+</p>
+
+<p float="left">
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/fde06430-9fd8-48b2-b8ba-890f60d47534 width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/89136878-ae3b-4d16-a8f9-71ee9ecc420e width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/66a5c543-9693-4129-b2af-edef67abff79 width="30%" />
+</p>
+
+(source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
 !!NOTE: the inference precision is still under optimization on Ascend.
 
