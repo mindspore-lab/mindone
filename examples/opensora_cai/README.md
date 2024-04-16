@@ -29,7 +29,7 @@ MindSpore version: >= 2.2.12
 
 ## Preparation
 
-Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder.
+Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
 - T5: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
 
