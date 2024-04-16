@@ -1,4 +1,4 @@
-![04-01](https://github.com/SamitHuang/mindone/assets/8156835/5b1a63ed-139e-402c-a422-f335ca54ff07)A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from hpcaitech.
+A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from hpcaitech.
 
 ## TODOs
 - [x] STDiT implementation and inference
