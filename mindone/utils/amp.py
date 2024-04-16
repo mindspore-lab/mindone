@@ -14,7 +14,7 @@ except Exception:
 
 
 # TODO: after MS2.3-20240219, this API supports bf16 mixed precision setting.
-def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
+def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16, fp32_cells=[]):
     """
     auto mixed precision function.
 
@@ -54,7 +54,7 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
                 AMP_BLACK_LIST
                 + [
                     nn.GroupNorm,
-                ],
+                ] + fp32_cells,
                 dtype,
             )
         except Exception:
@@ -63,7 +63,7 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
                 AMP_BLACK_LIST
                 + [
                     nn.GroupNorm,
-                ],
+                ] + fp32_cells,
             )
     elif amp_level == "O3":
         network.to_float(dtype)

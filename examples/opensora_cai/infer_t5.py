@@ -116,7 +116,7 @@ def main(args):
 
                 np.savez(
                     npz_fp,
-                    mask=mask[i].asnumpy().astype(np.bool_),
+                    mask=mask[i].asnumpy().astype(np.uint8),
                     text_emb=text_emb[i].asnumpy().astype(np.float32),
                     # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
                 )
@@ -126,13 +126,11 @@ def main(args):
     else:
         text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
         logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
-
-        # text_emb = ops.stop_gradient(text_encoder(text_tokens, mask))
         text_emb = text_encoder(text_tokens, mask)
-
-        # save result
         np.savez(args.output_path, tokens=text_tokens.asnumpy(), mask=mask.asnumpy(), text_emb=text_emb.asnumpy())
 
+        neg_text_emb, neg_mask = text_encoder.get_text_embeddings(args.neg_prompts)
+        np.savez("outputs/empty_t5.npz", mask=neg_mask.asnumpy(), text_emb=neg_text_emb.asnumpy())
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -192,6 +190,12 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument(
+        "--neg_prompts",
+        type=str,
+        nargs="+",
+        help="A list of negative prompts",
+    )
     parser.add_argument("--output_path", type=str, default="outputs/t5_embed.npz", help="path to save t5 embedding")
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
 
@@ -207,6 +211,7 @@ def parse_args():
             parser.set_defaults(
                 **dict(
                     captions=cfg["captions"],
+                    neg_prompts=cfg["neg_prompts"],
                     t5_model_dir=cfg["t5_model_dir"],
                 )
             )

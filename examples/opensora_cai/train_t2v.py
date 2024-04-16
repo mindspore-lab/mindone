@@ -26,6 +26,7 @@ from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.models.stdit import STDiT_XL_2
 from opensora.pipelines import DiffusionWithLoss
 from opensora.utils.model_utils import remove_pname_prefix
+from opensora.models.layers.blocks  import LayerNorm, Attention
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
@@ -154,11 +155,11 @@ def main(args):
     # mixed precision
     if args.dtype == "fp16":
         model_dtype = ms.float16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype, fp32_cells= []) # [LayerNorm, Attention])
     elif args.dtype == "bf16":
         # TODO: support it
         model_dtype = ms.bfloat16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype, fp32_cells=[]) # [LayerNorm, Attention])
     else:
         model_dtype = ms.float32
 

@@ -165,6 +165,12 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument(
+        "--neg_prompts",
+        type=str,
+        nargs="+",
+        help="A list of negative prompts",
+    )
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
@@ -280,8 +286,8 @@ def main(args):
             text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
             n = text_emb.shape[0]
             text_tokens = ms.Tensor(text_tokens)
-            mask = ms.Tensor(mask)
-            text_emb = ms.Tensor(text_emb)
+            mask = ms.Tensor(mask, dtype=ms.uint8)
+            text_emb = ms.Tensor(text_emb, dtype=ms.float32)
             text_encoder = None
             tokenizer = None
 
@@ -329,7 +335,10 @@ def main(args):
     inputs = {}
     # TODO: don't infer all at one to reduce memory cost
     # b c t h w
-    z = ops.randn([n, vae_out_channels] + list(input_size), dtype=ms.float32)
+    # z = ops.randn([n, vae_out_channels] + list(input_size), dtype=ms.float32)
+    z = np.random.randn(*([n, vae_out_channels] + list(input_size)))
+    z = ms.Tensor(z, dtype=ms.float32)
+
     inputs["noise"] = z
     inputs["y"] = y  # None if condition is None; otherwise, a tensor with shape (n, )
     inputs["y_null"] = y_null

@@ -270,7 +270,7 @@ class TextVideoDataset:
                     text = ""
         
         if self.return_text_emb: 
-            text_data = text
+            text_data = text.astype(np.float32)
         else:
             if self.tokenizer is not None:
                 tokens, mask = self.tokenizer(text)
@@ -283,9 +283,8 @@ class TextVideoDataset:
                 text_data = tokens
             else:
                 raise ValueError('tokenizer must be provided to generate text mask if text embeddings are not cached.')
-
         
-        return pixel_values, text_data, mask
+        return pixel_values, text_data, mask.astype(np.uint8)
 
 
 def create_dataloader(
