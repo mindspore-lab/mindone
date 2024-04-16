@@ -1,4 +1,4 @@
-A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from hpcaitech.
+![04-01](https://github.com/SamitHuang/mindone/assets/8156835/5b1a63ed-139e-402c-a422-f335ca54ff07)A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from hpcaitech.
 
 ## TODOs
 - [x] STDiT implementation and inference
@@ -68,20 +68,21 @@ python infer_t5.py --config configs/inference/stdit_256x256x16.yaml --output_pat
 Here are some generation results in 256x256 resolution.
 
 <p float="left">
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/16fe702e-31ac-4651-bce8-876aec7212f9 width="30%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/864a8a41-fd68-4343-ae71-6c25b28f1e6b width="30%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/bd63e6fb-c498-4673-b260-505a168b0efa width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/b3780fdc-6b14-425f-a26b-9564c0f492a2 width="24%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/16fe702e-31ac-4651-bce8-876aec7212f9 width="24%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/864a8a41-fd68-4343-ae71-6c25b28f1e6b width="24%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/fde06430-9fd8-48b2-b8ba-890f60d47534 width="24%" />
 </p>
 
 <p float="left">
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/fde06430-9fd8-48b2-b8ba-890f60d47534 width="30%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/89136878-ae3b-4d16-a8f9-71ee9ecc420e width="30%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/66a5c543-9693-4129-b2af-edef67abff79 width="30%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/bd63e6fb-c498-4673-b260-505a168b0efa width="24%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/89136878-ae3b-4d16-a8f9-71ee9ecc420e width="24%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/ac42f81c-519b-4717-9f04-5585e0509323 width="24%" />
+<img src=https://github.com/SamitHuang/mindone/assets/8156835/66a5c543-9693-4129-b2af-edef67abff79 width="24%" />
 </p>
 
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
-!!NOTE: the inference precision is still under optimization on Ascend.
 
 ## Training
 
