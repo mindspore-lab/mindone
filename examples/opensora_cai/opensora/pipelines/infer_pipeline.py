@@ -104,7 +104,7 @@ class InferPipeline(ABC):
             b, max_tokens, d = text_emb.shape
 
         # torch use y_embedding genearted during stdit training, for token/text drop in caption embedder for condition-free guidance training. The null mask is the same as text mask.
-        n = x.shape[0] 
+        n = x.shape[0]
         # (n_tokens, dim_emb) -> (b n_tokens dim_emb)
         null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat(n, axis=0)
 
@@ -136,17 +136,11 @@ class InferPipeline(ABC):
             images (b H W 3)
         """
         z, y = self.data_prepare(inputs)
-        # prepare model key arguments for sampling
-        # class condition, keys include "y", "cfg_scale"(optional)
-        # None condition, keys include "y", "cfg_scale"(optional)
-        # text condition, keys include "text_embed", "mask"(optional), "cfg_scale"(optional)
-        if self.condition == "text":
-            mask = inputs.get("mask", None)
-            model_kwargs = dict(y=y)
-            if mask is not None:
-                model_kwargs["mask"] = mask
-        else:
-            model_kwargs = dict(y=y)
+
+        mask = inputs.get("mask", None)
+        model_kwargs = dict(y=y)
+        if mask is not None:
+            model_kwargs["mask"] = mask
 
         if self.use_cfg:
             model_kwargs["cfg_scale"] = self.guidance_rescale

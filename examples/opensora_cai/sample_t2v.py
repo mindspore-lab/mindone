@@ -43,6 +43,179 @@ def init_env(args):
     return device_id
 
 
+def main(args):
+    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+    save_dir = f"samples/{time_str}"
+    os.makedirs(save_dir, exist_ok=True)
+    set_logger(name="", output_dir=save_dir)
+
+    # 1. init env
+    init_env(args)
+    set_random_seed(args.seed)
+
+    # 2. model initiate and weight loading
+    # 2.1 latte
+    logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
+
+    vae_t_compress = 1
+    vae_s_compress = 8
+    vae_out_channels = 4
+
+    text_emb_dim = 4096
+    max_tokens = 120
+
+    if args.image_size == 256:
+        space_scale = 0.5
+    elif args.image_size == 512:
+        space_scale = 1.0
+    else:
+        raise ValueError
+
+    input_size = (
+        args.num_frames // vae_t_compress,
+        args.image_size // vae_s_compress,
+        args.image_size // vae_s_compress,
+    )
+
+    # FIXME: set this parameter by config file
+    model_extra_args = dict(
+        input_size=input_size,
+        in_channels=vae_out_channels,
+        caption_channels=text_emb_dim,
+        model_max_length=max_tokens,
+        space_scale=space_scale,  # 0.5 for 256x256. 1. for 512. # TODO: align to torch
+        time_scale=1.0,
+        patchify_conv3d_replace="conv2d",  # for Ascend
+    )
+    latte_model = STDiT_XL_2(**model_extra_args)
+
+    if args.dtype == "fp16":
+        model_dtype = ms.float16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    elif args.dtype == "bf16":
+        model_dtype = ms.bfloat16
+        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
+
+    if len(args.checkpoint) > 0:
+        logger.info(f"Loading ckpt {args.checkpoint} into STDiT")
+        latte_model.load_from_checkpoint(args.checkpoint)
+    else:
+        logger.warning("STDiT uses random initialization!")
+
+    latte_model = latte_model.set_train(False)
+    for param in latte_model.get_parameters():  # freeze latte_model
+        param.requires_grad = False
+
+    # 2.2 vae
+    logger.info("vae init")
+    vae = AutoencoderKL(
+        SD_CONFIG,
+        4,
+        ckpt_path=args.vae_checkpoint,
+        use_fp16=False,  # disable amp for vae
+    )
+    vae = vae.set_train(False)
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
+
+    if args.text_encoder == "t5":
+        ckpt_path = args.t5_model_dir
+    elif args.text_encoder == "clip":
+        ckpt_path = args.clip_checkpoint
+
+    if args.embed_path is None:
+        text_encoder, tokenizer = get_text_encoder_and_tokenizer(args.text_encoder, ckpt_path)
+        n = len(args.captions)
+        assert n > 0, "No captions provided"
+        text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
+        text_emb = None
+    else:
+        dat = np.load(args.embed_path)
+        text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
+        n = text_emb.shape[0]
+        text_tokens = ms.Tensor(text_tokens)
+        mask = ms.Tensor(mask, dtype=ms.uint8)
+        text_emb = ms.Tensor(text_emb, dtype=ms.float32)
+        text_encoder = None
+        tokenizer = None
+
+    logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
+
+    # 3. build inference pipeline
+    pipeline = InferPipeline(
+        latte_model,
+        vae,
+        text_encoder=text_encoder,
+        scale_factor=args.sd_scale_factor,
+        num_inference_steps=args.sampling_steps,
+        guidance_rescale=args.guidance_scale,
+        ddim_sampling=args.ddim_sampling,
+        condition=args.condition,
+    )
+
+    # 4. print key info
+    num_params_vae, num_params_vae_trainable = count_params(vae)
+    num_params_latte, num_params_latte_trainable = count_params(latte_model)
+    num_params = num_params_vae + num_params_latte
+    num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
+    key_info = "Key Settings:\n" + "=" * 50 + "\n"
+    key_info += "\n".join(
+        [
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+            f"Num of samples: {n}",
+            f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
+            f"Num trainable params: {num_params_trainable:,}",
+            f"Use model dtype: {model_dtype}",
+            f"Sampling steps {args.sampling_steps}",
+            f"DDIM sampling: {args.ddim_sampling}",
+            f"CFG guidance scale: {args.guidance_scale}",
+        ]
+    )
+    key_info += "\n" + "=" * 50
+    logger.info(key_info)
+
+    for i in range(0, len(args.captions), args.batch_size):
+        batch_prompts = args.captions[i : i + arg.batch_size]
+        ns = len(batch_prompts)
+
+        # prepare inputs
+        inputs = {}
+        # b c t h w
+        # z = ops.randn([ns, vae_out_channels] + list(input_size), dtype=ms.float32)
+        z = np.random.randn(*([ns, vae_out_channels] + list(input_size))) # for ensure generate the same noise
+        z = ms.Tensor(z, dtype=ms.float32)
+        inputs["noise"] = z
+        inputs["scale"] = args.guidance_scale
+        if text_emb is None:
+            inputs["text_tokens"] = text_tokens[i : i + ns]
+            inputs["text_emb"] = None
+            inputs["mask"] = mask[i : i + ns]
+        else:
+            inputs["text_tokens"] = None
+            inputs["text_emb"] = text_emb[i : i + ns]
+            inputs["mask"] = mask[i : i + ns]
+
+        logger.info(f"Sampling for {n} samples with captions: ")
+        for i in range(n):
+            logger.info(args.captions[i])
+
+        start_time = time.time()
+
+        # infer
+        x_samples = pipeline(inputs, latent_save_fp=f"outputs/denoised_latent_{i:02d}.npy")
+        x_samples = x_samples.asnumpy()
+
+        end_time = time.time()
+
+        # save result
+        for j in range(args.batch_size):
+            save_fp = f"{save_dir}/{i:02d}-{j:02d}.gif"
+            save_videos(x_samples[j : j + 1], save_fp, loop=0)
+            logger.info(f"save to {save_fp}")
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -165,6 +338,7 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument("--batch_size", default=2, type=int, help="infer batch size")
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
@@ -179,186 +353,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-
-def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
-    os.makedirs(save_dir, exist_ok=True)
-    set_logger(name="", output_dir=save_dir)
-
-    # 1. init env
-    init_env(args)
-    set_random_seed(args.seed)
-
-    # 2. model initiate and weight loading
-    # 2.1 latte
-    logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
-
-    vae_t_compress = 1
-    vae_s_compress = 8
-    vae_out_channels = 4
-
-    text_emb_dim = 4096
-    max_tokens = 120
-
-    if args.image_size == 256:
-        space_scale = 0.5
-    elif args.image_size == 512:
-        space_scale = 1.0
-    else:
-        raise ValueError
-
-    input_size = (
-        args.num_frames // vae_t_compress,
-        args.image_size // vae_s_compress,
-        args.image_size // vae_s_compress,
-    )
-
-    # FIXME: set this parameter by config file
-    model_extra_args = dict(
-        input_size=input_size,
-        in_channels=vae_out_channels,
-        caption_channels=text_emb_dim,
-        model_max_length=max_tokens,
-        space_scale=space_scale,  # 0.5 for 256x256. 1. for 512. # TODO: align to torch
-        time_scale=1.0,
-        patchify_conv3d_replace="conv2d",  # for Ascend
-    )
-    latte_model = STDiT_XL_2(**model_extra_args)
-
-    if args.dtype == "fp16":
-        model_dtype = ms.float16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    elif args.dtype == "bf16":
-        model_dtype = ms.bfloat16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    else:
-        model_dtype = ms.float32
-
-    if len(args.checkpoint) > 0:
-        logger.info(f"Loading ckpt {args.checkpoint} into STDiT")
-        latte_model.load_from_checkpoint(args.checkpoint)
-    else:
-        logger.warning("STDiT uses random initialization!")
-
-    latte_model = latte_model.set_train(False)
-    for param in latte_model.get_parameters():  # freeze latte_model
-        param.requires_grad = False
-
-    # 2.2 vae
-    logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        4,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
-
-    if args.condition == "class":
-        # Labels to condition the model with (feel free to change):
-        class_labels = [1, 13, 100]
-        n = len(class_labels)
-        y = Tensor(class_labels)
-        y_null = ops.ones_like(y) * args.num_classes
-    elif args.condition == "text":
-        if args.text_encoder == "t5":
-            ckpt_path = args.t5_model_dir
-        elif args.text_encoder == "clip":
-            ckpt_path = args.clip_checkpoint
-        # extracting text tokends and attention mask?
-        if args.embed_path is None:
-            text_encoder, tokenizer = get_text_encoder_and_tokenizer(args.text_encoder, ckpt_path)
-            n = len(args.captions)
-            assert n > 0, "No captions provided"
-            text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
-            text_emb = None
-        else:
-            dat = np.load(args.embed_path)
-            text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
-            n = text_emb.shape[0]
-            text_tokens = ms.Tensor(text_tokens)
-            mask = ms.Tensor(mask, dtype=ms.uint8)
-            text_emb = ms.Tensor(text_emb, dtype=ms.float32)
-            text_encoder = None
-            tokenizer = None
-
-        logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
-
-        y, y_null = None, None
-    else:
-        y, y_null = None, None
-        n = args.num_samples
-
-    # 3. build inference pipeline
-    pipeline = InferPipeline(
-        latte_model,
-        vae,
-        text_encoder=text_encoder,
-        scale_factor=args.sd_scale_factor,
-        num_inference_steps=args.sampling_steps,
-        guidance_rescale=args.guidance_scale,
-        ddim_sampling=args.ddim_sampling,
-        condition=args.condition,
-    )
-
-    # 4. print key info
-    num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_latte, num_params_latte_trainable = count_params(latte_model)
-    num_params = num_params_vae + num_params_latte
-    num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
-    key_info = "Key Settings:\n" + "=" * 50 + "\n"
-    key_info += "\n".join(
-        [
-            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-            f"Num of samples: {n}",
-            f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
-            f"Num trainable params: {num_params_trainable:,}",
-            f"Use model dtype: {model_dtype}",
-            f"Sampling steps {args.sampling_steps}",
-            f"DDIM sampling: {args.ddim_sampling}",
-            f"CFG guidance scale: {args.guidance_scale}",
-        ]
-    )
-    key_info += "\n" + "=" * 50
-    logger.info(key_info)
-
-    # init inputs
-    inputs = {}
-    # TODO: don't infer all at one to reduce memory cost
-    # b c t h w
-    # z = ops.randn([n, vae_out_channels] + list(input_size), dtype=ms.float32)
-    z = np.random.randn(*([n, vae_out_channels] + list(input_size)))
-    z = ms.Tensor(z, dtype=ms.float32)
-
-    inputs["noise"] = z
-    inputs["y"] = y  # None if condition is None; otherwise, a tensor with shape (n, )
-    inputs["y_null"] = y_null
-    inputs["scale"] = args.guidance_scale
-    if args.condition == "text":
-        inputs["text_tokens"] = text_tokens
-        inputs["mask"] = mask
-        inputs["text_emb"] = text_emb
-
-    logger.info(f"Sampling for {n} samples with captions: ")
-    for i in range(n):
-        logger.info(args.captions[i])
-
-    start_time = time.time()
-
-    # infer
-    x_samples = pipeline(inputs, latent_save_fp="outputs/denoised_latent.npy")
-    x_samples = x_samples.asnumpy()
-
-    end_time = time.time()
-
-    # save result
-    for i in range(n):
-        save_fp = f"{save_dir}/{i}.gif"
-        save_videos(x_samples[i : i + 1], save_fp, loop=0)
-        logger.info(f"save to {save_fp}")
 
 
 if __name__ == "__main__":
