@@ -43,143 +43,6 @@ def init_env(args):
     return device_id
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config",
-        "-c",
-        default="",
-        type=str,
-        help="path to load a config yaml file that describes the setting which will override the default arguments",
-    )
-    parser.add_argument(
-        "--image_size",
-        type=int,
-        default=256,
-        help="image size in [256, 512]",
-    )
-    parser.add_argument(
-        "--num_frames",
-        type=int,
-        default=16,
-        help="number of frames",
-    )
-    parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=1000,
-        help="number of classes, applies only when condition is `class`",
-    )
-    parser.add_argument(
-        "--num_samples",
-        type=int,
-        default=3,
-        help="number of videos to be generated unconditionally. If using text or class as conditions,"
-        " the number of samples will be defined by the number of class labels or text captions",
-    )
-    parser.add_argument(
-        "--model_name",
-        "-m",
-        type=str,
-        default="STDiT-XL/2",
-        help="Model name ",
-    )
-    parser.add_argument(
-        "--condition",
-        default=None,
-        type=str,
-        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
-        " `class` means using class labels as conditions.",
-    )
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        default="",
-        help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
-    )
-    parser.add_argument(
-        "--text_encoder",
-        default=None,
-        type=str,
-        choices=["clip", "t5"],
-        help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
-    )
-    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
-    parser.add_argument(
-        "--clip_checkpoint",
-        type=str,
-        default=None,
-        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
-    )
-    parser.add_argument(
-        "--vae_checkpoint",
-        type=str,
-        default="models/sd-vae-ft-mse.ckpt",
-        help="VAE checkpoint file path which is used to load vae weight.",
-    )
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
-    )
-
-    parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
-    parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
-    # MS new args
-    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
-    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
-    parser.add_argument(
-        "--enable_flash_attention",
-        default=False,
-        type=str2bool,
-        help="whether to enable flash attention. Default is False",
-    )
-    parser.add_argument(
-        "--dtype",
-        default="fp16",
-        type=str,
-        choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
-    )
-    parser.add_argument(
-        "--precision_mode",
-        default=None,
-        type=str,
-        help="If specified, set the precision mode for Ascend configurations.",
-    )
-    parser.add_argument(
-        "--use_recompute",
-        default=False,
-        type=str2bool,
-        help="whether use recompute.",
-    )
-    parser.add_argument(
-        "--patch_embedder",
-        type=str,
-        default="conv",
-        choices=["conv", "linear"],
-        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
-    )
-    parser.add_argument(
-        "--captions",
-        type=str,
-        nargs="+",
-        help="A list of text captions to be generated with",
-    )
-    parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
-    parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
-    default_args = parser.parse_args()
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
-    if default_args.config:
-        logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
-        default_args.config = os.path.join(abs_path, default_args.config)
-        with open(default_args.config, "r") as f:
-            cfg = yaml.safe_load(f)
-            _check_cfgs_in_parser(cfg, parser)
-            parser.set_defaults(**cfg)
-    args = parser.parse_args()
-    return args
-
-
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     save_dir = f"samples/{time_str}"
@@ -327,11 +190,8 @@ def main(args):
 
     # init inputs
     inputs = {}
-    # TODO: don't infer all at one to reduce memory cost
     # b c t h w
-    # z = ops.randn([n, vae_out_channels] + list(input_size), dtype=ms.float32)
-    z = np.random.randn(*([n, vae_out_channels] + list(input_size)))
-    z = ms.Tensor(z, dtype=ms.float32)
+    z = ops.randn([n, vae_out_channels] + list(input_size), dtype=ms.float32)
 
     inputs["noise"] = z
     inputs["y"] = y  # None if condition is None; otherwise, a tensor with shape (n, )
@@ -359,6 +219,145 @@ def main(args):
         save_fp = f"{save_dir}/{i}.gif"
         save_videos(x_samples[i : i + 1], save_fp, loop=0)
         logger.info(f"save to {save_fp}")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        "-c",
+        default="",
+        type=str,
+        help="path to load a config yaml file that describes the setting which will override the default arguments",
+    )
+    parser.add_argument(
+        "--image_size",
+        type=int,
+        default=256,
+        help="image size in [256, 512]",
+    )
+    parser.add_argument(
+        "--num_frames",
+        type=int,
+        default=16,
+        help="number of frames",
+    )
+    parser.add_argument(
+        "--num_classes",
+        type=int,
+        default=1000,
+        help="number of classes, applies only when condition is `class`",
+    )
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=3,
+        help="number of videos to be generated unconditionally. If using text or class as conditions,"
+        " the number of samples will be defined by the number of class labels or text captions",
+    )
+    parser.add_argument(
+        "--model_name",
+        "-m",
+        type=str,
+        default="STDiT-XL/2",
+        help="Model name ",
+    )
+    parser.add_argument(
+        "--condition",
+        default=None,
+        type=str,
+        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
+        " `class` means using class labels as conditions.",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default="",
+        help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
+    )
+    parser.add_argument(
+        "--text_encoder",
+        default=None,
+        type=str,
+        choices=["clip", "t5"],
+        help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
+    )
+    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
+    parser.add_argument(
+        "--clip_checkpoint",
+        type=str,
+        default=None,
+        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
+    )
+    parser.add_argument(
+        "--vae_checkpoint",
+        type=str,
+        default="models/sd-vae-ft-mse.ckpt",
+        help="VAE checkpoint file path which is used to load vae weight.",
+    )
+    parser.add_argument(
+        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
+    )
+
+    parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
+    parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
+    # MS new args
+    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
+    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
+    parser.add_argument(
+        "--enable_flash_attention",
+        default=False,
+        type=str2bool,
+        help="whether to enable flash attention. Default is False",
+    )
+    parser.add_argument(
+        "--dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--precision_mode",
+        default=None,
+        type=str,
+        help="If specified, set the precision mode for Ascend configurations.",
+    )
+    parser.add_argument(
+        "--use_recompute",
+        default=False,
+        type=str2bool,
+        help="whether use recompute.",
+    )
+    parser.add_argument(
+        "--patch_embedder",
+        type=str,
+        default="conv",
+        choices=["conv", "linear"],
+        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
+    )
+    parser.add_argument(
+        "--captions",
+        type=str,
+        nargs="+",
+        help="A list of text captions to be generated with",
+    )
+    parser.add_argument("--batch_size", default=2, type=int, help="infer batch size")
+    parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
+    parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    default_args = parser.parse_args()
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+    if default_args.config:
+        logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
+        default_args.config = os.path.join(abs_path, default_args.config)
+        with open(default_args.config, "r") as f:
+            cfg = yaml.safe_load(f)
+            _check_cfgs_in_parser(cfg, parser)
+            parser.set_defaults(**cfg)
+    args = parser.parse_args()
+    return args
+
 
 
 if __name__ == "__main__":

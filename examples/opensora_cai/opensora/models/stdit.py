@@ -528,12 +528,14 @@ class STDiT(nn.Cell):
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        eps = self.construct(combined, t, y=y, mask=mask)
-
+        
+        model_out = self.construct(combined, t, y=y, mask=mask)
+        # torch only takes the first 3 dimension for eps. but for z=4, out z=8, the first 4 dims are for eps, the rest 4 dim are for variance.  
+        eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
-        return eps
+        return ops.cat([eps, rest], axis=1)
 
     def unpatchify(self, x):
         """
