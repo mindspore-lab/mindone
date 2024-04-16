@@ -177,7 +177,7 @@ def main(args):
     logger.info(key_info)
 
     for i in range(0, len(args.captions), args.batch_size):
-        batch_prompts = args.captions[i : i + arg.batch_size]
+        batch_prompts = args.captions[i : i + args.batch_size]
         ns = len(batch_prompts)
 
         # prepare inputs
@@ -198,8 +198,8 @@ def main(args):
             inputs["mask"] = mask[i : i + ns]
 
         logger.info(f"Sampling for {n} samples with captions: ")
-        for i in range(n):
-            logger.info(args.captions[i])
+        for j in range(ns):
+            logger.info(args.captions[i+j])
 
         start_time = time.time()
 

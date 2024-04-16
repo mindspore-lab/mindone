@@ -41,7 +41,7 @@ def init_env(args):
     if args.precision_mode is not None:
         ms.set_context(ascend_config={"precision_mode": args.precision_mode})
 
-    device_num = 1  # TODO: distribute
+    device_num = 1
     return device_id, device_num
 
 
@@ -124,10 +124,22 @@ def main(args):
         logger.info(f"Done. Embeddings saved in {output_folder}")
 
     else:
-        text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
-        logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
-        text_emb = text_encoder(text_tokens, mask)
-        np.savez(args.output_path, tokens=text_tokens.asnumpy(), mask=mask.asnumpy(), text_emb=text_emb.asnumpy())
+        text_tokens = []
+        mask = []
+        text_emb = []
+        for i in range(0, len(args.captions), args.batch_size):
+            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(args.captions[i : i + args.batch_size], return_tensor=True)
+            logger.info(f"Num tokens: {batch_mask.asnumpy().sum(1)}")
+            batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
+
+            text_tokens.append(batch_text_tokens.asnumpy())
+            mask.append(batch_mask.asnumpy().astype(np.uint8))
+            text_emb.append(batch_text_emb.asnumpy())
+        text_tokens = np.concatenate(text_tokens)
+        mask= np.concatenate(mask)
+        text_emb = np.concatenate(text_emb)
+        np.savez(args.output_path, tokens=text_tokens, mask=mask, text_emb=text_emb)
+        print('Embeddeings saved in ', args.output_path)
 
 
 def parse_args():
