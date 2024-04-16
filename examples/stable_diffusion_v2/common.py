@@ -21,7 +21,7 @@ def init_env(
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
-    max_device_memory: Optional[str] = "1024G",
+    max_device_memory: Optional[str] = "1024GB",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
