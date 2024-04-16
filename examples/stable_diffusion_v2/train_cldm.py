@@ -219,7 +219,7 @@ def main(args):
         enable_modelarts=args.enable_modelarts,
         num_workers=args.num_workers,
         json_data_path=args.json_data_path,
-        max_device_memory=args.max_device_memory
+        max_device_memory=args.max_device_memory,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 

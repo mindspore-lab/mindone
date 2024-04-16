@@ -108,7 +108,9 @@ class MemoryEfficientCrossAttention(nn.Cell):
 
         self.to_out = nn.SequentialCell(nn.Dense(inner_dim, query_dim), nn.Dropout(p=dropout))
 
-        self.flash_attention = FlashAttention(scale_value=1.0/math.sqrt(dim_head), head_num=heads, input_layout="BNSD")
+        self.flash_attention = FlashAttention(
+            scale_value=1.0 / math.sqrt(dim_head), head_num=heads, input_layout="BNSD"
+        )
 
     def construct(self, x, context=None, mask=None, additional_tokens=None):
         h = self.heads
@@ -138,7 +140,16 @@ class MemoryEfficientCrossAttention(nn.Cell):
         if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), ms.uint8)
-            out = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, mask[:, None, :, :].to(ms.uint8), None)[3]
+            out = self.flash_attention(
+                q.to(ms.float16),
+                k.to(ms.float16),
+                v.to(ms.float16),
+                None,
+                None,
+                None,
+                mask[:, None, :, :].to(ms.uint8),
+                None,
+            )[3]
         else:
             out = scaled_dot_product_attention(q, k, v, attn_mask=mask)  # scale is dim_head ** -0.5 per default
 

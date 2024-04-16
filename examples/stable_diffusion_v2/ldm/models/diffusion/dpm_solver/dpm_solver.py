@@ -521,7 +521,9 @@ class DPM_Solver:
             logSNR_steps = ops.linspace(lambda_T, lambda_0, N + 1)
             return self.noise_schedule.inverse_lambda(logSNR_steps)
         elif skip_type == "time_uniform":
-            return self.cast(ms.numpy.linspace(ms.Tensor(t_T, ms.float32), ms.Tensor(t_0, ms.float32), N + 1), ms.float16)
+            return self.cast(
+                ms.numpy.linspace(ms.Tensor(t_T, ms.float32), ms.Tensor(t_0, ms.float32), N + 1), ms.float16
+            )
         elif skip_type == "time_quadratic":
             t_order = 2
             t = ops.pow(

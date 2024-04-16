@@ -100,7 +100,6 @@ class ControlNetDataset:
 
         sot_token = self.tokenizer.encoder[SOT_TEXT]
         eot_token = self.tokenizer.encoder[EOT_TEXT]
-        pad_token = eot_token
         tokens = [sot_token] + self.tokenizer.encode(text) + [eot_token]
         # TODO: use pad token instead of zero
         result = np.zeros([CONTEXT_LEN]) + eot_token

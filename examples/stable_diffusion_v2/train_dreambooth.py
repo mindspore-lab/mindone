@@ -62,7 +62,7 @@ def init_env(args):
         device_target="Ascend",
         device_id=device_id,
         pynative_synchronize=False,  # for debug in pynative mode
-        enable_graph_kernel=enable_graph_kernel
+        enable_graph_kernel=enable_graph_kernel,
     )
 
     return rank_id, device_id, device_num
