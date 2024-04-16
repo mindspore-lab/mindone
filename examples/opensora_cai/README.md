@@ -27,7 +27,7 @@ pip install -r requirements.txt
 MindSpore version: >= 2.2.12 
 
 
-## Prepartion
+## Preparation
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder.
 
