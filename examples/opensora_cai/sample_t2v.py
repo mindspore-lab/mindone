@@ -165,12 +165,6 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
-    parser.add_argument(
-        "--neg_prompts",
-        type=str,
-        nargs="+",
-        help="A list of negative prompts",
-    )
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()

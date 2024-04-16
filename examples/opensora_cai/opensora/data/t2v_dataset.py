@@ -105,6 +105,7 @@ class TextVideoDataset:
 
         tokenizer: a function, e.g. partial(get_text_tokens_and_mask, return_tensor=False), input text string, return text emb and mask
         '''
+        assert not  random_drop_text, "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."  
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))

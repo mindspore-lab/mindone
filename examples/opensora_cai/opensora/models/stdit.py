@@ -284,7 +284,7 @@ class CaptionEmbedder(nn.Cell):
 
         y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
         # just for token dropping replacement, not learnable
-        self.y_embedding = ms.Tensor(y_embedding, dtype=ms.float32)
+        self.y_embedding = ms.Parameter(ms.Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
 
         self.uncond_prob = uncond_prob
 

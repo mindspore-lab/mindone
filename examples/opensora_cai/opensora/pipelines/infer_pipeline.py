@@ -99,27 +99,20 @@ class InferPipeline(ABC):
         if inputs["text_emb"] is None:
             text_tokens = inputs["text_tokens"]
             text_emb = self.get_condition_embeddings(text_tokens, **{"mask": mask})
-            null_emb, null_mask = self.text_encoder.get_text_embeddings([""] * inputs['y'].shape[0])
-            null_mask = null_mask.to(ms.uint8)
         else:
             text_emb = inputs["text_emb"]
             b, max_tokens, d = text_emb.shape
 
-            # TODO: notice to gen
-            null_emb = np.load('outputs/empty_t5.npz')['text_emb'][0]
-            null_emb = np.repeat(null_emb[None, :], b, axis=0) 
-            null_emb = ms.Tensor(null_emb) 
-            
-            null_mask = [1] + [0]*(max_tokens-1)
-            null_mask = np.array(null_mask).astype(np.uint8)
-            null_mask = np.repeat(null_mask[None, :], b, axis=0) 
-            null_mask = ms.Tensor(null_mask)
+        # torch use y_embedding genearted during stdit training, for token/text drop in caption embedder for condition-free guidance training. The null mask is the same as text mask.
+        n = x.shape[0] 
+        # (n_tokens, dim_emb) -> (b n_tokens dim_emb)
+        null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat(n, axis=0)
 
         if self.use_cfg:
             y = ops.cat([text_emb, null_emb], axis=0)
             x_in = ops.concat([x] * 2, axis=0)
             assert y.shape[0] == x_in.shape[0], "shape mismatch!"
-            inputs["mask"] = ops.concat([mask, null_mask], axis=0)
+            inputs["mask"] = ops.concat([mask, mask], axis=0)
         else:
             x_in = x
             y = text_emb
