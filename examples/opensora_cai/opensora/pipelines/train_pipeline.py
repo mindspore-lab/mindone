@@ -128,10 +128,10 @@ class DiffusionWithLoss(nn.Cell):
 
             z = ops.stop_gradient(self.vae_encode(x))
 
-            # (b*f c h w) -> (b c f h w)
+            # (b*f c h w) -> (b f c h w)
             z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
 
-            # (b c f h w) -> (b f c h w)
+            # (b f c h w) -> (b c f h w)
             z = ops.transpose(z, (0, 2, 1, 3, 4)) 
         elif x.dim() == 4:
             B, C, H, W = x.shape
