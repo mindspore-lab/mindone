@@ -351,8 +351,8 @@ def parse_args():
             _check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
-    return args
 
+    return args
 
 
 if __name__ == "__main__":
