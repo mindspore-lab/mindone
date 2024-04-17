@@ -502,7 +502,7 @@ class VideoGenPipeline(DiffusionPipeline):
     def prepare_latents(
         self, batch_size, num_channels_latents, video_length, height, width, dtype, generator, latents=None
     ):
-        shape = (batch_size, video_length, num_channels_latents, self.vae.latent_size[0], self.vae.latent_size[1])
+        shape = (batch_size, num_channels_latents, video_length, self.vae.latent_size[0], self.vae.latent_size[1])
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -710,7 +710,7 @@ class VideoGenPipeline(DiffusionPipeline):
 
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
-                    noise_pred = noise_pred.chunk(2, axis=2)[0]
+                    noise_pred = noise_pred.chunk(2, axis=1)[0]  # b c t h w
                 else:
                     noise_pred = noise_pred
 
@@ -725,10 +725,7 @@ class VideoGenPipeline(DiffusionPipeline):
                         callback(step_idx, t, latents)
 
         if not output_type == "latents":
-            # b f c h w -> b c f h w
-            video = self.decode_latents(
-                latents.permute(0, 2, 1, 3, 4)
-            )  # applied for causal 3d vae, which accepts (b, c, t, h, w) inputs
+            video = self.decode_latents(latents)
         else:
             video = latents
             return VideoPipelineOutput(video=video)
