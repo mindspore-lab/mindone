@@ -33,6 +33,7 @@ def init_env(args):
     # no parallel mode currently
     ms.set_context(mode=args.mode)  # needed for MS2.0
     device_id = int(os.getenv("DEVICE_ID", 0))
+    rank_id = 0
     ms.set_context(
         mode=args.mode,
         device_target=args.device_target,
@@ -42,7 +43,7 @@ def init_env(args):
         ms.set_context(ascend_config={"precision_mode": args.precision_mode})
 
     device_num = 1
-    return device_id, device_num
+    return device_id, rank_id, device_num
 
 
 def main(args):
@@ -51,7 +52,8 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
-    rank_id, device_num = init_env(args)
+    device_id, rank_id, device_num = init_env(args)
+    print(f"D--: rank_id {rank_id}, device_num {device_num}")
     set_random_seed(args.seed)
 
     # build dataloader for large amount of captions
