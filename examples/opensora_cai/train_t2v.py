@@ -154,15 +154,15 @@ def main(args):
     latte_model = STDiT_XL_2(**model_extra_args)
 
     # mixed precision
-    if args.dtype == "fp16":
-        model_dtype = ms.float16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype, fp32_cells= []) # [LayerNorm, Attention])
-    elif args.dtype == "bf16":
-        # TODO: support it
-        model_dtype = ms.bfloat16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype, fp32_cells=[]) # [LayerNorm, Attention])
-    else:
+    if args.dtype == "fp32":
         model_dtype = ms.float32
+    else:
+        model_dtype = {'fp16': ms.float16, 'bf16': ms.bfloat16}[args.dtype]
+        latte_model = auto_mixed_precision(latte_model, 
+                amp_level="O2", 
+                dtype=model_dtype, 
+                fp32_cells=[LayerNorm, Attention],
+                )
 
     # load checkpoint
     if len(args.pretrained_model_path) > 0:

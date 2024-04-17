@@ -20,6 +20,7 @@ from opensora.models.stdit import STDiT_XL_2
 from opensora.models.text_encoders import get_text_encoder_and_tokenizer
 from opensora.pipelines import InferPipeline
 from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
+from opensora.models.layers.blocks  import LayerNorm, Attention
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -89,14 +90,15 @@ def main(args):
     )
     latte_model = STDiT_XL_2(**model_extra_args)
 
-    if args.dtype == "fp16":
-        model_dtype = ms.float16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    elif args.dtype == "bf16":
-        model_dtype = ms.bfloat16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    else:
+    if args.dtype == "fp32":
         model_dtype = ms.float32
+    else:
+        model_dtype = {'fp16': ms.float16, 'bf16': ms.bfloat16}[args.dtype]
+        latte_model = auto_mixed_precision(latte_model, 
+                amp_level="O2", 
+                dtype=model_dtype, 
+                fp32_cells=[LayerNorm, Attention],
+                )
 
     if len(args.checkpoint) > 0:
         logger.info(f"Loading ckpt {args.checkpoint} into STDiT")

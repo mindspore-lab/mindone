@@ -1,3 +1,4 @@
+import os
 import math
 from typing import Optional
 
@@ -500,8 +501,6 @@ class STDiT(nn.Cell):
         # (b 1 max_tokens d_t) -> (b max_tokens d_t)  -> (1 b*max_tokens d_t)
         y = y.squeeze(1).view(1, -1, x.shape[-1])
 
-        # import pdb; pdb.set_trace()
-
         # blocks
         for i, block in enumerate(self.blocks):
             if i == 0:
@@ -632,27 +631,38 @@ class STDiT(nn.Cell):
         constant_(self.final_layer.linear.bias, 0)
 
     def load_from_checkpoint(self, ckpt_path):
-        sd = ms.load_checkpoint(ckpt_path)
+        if not os.path.exists(ckpt_path): 
+            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!") 
+        else:
+            sd = ms.load_checkpoint(ckpt_path)
+            # filter 'network.' prefix
+            rm_prefix = ['network.']
+            all_pnames = list(sd.keys())
+            for pname in all_pnames:
+                for pre in rm_prefix:
+                    if pname.startswith(pre):
+                        new_pname = pname.replace(pre, '')
+                        sd[new_pname] = sd.pop(pname)
 
-        # conv3d weights to dense
-        key_3d = "x_embedder.proj.weight"
-        if self.patchify_conv3d_replace == "linear":
-            raise ValueError("Not supported for loading linear layer with conv3d weight")
-            conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-            assert conv3d_weight.shape[-3] == 1
-            cout, cin, kt, kh, kw = conv3d_weight.shape
-            linear_weight = conv3d_weight.reshape(cout, -1)
-            sd[key_3d] = ms.Parameter(linear_weight, name=key_3d)
-        elif self.patchify_conv3d_replace == "conv2d":
-            if len(sd[key_3d].shape) == 5:
+            # load conv3d weight from pretrained conv2d or dense layer
+            key_3d = "x_embedder.proj.weight"
+            if self.patchify_conv3d_replace == "linear":
+                raise ValueError("Not supported for loading linear layer with conv3d weight")
                 conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                 assert conv3d_weight.shape[-3] == 1
                 cout, cin, kt, kh, kw = conv3d_weight.shape
-                sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+                linear_weight = conv3d_weight.reshape(cout, -1)
+                sd[key_3d] = ms.Parameter(linear_weight, name=key_3d)
+            elif self.patchify_conv3d_replace == "conv2d":
+                if len(sd[key_3d].shape) == 5:
+                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                    assert conv3d_weight.shape[-3] == 1
+                    cout, cin, kt, kh, kw = conv3d_weight.shape
+                    sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
-        m, u = ms.load_param_into_net(self, sd)
-        print("net param not load: ", m)
-        print("ckpt param not load: ", u)
+            m, u = ms.load_param_into_net(self, sd)
+            print("net param not load: ", m)
+            print("ckpt param not load: ", u)
 
 
 def STDiT_XL_2(from_pretrained=None, **kwargs):

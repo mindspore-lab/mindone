@@ -24,7 +24,6 @@ class Attention(nn.Cell):
         k v: (b h n_k d), (b h n_v d)
         mask: (b 1 1 n_k), 0 - keep, 1 indicates discard.
         """
-
         sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
         sim = sim.to(ms.float32)  # (b h n_q n_k)
 
