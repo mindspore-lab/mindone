@@ -67,12 +67,6 @@ def parse_args():
         default=256,
         help="image size in [256, 512]",
     )
-    # parser.add_argument(
-    #     "--num_frames",
-    #     type=int,
-    #     default=16,
-    #     help="number of frames",
-    # )
     parser.add_argument(
         "--num_classes",
         type=int,
@@ -221,6 +215,7 @@ if __name__ == "__main__":
         raise ValueError("LatteT2V only support fp16 and fp32 now!")
     else:
         model_dtype = ms.float32
+        latte_model = latte_model.to(model_dtype)
     video_length, image_size = latte_model.config.video_length, args.image_size
     # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     latent_size = args.image_size // 8

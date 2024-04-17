@@ -1693,7 +1693,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
             inner_dim, video_length, interpolation_scale=interpolation_scale
         )  # 1152 hidden size
 
-        self.temp_pos_embed = Parameter(ms.Tensor(temp_pos_embed).float().unsqueeze(0), requires_grad=False)
+        self.temp_pos_embed = ms.Tensor(temp_pos_embed).float().unsqueeze(0)
 
         if self.use_recompute:
             for block in self.transformer_blocks:

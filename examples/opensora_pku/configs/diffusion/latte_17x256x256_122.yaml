@@ -14,8 +14,8 @@ enable_flash_attention: False
 dtype: "fp32"
 
 # sampling
-sampling_steps: 50
-guidance_scale: 7.0
+sampling_steps: 250
+guidance_scale: 7.5
 seed: 42
 ddim_sampling: False
 
