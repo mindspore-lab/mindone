@@ -12,7 +12,7 @@ import time
 import numpy as np
 import yaml
 from PIL import Image
-from utils.model_utils import check_cfgs_in_parser, count_params, load_fit_ckpt_params, remove_pname_prefix, str2bool
+from utils.model_utils import check_cfgs_in_parser, count_params, load_fit_ckpt_params, str2bool
 from utils.plot import image_grid
 
 import mindspore as ms
@@ -151,9 +151,7 @@ if __name__ == "__main__":
     if args.use_fp16:
         fit_model = auto_mixed_precision(fit_model, amp_level="O2")
 
-    param_dict = ms.load_checkpoint(args.fit_checkpoint)
-    param_dict = remove_pname_prefix(param_dict, prefix="network.")
-    fit_model = load_fit_ckpt_params(fit_model, param_dict)
+    fit_model = load_fit_ckpt_params(fit_model, args.fit_checkpoint)
     fit_model = fit_model.set_train(False)
     for param in fit_model.get_parameters():  # freeze fit_model
         param.requires_grad = False

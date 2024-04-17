@@ -17,7 +17,7 @@ class NetworkWithLoss(nn.Cell):
         condition: Optional[str] = "class",
         model_config: Dict[str, Any] = {},
     ):
-        super().__init__()
+        super().__init__(auto_prefix=False)
         self.network = network.set_grad()
         self.vae = vae
         self.diffusion = diffusion
