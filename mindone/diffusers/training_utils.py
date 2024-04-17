@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 import mindspore as ms
+from mindspore import ops
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
 
 
@@ -63,3 +64,18 @@ def compute_snr(noise_scheduler, timesteps):
     # Compute SNR.
     snr = (alpha / sigma) ** 2
     return snr
+
+
+def multinomial_rand(p: ms.Tensor, size: tuple):
+    assert isinstance(p, ms.Tensor) and p.ndim == 1, "Probability p should be a 1-dim MindSpore tensor."
+
+    p = p.float()
+    p /= p.sum()
+    p = p.cumsum()
+    for _ in size:
+        p = p.expand_dims(axis=0)
+
+    rand = ops.rand(*size, dtype=p.dtype).expand_dims(-1)
+    multinomial_rand = ops.ge(rand, p).float().sum(axis=-1).long()
+
+    return multinomial_rand
