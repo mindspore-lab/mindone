@@ -166,7 +166,7 @@ def main(args):
 
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
-        logger.info(f"Loading ckpt {args.pretrained_model_path} into Latte...")
+        logger.info(f"Loading ckpt {args.pretrained_model_path}...")
         param_dict = latte_model.load_from_checkpoint(args.pretrained_model_path)
     else:
         logger.info("Use random initialization for Latte")
