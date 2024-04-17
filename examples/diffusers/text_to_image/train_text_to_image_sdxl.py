@@ -40,7 +40,7 @@ from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, set_seed
+from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, multinomial_rand, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -573,6 +573,9 @@ def generate_timestep_weights(args, num_timesteps):
                 "When using the range strategy for timestep bias, you must provide an ending timestep smaller than the number of timesteps."
             )
         bias_indices = slice(range_begin, range_end)
+        num_to_bias = range_end - range_begin
+        if range_end < 0:
+            num_to_bias += num_timesteps
     else:  # 'none' or any other string
         return weights
     if args.timestep_bias_multiplier <= 0:
@@ -583,7 +586,7 @@ def generate_timestep_weights(args, num_timesteps):
         )
 
     # Apply the bias
-    weights[bias_indices] *= args.timestep_bias_multiplier
+    weights[bias_indices] = ops.ones(num_to_bias) * args.timestep_bias_multiplier
 
     # Normalize
     weights /= weights.sum()
@@ -1127,8 +1130,9 @@ class TrainStep(nn.Cell):
         else:
             # Sample a random timestep for each image, potentially biased by the timestep weights.
             # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
+            # Use our own implemented multinomial generator because ops.multinomial is invalid on some hardware.
             weights = generate_timestep_weights(self.args, self.noise_scheduler_num_train_timesteps)
-            timesteps = ops.multinomial(weights, bsz, replacement=True).long()
+            timesteps = multinomial_rand(weights, size=(bsz,))
 
         # Add noise to the model input according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
