@@ -117,3 +117,15 @@ For detailed usage, please check `python train_t2v.py -h`
 !!NOTE: currently, the training script is **experimental** and is mainly used to evaluate the training performance (i.e. max frames and step training time).
 
 It's under continuous optimization.
+
+
+### Evaluate
+To evaluate the training result:
+
+```
+python sample_t2v.py \
+    --config configs/inference/stdit_256x256x16_webvid.yaml \
+    --checkpoint /path/to/your_trained_model.ckpt \
+```
+
+You may change the source captions in the config yaml file (key `captions:`)

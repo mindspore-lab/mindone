@@ -212,9 +212,9 @@ def main(args):
         end_time = time.time()
 
         # save result
-        for j in range(args.batch_size):
+        for j in range(ns):
             save_fp = f"{save_dir}/{i:02d}-{j:02d}.gif"
-            save_videos(x_samples[j : j + 1], save_fp, loop=0)
+            save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
             logger.info(f"save to {save_fp}")
 
 
@@ -340,6 +340,7 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=2, type=int, help="infer batch size")
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")

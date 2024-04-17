@@ -1,5 +1,5 @@
 # model
-space_scale: 0.5  # 0.5 for 256x256. diff for 512. # TODO: align to torch
+space_scale: 0.5  # 0.5 for 256. 1.0 for 512
 time_scale: 1.0
 pretrained_model_path: "models/PixArt-XL-2-512x512.ckpt"
 
@@ -9,13 +9,13 @@ enable_flash_attention: False
 # data
 image_size: 256
 num_frames: 16
-frame_stride: 4
-batch_size: 1
+frame_stride: 3
 
 # precision
 dtype: "fp16"
 
 # training hyper-params
 start_learning_rate: 1.e-5
-epochs: 300
-ckpt_save_interval: 50
+batch_size: 1
+epochs: 2000
+ckpt_save_interval: 200 

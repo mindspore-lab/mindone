@@ -156,7 +156,7 @@ def parse_train_args(parser):
     )
     parser.add_argument("--image_size", default=256, type=int, help="the image size used to initiate model")
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
-    parser.add_argument("--frame_stride", default=4, type=int, help="frame sampling stride")
+    parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")
 
     parser.add_argument(
         "--random_drop_text", default=False, type=str2bool, help="set caption to empty string randomly if enabled"

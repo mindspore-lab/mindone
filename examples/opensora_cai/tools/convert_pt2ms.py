@@ -7,12 +7,14 @@ from safetensors import safe_open
 import mindspore as ms
 
 
-def convert(pt_ckpt, target_fp):
+def convert(pt_ckpt, target_fp, pick_ema=True):
     if pt_ckpt.endswith(".pth"):
         state_dict = torch.load(pt_ckpt, torch.device('cpu'))
-        if 'state_dict' in state_dict:
+        if 'ema' in state_dict and pick_ema:
+            print("WARNING: find EMA weights in source checkpoint. Will pick it!")
+            state_dict = state_dict['ema']
+        elif 'state_dict' in state_dict:
             state_dict = state_dict['state_dict']
-        # state_dict = torch.load(pt_ckpt)
     else:
         state_dict = {}
         with safe_open(pt_ckpt, framework="pt", device="cpu") as f:
@@ -29,10 +31,8 @@ def convert(pt_ckpt, target_fp):
                 ms_name = k.replace(".weight", ".gamma").replace(".bias", ".beta")
             else:
                 ms_name = k
-        # import pdb
-        # pdb.set_trace()
+
         val = state_dict[k].detach().numpy().astype(np.float32)
-        # print(type(val), val.dtype, val.shape)
         target_data.append({"name": ms_name, "data": ms.Tensor(val, dtype=ms.float32)})
 
     ms.save_checkpoint(target_data, target_fp)
