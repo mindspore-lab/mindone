@@ -43,6 +43,10 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/OpenSora-v1-16x256x256.pth --target models/OpenSora-v1-16x256x256.ckpt`
 
+- PixArt-α: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth)  (for training only)
+
+    Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
+    It will be used for better model initialziation.
 
 ## Inference
 
