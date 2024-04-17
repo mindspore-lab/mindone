@@ -4,12 +4,13 @@ import mindspore as ms
 import numpy as np
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
+from mindone.utils.amp import auto_mixed_precision
 
+sys.path.append('./')
 from opensora.models.stdit import STDiTBlock, STDiT_XL_2
 from opensora.models.layers.blocks  import LayerNorm, Attention
-from mindone.utils.amp import auto_mixed_precision
 
 use_mask = True
 print("use mask: ", use_mask)

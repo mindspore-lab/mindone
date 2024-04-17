@@ -661,8 +661,8 @@ class STDiT(nn.Cell):
                     sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
             m, u = ms.load_param_into_net(self, sd)
-            print("net param not load: ", m)
-            print("ckpt param not load: ", u)
+            print("net param not load: ", m, len(m))
+            print("ckpt param not load: ", u, len(u))
 
 
 def STDiT_XL_2(from_pretrained=None, **kwargs):

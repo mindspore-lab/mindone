@@ -9,7 +9,9 @@ import mindspore as ms
 
 def convert(pt_ckpt, target_fp):
     if pt_ckpt.endswith(".pth"):
-        state_dict = torch.load(pt_ckpt, map_location={"CPU"})
+        state_dict = torch.load(pt_ckpt, torch.device('cpu'))
+        if 'state_dict' in state_dict:
+            state_dict = state_dict['state_dict']
         # state_dict = torch.load(pt_ckpt)
     else:
         state_dict = {}
@@ -29,7 +31,7 @@ def convert(pt_ckpt, target_fp):
                 ms_name = k
         # import pdb
         # pdb.set_trace()
-        val = state_dict[k].detach().cpu().numpy().astype(np.float32)
+        val = state_dict[k].detach().numpy().astype(np.float32)
         # print(type(val), val.dtype, val.shape)
         target_data.append({"name": ms_name, "data": ms.Tensor(val, dtype=ms.float32)})
 
