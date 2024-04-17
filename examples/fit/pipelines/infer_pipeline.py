@@ -132,14 +132,14 @@ class FiTInferPipeline:
         pos_embed = Tensor(pos_embed)
         return pos_embed, pos_embed_fill.shape[0]
 
-    def _create_mask(self, valid_t: int, max_length: int) -> Tensor:
+    def _create_mask(self, valid_t: int, max_length: int, n: int) -> Tensor:
         # 1, T
         if valid_t > max_length:
             mask = np.ones((valid_t,), dtype=np.bool_)
         else:
             mask = np.zeros((max_length,), dtype=np.bool_)
             mask[:valid_t] = True
-        mask = mask[None, ...]
+        mask = np.tile(mask[None, ...], (n, 1))
         mask = Tensor(mask)
         return mask
 
@@ -158,11 +158,11 @@ class FiTInferPipeline:
         embed_method = self.model_config["embed_method"]
 
         z, y = self.data_prepare(inputs)
-        _, _, h, w = z.shape
+        n, _, h, w = z.shape
 
         z = self._pad_latent(z, p, max_size, max_length)
         pos, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim, method=embed_method)
-        mask = self._create_mask(valid_t, max_length)
+        mask = self._create_mask(valid_t, max_length, n)
 
         model_kwargs = dict(y=y, pos=pos, mask=mask, cfg_scale=Tensor(self.guidance_rescale, dtype=ms.float32))
         latents = self.sampling_func(
