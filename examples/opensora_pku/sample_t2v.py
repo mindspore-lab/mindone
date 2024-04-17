@@ -17,11 +17,11 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
+from opensora.models.diffusion.latte_t2v import LatteT2V
 from opensora.sample.pipeline_videogen import VideoGenPipeline
 from opensora.text_encoders.t5_embedder import T5Embedder
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
-from mindone.models.latte_t2v import LatteT2V
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.utils.logger import set_logger

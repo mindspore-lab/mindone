@@ -27,7 +27,6 @@ from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormZer
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 # from mindone.diffusers.models.lora import LoRACompatibleConv, LoRACompatibleLinear
-from .utils import default
 
 logger = logging.getLogger(__name__)
 
@@ -232,7 +231,7 @@ class MultiHeadAttention(nn.Cell):
         mask = attention_mask
 
         q = self.to_q(x)
-        context = default(encoder_hidden_states, x)
+        context = encoder_hidden_states if encoder_hidden_states is not None else x
 
         k = self.to_k(context)
         v = self.to_v(context)
