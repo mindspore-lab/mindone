@@ -43,7 +43,6 @@ if npz is not None and os.path.exists(npz):
     mask = np.repeat(mask, x.shape[0]//mask.shape[0], axis=0)
     
     t = np.ones(B).astype(np.float32) * 999 
-    
 else:
     x = np.random.normal(size=(B, C, T, H , W)).astype(np.float32)
     # t = np.random.randint(low=0, high=1000, size=B).astype(np.float32)

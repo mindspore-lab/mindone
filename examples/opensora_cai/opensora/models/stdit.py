@@ -297,8 +297,7 @@ class CaptionEmbedder(nn.Cell):
             drop_ids = ops.rand(caption.shape[0]) < self.uncond_prob
         else:
             drop_ids = force_drop_ids == 1
-        # TODO: graph mode check
-        # print('D--: tk drop dtype: ',  self.y_embedding.dtype, caption.dtype)
+
         caption = ops.where(drop_ids[:, None, None, None], self.y_embedding, caption.to(self.y_embedding.dtype))
         return caption
 
@@ -392,12 +391,12 @@ class STDiT(nn.Cell):
         elif patchify_conv3d_replace == "linear":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             assert input_size[1] == input_size[2]
-            print("D--: replace 3d patchify with linear")
+            print("Replace conv3d patchify with linear layer")
             self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             assert input_size[1] == input_size[2]
-            print("D--: replace 3d patchify with 2d")
+            print("Replace conv3d patchify with conv2d layer")
             self.x_embedder = PatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
 
         self.t_embedder = TimestepEmbedder(hidden_size)

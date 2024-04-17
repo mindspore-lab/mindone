@@ -168,7 +168,6 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
-            f"Num trainable params: {num_params_trainable:,}",
             f"Use model dtype: {model_dtype}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
@@ -199,17 +198,16 @@ def main(args):
             inputs["text_emb"] = text_emb[i : i + ns]
             inputs["mask"] = mask[i : i + ns]
 
-        logger.info(f"Sampling for {n} samples with captions: ")
+        logger.info(f"Sampling for captions: ")
         for j in range(ns):
             logger.info(args.captions[i+j])
 
         start_time = time.time()
-
         # infer
         x_samples = pipeline(inputs, latent_save_fp=f"outputs/denoised_latent_{i:02d}.npy")
         x_samples = x_samples.asnumpy()
-
-        end_time = time.time()
+        batch_time = time.time() - start_time
+        logger.info(f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s")
 
         # save result
         for j in range(ns):

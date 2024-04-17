@@ -50,7 +50,6 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
                 ],
                 additional_targets=targets,
             )
-
     elif backend == "ms":
         # TODO: MindData doesn't support batch transform. can NOT make sure all frames are flipped the same
         from mindspore.dataset import transforms, vision

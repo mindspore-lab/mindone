@@ -304,7 +304,7 @@ def main(args):
 
     if rank_id == 0:
         save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.network,  # save latte only
+            network=latent_diffusion_with_loss.network,
             rank_id=rank_id,
             ckpt_save_dir=ckpt_dir,
             ema=ema,
@@ -314,8 +314,8 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
-            model_name="Latte",
-            record_lr=False,  # TODO: check LR retrival for new MS on 910b
+            model_name="STDiT",
+            record_lr=False,
         )
         callback.append(save_cb)
         if args.profile:
@@ -323,7 +323,6 @@ def main(args):
 
     # 5. log and save config
     if rank_id == 0:
-        # 4. print key info
         if vae is not None:
             num_params_vae, num_params_vae_trainable = count_params(vae)
         else:
