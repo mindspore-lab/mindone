@@ -9,7 +9,7 @@ import mindspore as ms
 
 def convert(pt_ckpt, target_fp):
     if pt_ckpt.endswith(".pth"):
-        state_dict = torch.load(pt_ckpt, map_location={"0": "CPU"})
+        state_dict = torch.load(pt_ckpt, map_location={"CPU"})
         # state_dict = torch.load(pt_ckpt)
     else:
         state_dict = {}
