@@ -641,6 +641,10 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin):
         if attention_type in ["gated", "gated-text-image"]:
             raise NotImplementedError("GLIGENTextBoundingboxProjection is not implemented")
 
+    def _set_gradient_checkpointing(self, module, value=False):
+        if hasattr(module, "gradient_checkpointing"):
+            module.gradient_checkpointing = value
+
     def get_time_embed(self, sample: ms.Tensor, timestep: Union[ms.Tensor, float, int]) -> Optional[ms.Tensor]:
         timesteps = timestep
         if not ops.is_tensor(timesteps):
