@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import time
+import pandas as pd
 
 import numpy as np
 import yaml
@@ -44,6 +45,12 @@ def init_env(args):
     return device_id
 
 
+def read_captions_from_csv(csv_path, caption_column='caption'):
+    df = pd.read_csv(csv_path,usecols = [caption_column])
+    captions = df[caption_column].values.tolist()
+    return captions
+
+
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     save_dir = f"samples/{time_str}"
@@ -53,6 +60,18 @@ def main(args):
     # 1. init env
     init_env(args)
     set_random_seed(args.seed)
+
+    # get captions from cfg or prompt_file
+    if args.prompt_file is not None:
+        if args.prompt_file.endswith('.csv'):
+            captions = read_captions_from_csv(args.prompt_file)
+        elif args.prompt_file.endswith('.txt'):
+            captions = []
+            with open(args.caption_file, 'r') as fp:
+                for line in fp:
+                    captions.append(line.strip())
+    else:
+        captions = args.captions
 
     # 2. model initiate and weight loading
     # 2.1 latte
@@ -126,12 +145,13 @@ def main(args):
         ckpt_path = args.t5_model_dir
     elif args.text_encoder == "clip":
         ckpt_path = args.clip_checkpoint
-
+    
+    # 2.3 text encoder
     if args.embed_path is None:
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(args.text_encoder, ckpt_path)
-        n = len(args.captions)
+        n = len(captions)
         assert n > 0, "No captions provided"
-        text_tokens, mask = text_encoder.get_text_tokens_and_mask(args.captions, return_tensor=True)
+        text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
         text_emb = None
     else:
         dat = np.load(args.embed_path)
@@ -177,8 +197,8 @@ def main(args):
     key_info += "\n" + "=" * 50
     logger.info(key_info)
 
-    for i in range(0, len(args.captions), args.batch_size):
-        batch_prompts = args.captions[i : i + args.batch_size]
+    for i in range(0, len(captions), args.batch_size):
+        batch_prompts = captions[i : i + args.batch_size]
         ns = len(batch_prompts)
 
         # prepare inputs
@@ -200,7 +220,7 @@ def main(args):
 
         logger.info(f"Sampling for captions: ")
         for j in range(ns):
-            logger.info(args.captions[i+j])
+            logger.info(captions[i+j])
 
         start_time = time.time()
         # infer
@@ -338,6 +358,7 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument("--prompt_file", default=None, type=str, help="path to a csv file containing captions")
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=2, type=int, help="infer batch size")
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")

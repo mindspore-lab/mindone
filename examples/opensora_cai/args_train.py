@@ -106,7 +106,7 @@ def parse_train_args(parser):
     )
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
-    parser.add_argument("--scale_window", default=1000, type=float, help="scale window")
+    parser.add_argument("--scale_window", default=2000, type=float, help="scale window")
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     # parser.add_argument("--cond_stage_trainable", default=False, type=str2bool, help="whether text encoder is trainable")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether use EMA")

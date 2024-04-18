@@ -1,6 +1,5 @@
 opencv-python
 scikit-image
-omegaconf
 einops
 ftfy
 regex
@@ -13,3 +12,9 @@ tqdm
 mindcv
 decord
 safetensors
+omegaconf
+pyyaml
+tokenizers
+sentencepiece
+transformers
+
