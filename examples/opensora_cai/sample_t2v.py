@@ -360,7 +360,7 @@ def parse_args():
     )
     parser.add_argument("--prompt_file", default=None, type=str, help="path to a csv file containing captions")
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
-    parser.add_argument("--batch_size", default=2, type=int, help="infer batch size")
+    parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()

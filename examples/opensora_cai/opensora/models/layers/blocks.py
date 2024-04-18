@@ -190,7 +190,6 @@ class SelfAttention(nn.Cell):
         )
         self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(self.dtype)
         self.proj_drop = nn.Dropout(p=proj_drop)
-        self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
         self.reshape = ops.Reshape()
 

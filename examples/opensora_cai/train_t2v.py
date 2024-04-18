@@ -74,7 +74,8 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
+            # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
+            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
         if parallel_mode == "optim":
             print("D--: use optim parallel")
@@ -161,7 +162,7 @@ def main(args):
         latte_model = auto_mixed_precision(latte_model, 
                 amp_level="O2", 
                 dtype=model_dtype, 
-                fp32_cells=[LayerNorm, Attention],
+                fp32_cells=[LayerNorm, Attention, nn.SiLU],
                 )
 
     # load checkpoint
