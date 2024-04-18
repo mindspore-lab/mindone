@@ -103,7 +103,8 @@ class InferPipeline(ABC):
             text_emb = inputs["text_emb"]
             b, max_tokens, d = text_emb.shape
 
-        # torch use y_embedding genearted during stdit training, for token/text drop in caption embedder for condition-free guidance training. The null mask is the same as text mask.
+        # torch use y_embedding genearted during stdit training,
+        # for token/text drop in caption embedder for condition-free guidance training. The null mask is the same as text mask.
         n = x.shape[0]
         # (n_tokens, dim_emb) -> (b n_tokens dim_emb)
         null_emb = self.model.y_embedder.y_embedding[None, :, :].repeat(n, axis=0)

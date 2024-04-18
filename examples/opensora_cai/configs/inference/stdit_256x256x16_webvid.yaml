@@ -1,13 +1,9 @@
-condition: "text"
-text_encoder: "t5"
-clip_checkpoint: ""
 t5_model_dir: "models/t5-v1_1-xxl/"
 
 image_size: 256
 num_frames: 16
 fps: 8
 
-model_name: "STDiT"
 checkpoint: "models/OpenSora-v1-HQ-16x256x256.ckpt"
 vae_checkpoint: "models/sd-vae-ft-mse.ckpt"
 sd_scale_factor: 0.18215

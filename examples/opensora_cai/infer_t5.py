@@ -10,11 +10,10 @@ import numpy as np
 import yaml
 from opensora.data.text_dataset import create_dataloader
 from opensora.models.text_encoders import get_text_encoder_and_tokenizer
-from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
+from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import Tensor, ops
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -22,7 +21,6 @@ sys.path.insert(0, mindone_lib_path)
 
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
-from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +81,7 @@ def main(args):
     for param in text_encoder.get_parameters():  # freeze latte_model
         param.requires_grad = False
 
-    logger.info(f"Start embedding...")
+    logger.info("Start embedding...")
 
     # infer
     if args.csv_path is not None:
@@ -108,6 +106,7 @@ def main(args):
             text_emb = text_encoder(text_tokens, mask)
 
             end_time = time.time()
+            logger.info(f"Time cost: {end_time-start_time:0.3f}s")
 
             # save the embeddings aligning to video frames
             for i in range(text_emb.shape[0]):
@@ -130,7 +129,9 @@ def main(args):
         mask = []
         text_emb = []
         for i in range(0, len(args.captions), args.batch_size):
-            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(args.captions[i : i + args.batch_size], return_tensor=True)
+            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(
+                args.captions[i : i + args.batch_size], return_tensor=True
+            )
             logger.info(f"Num tokens: {batch_mask.asnumpy().sum(1)}")
             batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
 
@@ -138,10 +139,10 @@ def main(args):
             mask.append(batch_mask.asnumpy().astype(np.uint8))
             text_emb.append(batch_text_emb.asnumpy())
         text_tokens = np.concatenate(text_tokens)
-        mask= np.concatenate(mask)
+        mask = np.concatenate(mask)
         text_emb = np.concatenate(text_emb)
         np.savez(args.output_path, tokens=text_tokens, mask=mask, text_emb=text_emb)
-        print('Embeddeings saved in ', args.output_path)
+        print("Embeddeings saved in ", args.output_path)
 
 
 def parse_args():

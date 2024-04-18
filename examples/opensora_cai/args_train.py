@@ -24,7 +24,8 @@ def parse_train_args(parser):
         "--csv_path",
         default="",
         type=str,
-        help="path to csv annotation file. columns: video, caption. video indicates the relative path of video file in video_folder. caption - the text caption for video",
+        help="path to csv annotation file. columns: video, caption. \
+        video indicates the relative path of video file in video_folder. caption - the text caption for video",
     )
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
@@ -51,23 +52,13 @@ def parse_train_args(parser):
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
 
-    # modelarts
-    parser.add_argument("--enable_modelarts", default=False, type=str2bool, help="run codes in ModelArts platform")
-    parser.add_argument("--num_workers", default=1, type=int, help="the number of modelarts workers")
-    parser.add_argument(
-        "--json_data_path",
-        default="mindone/examples/stable_diffusion_v2/ldm/data/num_samples_64_part.json",
-        type=str,
-        help="the path of num_samples.json containing a dictionary with 64 parts. "
-        "Each part is a large dictionary containing counts of samples of 533 tar packages.",
-    )
+    # training hyper-params
     parser.add_argument(
         "--resume",
         default=False,
         type=str,
         help="It can be a string for path to resume checkpoint, or a bool False for not resuming.(default=False)",
     )
-    # training hyper-params
     parser.add_argument("--optim", default="adamw", type=str, help="optimizer")
     parser.add_argument(
         "--betas",
@@ -118,31 +109,11 @@ def parse_train_args(parser):
         help="whether use recompute.",
     )
     parser.add_argument(
-        "--patch_embedder",
-        type=str,
-        default="conv",
-        choices=["conv", "linear"],
-        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
-    )
-    parser.add_argument(
         "--dtype",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
-    )
-    parser.add_argument(
-        "--precision_mode",
-        default=None,
-        type=str,
-        help="If specified, set the precision mode for Ascend configurations.",
-    )
-    parser.add_argument(
-        "--model_name",
-        "-m",
-        type=str,
-        default="Latte-XL/2",
-        help="Model name , such as Latte-XL/2, Latte-L/2",
     )
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
@@ -157,17 +128,12 @@ def parse_train_args(parser):
     parser.add_argument("--image_size", default=256, type=int, help="the image size used to initiate model")
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
     parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")
-
-    parser.add_argument(
-        "--random_drop_text", default=False, type=str2bool, help="set caption to empty string randomly if enabled"
-    )
     parser.add_argument(
         "--disable_flip",
         default=True,
         type=str2bool,
         help="disable random flip video (to avoid motion direction and text mismatch)",
     )
-    parser.add_argument("--random_drop_text_ratio", default=0.1, type=float, help="drop ratio")
     parser.add_argument(
         "--enable_flash_attention",
         default=None,
@@ -203,45 +169,9 @@ def parse_train_args(parser):
     return parser
 
 
-def parse_embedding_cache_args(parser):
-    parser.add_argument(
-        "--cache_file_type",
-        default="mindrecord",
-        type=str,
-        choices=["numpy", "mindrecord"],
-        help="type of cached dataset file",
-    )
-    parser.add_argument(
-        "--save_data_type",
-        default="float32",
-        type=str,
-        choices=["float16", "float32"],
-        help="data type when saving embedding cache",
-    )
-    parser.add_argument("--cache_folder", default="", type=str, help="directory to save embedding cache")
-    parser.add_argument(
-        "--max_page_size",
-        default=256,
-        type=int,
-        choices=[64, 128, 256],
-        help="The maximum page size for the MindRecord File Writer. Should be one of [64, 128, 256]",
-    )
-    parser.add_argument(
-        "--resume_cache_index", default=None, type=int, help="If provided, will resume cache from this video index."
-    )
-    parser.add_argument(
-        "--dump_every_n_lines",
-        type=int,
-        default=1,
-        help="The number of data items (videos) saved every time calling mindrecord writer.",
-    )
-    return parser
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser = parse_train_args(parser)
-    parser = parse_embedding_cache_args(parser)
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     default_args = parser.parse_args()
     if default_args.config:

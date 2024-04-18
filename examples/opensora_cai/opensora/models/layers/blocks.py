@@ -1,15 +1,12 @@
 import math
 import numbers
-from typing import Optional, Tuple, Type, Union
-
-import numpy as np
+from typing import Optional, Tuple, Type
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
-from mindone.models.utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 
 class Attention(nn.Cell):
@@ -43,8 +40,12 @@ class Attention(nn.Cell):
 
 class MultiHeadCrossAttention(nn.Cell):
     """
-    This implementation is more friendly to mindspore in graph mode currently. Overhead computation lies in the padded tokens in a batch, which is padded to a fixed length max_tokens. If the prompts are short, this overhead can be high.
-    TODO: remove the computation on the padded sequence, referring to xformers, or reduce it by padding to the max prompt length in the batch instead of a fixed large value.
+    This implementation is more friendly to mindspore in graph mode currently.
+    Overhead computation lies in the padded tokens in a batch, which is padded
+    to a fixed length max_tokens. If the prompts are short, this overhead can be high.
+
+    TODO: remove the computation on the padded sequence, referring to xformers, or
+    reduce it by padding to the max prompt length in the batch instead of a fixed large value.
         Here is how torch support dynamic text length in a batch. diagnonal maksing for valid texts. more memory efficient for short prompts.
         ```
         attn_bias = xformers.ops.fmha.BlockDiagonalMask.from_seqlens([N] * B, mask)
@@ -97,7 +98,8 @@ class MultiHeadCrossAttention(nn.Cell):
         B_ori, _, C = x.shape
 
         if mask is None:
-            # FIXME: this branch is used to test the align with torch when mask is None, B dim is flatten to the seq_len dim, but never used in real training or inference. Remove after all precision check are done.
+            # FIXME: this branch is used to test the align with torch when mask is None, B dim is flatten to the seq_len dim,
+            # but never used in real training or inference. Remove after all precision check are done.
             x = x.reshape((1, -1, C))
         else:
             # TODO: directly input cond (B, N_tokens, D), no need to flatten, to save memory.
@@ -129,13 +131,14 @@ class MultiHeadCrossAttention(nn.Cell):
             mask = mask[:, None, None, :]
 
         # 3. attn compute
-        if self.enable_flash_attention:
-            # TODO: test on 910b
+        q_n = q.shape[-2]
+        k_n = k.shape[-2]
+        if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
             # (b 1 1 n_k) -> (b 1 n_q n_k)
             # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
             mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
 
-            out = self.flash_attention(q, k, v, mask=mask)
+            x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
         else:
@@ -230,6 +233,8 @@ class SelfAttention(nn.Cell):
             mask = 1 - mask
             mask = mask[:, None, None, :]
 
+        q_n = q.shape[-2]
+        k_n = k.shape[-2]
         if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
             # mask: (b n_k) -> (b 1 n_q n_k)
             mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)

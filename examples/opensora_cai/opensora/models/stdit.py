@@ -1,6 +1,5 @@
-import os
 import math
-from typing import Optional
+import os
 
 import numpy as np
 from mindcv.models.layers import DropPath
@@ -16,11 +15,11 @@ from opensora.models.layers.blocks import (
 )
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
-from mindspore.common.initializer import XavierUniform, Zero, initializer
+from mindspore import nn, ops
+from mindspore.common.initializer import XavierUniform, initializer  # , Zero
 
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
-from mindone.models.utils import constant_, exists, modulate, normal_, xavier_uniform_
+from mindone.models.utils import constant_, normal_, xavier_uniform_
 
 
 class STDiTBlock(nn.Cell):
@@ -526,10 +525,10 @@ class STDiT(nn.Cell):
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        
+
         model_out = self.construct(combined, t, y=y, mask=mask)
-        # torch only takes the first 3 dimension for eps. but for z=4, out z=8, the first 4 dims are for eps, the rest 4 dim are for variance.  
-        eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
+        # torch only takes the first 3 dimension for eps. but for z=4, out z=8, the first 4 dims are for eps, the rest 4 dim are for variance.
+        eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
@@ -630,17 +629,17 @@ class STDiT(nn.Cell):
         constant_(self.final_layer.linear.bias, 0)
 
     def load_from_checkpoint(self, ckpt_path):
-        if not os.path.exists(ckpt_path): 
-            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!") 
+        if not os.path.exists(ckpt_path):
+            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
             sd = ms.load_checkpoint(ckpt_path)
             # filter 'network.' prefix
-            rm_prefix = ['network.']
+            rm_prefix = ["network."]
             all_pnames = list(sd.keys())
             for pname in all_pnames:
                 for pre in rm_prefix:
                     if pname.startswith(pre):
-                        new_pname = pname.replace(pre, '')
+                        new_pname = pname.replace(pre, "")
                         sd[new_pname] = sd.pop(pname)
 
             # load conv3d weight from pretrained conv2d or dense layer

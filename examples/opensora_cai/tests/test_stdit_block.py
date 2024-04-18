@@ -234,9 +234,9 @@ def test_stdit_ms():
     # condition, text,
     max_tokens = 120
     y = np.random.normal(size=(1, B * max_tokens, C)).astype(np.float32)
-    y_lens = [max_tokens] * B
+    # y_lens = [max_tokens] * B
 
-    tpe = None
+    # tpe = None
 
     # time embedding
     t = np.random.normal(size=(B, 6 * C)).astype(np.float32)

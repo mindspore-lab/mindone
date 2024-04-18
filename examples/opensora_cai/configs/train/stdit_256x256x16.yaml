@@ -26,8 +26,8 @@ clip_grad: True
 use_ema: True   # TODO: ablate
 
 optim: "adamw_re"
-optim_eps: 1.e-8 
+optim_eps: 1.e-8
 weight_decay: 0.
 
 epochs: 2000
-ckpt_save_interval: 100 
+ckpt_save_interval: 100

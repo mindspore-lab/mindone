@@ -54,8 +54,8 @@ class T5Embedder(nn.Cell):
             param_dict = ms.load_checkpoint(self.pretrained_ckpt)
             param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
             # assert len(param_not_load) == 0 and len(ckpt_not_load) == 1  # shared.embedding_table
-            print('T5 param not load: ', param_not_load)
-            print('T5 ckpt not load: ', ckpt_not_load)
+            print("T5 param not load: ", param_not_load)
+            print("T5 ckpt not load: ", ckpt_not_load)
         self.model_max_length = model_max_length
         self.tokenizer.context_length = model_max_length
         self.model = model

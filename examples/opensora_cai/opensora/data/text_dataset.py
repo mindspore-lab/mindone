@@ -1,16 +1,10 @@
-import mindspore as ms
-import copy
 import csv
 import logging
-import os
 import random
 
-import albumentations
-import cv2
-import imageio
 import numpy as np
-from PIL import Image, ImageSequence
 
+import mindspore as ms
 
 logger = logging.getLogger()
 
@@ -42,7 +36,6 @@ class TextDataset:
         return self.length
 
     def __getitem__(self, idx):
-
         row = self.dataset[idx]
         caption = row[self.caption_column]
         file_path = row[self.video_column]
@@ -75,22 +68,22 @@ def create_dataloader(
     rank_id=0,
     drop_remainder=True,
 ):
-    if ds_name == 'text':
+    if ds_name == "text":
         dataset = TextDataset(**ds_config)
-        column_names = ['file_path', 'caption']
+        column_names = ["file_path", "caption"]
     else:
         raise NotImplementedError
 
     dataloader = ms.dataset.GeneratorDataset(
-            source=dataset,
-            column_names=column_names,
-            num_shards=device_num,
-            shard_id=rank_id,
-            python_multiprocessing=True,
-            shuffle=shuffle,
-            num_parallel_workers=num_parallel_workers,
-            max_rowsize=max_rowsize,
-        )
+        source=dataset,
+        column_names=column_names,
+        num_shards=device_num,
+        shard_id=rank_id,
+        python_multiprocessing=True,
+        shuffle=shuffle,
+        num_parallel_workers=num_parallel_workers,
+        max_rowsize=max_rowsize,
+    )
 
     dl = dataloader.batch(
         batch_size,
@@ -100,18 +93,16 @@ def create_dataloader(
     return dl
 
 
-if __name__ == '__main__':
-    ds_config = dict(csv_path='../videocomposer/datasets/webvid5/video_caption.csv',
-            tokenizer=None)
+if __name__ == "__main__":
+    ds_config = dict(csv_path="../videocomposer/datasets/webvid5/video_caption.csv", tokenizer=None)
 
     dl = create_dataloader(
         ds_config,
         batch_size=2,
-        )
+    )
 
     ds_iter = dl.create_dict_iterator(1, output_numpy=True)
     for step, data in enumerate(ds_iter):
-        fp = data['file_path']        
-        cap = data['caption']
+        fp = data["file_path"]
+        cap = data["caption"]
         print(fp[0], cap[0])
-

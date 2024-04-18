@@ -5,6 +5,7 @@ import logging
 from typing import List, Optional, Union
 
 from mindcv.optim.adamw import AdamW as AdamW_Refined
+
 from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
@@ -74,7 +75,7 @@ def create_optimizer(
         optim_cls = Adam
     elif name.lower() == "adamw":
         optim_cls = AdamWeightDecay
-    elif name.lower() == 'adamw_re':
+    elif name.lower() == "adamw_re":
         optim_cls = AdamW_Refined
     elif name.lower() == "adamw_zero1":
         optim_cls = AdamWeightDecayZeRO1

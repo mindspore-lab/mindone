@@ -1,5 +1,5 @@
 """
-Latte training script
+STDiT training script
 """
 import datetime
 import logging
@@ -9,7 +9,6 @@ from typing import Tuple
 
 import yaml
 from args_train import parse_args
-from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -23,10 +22,9 @@ sys.path.insert(0, mindone_lib_path)
 from opensora.data.t2v_dataset import create_dataloader
 from opensora.diffusion import create_diffusion
 from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit import STDiT_XL_2
 from opensora.pipelines import DiffusionWithLoss
-from opensora.utils.model_utils import remove_pname_prefix
-from opensora.models.layers.blocks  import LayerNorm, Attention
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
@@ -88,7 +86,7 @@ def init_env(
             init()
             device_num = get_group_size()
             rank_id = get_rank()
-            logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
             ms.reset_auto_parallel_context()
 
             ms.set_auto_parallel_context(
@@ -103,13 +101,11 @@ def init_env(
 
     else:
         device_num = 1
-        # device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
     return rank_id, device_num
@@ -131,18 +127,18 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
-    # 2.1 latte
-    vae_t_compress = 1
-    vae_s_compress = 8
-    vae_out_channels = 4
+    # 2.1 stdit
+    VAE_T_COMPRESS = 1
+    VAE_S_COMPRESS = 8
+    VAE_Z_CH = SD_CONFIG["z_channels"]
     input_size = (
-        args.num_frames // vae_t_compress,
-        args.image_size // vae_s_compress,
-        args.image_size // vae_s_compress,
+        args.num_frames // VAE_T_COMPRESS,
+        args.image_size // VAE_S_COMPRESS,
+        args.image_size // VAE_S_COMPRESS,
     )
     model_extra_args = dict(
         input_size=input_size,
-        in_channels=vae_out_channels,
+        in_channels=VAE_Z_CH,
         space_scale=args.space_scale,  # 0.5 for 256x256. 1. for 512
         time_scale=args.time_scale,
         patchify_conv3d_replace="conv2d",  # for Ascend
@@ -156,17 +152,17 @@ def main(args):
     if args.dtype == "fp32":
         model_dtype = ms.float32
     else:
-        model_dtype = {'fp16': ms.float16, 'bf16': ms.bfloat16}[args.dtype]
-        latte_model = auto_mixed_precision(latte_model, 
-                amp_level="O2", 
-                dtype=model_dtype, 
-                fp32_cells=[LayerNorm, Attention, nn.SiLU],
-                )
-
+        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        latte_model = auto_mixed_precision(
+            latte_model,
+            amp_level="O2",
+            dtype=model_dtype,
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+        )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
-        param_dict = latte_model.load_from_checkpoint(args.pretrained_model_path)
+        latte_model.load_from_checkpoint(args.pretrained_model_path)
     else:
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
@@ -176,37 +172,15 @@ def main(args):
     logger.info("vae init")
     vae = AutoencoderKL(
         SD_CONFIG,
-        4,
+        VAE_Z_CH,
         ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
+        use_fp16=False,
     )
     vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
+    for param in vae.get_parameters():
         param.requires_grad = False
 
-    # 3. create dataset
-    # select dataset
-    ds_config = dict(
-        csv_path=args.csv_path,
-        video_folder=args.video_folder,
-        text_emb_folder=args.embed_folder,
-        return_text_emb=True,
-        sample_size=args.image_size,
-        sample_stride=args.frame_stride,
-        sample_n_frames=args.num_frames,
-        tokenizer=None,
-        video_column=args.video_column,
-        caption_column=args.caption_column,
-        random_drop_text=args.random_drop_text,
-        random_drop_text_ratio=args.random_drop_text_ratio,
-        disable_flip=args.disable_flip,
-    )
-
-    dataset = create_dataloader(
-        ds_config, batch_size=args.batch_size, shuffle=True, device_num=device_num, rank_id=rank_id
-    )
-    dataset_size = dataset.get_dataset_size()
-
+    # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
@@ -219,6 +193,25 @@ def main(args):
         text_emb_cached=True,
         video_emb_cached=False,
     )
+
+    # 3. create dataset
+    ds_config = dict(
+        csv_path=args.csv_path,
+        video_folder=args.video_folder,
+        text_emb_folder=args.embed_folder,
+        return_text_emb=True,
+        sample_size=args.image_size,
+        sample_stride=args.frame_stride,
+        sample_n_frames=args.num_frames,
+        tokenizer=None,
+        video_column=args.video_column,
+        caption_column=args.caption_column,
+        disable_flip=args.disable_flip,
+    )
+    dataset = create_dataloader(
+        ds_config, batch_size=args.batch_size, shuffle=True, device_num=device_num, rank_id=rank_id
+    )
+    dataset_size = dataset.get_dataset_size()
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler

@@ -132,7 +132,7 @@ class DiffusionWithLoss(nn.Cell):
             z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
 
             # (b f c h w) -> (b c f h w)
-            z = ops.transpose(z, (0, 2, 1, 3, 4)) 
+            z = ops.transpose(z, (0, 2, 1, 3, 4))
         elif x.dim() == 4:
             B, C, H, W = x.shape
             if C != 3:
@@ -164,7 +164,7 @@ class DiffusionWithLoss(nn.Cell):
 
         # 2. get conditions
         if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens, **kwargs)
+            text_embed = self.get_condition_embeddings(text_tokens)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
 

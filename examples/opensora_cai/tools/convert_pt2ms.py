@@ -9,12 +9,12 @@ import mindspore as ms
 
 def convert(pt_ckpt, target_fp, pick_ema=True):
     if pt_ckpt.endswith(".pth"):
-        state_dict = torch.load(pt_ckpt, torch.device('cpu'))
-        if 'ema' in state_dict and pick_ema:
+        state_dict = torch.load(pt_ckpt, torch.device("cpu"))
+        if "ema" in state_dict and pick_ema:
             print("WARNING: find EMA weights in source checkpoint. Will pick it!")
-            state_dict = state_dict['ema']
-        elif 'state_dict' in state_dict:
-            state_dict = state_dict['state_dict']
+            state_dict = state_dict["ema"]
+        elif "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
     else:
         state_dict = {}
         with safe_open(pt_ckpt, framework="pt", device="cpu") as f:

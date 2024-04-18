@@ -4,16 +4,13 @@ import logging
 import os
 import random
 from pathlib import Path
-import mindspore as ms
 
 import albumentations
 import cv2
-import imageio
 import numpy as np
-
 from decord import VideoReader
-from PIL import Image, ImageSequence
 
+import mindspore as ms
 
 logger = logging.getLogger()
 
@@ -24,7 +21,7 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
     h, w : target resize height, weight
     NOTE: we change interpolation to bicubic for its better precision and used in SD. TODO: check impact on performance
     """
-    if backend == 'al':
+    if backend == "al":
         # expect rgb image in range 0-255, shape (h w c)
         from albumentations import CenterCrop, HorizontalFlip, SmallestMaxSize
 
@@ -90,8 +87,8 @@ class TextVideoDataset:
         random_drop_text_ratio=0.1,
         disable_flip=True,
     ):
-        '''
-        text_emb_folder: root dir of text embed saved in npz files. Expected to have the same file name and directory strcutre as videos. e.g. 
+        """
+        text_emb_folder: root dir of text embed saved in npz files. Expected to have the same file name and directory strcutre as videos. e.g.
             video_folder:
                 folder1/
                     001.mp4
@@ -103,8 +100,10 @@ class TextVideoDataset:
             video_folder and text_emb_folder can be the same folder for simplicity.
 
         tokenizer: a function, e.g. partial(get_text_tokens_and_mask, return_tensor=False), input text string, return text emb and mask
-        '''
-        assert not  random_drop_text, "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."  
+        """
+        assert (
+            not random_drop_text
+        ), "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))
@@ -137,8 +136,8 @@ class TextVideoDataset:
 
         self.return_text_emb = return_text_emb
         if return_text_emb:
-            assert  text_emb_folder is not None
-        self.text_emb_folder = text_emb_folder 
+            assert text_emb_folder is not None
+        self.text_emb_folder = text_emb_folder
 
         # prepare replacement data
         max_attempts = 100
@@ -163,10 +162,12 @@ class TextVideoDataset:
 
     def parse_text_emb(self, npz):
         if not os.path.exists(npz):
-            raise ValueError(f'text embedding file {npz} not found. Please check the text_emb_folder and make sure the text embeddings are already generated')
+            raise ValueError(
+                f"text embedding file {npz} not found. Please check the text_emb_folder and make sure the text embeddings are already generated"
+            )
         td = np.load(npz)
-        text_emb = td['text_emb']
-        mask = td['mask']
+        text_emb = td["text_emb"]
+        mask = td["mask"]
         # tokens = td['tokens']
 
         return text_emb, mask
@@ -176,7 +177,7 @@ class TextVideoDataset:
         video_dict = self.dataset[idx]
         video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
         video_path = os.path.join(self.video_folder, video_fn)
-                
+
         if self.return_text_emb:
             text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
             text_emb, mask = self.parse_text_emb(text_emb_path)
@@ -206,7 +207,7 @@ class TextVideoDataset:
         # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
         # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
         del video_reader
-        
+
         if self.return_text_emb:
             return pixel_values, text_emb, mask
         else:
@@ -260,16 +261,16 @@ class TextVideoDataset:
         # randomly set caption to be empty
         if self.random_drop_text:
             if random.random() <= self.random_drop_text_ratio:
-                if self.return_text_emb: 
+                if self.return_text_emb:
                     # TODO: check the t5 embedding for for empty caption
-                    text = np.zeros_like(text) 
+                    text = np.zeros_like(text)
                     mask = np.zeros_like(mask)
                     assert len(mask.shape) == 1
                     mask[0] = 1
                 else:
                     text = ""
-        
-        if self.return_text_emb: 
+
+        if self.return_text_emb:
             text_data = text.astype(np.float32)
         else:
             if self.tokenizer is not None:
@@ -282,8 +283,8 @@ class TextVideoDataset:
                     mask = mask.asnumpy()
                 text_data = tokens
             else:
-                raise ValueError('tokenizer must be provided to generate text mask if text embeddings are not cached.')
-        
+                raise ValueError("tokenizer must be provided to generate text mask if text embeddings are not cached.")
+
         return pixel_values, text_data, mask.astype(np.uint8)
 
 
@@ -298,22 +299,22 @@ def create_dataloader(
     rank_id=0,
     drop_remainder=True,
 ):
-    if ds_name == 'text_video':
+    if ds_name == "text_video":
         dataset = TextVideoDataset(**ds_config)
-        column_names = ['video', 'text', 'mask']
+        column_names = ["video", "text", "mask"]
     else:
         raise NotImplementedError
 
     dataloader = ms.dataset.GeneratorDataset(
-            source=dataset,
-            column_names=column_names,
-            num_shards=device_num,
-            shard_id=rank_id,
-            python_multiprocessing=True,
-            shuffle=shuffle,
-            num_parallel_workers=num_parallel_workers,
-            max_rowsize=max_rowsize,
-        )
+        source=dataset,
+        column_names=column_names,
+        num_shards=device_num,
+        shard_id=rank_id,
+        python_multiprocessing=True,
+        shuffle=shuffle,
+        num_parallel_workers=num_parallel_workers,
+        max_rowsize=max_rowsize,
+    )
 
     dl = dataloader.batch(
         batch_size,

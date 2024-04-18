@@ -4,24 +4,24 @@ import logging
 import os
 import sys
 import time
-import pandas as pd
 
 import numpy as np
+import pandas as pd
 import yaml
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit import STDiT_XL_2
 from opensora.models.text_encoders import get_text_encoder_and_tokenizer
 from opensora.pipelines import InferPipeline
-from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, remove_pname_prefix, str2bool
-from opensora.models.layers.blocks  import LayerNorm, Attention
+from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, str2bool
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -32,21 +32,15 @@ logger = logging.getLogger(__name__)
 
 
 def init_env(args):
-    # no parallel mode currently
     ms.set_context(mode=args.mode)
-    device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(
         mode=args.mode,
         device_target=args.device_target,
-        device_id=device_id,
     )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
-    return device_id
 
 
-def read_captions_from_csv(csv_path, caption_column='caption'):
-    df = pd.read_csv(csv_path,usecols = [caption_column])
+def read_captions_from_csv(csv_path, caption_column="caption"):
+    df = pd.read_csv(csv_path, usecols=[caption_column])
     captions = df[caption_column].values.tolist()
     return captions
 
@@ -63,11 +57,11 @@ def main(args):
 
     # get captions from cfg or prompt_file
     if args.prompt_file is not None:
-        if args.prompt_file.endswith('.csv'):
+        if args.prompt_file.endswith(".csv"):
             captions = read_captions_from_csv(args.prompt_file)
-        elif args.prompt_file.endswith('.txt'):
+        elif args.prompt_file.endswith(".txt"):
             captions = []
-            with open(args.caption_file, 'r') as fp:
+            with open(args.caption_file, "r") as fp:
                 for line in fp:
                     captions.append(line.strip())
     else:
@@ -75,49 +69,38 @@ def main(args):
 
     # 2. model initiate and weight loading
     # 2.1 latte
-    logger.info(f"{args.model_name}-{args.image_size}x{args.image_size} init")
+    logger.info("STDiT init")
 
-    vae_t_compress = 1
-    vae_s_compress = 8
-    vae_out_channels = 4
-
-    text_emb_dim = 4096
-    max_tokens = 120
-
-    if args.image_size == 256:
-        space_scale = 0.5
-    elif args.image_size == 512:
-        space_scale = 1.0
-    else:
-        raise ValueError
-
+    VAE_T_COMPRESS = 1
+    VAE_S_COMPRESS = 8
+    VAE_Z_CH = SD_CONFIG["z_channels"]
     input_size = (
-        args.num_frames // vae_t_compress,
-        args.image_size // vae_s_compress,
-        args.image_size // vae_s_compress,
+        args.num_frames // VAE_T_COMPRESS,
+        args.image_size // VAE_S_COMPRESS,
+        args.image_size // VAE_S_COMPRESS,
     )
-
-    # FIXME: set this parameter by config file
+    if args.image_size == 512 and args.space_scale == 0.5:
+        logger.warning("space_ratio should be 1 for 512x512 resolution")
     model_extra_args = dict(
         input_size=input_size,
-        in_channels=vae_out_channels,
-        caption_channels=text_emb_dim,
-        model_max_length=max_tokens,
-        space_scale=space_scale,  # 0.5 for 256x256. 1. for 512. # TODO: align to torch
-        time_scale=1.0,
+        in_channels=VAE_Z_CH,
+        space_scale=args.space_scale,  # 0.5 for 256x256. 1. for 512
+        time_scale=args.time_scale,
         patchify_conv3d_replace="conv2d",  # for Ascend
     )
     latte_model = STDiT_XL_2(**model_extra_args)
+    latte_model = latte_model.set_train(False)
 
     if args.dtype == "fp32":
         model_dtype = ms.float32
     else:
-        model_dtype = {'fp16': ms.float16, 'bf16': ms.bfloat16}[args.dtype]
-        latte_model = auto_mixed_precision(latte_model, 
-                amp_level="O2", 
-                dtype=model_dtype, 
-                fp32_cells=[LayerNorm, Attention],
-                )
+        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        latte_model = auto_mixed_precision(
+            latte_model,
+            amp_level="O2",
+            dtype=model_dtype,
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],  # NOTE: keep it the same as training setting
+        )
 
     if len(args.checkpoint) > 0:
         logger.info(f"Loading ckpt {args.checkpoint} into STDiT")
@@ -125,32 +108,20 @@ def main(args):
     else:
         logger.warning("STDiT uses random initialization!")
 
-    latte_model = latte_model.set_train(False)
-    for param in latte_model.get_parameters():  # freeze latte_model
-        param.requires_grad = False
-
     # 2.2 vae
     logger.info("vae init")
     vae = AutoencoderKL(
         SD_CONFIG,
-        4,
+        VAE_Z_CH,
         ckpt_path=args.vae_checkpoint,
-        use_fp16=False,  # disable amp for vae
+        use_fp16=False,
     )
     vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
 
-    if args.text_encoder == "t5":
-        ckpt_path = args.t5_model_dir
-    elif args.text_encoder == "clip":
-        ckpt_path = args.clip_checkpoint
-    
     # 2.3 text encoder
     if args.embed_path is None:
-        text_encoder, tokenizer = get_text_encoder_and_tokenizer(args.text_encoder, ckpt_path)
+        text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", args.t5_model_dir)
         n = len(captions)
-        assert n > 0, "No captions provided"
         text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
         text_emb = None
     else:
@@ -161,8 +132,7 @@ def main(args):
         mask = ms.Tensor(mask, dtype=ms.uint8)
         text_emb = ms.Tensor(text_emb, dtype=ms.float32)
         text_encoder = None
-        tokenizer = None
-
+    assert n > 0, "No captions provided"
     logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
 
     # 3. build inference pipeline
@@ -174,14 +144,13 @@ def main(args):
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         ddim_sampling=args.ddim_sampling,
-        condition=args.condition,
+        condition="text",
     )
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
     num_params_latte, num_params_latte_trainable = count_params(latte_model)
     num_params = num_params_vae + num_params_latte
-    num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
@@ -204,8 +173,8 @@ def main(args):
         # prepare inputs
         inputs = {}
         # b c t h w
-        # z = ops.randn([ns, vae_out_channels] + list(input_size), dtype=ms.float32)
-        z = np.random.randn(*([ns, vae_out_channels] + list(input_size))) # for ensure generate the same noise
+        # z = ops.randn([ns, VAE_Z_CH] + list(input_size), dtype=ms.float32)
+        z = np.random.randn(*([ns, VAE_Z_CH] + list(input_size)))  # for ensure generate the same noise
         z = ms.Tensor(z, dtype=ms.float32)
         inputs["noise"] = z
         inputs["scale"] = args.guidance_scale
@@ -218,22 +187,25 @@ def main(args):
             inputs["text_emb"] = text_emb[i : i + ns]
             inputs["mask"] = mask[i : i + ns]
 
-        logger.info(f"Sampling for captions: ")
+        logger.info("Sampling for captions: ")
         for j in range(ns):
-            logger.info(captions[i+j])
+            logger.info(captions[i + j])
 
-        start_time = time.time()
         # infer
+        start_time = time.time()
         x_samples = pipeline(inputs, latent_save_fp=f"outputs/denoised_latent_{i:02d}.npy")
         x_samples = x_samples.asnumpy()
         batch_time = time.time() - start_time
-        logger.info(f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s")
+
+        logger.info(
+            f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s"
+        )
 
         # save result
         for j in range(ns):
             global_idx = i * args.batch_size + j
             prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
-            save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.mp4"
+            save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
             save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
             logger.info(f"save to {save_fp}")
 
@@ -260,12 +232,6 @@ def parse_args():
         help="number of frames",
     )
     parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=1000,
-        help="number of classes, applies only when condition is `class`",
-    )
-    parser.add_argument(
         "--num_samples",
         type=int,
         default=3,
@@ -273,39 +239,12 @@ def parse_args():
         " the number of samples will be defined by the number of class labels or text captions",
     )
     parser.add_argument(
-        "--model_name",
-        "-m",
-        type=str,
-        default="STDiT-XL/2",
-        help="Model name ",
-    )
-    parser.add_argument(
-        "--condition",
-        default=None,
-        type=str,
-        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
-        " `class` means using class labels as conditions.",
-    )
-    parser.add_argument(
         "--checkpoint",
         type=str,
         default="",
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
     )
-    parser.add_argument(
-        "--text_encoder",
-        default=None,
-        type=str,
-        choices=["clip", "t5"],
-        help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
-    )
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
-    parser.add_argument(
-        "--clip_checkpoint",
-        type=str,
-        default=None,
-        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
-    )
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -335,25 +274,8 @@ def parse_args():
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
-    parser.add_argument(
-        "--precision_mode",
-        default=None,
-        type=str,
-        help="If specified, set the precision mode for Ascend configurations.",
-    )
-    parser.add_argument(
-        "--use_recompute",
-        default=False,
-        type=str2bool,
-        help="whether use recompute.",
-    )
-    parser.add_argument(
-        "--patch_embedder",
-        type=str,
-        default="conv",
-        choices=["conv", "linear"],
-        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
-    )
+    parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
+    parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
     parser.add_argument(
         "--captions",
         type=str,
@@ -361,6 +283,13 @@ def parse_args():
         help="A list of text captions to be generated with",
     )
     parser.add_argument("--prompt_file", default=None, type=str, help="path to a csv file containing captions")
+    parser.add_argument(
+        "--save_format",
+        default="mp4",
+        choices=["gif", "mp4"],
+        type=str,
+        help="video format for saving the sampling output, gif or mp4",
+    )
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")

@@ -9,7 +9,7 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [ ] video generation in FP32 precision on Ascends
     - [ ] Mixed precision optimization (BF16)  on Ascend
     - [ ] Flash attention optimization on Ascend
-- [ ] Training  (**Experimental**)
+- [ ] Training
     - [x] Text embedding-cached STDiT training on GPUs and Ascends
         - [x] small dataset
         - [ ] train with long frames
@@ -24,7 +24,7 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
 pip install -r requirements.txt
 ```
 
-MindSpore version: >= 2.2.12 
+MindSpore version: >= 2.2.12
 
 
 ## Preparation
@@ -114,9 +114,7 @@ Please change `csv_path`,`video_folder`, `embed_folder` according to your data l
 
 For detailed usage, please check `python train_t2v.py -h`
 
-!!NOTE: currently, the training script is **experimental** and is mainly used to evaluate the training performance (i.e. max frames and step training time).
-
-It's under continuous optimization.
+Note that the training precision is under continuous optimization.
 
 
 ### Evaluate
