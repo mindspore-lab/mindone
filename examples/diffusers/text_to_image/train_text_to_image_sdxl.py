@@ -452,12 +452,8 @@ def parse_args(input_args=None):
         "--mixed_precision",
         type=str,
         default=None,
-        choices=["no", "fp16", "bf16"],
-        help=(
-            "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >="
-            " 1.10.and an Nvidia Ampere GPU.  Default to the value of accelerate config of the current system or the"
-            " flag passed with the `accelerate.launch` command. Use this argument to override the accelerate config."
-        ),
+        choices=["no", "fp16"],
+        help=("Whether to use mixed precision. Choose between fp16 and no (fp32)"),
     )
     parser.add_argument("--distributed", default=False, action="store_true", help="Enable distributed training")
     parser.add_argument(
@@ -684,8 +680,6 @@ def main():
     weight_dtype = ms.float32
     if args.mixed_precision == "fp16":
         weight_dtype = ms.float16
-    elif args.mixed_precision == "bf16":
-        weight_dtype = ms.bfloat16
 
     # Move unet, vae and text_encoder to device and cast to weight_dtype
     # The VAE is in float32 to avoid NaN losses.
