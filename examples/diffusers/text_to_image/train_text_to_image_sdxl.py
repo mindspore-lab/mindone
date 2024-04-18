@@ -793,8 +793,6 @@ def main():
                 th, tw = args.resolution, args.resolution
                 if h < th or w < tw:
                     raise ValueError(f"Required crop size {(th, tw)} is larger than input image size {(h, w)}")
-                if w == tw and h == th:
-                    return 0, 0, h, w
                 y1 = np.random.randint(0, h - th + 1, size=(1,)).item()
                 x1 = np.random.randint(0, w - tw + 1, size=(1,)).item()
                 image = image.crop((x1, y1, x1 + tw, y1 + th))
