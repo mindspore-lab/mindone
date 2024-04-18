@@ -51,15 +51,9 @@ def compute_snr(noise_scheduler, timesteps):
 
     # Expand the tensors.
     # Adapted from https://github.com/TiankaiHang/Min-SNR-Diffusion-Training/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L1026  # noqa: E501
-    sqrt_alphas_cumprod = sqrt_alphas_cumprod[timesteps].float()
-    while len(sqrt_alphas_cumprod.shape) < len(timesteps.shape):
-        sqrt_alphas_cumprod = sqrt_alphas_cumprod[..., None]
-    alpha = sqrt_alphas_cumprod.expand(timesteps.shape)
-
-    sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod[timesteps].float()
-    while len(sqrt_one_minus_alphas_cumprod.shape) < len(timesteps.shape):
-        sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod[..., None]
-    sigma = sqrt_one_minus_alphas_cumprod.expand(timesteps.shape)
+    # we do not expand alpha/sigma which is redundant for the broadcast shape is actually timesteps.shape
+    alpha = sqrt_alphas_cumprod[timesteps].float()
+    sigma = sqrt_one_minus_alphas_cumprod[timesteps].float()
 
     # Compute SNR.
     snr = (alpha / sigma) ** 2
