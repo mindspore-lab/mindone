@@ -59,7 +59,7 @@ class RMSNorm(nn.Cell):
             d_x = self.d
         else:
             partial_size = int(self.d * self.p)
-            partial_x, _ = ops.split(x, [partial_size, self.d - partial_size], dim=-1)
+            partial_x, _ = ops.split(x, [partial_size, self.d - partial_size], axis=-1)
 
             norm_x = partial_x.norm(2, dim=-1, keepdim=True)
             d_x = partial_size
@@ -120,10 +120,6 @@ class JointAttention(nn.Cell):
         self.q_norm_c = RMSNorm(head_dim)
         self.k_norm_c = RMSNorm(head_dim)
 
-        self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
-        self.reshape = ops.Reshape()
-
         self.attention = Attention(head_dim, attn_drop=attn_drop)
 
         self.enable_flash_attention = (
@@ -153,7 +149,7 @@ class JointAttention(nn.Cell):
         k_x = self.k_norm_x(k_x)
 
         if spatial_freq is not None:
-            q_x, v_x = apply_2d_rotary_pos(q_x, v_x, freqs_cis=spatial_freq)
+            q_x, k_x = apply_2d_rotary_pos(q_x, k_x, freqs_cis=spatial_freq)
 
         # text
         _, L, _ = c.shape
@@ -185,8 +181,8 @@ class JointAttention(nn.Cell):
         else:
             # b, nh, T+L, hd -> b*nh, T+L, hd
             q = ops.reshape(q, (B * h, T + L, hd))
-            k = ops.reshape(q, (B * h, T + L, hd))
-            v = ops.reshape(q, (B * h, T + L, hd))
+            k = ops.reshape(k, (B * h, T + L, hd))
+            v = ops.reshape(v, (B * h, T + L, hd))
             if mask is not None and mask.shape[0] != q.shape[0]:
                 mask = mask.repeat(h, axis=0)
             out = self.attention(q, k, v, mask)
@@ -219,8 +215,8 @@ class MMDiTBlock(nn.Cell):
 
         mlp_hidden_dim = int(hidden_size * mlp_ratio)
         approx_gelu = lambda: GELU(approximate="tanh")
-        self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
-        self.mlp = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        self.mlp_x = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
+        self.mlp_c = Mlp(in_features=hidden_size, hidden_features=mlp_hidden_dim, act_layer=approx_gelu, drop=0)
 
         self.adaLN_modulation_x = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
         self.adaLN_modulation_c = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
@@ -234,14 +230,14 @@ class MMDiTBlock(nn.Cell):
         )
 
         x1 = modulate(self.norm_x_1(x), shift_msa_x, scale_msa_x)
-        c1 = modulate(self.norm_c_1(x), shift_msa_c, scale_msa_c)
+        c1 = modulate(self.norm_c_1(c), shift_msa_c, scale_msa_c)
         x1, c1 = self.attn(x1, c1, mask, spatial_freq)
 
         x = x + gate_msa_x.unsqueeze(1) * x1
         c = c + gate_msa_c.unsqueeze(1) * c1
 
-        x = x + gate_mlp_x.unsqueeze(1) * self.mlp(modulate(self.norm_x_2(x), shift_mlp_x, scale_mlp_x))
-        c = c + gate_mlp_c.unsqueeze(1) * self.mlp(modulate(self.norm_c_2(x), shift_mlp_c, scale_mlp_c))
+        x = x + gate_mlp_x.unsqueeze(1) * self.mlp_x(modulate(self.norm_x_2(x), shift_mlp_x, scale_mlp_x))
+        c = c + gate_mlp_c.unsqueeze(1) * self.mlp_c(modulate(self.norm_c_2(x), shift_mlp_c, scale_mlp_c))
 
         return x, c
 
@@ -295,7 +291,7 @@ class MMDiT(nn.Cell):
         self.base_size = input_size // patch_size
         self.use_rel_pos = use_rel_pos
 
-        if use_rel_pos:
+        if self.use_rel_pos:
             # use relative sin-cos embbedding
             spatial_position_id = [
                 [i for i in range(self.base_size) for j in range(self.base_size)],
@@ -342,7 +338,7 @@ class MMDiT(nn.Cell):
 
         self.apply(_basic_init)
 
-        if self.use_rel_pos:
+        if not self.use_rel_pos:
             # Initialize (and freeze) pos_embed by sin-cos embedding:
             pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches**0.5))
             self.pos_embed.set_data(Tensor(pos_embed).float().unsqueeze(0))
