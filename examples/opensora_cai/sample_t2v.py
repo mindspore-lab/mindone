@@ -231,7 +231,9 @@ def main(args):
 
         # save result
         for j in range(ns):
-            save_fp = f"{save_dir}/{i:02d}-{j:02d}.gif"
+            global_idx = i * args.batch_size + j
+            prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
+            save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.mp4"
             save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
             logger.info(f"save to {save_fp}")
 

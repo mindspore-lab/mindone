@@ -69,13 +69,11 @@ def init_env(
         ms.set_context(max_device_memory=max_device_memory)
 
     if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            device_id=device_id,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # ms2.2.23 parallel needs
             # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
         if parallel_mode == "optim":
             print("D--: use optim parallel")
@@ -105,16 +103,16 @@ def init_env(
 
     else:
         device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
+        # device_id = int(os.getenv("DEVICE_ID", 0))
         rank_id = 0
         ms.set_context(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
+            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
-    return device_id, rank_id, device_num
+    return rank_id, device_num
 
 
 def main(args):
@@ -122,7 +120,7 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_env(
+    rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
