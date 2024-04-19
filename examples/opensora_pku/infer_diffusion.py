@@ -11,13 +11,14 @@ from omegaconf import OmegaConf
 from utils.model_utils import _check_cfgs_in_parser, remove_pname_prefix
 
 import mindspore as ms
+from mindspore import nn
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from opensora.models.diffusion.latte_t2v import LatteT2V
+from opensora.models.diffusion.latte_t2v import Attention, LatteT2V, LayerNorm
 from opensora.sample.pipeline_videogen import VideoGenPipeline
 from opensora.text_encoders.t5_embedder import T5Embedder
 
@@ -143,6 +144,9 @@ def parse_args():
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
+        "--amp_level", type=str, default="O2", help="Set the amp level for the transformer model. Defaults to O2."
+    )
+    parser.add_argument(
         "--precision_mode",
         default=None,
         type=str,
@@ -208,14 +212,18 @@ if __name__ == "__main__":
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
-    if args.dtype == "fp16":
-        model_dtype = ms.float16
-        latte_model = auto_mixed_precision(latte_model, amp_level="O2", dtype=model_dtype)
-    elif args.dtype == "bf16":
-        raise ValueError("LatteT2V only support fp16 and fp32 now!")
-    else:
+    # mixed precision
+    if args.dtype == "fp32":
         model_dtype = ms.float32
-        latte_model = latte_model.to(model_dtype)
+    else:
+        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        latte_model = auto_mixed_precision(
+            latte_model,
+            amp_level=args.amp_level,
+            dtype=model_dtype,
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+        )
+
     video_length, image_size = latte_model.config.video_length, args.image_size
     # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     latent_size = args.image_size // 8
