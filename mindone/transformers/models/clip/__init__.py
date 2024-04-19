@@ -1,1 +1,7 @@
-from .modeling_ms_clip import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModel, CLIPVisionModelWithProjection
+from .modeling_ms_clip import (
+    CLIPModel,
+    CLIPTextModel,
+    CLIPTextModelWithProjection,
+    CLIPVisionModel,
+    CLIPVisionModelWithProjection,
+)
