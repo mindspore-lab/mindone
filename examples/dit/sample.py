@@ -92,6 +92,12 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=None,
+        type=str2bool,
+        help="whether to enable sequence parallelism.",
+    )
+    parser.add_argument(
         "--use_recompute",
         default=None,
         type=str2bool,
@@ -150,7 +156,10 @@ if __name__ == "__main__":
     dit_model = DiT_models[args.model_name](
         input_size=latent_size,
         num_classes=1000,
-        block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        block_kwargs={
+            "enable_flash_attention": args.enable_flash_attention,
+            "enable_sequence_parallelism": args.enable_sequence_parallelism,
+        },
         patch_embedder=args.patch_embedder,
         use_recompute=args.use_recompute,
     )

@@ -151,6 +151,24 @@ def parse_args():
         type=str2bool,
         help="whether to enable flash attention.",
     )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=None,
+        type=str2bool,
+        help="whether to enable sequence parallelism.",
+    )
+    parser.add_argument(
+        "--data_parallel", default=1, type=int, help="number of nodes for data parallel when use sequence parallelism."
+    )
+    parser.add_argument(
+        "--model_parallel", default=1, type=int, help="number of nodes for data parallel when use sequence parallelism."
+    )
+    parser.add_argument(
+        "--sequence_parallel",
+        default=1,
+        type=int,
+        help="number of nodes for sequence parallel when use sequence parallelism.",
+    )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(

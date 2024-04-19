@@ -24,8 +24,7 @@ def init_train_env(
     ascend_config: Optional[dict] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
-    num_workers: int = 1,
-    json_data_path: Optional[str] = None,
+    parallel_mode: str = ms.ParallelMode.DATA_PARALLEL,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore training environment.
@@ -42,11 +41,8 @@ def init_train_env(
         distributed: Whether to enable distributed training. Default is False.
         ascend_config: Parameters specific to the Ascend hardware platform.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
-        max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
-        num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
-        json_data_path: The path of num_samples.json containing a dictionary with 64 parts. Each part is a large
-                        dictionary containing counts of samples of 533 tar packages.
-                        Used only when `enable_modelarts` is True.
+        max_device_memory: The maximum amount of memory that can be allocated on the Ascend device.
+        parallel_mode: The parallel mode to launch. Default: ms.ParallelMode.DATA_PARALLEL
 
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
@@ -67,7 +63,7 @@ def init_train_env(
         _logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
         ms.reset_auto_parallel_context()
         ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            parallel_mode=parallel_mode,
             gradients_mean=True,
             device_num=device_num,
         )

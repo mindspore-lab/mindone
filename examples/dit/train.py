@@ -67,6 +67,11 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
+    if args.enable_sequence_parallelism:
+        parallel_model = ms.ParallelMode.SEMI_AUTO_PARALLEL
+    else:
+        parallel_model = ms.ParallelMode.DATA_PARALLEL
+
     _, rank_id, device_num = init_train_env(
         args.mode,
         seed=args.seed,
@@ -74,6 +79,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
+        parallel_mode=parallel_model,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -84,7 +90,15 @@ def main(args):
     dit_model = DiT_models[args.model_name](
         input_size=latent_size,
         num_classes=1000,
-        block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        block_kwargs={
+            "enable_flash_attention": args.enable_flash_attention,
+            "enable_sequence_parallelism": args.enable_sequence_parallelism,
+            "parallel_config": {
+                "data_parallel": args.data_parallel,
+                "model_parallel": args.model_parallel,
+                "sequence_parallel": args.sequence_parallel,
+            },
+        },
         patch_embedder=args.patch_embedder,
         use_recompute=args.use_recompute,
     )
@@ -129,6 +143,13 @@ def main(args):
     )
 
     # image dataset
+    if args.enable_sequence_parallelism:
+        data_device_num = None
+        data_rank_id = None
+    else:
+        data_device_num = device_num
+        data_rank_id = rank_id
+
     if args.imagenet_format:
         data_config = dict(
             data_folder=args.data_path,
@@ -139,8 +160,8 @@ def main(args):
         )
         dataset = create_dataloader_imagenet(
             data_config,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=data_device_num,
+            rank_id=data_rank_id,
         )
     else:
         data_config = dict(
@@ -156,8 +177,8 @@ def main(args):
         dataset = create_dataloader(
             data_config,
             tokenizer=None,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=data_device_num,
+            rank_id=data_rank_id,
             image_column="image",
             caption_column="caption" if args.condition == "text" else None,
             class_column="class" if args.condition == "class" else None,
