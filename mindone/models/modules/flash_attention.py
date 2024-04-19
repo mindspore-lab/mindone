@@ -7,26 +7,24 @@ import mindspore as ms
 import mindspore.numpy as msnp
 from mindspore import nn, ops
 
-from mindone.utils.version_control import MS_VERSION, check_valid_flash_attention, choose_flash_attention_dtype
+from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
 
-# try import fa
-try:
-    if MS_VERSION >= "2.3.0":
-        from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
-    else:
+FLASH_IS_AVAILABLE = check_valid_flash_attention()
+USE_NEW_FA = False
+if FLASH_IS_AVAILABLE:
+    try:
         from mindspore.nn.layer.flash_attention import FlashAttention
-    import_fa_success = True
-except Exception:
-    import_fa_success = False
+    except Exception:
+        from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
-FLASH_IS_AVAILABLE = check_valid_flash_attention(import_fa_success)
+        USE_NEW_FA = True
+        print("Get New FA API! ")
 
 logger = logging.getLogger(__name__)
 if FLASH_IS_AVAILABLE:
     logger.info("Flash attention is available.")
 else:
     logger.info("Flash attention is unavailable.")
-
 
 __all__ = ["FLASH_IS_AVAILABLE", "MSFlashAttention"]
 
@@ -62,7 +60,7 @@ class MSFlashAttention(nn.Cell):
     ):
         super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
-        self.use_new_flash_attention = MS_VERSION >= "2.3.0"
+        self.use_new_flash_attention = USE_NEW_FA
         if self.use_new_flash_attention:
             self.flash_attention = FlashAttention(
                 scale_value=1.0 / math.sqrt(head_dim),
@@ -86,6 +84,7 @@ class MSFlashAttention(nn.Cell):
     def construct(self, q, k, v, mask=None):
         q_b, h, q_n, d = q.shape  # (b, h, n, d)
         head_dim = d
+
         #   a trick to pad head dimensions to 2**n * 64
         if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
             # pad to 2**n * 64 to avoid accuracy errors

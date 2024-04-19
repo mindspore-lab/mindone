@@ -24,4 +24,4 @@ for img_fp in img_fps:
 frames = np.array([frames])
 print(frames.shape)
 
-save_videos(frames, "./tmp.gif", loop=0)
+save_videos(frames, "./tmp.gif")
