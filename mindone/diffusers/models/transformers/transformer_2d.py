@@ -207,7 +207,21 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         if caption_channels is not None:
             raise NotImplementedError("PixArtAlphaTextProjection is not implemented")
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
+
+    def _set_gradient_checkpointing(self, module, value=False):
+        if hasattr(module, "gradient_checkpointing"):
+            module.gradient_checkpointing = value
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        for block in self.transformer_blocks:
+            block._recompute(value)
 
     def construct(
         self,
@@ -299,18 +313,15 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
 
         # 2. Blocks
         for block in self.transformer_blocks:
-            if self.training and self.gradient_checkpointing:
-                raise NotImplementedError("gradient_checkpointing")
-            else:
-                hidden_states = block(
-                    hidden_states,
-                    attention_mask=attention_mask,
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    timestep=timestep,
-                    cross_attention_kwargs=cross_attention_kwargs,
-                    class_labels=class_labels,
-                )
+            hidden_states = block(
+                hidden_states,
+                attention_mask=attention_mask,
+                encoder_hidden_states=encoder_hidden_states,
+                encoder_attention_mask=encoder_attention_mask,
+                timestep=timestep,
+                cross_attention_kwargs=cross_attention_kwargs,
+                class_labels=class_labels,
+            )
 
         # 3. Output
         if self.is_input_continuous:
