@@ -137,7 +137,7 @@ def _precompute_freqs_cis_1d_from_grid(
 def create_sinusoidal_positions(num_pos: int, dim: int) -> Tensor:
     inv_freq = 1.0 / (10000 ** (np.arange(0, dim, 2) / dim))
     sinusoid_inp = np.einsum("i , j -> i j", np.arange(num_pos), inv_freq)
-    sinusoid_inp = ops.cat(Tensor(sinusoid_inp, dtype=ms.float32), Tensor(sinusoid_inp, dtype=ms.float32), axis=-1)
+    sinusoid_inp = ops.cat((Tensor(sinusoid_inp, dtype=ms.float32), Tensor(sinusoid_inp, dtype=ms.float32)), axis=-1)
     return ops.cat((ops.sin(sinusoid_inp), ops.cos(sinusoid_inp)), axis=1)
 
 

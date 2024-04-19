@@ -237,7 +237,7 @@ class MMDiTBlock(nn.Cell):
         c = c + gate_msa_c.unsqueeze(1) * c1
 
         x = x + gate_mlp_x.unsqueeze(1) * self.mlp_x(modulate(self.norm_x_2(x), shift_mlp_x, scale_mlp_x))
-        c = c + gate_mlp_c.unsqueeze(1) * self.mlp_c(modulate(self.norm_c_2(x), shift_mlp_c, scale_mlp_c))
+        c = c + gate_mlp_c.unsqueeze(1) * self.mlp_c(modulate(self.norm_c_2(c), shift_mlp_c, scale_mlp_c))
 
         return x, c
 
@@ -534,6 +534,6 @@ if __name__ == "__main__":
     clip_pooled_emb = Tensor(np.random.rand(N, 2048), dtype=ms.float32)
     t5_emb = Tensor(np.random.rand(N, 77, 4096), dtype=ms.float32)
 
-    model = MMDiT_S_2(input_size=64, block_kwargs={"enable_flash_attention": True})
+    model = MMDiT_S_2(input_size=64, in_channels=C, block_kwargs={"enable_flash_attention": True})
     output = model(x, t, clip_emb, clip_pooled_emb, t5_emb)
     print(output.shape)
