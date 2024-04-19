@@ -19,6 +19,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from .activations import get_activation
+from .normalization import LayerNorm
 
 
 def get_timestep_embedding(
@@ -181,3 +182,89 @@ class Timesteps(nn.Cell):
             downscale_freq_shift=self.downscale_freq_shift,
         )
         return t_emb
+
+
+class LabelEmbedding(nn.Cell):
+    """
+    Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
+
+    Args:
+        num_classes (`int`): The number of classes.
+        hidden_size (`int`): The size of the vector embeddings.
+        dropout_prob (`float`): The probability of dropping a label.
+    """
+
+    def __init__(self, num_classes, hidden_size, dropout_prob):
+        super().__init__()
+        use_cfg_embedding = dropout_prob > 0
+        self.embedding_table = nn.Embedding(num_classes + use_cfg_embedding, hidden_size)
+        self.num_classes = num_classes
+        self.dropout_prob = dropout_prob
+
+    def token_drop(self, labels, force_drop_ids=None):
+        """
+        Drops labels to enable classifier-free guidance.
+        """
+        if force_drop_ids is None:
+            drop_ids = ops.rand(labels.shape[0]) < self.dropout_prob
+        else:
+            drop_ids = ms.tensor(force_drop_ids == 1)
+        labels = ops.where(drop_ids, self.num_classes, labels)
+        return labels
+
+    def construct(self, labels: ms.Tensor, force_drop_ids=None):
+        use_dropout = self.dropout_prob > 0
+        if (self.training and use_dropout) or (force_drop_ids is not None):
+            labels = self.token_drop(labels, force_drop_ids)
+        embeddings = self.embedding_table(labels)
+        return embeddings
+
+
+class TextImageProjection(nn.Cell):
+    def __init__(
+        self,
+        text_embed_dim: int = 1024,
+        image_embed_dim: int = 768,
+        cross_attention_dim: int = 768,
+        num_image_text_embeds: int = 10,
+    ):
+        super().__init__()
+
+        self.num_image_text_embeds = num_image_text_embeds
+        self.image_embeds = nn.Dense(image_embed_dim, self.num_image_text_embeds * cross_attention_dim)
+        self.text_proj = nn.Dense(text_embed_dim, cross_attention_dim)
+
+    def construct(self, text_embeds: ms.Tensor, image_embeds: ms.Tensor):
+        batch_size = text_embeds.shape[0]
+
+        # image
+        image_text_embeds = self.image_embeds(image_embeds)
+        image_text_embeds = image_text_embeds.reshape(batch_size, self.num_image_text_embeds, -1)
+
+        # text
+        text_embeds = self.text_proj(text_embeds)
+
+        return ops.cat([image_text_embeds, text_embeds], axis=1)
+
+
+class ImageProjection(nn.Cell):
+    def __init__(
+        self,
+        image_embed_dim: int = 768,
+        cross_attention_dim: int = 768,
+        num_image_text_embeds: int = 32,
+    ):
+        super().__init__()
+
+        self.num_image_text_embeds = num_image_text_embeds
+        self.image_embeds = nn.Dense(image_embed_dim, self.num_image_text_embeds * cross_attention_dim)
+        self.norm = LayerNorm(cross_attention_dim)
+
+    def construct(self, image_embeds: ms.Tensor):
+        batch_size = image_embeds.shape[0]
+
+        # image
+        image_embeds = self.image_embeds(image_embeds)
+        image_embeds = image_embeds.reshape(batch_size, self.num_image_text_embeds, -1)
+        image_embeds = self.norm(image_embeds)
+        return image_embeds
