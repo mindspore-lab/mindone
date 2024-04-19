@@ -18,6 +18,7 @@ from ..utils import _LazyModule
 
 _import_structure = {
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
+    "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
     "transformers.transformer_2d": ["Transformer2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],
@@ -25,6 +26,7 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .autoencoders import AutoencoderKL
+    from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import Transformer2DModel
     from .unets import UNet2DConditionModel

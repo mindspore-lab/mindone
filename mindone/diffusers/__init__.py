@@ -31,12 +31,14 @@ _import_structure = {
         "DDIMPipeline",
         "DDPMPipeline",
         "DiffusionPipeline",
+        "StableDiffusionPipeline",
         "StableDiffusionXLPipeline",
     ],
     "schedulers": [
         "DDIMScheduler",
         "DDPMScheduler",
         "EulerDiscreteScheduler",
+        "PNDMScheduler",
         "SchedulerMixin",
     ],
     "utils": [
@@ -56,8 +58,14 @@ if TYPE_CHECKING:
         get_polynomial_decay_schedule_with_warmup,
         get_scheduler,
     )
-    from .pipelines import DDIMPipeline, DDPMPipeline, DiffusionPipeline, StableDiffusionXLPipeline
-    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, SchedulerMixin
+    from .pipelines import (
+        DDIMPipeline,
+        DDPMPipeline,
+        DiffusionPipeline,
+        StableDiffusionPipeline,
+        StableDiffusionXLPipeline,
+    )
+    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
     from .utils import logging
 
 else:
