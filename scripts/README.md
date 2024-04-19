@@ -22,7 +22,7 @@ Note that all the above metrics are computed based on neural network models.
 To compute the CLIP score on all frames of output video and report the average cosine similarity between all video frame pairs, please run
 
 ```shell
-python ./script/eval_video_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --model_name <HF-model-name>  --metric clip_score_frame
+python ./scripts/eval_videos_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --model_name <HF-model-name>  --metric clip_score_frame
 ```
 
 #### CLIP Score for Textual Alignment
@@ -30,7 +30,7 @@ python ./script/eval_video_metrics.py --video_data_dir <path-to-video-dir> --vid
 To compute the average CLIP score between all frames of the output video and the corresponding editing prompts, please run
 
 ```shell
-python ./script/eval_video_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --mode_name <HF-model-name>  --metric clip_score_text
+python ./scripts/eval_videos_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --mode_name <HF-model-name>  --metric clip_score_text
 ```
 
 Format of `.csv`:
