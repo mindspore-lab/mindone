@@ -362,7 +362,7 @@ class STDiT(nn.Cell):
         self.hidden_size = hidden_size
         self.patch_size = patch_size
         self.input_size = input_size
-        num_patches = np.prod([input_size[i] // patch_size[i] for i in range(3)])
+        num_patches = int(np.prod([input_size[i] // patch_size[i] for i in range(3)]))
         self.num_patches = num_patches
         self.num_temporal = input_size[0] // patch_size[0]
         self.num_spatial = num_patches // self.num_temporal
