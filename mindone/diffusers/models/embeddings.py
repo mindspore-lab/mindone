@@ -269,3 +269,217 @@ class ImageProjection(nn.Cell):
         image_embeds = image_embeds.reshape(batch_size, self.num_image_text_embeds, -1)
         image_embeds = self.norm(image_embeds)
         return image_embeds
+
+
+class ImagePositionalEmbeddings(nn.Cell):
+    """
+    Converts latent image classes into vector embeddings. Sums the vector embeddings with positional embeddings for the
+    height and width of the latent space.
+
+    For more details, see figure 10 of the dall-e paper: https://arxiv.org/abs/2102.12092
+
+    For VQ-diffusion:
+
+    Output vector embeddings are used as input for the transformer.
+
+    Note that the vector embeddings for the transformer are different than the vector embeddings from the VQVAE.
+
+    Args:
+        num_embed (`int`):
+            Number of embeddings for the latent pixels embeddings.
+        height (`int`):
+            Height of the latent image i.e. the number of height embeddings.
+        width (`int`):
+            Width of the latent image i.e. the number of width embeddings.
+        embed_dim (`int`):
+            Dimension of the produced vector embeddings. Used for the latent pixel, height, and width embeddings.
+    """
+
+    def __init__(
+        self,
+        num_embed: int,
+        height: int,
+        width: int,
+        embed_dim: int,
+    ):
+        super().__init__()
+
+        self.height = height
+        self.width = width
+        self.num_embed = num_embed
+        self.embed_dim = embed_dim
+
+        self.emb = nn.Embedding(self.num_embed, embed_dim)
+        self.height_emb = nn.Embedding(self.height, embed_dim)
+        self.width_emb = nn.Embedding(self.width, embed_dim)
+
+    def forward(self, index):
+        emb = self.emb(index)
+
+        height_emb = self.height_emb(ops.arange(self.height).view(1, self.height))
+
+        # 1 x H x D -> 1 x H x 1 x D
+        height_emb = height_emb.unsqueeze(2)
+
+        width_emb = self.width_emb(ops.arange(self.width).view(1, self.width))
+
+        # 1 x W x D -> 1 x 1 x W x D
+        width_emb = width_emb.unsqueeze(1)
+
+        pos_emb = height_emb + width_emb
+
+        # 1 x H x W x D -> 1 x L xD
+        pos_emb = pos_emb.view(1, self.height * self.width, -1)
+
+        emb = emb + pos_emb[:, : emb.shape[1], :]
+
+        return emb
+
+
+class SinusoidalPositionalEmbedding(nn.Cell):
+    """Apply positional information to a sequence of embeddings.
+
+    Takes in a sequence of embeddings with shape (batch_size, seq_length, embed_dim) and adds positional embeddings to
+    them
+
+    Args:
+        embed_dim: (int): Dimension of the positional embedding.
+        max_seq_length: Maximum sequence length to apply positional embeddings
+
+    """
+
+    def __init__(self, embed_dim: int, max_seq_length: int = 32):
+        super().__init__()
+        position = ops.arange(max_seq_length).unsqueeze(1)
+        div_term = ops.exp(ops.arange(0, embed_dim, 2) * (-math.log(10000.0) / embed_dim))
+        pe = ops.zeros(1, max_seq_length, embed_dim)
+        pe[0, :, 0::2] = ops.sin(position * div_term)
+        pe[0, :, 1::2] = ops.cos(position * div_term)
+        self.pe = nn.Parameter(ms.Tensor(pe), requires_grad=False)
+
+    def construct(self, x):
+        _, seq_length, _ = x.shape
+        x = x + self.pe[:, :seq_length]
+        return x
+
+
+class CombinedTimestepLabelEmbeddings(nn.Cell):
+    def __init__(self, num_classes, embedding_dim, class_dropout_prob=0.1):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=1)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+        self.class_embedder = LabelEmbedding(num_classes, embedding_dim, class_dropout_prob)
+
+    def construct(self, timestep, class_labels, hidden_dtype=None):
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
+
+        class_labels = self.class_embedder(class_labels)  # (N, D)
+
+        conditioning = timesteps_emb + class_labels  # (N, D)
+
+        return conditioning
+
+
+class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
+    """
+    For PixArt-Alpha.
+
+    Reference:
+    https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion\
+        /model/nets/PixArtMS.py#L164C9-L168C29
+    """
+
+    def __init__(self, embedding_dim, size_emb_dim, use_additional_conditions: bool = False):
+        super().__init__()
+
+        self.outdim = size_emb_dim
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+        self.use_additional_conditions = use_additional_conditions
+        if use_additional_conditions:
+            self.additional_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+            self.resolution_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
+            self.aspect_ratio_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
+
+    def construct(self, timestep, resolution, aspect_ratio, batch_size, hidden_dtype):
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
+
+        if self.use_additional_conditions:
+            resolution_emb = self.additional_condition_proj(resolution.flatten()).to(hidden_dtype)
+            resolution_emb = self.resolution_embedder(resolution_emb).reshape(batch_size, -1)
+            aspect_ratio_emb = self.additional_condition_proj(aspect_ratio.flatten()).to(hidden_dtype)
+            aspect_ratio_emb = self.aspect_ratio_embedder(aspect_ratio_emb).reshape(batch_size, -1)
+            conditioning = timesteps_emb + ops.cat([resolution_emb, aspect_ratio_emb], axis=1)
+        else:
+            conditioning = timesteps_emb
+
+        return conditioning
+
+
+class PatchEmbed(nn.Cell):
+    """2D Image to Patch Embedding"""
+
+    def __init__(
+        self,
+        height=224,
+        width=224,
+        patch_size=16,
+        in_channels=3,
+        embed_dim=768,
+        layer_norm=False,
+        flatten=True,
+        bias=True,
+        interpolation_scale=1,
+    ):
+        super().__init__()
+
+        num_patches = (height // patch_size) * (width // patch_size)
+        self.flatten = flatten
+        self.layer_norm = layer_norm
+
+        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size, has_bias=bias)
+        if layer_norm:
+            self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
+        else:
+            self.norm = None
+
+        self.patch_size = patch_size
+        # See:
+        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L161
+        self.height, self.width = height // patch_size, width // patch_size
+        self.base_size = height // patch_size
+        self.interpolation_scale = interpolation_scale
+        pos_embed = get_2d_sincos_pos_embed(
+            embed_dim, int(num_patches**0.5), base_size=self.base_size, interpolation_scale=self.interpolation_scale
+        )
+        self.pos_embed = ms.Parameter(ms.Tensor(pos_embed).float().unsqueeze(0), requires_grad=False)
+
+    def construct(self, latent):
+        height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
+
+        latent = self.proj(latent)
+        if self.flatten:
+            latent = latent.flatten(start_dim=2).permute(0, 2, 1)  # BCHW -> BNC
+        if self.layer_norm:
+            latent = self.norm(latent)
+
+        # Interpolate positional embeddings if needed.
+        # (For PixArt-Alpha: https://github.com/PixArt-alpha/PixArt-alpha/\
+        # blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160)
+        if self.height != height or self.width != width:
+            pos_embed = get_2d_sincos_pos_embed(
+                embed_dim=self.pos_embed.shape[-1],
+                grid_size=(height, width),
+                base_size=self.base_size,
+                interpolation_scale=self.interpolation_scale,
+            )
+            pos_embed = ms.Tensor(pos_embed)
+            pos_embed = pos_embed.float().unsqueeze(0)
+        else:
+            pos_embed = self.pos_embed
+
+        return (latent + pos_embed).to(latent.dtype)
