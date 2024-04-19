@@ -13,8 +13,7 @@ except Exception:
     NEW_AUTO_WHITE = True
 
 
-# TODO: after MS2.3-20240219, this API supports bf16 mixed precision setting.
-def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
+def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16, custom_fp32_cells=[]):
     """
     auto mixed precision function.
 
@@ -26,6 +25,8 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
             - "O1": Cast the operators in white_list to float16, the remaining operators are kept in float32.
             - "O2": Cast network to float16, keep operators in black_list run in float32,
             - "O3": Cast network to float16.
+        dtype: ms.float16 or ms.bfloat16
+        custom_fp32_cells: extra cells to keep in fp32 precision in O2, e.g. self-defined LayerNorm
 
     Raises:
         ValueError: If amp level is not supported.
@@ -43,10 +44,10 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
     if amp_level == "O0":
         pass
     elif amp_level == "O1":
-        if not NEW_AUTO_WHITE:
-            return _auto_white_list(network, AMP_WHITE_LIST)
-        else:
+        if NEW_AUTO_WHITE:
             return _auto_mixed_precision_rewrite(network, dtype, white_list=AMP_WHITE_LIST)
+        else:
+            return _auto_white_list(network, AMP_WHITE_LIST, dtype=dtype)
     elif amp_level == "O2":
         try:
             _auto_black_list(
@@ -54,7 +55,8 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
                 AMP_BLACK_LIST
                 + [
                     nn.GroupNorm,
-                ],
+                ]
+                + custom_fp32_cells,
                 dtype,
             )
         except Exception:
@@ -63,7 +65,8 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16):
                 AMP_BLACK_LIST
                 + [
                     nn.GroupNorm,
-                ],
+                ]
+                + custom_fp32_cells,
             )
     elif amp_level == "O3":
         network.to_float(dtype)
