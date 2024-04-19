@@ -133,22 +133,30 @@ class Encoder(nn.Cell):
             block_out_channels[-1], conv_out_channels, 3, pad_mode="pad", padding=1, has_bias=True
         )
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value=False):
+        self._gradient_checkpointing = value
+        for down_block in self.down_blocks:
+            down_block._recompute(value)
+        self.mid_block._recompute(value)
 
     def construct(self, sample: ms.Tensor) -> ms.Tensor:
         r"""The forward method of the `Encoder` class."""
 
         sample = self.conv_in(sample)
 
-        if self.training and self.gradient_checkpointing:
-            raise NotImplementedError
-        else:
-            # down
-            for down_block in self.down_blocks:
-                sample = down_block(sample)
+        # down
+        for down_block in self.down_blocks:
+            sample = down_block(sample)
 
-            # middle
-            sample = self.mid_block(sample)
+        # middle
+        sample = self.mid_block(sample)
 
         # post-process
         sample = self.conv_norm_out(sample)
@@ -257,7 +265,18 @@ class Decoder(nn.Cell):
         self.conv_act = SiLU()
         self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, pad_mode="pad", padding=1, has_bias=True)
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value=False):
+        self._gradient_checkpointing = value
+        self.mid_block._recompute(value)
+        for up_block in self.up_blocks:
+            up_block._recompute(value)
 
     def construct(
         self,
@@ -268,15 +287,12 @@ class Decoder(nn.Cell):
 
         sample = self.conv_in(sample)
 
-        if self.training and self.gradient_checkpointing:
-            raise NotImplementedError
-        else:
-            # middle
-            sample = self.mid_block(sample, latent_embeds)
+        # middle
+        sample = self.mid_block(sample, latent_embeds)
 
-            # up
-            for up_block in self.up_blocks:
-                sample = up_block(sample, latent_embeds)
+        # up
+        for up_block in self.up_blocks:
+            sample = up_block(sample, latent_embeds)
 
         # post-process
         if latent_embeds is None:

@@ -478,7 +478,6 @@ def parse_args(input_args=None):
         return f"{feature} is not yet supported, please do not set --{flag}"
 
     assert args.gradient_accumulation_steps == 1, error_template("Gradient Accumulation", "gradient_accumulation_steps")
-    assert args.gradient_checkpointing is False, error_template("Gradient Checkpointing", "gradient_checkpointing")
     assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
     assert args.allow_tf32 is False, error_template("TF32 Data Type", "allow_tf32")
     assert args.use_8bit_adam is False, error_template("AdamW8bit", "use_8bit_adam")
@@ -687,7 +686,10 @@ def main():
     text_encoder_one.to(weight_dtype)
     text_encoder_two.to(weight_dtype)
 
-    # TODO: support EMA, xformers_memory_efficient_attention, gradient_checkpointing, TF32, AdamW8bit
+    # TODO: support EMA, xformers_memory_efficient_attention, TF32, AdamW8bit
+
+    if args.gradient_checkpointing:
+        unet.enable_gradient_checkpointing()
 
     if args.scale_lr:
         args.learning_rate = (

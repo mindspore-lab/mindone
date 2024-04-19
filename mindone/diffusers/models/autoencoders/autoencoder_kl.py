@@ -116,6 +116,10 @@ class AutoencoderKL(ModelMixin, ConfigMixin):
         self.tile_latent_min_size = int(sample_size / (2 ** (len(self.config.block_out_channels) - 1)))
         self.tile_overlap_factor = 0.25
 
+    def _set_gradient_checkpointing(self, module, value=False):
+        if isinstance(module, (Encoder, Decoder)):
+            module.gradient_checkpointing = value
+
     def encode(self, x: ms.Tensor, return_dict: bool = False) -> Union[AutoencoderKLOutput, Tuple[ms.Tensor]]:
         """
         Encode a batch of images into latents.

@@ -553,7 +553,18 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        # we exclude 0-th resnet following huggingface/diffusers. HF does this just for simplicity in forward?
+        for resnet in self.resnets[1:]:
+            resnet._recompute(value)
 
     def construct(
         self,
@@ -566,18 +577,15 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
     ) -> ms.Tensor:
         hidden_states = self.resnets[0](hidden_states, temb)
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
-            if self.training and self.gradient_checkpointing:
-                raise NotImplementedError
-            else:
-                hidden_states = attn(
-                    hidden_states,
-                    encoder_hidden_states=encoder_hidden_states,
-                    cross_attention_kwargs=cross_attention_kwargs,
-                    attention_mask=attention_mask,
-                    encoder_attention_mask=encoder_attention_mask,
-                    return_dict=False,
-                )[0]
-                hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(
+                hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                cross_attention_kwargs=cross_attention_kwargs,
+                attention_mask=attention_mask,
+                encoder_attention_mask=encoder_attention_mask,
+                return_dict=False,
+            )[0]
+            hidden_states = resnet(hidden_states, temb)
 
         return hidden_states
 
@@ -663,7 +671,17 @@ class CrossAttnDownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        for resnet in self.resnets:
+            resnet._recompute(value)
 
     def construct(
         self,
@@ -680,18 +698,15 @@ class CrossAttnDownBlock2D(nn.Cell):
         blocks = list(zip(self.resnets, self.attentions))
 
         for i, (resnet, attn) in enumerate(blocks):
-            if self.training and self.gradient_checkpointing:
-                raise NotImplementedError
-            else:
-                hidden_states = resnet(hidden_states, temb)
-                hidden_states = attn(
-                    hidden_states,
-                    encoder_hidden_states=encoder_hidden_states,
-                    cross_attention_kwargs=cross_attention_kwargs,
-                    attention_mask=attention_mask,
-                    encoder_attention_mask=encoder_attention_mask,
-                    return_dict=False,
-                )[0]
+            hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(
+                hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                cross_attention_kwargs=cross_attention_kwargs,
+                attention_mask=attention_mask,
+                encoder_attention_mask=encoder_attention_mask,
+                return_dict=False,
+            )[0]
 
             # apply additional residuals to the output of the last pair of resnet and attention blocks
             if i == len(blocks) - 1 and additional_residuals is not None:
@@ -760,7 +775,17 @@ class DownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self.gradient_checkpointing = False
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        for resnet in self.resnets:
+            resnet._recompute(value)
 
     def construct(
         self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None
@@ -768,10 +793,7 @@ class DownBlock2D(nn.Cell):
         output_states = ()
 
         for resnet in self.resnets:
-            if self.training and self.gradient_checkpointing:
-                raise NotImplementedError
-            else:
-                hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(hidden_states, temb)
 
             output_states = output_states + (hidden_states,)
 
@@ -928,8 +950,18 @@ class CrossAttnUpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
-        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        for resnet in self.resnets:
+            resnet._recompute(value)
 
     def construct(
         self,
@@ -960,18 +992,15 @@ class CrossAttnUpBlock2D(nn.Cell):
 
             hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
 
-            if self.training and self.gradient_checkpointing:
-                raise NotImplementedError
-            else:
-                hidden_states = resnet(hidden_states, temb)
-                hidden_states = attn(
-                    hidden_states,
-                    encoder_hidden_states=encoder_hidden_states,
-                    cross_attention_kwargs=cross_attention_kwargs,
-                    attention_mask=attention_mask,
-                    encoder_attention_mask=encoder_attention_mask,
-                    return_dict=False,
-                )[0]
+            hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(
+                hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                cross_attention_kwargs=cross_attention_kwargs,
+                attention_mask=attention_mask,
+                encoder_attention_mask=encoder_attention_mask,
+                return_dict=False,
+            )[0]
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
@@ -1029,8 +1058,18 @@ class UpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
-        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
+        self._gradient_checkpointing = False
+
+    @property
+    def gradient_checkpointing(self):
+        return self._gradient_checkpointing
+
+    @gradient_checkpointing.setter
+    def gradient_checkpointing(self, value):
+        self._gradient_checkpointing = value
+        for resnet in self.resnets:
+            resnet._recompute(value)
 
     def construct(
         self,
@@ -1057,10 +1096,7 @@ class UpBlock2D(nn.Cell):
 
             hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
 
-            if self.training and self.gradient_checkpointing:
-                raise NotImplementedError
-            else:
-                hidden_states = resnet(hidden_states, temb)
+            hidden_states = resnet(hidden_states, temb)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
