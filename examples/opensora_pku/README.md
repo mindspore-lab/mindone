@@ -11,7 +11,7 @@ We aim to achieve efficient training and inference on Ascend NPU devices based o
         - [x] Training (precision to be improved)
     - [x] Latte Text-to-Video (Coming soon)
         - [x] Inference
-        - [ ] Training
+        - [ ] Training (coming soon)
 
 ## Installation
 
