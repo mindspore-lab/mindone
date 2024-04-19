@@ -30,7 +30,7 @@ python ./scripts/eval_videos_metrics.py --video_data_dir <path-to-video-dir> --v
 To compute the average CLIP score between all frames of the output video and the corresponding editing prompts, please run
 
 ```shell
-python ./scripts/eval_videos_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --mode_name <HF-model-name>  --metric clip_score_text
+python ./scripts/eval_videos_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --model_name <HF-model-name>  --metric clip_score_text
 ```
 
 Format of `.csv`:
