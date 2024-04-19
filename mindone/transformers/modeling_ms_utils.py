@@ -16,8 +16,9 @@
 import copy
 import os
 import warnings
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Tuple, Union
 
+import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
@@ -42,6 +43,8 @@ from transformers.utils import (
 from transformers.utils.hub import get_checkpoint_shard_files
 
 import mindspore as ms
+from mindspore import Tensor
+from mindspore import dtype as mstype
 from mindspore import nn, ops
 
 if is_safetensors_available():
@@ -174,6 +177,144 @@ class ModuleUtilsMixin:
                 total_numel.append(param.numel())
 
         return sum(total_numel)
+
+    def invert_attention_mask(self, encoder_attention_mask: Tensor) -> Tensor:
+        """
+        Invert an attention mask (e.g., switches 0. and 1.).
+
+        Args:
+            encoder_attention_mask (`Tensor`): An attention mask.
+
+        Returns:
+            `Tensor`: The inverted attention mask.
+        """
+        encoder_extended_attention_mask = None
+        if encoder_attention_mask.dim() == 3:
+            encoder_extended_attention_mask = encoder_attention_mask[:, None, :, :]
+
+        if encoder_attention_mask.dim() == 2:
+            encoder_extended_attention_mask = encoder_attention_mask[:, None, None, :]
+
+        # T5 has a mask that can compare sequence ids, we can simulate this here with this transposition
+        # Cf. https://github.com/tensorflow/mesh/blob/8d2465e9bc93129b913b5ccc6a59aa97abd96ec6/mesh_tensorflow
+        # /transformer/transformer_layers.py#L270
+        # encoder_extended_attention_mask = (encoder_extended_attention_mask ==
+        # encoder_extended_attention_mask.transpose(-1, -2))
+        if encoder_extended_attention_mask is not None:
+            encoder_extended_attention_mask = encoder_extended_attention_mask.to(dtype=self.dtype)  # fp16 compatibility
+            encoder_extended_attention_mask = (1.0 - encoder_extended_attention_mask) * Tensor(
+                np.finfo(mstype.dtype_to_nptype(self.dtype)).min
+            )
+
+        return encoder_extended_attention_mask
+
+    @staticmethod
+    def create_extended_attention_mask_for_decoder(input_shape, attention_mask):
+        batch_size, seq_length = input_shape
+        seq_ids = ops.arange(seq_length)
+        causal_mask = seq_ids[None, None, :].tile((batch_size, seq_length, 1)) <= seq_ids[None, :, None]
+        causal_mask = causal_mask.to(attention_mask.dtype)
+
+        if causal_mask.shape[1] < attention_mask.shape[1]:
+            prefix_seq_len = attention_mask.shape[1] - causal_mask.shape[1]
+            causal_mask = ops.cat(
+                [
+                    ops.ones((batch_size, seq_length, prefix_seq_len), dtype=causal_mask.dtype),
+                    causal_mask,
+                ],
+                axis=-1,
+            )
+
+        # extended_attention_mask = causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
+        # extended_attention_mask = ops.mul(causal_mask[:, None, :, :], attention_mask[:, None, None, :])
+        extended_attention_mask = ops.mul(causal_mask.unsqueeze(1), attention_mask.unsqueeze(1).unsqueeze(1))
+        return extended_attention_mask
+
+    def get_extended_attention_mask(
+        self, attention_mask: Tensor, input_shape: Tuple[int], decoder_type, dtype: ms.float32 = None
+    ) -> Tensor:
+        """
+        Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
+
+        Arguments:
+            attention_mask (`Tensor`):
+                Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
+            input_shape (`Tuple[int]`):
+                The shape of the input to the model.
+
+        Returns:
+            `Tensor` The extended attention mask, with the same dtype as `attention_mask.dtype`.
+        """
+        if dtype is None:
+            dtype = self.dtype
+
+        # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
+        # ourselves in which case we just need to make it broadcastable to all heads.
+        if attention_mask.dim() == 3:
+            extended_attention_mask = attention_mask[:, None, :, :]
+        elif attention_mask.dim() == 2:
+            # Provided a padding mask of dimensions [batch_size, seq_length]
+            # - if the model is a decoder, apply a causal mask in addition to the padding mask
+            # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
+            if decoder_type:
+                extended_attention_mask = ModuleUtilsMixin.create_extended_attention_mask_for_decoder(
+                    input_shape, attention_mask
+                )
+            else:
+                extended_attention_mask = attention_mask[:, None, None, :]
+        else:
+            raise ValueError(
+                f"Wrong shape for input_ids (shape {input_shape}) or attention_mask (shape {attention_mask.shape})"
+            )
+
+        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+        # masked positions, this operation will create a tensor which is 0.0 for
+        # positions we want to attend and the dtype's smallest value for masked positions.
+        # Since we are adding it to the raw scores before the softmax, this is
+        # effectively the same as removing these entirely.
+        extended_attention_mask = extended_attention_mask.to(dtype)  # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * Tensor(
+            np.finfo(mstype.dtype_to_nptype(self.dtype)).min
+        )
+        return extended_attention_mask
+
+    def get_head_mask(
+        self, head_mask: Optional[Tensor], num_hidden_layers: int, is_attention_chunked: bool = False
+    ) -> Tensor:
+        """
+        Prepare the head mask if needed.
+
+        Args:
+            head_mask (`Tensor` with shape `[num_heads]` or `[num_hidden_layers x num_heads]`, *optional*):
+                The mask indicating if we should keep the heads or not (1.0 for keep, 0.0 for discard).
+            num_hidden_layers (`int`):
+                The number of hidden layers in the model.
+            is_attention_chunked (`bool`, *optional*, defaults to `False`):
+                Whether or not the attentions scores are computed by chunks or not.
+
+        Returns:
+            `Tensor` with shape `[num_hidden_layers x batch x num_heads x seq_length x seq_length]` or list with
+            `[None]` for each layer.
+        """
+        if head_mask is not None:
+            head_mask = self._convert_head_mask_to_5d(head_mask, num_hidden_layers)
+            if is_attention_chunked is True:
+                head_mask = head_mask.unsqueeze(-1)
+        else:
+            head_mask = [None] * num_hidden_layers
+
+        return head_mask
+
+    def _convert_head_mask_to_5d(self, head_mask, num_hidden_layers):
+        """-> [num_hidden_layers x batch x num_heads x seq_length x seq_length]"""
+        if head_mask.dim() == 1:
+            head_mask = head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+            head_mask = head_mask.broadcast_to(num_hidden_layers, -1, -1, -1, -1)
+        elif head_mask.dim() == 2:
+            head_mask = head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)  # We can specify head_mask for each layer
+        assert head_mask.dim() == 5, f"head_mask.dim != 5, instead {head_mask.dim()}"
+        head_mask = Tensor(head_mask, self.dtype)  # switch to float if need + fp16 compatibility
+        return head_mask
 
 
 class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
@@ -876,6 +1017,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
 
             if is_sharded:
                 loaded_state_dict_keys = sharded_metadata["all_checkpoint_keys"]
+                for sharded_file in resolved_archive_file:
+                    if state_dict is None:
+                        state_dict = safe_load_file(sharded_file)
+                    else:
+                        state_dict.update(safe_load_file(sharded_file))
             else:
                 loaded_state_dict_keys = list(state_dict.keys())
 
@@ -942,7 +1088,19 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
                 if isinstance(cell, nn.Conv1d):
                     mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
                 elif isinstance(cell, nn.Embedding):
-                    mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
+                    if "shared" in name:
+                        if "decoder" in loaded_keys:
+                            mappings[f"{name}.weight"] = (
+                                "decoder.embed_tokens.embedding_table",
+                                lambda x: x,
+                            )
+                        else:
+                            mappings[f"{name}.weight"] = (
+                                "encoder.embed_tokens.embedding_table",
+                                lambda x: x,
+                            )
+                    else:
+                        mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
                 elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
                     mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
                     mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
