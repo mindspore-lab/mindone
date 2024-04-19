@@ -17,7 +17,7 @@ Note that all the above metrics are computed based on neural network models.
 > A convincing evaluation for diffusion models requires both visually qualitative comparision and quantitative measure. A higher CLIP score does not necessarily show one model is better than another.
 
 
-### CLIP Score for Frame Consistency
+#### CLIP Score for Frame Consistency
 
 To compute the CLIP score on all frames of output video and report the average cosine similarity between all video frame pairs, please run
 
@@ -25,7 +25,7 @@ To compute the CLIP score on all frames of output video and report the average c
 python ./script/eval_video_metrics.py --video_data_dir <path-to-video-dir> --video_caption_path <path-to-video-caption-path> --model_name <HF-model-name>  --metric clip_score_frame
 ```
 
-### CLIP Score for Textual Alignment
+#### CLIP Score for Textual Alignment
 
 To compute the average CLIP score between all frames of the output video and the corresponding editing prompts, please run
 
