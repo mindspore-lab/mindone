@@ -41,47 +41,67 @@ class GaussianDiffusion:
         model_mean_type,
         model_var_type,
         loss_type,
-        use_fp16=False,
     ):
         super().__init__()
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
         self.loss_type = loss_type
-        self.dtype = mstype.float16 if use_fp16 else mstype.float32
-        to_mindspore = partial(Tensor, dtype=self.dtype)
-        betas = np.array(betas, dtype=np.float32)
-        self.betas = to_mindspore(betas)
+
+        # 1. pre-compute scheduler vars in numpy using float64 for accuracy.
+        betas = np.array(betas, dtype=np.float64)
         assert len(betas.shape) == 1, "betas must be 1-D"
         assert (betas > 0).all() and (betas <= 1).all()
 
         self.num_timesteps = int(betas.shape[0])
 
         alphas = 1.0 - betas
-        self.alphas_cumprod = to_mindspore(np.cumprod(alphas, axis=0))
-        self.alphas_cumprod_prev = ops.cat([ops.ones(1), self.alphas_cumprod[:-1]])
-        self.alphas_cumprod_next = ops.cat([self.alphas_cumprod[1:], ops.zeros(1)])
+        self.alphas_cumprod = np.cumprod(alphas, axis=0)
+        self.alphas_cumprod_prev = np.append(1.0, self.alphas_cumprod[:-1])
+        self.alphas_cumprod_next = np.append(self.alphas_cumprod[1:], 0.0)
         assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod = ops.sqrt(self.alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = ops.sqrt(1.0 - self.alphas_cumprod)
-        self.log_one_minus_alphas_cumprod = ops.log(1.0 - self.alphas_cumprod)
-        self.sqrt_recip_alphas_cumprod = ops.sqrt(1.0 / self.alphas_cumprod)
-        self.sqrt_recipm1_alphas_cumprod = ops.sqrt(1.0 / self.alphas_cumprod - 1)
+        self.sqrt_alphas_cumprod = np.sqrt(self.alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = np.sqrt(1.0 - self.alphas_cumprod)
+        self.log_one_minus_alphas_cumprod = np.log(1.0 - self.alphas_cumprod)
+        self.sqrt_recip_alphas_cumprod = np.sqrt(1.0 / self.alphas_cumprod)
+        self.sqrt_recipm1_alphas_cumprod = np.sqrt(1.0 / self.alphas_cumprod - 1)
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
-        self.posterior_variance = self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+        self.posterior_variance = betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
         self.posterior_log_variance_clipped = (
-            ops.log(ops.cat([self.posterior_variance[1].unsqueeze(0), self.posterior_variance[1:]]))
+            np.log(np.append(self.posterior_variance[1], self.posterior_variance[1:]))
             if len(self.posterior_variance) > 1
-            else ms.Tensor([])
+            else np.array([])
         )
 
-        self.posterior_mean_coef1 = self.betas * ops.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
-        self.posterior_mean_coef2 = (
-            (1.0 - self.alphas_cumprod_prev) * ops.sqrt(to_mindspore(alphas)) / (1.0 - self.alphas_cumprod)
-        )
+        self.posterior_mean_coef1 = betas * np.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+        self.posterior_mean_coef2 = (1.0 - self.alphas_cumprod_prev) * np.sqrt(alphas) / (1.0 - self.alphas_cumprod)
+        
+        # new
+        self.log_betas = np.log(betas)
+
+        # 2. convert to ms tensors in float32
+        to_mindspore = partial(Tensor, dtype=ms.float32)
+
+        self.alphas_cumprod = to_mindspore(self.alphas_cumprod)
+        self.alphas_cumprod_prev = to_mindspore(self.alphas_cumprod_prev) 
+        self.alphas_cumprod_next = to_mindspore(self.alphas_cumprod_next)
+
+        self.sqrt_alphas_cumprod = to_mindspore(self.sqrt_alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = to_mindspore(self.sqrt_one_minus_alphas_cumprod)
+        self.log_one_minus_alphas_cumprod = to_mindspore(self.log_one_minus_alphas_cumprod)
+        self.sqrt_recip_alphas_cumprod = to_mindspore(self.sqrt_recip_alphas_cumprod)
+        self.sqrt_recipm1_alphas_cumprod = to_mindspore(self.sqrt_recipm1_alphas_cumprod)
+
+        self.posterior_variance = to_mindspore(self.posterior_variance)
+        self.posterior_log_variance_clipped = to_mindspore(self.posterior_log_variance_clipped)
+        self.posterior_mean_coef1 = to_mindspore(self.posterior_mean_coef1)
+        self.posterior_mean_coef2 = to_mindspore(self.posterior_mean_coef2)
+        
+        # new
+        self.log_betas = to_mindspore(self.log_betas)
 
     def q_mean_variance(self, x_start, t):
         """

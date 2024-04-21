@@ -176,11 +176,16 @@ class DiffusionWithLoss(nn.Cell):
         return self.network(*args, **kwargs)
 
     def _cal_vb(self, model_output, model_var_values, x, x_t, t):
+        # make sure all inputs are fp32 for accuracy
+        model_output = model_output.to(ms.float32)
+        model_var_values = model_var_values.to(ms.float32)
+        x = x.to(ms.float32)
+        x_t = x_t.to(ms.float32)
+
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
         # p_mean_variance(model=lambda *_: frozen_out, x_t, t, clip_denoised=False) begin
         min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
-        # TODO: the log can be pre-computed in init. and should avoid zero log 
-        max_log = _extract_into_tensor(ops.log(self.diffusion.betas), t, x_t.shape)
+        max_log = _extract_into_tensor(self.diffusion.log_betas, t, x_t.shape)
         # The model_var_values is [-1, 1] for [min_var, max_var].
         frac = (model_var_values + 1) / 2
         model_log_variance = frac * max_log + (1 - frac) * min_log
@@ -189,11 +194,11 @@ class DiffusionWithLoss(nn.Cell):
         # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
-        kl = mean_flat(kl) / ms.numpy.log(2.0)
+        kl = mean_flat(kl) / ms.numpy.log(2.0)  # TODO: 
 
         # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype)
 
-        # TODO: upcast to fp32 before kl compute, exp involoved? 
+        # NOTE: make sure it's computed in fp32 since this func contains many exp.
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
         decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
 
