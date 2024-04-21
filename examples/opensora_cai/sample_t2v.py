@@ -99,7 +99,7 @@ def main(args):
             latte_model,
             amp_level="O2",
             dtype=model_dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],  # NOTE: keep it the same as training setting
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU], # NOTE: keep it the same as training setting
         )
 
     if len(args.checkpoint) > 0:

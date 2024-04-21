@@ -293,7 +293,7 @@ def create_dataloader(
     batch_size,
     ds_name="text_video",
     num_parallel_workers=12,
-    max_rowsize=32,
+    max_rowsize=64,
     shuffle=True,
     device_num=1,
     rank_id=0,

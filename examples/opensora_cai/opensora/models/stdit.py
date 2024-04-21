@@ -15,6 +15,7 @@ from opensora.models.layers.blocks import (
 )
 
 import mindspore as ms
+from mindspore import Tensor
 from mindspore import nn, ops
 from mindspore.common.initializer import XavierUniform, initializer  # , Zero
 
@@ -284,7 +285,7 @@ class CaptionEmbedder(nn.Cell):
 
         y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
         # just for token dropping replacement, not learnable
-        self.y_embedding = ms.Parameter(ms.Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
+        self.y_embedding = ms.Parameter(Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
 
         self.uncond_prob = uncond_prob
 
@@ -318,6 +319,7 @@ class T2IFinalLayer(nn.Cell):
     def __init__(self, hidden_size, num_patch, out_channels):
         super().__init__()
         self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        # (1152, 4*8)
         self.linear = nn.Dense(hidden_size, num_patch * out_channels, has_bias=True)
         self.scale_shift_table = ms.Parameter(ops.randn(2, hidden_size) / hidden_size**0.5)
         self.out_channels = out_channels
@@ -380,8 +382,8 @@ class STDiT(nn.Cell):
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()
-        self.pos_embed = ms.Tensor(pos_embed, dtype=ms.float32)
-        self.pos_embed_temporal = ms.Tensor(pos_embed_temporal, dtype=ms.float32)
+        self.pos_embed = Tensor(pos_embed, dtype=ms.float32)
+        self.pos_embed_temporal = Tensor(pos_embed_temporal, dtype=ms.float32)
 
         # conv3d replacement. FIXME: after CANN+MS support bf16 and fp32, remove redundancy
         self.patchify_conv3d_replace = patchify_conv3d_replace
@@ -493,6 +495,7 @@ class STDiT(nn.Cell):
         x = ops.reshape(x, (B, TS, C))
 
         t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
+        # why project again on t ?
         t0 = self.t_block(t)  # [B, C]
         y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
 

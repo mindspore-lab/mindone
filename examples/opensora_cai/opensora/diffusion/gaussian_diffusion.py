@@ -41,47 +41,67 @@ class GaussianDiffusion:
         model_mean_type,
         model_var_type,
         loss_type,
-        use_fp16=False,
     ):
         super().__init__()
         self.model_mean_type = model_mean_type
         self.model_var_type = model_var_type
         self.loss_type = loss_type
-        self.dtype = mstype.float16 if use_fp16 else mstype.float32
-        to_mindspore = partial(Tensor, dtype=self.dtype)
-        betas = np.array(betas, dtype=np.float32)
-        self.betas = to_mindspore(betas)
+
+        # 1. pre-compute scheduler vars in numpy using float64 for accuracy.
+        betas = np.array(betas, dtype=np.float64)
         assert len(betas.shape) == 1, "betas must be 1-D"
         assert (betas > 0).all() and (betas <= 1).all()
 
         self.num_timesteps = int(betas.shape[0])
 
         alphas = 1.0 - betas
-        self.alphas_cumprod = to_mindspore(np.cumprod(alphas, axis=0))
-        self.alphas_cumprod_prev = ops.cat([ops.ones(1), self.alphas_cumprod[:-1]])
-        self.alphas_cumprod_next = ops.cat([self.alphas_cumprod[1:], ops.zeros(1)])
+        self.alphas_cumprod = np.cumprod(alphas, axis=0)
+        self.alphas_cumprod_prev = np.append(1.0, self.alphas_cumprod[:-1])
+        self.alphas_cumprod_next = np.append(self.alphas_cumprod[1:], 0.0)
         assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod = ops.sqrt(self.alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = ops.sqrt(1.0 - self.alphas_cumprod)
-        self.log_one_minus_alphas_cumprod = ops.log(1.0 - self.alphas_cumprod)
-        self.sqrt_recip_alphas_cumprod = ops.sqrt(1.0 / self.alphas_cumprod)
-        self.sqrt_recipm1_alphas_cumprod = ops.sqrt(1.0 / self.alphas_cumprod - 1)
+        self.sqrt_alphas_cumprod = np.sqrt(self.alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = np.sqrt(1.0 - self.alphas_cumprod)
+        self.log_one_minus_alphas_cumprod = np.log(1.0 - self.alphas_cumprod)
+        self.sqrt_recip_alphas_cumprod = np.sqrt(1.0 / self.alphas_cumprod)
+        self.sqrt_recipm1_alphas_cumprod = np.sqrt(1.0 / self.alphas_cumprod - 1)
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
-        self.posterior_variance = self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+        self.posterior_variance = betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
         self.posterior_log_variance_clipped = (
-            ops.log(ops.cat([self.posterior_variance[1].unsqueeze(0), self.posterior_variance[1:]]))
+            np.log(np.append(self.posterior_variance[1], self.posterior_variance[1:]))
             if len(self.posterior_variance) > 1
-            else ms.Tensor([])
+            else np.array([])
         )
 
-        self.posterior_mean_coef1 = self.betas * ops.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
-        self.posterior_mean_coef2 = (
-            (1.0 - self.alphas_cumprod_prev) * ops.sqrt(to_mindspore(alphas)) / (1.0 - self.alphas_cumprod)
-        )
+        self.posterior_mean_coef1 = betas * np.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+        self.posterior_mean_coef2 = (1.0 - self.alphas_cumprod_prev) * np.sqrt(alphas) / (1.0 - self.alphas_cumprod)
+        
+        # new
+        self.log_betas = np.log(betas)
+
+        # 2. convert to ms tensors in float32
+        to_mindspore = partial(Tensor, dtype=ms.float32)
+
+        self.alphas_cumprod = to_mindspore(self.alphas_cumprod)
+        self.alphas_cumprod_prev = to_mindspore(self.alphas_cumprod_prev) 
+        self.alphas_cumprod_next = to_mindspore(self.alphas_cumprod_next)
+
+        self.sqrt_alphas_cumprod = to_mindspore(self.sqrt_alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = to_mindspore(self.sqrt_one_minus_alphas_cumprod)
+        self.log_one_minus_alphas_cumprod = to_mindspore(self.log_one_minus_alphas_cumprod)
+        self.sqrt_recip_alphas_cumprod = to_mindspore(self.sqrt_recip_alphas_cumprod)
+        self.sqrt_recipm1_alphas_cumprod = to_mindspore(self.sqrt_recipm1_alphas_cumprod)
+
+        self.posterior_variance = to_mindspore(self.posterior_variance)
+        self.posterior_log_variance_clipped = to_mindspore(self.posterior_log_variance_clipped)
+        self.posterior_mean_coef1 = to_mindspore(self.posterior_mean_coef1)
+        self.posterior_mean_coef2 = to_mindspore(self.posterior_mean_coef2)
+        
+        # new
+        self.log_betas = to_mindspore(self.log_betas)
 
     def q_mean_variance(self, x_start, t):
         """
@@ -149,12 +169,7 @@ class GaussianDiffusion:
         if model_kwargs is None:
             model_kwargs = {}
 
-        if x.dim() == 4:
-            B, C = x.shape[:2]
-        elif x.dim() == 5:
-            B, C, F = x.shape[:3]
-        else:
-            raise ValueError(f"Incorrect input shape. Expect to get 4 or 5 dimensional inputs, but got {x.dim()}")
+        B, C, F = x.shape[:3]
 
         assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
@@ -163,12 +178,8 @@ class GaussianDiffusion:
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            if x.dim() == 4:
-                assert model_output.shape == (B, C * 2, *x.shape[2:])
-                model_output, model_var_values = ops.split(model_output, C, axis=1)
-            else:
-                assert model_output.shape == (B, C * 2, F, *x.shape[3:])
-                model_output, model_var_values = ops.split(model_output, C, axis=1)
+            assert model_output.shape == (B, C * 2, F, *x.shape[3:])
+            model_output, model_var_values = ops.split(model_output, C, axis=1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)
@@ -568,84 +579,3 @@ class GaussianDiffusion:
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         output = ops.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
-
-    def training_losses(self, model, x_start, t, model_kwargs=None, noise=None):
-        """
-        Compute training losses for a single timestep.
-        :param model: the model to evaluate loss on.
-        :param x_start: the [N x C x ...] tensor of inputs.
-        :param t: a batch of timestep indices.
-        :param model_kwargs: if not None, a dict of extra keyword arguments to
-            pass to the model. This can be used for conditioning.
-        :param noise: if specified, the specific Gaussian noise to try to remove.
-        :return: a dict with the key "loss" containing a tensor of shape [N].
-                 Some mean or variance settings may also have other keys.
-        """
-        if model_kwargs is None:
-            model_kwargs = {}
-        if noise is None:
-            noise = ops.randn_like(x_start)
-        x_t = self.q_sample(x_start, t, noise=noise)
-        if x_t.dim() == 4:
-            B, C = x_t.shape[:2]
-        elif x_t.dim() == 5:
-            B, F, C = x_t.shape[:3]
-        else:
-            raise ValueError(f"Incorrect input shape. Expect to get 4 or 5 dimensional inputs, but got {x_t.dim()}")
-        terms = {}
-
-        if self.loss_type == LossType.KL or self.loss_type == LossType.RESCALED_KL:
-            terms["loss"] = self._vb_terms_bpd(
-                model=model,
-                x_start=x_start,
-                x_t=x_t,
-                t=t,
-                clip_denoised=False,
-                model_kwargs=model_kwargs,
-            )["output"]
-            if self.loss_type == LossType.RESCALED_KL:
-                terms["loss"] *= self.num_timesteps
-        elif self.loss_type == LossType.MSE or self.loss_type == LossType.RESCALED_MSE:
-            model_output = model(x_t, t, **model_kwargs)
-
-            if self.model_var_type in [
-                ModelVarType.LEARNED,
-                ModelVarType.LEARNED_RANGE,
-            ]:
-                if x_t.dim() == 4:
-                    assert model_output.shape == (B, C * 2, *x_t.shape[2:])
-                    model_output, model_var_values = ops.split(model_output, C, axis=1)
-                    frozen_out = ops.cat([model_output.copy(), model_var_values], axis=1)
-                else:
-                    assert model_output.shape == (B, F, C * 2, *x_t.shape[3:])
-                    model_output, model_var_values = ops.split(model_output, C, axis=2)
-                    frozen_out = ops.cat([model_output.copy(), model_var_values], axis=2)
-                # Learn the variance using the variational bound, but don't let
-                # it affect our mean prediction.
-                terms["vb"] = self._vb_terms_bpd(
-                    model=lambda *args, r=frozen_out: r,
-                    x_start=x_start,
-                    x_t=x_t,
-                    t=t,
-                    clip_denoised=False,
-                )["output"]
-                if self.loss_type == LossType.RESCALED_MSE:
-                    # Divide by 1000 for equivalence with initial implementation.
-                    # Without a factor of 1/1000, the VB term hurts the MSE term.
-                    terms["vb"] *= self.num_timesteps / 1000.0
-
-            target = {
-                ModelMeanType.PREVIOUS_X: self.q_posterior_mean_variance(x_start=x_start, x_t=x_t, t=t)[0],
-                ModelMeanType.START_X: x_start,
-                ModelMeanType.EPSILON: noise,
-            }[self.model_mean_type]
-            # assert model_output.shape == target.shape == x_start.shape
-            terms["mse"] = mean_flat((target - model_output) ** 2)
-            if "vb" in terms:
-                terms["loss"] = terms["mse"] + terms["vb"]
-            else:
-                terms["loss"] = terms["mse"]
-        else:
-            raise NotImplementedError(self.loss_type)
-
-        return terms
