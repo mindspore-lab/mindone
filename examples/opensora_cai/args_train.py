@@ -63,6 +63,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--betas",
         type=float,
+        nargs='+',
         default=[0.9, 0.999],
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
