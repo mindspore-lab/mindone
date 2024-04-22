@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from opensora.data.text_dataset import create_dataloader
+from opensora.data.t2v_dataset import create_dataloader
 from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
@@ -56,12 +56,20 @@ def main(args):
     if args.csv_path is not None:
         ds_config = dict(
             csv_path=args.csv_path,
-            tokenizer=None,  # tokenizer,
+            video_folder=args.video_folder,
+            return_text_embed=False,
+            sample_size=args.image_size,
+            sample_stride=1,
+            sample_n_frames=16,
+            tokenizer=None,
+            video_column=args.video_column,
+            caption_column=args.caption_column,
+            disable_flip=True,
         )
         _, dataset = create_dataloader(
             ds_config,
             args.batch_size,
-            ds_name="text",
+            ds_name="text_video",
             num_parallel_workers=12,
             max_rowsize=32,
             shuffle=False,  # be in order
@@ -97,6 +105,7 @@ def main(args):
         logger.info(f"Output embeddings will be saved: {output_folder}")
 
         for video_index in tqdm(range(len(dataset)), total=len(dataset)):
+            start_time = time.time()
             video_latent_mean = []
             video_latent_std = []
             for video_name, _, inputs in dataset.traverse_single_video_frames(video_index):
@@ -104,15 +113,14 @@ def main(args):
                 latent_momentum = ms.ops.stop_gradient(
                     vae.encode_with_moments_output(ms.Tensor(video_data, ms.float32))
                 )
-                mean, std = latent_momentum.chunk(1)
+                mean, std = latent_momentum.chunk(2, axis=1)
                 video_latent_mean.append(mean.asnumpy())
                 video_latent_std.append(std.asnumpy())
             video_latent_mean = np.concatenate(video_latent_mean, axis=0)
             video_latent_std = np.concatenate(video_latent_std, axis=0)
-            start_time = time.time()
 
             end_time = time.time()
-            logger.info(f"Time cost: {end_time-start_time:0.3f}s")
+            logger.info(f"Time cost: {end_time-start_time:0.3f}s for video {video_name}")
 
             fn = Path(str(video_name)).with_suffix(".npz")
             npz_fp = os.path.join(output_folder, fn)
@@ -155,7 +163,12 @@ def parse_args():
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
     )
-    parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
+    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument(
+        "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
+    )
+    parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
+    parser.add_argument("--image_size", default=256, type=int, help="image size")
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
