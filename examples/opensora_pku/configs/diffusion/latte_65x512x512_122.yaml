@@ -1,0 +1,28 @@
+# task
+condition: "text"
+text_encoder: "t5"
+clip_checkpoint: ""
+t5_cache_folder: "models/t5-v1_1-xxl/"
+
+# model
+image_size: 512
+model_version: "65x512x512"
+checkpoint: "models/65x512x512/model.ckpt"
+vae_checkpoint: "models/ae/causal_vae_488.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+dtype: "fp16"
+
+# sampling
+sampling_steps: 250
+guidance_scale: 7.5
+seed: 42
+ddim_sampling: False
+
+captions:
+- 'Yellow and black tropical fish dart through the sea.'
+- 'An epic tornado attacking above aglowing city at night.'
+- 'Slow pan upward of blazing oak fire in an indoor fireplace.'
+- 'a cat wearing sunglasses and working as a lifeguard at pool.'
+- 'Sunset over the sea.'
+- 'A dog in astronaut suit and sunglasses floating in space.'
