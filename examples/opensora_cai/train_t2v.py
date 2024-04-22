@@ -198,7 +198,7 @@ def main(args):
     ds_config = dict(
         csv_path=args.csv_path,
         video_folder=args.video_folder,
-        text_emb_folder=args.embed_folder,
+        text_emb_folder=args.text_embed_folder,
         return_text_emb=True,
         sample_size=args.image_size,
         sample_stride=args.frame_stride,
@@ -209,8 +209,11 @@ def main(args):
         disable_flip=args.disable_flip,
     )
     dataset = create_dataloader(
-        ds_config, batch_size=args.batch_size, shuffle=True, 
-        device_num=device_num, rank_id=rank_id,
+        ds_config,
+        batch_size=args.batch_size,
+        shuffle=True,
+        device_num=device_num,
+        rank_id=rank_id,
         num_parallel_workers=args.num_parallel_workers,
         max_rowsize=args.max_rowsize,
     )

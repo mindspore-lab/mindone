@@ -216,6 +216,23 @@ class TextVideoDataset:
     def __len__(self):
         return self.length
 
+    def apply_transform(self, pixel_values):
+        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
+        if self.transform_backend == "al":
+            inputs = {"image": pixel_values[0]}
+            num_frames = len(pixel_values)
+            for i in range(num_frames - 1):
+                inputs[f"image{i}"] = pixel_values[i + 1]
+
+            output = self.pixel_transforms(**inputs)
+
+            pixel_values = np.stack(list(output.values()), axis=0)
+            # (f h w c) -> (f c h w)
+            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
+        else:
+            raise NotImplementedError
+        return pixel_values
+
     def __getitem__(self, idx):
         """
         Returns:
@@ -238,20 +255,7 @@ class TextVideoDataset:
             if idx >= self.length:
                 raise IndexError  # needed for checking the end of dataset iteration
 
-        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
-        if self.transform_backend == "al":
-            inputs = {"image": pixel_values[0]}
-            num_frames = len(pixel_values)
-            for i in range(num_frames - 1):
-                inputs[f"image{i}"] = pixel_values[i + 1]
-
-            output = self.pixel_transforms(**inputs)
-
-            pixel_values = np.stack(list(output.values()), axis=0)
-            # (f h w c) -> (f c h w)
-            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
-        else:
-            raise NotImplementedError
+        pixel_values = self.apply_transform(pixel_values)
 
         if self.is_image:
             pixel_values = pixel_values[0]
@@ -287,6 +291,49 @@ class TextVideoDataset:
 
         return pixel_values, text_data, mask.astype(np.uint8)
 
+    def traverse_single_video_frames(self, video_index):
+        video_dict = self.dataset[video_index]
+        video_fn = video_dict[self.video_column]
+        video_path = os.path.join(self.video_folder, video_fn)
+
+        video_name = os.path.basename(video_fn).split(".")[0]
+        # read video
+        video_path = os.path.join(self.video_folder, video_fn)
+        # in case missing .mp4 in csv file
+        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+            if video_path[-4] != ".":
+                video_path = video_path + ".mp4"
+            else:
+                raise ValueError(f"video file format is not verified: {video_path}")
+
+        video_reader = VideoReader(video_path)
+        video_length = len(video_reader)
+
+        # Sampling video frames
+        clips_indices = []
+        start_idx = 0
+        while start_idx + self.sample_n_frames < video_length:
+            clips_indices.append([start_idx, start_idx + self.sample_n_frames])
+            start_idx += self.sample_n_frames
+        if start_idx < video_length:
+            clips_indices.append([start_idx, video_length])
+        assert len(clips_indices) > 0 and clips_indices[-1][-1] == video_length, "incorrect sampled clips!"
+
+        for clip_indices in clips_indices:
+            i, j = clip_indices
+            frame_indice = list(range(i, j, 1))
+            select_video_frames = [
+                f"{index}" for index in frame_indice
+            ]  # return indexes as strings, for the purpose of saving frame-wise embedding cache
+            if video_path.endswith(".gif"):
+                pixel_values = video_reader[frame_indice]  # shape: (f, h, w, c)
+            else:
+                pixel_values = video_reader.get_batch(frame_indice).asnumpy()  # shape: (f, h, w, c)
+            pixel_values = self.apply_transform(pixel_values)
+            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+            return_dict = {"video": pixel_values}
+            yield video_name, select_video_frames, return_dict
+
 
 def create_dataloader(
     ds_config,
@@ -298,6 +345,7 @@ def create_dataloader(
     device_num=1,
     rank_id=0,
     drop_remainder=True,
+    return_dataset=False,
 ):
     if ds_name == "text_video":
         dataset = TextVideoDataset(**ds_config)
@@ -320,5 +368,6 @@ def create_dataloader(
         batch_size,
         drop_remainder=drop_remainder,
     )
-
+    if return_dataset:
+        return dl, dataset
     return dl
