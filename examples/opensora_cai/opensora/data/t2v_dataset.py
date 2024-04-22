@@ -237,6 +237,7 @@ class TextVideoDataset:
             latent_std = latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             vae_latent = vae_latent * self.vae_scale_factor
+            vae_latent = vae_latent.astype(np.float32)
             if self.return_text_emb:
                 return vae_latent, text_emb, mask
             else:

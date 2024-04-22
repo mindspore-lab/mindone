@@ -33,7 +33,7 @@ def parse_train_args(parser):
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
     parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
-    parser.add_argument("--vae_latent_folder", defaul="", type=str, help="root dir for the vae latent data")
+    parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--pretrained_model_path",
