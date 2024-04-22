@@ -97,12 +97,18 @@ def main(args):
         logger.info(f"Output embeddings will be saved: {output_folder}")
 
         for video_index in tqdm(range(len(dataset)), total=len(dataset)):
-            video_latent = []
-            for video_name, frames_paths, inputs in dataset.traverse_single_video_frames(video_index):
+            video_latent_mean = []
+            video_latent_std = []
+            for video_name, _, inputs in dataset.traverse_single_video_frames(video_index):
                 video_data = inputs["video"]
-                clip_latent = ms.ops.stop_gradient(vae.encode(ms.Tensor(video_data, ms.float32))) * args.sd_scale_factor
-                video_latent.append(clip_latent.asnumpy())
-            video_latent = np.concatenate(video_latent, axis=0)
+                latent_momentum = ms.ops.stop_gradient(
+                    vae.encode_with_moments_output(ms.Tensor(video_data, ms.float32))
+                )
+                mean, std = latent_momentum.chunk(1)
+                video_latent_mean.append(mean.asnumpy())
+                video_latent_std.append(std.asnumpy())
+            video_latent_mean = np.concatenate(video_latent_mean, axis=0)
+            video_latent_std = np.concatenate(video_latent_std, axis=0)
             start_time = time.time()
 
             end_time = time.time()
@@ -119,7 +125,8 @@ def main(args):
                     raise ValueError(f"{npz_fp} already exist!")
             np.savez(
                 npz_fp,
-                latents=video_latent.astype(np.float32),
+                latent_mean=video_latent_mean.astype(np.float32),
+                latent_std=video_latent_std.astype(np.float32),
             )
         logger.info(f"Done. Embeddings saved in {output_folder}")
 

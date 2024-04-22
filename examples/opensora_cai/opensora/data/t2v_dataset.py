@@ -74,7 +74,10 @@ class TextVideoDataset:
         csv_path,
         video_folder,
         text_emb_folder=None,
+        vae_latent_folder=None,
         return_text_emb=False,
+        return_vae_latent=False,
+        vae_scale_factor=0.18215,
         sample_size=256,
         sample_stride=4,
         sample_n_frames=16,
@@ -114,6 +117,7 @@ class TextVideoDataset:
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         self.is_image = is_image
+        self.vae_scale_factor = vae_scale_factor
 
         sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
 
@@ -138,6 +142,10 @@ class TextVideoDataset:
         if return_text_emb:
             assert text_emb_folder is not None
         self.text_emb_folder = text_emb_folder
+        self.return_vae_latent = return_vae_latent
+        if return_vae_latent:
+            assert vae_latent_folder is not None
+        self.vae_latent_folder = vae_latent_folder
 
         # prepare replacement data
         max_attempts = 100
@@ -182,36 +190,56 @@ class TextVideoDataset:
             text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
             text_emb, mask = self.parse_text_emb(text_emb_path)
 
-        # in case missing .mp4 in csv file
-        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
-            if video_path[-4] != ".":
-                video_path = video_path + ".mp4"
+        if not self.return_vae_latent:
+            # in case missing .mp4 in csv file
+            if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+                if video_path[-4] != ".":
+                    video_path = video_path + ".mp4"
+                else:
+                    raise ValueError(f"video file format is not verified: {video_path}")
+
+            video_reader = VideoReader(video_path)
+
+            video_length = len(video_reader)
+
+            if not self.is_image:
+                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+                start_idx = random.randint(0, video_length - clip_length)
+                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
             else:
-                raise ValueError(f"video file format is not verified: {video_path}")
+                batch_index = [random.randint(0, video_length - 1)]
 
-        video_reader = VideoReader(video_path)
+            if video_path.endswith(".gif"):
+                pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
+            else:
+                pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
+            # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
+            # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
+            del video_reader
 
-        video_length = len(video_reader)
+            if self.return_text_emb:
+                return pixel_values, text_emb, mask
+            else:
+                return pixel_values, caption, None
 
-        if not self.is_image:
-            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-            start_idx = random.randint(0, video_length - clip_length)
-            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
         else:
-            batch_index = [random.randint(0, video_length - 1)]
-
-        if video_path.endswith(".gif"):
-            pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
-        else:
-            pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
-        # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
-        # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
-        del video_reader
-
-        if self.return_text_emb:
-            return pixel_values, text_emb, mask
-        else:
-            return pixel_values, caption, None
+            vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
+            vae_latent_data = np.load(vae_latent_path)
+            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
+            vae_latent = latent_mean + latent_std * np.random.stdnormal(latent_mean.shape)
+            vae_latent = vae_latent * self.vae_scale_factor
+            video_length = len(vae_latent)
+            if not self.is_image:
+                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+                start_idx = random.randint(0, video_length - clip_length)
+                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+            else:
+                batch_index = [random.randint(0, video_length - 1)]
+            vae_latent = vae_latent[batch_index]
+            if self.return_text_emb:
+                return vae_latent, text_emb, mask
+            else:
+                return vae_latent, caption, None
 
     def __len__(self):
         return self.length
@@ -254,13 +282,17 @@ class TextVideoDataset:
 
             if idx >= self.length:
                 raise IndexError  # needed for checking the end of dataset iteration
+        if not self.return_vae_latent:
+            # apply visual transform and normalization
+            pixel_values = self.apply_transform(pixel_values)
 
-        pixel_values = self.apply_transform(pixel_values)
+            if self.is_image:
+                pixel_values = pixel_values[0]
 
-        if self.is_image:
-            pixel_values = pixel_values[0]
-
-        pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+        else:
+            # pixel_values is the vae encoder's output sample * scale_factor
+            pass
 
         # randomly set caption to be empty
         if self.random_drop_text:
