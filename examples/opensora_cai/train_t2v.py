@@ -181,6 +181,7 @@ def main(args):
         param.requires_grad = False
 
     # 2.3 ldm with loss
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
@@ -191,7 +192,7 @@ def main(args):
         text_encoder=None,
         cond_stage_trainable=False,
         text_emb_cached=True,
-        video_emb_cached=False,
+        video_emb_cached=train_with_vae_latent,
     )
 
     # 3. create dataset
@@ -200,6 +201,9 @@ def main(args):
         video_folder=args.video_folder,
         text_emb_folder=args.text_embed_folder,
         return_text_emb=True,
+        vae_latent_folder=args.vae_latent_folder,
+        return_vae_latent=train_with_vae_latent,
+        vae_scale_factor=args.sd_scale_factor,
         sample_size=args.image_size,
         sample_stride=args.frame_stride,
         sample_n_frames=args.num_frames,

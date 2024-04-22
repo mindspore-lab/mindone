@@ -57,7 +57,7 @@ def main(args):
         ds_config = dict(
             csv_path=args.csv_path,
             video_folder=args.video_folder,
-            return_text_embed=False,
+            return_text_emb=False,
             sample_size=args.image_size,
             sample_stride=1,
             sample_n_frames=16,
