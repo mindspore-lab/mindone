@@ -124,7 +124,7 @@ Taking `17x256x256` as an example, please download the torch checkpoint from the
 2. Convert the checkpoint to mindspore format:
 
 ```shell
-tools/model_conversion/convert_latte.py --src models/17x256x256/diffusion_pytorch_model.safetensors  --target models/17x256x256/model.ckpt
+python tools/model_conversion/convert_latte.py --src models/17x256x256/diffusion_pytorch_model.safetensors  --target models/17x256x256/model.ckpt
 ```
 
 3. Run text-to-video inference.
