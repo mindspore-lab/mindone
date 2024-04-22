@@ -32,7 +32,8 @@ def parse_train_args(parser):
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
-    parser.add_argument("--embed_folder", default="", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--pretrained_model_path",
@@ -63,7 +64,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--betas",
         type=float,
-        nargs='+',
+        nargs="+",
         default=[0.9, 0.999],
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
@@ -116,8 +117,13 @@ def parse_train_args(parser):
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
-    parser.add_argument("--amp_level", default="O2", type=str, help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
-            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)")
+    parser.add_argument(
+        "--amp_level",
+        default="O2",
+        type=str,
+        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
+            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
+    )
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--vae_checkpoint",
