@@ -109,9 +109,9 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
-    if enable_dvm: 
-	print("D--: enable dvm")
-	ms.set_context(enable_graph_kernel=True) 
+    if enable_dvm:
+        print("D--: enable dvm")
+        ms.set_context(enable_graph_kernel=True) 
 
     return rank_id, device_num
 

@@ -19,7 +19,7 @@ class Attention(nn.Cell):
         """
         q: (b h n_q d), h - num_head, n_q - seq_len of q
         k v: (b h n_k d), (b h n_v d)
-        mask: (b 1 1 n_k), 0 - keep, 1 indicates discard.
+        mask: (b 1 n_k), 0 - keep, 1 indicates discard.
         """
         b, h, n_q, d = q.shape
         _, _, n_k, _ = k.shape
@@ -32,10 +32,8 @@ class Attention(nn.Cell):
         sim = sim.to(ms.float32)  # (b h n_q n_k)
 
         if mask is not None:
-            # (b 1 1 n_k) -> (b 1 n_k)
-            mask = ops.squeeze(mask, axis=1)  # temp
+            # (b 1 n_k) -> (b*h 1 n_k)
             mask = ops.repeat_interleave(mask, h, axis=0)
-
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
             # sim = ops.masked_fill(sim, mask, ops.cast(float("-inf"), sim.dtype))
@@ -156,7 +154,8 @@ class MultiHeadCrossAttention(nn.Cell):
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
         else:
-            mask = mask[:, None, :]
+            if mask is not None:
+                mask = mask[:, None, :]
             x = self.attention(q, k, v, mask)
 
         # (b h n d) -> (b n h d) ->  (b n h*d)
@@ -256,7 +255,8 @@ class SelfAttention(nn.Cell):
                 mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
-            mask = mask[:, None, :]
+            if mask is not None:
+                mask = mask[:, None, :]
             out = self.attention(q, k, v, mask)
 
         b, h, n, d = out.shape
