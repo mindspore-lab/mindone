@@ -5,8 +5,8 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [x] refactor Masked MultiHeadCrossAttention without xformers
     - [ ] more efficient masking and attention computation for text tokens with dynamic length.
 - [ ] Text-to-video generation pipeline (to be refactored)
-    - [x] video generation in FP32 precision on GPUs: 256x256x16, 512x512x16
-    - [ ] video generation in FP32 precision on Ascends
+    - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
+    - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
     - [ ] Mixed precision optimization (BF16)  on Ascend
     - [ ] Flash attention optimization on Ascend
 - [ ] Training

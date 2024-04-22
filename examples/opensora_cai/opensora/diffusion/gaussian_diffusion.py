@@ -85,6 +85,8 @@ class GaussianDiffusion:
         # 2. convert to ms tensors in float32
         to_mindspore = partial(Tensor, dtype=ms.float32)
 
+        self.betas = betas
+
         self.alphas_cumprod = to_mindspore(self.alphas_cumprod)
         self.alphas_cumprod_prev = to_mindspore(self.alphas_cumprod_prev) 
         self.alphas_cumprod_next = to_mindspore(self.alphas_cumprod_next)
@@ -182,7 +184,7 @@ class GaussianDiffusion:
             model_output, model_var_values = ops.split(model_output, C, axis=1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
-            max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)
+            max_log = _extract_into_tensor(self.log_betas, t, x.shape)
             # The model_var_values is [-1, 1] for [min_var, max_var].
             frac = (model_var_values + 1) / 2
             model_log_variance = frac * max_log + (1 - frac) * min_log
