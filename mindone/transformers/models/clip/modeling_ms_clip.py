@@ -15,7 +15,6 @@
 """ MindSpore CLIP model."""
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 from transformers.models.clip.configuration_clip import CLIPConfig, CLIPTextConfig, CLIPVisionConfig
 from transformers.utils import logging
 
@@ -95,7 +94,7 @@ def _create_4d_causal_attention_mask(
         Make causal mask used for bi-directional self-attention.
         """
         bsz, tgt_len = input_ids_shape
-        mask = ops.full((tgt_len, tgt_len), np.finfo(np.float32).min, dtype=dtype)
+        mask = ops.full((tgt_len, tgt_len), float("-inf"), dtype=dtype)
         mask_cond = ops.arange(mask.shape[-1])
         mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
 
