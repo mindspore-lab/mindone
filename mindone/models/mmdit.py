@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Optional, Union
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
@@ -248,14 +248,17 @@ class MMDiT(nn.Cell):
         input_size (int, default=32): The size of the input latent.
         patch_size (int, default=2): The size of each patch in the input latent. The input latent is divided into patches of patch_size x patch_size.
         in_channels (int, default=4): The number of input channels in the input latent.
+        text_in_channels (int, default=4096): The number of input channels of the text_embedding_projection, which is the text emb dim.
+        text_pooled_in_channels (int, default=2048): The number of input channels of the timestep_projection, which is the text pooled emb dim.
         hidden_size (int, default=1152): The hidden size of the Transformer model.
         depth (int, default=28): The number of blocks in this Transformer.
         num_heads (int, default=16): The number of attention heads.
         mlp_ratio (float, default=4.0): The expansion ratio for the hidden dimension in the MLP of the Transformer.
-        class_dropout_prob (float, default=0.1): The dropout probability for the class labels in the label embedder.
         num_classes (int, default=1000): The number of classes of the input labels.
         learn_sigma (bool, default=True): Whether to learn the diffusion model's sigma parameter.
         block_kwargs (dict, default={}): Additional keyword arguments for the Transformer blocks. for example, {'enable_flash_attention':True}
+        use_rel_pos (bool, default=False): Whether to use Rotary Position Embedding (RoPE) in attention.
+        use_recompute (bool, default=False): Whether to use recompute.
     """
 
     def __init__(
@@ -386,21 +389,20 @@ class MMDiT(nn.Cell):
         imgs = x.reshape((x.shape[0], c, h * p, h * p))
         return imgs
 
-    def construct(
+    def forward(
         self,
         x: Tensor,
         t: Tensor,
         clip_emb: Tensor,
         clip_pooled_emb: Tensor,
-        t5_emb: Tensor = None,
-        **kwargs,
+        t5_emb: Optional[Tensor] = None,
     ):
         """
         Forward pass of MMDiT.
         x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images)
         t: (N,) tensor of diffusion timesteps
         clip_emb: (N, L, D) tensor of text embeddings of 2 clips (concated), (N, 77, 2048)
-        clip_pooled_emb: tensor of pooled text embeddings of 2 clips
+        clip_pooled_emb: tensor of pooled text embeddings of 2 clips (concated)
         t5_emb: (N, L, D) tensor of t5 text embeddings, t5xxl (N, 77, 4096)
         """
         x = self.x_embedder(x)
@@ -429,28 +431,33 @@ class MMDiT(nn.Cell):
         x = self.unpatchify(x)  # (N, out_channels, H, W)
         return x
 
-    @ms.jit
-    def construct_with_cfg(
+    def forward_with_cfg(
         self,
         x: Tensor,
         t: Tensor,
         clip_emb: Tensor,
         clip_pooled_emb: Tensor,
-        t5_emb: Tensor = None,
+        t5_emb: Optional[Tensor] = None,
         cfg_scale: Union[float, Tensor] = 4.0,
     ):
         """
-        Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
+        Forward pass of MMDiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        model_out = self.construct(combined, t, clip_emb, clip_pooled_emb, t5_emb)
+        model_out = self.forward(combined, t, clip_emb, clip_pooled_emb, t5_emb)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)
+
+    def construct(self, x, t, clip_emb, clip_pooled_emb, t5_emb=None, cfg_scale=None):
+        if cfg_scale is None:
+            return self.forward(x, t, clip_emb, clip_pooled_emb, t5_emb)
+        else:
+            return self.forward_with_cfg(x, t, clip_emb, clip_pooled_emb, t5_emb, cfg_scale)
 
 
 # configs
