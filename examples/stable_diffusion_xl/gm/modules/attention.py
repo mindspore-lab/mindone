@@ -91,6 +91,7 @@ class MemoryEfficientCrossAttention(nn.Cell):
         heads=8,
         dim_head=64,
         dropout=0.0,
+        use_fa=False
     ):
         super().__init__()
 
@@ -101,6 +102,8 @@ class MemoryEfficientCrossAttention(nn.Cell):
 
         self.scale = dim_head**-0.5
         self.heads = heads
+
+        self.use_fa = use_fa
 
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False)
@@ -137,7 +140,7 @@ class MemoryEfficientCrossAttention(nn.Cell):
         v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
 
         head_dim = q.shape[-1]
-        if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
+        if self.use_fa:
             if mask is None:
                 mask = ops.zeros((q_b, q_n, q_n), ms.uint8)
             out = self.flash_attention(
@@ -174,6 +177,7 @@ class CrossAttention(nn.Cell):
         heads=8,
         dim_head=64,
         dropout=0.0,
+        use_fa=False
     ):
         super().__init__()
         inner_dim = dim_head * heads
@@ -259,6 +263,7 @@ class BasicTransformerBlock(nn.Cell):
             dim_head=d_head,
             dropout=dropout,
             context_dim=context_dim if self.disable_self_attn else None,
+            use_fa=True
         )  # is a self-attention if not self.disable_self_attn
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff)
         self.attn2 = attn_cls(
@@ -267,6 +272,7 @@ class BasicTransformerBlock(nn.Cell):
             heads=n_heads,
             dim_head=d_head,
             dropout=dropout,
+            use_fa=False
         )  # is self-attn if context is none
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-5)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-5)

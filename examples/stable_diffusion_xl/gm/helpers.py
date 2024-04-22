@@ -103,7 +103,7 @@ def set_default(args):
     seed_everything(args.seed)
 
     # Set Mindspore Context
-    context.set_context(mode=args.ms_mode, device_target=args.device_target)
+    context.set_context(mode=args.ms_mode, device_target=args.device_target, enable_graph_kernel=True, graph_kernel_flags="--disable_expand_ops=BiasAdd,BiasAddGrad")
     if args.device_target == "Ascend":
         device_id = int(os.getenv("DEVICE_ID", 0))
         context.set_context(device_id=device_id)

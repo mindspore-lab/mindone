@@ -49,7 +49,14 @@ class Downsample(nn.Cell):
 
     def construct(self, x):
         if self.with_conv:
-            x = mnp.pad(x, ((0, 0), (0, 0), (0, 1), (0, 1)))
+            # x = mnp.pad(x, ((0, 0), (0, 0), (0, 1), (0, 1)))
+            b, c, h, w = x.shape[0], x.shape[1], x.shape[2], x.shape[-1]
+            concat_h = ops.ones((b,c,h,1))
+            concat_w = ops.ones((b,c,1,w+1))
+
+            x = ops.Concat(3)([x, concat_h])
+            x = ops.Concat(2)([x, concat_w])
+            
             x = self.conv(x)
         else:
             x = ops.avg_pool2d(x, kernel_size=2, stride=2)
