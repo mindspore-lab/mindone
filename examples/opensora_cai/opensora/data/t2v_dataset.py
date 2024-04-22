@@ -226,16 +226,17 @@ class TextVideoDataset:
             vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
             vae_latent_data = np.load(vae_latent_path)
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
-            vae_latent = latent_mean + latent_std * np.random.stdnormal(latent_mean.shape)
-            vae_latent = vae_latent * self.vae_scale_factor
-            video_length = len(vae_latent)
+            video_length = len(latent_mean)
             if not self.is_image:
                 clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
                 start_idx = random.randint(0, video_length - clip_length)
                 batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
             else:
                 batch_index = [random.randint(0, video_length - 1)]
-            vae_latent = vae_latent[batch_index]
+            latent_mean = latent_mean[batch_index]
+            latent_std = latent_std[batch_index]
+            vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
+            vae_latent = vae_latent * self.vae_scale_factor
             if self.return_text_emb:
                 return vae_latent, text_emb, mask
             else:

@@ -160,6 +160,9 @@ class DiffusionWithLoss(nn.Cell):
         # 1. get image/video latents z using vae
         if not self.video_emb_cached:
             x = self.get_latents(x)
+        else:
+            # (b f c h w) -> (b c f h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
         # 2. get conditions
         if not self.text_emb_cached:

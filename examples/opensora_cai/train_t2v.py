@@ -182,6 +182,7 @@ def main(args):
 
     # 2.3 ldm with loss
     train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
