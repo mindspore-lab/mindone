@@ -50,6 +50,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
+    enable_dvm: bool = False, 
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -108,6 +109,10 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
+    if enable_dvm: 
+	print("D--: enable dvm")
+	ms.set_context(enable_graph_kernel=True) 
+
     return rank_id, device_num
 
 
@@ -123,6 +128,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
+        enable_dvm=args.enable_dvm,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
