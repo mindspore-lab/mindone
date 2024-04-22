@@ -17,7 +17,7 @@ parser.add_argument(
     "--model_name",
     type=str,
     default="openai/clip-vit-base-patch32/",
-    help="the name of a (Open/)CLIP model as shown in HuggingFace for pt backend."
+    help="the name of a (Open/)CLIP model as shown in HuggingFace."
     "Default: openai/clip-vit-base-patch32/",
 )
 parser.add_argument("--video_data_dir", type=str, default=None, help="path to data folder." "Default: None")
