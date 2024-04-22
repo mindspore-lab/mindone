@@ -63,8 +63,6 @@ class DiffusionWithLoss(nn.Cell):
             logger.info("Train with text embedding inputs")
         else:
             raise NotImplementedError
-        if self.video_emb_cached:
-            raise NotImplementedError
 
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
@@ -160,7 +158,11 @@ class DiffusionWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
-        x = self.get_latents(x)
+        if not self.video_emb_cached:
+            x = self.get_latents(x)
+        else:
+            # (b f c h w) -> (b c f h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
         # 2. get conditions
         if not self.text_emb_cached:
@@ -194,7 +196,7 @@ class DiffusionWithLoss(nn.Cell):
         # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
-        kl = mean_flat(kl) / ms.numpy.log(2.0)  # TODO: 
+        kl = mean_flat(kl) / ms.numpy.log(2.0)  # TODO:
 
         # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype)
 
@@ -221,7 +223,7 @@ class DiffusionWithLoss(nn.Cell):
         B, C, F = x_t.shape[:3]
         assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
         model_output, model_var_values = ops.split(model_output, C, axis=1)
-        
+
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
 

@@ -181,6 +181,8 @@ def main(args):
         param.requires_grad = False
 
     # 2.3 ldm with loss
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
@@ -191,15 +193,18 @@ def main(args):
         text_encoder=None,
         cond_stage_trainable=False,
         text_emb_cached=True,
-        video_emb_cached=False,
+        video_emb_cached=train_with_vae_latent,
     )
 
     # 3. create dataset
     ds_config = dict(
         csv_path=args.csv_path,
         video_folder=args.video_folder,
-        text_emb_folder=args.embed_folder,
+        text_emb_folder=args.text_embed_folder,
         return_text_emb=True,
+        vae_latent_folder=args.vae_latent_folder,
+        return_vae_latent=train_with_vae_latent,
+        vae_scale_factor=args.sd_scale_factor,
         sample_size=args.image_size,
         sample_stride=args.frame_stride,
         sample_n_frames=args.num_frames,
@@ -209,8 +214,11 @@ def main(args):
         disable_flip=args.disable_flip,
     )
     dataset = create_dataloader(
-        ds_config, batch_size=args.batch_size, shuffle=True, 
-        device_num=device_num, rank_id=rank_id,
+        ds_config,
+        batch_size=args.batch_size,
+        shuffle=True,
+        device_num=device_num,
+        rank_id=rank_id,
         num_parallel_workers=args.num_parallel_workers,
         max_rowsize=args.max_rowsize,
     )
