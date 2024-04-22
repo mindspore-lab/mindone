@@ -709,6 +709,7 @@ class CLIPModel(CLIPPreTrainedModel):
         vision_config = config.vision_config
         self.output_attentions = config.output_attentions
         self.output_hidden_states = config.output_hidden_states
+        self.logit_scale_init_value = config.logit_scale_init_value
 
         self.projection_dim = config.projection_dim
         self.text_embed_dim = text_config.hidden_size
@@ -719,7 +720,7 @@ class CLIPModel(CLIPPreTrainedModel):
 
         self.visual_projection = nn.Dense(self.vision_embed_dim, self.projection_dim, has_bias=False)
         self.text_projection = nn.Dense(self.text_embed_dim, self.projection_dim, has_bias=False)
-        self.logit_scale = ms.Parameter(ms.Tensor(self.config.logit_scale_init_value))
+        self.logit_scale = ms.Parameter(ms.Tensor(self.logit_scale_init_value))
 
         # Initialize weights and apply final processing
         self.post_init()
