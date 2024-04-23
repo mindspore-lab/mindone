@@ -3,27 +3,26 @@ Implementation of two versions of safety checker in stable
 diffusion 1/2, respectively
 """
 import argparse
-import os
 
 import numpy as np
 import yaml
 from PIL import Image
 from tqdm import tqdm
 
+# # equivalent to no-check-certificate flag in wget
+# os.environ["CURL_CA_BUNDLE"] = ""
+from transformers import CLIPProcessor
+
 import mindspore as ms
 from mindspore import load_checkpoint, load_param_into_net, ops
 
-from examples.stable_diffusion_v2.tools._common import L2_norm_ops, load_images
-from examples.stable_diffusion_v2.tools._common.clip import CLIPImageProcessor, CLIPModel, CLIPTokenizer, parse
 from mindone.tools.safety_checker.nsfw_model import NSFWModel
-from mindone.tools.safety_checker.utils import locate_model
-
-# # equivalent to no-check-certificate flag in wget
-# os.environ["CURL_CA_BUNDLE"] = ""
-
+from mindone.tools.safety_checker.utils import get_video_path, load_images, locate_model
+from mindone.transformers import CLIPModel
 
 try:
     import torch
+    from transformers import CLIPModel as CLIPModelPT
 
     from mindone.tools.safety_checker.nsfw_model_pt import NSFWModelPT
 
@@ -31,13 +30,6 @@ try:
 except ImportError:
     is_torch_available = False
 
-try:
-    from transformers import CLIPModel as CLIPModelPT
-    from transformers import CLIPProcessor
-
-    is_transformers_available = True
-except ImportError:
-    is_transformers_available = False
 
 try:
     import av
@@ -47,30 +39,11 @@ except ImportError:
     is_av_available = False
 
 
-def get_video_path(paths):
-    if os.path.isdir(paths) and os.path.exists(paths):
-        paths = [
-            os.path.join(root, file)
-            for root, _, file_list in os.walk(os.path.join(paths))
-            for file in file_list
-            if file.endswith(".mp4")
-        ]
-        paths.sort()
-        paths = paths
-    else:
-        paths = [paths]
-
-    return paths
-
-
 class SafetyChecker:
     def __init__(
         self,
         safety_version=2,
         backend="ms",
-        config="tools/_common/clip/configs/clip_vit_l_14.yaml",
-        ckpt_path=None,
-        tokenizer_path="ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
         model_name="openai/clip-vit-large-patch14",
         settings_path="../../mindone/tools/safety_checker/safety_settings_v2.yaml",
         threshold=0.2,
@@ -80,7 +53,6 @@ class SafetyChecker:
 
         if backend == "pt":
             assert is_torch_available is True, "torch is not installed, please install torch."
-            assert is_transformers_available is True, "transformers is not installed, please install transformers."
 
             model = CLIPModelPT.from_pretrained(model_name)
             processor = CLIPProcessor.from_pretrained(model_name)
@@ -96,15 +68,11 @@ class SafetyChecker:
 
         elif backend == "ms":
             # parse config file
-            config = parse(config, ckpt_path)
-            self.image_size = config.vision_config.image_size
-            self.dtype = ms.float32 if config.dtype == "float32" else ms.float16
-            model = CLIPModel(config)
-            processor = CLIPImageProcessor()
-            tokenizer = CLIPTokenizer(tokenizer_path, pad_token="!")
+            model = CLIPModel.from_pretrained(model_name)
+            processor = CLIPProcessor.from_pretrained(model_name)
 
             def process_text(text):
-                return ms.Tensor(tokenizer(text, padding="max_length", max_length=77)["input_ids"])
+                return ms.Tensor(processor(text=text, padding=True).input_ids)
 
             if safety_version == 2:
                 nsfw_model = NSFWModel()
@@ -136,6 +104,7 @@ class SafetyChecker:
         else:
             self.nsfw_model = nsfw_model
             self.threshold = threshold
+        self.image_size = model.config.vision_config.image_size
 
         self.model = model
         self.processor = processor
@@ -172,8 +141,8 @@ class SafetyChecker:
 
     def cosine_distance(self, v, w):
         if self.backend == "ms":
-            v /= L2_norm_ops(v)
-            w /= L2_norm_ops(w)
+            v /= v.norm(ord=2, dim=-1, keepdim=True)
+            w /= w.norm(ord=2, dim=-1, keepdim=True)
             return ops.matmul(v, w.T)
         else:
             v /= v.norm(p=2, dim=-1, keepdim=True)
@@ -185,7 +154,8 @@ class SafetyChecker:
         print(f"{len(images)} images are loaded")
 
         if self.backend == "ms":
-            images = self.processor(images)
+            images = self.processor(images=images).pixel_values
+            images = ms.Tensor(images)
         else:
             images = self.processor(images=images, return_tensors="pt").pixel_values
 
@@ -207,7 +177,8 @@ class SafetyChecker:
 
             frames = [frame.resize((224, 224)) for frame in frames]
             if self.backend == "ms":
-                frames = self.processor(frames)
+                frames = ms.Tensor(self.processor(images=frames).pixel_values)
+
             else:
                 frames = self.processor(images=frames, return_tensors="pt").pixel_values
 
@@ -226,12 +197,11 @@ class SafetyChecker:
             for i in range(images.shape[0]):
                 im = Image.fromarray((255.0 * images[i].transpose((1, 2, 0))).astype(np.uint8).asnumpy())
                 im = im.resize((self.image_size, self.image_size))
-                im = ms.Tensor(np.asarray(im), self.dtype)
+                im = ms.Tensor(np.asarray(im), dtype=ms.float32)
                 images_.append(im)
             images = ops.stack(images_).transpose((0, 3, 1, 2))
 
         image_features = self.model.get_image_features(images)
-
         if self.safety_version == 1:
             nsfw_sim = self.cosine_distance(image_features, self.nsfw_features)
             special_sim = self.cosine_distance(image_features, self.special_features)
@@ -239,7 +209,7 @@ class SafetyChecker:
             has_nsfw_concepts = [len(res["bad_concepts"]) > 0 for res in scores]
         else:
             if self.backend == "ms":
-                norm = L2_norm_ops(image_features)
+                norm = image_features.norm(ord=2, dim=-1, keepdim=True)
             else:
                 norm = image_features.norm(p=2, dim=-1, keepdim=True)
             image_features = image_features / norm
@@ -271,17 +241,10 @@ if __name__ == "__main__":
         help="the version of stable diffusion to use for its safety checker. Option: 1, 2" "Default: 2",
     )
     parser.add_argument(
-        "--config",
-        default="examples/stable_diffusion_v2/tools/_common/clip/configs/clip_vit_l_14.yaml",
-        type=str,
-        help="YAML config files for ms backend" " Default: tools/_common/clip/configs/clip_vit_l_14.yaml",
-    )
-    parser.add_argument(
         "--model_name",
         default="openai/clip-vit-large-patch14",
         type=str,
-        help="the name of a (Open/)CLIP model as shown in HuggingFace for pt backend."
-        " Default: openai/clip-vit-large-patch14",
+        help="the name of a (Open/)CLIP model as shown in HuggingFace." " Default: openai/clip-vit-large-patch14",
     )
     parser.add_argument(
         "--image_path_or_dir",
@@ -295,19 +258,11 @@ if __name__ == "__main__":
         type=str,
         help="input data for predict, it support video data path or directory." " Default: None",
     )
-    parser.add_argument("--ckpt_path", default=None, type=str, help="load model checkpoint." " Default: None")
     parser.add_argument(
         "--backend",
         default="ms",
         type=str,
         help="backend to do CLIP model inference for CLIP score compute. Option: ms, pt." " Default: ms",
-    )
-    parser.add_argument(
-        "--tokenizer_path",
-        default="examples/stable_diffusion_v2/ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
-        type=str,
-        help="load tokenizer checkpoint."
-        " Default: examples/stable_diffusion_v2/ldm/models/clip/bpe_simple_vocab_16e6.txt.gz",
     )
     parser.add_argument(
         "--settings_path",

@@ -236,14 +236,7 @@ def main(args):
 
     # create safety checker
     if args.check_safety:
-        if args.clip_ckpt_path is None:
-            clip_ckpt_name = os.path.basename(CLIP_CKPT_URL)
-            args.clip_ckpt_path = "models/" + clip_ckpt_name
-            if not os.path.exists(args.clip_ckpt_path):
-                print(f"Start downloading checkpoint {clip_ckpt_name} ...")
-                download_checkpoint(CLIP_CKPT_URL, "models/")
-
-        safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", ckpt_path=args.clip_ckpt_path)
+        safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", model_name=args.model_name)
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -544,10 +537,10 @@ if __name__ == "__main__":
         help="set this flag to use a safety checker",
     )
     parser.add_argument(
-        "--clip_ckpt_path",
+        "--model_name",
+        default="openai/clip-vit-large-patch14",
         type=str,
-        default=None,
-        help="path to checkpoint of clip-vit-large-patch14 for safety checker",
+        help="the name of a (Open/)CLIP model as shown in HuggingFace." " Default: openai/clip-vit-large-patch14",
     )
     parser.add_argument(
         "--safety_version",

@@ -8,6 +8,7 @@ import urllib.error
 import urllib.request
 from copy import deepcopy
 
+from PIL import Image
 from tqdm import tqdm
 
 # The default root directory where we save downloaded files.
@@ -95,3 +96,44 @@ def locate_model(model_name="nsfw", backend="ms"):
             os.remove(file_path)
 
     return file_path
+
+
+def load_images(paths, resize=True):
+    # load images
+    images = []
+    if os.path.isdir(paths) and os.path.exists(paths):
+        paths = [
+            os.path.join(root, file)
+            for root, _, file_list in os.walk(os.path.join(paths))
+            for file in file_list
+            if file.endswith(".jpg")
+            or file.endswith(".png")
+            or file.endswith(".jpeg")
+            or file.endswith(".JPEG")
+            or file.endswith("bmp")
+        ]
+        paths.sort()
+        images = [Image.open(p) for p in paths]
+        paths = paths
+    else:
+        images = [Image.open(paths)]
+        paths = [paths]
+    if resize:
+        images = [image.resize((224, 224)) for image in images]
+    return images, paths
+
+
+def get_video_path(paths):
+    if os.path.isdir(paths) and os.path.exists(paths):
+        paths = [
+            os.path.join(root, file)
+            for root, _, file_list in os.walk(os.path.join(paths))
+            for file in file_list
+            if file.endswith(".mp4")
+        ]
+        paths.sort()
+        paths = paths
+    else:
+        paths = [paths]
+
+    return paths
