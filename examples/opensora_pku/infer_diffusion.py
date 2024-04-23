@@ -19,9 +19,9 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from opensora.models.diffusion.latte_t2v import Attention, LatteT2V, LayerNorm
-from opensora.sample.pipeline_videogen import VideoGenPipeline
 from opensora.text_encoders.t5_embedder import T5Embedder
 
+from examples.opensora_pku.opensora.pipelines import VideoGenPipeline
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config, str2bool
