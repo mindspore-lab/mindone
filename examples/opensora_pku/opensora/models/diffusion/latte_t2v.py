@@ -2023,6 +2023,24 @@ class LatteT2V(ModelMixin, ConfigMixin):
         else:
             b.add_flags(output_no_recompute=True)
 
+    def load_from_checkpoint(self, ckpt_path):
+        if not os.path.exists(ckpt_path):
+            print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
+        else:
+            sd = ms.load_checkpoint(ckpt_path)
+            # filter 'network.' prefix
+            rm_prefix = ["network."]
+            all_pnames = list(sd.keys())
+            for pname in all_pnames:
+                for pre in rm_prefix:
+                    if pname.startswith(pre):
+                        new_pname = pname.replace(pre, "")
+                        sd[new_pname] = sd.pop(pname)
+
+            m, u = ms.load_param_into_net(self, sd)
+            print("net param not load: ", m, len(m))
+            print("ckpt param not load: ", u, len(u))
+
 
 # depth = num_layers * 2
 def Latte_XL_122(**kwargs):
