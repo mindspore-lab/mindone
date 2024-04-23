@@ -10,33 +10,37 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 - [x] Infer: Support with MSLite.
 - [x] Infer: Support T2I-Adapters for Text-to-Image generation with extra visual guidance.
 - [x] Infer: Support [ControlNet](https://arxiv.org/abs/2302.05543) inference with SDXL-1.0-Base.
+- [x] Finetune: [Vanilla Finetune](./docs/vanilla_finetune.md) with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: [LoRA](https://arxiv.org/abs/2106.09685) fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: [DreamBooth](https://arxiv.org/abs/2208.12242) lora fine-tune with SDXL-1.0-Base.
 - [x] (⚠️experimental) Finetune: [Textual Inversion](https://arxiv.org/abs/2208.01618) fine-tune with SDXL-1.0-Base.
-- [x] (⚠️experimental) Finetune: Vanilla fine-tune with SDXL-1.0-Base.
 - [x] LoRA model conversion for Torch inference, refer to [tutorial](tools/lora_conversion/README_CN.md)
 - [x] Memory Efficient Sampling and Tuning: [Flash-Attention](https://arxiv.org/abs/2205.14135), Auto-Mix-Precision, Recompute, etc. (under continuous update)
+- [x] Dataset supports csv/[webdataset](https://github.com/webdataset/webdataset/)/[wids](https://github.com/webdataset/webdataset?tab=readme-ov-file#the-wids-library-for-indexed-webdatasets) format.
 
 ## Documentation
 
-1. Preparation
-   - [Installation](./installation.md)
-   - [Weight Convert](./weight_convertion.md)
+1. Preparation & Tutorial
+   - [Installation](./docs/installation.md)
+   - [Weight Convert](./docs/weight_convertion.md)
    - [RankTable Generation](./tools/rank_table_generation/README.md)
+   - [Hyper-Parameters](./docs/hyper_parameters.md)
+   - [FAQ](./docs/faq_cn.md)
 2. Inference
-    - [Online Infer](./inference.md)
-    - [Offline Infer](./offline_inference/README.md)
-    - [LCM Infer](./inference_lcm.md)
+    - [Online Infer](./docs/inference.md)
+    - [Offline Infer](./docs/offline_inference/README.md)
+    - [LCM Infer](./docs/inference_lcm.md)
+    - [ControlNet](./docs/controlnet.md)
 3. Finetune
-    - [Vanilla Finetune](./vanilla_finetune.md)
-    - [LoRA Finetune](./lora_finetune.md)
-    - [DreamBooth Finetune](dreambooth_finetune.md)
-    - [Textual Inversion Finetune](textual_inversion_finetune.md)
+    - [Vanilla Finetune](./docs/vanilla_finetune.md)
+    - [LoRA Finetune](./docs/lora_finetune.md)
+    - [DreamBooth Finetune](./docs/dreambooth_finetune.md)
+    - [Textual Inversion Finetune](./docs/textual_inversion_finetune.md)
 
 ## What is New
 
 **Jan 30, 2024**
-1. Add [ControlNet](controlnet.md) inference support for SDXL
+1. Add [ControlNet](./docs/controlnet.md) inference support for SDXL
 
 **Jan 18, 2024**
 1. Support latent/text-embedding cache.
@@ -67,7 +71,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 ## Getting Started
 
-See [GETTING STARTED](GETTING_STARTED.md) for details.
+See [GETTING STARTED](./docs/GETTING_STARTED.md) for details.
 
 ## Examples:
 

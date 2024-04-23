@@ -535,8 +535,11 @@ if __name__ == "__main__":
     if args.deterministic:
         # get same results for each run
         ms.context.set_context(deterministic="ON")
-        # FIXME: Bug on MindSpore 2.2.11
+
+        # FIXME: Bug on MindSpore 2.2.11, If not setting `pynative_synchronize=True`, there may be a relatively small
+        #  probability(~1%) of the result not meeting expectations.
         ms.context.set_context(pynative_synchronize=True)
+
     if args.precision_keep_origin_dtype:
         ms.context.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
 
