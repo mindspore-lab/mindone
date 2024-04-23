@@ -1,0 +1,37 @@
+# loss verfied under ms2.2.13
+# model
+space_scale: 0.5  # 0.5 for 256. 1.0 for 512
+time_scale: 1.0
+pretrained_model_path: "models/PixArt-XL-2-512x512.ckpt"
+vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
+
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+
+# data
+image_size: 256
+num_frames: 16
+frame_stride: 3
+
+# precision
+dtype: "fp16"
+amp_level: "O2"
+init_loss_scale: 65536
+
+# training hyper-params
+scheduler: "constant"
+start_learning_rate: 1.e-4
+end_learning_rate: 1.e-4
+warmup_steps: 0   # TODO: ablate
+
+batch_size: 3
+clip_grad: True
+max_grad_norm: 5.0
+use_ema: True   # TODO: ablate
+
+optim: "adamw_re"
+optim_eps: 1.e-8 
+weight_decay: 0.
+
+epochs: 12000
+ckpt_save_interval: 100 
