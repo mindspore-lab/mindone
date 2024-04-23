@@ -1,0 +1,37 @@
+# task
+condition: "text"
+text_encoder: "t5"
+clip_checkpoint: ""
+t5_cache_folder: "models/t5-v1_1-xxl/"
+
+# model
+image_size: 256
+num_frames: 17
+frame_stride: 1
+model_version: "17x256x256"
+checkpoint: "models/t2v.ckpt"
+vae_checkpoint: "models/ae/causal_vae_488.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+
+# precision
+dtype: "fp16"
+init_loss_scale: 65536
+
+# training hyper-params
+scheduler: "constant"
+start_learning_rate: 2.e-5
+end_learning_rate: 2.e-5
+warmup_steps: 0   # TODO: ablate
+
+batch_size: 4
+clip_grad: True
+max_grad_norm: 1.0
+use_ema: False
+
+optim: "adamw"
+optim_eps: 1.e-8
+weight_decay: 1e-2
+
+epochs: 2000
+ckpt_save_interval: 100
