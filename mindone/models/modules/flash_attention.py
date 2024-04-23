@@ -63,7 +63,7 @@ class MSFlashAttention(nn.Cell):
         self.use_new_flash_attention = USE_NEW_FA
         if self.use_new_flash_attention:
             self.flash_attention = FlashAttention(
-                scale_value=1.0 / math.sqrt(head_dim),
+                scale_value=head_dim**-0.5,
                 head_num=head_num,
                 input_layout=input_layout,
                 keep_prob=1 - attention_dropout,
@@ -77,26 +77,28 @@ class MSFlashAttention(nn.Cell):
             )  # TODO: how high_precision affect the training or inference quality
         self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
         self.dtype = dtype
-        self.fix_head_dims = fix_head_dims  # A list of integers to be mapped to 2**n * 64
-        if self.fix_head_dims is not None and not isinstance(self.fix_head_dims, (list, tuple)):
-            self.fix_head_dims = [self.fix_head_dims]
+        cand_d_list = [64, 80, 96, 120, 128, 256]
+        self.d_pad = 0
+        for d in cand_d_list:
+            if head_dim == d:
+                self.d_pad = 0
+                break
+            elif head_dim < d:
+                self.d_pad = d - head_dim
+                break
+        if head_dim > 256:
+            raise ValueError(f"head_dim must <= 256!")
+        self.need_pad = self.d_pad != 0
 
     def construct(self, q, k, v, mask=None):
-        q_b, h, q_n, d = q.shape  # (b, h, n, d)
-        head_dim = d
+        B, N, S1, D = q.shape
+        _, _, S2, _ = k.shape
 
-        #   a trick to pad head dimensions to 2**n * 64
-        if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
-            # pad to 2**n * 64 to avoid accuracy errors
-            padding_size = 64 * 2 ** math.ceil(math.log(head_dim / 64, 2)) - head_dim
-            q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-            k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-            v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
+        if self.need_pad:
+            q = ops.pad(q, (0, self.d_pad))
+            k = ops.pad(k, (0, self.d_pad))
+            v = ops.pad(v, (0, self.d_pad))
         if self.use_new_flash_attention:
-            if mask is not None:
-                mask = mask.to(self.fa_mask_dtype)
-                if mask.dim() == 3:
-                    mask = mask[:, None, :, :]
             out = self.flash_attention(
                 q.to(self.dtype),
                 k.to(self.dtype),
@@ -109,13 +111,14 @@ class MSFlashAttention(nn.Cell):
             )[3]
         else:
             if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+                mask = ops.zeros((B, S1, S2), self.fa_mask_dtype)
             out = self.flash_attention(
                 q.to(self.dtype),
                 k.to(self.dtype),
                 v.to(self.dtype),
                 mask.to(self.fa_mask_dtype),
             )
-        if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
-            out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
+        if self.need_pad:
+            out = out[:, :, :, :D]
         return out
+
