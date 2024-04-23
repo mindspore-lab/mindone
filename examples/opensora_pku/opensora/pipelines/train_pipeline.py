@@ -90,52 +90,21 @@ class DiffusionWithLoss(nn.Cell):
         Return:
             y: (b H W 3), batch of images, normalized to [0, 1]
         """
-        b, c, h, w = x.shape
-
+        # b, c, f, h, w = x.shape
         y = self.vae.decode(x / self.scale_factor)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
-        # (b 3 H W) -> (b H W 3)
-        y = ops.transpose(y, (0, 2, 3, 1))
-
-        return y
-
-    def vae_decode_video(self, x):
-        """
-        Args:
-            x: (b f c h w), denoised latent
-        Return:
-            y: (b f H W 3), batch of images, normalized to [0, 1]
-        """
-        b, f, c, h, w = x.shape
-        y = []
-        for x_sample in x:
-            y.append(self.vae_decode(x_sample))
-
-        y = ops.stack(y, axis=0)
-
-        return y
+        return y  # b c f h w
 
     def get_latents(self, x):
         if x.dim() == 5:
-            # "b f c h w -> (b f) c h w"
             B, F, C, H, W = x.shape
             if C != 3:
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = ops.reshape(x, (-1, C, H, W))
+            x = x.permute(0, 2, 1, 3, 4)  # (b, c, f, h, w)
 
-            z = ops.stop_gradient(self.vae_encode(x))
+            z = ops.stop_gradient(self.vae_encode(x))  # (b, c, f, h, w)
 
-            # (b*f c h w) -> (b f c h w)
-            z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-
-            # (b f c h w) -> (b c f h w)
-            z = ops.transpose(z, (0, 2, 1, 3, 4))
-        elif x.dim() == 4:
-            B, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            z = ops.stop_gradient(self.vae_encode(x))
         else:
             raise ValueError("Incorrect Dimensions of x")
         return z
