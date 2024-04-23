@@ -159,3 +159,34 @@ For example, you can run the first stage with:
   This will save the denoised latents as npy files in the output dir, e.g., `samples/time-stamp/`. Then you can start the second stage by running:
 
  ```python infer_diffusion.py --config configs/diffusion/latte_65x512x512_122.yaml --decode_latents --input_latents_dir samples/time-stamp/```
+
+
+### Training
+
+Before training, please download the `t2v.pt` from [HF webpage of Latte](https://huggingface.co/maxin-cn/Latte/tree/main), and run checkpoint conversion using:
+
+```bash
+python tools/model_conversion/convert_latte.py --src models/t2v.pt --target models/t2v.ckpt
+```
+`models/t2v.ckpt` serves as the pretrained weights for training `LatteT2V` model.
+
+#### webvid5 dataset training
+
+```
+python infer_t5.py \
+    --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
+    --output_dir ../videocomposer/datasets/webvid5 \
+```
+
+After running, the text embeddings saved as npz file for each caption will be in `output_dir`
+
+Please change `csv_path` to your video-caption annotation file accordingly.
+
+Train the Latte-T2V model:
+
+```
+python train_diffusion.py --config configs/diffusion/training/latte_17x256x256_122.yaml \
+    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
+    --video_folder "../videocomposer/datasets/webvid5" \
+    --text_embed_folder "../videocomposer/datasets/webvid5" \
+```
