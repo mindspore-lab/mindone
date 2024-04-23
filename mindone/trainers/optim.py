@@ -4,8 +4,12 @@ Build optimizer for ms
 import logging
 from typing import List, Optional, Union
 
+from mindcv.optim.adamw import AdamW as AdamW_Refined
+
 from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
+
+from .adamw_zero1 import AdamWeightDecayZeRO1
 
 _logger = logging.getLogger(__name__)
 
@@ -24,14 +28,14 @@ def create_optimizer(
 
     Args:
         params: Model parameters to be optimized.
-        name: Name of the optimizer.
+        name: Name of the optimizer. adamw_re: refined adamw
         lr: Learning rate or a list of learning rates for each step (if a scheduler is used).
         betas: Beta coefficients for computing running averages of gradient and its square.
-            If not provided, [0.9, 0.98] is used as default.
+               If not provided, [0.9, 0.999] is used as default.
         weight_decay: Weight decay (L2 penalty) coefficient. Default is 1e-6.
         eps: epsilon in adam or adamw optimization, Default: 1e-6
         group_strategy: The specific grouping startegy for weight decay. If it is None,
-            then only the weight decays for parameters in layernorm and all bias will be set to 0.
+                        then only the weight decays for parameters in layernorm and all bias will be set to 0.
 
     Returns:
         Initialized optimizer.
@@ -71,6 +75,11 @@ def create_optimizer(
         optim_cls = Adam
     elif name.lower() == "adamw":
         optim_cls = AdamWeightDecay
+    elif name.lower() == "adamw_re":
+        optim_cls = AdamW_Refined
+    elif name.lower() == "adamw_zero1":
+        optim_cls = AdamWeightDecayZeRO1
+        print("D--: apply adamw_zero1")
     elif name.lower() in ["sgd", "momentum"]:
         optim_cls = Momentum
     else:

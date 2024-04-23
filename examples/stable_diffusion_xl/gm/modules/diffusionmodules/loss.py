@@ -40,10 +40,10 @@ class StandardDiffusionLoss(nn.Cell):
         return noised_input
 
     def construct(self, pred, target, w):
-        dtype = pred.dtype
         if self.keep_loss_fp32:
             pred = ops.cast(pred, ms.float32)
             target = ops.cast(target, ms.float32)
+        dtype = pred.dtype
 
         if self.type == "l2":
             loss = ops.mean((w * (pred - target) ** 2).reshape(target.shape[0], -1), 1).astype(dtype)
@@ -52,3 +52,14 @@ class StandardDiffusionLoss(nn.Cell):
         else:
             loss = 0.0
         return loss
+
+
+class StandardDiffusionLoss2(StandardDiffusionLoss):
+    def get_noise_input(self, pred, noise, sigmas):
+        input = pred
+        if self.offset_noise_level > 0.0:
+            noise = noise + self.offset_noise_level * append_dims(
+                ops.randn(input.shape[0], input.shape[1], dtype=input.dtype), input.ndim
+            )
+        noised_input = input + noise * append_dims(sigmas, input.ndim)
+        return noised_input

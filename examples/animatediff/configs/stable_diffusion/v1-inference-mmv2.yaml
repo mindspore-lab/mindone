@@ -32,7 +32,7 @@ model:
         use_checkpoint: True
         legacy: False
         use_fp16: True
-        enable_flash_attention: False # TODO: turn it on after FA bug fixed (noisy result on attn_head_dim=40)
+        enable_flash_attention: True # TODO: turn it on after FA bug fixed (noisy result on attn_head_dim=40)
         # Additional. from animatediff v2.yaml. TODO: support v1.yaml
         use_inflated_groupnorm: true
         unet_use_cross_frame_attention: false

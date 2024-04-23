@@ -198,19 +198,21 @@ python tools/sd_add_control.py
 
 #### 2. Data Preparation
 
-We will use [Fill50k dataset](https://openi.pcl.ac.cn/attachments/5208caad-1727-46cc-b34e-add9afbd0557?type=1) to let the model learn to generate images following the edge control. Download it and put it under `datasets/` folder
+#### 2.1 Canny2Image task
 
-For convenience, we take the first 1K samples as training set, which can done by keeping the first 1000 lines in `prompt.json` and removing the rest.
+We will use [Fill50k dataset](https://openi.pcl.ac.cn/attachments/5208caad-1727-46cc-b34e-add9afbd0557?type=1) to let the model learn to generate images following the edge control. Download it and put it under the `datasets/` folder.
 
-If you want to use your own dataset, please make sure the structure as belows:
+For convenience, we take the first 1K samples as a training set, which can done by keeping the first 1000 lines in `prompt.json` and removing the rest.
+
+If you want to use your own dataset, please make sure the structure as below:
 ```text
 dir
-    ├── prompt.json
-    ├── source
-    └── target
+ ├── prompt.json
+ ├── source
+ └── target
 ```
 
-`source` and `target` is the file folder with all images. The difference is the images under `target` folder are original image or called target image, and the images under `source` are the canny/segementation/other control images generated from original images. (eg.for Fill50k dataset `source/img0.png` is the canny image of `target/img0.png` )
+`source` and `target` are the file folders with all images. The difference is the images under the `target` folder are original images or called target images, and the images under `source` are the canny control images generated from original images. (eg.for Fill50k dataset `source/img0.png` is the canny image of `target/img0.png` )
 
 ```text
 dir
@@ -228,6 +230,34 @@ dir
 {"source": "source/2.png", "target": "target/2.png", "prompt": "aqua circle with light pink background"}
 {"source": "source/3.png", "target": "target/3.png", "prompt": "cornflower blue circle with light golden rod yellow background"}
 ```
+#### 2.2 Pose2Image task
+We manually selected around 1k data samples from the MPII Human Pose dataset and used the pose detection model to generate control images for fine-tuning. Download through this [link](https://openi.pcl.ac.cn/attachments/4ce4df65-e603-464a-a6ae-e11efb7918f2?type=1) and put it under the `datasets/` folder.
+
+This dataset has 984 samples in total; the structure of the folder is the same as the one in the canny2image task:
+
+```text
+dir
+ ├── prompt.json
+ ├── source
+ └── target
+```
+
+The folder `source` contains all the pose detection images generated from the images under the folder `target`.
+
+
+The annotation file, `prompt.json`, has a different data format than the one in the canny2image task.
+It contains a list of JSON with `image_id` and `caption`. Besides, you can set different captions for an image by adding a new line.
+
+```json
+[
+{"image_id": 59424183, "caption": "rowing, stationary, conditioning exercise"},
+{"image_id": 84980226, "caption": "tennis, sports"},
+{"image_id": 12815498, "caption": "trombone, standing, music playing"},
+...
+]
+```
+
+
 #### 3. Training
 
 
@@ -238,7 +268,13 @@ data_path=/path_to_dataset
 pretrained_model_path=/path_to_init_model
 ```
 
-Then, check the training settings in `train_config`, some params default setting are as belows:
+For different tasks, the different training config files should be applied; please also make sure the argument `train_config` is set to the corresponding one:
+
+- Canny2Image task: sd15_controlnet_canny.yaml
+- Pose2Image task: sd15_controlnet_openpose.yaml
+
+
+Then, check the training settings in `train_config`, some params default settings are as below:
 
 ```text
 train_batch_size: 2
@@ -246,9 +282,12 @@ optim: "adamw"
 start_learning_rate: 5.e-4
 ```
 
+- The parameters of `zero_conv`, `input_hint_block` and `middle_block_out` blocks are randomly initialized in ControlNet, which are very hard to train. We scale up the base learning rate for training parameters specifically (x5 by default in Pose2Image task). You can set the scale value by `group_lr_scaler`.
+
+
 For more settings, check the `model_config` file.
 
-The default `sd_locked` is True, which means only update the parameters of ControlNet model, not the decoder part of Unet model.
+The default `sd_locked` is True, which means only updating the parameters of the ControlNet model, not the decoder part of Unet model.
 The default `only_mid_control` is False, which means the data processed by ControlNet will go through the decoder part of Unet model.
 
 For more explanation, please see [ControlNet official](https://github.com/lllyasviel/ControlNet/blob/main/docs/train.md#other-options)
@@ -262,21 +301,31 @@ sh scripts/run_train_cldm.sh $CARD_ID
 
 The resulting log will be saved in $output_dir as defined in the script, and the saved checkpoint will be saved in $output_path as defined in  `train_config` file.
 
+Here are the training performances:
+
+| Platform | Dataset | Task | Batch Size | Training Performance |
+| -------- | ------- | ---- |  --------- |  ------------------- |
+| 910A | Fill50k | Canny2Image | 4 | 620 ms/step|
+| 910* | Fill50k | Canny2Image | 4 | 552 ms/step|
+| 910A | MPII1K | Pose2Image | 2 | 490 ms/step|
+
 
 #### 4. Evaluation
-To evaluate the training result, please modify the control image path in the script and indicate the path to the trained checkpoint, and run the following script.
+To evaluate the training result, please modify the control image path in the script indicate the path to the trained checkpoint, and run the following script.
 
 ```
 sh scripts/run_infer_cldm.sh $CARD_ID $CHECKPOINT_PATH $OUTPUT_FOLDER_NAME
 ```
+> For more settings, please check [this part](#Generating-Images-with-ControlNet)
+
 The result would be saved at ./inference/output/$OUTPUT_FOLDER_NAME.
 
-Here are some inference results after training Fill50k dataset (lr=5e-4, bs=2, epoch=4):
+Here are some inference results of canny2image task after training Fill50k dataset (lr=5e-4, bs=2, epoch=4):
 
 ![controlnet_train_validate](https://github.com/congw729/mindone/assets/115451386/62ad40a3-0510-4606-84cb-780c72989b36)
 
 Comparing the results with ground truth:
-![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/644e436c-4ac9-4b23-81ff-6c0f0dbef9f8)
+![controlnet_train_gt](https://github.com/congw729/mindone/assets/115451386/b0e5740c-2488-4924-842f-72afcfc0abea)
 
 
 Control:
@@ -284,6 +333,22 @@ Control:
 
 Prompt:
 ![controlnet_train_prompt](https://github.com/congw729/mindone/assets/115451386/7adb909a-a4b3-4ca3-856a-b996233b7b33)
+
+
+Here are some inference results of pose2image task after training MPII1K dataset (lr=2e-4, group_lr_scaler=5, bs=2, epoch=30):
+
+*prompt: A man riding a motor bike across a forest.*
+
+test image 1:
+
+<img src="https://github.com/congw729/mindone/assets/115451386/2b7de126-4866-48d1-8c8d-9065980258c7" alt="image" width="256" height="auto">
+<img src="https://github.com/congw729/mindone/assets/115451386/3e4f972b-fc5c-4291-8e22-0a72f4f12f67" alt="image" width="256" height="auto">
+
+test image 2:
+
+<img src="https://github.com/congw729/mindone/assets/115451386/e34bf3d0-f13a-4c0e-a199-5c092a392b1c" alt="image" width="256" height="auto">
+<img src="https://github.com/congw729/mindone/assets/115451386/d661b967-5f56-4ec5-b8e9-ed91ff160306" alt="image" width="256" height="auto">
+
 
 
 ## Reference

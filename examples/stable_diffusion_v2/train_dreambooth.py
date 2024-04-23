@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 
 def init_env(args):
     set_random_seed(args.seed)
+    ms.set_context(max_device_memory=args.max_device_memory)  # TODO: why limit?
     ms.set_context(mode=args.mode)  # needed for MS2.0
     if args.use_parallel:
         init()
@@ -59,7 +60,6 @@ def init_env(args):
         mode=args.mode,
         device_target="Ascend",
         device_id=device_id,
-        max_device_memory="30GB",  # TODO: why limit?
         pynative_synchronize=False,  # for debug in pynative mode
     )
 
@@ -87,6 +87,7 @@ def parse_args():
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
+    parser.add_argument("--max_device_memory", type=str, default="30GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")
     parser.add_argument("--lora_ft_unet", default=False, type=str2bool, help="whether to apply lora finetune to unet")
     parser.add_argument(

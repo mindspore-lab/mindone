@@ -61,7 +61,7 @@ Prepare hccl [rank_table](./tools/rank_table_generation/README.md) file for sing
 ```shell
 # sdxl-base fine-tune with 8p
 mpirun --allow-run-as-root -n 8 python train.py \
-  --config configs/training/sd_xl_base_finetune_multi_graph_910b.yaml \
+  --config configs/training/sd_xl_base_finetune_910b.yaml \
   --weight "" \
   --data_path /PATH TO/YOUR DATASET/ \
   --max_device_memory "59GB" \
@@ -90,14 +90,14 @@ python train.py \
   --cache_text_embedding True \
   --cache_path ./cache_data
 or
-bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # cache data
+bash scripts/cache_data.sh /path_to/hccl_8p.json 0 8 8 /path_to_dataset/ /path_to_cache/ # cache data
 ```
 
 #### 3.2. train with cache data
 
 ```shell
 # sdxl-base fine-tune with cache on Ascend
-bash scripts/run_distribute_vanilla_ft_910b.sh /path_to/hccl_8p.json 0 8 8 /path_to/dataset/  # run on server 1
+bash scripts/run_distribute_vanilla_ft_910b_cache.sh /path_to/hccl_8p.json 0 8 8 /path_to_dataset/  # run on server 1
 ```
 
 #### 3.3. merge weight and infer
@@ -108,7 +108,8 @@ It is necessary to merge trained Unet weight and pre-trained weight before infer
 # merge weight
 python tools/weight_merge/merge_weight.py \
   --base_weight checkpoints/sd_xl_base_1.0_ms.ckpt \
-  --additional_weights unet.ckpt
+  --additional_weights unet.ckpt \
+  --save_path merged_weight.ckpt
 
 # sdxl-base run infer
 python demo/sampling_without_streamlit.py \

@@ -1,6 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
 
-from gm.util import default, instantiate_from_config
+from gm.util import instantiate_from_config
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -12,8 +12,10 @@ class EDMSampling(nn.Cell):
         self.p_mean = p_mean
         self.p_std = p_std
 
+    @ms.jit  # FIXME: ops.randn causes 'dynamic shape' error in PyNative mode
     def construct(self, n_samples, rand=None):
-        log_sigma = self.p_mean + self.p_std * default(rand, ops.randn((n_samples,)))
+        rand = rand if rand else ops.randn((n_samples,))
+        log_sigma = self.p_mean + self.p_std * rand
         return log_sigma.exp()
 
 

@@ -112,6 +112,9 @@ def init_env(
     """
     set_random_seed(seed)
 
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
     device_num = 1
     device_id = int(os.getenv("DEVICE_ID", 0))
     rank_id = 0
@@ -121,9 +124,6 @@ def init_env(
         device_id=device_id,
         # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
     )
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
 
     return device_id, rank_id, device_num
 

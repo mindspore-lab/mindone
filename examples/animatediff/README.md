@@ -273,6 +273,9 @@ Here are some generation results after MM training on 512x512 resolution and 16-
 </table>
 
 
+#### Min-SNR Weighting
+
+Min-SNR weighting can be used to improve diffusion training convergence. You can enable it by appending `--snr_gamma=5.0` to the training command.
 
 ### Motion LoRA Training
 

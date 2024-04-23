@@ -93,6 +93,8 @@ To use them, please download `pokemon_blip.zip` or `chinese_art_blip.zip` from t
 
 #### Training with Webdataset
 
+> Please run `tools/data_check/get_wds_num_samples.py` on the new dataset to get the sample size of new dataset.
+
 <details onclose>
 
 Image-text pair data are archived into `tar` files in webdataset. A training dataset is like
@@ -368,5 +370,22 @@ To avoid information loss for long text prompts, we add the feature of long prom
 python train.py \
   ...  \  # other arguments configurations
   --lpw True \
+```
+</details>
+
+#### 6. EDM training
+
+<details close>
+
+> [Elucidating the Design Space of Diffusion-Based Generative Models](https://arxiv.org/pdf/2206.00364.pdf)
+
+By default, SDXL uses DDPM for training. It can be changed to the EDM-style training by configuring the `denoiser` and other related parameters of the training.
+
+We have provided a EDM-style-training yaml configuration file, in which parameters `denoiser_config` its associated `weighting_config` and `scaling_config` are modified to support EDM training. You can refer to the following case to make it effective.
+
+```shell
+python train.py \
+  ...  \  # other arguments configurations
+  --config configs/training/sd_xl_base_finetune_910b_edm.yaml \
 ```
 </details>

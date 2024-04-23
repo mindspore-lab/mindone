@@ -49,16 +49,19 @@ def create_loader(
     Returns:
         BatchDataset, dataset batched.
     """
-
+    use_webdataset = dataset_config["target"].split(".")[-1].startswith("T2I_Webdataset")
     if cache_latent and cache_text_embedding:
         assert cache_path is not None
         assert dataset_config["target"].split(".")[-1] in ("Text2ImageDataset",)
+
+        if data_path != cache_path:
+            print(f"train with cache, modify data_path `{data_path}` to `{cache_path}`")
+            data_path = cache_path
+
         from gm.data.dataset_cache import Text2ImageCacheDataset
 
         dataset = Text2ImageCacheDataset(data_path, cache_path)
     else:
-        if dataset_config["target"].split(".")[-1].startswith("T2I_Webdataset"):
-            from gm.data.dataset_wds import T2I_Webdataset
         dataset = get_obj_from_str(dataset_config["target"])(
             data_path=data_path,
             tokenizer=tokenizer,
@@ -81,7 +84,7 @@ def create_loader(
     cores = multiprocessing.cpu_count()
     num_parallel_workers = min(int(cores / min(rank_size, 8)), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
-    if (rank_size > 1) and (not isinstance(dataset, T2I_Webdataset)):
+    if (rank_size > 1) and (not use_webdataset):
         ds = de.GeneratorDataset(
             dataset,
             column_names=dataset_column_names,
@@ -160,10 +163,8 @@ def create_loader_dreambooth(
     num_parallel_workers = min(int(cores / min(rank_size, 8)), num_parallel_workers)
     print(f"Dataloader num parallel workers: [{num_parallel_workers}]")
 
-    if dataset_config["target"].split(".")[-1].startswith("T2I_Webdataset"):
-        from gm.data.dataset_wds import T2I_Webdataset
-
-    if (rank_size > 1) and (not isinstance(dataset, T2I_Webdataset)):
+    use_webdataset = dataset_config["target"].split(".")[-1].startswith("T2I_Webdataset")
+    if (rank_size > 1) and (not use_webdataset):
         ds = de.GeneratorDataset(
             dataset,
             column_names=dataset_column_names,

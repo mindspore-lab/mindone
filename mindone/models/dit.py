@@ -1,22 +1,17 @@
-import logging
 import math
 import numbers
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Type, Union
 
 import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
-from mindspore.common.initializer import Constant, Normal, One, XavierNormal, XavierUniform, Zero, initializer
+from mindspore.common.initializer import XavierUniform, Zero, initializer
 
-from ..utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
+from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
-logger = logging.getLogger(__name__)
-FLASH_IS_AVAILABLE = check_valid_flash_attention()
-if FLASH_IS_AVAILABLE:
-    from mindspore.nn.layer.flash_attention import FlashAttention
-
-    logger.info("Flash attention is available.")
+from .modules import get_2d_sincos_pos_embed
+from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 __all__ = [
     "DiT",
@@ -33,33 +28,7 @@ __all__ = [
     "DiT_S_2",
     "DiT_S_4",
     "DiT_S_8",
-    "VideoDiT_models",
-    "VideoDiT_Factorised_Encoder",
 ]
-
-
-def normal_(tensor: Tensor, mean: float = 0.0, std: float = 1.0):
-    tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
-
-
-def constant_(tensor: Tensor, val: float):
-    tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
-
-
-def ones_(tensor: Tensor):
-    tensor.set_data(initializer(One(), tensor.shape, tensor.dtype))
-
-
-def zeros_(tensor: Tensor):
-    tensor.set_data(initializer(Zero(), tensor.shape, tensor.dtype))
-
-
-def xavier_uniform_(tensor: Tensor, gain: float = 1.0):
-    tensor.set_data(initializer(XavierUniform(gain), tensor.shape, tensor.dtype))
-
-
-def xavier_normal_(tensor: Tensor, gain: float = 1.0):
-    tensor.set_data(initializer(XavierNormal(gain), tensor.shape, tensor.dtype))
 
 
 class LayerNorm(nn.Cell):
@@ -135,8 +104,55 @@ class PatchEmbed(nn.Cell):
                 self.image_size[1],
             ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         x = self.proj(x)
-        x = ops.reshape(x, (b, self.embed_dim, -1))  # B Ph*Pw C
-        x = ops.transpose(x, (0, 2, 1))
+        x = ops.reshape(x, (b, self.embed_dim, -1))
+        x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
+        return x
+
+
+class LinearPatchEmbed(nn.Cell):
+    """Image to Patch Embedding: using a linear layer instead of conv2d layer for projection
+
+    Args:
+        image_size (int): Image size. Default: 224.
+        patch_size (int): Patch token size. Default: 4.
+        in_chans (int): Number of input image channels. Default: 3.
+        embed_dim (int): Number of linear projection output channels. Default: 96.
+    """
+
+    def __init__(
+        self,
+        image_size: Optional[int] = 224,
+        patch_size: int = 4,
+        in_chans: int = 3,
+        embed_dim: int = 96,
+        bias: bool = True,
+    ) -> None:
+        super().__init__()
+        self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
+        if image_size is not None:
+            self.image_size: Optional[Tuple] = (image_size, image_size) if isinstance(image_size, int) else image_size
+            self.patches_resolution: Optional[Tuple] = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
+            self.num_patches: Optional[int] = self.patches_resolution[0] * self.patches_resolution[1]
+        else:
+            self.image_size: Optional[Tuple] = None
+            self.patches_resolution: Optional[Tuple] = None
+            self.num_patches: Optional[int] = None
+        self.embed_dim = embed_dim
+        self.proj = nn.Dense(patch_size * patch_size * in_chans, embed_dim, has_bias=bias)
+
+    def construct(self, x: Tensor) -> Tensor:
+        b, c, h, w = x.shape
+        if self.image_size is not None:
+            assert (h, w) == (
+                self.image_size[0],
+                self.image_size[1],
+            ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
+        ph, pw = h // self.patch_size[0], w // self.patch_size[1]
+        x = x.reshape((b, c, self.patch_size[0], ph, self.patch_size[1], pw))  # (B, C, P, Ph, P, Pw)
+        x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
+        x = x.reshape((b, ph * pw, self.patch_size[0] * self.patch_size[1] * c))  # (B, Ph*Pw, P*P*C)
+
+        x = self.proj(x)  # B Ph*Pw C_out
         return x
 
 
@@ -146,7 +162,7 @@ class Mlp(nn.Cell):
         in_features: int,
         hidden_features: Optional[int] = None,
         out_features: Optional[int] = None,
-        act_layer: Optional[nn.Cell] = nn.GELU,
+        act_layer: Type[nn.Cell] = nn.GELU,
         drop: float = 0.0,
     ) -> None:
         super().__init__()
@@ -164,10 +180,6 @@ class Mlp(nn.Cell):
         x = self.fc2(x)
         x = self.drop(x)
         return x
-
-
-def exists(val):
-    return val is not None
 
 
 class Attention(nn.Cell):
@@ -245,14 +257,9 @@ class SelfAttention(nn.Cell):
         )
 
         if self.enable_flash_attention:
-            self.flash_attention = FlashAttention(
-                head_dim=head_dim,
-                head_num=num_heads,
-                high_precision=True,
-                dropout_rate=attn_drop,
-            )  # TODO: how high_precision affect the training or inference quality
-            self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
-            # logger.info("Flash attention is enabled.")
+            self.flash_attention = MSFlashAttention(
+                head_dim=head_dim, head_num=num_heads, fix_head_dims=[72], attention_dropout=attn_drop
+            )
         else:
             self.flash_attention = None
 
@@ -298,13 +305,7 @@ class SelfAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-
-            out = self.flash_attention(
-                q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-            )
-
+            out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
@@ -319,10 +320,6 @@ class SelfAttention(nn.Cell):
             out = self._rearange_out(out, h)
 
         return self.proj_drop(self.proj(out)).to(x_dtype)
-
-
-def modulate(x, shift, scale):
-    return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
 
 #################################################################################
@@ -446,8 +443,19 @@ class FinalLayer(nn.Cell):
 
 
 class DiT(nn.Cell):
-    """
-    Diffusion model with a Transformer backbone.
+    """A diffusion model with a Transformer backbone.
+    Args:
+        input_size (int, default=32): The size of the input latent.
+        patch_size (int, default=2): The size of each patch in the input latent. The input latent is divided into patches of patch_size x patch_size.
+        in_channels (int, default=4): The number of input channels in the input latent.
+        hidden_size (int, default=1152): The hidden size of the Transformer model.
+        depth (int, default=28): The number of blocks in this Transformer.
+        num_heads (int, default=16): The number of attention heads.
+        mlp_ratio (float, default=4.0): The expansion ratio for the hidden dimension in the MLP of the Transformer.
+        class_dropout_prob (float, default=0.1): The dropout probability for the class labels in the label embedder.
+        num_classes (int, default=1000): The number of classes of the input labels.
+        learn_sigma (bool, default=True): Whether to learn the diffusion model's sigma parameter.
+        block_kwargs (dict, default={}): Additional keyword arguments for the Transformer blocks. for example, {'enable_flash_attention':True}
     """
 
     def __init__(
@@ -463,6 +471,8 @@ class DiT(nn.Cell):
         num_classes=1000,
         learn_sigma=True,
         block_kwargs={},
+        patch_embedder="conv",
+        use_recompute=False,
     ):
         super().__init__()
         self.learn_sigma = learn_sigma
@@ -470,8 +480,13 @@ class DiT(nn.Cell):
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
         self.num_heads = num_heads
-
-        self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
+        self.patch_embedder = patch_embedder
+        self.use_recompute = use_recompute
+        if patch_embedder == "conv":
+            PatchEmbedder = PatchEmbed
+        else:
+            PatchEmbedder = LinearPatchEmbed
+        self.x_embedder = PatchEmbedder(input_size, patch_size, in_channels, hidden_size, bias=True)
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
         num_patches = self.x_embedder.num_patches
@@ -483,6 +498,18 @@ class DiT(nn.Cell):
         )
         self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
         self.initialize_weights()
+
+        if self.use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def initialize_weights(self):
         # Initialize transformer layers:
@@ -523,7 +550,7 @@ class DiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x):
+    def unpatchify(self, x: Tensor):
         """
         x: (N, T, patch_size**2 * C)
         imgs: (N, H, W, C)
@@ -534,7 +561,6 @@ class DiT(nn.Cell):
         assert h * w == x.shape[1]
 
         x = x.reshape((x.shape[0], h, w, p, p, c))
-        # x = torch.einsum('nhwpqc->nchpwq', x)
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
         imgs = x.reshape((x.shape[0], c, h * p, h * p))
         return imgs
@@ -556,84 +582,20 @@ class DiT(nn.Cell):
         x = self.unpatchify(x)  # (N, out_channels, H, W)
         return x
 
-    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: float):
+    @ms.jit
+    def construct_with_cfg(self, x: Tensor, t: Tensor, y: Tensor, cfg_scale: Union[float, Tensor]):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
-        model_out = self.forward(combined, t, y)
-        # For exact reproducibility reasons, we apply classifier-free guidance on only
-        # three channels by default. The standard approach to cfg applies it to all channels.
-        # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
+        model_out = self.construct(combined, t, y)
         eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
         return ops.cat([eps, rest], axis=1)
-
-
-#################################################################################
-#                   Sine/Cosine Positional Embedding Functions                  #
-#################################################################################
-# https://github.com/facebookresearch/mae/blob/main/util/pos_embed.py
-
-
-def get_1d_sincos_temp_embed(embed_dim, length):
-    pos = np.arange(0, length).reshape((-1, 1))
-    return get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
-
-
-def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=0):
-    """
-    grid_size: int of the grid height and width
-    return:
-    pos_embed: [grid_size*grid_size, embed_dim] or [1+grid_size*grid_size, embed_dim] (w/ or w/o cls_token)
-    """
-    grid_h = np.arange(grid_size, dtype=np.float32)
-    grid_w = np.arange(grid_size, dtype=np.float32)
-    grid = np.meshgrid(grid_w, grid_h)  # here w goes first
-    grid = np.stack(grid, axis=0)
-
-    grid = grid.reshape([2, 1, grid_size, grid_size])
-    pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid)
-    if cls_token and extra_tokens > 0:
-        pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
-    return pos_embed
-
-
-def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
-    assert embed_dim % 2 == 0
-
-    # use half of dimensions to encode grid_h
-    emb_h = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[0])  # (H*W, D/2)
-    emb_w = get_1d_sincos_pos_embed_from_grid(embed_dim // 2, grid[1])  # (H*W, D/2)
-
-    emb = np.concatenate([emb_h, emb_w], axis=1)  # (H*W, D)
-    return emb
-
-
-def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
-    """
-    embed_dim: output dimension for each position
-    pos: a list of positions to be encoded: size (M,)
-    out: (M, D)
-    """
-    assert embed_dim % 2 == 0
-    omega = np.arange(embed_dim // 2, dtype=np.float64)
-    omega /= embed_dim / 2.0
-    omega = 1.0 / 10000**omega  # (D/2,)
-
-    pos = pos.reshape(-1)  # (M,)
-    out = np.einsum("m,d->md", pos, omega)  # (M, D/2), outer product
-
-    emb_sin = np.sin(out)  # (M, D/2)
-    emb_cos = np.cos(out)  # (M, D/2)
-
-    emb = np.concatenate([emb_sin, emb_cos], axis=1)  # (M, D)
-    return emb
 
 
 #################################################################################
@@ -702,257 +664,6 @@ DiT_models = {
     "DiT-S/2": DiT_S_2,
     "DiT-S/4": DiT_S_4,
     "DiT-S/8": DiT_S_8,
-}
-
-
-#################################################################################
-#                         Video DiT (Experimental)                              #
-#################################################################################
-
-
-class VideoDiT_Factorised_Encoder(nn.Cell):
-    """
-    Diffusion model with a Transformer backbone for video generation based on DiT
-    """
-
-    def __init__(
-        self,
-        input_size=32,
-        patch_size=2,
-        in_channels=4,
-        hidden_size=1152,
-        depth=56,
-        num_heads=16,
-        mlp_ratio=4.0,
-        num_frames=16,
-        class_dropout_prob=0.1,
-        num_classes=1000,
-        learn_sigma=True,
-        block_kwargs={},
-        condition="class",
-    ):
-        super().__init__()
-        self.learn_sigma = learn_sigma
-        self.in_channels = in_channels
-        self.out_channels = in_channels * 2 if learn_sigma else in_channels
-        self.patch_size = patch_size
-        self.num_heads = num_heads
-        self.num_classes = num_classes
-
-        if condition is not None:
-            assert isinstance(condition, str), f"Expect that the condition type is a string, but got {type(condition)}"
-            self.condition = condition.lower()
-        else:
-            self.condition = condition
-
-        self.x_embedder = PatchEmbed(input_size, patch_size, in_channels, hidden_size, bias=True)
-        self.t_embedder = TimestepEmbedder(hidden_size)
-        assert self.condition in [None, "text", "class"], f"Unsupported condition type! {self.condition}"
-        if self.condition == "class":
-            self.y_embedder = LabelEmbedder(num_classes, hidden_size, class_dropout_prob)
-        elif self.condition == "text":
-            self.text_embedder = nn.SequentialCell(
-                nn.SiLU(),
-                nn.Dense(77 * 768, hidden_size, has_bias=True),
-            )
-        num_patches = self.x_embedder.num_patches
-        # TODO: Text Embedding Projection
-        # Will use fixed sin-cos embedding:
-        self.pos_embed = ms.Parameter(ops.zeros((1, num_patches, hidden_size), dtype=ms.float32), requires_grad=False)
-        self.temp_embed = ms.Parameter(ops.zeros((1, num_frames, hidden_size), dtype=ms.float32), requires_grad=False)
-
-        self.blocks = nn.CellList(
-            [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth // 2)]
-        )
-        self.temp_blocks = nn.CellList(
-            [DiTBlock(hidden_size, num_heads, mlp_ratio=mlp_ratio, **block_kwargs) for _ in range(depth // 2)]
-        )
-        self.final_layer = FinalLayer(hidden_size, patch_size, self.out_channels)
-        self.initialize_weights()
-
-    def initialize_weights(self):
-        # Initialize transformer layers:
-        def _basic_init(module):
-            if isinstance(module, nn.Dense):
-                xavier_uniform_(module.weight)
-                if module.bias is not None:
-                    constant_(module.bias, 0)
-
-        self.apply(_basic_init)
-
-        # Initialize (and freeze) pos_embed (temp_embed) by sin-cos embedding:
-        pos_embed = get_2d_sincos_pos_embed(self.pos_embed.shape[-1], int(self.x_embedder.num_patches**0.5))
-        self.pos_embed.set_data(Tensor(pos_embed).float().unsqueeze(0))
-        temp_embed = get_1d_sincos_temp_embed(self.temp_embed.shape[-1], self.temp_embed.shape[-2])
-        self.temp_embed.set_data(Tensor(temp_embed).float().unsqueeze(0))
-
-        # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
-        w = self.x_embedder.proj.weight
-        # xavier_uniform_(w.view(w.shape[0], -1))
-        w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
-        constant_(self.x_embedder.proj.bias, 0)
-
-        # Initialize label embedding table:
-        normal_(self.y_embedder.embedding_table.embedding_table, std=0.02)
-
-        # Initialize timestep embedding MLP:
-        normal_(self.t_embedder.mlp[0].weight, std=0.02)
-        normal_(self.t_embedder.mlp[2].weight, std=0.02)
-
-        # Zero-out adaLN modulation layers in DiT blocks:
-        for block in self.blocks:
-            constant_(block.adaLN_modulation[-1].weight, 0)
-            constant_(block.adaLN_modulation[-1].bias, 0)
-
-        # Zero-out adaLN modulation layers in DiT temporal blocks:
-        for block in self.temp_blocks:
-            constant_(block.adaLN_modulation[-1].weight, 0)
-            constant_(block.adaLN_modulation[-1].bias, 0)
-
-        # Zero-out output layers:
-        constant_(self.final_layer.adaLN_modulation[-1].weight, 0)
-        constant_(self.final_layer.adaLN_modulation[-1].bias, 0)
-        constant_(self.final_layer.linear.weight, 0)
-        constant_(self.final_layer.linear.bias, 0)
-
-    def unpatchify(self, x):
-        """
-        x: (N, T, patch_size**2 * C)
-        imgs: (N, H, W, C)
-        """
-        c = self.out_channels
-        p = self.x_embedder.patch_size[0]
-        h = w = int(x.shape[1] ** 0.5)
-        assert h * w == x.shape[1]
-
-        x = x.reshape((x.shape[0], h, w, p, p, c))
-        x = x.permute((0, 5, 1, 3, 2, 4))
-        imgs = x.reshape((x.shape[0], c, h * p, h * p))
-        return imgs
-
-    def get_condition_embed(self, t_embed, y_embed=None, text_embed=None):
-        # conditions can be (1) timestep embed, (2) class label embed, (3) text embed.
-        if y_embed is None and text_embed is None:
-            return t_embed
-        elif y_embed is not None and text_embed is None:
-            return t_embed + y_embed
-        elif y_embed is None and text_embed is not None:
-            return t_embed + text_embed
-        else:
-            raise ValueError("Incorrect embedding!")
-
-    def construct(self, x, t, y=None, text_embed=None):
-        """
-        Forward pass of DiT.
-        x: (N, F, C, H, W) tensor of spatial inputs (images or latent representations of images)
-        t: (N,) tensor of diffusion timesteps
-        y: (N,) tensor of class labels
-        text_embed: (N, L, D), tensor of text embedding. L is the number of tokens, for CLIP it should be 77
-        """
-        bs, num_frames, channels, height, width = x.shape
-        # (b c f h w) -> (b*f c h w)
-        x = x.reshape((bs * num_frames, channels, height, width))
-        x = self.x_embedder(x) + self.pos_embed  # (N, T, D), where T = H * W / patch_size ** 2
-
-        # time embeddings
-        t = self.t_embedder(t)  # (N, D)
-        # (N, D) -> (N*num_frames, D)
-        t_spatial = t.repeat_interleave(repeats=self.temp_embed.shape[1], dim=0)
-        # (N, D) -> (N*T, D)
-        t_temp = t.repeat_interleave(repeats=self.pos_embed.shape[1], dim=0)
-
-        if y is not None:
-            assert (
-                self.condition == "class"
-            ), f"When input y is not None, expect that the condition type equals to `class`, but got {self.condition}"
-            y = self.y_embedder(y, self.training)  # (N, D)
-            # (N, D) -> (N*num_frames, D)
-            y_spatial = y.repeat_interleave(repeats=self.temp_embed.shape[1], dim=0)
-            # (N, D) -> (N*T, D)
-            y_temp = y.repeat_interleave(repeats=self.pos_embed.shape[1], dim=0)
-        else:
-            y_spatial, y_temp = None, None
-
-        # text embedding
-        if text_embed is not None:
-            assert (
-                self.condition == "text"
-            ), f"When input y is not None, expect that the condition type equals to `class`, but got {self.condition}"
-            text_embed = self.text_embedder(text_embed.reshape(bs, -1))  # (N, L*D)
-            # (N, D) -> (N*num_frames, D)
-            text_embed_spatial = text_embed.repeat_interleave(repeats=self.temp_embed.shape[1], dim=0)
-            # (N, D) -> (N*T, D)
-            text_embed_temp = text_embed.repeat_interleave(repeats=self.pos_embed.shape[1], dim=0)
-        else:
-            text_embed_spatial, text_embed_temp = None, None
-
-        # spatial encoder
-        c = self.get_condition_embed(t_spatial, y_spatial, text_embed_spatial)
-        for block in self.blocks:
-            x = block(x, c)  # (N, T, D)
-
-        # add time embed
-        _, num_patches, channels = x.shape
-        x = (
-            x.reshape((bs, num_frames, num_patches, channels))
-            .permute((0, 2, 1, 3))
-            .reshape((bs * num_patches, num_frames, channels))
-        )
-        x = x + self.temp_embed
-
-        # temporal encoder
-        c = self.get_condition_embed(t_temp, y_temp, text_embed_temp)
-        for block in self.temp_blocks:
-            x = block(x, c)  # (B*T, F, D)
-        _, num_frames, channels = x.shape
-        x = (
-            x.reshape((bs, num_patches, num_frames, channels))
-            .permute((0, 2, 1, 3))
-            .reshape((bs * num_frames, num_patches, channels))
-        )
-
-        c = self.get_condition_embed(t_spatial, y_spatial, None)
-        x = self.final_layer(x, c)  # (N, T, patch_size ** 2 * out_channels)
-        x = self.unpatchify(x)  # (N, out_channels, H, W)
-        _, channels, h, w = x.shape
-        x = x.reshape((bs, num_frames, channels, h, w))
-        return x
-
-    def construct_with_cfg(self, x, t, y=None, text_embed=None, cfg_scale=4.0):
-        """
-        Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
-        """
-        # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
-        half = x[: len(x) // 2]
-        combined = ops.cat([half, half], axis=0)
-        model_out = self.construct(combined, t, y=y, text_embed=text_embed)
-        # For exact reproducibility reasons, we apply classifier-free guidance on only
-        # three channels by default. The standard approach to cfg applies it to all channels.
-        # This can be done by uncommenting the following line and commenting-out the line following that.
-        # eps, rest = model_out[:, :self.in_channels], model_out[:, self.in_channels:]
-        eps, rest = model_out[:, :, : self.in_channels], model_out[:, :, self.in_channels :]
-        cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
-        half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
-        eps = ops.cat([half_eps, half_eps], axis=0)
-        return ops.cat([eps, rest], axis=2)
-
-    def load_params_from_dit_ckpt(self, dit_ckpt):
-        logger.info(f"Loading {dit_ckpt} params into VideoDiT model...")
-        param_dict = ms.load_checkpoint(dit_ckpt)
-        _, ckpt_not_load = ms.load_param_into_net(
-            self,
-            param_dict,
-        )
-        assert len(ckpt_not_load) == 0, f"ckpt params should be all loaded, but found {ckpt_not_load} are not loaded."
-
-
-def VideoDiT_XL_2(**kwargs):
-    return VideoDiT_Factorised_Encoder(depth=56, hidden_size=1152, patch_size=2, num_heads=16, **kwargs)
-
-
-VideoDiT_models = {
-    "DiT-XL/2": VideoDiT_XL_2,
 }
 
 

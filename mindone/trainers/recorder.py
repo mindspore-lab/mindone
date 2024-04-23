@@ -41,7 +41,7 @@ class PerfRecorder(object):
                 m = m.asnumpy()
 
             if isinstance(m, float) or isinstance(m, np.ndarray):
-                line += f"{m:.4f}"
+                line += f"{m:.7f}"
             elif m is None:
                 line += "NA"
             else:

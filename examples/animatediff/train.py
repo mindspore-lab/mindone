@@ -46,11 +46,16 @@ from mindone.utils.seed import set_random_seed
 from mindone.utils.version_control import is_old_ms_version
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
 logger = logging.getLogger(__name__)
 
 
-def build_model_from_config(config, unet_config_update=None):
+def _to_abspath(rp):
+    return os.path.join(__dir__, rp)
+
+
+def build_model_from_config(config, unet_config_update=None, vae_use_fp16=None, snr_gamma=None):
     config = OmegaConf.load(config).model
     if unet_config_update is not None:
         # config["params"]["unet_config"]["params"]["enable_flash_attention"] = enable_flash_attention
@@ -59,6 +64,13 @@ def build_model_from_config(config, unet_config_update=None):
             if value is not None:
                 logger.info("Arg `{}` updated: {} -> {}".format(name, unet_args[name], value))
                 unet_args[name] = value
+
+    if vae_use_fp16 is not None:
+        config.params.first_stage_config.params.use_fp16 = vae_use_fp16
+
+    if snr_gamma is not None:
+        config.params.snr_gamma = snr_gamma
+
     if "target" not in config:
         if config == "__is_first_stage__":
             return None
@@ -127,6 +139,9 @@ def init_env(
     """
     set_random_seed(seed)
 
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
     if distributed:
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
@@ -160,9 +175,6 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
         )
 
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
     return device_id, rank_id, device_num
 
 
@@ -186,10 +198,15 @@ def main(args):
         use_recompute=args.use_recompute,
         recompute_strategy=args.recompute_strategy,
     )
-    latent_diffusion_with_loss = build_model_from_config(args.model_config, unet_config_update)
+    latent_diffusion_with_loss = build_model_from_config(
+        _to_abspath(args.model_config),
+        unet_config_update,
+        vae_use_fp16=args.vae_fp16,
+        snr_gamma=args.snr_gamma,
+    )
     # 1) load sd pretrained weight
     load_pretrained_model(
-        args.pretrained_model_path,
+        _to_abspath(args.pretrained_model_path),
         latent_diffusion_with_loss,
         unet_initialize_random=args.unet_initialize_random,
         load_unet3d_from_2d=(not args.image_finetune),
@@ -202,7 +219,7 @@ def main(args):
     if not args.image_finetune:
         # load mm pretrained weight
         if args.motion_module_path != "":
-            load_motion_modules(latent_diffusion_with_loss, args.motion_module_path)
+            load_motion_modules(latent_diffusion_with_loss, _to_abspath(args.motion_module_path))
 
         # set motion module amp O2 if required for memory reduction
         if args.force_motion_module_amp_O2:
@@ -245,13 +262,14 @@ def main(args):
     assert trainable_params > 0, "No trainable parameters. Please check model config."
 
     # 3. build dataset
+    csv_path = args.csv_path if args.csv_path is not None else os.path.join(args.data_path, "video_caption.csv")
     if args.image_finetune:
         logger.info("Task is image finetune, num_frames and frame_stride is forced to 1")
         args.num_frames = 1
         args.frame_stride = 1
         data_config = dict(
-            video_folder=args.data_path,
-            csv_path=args.data_path + "/video_caption.csv",
+            video_folder=_to_abspath(args.data_path),
+            csv_path=_to_abspath(csv_path),
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
             sample_n_frames=args.num_frames,
@@ -262,11 +280,12 @@ def main(args):
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
             train_data_type=args.train_data_type,
+            disable_flip=args.disable_flip,
         )
     else:
         data_config = dict(
-            video_folder=args.data_path,
-            csv_path=args.data_path + "/video_caption.csv",
+            video_folder=_to_abspath(args.data_path),
+            csv_path=_to_abspath(csv_path),
             sample_size=args.image_size,
             sample_stride=args.frame_stride,
             sample_n_frames=args.num_frames,
@@ -276,7 +295,10 @@ def main(args):
             max_rowsize=64,
             random_drop_text=args.random_drop_text,
             random_drop_text_ratio=args.random_drop_text_ratio,
+            video_column=args.video_column,
+            caption_column=args.caption_column,
             train_data_type=args.train_data_type,
+            disable_flip=args.disable_flip,
         )
 
     tokenizer = latent_diffusion_with_loss.cond_stage_model.tokenize
@@ -322,6 +344,13 @@ def main(args):
             ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
         )
     )
+
+    # if args.dataset_sink_mode:
+    #    if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
+    #        os.environ["MS_DATASET_SINK_QUEUE"] = "10"
+    #        print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+    #    else:
+    #        print("D--: get dataset sink queue: ", os.environ.get("MS_DATASET_SINK_QUEUE") )
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
@@ -376,6 +405,7 @@ def main(args):
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
+        logger.info(f"Resume training from {resume_ckpt}")
 
     # trainer (standalone and distributed)
     ema = (

@@ -22,6 +22,7 @@ class DiagonalGaussianDistribution(nn.Cell):
             var = ops.zeros_like(mean)
         return mean, logvar, var, std
 
+    @ms.jit  # FIXME: ops.randn causes 'dynamic shape' error in PyNative mode
     def sample(self, input):
         mean, _, _, std = self.get_mean_and_var(input)
         x = mean + std * ops.randn(*mean.shape)
