@@ -265,6 +265,26 @@ if __name__ == "__main__":
         param.requires_grad = False
     vae.latent_size = (latent_size, latent_size)
 
+    n = len(args.captions)
+    assert n > 0, "No captions provided"
+    if args.decode_latents:
+        for i in range(n):
+            for i_video in range(args.num_videos_per_prompt):
+                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
+                assert os.path.exists(
+                    save_fp
+                ), f"{save_fp} does not exist! Please run with --save_latents before running with --decode_latents"
+                loaded_latent = np.load(save_fp)
+                decode_data = vae.decode(loaded_latent / args.sd_scale_factor)
+                decode_data = ms.ops.clip_by_value(
+                    (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
+                ).asnumpy()
+                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
+                save_video_data = decode_data.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                save_videos(save_video_data, save_fp, loop=0)
+                logger.info(f"video save to {save_fp}")
+        sys.exit()
+
     assert args.condition == "text", "LatteT2V only support text condition"
     assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder"
     logger.info("T5 init")
@@ -272,8 +292,6 @@ if __name__ == "__main__":
         cache_dir=args.t5_cache_folder, pretrained_ckpt=os.path.join(args.t5_cache_folder, "model.ckpt")
     )
     tokenizer = text_encoder.tokenizer
-    n = len(args.captions)
-    assert n > 0, "No captions provided"
 
     # 3. build inference pipeline
     scheduler = DDIMScheduler() if args.ddim_sampling else DDPMScheduler()
@@ -286,20 +304,6 @@ if __name__ == "__main__":
         transformer=latte_model,
         vae_scale_factor=args.sd_scale_factor,
     )
-    if args.decode_latents:
-        for i in range(n):
-            for i_video in range(args.num_videos_per_prompt):
-                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
-                assert os.path.exists(
-                    save_fp
-                ), f"{save_fp} does not exist! Please run with --save_latents before running with --decode_latents"
-                loaded_latent = np.load(save_fp)
-                decode_data = pipeline.decode_latents(ms.Tensor(loaded_latent)).asnumpy()
-                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
-                save_video_data = decode_data.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-                save_videos(save_video_data, save_fp, loop=0)
-                logger.info(f"video save to {save_fp}")
-        sys.exit()
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
