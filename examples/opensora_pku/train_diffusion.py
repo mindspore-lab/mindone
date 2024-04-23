@@ -22,7 +22,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 from opensora.data.t2v_dataset import create_dataloader
 from opensora.diffusion import create_diffusion
-from opensora.models.diffusion.latte_t2v import Attention, LatteT2V, LayerNorm
+from opensora.models.diffusion.latte_t2v import Attention, Latte_models, LayerNorm
 from opensora.pipelines import DiffusionWithLoss
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
@@ -132,10 +132,41 @@ def main(args):
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
+    # 2.2 vae
+    logger.info("vae init")
+    ae_config = OmegaConf.load(args.vae_config)
+    vae = instantiate_from_config(ae_config.generator)
+    vae.init_from_ckpt(args.vae_checkpoint)
+    vae.set_train(False)
+
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+    logger.info("Use amp level O2 for causal 3D VAE.")
+
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
+
+    # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
+    latent_size = args.image_size // 8
+    vae.latent_size = (latent_size, latent_size)
+
     logger.info(f"Init Latte T2V model: {args.model_version}")
-    latte_model = LatteT2V.from_pretrained_2d(
-        "models",
-        subfolder=args.model_version,
+    video_length = args.num_frames // ae_config.params.ddconfig.time_compress + 1
+    latte_model = Latte_models[args.model_version](
+        in_channels=ae_config.params.ddconfig.z_channels,
+        output_cahnnels=ae_config.params.ddconfig.z_channels * 2,
+        attention_bias=True,
+        sample_size=latent_size,
+        num_vector_embeds=None,
+        activation_fn="gelu-approximate",
+        num_embeds_ada_norm=1000,
+        use_linear_projection=False,
+        only_cross_attention=False,
+        double_self_attention=False,
+        upcast_attention=False,
+        norm_elementwise_affine=False,
+        norm_eps=1e-6,
+        attention_type="default",
+        video_length=video_length,
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
@@ -158,23 +189,6 @@ def main(args):
     else:
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
-
-    # 2.2 vae
-    logger.info("vae init")
-    config = OmegaConf.load(args.vae_config)
-    vae = instantiate_from_config(config.generator)
-    vae.init_from_ckpt(args.vae_checkpoint)
-    vae.set_train(False)
-
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-    logger.info("Use amp level O2 for causal 3D VAE.")
-
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
-
-    # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
-    latent_size = args.image_size // 8
-    vae.latent_size = (latent_size, latent_size)
 
     # 2.3 ldm with loss
     train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
