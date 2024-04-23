@@ -185,6 +185,9 @@ Please change `csv_path` to your video-caption annotation file accordingly.
 Train the Latte-T2V model:
 
 ```
+# enable kbk
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
 python train_diffusion.py --config configs/diffusion/training/latte_17x256x256_122.yaml \
     --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
     --video_folder "../videocomposer/datasets/webvid5" \

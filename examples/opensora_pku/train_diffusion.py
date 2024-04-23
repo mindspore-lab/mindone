@@ -328,7 +328,7 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
-            model_name="STDiT",
+            model_name=args.model_version,
             record_lr=False,
         )
         callback.append(save_cb)
