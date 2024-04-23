@@ -218,7 +218,7 @@ class TextVideoDataset:
             del video_reader
 
             if self.return_text_emb:
-                return pixel_values, text_emb, mask
+                return pixel_values, text_emb.squeeze(), mask
             else:
                 return pixel_values, caption, None
 
@@ -239,7 +239,7 @@ class TextVideoDataset:
             vae_latent = vae_latent * self.vae_scale_factor
             vae_latent = vae_latent.astype(np.float32)
             if self.return_text_emb:
-                return vae_latent, text_emb, mask
+                return vae_latent, text_emb.squeeze(), mask
             else:
                 return vae_latent, caption, None
 
