@@ -185,6 +185,12 @@ def parse_args():
         action="store_true",
         help="whether to load the existing latents saved in npy files and run vae decoding",
     )
+    parser.add_argument(
+        "--input_latents_dir",
+        type=str,
+        default="",
+        help="the directory where the latents in npy files are saved in. Only works when decode_latents is True.",
+    )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -270,12 +276,12 @@ if __name__ == "__main__":
     if args.decode_latents:
         for i in range(n):
             for i_video in range(args.num_videos_per_prompt):
-                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
+                save_fp = f"{args.input_latents_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
                 assert os.path.exists(
                     save_fp
-                ), f"{save_fp} does not exist! Please run with --save_latents before running with --decode_latents"
+                ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
                 loaded_latent = np.load(save_fp)
-                decode_data = vae.decode(loaded_latent / args.sd_scale_factor)
+                decode_data = vae.decode(ms.Tensor(loaded_latent) / args.sd_scale_factor)
                 decode_data = ms.ops.clip_by_value(
                     (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
                 ).asnumpy()

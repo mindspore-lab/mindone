@@ -82,7 +82,7 @@ python tools/model_conversion/inflate_vae2d_to_vae3d.py \
     --src /path/to/vae_2d.ckpt  \
     --target models/causal_vae_488_init.ckpt
 ```
-> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae.py` for model conversion, e.g. after downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main)) weights.
+> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae.py` for model conversion, e.g. after downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights.
 
 Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `models/ae/` for training with lpips loss.
 
@@ -149,3 +149,13 @@ Some of the generated videos are shown here:
 <p align="center">
   <em> Figure 1. The generated videos of the 17x256x256 LatteT2V model given the prompts above. </em>
 </p>
+
+In case of OOM during running inference, we suggest to seperate the inference into two stages: 1) diffusion denoising; 2) vae decoding.
+
+For example, you can run the first stage with:
+
+```python infer_diffusion.py --config configs/diffusion/latte_65x512x512_122.yaml --save_latents```
+
+  This will save the denoised latents as npy files in the output dir, e.g., `samples/time-stamp/`. Then you can start the second stage by running:
+
+ ```python infer_diffusion.py --config configs/diffusion/latte_65x512x512_122.yaml --decode_latents --input_latents_dir samples/time-stamp/```
