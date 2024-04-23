@@ -1981,23 +1981,6 @@ class LatteT2V(ModelMixin, ConfigMixin):
         model = cls.from_config(config, **kwargs)
         return model
 
-    def load_params_from_ckpt(self, ckpt):
-        # load param from a ckpt file path or a parameter dictionary
-        if isinstance(ckpt, str):
-            assert os.path.exists(ckpt), f"{ckpt} does not exist!"
-            logger.info(f"Loading {ckpt} params into Latte_T2V_SD model...")
-            param_dict = ms.load_checkpoint(ckpt)
-        elif isinstance(ckpt, dict):
-            param_dict = ckpt
-        else:
-            raise ValueError("Expect to receive a ckpt path or parameter dictionary as input!")
-        _, ckpt_not_load = ms.load_param_into_net(
-            self,
-            param_dict,
-        )
-        if len(ckpt_not_load):
-            print(f"{ckpt_not_load} not load")
-
     def construct_with_cfg(self, x, timestep, class_labels=None, cfg_scale=7.0, attention_mask=None):
         """
         Forward pass of Latte, but also batches the unconditional forward pass for classifier-free guidance.

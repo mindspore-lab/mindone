@@ -8,7 +8,7 @@ import time
 import numpy as np
 import yaml
 from omegaconf import OmegaConf
-from utils.model_utils import _check_cfgs_in_parser, remove_pname_prefix
+from utils.model_utils import _check_cfgs_in_parser
 
 import mindspore as ms
 from mindspore import nn
@@ -245,11 +245,8 @@ if __name__ == "__main__":
     latent_size = args.image_size // 8
 
     if len(args.checkpoint) > 0:
-        param_dict = ms.load_checkpoint(args.checkpoint)
-        logger.info(f"Loading ckpt {args.checkpoint} into Latte")
-        # in case a save ckpt with "network." prefix, removing it before loading
-        param_dict = remove_pname_prefix(param_dict, prefix="network.")
-        latte_model.load_params_from_ckpt(param_dict)
+        logger.info(f"Loading ckpt {args.checkpoint} into LatteT2V")
+        latte_model.load_from_checkpoint(args.checkpoint)
     else:
         logger.warning("Latte uses random initialization!")
 

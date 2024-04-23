@@ -153,7 +153,7 @@ def main(args):
     video_length = args.num_frames // ae_config.generator.params.ddconfig.time_compress + 1
     latte_model = Latte_models[args.model_version](
         in_channels=ae_config.generator.params.ddconfig.z_channels,
-        output_cahnnels=ae_config.generator.params.ddconfig.z_channels * 2,
+        out_channels=ae_config.generator.params.ddconfig.z_channels * 2,
         attention_bias=True,
         sample_size=latent_size,
         num_vector_embeds=None,
