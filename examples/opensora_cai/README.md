@@ -5,8 +5,8 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [x] refactor Masked MultiHeadCrossAttention without xformers
     - [ ] more efficient masking and attention computation for text tokens with dynamic length.
 - [ ] Text-to-video generation pipeline (to be refactored)
-    - [x] video generation in FP32 precision on GPUs: 256x256x16, 512x512x16
-    - [ ] video generation in FP32 precision on Ascends
+    - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
+    - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
     - [ ] Mixed precision optimization (BF16)  on Ascend
     - [ ] Flash attention optimization on Ascend
 - [ ] Training
@@ -101,14 +101,28 @@ After running, the text embeddings saved as npz file for each caption will be in
 
 Please change `csv_path` to your video-caption annotation file accordingly.
 
-### 2. Train STDiT
+### 2. Generate VAE embeddings
+```
+python infer_vae.py \
+    --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
+    --output_dir ../videocomposer/datasets/webvid5_vae_256x256 \
+    --vae_checkpoint models/sd-vae-ft-ema.ckpt \    # or sd-vae-ft-mse.ckpt
+    --video_folder ../videocomposer/datasets/webvid5  \
+    --image_size 256 \
+```
+
+After running, the vae latents saved as npz file for each video will be in `output_dir`.
+
+
+### 3. Train STDiT
 
 ```
 python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
     --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
     --video_folder "../videocomposer/datasets/webvid5" \
-    --embed_folder "../videocomposer/datasets/webvid5" \
+    --text_embed_folder "../videocomposer/datasets/webvid5" \
 ```
+Append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"` to the command above to enable training with vae latents cache.
 
 Please change `csv_path`,`video_folder`, `embed_folder` according to your data location.
 

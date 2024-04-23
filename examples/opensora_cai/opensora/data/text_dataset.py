@@ -67,6 +67,7 @@ def create_dataloader(
     device_num=1,
     rank_id=0,
     drop_remainder=True,
+    return_dataset=False,
 ):
     if ds_name == "text":
         dataset = TextDataset(**ds_config)
@@ -89,7 +90,8 @@ def create_dataloader(
         batch_size,
         drop_remainder=drop_remainder,
     )
-
+    if return_dataset:
+        return dl, dataset
     return dl
 
 

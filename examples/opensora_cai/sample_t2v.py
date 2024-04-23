@@ -87,6 +87,7 @@ def main(args):
         space_scale=args.space_scale,  # 0.5 for 256x256. 1. for 512
         time_scale=args.time_scale,
         patchify_conv3d_replace="conv2d",  # for Ascend
+        enable_flashattn=args.enable_flash_attention,
     )
     latte_model = STDiT_XL_2(**model_extra_args)
     latte_model = latte_model.set_train(False)

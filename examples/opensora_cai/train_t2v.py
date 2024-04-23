@@ -50,6 +50,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
+    enable_dvm: bool = False, 
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -108,6 +109,10 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
+    if enable_dvm:
+        print("D--: enable dvm")
+        ms.set_context(enable_graph_kernel=True) 
+
     return rank_id, device_num
 
 
@@ -123,6 +128,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
+        enable_dvm=args.enable_dvm,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -181,6 +187,8 @@ def main(args):
         param.requires_grad = False
 
     # 2.3 ldm with loss
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
@@ -191,15 +199,18 @@ def main(args):
         text_encoder=None,
         cond_stage_trainable=False,
         text_emb_cached=True,
-        video_emb_cached=False,
+        video_emb_cached=train_with_vae_latent,
     )
 
     # 3. create dataset
     ds_config = dict(
         csv_path=args.csv_path,
         video_folder=args.video_folder,
-        text_emb_folder=args.embed_folder,
+        text_emb_folder=args.text_embed_folder,
         return_text_emb=True,
+        vae_latent_folder=args.vae_latent_folder,
+        return_vae_latent=train_with_vae_latent,
+        vae_scale_factor=args.sd_scale_factor,
         sample_size=args.image_size,
         sample_stride=args.frame_stride,
         sample_n_frames=args.num_frames,
@@ -209,8 +220,11 @@ def main(args):
         disable_flip=args.disable_flip,
     )
     dataset = create_dataloader(
-        ds_config, batch_size=args.batch_size, shuffle=True, 
-        device_num=device_num, rank_id=rank_id,
+        ds_config,
+        batch_size=args.batch_size,
+        shuffle=True,
+        device_num=device_num,
+        rank_id=rank_id,
         num_parallel_workers=args.num_parallel_workers,
         max_rowsize=args.max_rowsize,
     )
