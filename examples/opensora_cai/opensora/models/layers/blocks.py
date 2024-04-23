@@ -142,7 +142,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # 3. attn compute
         q_n = q.shape[-2]
         k_n = k.shape[-2]
-        if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
+        if self.enable_flash_attention and self.head_dim <= 256:
             if mask is not None:
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
@@ -248,7 +248,7 @@ class SelfAttention(nn.Cell):
 
         q_n = q.shape[-2]
         k_n = k.shape[-2]
-        if self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and self.head_dim <= 256:
+        if self.enable_flash_attention and self.head_dim <= 256:
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
