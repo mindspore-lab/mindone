@@ -94,7 +94,7 @@ def _create_4d_causal_attention_mask(
         Make causal mask used for bi-directional self-attention.
         """
         bsz, tgt_len = input_ids_shape
-        mask = ops.full((tgt_len, tgt_len), float("-inf"))
+        mask = ops.full((tgt_len, tgt_len), float("-inf"), dtype=dtype)
         mask_cond = ops.arange(mask.shape[-1])
         mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
 
@@ -683,6 +683,136 @@ class CLIPVisionModel(CLIPPreTrainedModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
         )
+
+
+class CLIPModel(CLIPPreTrainedModel):
+    config_class = CLIPConfig
+    _no_split_modules = ["CLIPTextEmbeddings", "CLIPEncoderLayer"]
+
+    def __init__(self, config: CLIPConfig):
+        super().__init__(config)
+
+        if not isinstance(config.text_config, CLIPTextConfig):
+            raise ValueError(
+                "config.text_config is expected to be of type CLIPTextConfig but is of type"
+                f" {type(config.text_config)}."
+            )
+
+        if not isinstance(config.vision_config, CLIPVisionConfig):
+            raise ValueError(
+                "config.vision_config is expected to be of type CLIPVisionConfig but is of type"
+                f" {type(config.vision_config)}."
+            )
+
+        text_config = config.text_config
+        vision_config = config.vision_config
+        self.output_attentions = config.output_attentions
+        self.output_hidden_states = config.output_hidden_states
+        self.logit_scale_init_value = config.logit_scale_init_value
+
+        self.projection_dim = config.projection_dim
+        self.text_embed_dim = text_config.hidden_size
+        self.vision_embed_dim = vision_config.hidden_size
+
+        self.text_model = CLIPTextTransformer(text_config)
+        self.vision_model = CLIPVisionTransformer(vision_config)
+
+        self.visual_projection = nn.Dense(self.vision_embed_dim, self.projection_dim, has_bias=False)
+        self.text_projection = nn.Dense(self.text_embed_dim, self.projection_dim, has_bias=False)
+        self.logit_scale = ms.Parameter(ms.Tensor(self.logit_scale_init_value))
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def get_text_features(
+        self,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+    ) -> ms.Tensor:
+        # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
+        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
+
+        text_outputs = self.text_model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+
+        pooled_output = text_outputs[1]
+        text_features = self.text_projection(pooled_output)
+
+        return text_features
+
+    def get_image_features(
+        self,
+        pixel_values: Optional[ms.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+    ) -> ms.Tensor:
+        # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
+        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
+
+        vision_outputs = self.vision_model(
+            pixel_values=pixel_values,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+
+        pooled_output = vision_outputs[1]  # pooled_output
+        image_features = self.visual_projection(pooled_output)
+
+        return image_features
+
+    def construct(
+        self,
+        input_ids: Optional[ms.Tensor] = None,
+        pixel_values: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+    ) -> Tuple:
+        # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
+        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
+
+        vision_outputs = self.vision_model(
+            pixel_values=pixel_values,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+
+        text_outputs = self.text_model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+        )
+        image_embeds = vision_outputs[1]
+        image_embeds = self.visual_projection(image_embeds)
+
+        text_embeds = text_outputs[1]
+        text_embeds = self.text_projection(text_embeds)
+
+        # normalized features
+        image_embeds = image_embeds / image_embeds.norm(ord=2, dim=-1, keepdim=True)
+        text_embeds = text_embeds / text_embeds.norm(ord=2, dim=-1, keepdim=True)
+
+        # cosine similarity as logits
+        logit_scale = self.logit_scale.exp()
+        logits_per_text = ops.matmul(text_embeds, image_embeds.t()) * logit_scale
+        logits_per_image = logits_per_text.t()
+
+        output = (logits_per_image, logits_per_text, text_embeds, image_embeds, text_outputs, vision_outputs)
+        return output
 
 
 class CLIPTextModelWithProjection(CLIPPreTrainedModel):
