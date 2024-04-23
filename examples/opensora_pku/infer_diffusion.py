@@ -175,6 +175,16 @@ def parse_args():
         "--num_videos_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument(
+        "--save_latents",
+        action="store_true",
+        help="Whether to save latents (before vae decoding) instead of video files.",
+    )
+    parser.add_argument(
+        "--decode_latents",
+        action="store_true",
+        help="whether to load the existing latents saved in npy files and run vae decoding",
+    )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -276,6 +286,20 @@ if __name__ == "__main__":
         transformer=latte_model,
         vae_scale_factor=args.sd_scale_factor,
     )
+    if args.decode_latents:
+        for i in range(n):
+            for i_video in range(args.num_videos_per_prompt):
+                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
+                assert os.path.exists(
+                    save_fp
+                ), f"{save_fp} does not exist! Please run with --save_latents before running with --decode_latents"
+                loaded_latent = np.load(save_fp)
+                decode_data = pipeline.decode_latents(ms.Tensor(loaded_latent)).asnumpy()
+                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
+                save_video_data = decode_data.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                save_videos(save_video_data, save_fp, loop=0)
+                logger.info(f"video save to {save_fp}")
+        sys.exit()
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
@@ -320,6 +344,7 @@ if __name__ == "__main__":
             enable_temporal_attentions=True,
             num_videos_per_prompt=args.num_videos_per_prompt,
             mask_feature=False,
+            output_type="latents" if args.save_latents else "pil",
         ).video.asnumpy()
         video_grids.append(videos)
     x_samples = np.stack(video_grids, axis=0)
@@ -329,7 +354,13 @@ if __name__ == "__main__":
     # save result
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
-            save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
-            save_video_data = x_samples[i : i + 1, i_video].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-            save_videos(save_video_data, save_fp, loop=0)
-            logger.info(f"save to {save_fp}")
+            if args.save_latents:
+                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
+                save_latent_data = x_samples[i : i + 1, i_video]
+                np.save(save_fp, save_latent_data)
+                logger.info(f"latent save to {save_fp}")
+            else:
+                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
+                save_video_data = x_samples[i : i + 1, i_video].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                save_videos(save_video_data, save_fp, loop=0)
+                logger.info(f"video save to {save_fp}")
