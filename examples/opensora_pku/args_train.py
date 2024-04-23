@@ -17,7 +17,12 @@ def parse_train_args(parser):
         help="path to load a config yaml file that describes the training recipes which will override the default arguments",
     )
     # the following args's defualt value will be overrided if specified in config yaml
-
+    parser.add_argument(
+        "--vae_config",
+        type=str,
+        default="configs/ae/causal_vae_488.yaml",
+        help="path to load a config yaml file that describes the VAE model",
+    )
     # data
     parser.add_argument("--dataset_name", default="", type=str, help="dataset name")
     parser.add_argument(
@@ -133,7 +138,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-mse.ckpt",
+        default="models/ae/causal_vae_488.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(

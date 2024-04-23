@@ -9,6 +9,7 @@ from typing import Tuple
 
 import yaml
 from args_train import parse_args
+from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -21,7 +22,6 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 from opensora.data.t2v_dataset import create_dataloader
 from opensora.diffusion import create_diffusion
-from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.models.diffusion.latte_t2v import Attention, LatteT2V, LayerNorm
 from opensora.pipelines import DiffusionWithLoss
 
@@ -32,6 +32,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -131,9 +132,6 @@ def main(args):
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    # 2. model initiate and weight loading
-    VAE_Z_CH = SD_CONFIG["z_channels"]
-
     logger.info(f"Init Latte T2V model: {args.model_version}")
     latte_model = LatteT2V.from_pretrained_2d(
         "models",
@@ -162,17 +160,21 @@ def main(args):
     latte_model.set_train(True)
 
     # 2.2 vae
-    # TODO: use mindone/models/autoencoders in future
     logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        VAE_Z_CH,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():
+    config = OmegaConf.load(args.vae_config)
+    vae = instantiate_from_config(config.generator)
+    vae.init_from_ckpt(args.vae_checkpoint)
+    vae.set_train(False)
+
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+    logger.info("Use amp level O2 for causal 3D VAE.")
+
+    for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
+
+    # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
+    latent_size = args.image_size // 8
+    vae.latent_size = (latent_size, latent_size)
 
     # 2.3 ldm with loss
     train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
