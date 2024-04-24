@@ -18,4 +18,3 @@ python train_t2v.py --config configs/train/stdit_512x512x16.yaml \
     --num_parallel_workers=14 \
     --max_rowsize=96 \
     --output_path outputs/stdit_512x512x16_bs1_c200_faNoPad \
-

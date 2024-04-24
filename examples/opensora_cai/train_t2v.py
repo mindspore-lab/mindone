@@ -50,7 +50,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    enable_dvm: bool = False, 
+    enable_dvm: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -111,7 +111,7 @@ def init_env(
 
     if enable_dvm:
         print("D--: enable dvm")
-        ms.set_context(enable_graph_kernel=True) 
+        ms.set_context(enable_graph_kernel=True)
 
     return rank_id, device_num
 

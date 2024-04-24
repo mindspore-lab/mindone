@@ -24,6 +24,7 @@ class Attention(nn.Cell):
         """
         b, h, n_q, d = q.shape
         _, _, n_k, _ = k.shape
+
         q = ops.reshape(q, (b*h, n_q, d))
         k = ops.reshape(k, (b*h, n_k, d))
         v = ops.reshape(v, (b*h, n_k, d))
@@ -48,7 +49,7 @@ class Attention(nn.Cell):
         attn = self.attn_drop(attn)
         # out = ops.bmm(attn.to(ms.float16), v.to(ms.float16))
         out = ops.matmul(attn, v)
-        
+
         out = ops.reshape(out, (b, h, -1, d))
 
         return out
@@ -196,17 +197,31 @@ class SelfAttention(nn.Cell):
         self.head_dim = head_dim
         self.scale = head_dim**-0.5
 
+<<<<<<< HEAD
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero())
+=======
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
+            self.dtype
+        )
+        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(self.dtype)
+        self.proj_drop = nn.Dropout(p=proj_drop)
+        self.transpose = ops.Transpose()
+        self.reshape = ops.Reshape()
+>>>>>>> b0ca7820e66285e7ec4d1134f914656110dae67d
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         
         if self.enable_flash_attention:
+<<<<<<< HEAD
             attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
             )
+=======
+            self.flash_attention = MSFlashAttention(head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop)
+>>>>>>> b0ca7820e66285e7ec4d1134f914656110dae67d
         else:
             # TODO: support ms.bfloat16
             attn_dtype = ms.float32
@@ -238,8 +253,6 @@ class SelfAttention(nn.Cell):
         if mask is not None:
             mask = 1 - mask
 
-        q_n = q.shape[-2]
-        k_n = k.shape[-2]
         if self.enable_flash_attention:
             if mask is not None:
                 mask = mask[:, None, None, :]
