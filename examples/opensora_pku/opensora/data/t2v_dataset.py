@@ -180,6 +180,51 @@ class TextVideoDataset:
 
         return text_emb, mask
 
+    def get_token_ids_mask(self):
+        raise NotImplementedError
+
+    def video_read(self, video_path):
+        # in case missing .mp4 in csv file
+        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+            if video_path[-4] != ".":
+                video_path = video_path + ".mp4"
+            else:
+                raise ValueError(f"video file format is not verified: {video_path}")
+
+        video_reader = VideoReader(video_path)
+
+        video_length = len(video_reader)
+
+        if not self.is_image:
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = random.randint(0, video_length - clip_length)
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        else:
+            batch_index = [random.randint(0, video_length - 1)]
+
+        if video_path.endswith(".gif"):
+            pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
+        else:
+            pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
+        return pixel_values, video_reader
+
+    def vae_latent_read(self, vae_latent_path):
+        vae_latent_data = np.load(vae_latent_path)
+        latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
+        video_length = len(latent_mean)
+        if not self.is_image:
+            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            start_idx = random.randint(0, video_length - clip_length)
+            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+        else:
+            batch_index = [random.randint(0, video_length - 1)]
+        latent_mean = latent_mean[batch_index]
+        latent_std = latent_std[batch_index]
+        vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
+        vae_latent = vae_latent * self.vae_scale_factor
+        vae_latent = vae_latent.astype(np.float32)
+        return vae_latent  # (f, h, w, c)
+
     def get_batch(self, idx):
         # get video raw pixels (batch of frame) and its caption
         video_dict = self.dataset[idx]
@@ -189,59 +234,18 @@ class TextVideoDataset:
         if self.return_text_emb:
             text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
             text_emb, mask = self.parse_text_emb(text_emb_path)
+            text_return = text_emb
+        else:
+            input_ids, mask = self.get_token_ids_mask(caption)
+            text_return = input_ids
 
         if not self.return_vae_latent:
-            # in case missing .mp4 in csv file
-            if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
-                if video_path[-4] != ".":
-                    video_path = video_path + ".mp4"
-                else:
-                    raise ValueError(f"video file format is not verified: {video_path}")
-
-            video_reader = VideoReader(video_path)
-
-            video_length = len(video_reader)
-
-            if not self.is_image:
-                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-                start_idx = random.randint(0, video_length - clip_length)
-                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
-            else:
-                batch_index = [random.randint(0, video_length - 1)]
-
-            if video_path.endswith(".gif"):
-                pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
-            else:
-                pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
-            # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
-            # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
+            video, video_reader = self.video_read(video_path)
             del video_reader
-
-            if self.return_text_emb:
-                return pixel_values, text_emb, mask
-            else:
-                return pixel_values, caption, None
-
         else:
             vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
-            vae_latent_data = np.load(vae_latent_path)
-            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
-            video_length = len(latent_mean)
-            if not self.is_image:
-                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-                start_idx = random.randint(0, video_length - clip_length)
-                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
-            else:
-                batch_index = [random.randint(0, video_length - 1)]
-            latent_mean = latent_mean[batch_index]
-            latent_std = latent_std[batch_index]
-            vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
-            vae_latent = vae_latent * self.vae_scale_factor
-            vae_latent = vae_latent.astype(np.float32)
-            if self.return_text_emb:
-                return vae_latent, text_emb, mask
-            else:
-                return vae_latent, caption, None
+            video = self.vae_latent_read(vae_latent_path)
+        return video, text_return, mask
 
     def __len__(self):
         return self.length
