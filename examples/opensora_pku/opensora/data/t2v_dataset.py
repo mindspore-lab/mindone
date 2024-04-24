@@ -236,8 +236,8 @@ class TextVideoDataset:
             text_emb, mask = self.parse_text_emb(text_emb_path)
             text_return = text_emb
         else:
-            input_ids, mask = self.get_token_ids_mask(caption)
-            text_return = input_ids
+            mask = None
+            text_return = caption
 
         if not self.return_vae_latent:
             video, video_reader = self.video_read(video_path)
