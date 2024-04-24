@@ -176,18 +176,21 @@ def main(args):
     # 2.2 vae
     # TODO: use mindone/models/autoencoders in future
     logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        VAE_Z_CH,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():
-        param.requires_grad = False
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    if not train_with_vae_latent:
+        vae = AutoencoderKL(
+            SD_CONFIG,
+            VAE_Z_CH,
+            ckpt_path=args.vae_checkpoint,
+            use_fp16=False,
+        )
+        vae = vae.set_train(False)
+        for param in vae.get_parameters():
+            param.requires_grad = False
+    else:
+        vae = None
 
     # 2.3 ldm with loss
-    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
