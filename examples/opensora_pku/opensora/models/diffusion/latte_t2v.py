@@ -250,7 +250,10 @@ class MultiHeadAttention(nn.Cell):
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is not None and mask.dim() != 4:
+            if mask is not None and mask.dim() == 3:
+                # (b, 1, k_n) - > (b, q_n, k_n), manual broadcast
+                if mask.shape[-2] == 1:
+                    mask = mask.repeat(q_n, axis=-2)
                 mask = ops.expand_dims(mask, axis=1)  # (q_b, 1, q_n, k_n)
             out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
