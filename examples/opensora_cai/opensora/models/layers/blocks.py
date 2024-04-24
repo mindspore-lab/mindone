@@ -23,9 +23,9 @@ class Attention(nn.Cell):
         """
         b, h, n_q, d = q.shape
         _, _, n_k, _ = k.shape
-        q = ops.reshape(q, (b*h, n_q, d))
-        k = ops.reshape(k, (b*h, n_k, d))
-        v = ops.reshape(v, (b*h, n_k, d))
+        q = ops.reshape(q, (b * h, n_q, d))
+        k = ops.reshape(k, (b * h, n_k, d))
+        v = ops.reshape(v, (b * h, n_k, d))
 
         sim = ops.matmul(q, k.transpose(0, 2, 1)) * self.scale
 
@@ -43,7 +43,7 @@ class Attention(nn.Cell):
         attn = self.attn_drop(attn)
         # out = ops.bmm(attn.to(ms.float16), v.to(ms.float16))
         out = ops.matmul(attn, v)
-        
+
         out = ops.reshape(out, (b, h, -1, d))
 
         return out
@@ -199,15 +199,12 @@ class SelfAttention(nn.Cell):
         self.transpose = ops.Transpose()
         self.reshape = ops.Reshape()
 
-
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
 
         if self.enable_flash_attention:
-            self.flash_attention = MSFlashAttention(
-                head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop
-            )
+            self.flash_attention = MSFlashAttention(head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop)
         else:
             self.attention = Attention(head_dim, attn_drop=attn_drop)
 
@@ -234,8 +231,6 @@ class SelfAttention(nn.Cell):
         if mask is not None:
             mask = 1 - mask
 
-        q_n = q.shape[-2]
-        k_n = k.shape[-2]
         if self.enable_flash_attention:
             if mask is not None:
                 mask = mask[:, None, None, :]

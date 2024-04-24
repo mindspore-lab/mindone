@@ -15,8 +15,7 @@ from opensora.models.layers.blocks import (
 )
 
 import mindspore as ms
-from mindspore import Tensor
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer  # , Zero
 
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
@@ -276,6 +275,7 @@ class CaptionEmbedder(nn.Cell):
     """
     Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
     """
+
     # FIXME: rm nn.GELU instantiate for parallel training
     def __init__(self, in_channels, hidden_size, uncond_prob, act_layer=nn.GELU, token_num=120):
         super().__init__()

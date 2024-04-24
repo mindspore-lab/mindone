@@ -4,7 +4,6 @@ import sys
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
@@ -91,7 +90,9 @@ def test_stdit(ckpt_path=None, amp=None):
     if amp is not None:
         print("use AMP", amp)
         if amp == "O2":
-            net = auto_mixed_precision(net, "O2", ms.float16, custom_fp32_cells=[LayerNorm, Attention]) # , nn.GELU, nn.SiLU])
+            net = auto_mixed_precision(
+                net, "O2", ms.float16, custom_fp32_cells=[LayerNorm, Attention]
+            )  # , nn.GELU, nn.SiLU])
         else:
             net = auto_mixed_precision(net, "O1")
 
@@ -110,6 +111,7 @@ def test_stdit(ckpt_path=None, amp=None):
 
     return out.asnumpy()
 
+
 def _diff_res(ms_val, pt_val):
     abs_diff = np.fabs(ms_val - pt_val)
     mae = abs_diff.mean()
@@ -117,10 +119,9 @@ def _diff_res(ms_val, pt_val):
     return mae, max_ae
 
 
-
 if __name__ == "__main__":
     ms.set_context(mode=0)
     out_fp32 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt")
     out_o2 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt", amp="O2")
-    
+
     print(_diff_res(out_o2, out_fp32))

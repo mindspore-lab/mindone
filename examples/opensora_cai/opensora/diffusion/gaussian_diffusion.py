@@ -9,12 +9,9 @@ from functools import partial
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor
-from mindspore import dtype as mstype
-from mindspore import ops
+from mindspore import Tensor, ops
 
 from .diffusion_utils import (
-    LossType,
     ModelMeanType,
     ModelVarType,
     _extract_into_tensor,
@@ -78,7 +75,7 @@ class GaussianDiffusion:
 
         self.posterior_mean_coef1 = betas * np.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         self.posterior_mean_coef2 = (1.0 - self.alphas_cumprod_prev) * np.sqrt(alphas) / (1.0 - self.alphas_cumprod)
-        
+
         # new
         self.log_betas = np.log(betas)
 
@@ -88,7 +85,7 @@ class GaussianDiffusion:
         self.betas = betas
 
         self.alphas_cumprod = to_mindspore(self.alphas_cumprod)
-        self.alphas_cumprod_prev = to_mindspore(self.alphas_cumprod_prev) 
+        self.alphas_cumprod_prev = to_mindspore(self.alphas_cumprod_prev)
         self.alphas_cumprod_next = to_mindspore(self.alphas_cumprod_next)
 
         self.sqrt_alphas_cumprod = to_mindspore(self.sqrt_alphas_cumprod)
@@ -101,7 +98,7 @@ class GaussianDiffusion:
         self.posterior_log_variance_clipped = to_mindspore(self.posterior_log_variance_clipped)
         self.posterior_mean_coef1 = to_mindspore(self.posterior_mean_coef1)
         self.posterior_mean_coef2 = to_mindspore(self.posterior_mean_coef2)
-        
+
         # new
         self.log_betas = to_mindspore(self.log_betas)
 

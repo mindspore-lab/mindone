@@ -1,10 +1,8 @@
 """FlashAttention Wrapper"""
 import logging
-import math
 from typing import List, Optional
 
 import mindspore as ms
-import mindspore.numpy as msnp
 from mindspore import nn, ops
 
 from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
@@ -87,7 +85,7 @@ class MSFlashAttention(nn.Cell):
                 self.d_pad = d - head_dim
                 break
         if head_dim > 256:
-            raise ValueError(f"head_dim must <= 256!")
+            raise ValueError("head_dim must <= 256!")
         self.need_pad = self.d_pad != 0
 
     def construct(self, q, k, v, mask=None):
@@ -121,4 +119,3 @@ class MSFlashAttention(nn.Cell):
         if self.need_pad:
             out = out[:, :, :, :D]
         return out
-
