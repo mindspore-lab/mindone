@@ -197,31 +197,17 @@ class SelfAttention(nn.Cell):
         self.head_dim = head_dim
         self.scale = head_dim**-0.5
 
-<<<<<<< HEAD
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero())
-=======
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
-            self.dtype
-        )
-        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(self.dtype)
-        self.proj_drop = nn.Dropout(p=proj_drop)
-        self.transpose = ops.Transpose()
-        self.reshape = ops.Reshape()
->>>>>>> b0ca7820e66285e7ec4d1134f914656110dae67d
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         
         if self.enable_flash_attention:
-<<<<<<< HEAD
             attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
             )
-=======
-            self.flash_attention = MSFlashAttention(head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop)
->>>>>>> b0ca7820e66285e7ec4d1134f914656110dae67d
         else:
             # TODO: support ms.bfloat16
             attn_dtype = ms.float32
