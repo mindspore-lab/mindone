@@ -31,14 +31,15 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
-def init_env(args):
-    ms.set_context(mode=args.mode)
+def init_env(mode, device_target, enable_dvm=False):
     ms.set_context(
-        mode=args.mode,
-        device_target=args.device_target,
+        mode=mode,
+        device_target=device_target,
         # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # FIXME: enable it may lead to NaN in sampling
     )
-
+    if enable_dvm:
+        print("D--: enable dvm")
+        ms.set_context(enable_graph_kernel=True) 
 
 def read_captions_from_csv(csv_path, caption_column="caption"):
     df = pd.read_csv(csv_path, usecols=[caption_column])
@@ -53,7 +54,7 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    init_env(args)
+    init_env(args.mode, args.device_target, args.enable_dvm)
     set_random_seed(args.seed)
 
     # get captions from cfg or prompt_file
@@ -257,7 +258,7 @@ def parse_args():
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-
+    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     # MS new args

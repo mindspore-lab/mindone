@@ -80,22 +80,22 @@ class MultiHeadCrossAttention(nn.Cell):
         # TODO: model impr: remove bias
         self.q_linear = nn.Dense(d_model, d_model, has_bias=has_bias)
         self.kv_linear = nn.Dense(d_model, d_model * 2, has_bias=has_bias)
-        self.attn_drop = nn.Dropout(p=attn_drop)
-        self.proj = nn.Dense(d_model, d_model, has_bias=has_bias)
-        self.proj_drop = nn.Dropout(p=proj_drop)
-
+        
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-        
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim, head_num=self.num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
             )
         else:
-            attn_dtype = ms.float32  # TODO: test ms.bfloat16 for vanilla attention
-            self.attention = Attention(head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
+            # TODO: test ms.bfloat16 for vanilla attention
+            attn_dtype = ms.float32  
+            self.attention = Attention(self.head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
+
+        self.proj = nn.Dense(d_model, d_model, has_bias=has_bias).to_float(attn_dtype)
+        self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
     @staticmethod
     def _rearange_out(x):
@@ -158,7 +158,6 @@ class MultiHeadCrossAttention(nn.Cell):
                 mask = mask[:, None, :]
             x = self.attention(q, k, v, mask)
 
-        x = x.to(x_dtype)
         # (b h n d) -> (b n h d) ->  (b n h*d)
         x = self._rearange_out(x)
 
@@ -198,11 +197,6 @@ class SelfAttention(nn.Cell):
         self.scale = head_dim**-0.5
 
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero())
-        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero())
-        self.proj_drop = nn.Dropout(p=proj_drop)
-        self.transpose = ops.Transpose()
-        self.reshape = ops.Reshape()
-
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -214,8 +208,12 @@ class SelfAttention(nn.Cell):
                 head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
             )
         else:
+            # TODO: support ms.bfloat16
             attn_dtype = ms.float32
             self.attention = Attention(head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
+
+        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(attn_dtype)
+        self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
     def construct(self, x, mask=None):
         """
@@ -252,7 +250,6 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, :]
             out = self.attention(q, k, v, mask)
-        out = out.to(x_dtype)
 
         b, h, n, d = out.shape
         # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
