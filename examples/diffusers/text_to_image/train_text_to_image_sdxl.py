@@ -691,22 +691,6 @@ def main():
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
 
-    if args.scale_lr:
-        args.learning_rate = (
-            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
-        )
-
-    # Optimizer creation
-    params_to_optimize = unet.trainable_params()
-    optimizer = nn.AdamWeightDecay(  # will silently filter bn and bias
-        params_to_optimize,
-        learning_rate=args.learning_rate,
-        beta1=args.adam_beta1,
-        beta2=args.adam_beta2,
-        weight_decay=args.adam_weight_decay,
-        eps=args.adam_epsilon,
-    )
-
     # Get the datasets: you can either provide your own training and evaluation files (see below)
     # or specify a Dataset from the hub (the dataset will be downloaded automatically from the datasets Hub).
     from datasets import disable_caching
@@ -880,10 +864,27 @@ def main():
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
 
+    if args.scale_lr:
+        args.learning_rate = (
+            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
+        )
+
     lr_scheduler = get_scheduler(  # noqa: F841
         args.lr_scheduler,
+        args.learning_rate,
         num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
+    )
+
+    # Optimizer creation
+    params_to_optimize = unet.trainable_params()
+    optimizer = nn.AdamWeightDecay(  # will silently filter bn and bias
+        params_to_optimize,
+        learning_rate=lr_scheduler,
+        beta1=args.adam_beta1,
+        beta2=args.adam_beta2,
+        weight_decay=args.adam_weight_decay,
+        eps=args.adam_epsilon,
     )
 
     # Prepare everything with our `accelerator`.
