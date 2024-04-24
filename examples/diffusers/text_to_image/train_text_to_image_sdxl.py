@@ -852,6 +852,8 @@ def main():
         column_names=UnravelDataset.columns,
         shuffle=True,
         num_parallel_workers=args.dataloader_num_workers,
+        num_shards=args.world_size,
+        shard_id=args.rank,
     ).batch(
         batch_size=args.train_batch_size,
         num_parallel_workers=args.dataloader_num_workers,
