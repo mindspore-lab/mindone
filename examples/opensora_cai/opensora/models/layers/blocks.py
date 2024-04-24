@@ -107,18 +107,10 @@ class MultiHeadCrossAttention(nn.Cell):
         Return:
             (B, N, C)
         """
-        B_ori, _, C = x.shape
-
-        if mask is None:
-            # FIXME: this branch is used to test the align with torch when mask is None, B dim is flatten to the seq_len dim,
-            # but never used in real training or inference. Remove after all precision check are done.
-            x = x.reshape((1, -1, C))
-        else:
-            # TODO: directly input cond (B, N_tokens, D), no need to flatten, to save memory.
-            # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
-            cond = ops.reshape(cond, (B_ori, -1, C))
-
         B, N, C = x.shape
+
+        # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
+        cond = ops.reshape(cond, (B, -1, C))
         N_k = cond.shape[1]
 
         # 1. q, kv linear projection
@@ -130,10 +122,12 @@ class MultiHeadCrossAttention(nn.Cell):
         q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
         q = ops.transpose(q, (0, 2, 1, 3))
 
-        # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim)-> (B num_head 2 N_k head_dim), split.
+        # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        kv = ops.transpose(kv, (0, 3, 2, 1, 4))
         k, v = ops.unstack(kv, axis=2)
+        # (B n h d) -> (B h n d)
+        k = ops.transpose(k, (0, 2, 1, 3))
+        v = ops.transpose(v, (0, 2, 1, 3))
 
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
@@ -141,8 +135,6 @@ class MultiHeadCrossAttention(nn.Cell):
             mask = 1 - mask
 
         # 3. attn compute
-        q_n = q.shape[-2]
-        k_n = k.shape[-2]
         if self.enable_flash_attention:
             if mask is not None:
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
@@ -161,10 +153,6 @@ class MultiHeadCrossAttention(nn.Cell):
 
         # (b h n d) -> (b n h d) ->  (b n h*d)
         x = self._rearange_out(x)
-
-        # FIXME: remove it later
-        if mask is None:
-            x = x.view(B_ori, -1, C)
 
         # 4. output projection
         x = self.proj(x)

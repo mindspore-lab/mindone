@@ -36,6 +36,7 @@ def init_env(args):
     ms.set_context(
         mode=args.mode,
         device_target=args.device_target,
+        # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # FIXME: enable it may lead to NaN in sampling
     )
 
 
@@ -124,6 +125,7 @@ def main(args):
         text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", args.t5_model_dir)
         n = len(captions)
         text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
+        mask = mask.to(ms.uint8)
         text_emb = None
     else:
         dat = np.load(args.embed_path)

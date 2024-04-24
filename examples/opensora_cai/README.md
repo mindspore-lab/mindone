@@ -26,6 +26,7 @@ pip install -r requirements.txt
 
 MindSpore version: >= 2.2.12
 
+To enable flash attention, please use mindspore>=2.3-20240422.
 
 ## Preparation
 

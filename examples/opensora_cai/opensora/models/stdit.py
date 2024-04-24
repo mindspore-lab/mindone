@@ -54,7 +54,7 @@ class STDiTBlock(nn.Cell):
         )
         self.cross_attn = self.mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-
+        # TODO: check parsing approx_gelu
         self.mlp = Mlp(
             in_features=hidden_size, hidden_features=int(hidden_size * mlp_ratio), act_layer=approx_gelu, drop=0
         )
@@ -276,13 +276,9 @@ class CaptionEmbedder(nn.Cell):
     """
     Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
     """
-
-    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer='gelu_tanh', token_num=120):
+    # FIXME: rm nn.GELU instantiate for parallel training
+    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer=nn.GELU, token_num=120):
         super().__init__()
-        if act_layer == 'gelu_tanh':
-            act_layer = nn.GELU(approximate=True)
-        else:
-            raise NotImplementedError
 
         self.y_proj = Mlp(
             in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
