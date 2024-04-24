@@ -15,11 +15,106 @@ from typing import Optional, Union
 
 import mindspore as ms
 from mindspore import nn, ops
-
+from mindone.utils.version_control import MS_VERSION
 from ..utils import logging
 from .normalization import GroupNorm, LayerNorm
 
+
+is_fa_available = False
+if MS_VERSION >= "2.2.12" and ms.get_context("device_target") == "Ascend":
+    from mindspore.ops.operations.nn_ops import FlashAttentionScore
+    is_fa_available = True
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
+
+def ms_memory_efficient_attention(
+    query: ms.Tensor,
+    key: ms.Tensor,
+    value: ms.Tensor,
+    attn_bias: Optional[ms.Tensor] = None,
+    scale: Optional[float] = None,
+    dtype: Optional["ms.Type"] = ms.float16,
+) -> ms.Tensor:
+    r"""
+    Implements the memory-efficient attention mechanism following
+    `"Self-Attention Does Not Need O(n^2) Memory" <http://arxiv.org/abs/2112.05682>`_.
+
+    B -- Batch size
+    S1 -- Sequence length of query. The value ranges from 1 to 32768 and is a multiple of 16.
+    S2 -- Sequence length of key and value.
+    N1 -- Num heads of query
+    N2 -- Num heads of key and value, and N2 must be a factor of N1
+    D -- Head dims. Support value: 64, 80, 96, 120, 128 and 256.
+
+    Args:
+        query (`ms.Tensor`):
+            The hidden states of the query. Tensor of shape ``[B, S1, N1, D]``
+        key (`ms.Tensor`):
+            The hidden states of the key. Tensor of shape ``[B, S2, N2, D]``
+        value (`ms.Tensor`):
+            The hidden states of the value. Tensor of shape ``[B, S2, N2, D]``
+        attn_bias (`ms.Tensor`, *optional*, defaults to None):
+            Bias to apply to the attention matrix - defaults to no masking.
+            Input tensor of shape :math: `(B, N1, S1, S2)`, `(1, N1, S1, S2)`.
+        scale (float, *optional*, defaults to None):
+            Scaling factor. If set to ``None``, the default scale (D**-0.5) will be used.
+            Note: If query is BSH, must set it.
+        dtype (ms.Type, *optional*, defaults to ms.float16):
+            The actual dtype when used for calculation. Default is ms.float16, should be in [ms.float16, ms.bfloat16].
+    Returns:
+        multi-head attention Tensor has same shape and type with query
+
+    :Equivalent mindspore code when BSND:
+
+    .. code-block:: python
+
+        scale = 1.0 / query.shape[-1] ** 0.5
+        query = query * scale
+        query = query.swapaxes(1, 2)
+        key = key.swapaxes(1, 2)
+        value = value.swapaxes(1, 2)
+        attn = query @ key.swapaxes(-2, -1)
+
+        if attn_bias is not None:
+            attn = attn + attn_bias
+
+        attn = attn.softmax(-1)
+        # attn = ops.dropout(attn, p)  Not support dropout now.
+        attn = attn @ value
+        return attn.swapaxes(1, 2)
+
+    Supported hardware: Ascend
+    """
+    if not is_fa_available:
+        raise ValueError(f"ms_memory_efficient_attention not support MindSpore {MS_VERSION.current}")
+
+    q_dtype = query.dtype
+    B, S1, N1, D = query.shape
+    _, S2, N2, _ = key.shape
+
+    if len(query.shape) != 4:
+        raise ValueError(f"Query dims must be 4, but get {query.shape}")
+    if dtype not in [ms.float16, ms.bfloat16]:
+        raise TypeError(f"For memory_efficient_attention in Ascend platform, the input dtype must be float16, bfloat16, "
+                        f"but got {dtype}.")
+    if D not in [64, 80, 96, 120, 128, 256]:
+        raise ValueError(f"Head dims must be in [64, 80, 96, 120, 128, 256], but get {D}")
+    if S1 % 16 != 0:
+        raise ValueError(f"Sequence length of query must be a multiple of 16, but get {S1}")
+
+    if scale is None:
+        scale = D**-0.5
+
+    query = query * scale
+    query = query.reshape(B, S1, -1).to(dtype)
+    key = key.reshape(B, S2, -1).to(dtype)
+    value = value.reshape(B, S2, -1).to(dtype)
+
+    fa = FlashAttentionScore(N1, input_layout="BSH")
+    out = fa(query, key, value, attn_bias)[3]
+    out = out.reshape(B, S1, N1, D)
+    return out.to(q_dtype)
 
 
 class Attention(nn.Cell):
