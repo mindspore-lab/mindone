@@ -1,13 +1,19 @@
 import copy
 import csv
+import html
+import json
 import logging
 import os
 import random
+import re
+import urllib.parse as ul
 from pathlib import Path
 
 import albumentations
 import cv2
+import ftfy
 import numpy as np
+from bs4 import BeautifulSoup
 from decord import VideoReader
 
 import mindspore as ms
@@ -71,7 +77,7 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
 class TextVideoDataset:
     def __init__(
         self,
-        csv_path,
+        data_file_path,
         video_folder,
         text_emb_folder=None,
         vae_latent_folder=None,
@@ -82,6 +88,8 @@ class TextVideoDataset:
         sample_stride=4,
         sample_n_frames=16,
         is_image=False,
+        use_image_num=False,
+        use_img_from_vid=True,
         transform_backend="al",  # ms,  al
         tokenizer=None,
         video_column="video",
@@ -89,6 +97,8 @@ class TextVideoDataset:
         random_drop_text=False,
         random_drop_text_ratio=0.1,
         disable_flip=True,
+        token_max_length=120,
+        use_text_preprocessing=True,
     ):
         """
         text_emb_folder: root dir of text embed saved in npz files. Expected to have the same file name and directory strcutre as videos. e.g.
@@ -107,9 +117,15 @@ class TextVideoDataset:
         assert (
             not random_drop_text
         ), "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."
-        logger.info(f"loading annotations from {csv_path} ...")
-        with open(csv_path, "r") as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
+        logger.info(f"loading annotations from {data_file_path} ...")
+
+        if data_file_path.endswith(".csv"):
+            with open(data_file_path, "r") as csvfile:
+                self.dataset = list(csv.DictReader(csvfile))
+        elif data_file_path.endswith(".json"):
+            with open(data_file_path, "r") as f:
+                self.dataset = json.load(f)
+
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
 
@@ -147,10 +163,19 @@ class TextVideoDataset:
             assert vae_latent_folder is not None
         self.vae_latent_folder = vae_latent_folder
 
+        self.use_image_num = use_image_num
+        self.use_img_from_vid = use_img_from_vid
+        if self.use_image_num != 0 and not self.use_img_from_vid:
+            self.img_cap_list = self.get_img_cap_list()
         # prepare replacement data
         max_attempts = 100
         self.prev_ok_sample = self.get_replace_data(max_attempts)
         self.require_update_prev = False
+        self.token_max_length = token_max_length
+        self.use_text_preprocessing = use_text_preprocessing
+
+    def get_img_cap_list(self):
+        raise NotImplementedError
 
     def get_replace_data(self, max_attempts=100):
         replace_data = None
@@ -179,9 +204,6 @@ class TextVideoDataset:
         # tokens = td['tokens']
 
         return text_emb, mask
-
-    def get_token_ids_mask(self):
-        raise NotImplementedError
 
     def video_read(self, video_path):
         # in case missing .mp4 in csv file
@@ -229,15 +251,17 @@ class TextVideoDataset:
         # get video raw pixels (batch of frame) and its caption
         video_dict = self.dataset[idx]
         video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
+        if isinstance(caption, (tuple, list)):
+            caption = caption[0]
         video_path = os.path.join(self.video_folder, video_fn)
 
         if self.return_text_emb:
             text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
             text_emb, mask = self.parse_text_emb(text_emb_path)
-            text_return = text_emb
+            text_data = text_emb
         else:
             mask = None
-            text_return = caption
+            text_data = caption
 
         if not self.return_vae_latent:
             video, video_reader = self.video_read(video_path)
@@ -245,7 +269,7 @@ class TextVideoDataset:
         else:
             vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
             video = self.vae_latent_read(vae_latent_path)
-        return video, text_return, mask
+        return video, text_data, mask
 
     def __len__(self):
         return self.length
@@ -316,7 +340,7 @@ class TextVideoDataset:
             text_data = text.astype(np.float32)
         else:
             if self.tokenizer is not None:
-                tokens, mask = self.tokenizer(text)
+                tokens, mask = self.get_token_ids_mask(text)
                 if isinstance(tokens, list):
                     tokens = np.array(tokens, dtype=np.int64)
                 if isinstance(tokens, ms.Tensor):
@@ -328,6 +352,21 @@ class TextVideoDataset:
                 raise ValueError("tokenizer must be provided to generate text mask if text embeddings are not cached.")
 
         return pixel_values, text_data, mask.astype(np.uint8)
+
+    def get_token_ids_mask(self, caption):
+        text = self.text_preprocessing(caption)
+        text_tokens_and_mask = self.tokenizer(
+            text,
+            max_length=self.token_max_length,
+            padding="max_length",
+            truncation=True,
+            return_attention_mask=True,
+            add_special_tokens=True,
+            return_tensors=None,
+        )
+        input_ids = text_tokens_and_mask["input_ids"].squeeze(0)
+        mask = text_tokens_and_mask["attention_mask"].squeeze(0)
+        return input_ids, mask
 
     def traverse_single_video_frames(self, video_index):
         video_dict = self.dataset[video_index]
@@ -371,6 +410,134 @@ class TextVideoDataset:
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
             return_dict = {"video": pixel_values}
             yield video_name, select_video_frames, return_dict
+
+    def text_preprocessing(self, text):
+        if self.use_text_preprocessing:
+            # The exact text cleaning as was in the training stage:
+            text = self.clean_caption(text)
+            text = self.clean_caption(text)
+            return text
+        else:
+            return text.lower().strip()
+
+    @staticmethod
+    def basic_clean(text):
+        text = ftfy.fix_text(text)
+        text = html.unescape(html.unescape(text))
+        return text.strip()
+
+    def clean_caption(self, caption):
+        caption = str(caption)
+        caption = ul.unquote_plus(caption)
+        caption = caption.strip().lower()
+        caption = re.sub("<person>", "person", caption)
+        # urls:
+        caption = re.sub(
+            r"\b((?:https?:(?:\/{1,3}|[a-zA-Z0-9%])|[a-zA-Z0-9.\-]+[.](?:com|co|ru|net|org|edu|gov|it)[\w/-]*\b\/?(?!@)))",  # noqa
+            "",
+            caption,
+        )  # regex for urls
+        caption = re.sub(
+            r"\b((?:www:(?:\/{1,3}|[a-zA-Z0-9%])|[a-zA-Z0-9.\-]+[.](?:com|co|ru|net|org|edu|gov|it)[\w/-]*\b\/?(?!@)))",  # noqa
+            "",
+            caption,
+        )  # regex for urls
+        # html:
+        caption = BeautifulSoup(caption, features="html.parser").text
+
+        # @<nickname>
+        caption = re.sub(r"@[\w\d]+\b", "", caption)
+
+        # 31C0—31EF CJK Strokes
+        # 31F0—31FF Katakana Phonetic Extensions
+        # 3200—32FF Enclosed CJK Letters and Months
+        # 3300—33FF CJK Compatibility
+        # 3400—4DBF CJK Unified Ideographs Extension A
+        # 4DC0—4DFF Yijing Hexagram Symbols
+        # 4E00—9FFF CJK Unified Ideographs
+        caption = re.sub(r"[\u31c0-\u31ef]+", "", caption)
+        caption = re.sub(r"[\u31f0-\u31ff]+", "", caption)
+        caption = re.sub(r"[\u3200-\u32ff]+", "", caption)
+        caption = re.sub(r"[\u3300-\u33ff]+", "", caption)
+        caption = re.sub(r"[\u3400-\u4dbf]+", "", caption)
+        caption = re.sub(r"[\u4dc0-\u4dff]+", "", caption)
+        caption = re.sub(r"[\u4e00-\u9fff]+", "", caption)
+        #######################################################
+
+        # все виды тире / all types of dash --> "-"
+        caption = re.sub(
+            r"[\u002D\u058A\u05BE\u1400\u1806\u2010-\u2015\u2E17\u2E1A\u2E3A\u2E3B\u2E40\u301C\u3030\u30A0\uFE31\uFE32\uFE58\uFE63\uFF0D]+",  # noqa
+            "-",
+            caption,
+        )
+
+        # кавычки к одному стандарту
+        caption = re.sub(r"[`´«»“”¨]", '"', caption)
+        caption = re.sub(r"[‘’]", "'", caption)
+
+        # &quot;
+        caption = re.sub(r"&quot;?", "", caption)
+        # &amp
+        caption = re.sub(r"&amp", "", caption)
+
+        # ip adresses:
+        caption = re.sub(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", " ", caption)
+
+        # article ids:
+        caption = re.sub(r"\d:\d\d\s+$", "", caption)
+
+        # \n
+        caption = re.sub(r"\\n", " ", caption)
+
+        # "#123"
+        caption = re.sub(r"#\d{1,3}\b", "", caption)
+        # "#12345.."
+        caption = re.sub(r"#\d{5,}\b", "", caption)
+        # "123456.."
+        caption = re.sub(r"\b\d{6,}\b", "", caption)
+        # filenames:
+        caption = re.sub(r"[\S]+\.(?:png|jpg|jpeg|bmp|webp|eps|pdf|apk|mp4)", "", caption)
+
+        #
+        caption = re.sub(r"[\"\']{2,}", r'"', caption)  # """AUSVERKAUFT"""
+        caption = re.sub(r"[\.]{2,}", r" ", caption)  # """AUSVERKAUFT"""
+
+        caption = re.sub(self.bad_punct_regex, r" ", caption)  # ***AUSVERKAUFT***, #AUSVERKAUFT
+        caption = re.sub(r"\s+\.\s+", r" ", caption)  # " . "
+
+        # this-is-my-cute-cat / this_is_my_cute_cat
+        regex2 = re.compile(r"(?:\-|\_)")
+        if len(re.findall(regex2, caption)) > 3:
+            caption = re.sub(regex2, " ", caption)
+
+        caption = self.basic_clean(caption)
+
+        caption = re.sub(r"\b[a-zA-Z]{1,3}\d{3,15}\b", "", caption)  # jc6640
+        caption = re.sub(r"\b[a-zA-Z]+\d+[a-zA-Z]+\b", "", caption)  # jc6640vc
+        caption = re.sub(r"\b\d+[a-zA-Z]+\d+\b", "", caption)  # 6640vc231
+
+        caption = re.sub(r"(worldwide\s+)?(free\s+)?shipping", "", caption)
+        caption = re.sub(r"(free\s)?download(\sfree)?", "", caption)
+        caption = re.sub(r"\bclick\b\s(?:for|on)\s\w+", "", caption)
+        caption = re.sub(r"\b(?:png|jpg|jpeg|bmp|webp|eps|pdf|apk|mp4)(\simage[s]?)?", "", caption)
+        caption = re.sub(r"\bpage\s+\d+\b", "", caption)
+
+        caption = re.sub(r"\b\d*[a-zA-Z]+\d+[a-zA-Z]+\d+[a-zA-Z\d]*\b", r" ", caption)  # j2d1a2a...
+
+        caption = re.sub(r"\b\d+\.?\d*[xх×]\d+\.?\d*\b", "", caption)
+
+        caption = re.sub(r"\b\s+\:\s+", r": ", caption)
+        caption = re.sub(r"(\D[,\./])\b", r"\1 ", caption)
+        caption = re.sub(r"\s+", " ", caption)
+
+        caption.strip()
+
+        caption = re.sub(r"^[\"\']([\w\W]+)[\"\']$", r"\1", caption)
+        caption = re.sub(r"^[\'\_,\-\:;]", r"", caption)
+        caption = re.sub(r"[\'\_,\-\:\-\+]$", r"", caption)
+        caption = re.sub(r"^\.\S+$", "", caption)
+
+        return caption.strip()
 
 
 def create_dataloader(
