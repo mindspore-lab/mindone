@@ -65,7 +65,14 @@ if TYPE_CHECKING:
         StableDiffusionPipeline,
         StableDiffusionXLPipeline,
     )
-    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
+    from .schedulers import (
+        DDIMScheduler,
+        DDPMScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        PNDMScheduler,
+        SchedulerMixin,
+    )
     from .utils import logging
 
 else:

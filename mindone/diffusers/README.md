@@ -105,6 +105,7 @@ Most base, utility and mixin class are available.
 - [x] DDIMScheduler
 - [x] DDPMScheduler
 - [x] EulerDiscreteScheduler
+- [x] EulerAncestralDiscreteScheduler
 
 ### Loader
 - [ ] LoRA
