@@ -183,10 +183,6 @@ class MultiHeadAttention(nn.Cell):
 
         self.to_out = nn.SequentialCell(nn.Dense(self.inner_dim, query_dim, has_bias=out_bias), nn.Dropout(p=dropout))
 
-        self.attention = Attention(
-            dim_head=dim_head, attn_drop=attn_drop, upcast_attention=upcast_attention, upcast_softmax=upcast_softmax
-        )
-
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
@@ -196,7 +192,9 @@ class MultiHeadAttention(nn.Cell):
                 head_dim=dim_head, head_num=heads, fix_head_dims=[72], attention_dropout=attn_drop
             )
         else:
-            self.flash_attention = None
+            self.attention = Attention(
+                dim_head=dim_head, attn_drop=attn_drop, upcast_attention=upcast_attention, upcast_softmax=upcast_softmax
+            )
 
     @staticmethod
     def _rearange_in(x, h):
@@ -239,7 +237,6 @@ class MultiHeadAttention(nn.Cell):
         k_b, k_n, _ = k.shape
         v_b, v_n, _ = v.shape
 
-        head_dim = q.shape[-1] // h
         # # convert sequence mask to attention mask: (b, q_n) to (b, q_n, k_n)
         # if mask is not None:
         #     mask = self.reshape(mask, (mask.shape[0], -1))
@@ -248,9 +245,7 @@ class MultiHeadAttention(nn.Cell):
         #     attn_mask = attn_mask.masked_fill(~mask, -ms.numpy.inf)
         #     mask = attn_mask
 
-        if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256
-        ):  # TODO: why restrict head_dim?
+        if self.enable_flash_attention:
             # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
