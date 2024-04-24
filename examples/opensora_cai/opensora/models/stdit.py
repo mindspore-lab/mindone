@@ -277,8 +277,13 @@ class CaptionEmbedder(nn.Cell):
     Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
     """
 
-    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer=nn.GELU(approximate=True), token_num=120):
+    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer='gelu_tanh', token_num=120):
         super().__init__()
+        if act_layer == 'gelu_tanh':
+            act_layer = nn.GELU(approximate=True)
+        else:
+            raise NotImplementedError
+
         self.y_proj = Mlp(
             in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
         )
