@@ -89,6 +89,7 @@ class MSFlashAttention(nn.Cell):
         self.need_pad = self.d_pad != 0
 
     def construct(self, q, k, v, mask=None):
+        ori_dtype = q.dtype
         B, N, S1, D = q.shape
         _, _, S2, _ = k.shape
 
@@ -118,4 +119,4 @@ class MSFlashAttention(nn.Cell):
             )
         if self.need_pad:
             out = out[:, :, :, :D]
-        return out
+        return out.to(ori_dtype)
