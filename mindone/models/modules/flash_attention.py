@@ -105,7 +105,7 @@ class MSFlashAttention(nn.Cell):
                 None,
                 None,
                 None,
-                mask,
+                mask.to(self.fa_mask_dtype) if mask is not None else None,
                 None,
             )[3]
         else:
