@@ -10,10 +10,11 @@ from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAt
 
 
 class Attention(nn.Cell):
-    def __init__(self, dim_head: int, attn_drop: float = 0.0) -> None:
+    def __init__(self, dim_head: int, attn_drop: float = 0.0, attn_dtype=ms.float32) -> None:
         super().__init__()
         self.scale = dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
+        self.attn_dtype = attn_dtype
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         """
@@ -26,6 +27,10 @@ class Attention(nn.Cell):
         q = ops.reshape(q, (b*h, n_q, d))
         k = ops.reshape(k, (b*h, n_k, d))
         v = ops.reshape(v, (b*h, n_k, d))
+        
+        q = q.to(self.attn_dtype)
+        k = k.to(self.attn_dtype)
+        v = v.to(self.attn_dtype)
 
         sim = ops.matmul(q, k.transpose(0, 2, 1)) * self.scale
 
@@ -82,13 +87,15 @@ class MultiHeadCrossAttention(nn.Cell):
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-
+        
         if self.enable_flash_attention:
+            attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
-                head_dim=self.head_dim, head_num=self.num_heads, attention_dropout=attn_drop
+                head_dim=self.head_dim, head_num=self.num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
             )
         else:
-            self.attention = Attention(self.head_dim, attn_drop=attn_drop)
+            attn_dtype = ms.float32  # TODO: test ms.bfloat16 for vanilla attention
+            self.attention = Attention(head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
 
     @staticmethod
     def _rearange_out(x):
@@ -108,6 +115,7 @@ class MultiHeadCrossAttention(nn.Cell):
             (B, N, C)
         """
         B, N, C = x.shape
+        x_dtype = x.dtype
 
         # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
         cond = ops.reshape(cond, (B, -1, C))
@@ -142,7 +150,6 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
                 # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
                 mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
-
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -151,6 +158,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 mask = mask[:, None, :]
             x = self.attention(q, k, v, mask)
 
+        x = x.to(x_dtype)
         # (b h n d) -> (b n h d) ->  (b n h*d)
         x = self._rearange_out(x)
 
@@ -180,21 +188,17 @@ class SelfAttention(nn.Cell):
         qkv_bias=False,
         attn_drop=0.0,
         proj_drop=0.0,
-        dtype=ms.float32,
         enable_flash_attention=False,
     ):
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
-        self.dtype = dtype
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.head_dim = head_dim
         self.scale = head_dim**-0.5
 
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero()).to_float(
-            self.dtype
-        )
-        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(self.dtype)
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero())
+        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero())
         self.proj_drop = nn.Dropout(p=proj_drop)
         self.transpose = ops.Transpose()
         self.reshape = ops.Reshape()
@@ -203,13 +207,15 @@ class SelfAttention(nn.Cell):
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-
+        
         if self.enable_flash_attention:
+            attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
-                head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop
+                head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
             )
         else:
-            self.attention = Attention(head_dim, attn_drop=attn_drop)
+            attn_dtype = ms.float32
+            self.attention = Attention(head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
 
     def construct(self, x, mask=None):
         """
@@ -246,6 +252,7 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, :]
             out = self.attention(q, k, v, mask)
+        out = out.to(x_dtype)
 
         b, h, n, d = out.shape
         # reshape FA output to original attn input format, (b h n d) -> (b n h*d)

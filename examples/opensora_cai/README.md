@@ -102,7 +102,7 @@ After running, the text embeddings saved as npz file for each caption will be in
 
 Please change `csv_path` to your video-caption annotation file accordingly.
 
-### 2. Generate VAE embeddings
+### 2. Generate VAE embeddings (Optional)
 ```
 python infer_vae.py \
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
@@ -123,13 +123,41 @@ python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
     --video_folder "../videocomposer/datasets/webvid5" \
     --text_embed_folder "../videocomposer/datasets/webvid5" \
 ```
-Append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"` to the command above to enable training with vae latents cache.
+
+To to enable training with the cached vae latents, please append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"`.
 
 Please change `csv_path`,`video_folder`, `embed_folder` according to your data location.
 
 For detailed usage, please check `python train_t2v.py -h`
 
 Note that the training precision is under continuous optimization.
+
+
+#### Run on MindSpore 2.3 
+
+Training on MS2.3 allows much better performance with its new feautres such as kbk and dvm. 
+
+To enable kbk mode on ms2.3 (which is highly recommended), please set
+```
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+```
+
+To improve training perforamnce, you may append `--enable_dvm=True` to the training command.
+
+Here is an example for training on MS2.3:
+```
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
+    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
+    --video_folder "../videocomposer/datasets/webvid5" \
+    --text_embed_folder "../videocomposer/datasets/webvid5" \
+    --enable_dvm=True \
+```
+
 
 
 ### Evaluate
