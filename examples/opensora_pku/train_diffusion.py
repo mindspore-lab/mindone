@@ -358,6 +358,7 @@ def main(args):
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use model dtype: {model_dtype}",
+                f"AMP level: {args.amp_level}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.image_size}",

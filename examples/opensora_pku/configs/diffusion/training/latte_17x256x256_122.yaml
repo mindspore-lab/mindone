@@ -12,6 +12,7 @@ use_recompute: True
 
 # precision
 dtype: "fp16"
+amp_level: "O2"
 init_loss_scale: 65536
 
 # training hyper-params
