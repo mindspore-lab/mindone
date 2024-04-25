@@ -75,7 +75,7 @@ def init_env(
             # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
-            print("D--: use optim parallel")
+            print("use optim parallel")
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
                 enable_parallel_optimizer=True,
@@ -110,7 +110,7 @@ def init_env(
         )
 
     if enable_dvm:
-        print("D--: enable dvm")
+        print("enable dvm")
         ms.set_context(enable_graph_kernel=True)
 
     return rank_id, device_num
@@ -130,7 +130,6 @@ def main(args):
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
     )
-    print('D--: d n', device_num)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading

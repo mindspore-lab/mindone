@@ -331,7 +331,7 @@ class TextVideoDataset:
         video_fn = video_dict[self.video_column]
         video_path = os.path.join(self.video_folder, video_fn)
 
-        video_name = os.path.basename(video_fn).split(".")[0]
+        # video_name = os.path.basename(video_fn).split(".")[0]
         # read video
         video_path = os.path.join(self.video_folder, video_fn)
         # in case missing .mp4 in csv file
@@ -367,7 +367,7 @@ class TextVideoDataset:
             pixel_values = self.apply_transform(pixel_values)
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
             return_dict = {"video": pixel_values}
-            yield video_name, select_video_frames, return_dict
+            yield video_fn, select_video_frames, return_dict
 
 
 def create_dataloader(

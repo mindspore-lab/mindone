@@ -129,7 +129,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-mse.ckpt",
+        default="models/sd-vae-ft-ema.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(

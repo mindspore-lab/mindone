@@ -25,10 +25,10 @@ class Attention(nn.Cell):
         b, h, n_q, d = q.shape
         _, _, n_k, _ = k.shape
 
-        q = ops.reshape(q, (b*h, n_q, d))
-        k = ops.reshape(k, (b*h, n_k, d))
-        v = ops.reshape(v, (b*h, n_k, d))
-        
+        q = ops.reshape(q, (b * h, n_q, d))
+        k = ops.reshape(k, (b * h, n_k, d))
+        v = ops.reshape(v, (b * h, n_k, d))
+
         q = q.to(self.attn_dtype)
         k = k.to(self.attn_dtype)
         v = v.to(self.attn_dtype)
@@ -81,18 +81,21 @@ class MultiHeadCrossAttention(nn.Cell):
         # TODO: model impr: remove bias
         self.q_linear = nn.Dense(d_model, d_model, has_bias=has_bias)
         self.kv_linear = nn.Dense(d_model, d_model * 2, has_bias=has_bias)
-        
+
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
-                head_dim=self.head_dim, head_num=self.num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
+                head_dim=self.head_dim,
+                head_num=self.num_heads,
+                attention_dropout=attn_drop,
+                dtype=attn_dtype,
             )
         else:
             # TODO: test ms.bfloat16 for vanilla attention
-            attn_dtype = ms.float32  
+            attn_dtype = ms.float32
             self.attention = Attention(self.head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
 
         self.proj = nn.Dense(d_model, d_model, has_bias=has_bias).to_float(attn_dtype)
@@ -202,11 +205,14 @@ class SelfAttention(nn.Cell):
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-        
+
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
             self.flash_attention = MSFlashAttention(
-                head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop, dtype=attn_dtype,
+                head_dim=head_dim,
+                head_num=num_heads,
+                attention_dropout=attn_drop,
+                dtype=attn_dtype,
             )
         else:
             # TODO: support ms.bfloat16

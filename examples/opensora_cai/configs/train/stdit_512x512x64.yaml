@@ -4,7 +4,8 @@ time_scale: 0.6666666667
 pretrained_model_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
 
 sd_scale_factor: 0.18215
-enable_flash_attention: False
+enable_flash_attention: True
+use_recompute: True
 
 # data
 image_size: 512
@@ -23,7 +24,7 @@ warmup_steps: 0   # TODO: ablate
 
 batch_size: 1
 clip_grad: True
-use_ema: True # TODO: ablate
+use_ema: False
 
 optim: "adamw_re"
 optim_eps: 1.e-8

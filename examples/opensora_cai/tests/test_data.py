@@ -24,7 +24,6 @@ caption_column = "caption"
 def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
     use_tool_clip = False
 
-
     ds = TextVideoDataset(
         csv_path,
         video_folder,
@@ -60,21 +59,19 @@ def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
 
 
 def test_loader(image_finetune=False):
-
     ds_config = dict(
-            csv_path='../videocomposer/datasets/webvid5/video_caption.csv',
-            tokenizer=None,
-            video_folder='../videocomposer/datasets/webvid5',
-            text_emb_folder='../videocomposer/datasets/webvid5',
-            return_text_emb=True,
-            )
+        csv_path="../videocomposer/datasets/webvid5/video_caption.csv",
+        tokenizer=None,
+        video_folder="../videocomposer/datasets/webvid5",
+        text_emb_folder="../videocomposer/datasets/webvid5",
+        return_text_emb=True,
+    )
 
     dl = create_dataloader(
         ds_config,
         ds_name="text_video",
         batch_size=2,
-        )
-
+    )
 
     num_batches = dl.get_dataset_size()
     ms.set_context(mode=0)

@@ -39,7 +39,8 @@ def init_env(mode, device_target, enable_dvm=False):
     )
     if enable_dvm:
         print("D--: enable dvm")
-        ms.set_context(enable_graph_kernel=True) 
+        ms.set_context(enable_graph_kernel=True)
+
 
 def read_captions_from_csv(csv_path, caption_column="caption"):
     df = pd.read_csv(csv_path, usecols=[caption_column])

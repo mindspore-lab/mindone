@@ -40,6 +40,11 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt`
 
+    For `sd-vae-ft-ema`, run:
+    ```
+    python tools/vae_converter.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    ```
+
 - STDiT: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/OpenSora-v1-16x256x256.pth --target models/OpenSora-v1-16x256x256.ckpt`
@@ -133,9 +138,9 @@ For detailed usage, please check `python train_t2v.py -h`
 Note that the training precision is under continuous optimization.
 
 
-#### Run on MindSpore 2.3 
+#### Run on MindSpore 2.3
 
-Training on MS2.3 allows much better performance with its new feautres such as kbk and dvm. 
+Training on MS2.3 allows much better performance with its new feautres such as kbk and dvm.
 
 To enable kbk mode on ms2.3 (which is highly recommended), please set
 ```
