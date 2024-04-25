@@ -208,6 +208,7 @@ def main(args):
         cond_stage_trainable=False,
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
+        use_image_num=args.use_image_num,
     )
 
     # 3. create dataset

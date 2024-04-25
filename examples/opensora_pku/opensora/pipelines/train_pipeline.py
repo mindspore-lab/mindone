@@ -114,10 +114,10 @@ class DiffusionWithLoss(nn.Cell):
             else:
                 videos, images = x[:, :, : -self.use_image_num], x[:, :, -self.use_image_num :]
                 videos = ops.stop_gradient(self.vae_encode(videos))  # (b, c, f, h, w)
-                _, c, _, h, w = videos.shape
                 # (b, c, f, h, w) -> (b, f, c, h, w) -> (b*f, c, h, w) -> (b*f, c, 1, h, w)
-                images = images.permute(0, 2, 1, 3, 4).reshape(-1, c, h, w).unsqueeze(2)
+                images = images.permute(0, 2, 1, 3, 4).reshape(-1, C, H, W).unsqueeze(2)
                 images = ops.stop_gradient(self.vae_encode(images))  # (b*f, c, 1, h, w)
+                _, c, _, h, w = images.shape
                 # (b*f, c, 1, h, w) -> (b*f, c, h, w) -> (b, f, c, h, w) -> (b, c, f, h, w)
                 images = images.squeeze(2).reshape(B, self.use_image_num, c, h, w).permute(0, 2, 1, 3, 4)
                 x = ops.cat([videos, images], axis=2)  # b c 16+4, h, w
