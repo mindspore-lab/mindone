@@ -82,7 +82,7 @@ def main(args):
         cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"), model_max_length=args.t5_max_length
     )
     text_encoder.set_train(False)
-    for param in text_encoder.get_parameters():  # freeze latte_model
+    for param in text_encoder.get_parameters():  # freeze text encoder
         param.requires_grad = False
 
     logger.info("Start embedding...")

@@ -176,6 +176,9 @@ python tools/model_conversion/convert_latte.py --src models/t2v.pt --target mode
 python infer_t5.py \
     --data_file_path ../videocomposer/datasets/webvid5/video_caption.csv \
     --output_dir ../videocomposer/datasets/webvid5 \
+    --t5_max_length 120 \
+    --caption_column "caption" \
+    --video_column "video" \
 ```
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`
@@ -192,4 +195,20 @@ python train_diffusion.py --config configs/diffusion/training/latte_17x256x256_1
     --data_file_path "../videocomposer/datasets/webvid5/video_caption.csv" \
     --video_folder "../videocomposer/datasets/webvid5" \
     --text_embed_folder "../videocomposer/datasets/webvid5" \
+```
+
+#### pku-dataset training
+
+Download PKU-OpenSora dataset from the [HF webpage](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.0.0).
+
+Details about this dataset.
+
+Extract t5 embedding
+```
+python infer_t5.py \
+    --data_file_path path/to/data.json \
+    --output_dir path/to/output/dir \
+    --t5_max_length 300 \
+    --caption_column "cap" \
+    --video_column "path" \
 ```
