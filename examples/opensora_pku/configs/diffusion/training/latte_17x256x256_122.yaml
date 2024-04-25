@@ -1,6 +1,7 @@
 # model
 image_size: 256
 num_frames: 17
+use_image_num: 4
 frame_stride: 1
 model_version: "LatteT2V-XL/122"
 pretrained_model_path: "models/t2v.ckpt"
