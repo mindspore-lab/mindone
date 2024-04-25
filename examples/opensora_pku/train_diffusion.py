@@ -209,7 +209,7 @@ def main(args):
 
     # 3. create dataset
     ds_config = dict(
-        csv_path=args.csv_path,
+        data_file_path=args.data_file_path,
         video_folder=args.video_folder,
         text_emb_folder=args.text_embed_folder,
         return_text_emb=True,

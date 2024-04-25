@@ -26,10 +26,10 @@ def parse_train_args(parser):
     # data
     parser.add_argument("--dataset_name", default="", type=str, help="dataset name")
     parser.add_argument(
-        "--csv_path",
+        "--data_file_path",
         default="",
         type=str,
-        help="path to csv annotation file. columns: video, caption. \
+        help="path to video-text annotation file. csv or json file is supported. \
         video indicates the relative path of video file in video_folder. caption - the text caption for video",
     )
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
