@@ -55,10 +55,11 @@ def main(args):
     set_random_seed(args.seed)
 
     # build dataloader for large amount of captions
-    if args.csv_path is not None:
+    if args.data_file_path is not None:
         ds_config = dict(
-            csv_path=args.csv_path,
+            data_file_path=args.data_file_path,
             tokenizer=None,  # tokenizer,
+            caption_column=args.caption_column,
         )
         dataset = create_dataloader(
             ds_config,
@@ -76,7 +77,9 @@ def main(args):
 
     # model initiate and weight loading
     ckpt_path = args.t5_model_dir
-    text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
+    text_encoder = T5Embedder(
+        cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"), model_max_length=args.t5_max_length
+    )
     text_encoder.set_train(False)
     for param in text_encoder.get_parameters():  # freeze latte_model
         param.requires_grad = False
@@ -84,10 +87,10 @@ def main(args):
     logger.info("Start embedding...")
 
     # infer
-    if args.csv_path is not None:
+    if args.data_file_path is not None:
         ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
         if args.output_dir is None:
-            output_folder = os.path.dirname(args.csv_path)
+            output_folder = os.path.dirname(args.data_file_path)
         else:
             output_folder = args.output_dir
         os.makedirs(output_folder, exist_ok=True)
@@ -155,19 +158,20 @@ def parse_args():
         help="path to load a config yaml file that describes the setting which will override the default arguments. It can contain captions.",
     )
     parser.add_argument(
-        "--csv_path",
+        "--data_file_path",
         default=None,
         type=str,
-        help="path to csv annotation file, If None, video_caption.csv is expected to live under `data_path`",
+        help="path to csv or json annotation file, If None, video_caption.csv is expected to live under `data_path`",
     )
     parser.add_argument(
         "--output_dir",
         type=str,
         default=None,
-        help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
+        help="output dir to save the embeddings, if None, will treat the parent dir of data_file_path as output dir.",
     )
-    parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
+    parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in data file ")
     parser.add_argument("--t5_model_dir", default="models/t5-v1_1-xxl", type=str, help="the T5 cache folder path")
+    parser.add_argument("--t5_max_length", type=int, help="the max length for the tokens", required=True)
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")

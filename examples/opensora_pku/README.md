@@ -174,13 +174,13 @@ python tools/model_conversion/convert_latte.py --src models/t2v.pt --target mode
 
 ```
 python infer_t5.py \
-    --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
+    --data_file_path ../videocomposer/datasets/webvid5/video_caption.csv \
     --output_dir ../videocomposer/datasets/webvid5 \
 ```
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`
 
-Please change `csv_path` to your video-caption annotation file accordingly.
+Please change `data_file_path` to your video-caption annotation file accordingly.
 
 Train the Latte-T2V model:
 
@@ -189,7 +189,7 @@ Train the Latte-T2V model:
 export MS_ENABLE_ACLNN=1
 export GRAPH_OP_RUN=1
 python train_diffusion.py --config configs/diffusion/training/latte_17x256x256_122.yaml \
-    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
+    --data_file_path "../videocomposer/datasets/webvid5/video_caption.csv" \
     --video_folder "../videocomposer/datasets/webvid5" \
     --text_embed_folder "../videocomposer/datasets/webvid5" \
 ```

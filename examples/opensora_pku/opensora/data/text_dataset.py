@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 import random
 
@@ -12,25 +13,32 @@ logger = logging.getLogger()
 class TextDataset:
     def __init__(
         self,
-        csv_path,
+        data_file_path,
         tokenizer=None,
         video_column="video",
         caption_column="caption",
         random_drop_text=False,
         random_drop_text_ratio=0.1,
     ):
-        logger.info(f"loading annotations from {csv_path} ...")
-        with open(csv_path, "r") as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
-
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
-
+        logger.info(f"loading annotations from {data_file_path} ...")
+        self.parse_data_file(data_file_path)
         self.tokenizer = tokenizer
         self.caption_column = caption_column
         self.video_column = video_column
         self.random_drop_text = random_drop_text
         self.random_drop_text_ratio = random_drop_text_ratio
+        self.length = len(self.dataset)
+        logger.info(f"Num data samples: {self.length}")
+
+    def parse_data_file(self, data_file_path):
+        if data_file_path.endswith(".csv"):
+            with open(data_file_path, "r") as csvfile:
+                self.dataset = list(csv.DictReader(csvfile))
+        elif data_file_path.endswith(".json"):
+            with open(data_file_path, "r") as f:
+                self.dataset = json.load(f)
+        else:
+            raise ValueError("Only support json and csv file now!")
 
     def __len__(self):
         return self.length
@@ -96,7 +104,7 @@ def create_dataloader(
 
 
 if __name__ == "__main__":
-    ds_config = dict(csv_path="../videocomposer/datasets/webvid5/video_caption.csv", tokenizer=None)
+    ds_config = dict(data_file_path="../videocomposer/datasets/webvid5/video_caption.csv", tokenizer=None)
 
     dl = create_dataloader(
         ds_config,
