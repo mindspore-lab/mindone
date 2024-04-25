@@ -299,7 +299,9 @@ class CaptionEmbedder(nn.Cell):
         else:
             drop_ids = force_drop_ids == 1
 
-        caption = ops.where(drop_ids[:, None, None, None], self.y_embedding, caption.to(self.y_embedding.dtype))
+        # manually expand dims to avoid infer-shape bug in ms2.3 daily 
+        caption = ops.where(drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype))
+
         return caption
 
     def construct(self, caption, train, force_drop_ids=None):

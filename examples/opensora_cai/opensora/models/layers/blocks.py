@@ -197,7 +197,7 @@ class SelfAttention(nn.Cell):
         self.head_dim = head_dim
         self.scale = head_dim**-0.5
 
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init=XavierUniform(), bias_init=Zero())
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init="XavierUniform", bias_init="Zero")
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -213,7 +213,7 @@ class SelfAttention(nn.Cell):
             attn_dtype = ms.float32
             self.attention = Attention(head_dim, attn_drop=attn_drop, attn_dtype=attn_dtype)
 
-        self.proj = nn.Dense(dim, dim, weight_init=XavierUniform(), bias_init=Zero()).to_float(attn_dtype)
+        self.proj = nn.Dense(dim, dim, weight_init="XavierUniform", bias_init="Zero").to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
     def construct(self, x, mask=None):
