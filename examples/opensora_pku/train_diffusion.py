@@ -130,7 +130,7 @@ def main(args):
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
     )
-    set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
     if train_with_vae_latent:
