@@ -31,7 +31,7 @@ class TextVideoDataset:
         sample_stride=4,
         sample_n_frames=16,
         is_image=False,
-        use_image_num=False,
+        use_image_num=0,
         use_img_from_vid=True,
         transform_backend="al",  # ms,  al
         tokenizer=None,

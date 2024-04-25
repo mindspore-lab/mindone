@@ -40,6 +40,7 @@ class DiffusionWithLoss(nn.Cell):
         cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
+        use_image_num: int = 0,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -68,14 +69,20 @@ class DiffusionWithLoss(nn.Cell):
             self.text_encoder.set_train(True)
             self.text_encoder.set_grad(True)
 
-    def get_condition_embeddings(self, text_tokens, **kwargs):
+        self.use_image_num = use_image_num
+
+    def get_condition_embeddings(self, text_tokens, mask):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
+        if self.use_image_num > 0:
+            # use for loop to avoid OOM?
+            B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
+            text_tokens = text_tokens.reshape(B * frame, L)
+            mask = mask.reshape(B * frame, L) if mask is not None else None
         if self.cond_stage_trainable:
-            text_emb = self.text_encoder(text_tokens, **kwargs)
+            text_emb = self.text_encoder(text_tokens, mask)
         else:
-            text_emb = ops.stop_gradient(self.text_encoder(text_tokens, **kwargs))
-
+            text_emb = ops.stop_gradient(self.text_encoder(text_tokens, mask))
         return text_emb
 
     def vae_encode(self, x):
@@ -102,9 +109,18 @@ class DiffusionWithLoss(nn.Cell):
             if C != 3:
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
             x = x.permute(0, 2, 1, 3, 4)  # (b, c, f, h, w)
-
-            z = ops.stop_gradient(self.vae_encode(x))  # (b, c, f, h, w)
-
+            if self.use_image_num == 0:
+                z = ops.stop_gradient(self.vae_encode(x))  # (b, c, f, h, w)
+            else:
+                videos, images = x[:, :, : -self.use_image_num], x[:, :, -self.use_image_num :]
+                videos = ops.stop_gradient(self.vae_encode(videos))  # (b, c, f, h, w)
+                _, c, _, h, w = videos.shape
+                # (b, c, f, h, w) -> (b, f, c, h, w) -> (b*f, c, h, w) -> (b*f, c, 1, h, w)
+                images = images.permute(0, 2, 1, 3, 4).reshape(-1, c, h, w).unsqueeze(2)
+                images = ops.stop_gradient(self.vae_encode(images))  # (b*f, c, 1, h, w)
+                # (b*f, c, 1, h, w) -> (b*f, c, h, w) -> (b, f, c, h, w) -> (b, c, f, h, w)
+                images = images.squeeze(2).reshape(B, self.use_image_num, c, h, w).permute(0, 2, 1, 3, 4)
+                x = ops.cat([videos, images], axis=2)  # b c 16+4, h, w
         else:
             raise ValueError("Incorrect Dimensions of x")
         return z

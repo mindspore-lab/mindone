@@ -43,6 +43,12 @@ def parse_train_args(parser):
     parser.add_argument(
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
+    parser.add_argument(
+        "--use_image_num",
+        type=int,
+        default=0,
+        help="Whether to use image during training. If set to a positive integer, will enable image-video joint training.",
+    )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
     parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
     parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
@@ -57,8 +63,8 @@ def parse_train_args(parser):
     parser.add_argument(
         "--model_version",
         type=str,
-        default="17x256x256",
-        help="Model version in ['17x256x256', '65x256x256', '65x512x512'] ",
+        default="Latte-XL/122",
+        help="Model version to get model. ",
     )
     # ms
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
