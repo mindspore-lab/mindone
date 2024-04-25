@@ -78,7 +78,7 @@ class DiffusionWithLoss(nn.Cell):
             # use for loop to avoid OOM?
             B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
             text_tokens = text_tokens.reshape(B * frame, L)
-            mask = mask.reshape(B * frame, L) if mask is not None else None
+            mask = mask.reshape(B * frame, L) if mask is not None else None  # mask (B, T+num_images)
         if self.cond_stage_trainable:
             text_emb = self.text_encoder(text_tokens, mask)
         else:

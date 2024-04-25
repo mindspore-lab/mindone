@@ -91,6 +91,10 @@ class TextVideoDataset:
         if self.use_image_num != 0 and not self.use_img_from_vid:
             self.img_cap_list = self.get_img_cap_list()
 
+        assert (
+            self.sample_n_frames >= self.use_image_num
+        ), "expect to have use_image_num no greater than sample_n_frames,"
+        f" but got {self.sample_n_frames} < {self.use_image_num}."
         if filter_nonexistent:
             self.filter_nonexistent_file()
         self.length = len(self.dataset)
@@ -251,6 +255,17 @@ class TextVideoDataset:
         else:
             vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
             video = self.vae_latent_read(vae_latent_path)
+        # stack images data with video data
+        if self.use_image_num != 0 and self.use_img_from_vid:
+            select_image_idx = np.linspace(0, self.sample_n_frames - 1, self.use_image_num, dtype=int)
+            images = video[select_image_idx]  # num_img, h, w, c
+            video = np.concatenate([video, images], axis=1)  # num_frame+num_img, h, w, c
+            text_data = np.stack([text_data] * (1 + self.use_image_num))
+            mask = np.stack([mask] * (1 + self.use_image_num))  # 1+self.use_image_num, l
+        elif self.use_image_num != 0 and not self.use_img_from_vid:
+            raise NotImplementedError
+        else:
+            pass
         return video, text_data, mask
 
     def __len__(self):
