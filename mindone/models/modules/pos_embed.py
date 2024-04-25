@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 
-__all__ = ["get_1d_sincos_temp_embed", "get_2d_sincos_pos_embed", "precompute_freqs_cis_2d"]
+__all__ = ["get_1d_sincos_pos_embed", "get_2d_sincos_pos_embed", "precompute_freqs_cis_2d"]
 
 
 def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -> np.ndarray:
@@ -25,10 +25,7 @@ def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -
     return pos_embed
 
 
-def get_1d_sincos_temp_embed(
-    embed_dim: int,
-    length: int,
-) -> np.ndarray:
+def get_1d_sincos_pos_embed(embed_dim: int, length: int) -> np.ndarray:
     """
     Generate sinusoidal/cosinusoidal positional embeddings for 1D data.
 
@@ -44,17 +41,18 @@ def get_1d_sincos_temp_embed(
 
 
 def precompute_freqs_cis_2d(
-    dim: int, nh: int, nw: Optional[int] = None, max_length: Optional[int] = None
+    dim: int, nh: int, nw: Optional[int] = None, theta: float = 10000.0, max_length: Optional[int] = None
 ) -> np.ndarray:
     """Precompute the frequency tensor for complex exponentials (cis) with given dimensions, for 2D RoPE
     referered from 1D RoPE https://github.com/meta-llama/llama and paper `FiT` https://arxiv.org/abs/2402.12376
 
-    If max_length is not None, then a length extrpolation algo. `VisionNTK` from `FiT` will be used for tensor calculation.
+    If max_length is not None, then a length extrapolation algo. `VisionNTK` from `FiT` will be used for tensor calculation.
 
     Args:
         dim: dimension of the frequency tensor
         nh: image height
         nw: image width. If it is not given, then `nw` is equal to `nh`. Default: None
+        theta: Scaling factor for frequency computation. Defaults: 10000.0.
         max_length: If it is None, then the VisionNTK algo. will be applied. Default: None
     """
     nw = nh if nw is None else nw
@@ -64,7 +62,7 @@ def precompute_freqs_cis_2d(
     grid = np.stack(grid, axis=0)
 
     grid = grid.reshape([2, nh, nw])
-    freqs_cis = _precompute_freqs_cis_2d_from_grid(dim, grid, max_length=max_length)  # (M, D/2, 2)
+    freqs_cis = _precompute_freqs_cis_2d_from_grid(dim, grid, theta=theta, max_length=max_length)  # (M, D/2, 2)
     freqs_cis = np.reshape(freqs_cis, (freqs_cis.shape[0], -1))
     return freqs_cis
 

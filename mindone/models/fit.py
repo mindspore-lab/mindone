@@ -8,6 +8,8 @@ except ImportError:
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
+from mindone.models.modules.flash_attention import MSFlashAttention
+
 from .dit import GELU, FinalLayer, LabelEmbedder, LayerNorm, Mlp, Optional, TimestepEmbedder
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 
@@ -46,7 +48,7 @@ def apply_rotary_emb(q: Tensor, k: Tensor, freqs_cis: Tensor) -> Tuple[Tensor, T
     # to complex
     q = ops.reshape(q, (q_shape[0], q_shape[1], q_shape[2], -1, 2))
     k = ops.reshape(k, (k_shape[0], k_shape[1], k_shape[2], -1, 2))  # b, h, n, d/2, 2
-    freqs_cis = ops.reshape(freqs_cis, (q_shape[0], 1, q_shape[2], -1, 2))  # b, 1, n, d/2, 2
+    freqs_cis = ops.reshape(freqs_cis, (freqs_cis.shape[0], 1, q_shape[2], -1, 2))  # b, 1, n, d/2, 2
     dtype = q.dtype
     q = complex_mult(q.to(ms.float32), freqs_cis).to(dtype)
     k = complex_mult(k.to(ms.float32), freqs_cis).to(dtype)
@@ -61,9 +63,10 @@ class Attention(nn.Cell):
         super().__init__()
         self.scale = dim_head**-0.5
         self.attn_drop = nn.Dropout(p=attn_drop)
+        self.bmm = ops.BatchMatMul(transpose_b=True)
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
-        sim = ops.BatchMatMul(transpose_b=True)(q, k) * self.scale
+        sim = self.bmm(q, k) * self.scale
 
         # use fp32 for exponential inside
         sim = sim.to(ms.float32)
@@ -88,8 +91,6 @@ class SelfAttention(nn.Cell):
         enable_flash_attention: bool = False,
     ) -> None:
         super().__init__()
-        if enable_flash_attention:
-            raise NotImplementedError("Flash attention is not supported yet.")
 
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
@@ -102,15 +103,10 @@ class SelfAttention(nn.Cell):
 
         self.apply_rotate_embed = apply_rotate_embed
 
-    @staticmethod
-    def _rearange_in(x: Tensor, h: int) -> Tensor:
-        # (b, n, h*d) -> (b, h, n, d)
-        b, n, d = x.shape
-        d = d // h
-
-        x = ops.reshape(x, (b, n, h, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        return x
+        if enable_flash_attention:
+            self.flash_attention = MSFlashAttention(head_dim=head_dim, head_num=num_heads, attention_dropout=attn_drop)
+        else:
+            self.flash_attention = None
 
     @staticmethod
     def _rearange_out(x: Tensor) -> Tensor:
@@ -124,19 +120,20 @@ class SelfAttention(nn.Cell):
         h = self.num_heads
         B, N, _ = x.shape
 
-        # (b, n, 3*h*d) -> (b, n, 3, h*d)  -> (3, b, n, h*d)
-        qkv = self.qkv(x).reshape(B, N, 3, -1).permute((2, 0, 1, 3))
+        # (b, n, 3*h*d) -> (b, n, 3, h, d)  -> (3, b, h, n, d)
+        qkv = self.qkv(x).reshape(B, N, 3, h, -1).permute((2, 0, 3, 1, 4))
         q, k, v = qkv.unbind(0)
-
-        # (b, n, h*d) -> (b, h, n, d)
-        q = self._rearange_in(q, h)
-        k = self._rearange_in(k, h)
-        v = self._rearange_in(v, h)
 
         if self.apply_rotate_embed:
             q, k = apply_rotary_emb(q, k, freqs_cis)
 
-        out = self.attention(q, k, v, mask=mask)
+        # FIXME: drop the shape requiremnt when flash-attention works ok
+        if self.flash_attention and q.shape[2] % 16 == 0 and k.shape[2] % 16 == 0 and q.shape[-1] <= 256:
+            mask = ops.logical_and(mask[:, None, :], mask[:, :, None])
+            out = self.flash_attention(q, k, v, ~mask)
+        else:
+            out = self.attention(q, k, v, mask=mask)
+
         # (b, h, n, d) -> (b, n, h*d)
         out = self._rearange_out(out)
 
@@ -263,7 +260,6 @@ class FiT(nn.Cell):
         self.in_channels = in_channels
         self.out_channels = in_channels * 2 if learn_sigma else in_channels
         self.patch_size = patch_size
-        self.num_heads = num_heads
         self.pos = pos
 
         assert pos in ["absolute", "rotate"]
@@ -310,38 +306,36 @@ class FiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def unpatchify(self, x: Tensor) -> Tensor:
+    def unpatchify(self, x: Tensor, h: int, w: int) -> Tensor:
         """
         x: (N, T, patch_size**2 * C)
-        imgs: (N, H, W, C)
+        imgs: (N, C, H, W)
         """
         c = self.out_channels
-        h = w = int(x.shape[1] ** 0.5)
-        assert h * w == x.shape[1]
-
-        x = x.reshape((x.shape[0], h, w, self.patch_size, self.patch_size, c))
+        nh, nw = h // self.patch_size, w // self.patch_size
+        x = x.reshape((x.shape[0], nh, nw, self.patch_size, self.patch_size, c))
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
-        imgs = x.reshape((x.shape[0], c, h * self.patch_size, h * self.patch_size))
+        imgs = x.reshape((x.shape[0], c, nh * self.patch_size, nw * self.patch_size))
         return imgs
 
     def patchify(self, x: Tensor) -> Tensor:
-        if len(x.shape) == 4:
-            N, C, H, W = x.shape
-            nh, nw = H // self.patch_size, W // self.patch_size
-            x = ops.reshape(x, (N, C, nh, self.patch_size, nw, self.patch_size))
-            x = ops.transpose(x, (0, 2, 4, 3, 5, 1))  # N, nh, nw, patch, patch, C
-            x = ops.reshape(x, (N, nh * nw, -1))
+        N, C, H, W = x.shape
+        nh, nw = H // self.patch_size, W // self.patch_size
+        x = ops.reshape(x, (N, C, nh, self.patch_size, nw, self.patch_size))
+        x = ops.transpose(x, (0, 2, 4, 3, 5, 1))  # N, nh, nw, patch, patch, C
+        x = ops.reshape(x, (N, nh * nw, -1))
         return x
 
     def construct(self, x: Tensor, t: Tensor, y: Tensor, pos: Tensor, mask: Tensor) -> Tensor:
         """
         Forward pass of FiT.
-        x: (N, T, D) or (N, C, H, W) tensor of latent token, D = patch_size * patch_size * 4
+        x: (N, C, H, W) tensor of latent token
         t: (N,) tensor of diffusion timesteps
         y: (N,) tensor of class labels
         pos: (N, T, D) tensor of positional embedding or precomputed cosine and sine frequencies
         mask: (N, T) tensor of valid mask
         """
+        _, _, h, w = x.shape
         x = self.patchify(x)
         if self.pos == "absolute":
             x = self.x_embedder(x) + pos.to(x.dtype)  # (N, T, D), where T = H * W / patch_size ** 2
@@ -360,7 +354,7 @@ class FiT(nn.Cell):
         for block in self.blocks:
             x = block(x, c, mask=mask, freqs_cis=freqs_cis)  # (N, T, D)
         x = self.final_layer(x, c)  # (N, T, patch_size ** 2 * out_channels)
-        x = self.unpatchify(x)  # (N, out_channels, H, W)
+        x = self.unpatchify(x, h, w)  # (N, out_channels, H, W)
         return x
 
     @ms.jit
