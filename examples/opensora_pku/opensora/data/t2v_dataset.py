@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 from decord import VideoReader
+from tqdm import tqdm
 
 import mindspore as ms
 
@@ -41,6 +42,7 @@ class TextVideoDataset:
         disable_flip=True,
         token_max_length=120,
         use_text_preprocessing=True,
+        filter_data=False,
     ):
         """
         text_emb_folder: root dir of text embed saved in npz files. Expected to have the same file name and directory strcutre as videos. e.g.
@@ -60,14 +62,9 @@ class TextVideoDataset:
             not random_drop_text
         ), "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."
         logger.info(f"loading annotations from {data_file_path} ...")
-
-        if data_file_path.endswith(".csv"):
-            with open(data_file_path, "r") as csvfile:
-                self.dataset = list(csv.DictReader(csvfile))
-        elif data_file_path.endswith(".json"):
-            with open(data_file_path, "r") as f:
-                self.dataset = json.load(f)
-
+        self.parse_data_file(data_file_path)
+        if filter_data:
+            self.filter_nonexistent_file()
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
 
@@ -118,6 +115,47 @@ class TextVideoDataset:
             self.text_preprocessing = lambda x: x.lower().strip()
         else:
             self.text_preprocessing = t5_text_preprocessing
+
+    def parse_data_file(self, data_file_path):
+        if data_file_path.endswith(".csv"):
+            with open(data_file_path, "r") as csvfile:
+                self.dataset = list(csv.DictReader(csvfile))
+        elif data_file_path.endswith(".json"):
+            with open(data_file_path, "r") as f:
+                self.dataset = json.load(f)
+        else:
+            raise ValueError("Only support json and csv file now!")
+
+    def filter_nonexistent_file(self, allow_empty_caption=True):
+        logger.info("Start to filtering out nonexistent video files...")
+        new_dataset = []
+        for video_dict in tqdm(self.dataset, total=len(self.dataset)):
+            video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
+            if isinstance(caption, (tuple, list)):
+                caption = caption[0]
+            existence = True
+            # check text embed if return
+            if self.return_text_emb:
+                text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
+                if not os.path.exists(text_emb_path):
+                    existence = False
+            else:
+                if not allow_empty_caption and len(caption) == 0:
+                    existence = False
+            if self.return_vae_latent:
+                vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
+                if not os.path.exists(vae_latent_path):
+                    existence = False
+            else:
+                # use video file
+                video_path = os.path.join(self.video_folder, video_fn)
+                if not os.path.exists(video_path):
+                    existence = False
+            if existence:
+                new_dataset.append(video_dict)
+
+        logger.info(f"Filtering out {len(self.dataset) - len(new_dataset)} video data. ")
+        self.dataset = new_dataset
 
     def get_img_cap_list(self):
         raise NotImplementedError
