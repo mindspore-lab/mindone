@@ -12,6 +12,9 @@ image_size: 512
 num_frames: 64
 frame_stride: 2
 
+num_parallel_workers: 16
+max_rowsize: 96
+
 # precision
 dtype: "fp16"
 init_loss_scale: 65536

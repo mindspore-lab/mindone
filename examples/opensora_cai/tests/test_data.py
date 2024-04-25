@@ -2,7 +2,6 @@ import os
 import sys
 import time
 
-from omegaconf import OmegaConf
 from tqdm import tqdm
 
 import mindspore as ms
@@ -13,7 +12,6 @@ from opensora.data.t2v_dataset import TextVideoDataset, create_dataloader
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
-from mindone.utils.config import instantiate_from_config
 
 csv_path = "../videocomposer/datasets/webvid5/video_caption.csv"
 video_folder = "../videocomposer/datasets/webvid5"
@@ -22,8 +20,6 @@ caption_column = "caption"
 
 
 def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
-    use_tool_clip = False
-
     ds = TextVideoDataset(
         csv_path,
         video_folder,
@@ -32,7 +28,7 @@ def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
         sample_n_frames=16,
         is_image=is_image,
         transform_backend=backend,  # pt, al
-        tokenizer=tokenizer,
+        tokenizer=None,
         video_column=video_column,
         caption_column=caption_column,
     )
@@ -49,7 +45,6 @@ def test_src_dataset(backend="al", is_image=False, use_tokenizer=False):
         if i < 3:
             print("D--: ", video.shape, video.dtype, video.min(), video.max())
             print(f"{i+1}/{steps}, time cost: {dur * 1000} ms")
-            check_sanity(video, f"tmp_{i}.gif")
             print(type(caption), caption)
 
         start = time.time()

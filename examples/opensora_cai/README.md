@@ -138,11 +138,11 @@ For detailed usage, please check `python train_t2v.py -h`
 Note that the training precision is under continuous optimization.
 
 
-#### Run on MindSpore 2.3
+#### Notes about MindSpore 2.3
 
-Training on MS2.3 allows much better performance with its new feautres such as kbk and dvm.
+Training on MS2.3 allows much better performance with its new feautres (such as kbk and dvm)
 
-To enable kbk mode on ms2.3 (which is highly recommended), please set
+To enable kbk mode on ms2.3, please set
 ```
 export MS_ENABLE_ACLNN=1
 export GRAPH_OP_RUN=1
@@ -162,6 +162,7 @@ python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
     --text_embed_folder "../videocomposer/datasets/webvid5" \
     --enable_dvm=True \
 ```
+
 
 
 

@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Type
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
-from mindspore.common.initializer import XavierUniform, Zero, initializer
+from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
@@ -119,7 +119,6 @@ class MultiHeadCrossAttention(nn.Cell):
             (B, N, C)
         """
         B, N, C = x.shape
-        x_dtype = x.dtype
 
         # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
         cond = ops.reshape(cond, (B, -1, C))
