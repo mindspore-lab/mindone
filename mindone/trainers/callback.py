@@ -10,7 +10,7 @@ from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
 
 _logger = logging.getLogger(__name__)
-
+_logger.setLevel(logging.INFO)
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback"]
 
 
