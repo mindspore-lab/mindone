@@ -2,11 +2,84 @@ import math
 import numbers
 from typing import Optional, Tuple, Type
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+
+
+class LlamaRMSNorm(nn.Cell):
+    def __init__(self, hidden_size, eps=1e-6):
+        """
+        LlamaRMSNorm is equivalent to T5LayerNorm
+        """
+        super().__init__()
+        # weight -> gamma: match the orig repo and fix the converter instead?
+        self.gamma = Parameter(np.ones(hidden_size).astype(np.float32))
+        self.variance_epsilon = eps
+
+    def construct(self, hidden_states: Tensor):
+        hidden_states = hidden_states.astype(ms.float32)
+        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
+        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
+        return self.gamma * hidden_states.astype(self.gamma.dtype)  # Match weight dtype
+
+
+class PatchEmbed3D(nn.Cell):
+    """Video to Patch Embedding.
+
+    Args:
+        patch_size (int): Patch token size. Default: (2,4,4).
+        in_chans (int): Number of input video channels. Default: 3.
+        embed_dim (int): Number of linear projection output channels. Default: 96.
+        norm_layer (nn.Module, optional): Normalization layer. Default: None
+    """
+
+    def __init__(
+        self,
+        patch_size=(2, 4, 4),
+        in_chans=3,
+        embed_dim=96,
+        norm_layer=None,
+        flatten=True,
+    ):
+        super().__init__()
+        self.patch_size = patch_size
+        self.flatten = flatten
+
+        self.in_chans = in_chans
+        self.embed_dim = embed_dim
+
+        self.proj = nn.Conv3d(
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="valid", has_bias=True
+        )
+        if norm_layer is not None:
+            self.norm = norm_layer(embed_dim)
+        else:
+            self.norm = None
+
+    def construct(self, x):
+        # padding
+        _, _, D, H, W = x.shape
+        if W % self.patch_size[2] != 0:
+            x = ops.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
+        if H % self.patch_size[1] != 0:
+            x = ops.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
+        if D % self.patch_size[0] != 0:
+            x = ops.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
+
+        x = self.proj(x)  # (B C T H W)
+        if self.norm is not None:
+            D, Wh, Ww = x.shape[2], x.shape[3], x.shape[4]
+            x = x.flatten(start_dim=2).swapaxes(1, 2)
+            x = self.norm(x)
+            x = x.swapaxes(1, 2).view(-1, self.embed_dim, D, Wh, Ww)
+        if self.flatten:
+            x = x.flatten(start_dim=2).swapaxes(1, 2)  # BCTHW -> BNC
+        return x
 
 
 class Attention(nn.Cell):
@@ -188,9 +261,12 @@ class SelfAttention(nn.Cell):
         dim,
         num_heads=8,
         qkv_bias=False,
+        qk_norm: bool = False,
         attn_drop=0.0,
         proj_drop=0.0,
+        norm_layer: nn.Cell = LlamaRMSNorm,
         enable_flash_attention=False,
+        rope=None,
     ):
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
@@ -198,8 +274,11 @@ class SelfAttention(nn.Cell):
         head_dim = dim // num_heads
         self.head_dim = head_dim
         self.scale = head_dim**-0.5
+        self.rotary_emb = rope
 
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init="XavierUniform", bias_init="Zero")
+        self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -237,6 +316,12 @@ class SelfAttention(nn.Cell):
         q = ops.squeeze(q, axis=2)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
+
+        # WARNING: this may be a bug
+        if self.rotary_emb is not None:
+            q = self.rotary_emb(q)
+            k = self.rotary_emb(k)
+        q, k = self.q_norm(q), self.k_norm(k)
 
         # mask process
         if mask is not None:
@@ -294,7 +379,7 @@ class GELU(nn.GELU):
 approx_gelu = lambda: GELU(approximate="tanh")
 
 
-def t2i_modulate(x, shift, scale):
+def t2i_modulate(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:
     return x * (1 + scale) + shift
 
 
@@ -328,7 +413,7 @@ class PatchEmbed(nn.Cell):
             self.num_patches: Optional[int] = None
         self.embed_dim = embed_dim
         self.proj = nn.Conv2d(
-            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="pad", has_bias=bias
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="same", has_bias=bias
         )
 
     def construct(self, x: Tensor) -> Tensor:
@@ -418,6 +503,51 @@ class Mlp(nn.Cell):
         return x
 
 
+class T2IFinalLayer(nn.Cell):
+    """
+    The final layer of PixArt.
+    """
+
+    def __init__(self, hidden_size, num_patch, out_channels, d_t=None, d_s=None):
+        super().__init__()
+        self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        # (1152, 4*8)
+        self.linear = nn.Dense(hidden_size, num_patch * out_channels, has_bias=True)
+        self.scale_shift_table = Parameter(ops.randn(2, hidden_size) / hidden_size**0.5)
+        self.out_channels = out_channels
+        self.d_t = d_t
+        self.d_s = d_s
+
+    @staticmethod
+    def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
+        x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
+        masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
+        x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
+        return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
+
+    def construct(
+        self,
+        x: Tensor,
+        t: Tensor,
+        frames_mask: Optional[Tensor] = None,
+        t0: Optional[Tensor] = None,
+        T: Optional[int] = None,
+        S: Optional[int] = None,
+    ) -> Tensor:
+        T = T or self.d_t
+        S = S or self.d_s
+        shift, scale = (self.scale_shift_table[None] + t[:, None]).chunk(2, axis=1)
+        x = t2i_modulate(self.norm_final(x), shift, scale)
+
+        if frames_mask is not None:
+            shift_zero, scale_zero = (self.scale_shift_table[None] + t0[:, None]).chunk(2, axis=1)
+            x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
+            x = self.t_mask_select(frames_mask, x, x_zero, T, S)
+
+        x = self.linear(x)
+        return x
+
+
 #################################################################################
 #               Embedding Layers for Timesteps and Class Labels                 #
 #################################################################################
@@ -456,8 +586,8 @@ class TimestepEmbedder(nn.Cell):
             embedding = ops.cat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
         return embedding
 
-    def construct(self, t):
-        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
+    def construct(self, t: Tensor, dtype: ms.dtype):
+        t_freq = self.timestep_embedding(t, self.frequency_embedding_size).to(dtype)
         t_emb = self.mlp(t_freq)
         return t_emb
 
@@ -491,3 +621,122 @@ class LabelEmbedder(nn.Cell):
             labels = self.token_drop(labels, force_drop_ids)
         embeddings = self.embedding_table(labels)
         return embeddings
+
+
+class SizeEmbedder(nn.Cell):
+    def __init__(self, hidden_size, frequency_embedding_size=256):
+        super().__init__()
+        self.mlp = nn.SequentialCell(
+            nn.Dense(frequency_embedding_size, hidden_size),
+            nn.SiLU(),
+            nn.Dense(hidden_size, hidden_size),
+        )
+        self.frequency_embedding_size = frequency_embedding_size
+        self.outdim = hidden_size
+
+    def construct(self, s: Tensor, bs: Tensor) -> Tensor:
+        if s.ndim == 1:
+            s = s[:, None]
+        assert s.ndim == 2
+        if s.shape[0] != bs:
+            s = s.repeat(bs // s.shape[0], axis=0)
+            assert s.shape[0] == bs
+        b, dims = s.shape[0], s.shape[1]
+        s = s.reshape(b * dims)  # b d -> (b d)
+        s_freq = TimestepEmbedder.timestep_embedding(s, self.frequency_embedding_size)
+        s_emb = self.mlp(s_freq)
+        return s_emb.reshape(b, dims * self.outdim)  # (b d) d2 -> b (d d2)
+
+
+class CaptionEmbedder(nn.Cell):
+    """
+    Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
+    """
+
+    # FIXME: rm nn.GELU instantiate for parallel training
+    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer=nn.GELU, token_num=120):
+        super().__init__()
+
+        self.y_proj = Mlp(
+            in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
+        )
+
+        y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
+        # just for token dropping replacement, not learnable
+        self.y_embedding = Parameter(Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
+
+        self.uncond_prob = uncond_prob
+
+    def token_drop(self, caption, force_drop_ids=None):
+        """
+        Drops labels to enable classifier-free guidance.
+        """
+        if force_drop_ids is None:
+            drop_ids = ops.rand(caption.shape[0]) < self.uncond_prob
+        else:
+            drop_ids = force_drop_ids == 1
+
+        # manually expand dims to avoid infer-shape bug in ms2.3 daily
+        caption = ops.where(
+            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype)
+        )
+
+        return caption
+
+    def construct(self, caption, train, force_drop_ids=None):
+        if train:
+            assert caption.shape[2:] == self.y_embedding.shape
+        use_dropout = self.uncond_prob > 0
+        if (train and use_dropout) or (force_drop_ids is not None):
+            caption = self.token_drop(caption, force_drop_ids)
+        caption = self.y_proj(caption)
+        return caption
+
+
+class PositionEmbedding2D(nn.Cell):
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+        self.dim = dim
+        assert dim % 4 == 0, "dim must be divisible by 4"
+        half_dim = dim // 2
+        self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
+
+    def _get_sin_cos_emb(self, t: Tensor) -> Tensor:
+        out = t[..., None] * self.inv_freq
+        emb_cos = ops.cos(out)
+        emb_sin = ops.sin(out)
+        return ops.cat((emb_sin, emb_cos), axis=-1)
+
+    # @functools.lru_cache(maxsize=512)
+    def _get_cached_emb(
+        self,
+        h: int,
+        w: int,
+        scale: float = 1.0,
+        base_size: Optional[int] = None,
+    ) -> Tensor:
+        grid_h = ops.arange(h) / scale
+        grid_w = ops.arange(w) / scale
+        if base_size is not None:
+            grid_h *= base_size / h
+            grid_w *= base_size / w
+        grid_h, grid_w = ops.meshgrid(
+            grid_w,
+            grid_h,
+            indexing="ij",
+        )  # here w goes first
+        grid_h = grid_h.t().reshape(-1)
+        grid_w = grid_w.t().reshape(-1)
+        emb_h = self._get_sin_cos_emb(grid_h)
+        emb_w = self._get_sin_cos_emb(grid_w)
+        return ops.concat([emb_h, emb_w], axis=-1).unsqueeze(0)
+
+    def construct(
+        self,
+        x: Tensor,
+        h: int,
+        w: int,
+        scale: Optional[float] = 1.0,
+        base_size: Optional[int] = None,
+    ) -> Tensor:
+        return self._get_cached_emb(h, w, scale, base_size).to(x.dtype)

@@ -1,16 +1,16 @@
-from abc import ABC
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import Tensor, ops
 
 from ..diffusion import create_diffusion
 
 __all__ = ["InferPipeline"]
 
 
-class InferPipeline(ABC):
+class InferPipeline:
     """An Inference pipeline for diffusion model
 
     Args:
@@ -53,13 +53,13 @@ class InferPipeline(ABC):
             self.sampling_func = self.diffusion.p_sample_loop
 
     @ms.jit
-    def vae_encode(self, x):
+    def vae_encode(self, x: Tensor) -> Tensor:
         image_latents = self.vae.encode(x)
         image_latents = image_latents * self.scale_factor
-        return image_latents.astype(ms.float16)
+        return image_latents
 
     @ms.jit
-    def vae_decode(self, x):
+    def vae_decode(self, x: Tensor) -> Tensor:
         """
         Args:
             x: (b c h w), denoised latent
@@ -128,7 +128,14 @@ class InferPipeline(ABC):
 
         return text_emb
 
-    def __call__(self, inputs, latent_save_fp=None):
+    def __call__(
+        self,
+        inputs: dict,
+        frames_mask: Optional[Tensor] = None,
+        additional_kwargs: Optional[dict] = None,
+        return_latents: bool = False,
+        latent_save_fp: Optional[str] = None,
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
         args:
             inputs: dict
@@ -143,10 +150,19 @@ class InferPipeline(ABC):
         if mask is not None:
             model_kwargs["mask"] = mask
 
+        if additional_kwargs is not None:
+            model_kwargs.update(additional_kwargs)
+
         if self.use_cfg:
             model_kwargs["cfg_scale"] = self.guidance_rescale
             latents = self.sampling_func(
-                self.model.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+                self.model.construct_with_cfg,
+                z.shape,
+                z,
+                clip_denoised=False,
+                model_kwargs=model_kwargs,
+                progress=True,
+                frames_mask=frames_mask,
             )
             latents, _ = latents.chunk(2, axis=0)
         else:
@@ -158,6 +174,7 @@ class InferPipeline(ABC):
             np.save(latent_save_fp, latents.asnumpy())
             print(f"Denoised latents saved in {latent_save_fp}")
 
+        images = None
         if self.vae is not None:
             if latents.dim() == 4:
                 images = self.vae_decode(latents)
@@ -165,6 +182,7 @@ class InferPipeline(ABC):
                 # latents: (b c t h w)
                 # out: (b T H W C)
                 images = self.vae_decode_video(latents)
-            return images
-        else:
-            return None
+
+        if return_latents:
+            return images, latents
+        return images

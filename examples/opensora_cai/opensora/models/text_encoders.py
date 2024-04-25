@@ -46,7 +46,7 @@ def initiate_clip_text_encoder(use_fp16: bool = True, ckpt_path: str = None, tra
     return text_encoder
 
 
-def get_text_encoder_and_tokenizer(name, ckpt_path):
+def get_text_encoder_and_tokenizer(name, ckpt_path, **kwargs):
     if name == "clip":
         logger.info("CLIP text encoder init")
         text_encoder = initiate_clip_text_encoder(
@@ -57,6 +57,6 @@ def get_text_encoder_and_tokenizer(name, ckpt_path):
         tokenizer = text_encoder.tokenizer
     elif name == "t5":
         logger.info("T5 init")
-        text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
+        text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"), **kwargs)
         tokenizer = text_encoder.tokenizer
     return text_encoder, tokenizer

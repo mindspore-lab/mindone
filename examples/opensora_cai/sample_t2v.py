@@ -31,11 +31,16 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
-def init_env(mode, device_target, enable_dvm=False):
+def init_env(mode, device_target, enable_dvm=False, debug: bool = False):
+    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
+        logger.warning("Debug mode is on, switching execution mode to PyNative.")
+        mode = ms.PYNATIVE_MODE
+
     ms.set_context(
         mode=mode,
         device_target=device_target,
         # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # FIXME: enable it may lead to NaN in sampling
+        pynative_synchronize=debug,
     )
     if enable_dvm:
         print("D--: enable dvm")
@@ -55,7 +60,7 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    init_env(args.mode, args.device_target, args.enable_dvm)
+    init_env(args.mode, args.device_target, args.enable_dvm, args.debug)
     set_random_seed(args.seed)
 
     # get captions from cfg or prompt_file
@@ -77,6 +82,12 @@ def main(args):
     VAE_T_COMPRESS = 1
     VAE_S_COMPRESS = 8
     VAE_Z_CH = SD_CONFIG["z_channels"]
+
+    if isinstance(args.image_size, list):
+        if len(args.image_size) > 2 or args.image_size[0] != args.image_size[1]:
+            raise ValueError(f"OpenSora-v1 support square images only, but got {args.image_size}")
+        args.image_size = args.image_size[0]
+
     input_size = (
         args.num_frames // VAE_T_COMPRESS,
         args.image_size // VAE_S_COMPRESS,
@@ -232,6 +243,7 @@ def parse_args():
         "--image_size",
         type=int,
         default=256,
+        nargs="+",
         help="image size in [256, 512]",
     )
     parser.add_argument(
@@ -266,9 +278,16 @@ def parse_args():
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
+    parser.add_argument("--frame_interval", type=int)
+    parser.add_argument("--loop", type=int, default=1)
+    parser.add_argument("--model_max_length", type=int, default=120)
+    parser.add_argument("--condition_frame_length", type=int)
+    parser.add_argument("--mask_strategy", type=str, nargs="+")
+    parser.add_argument("--reference_path", type=str, nargs="+")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--debug", type=str2bool, default=False)
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",

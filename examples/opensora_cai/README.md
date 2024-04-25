@@ -58,7 +58,7 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
 To generate video conditioning on captions:
 ```
-python sample_t2v.py --config configs/inference/stdit_256x256x16.yaml
+python sample_t2v.py --config configs/inference/opensora-v1/stdit_256x256x16.yaml
 ```
 > By default, FP32 is used to ensure the best precision. Nan values may incur in stdit forward pass using fp16, resulting in dark videos.
 
@@ -72,7 +72,7 @@ For more usage, please run `python sample_t2v.py -h`
 
 To get t5 embedding for a few captions:
 ```
-python infer_t5.py --config configs/inference/stdit_256x256x16.yaml --output_path=outputs/t5_embed.npz
+python infer_t5.py --config configs/inference/opensora-v1/stdit_256x256x16.yaml --output_path=outputs/t5_embed.npz
 ```
 
 Here are some generation results in 256x256 resolution.
@@ -171,7 +171,7 @@ To evaluate the training result:
 
 ```
 python sample_t2v.py \
-    --config configs/inference/stdit_256x256x16_webvid.yaml \
+    --config configs/inference/opensora-v1/stdit_256x256x16_webvid.yaml \
     --checkpoint /path/to/your_trained_model.ckpt \
 ```
 
