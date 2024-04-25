@@ -107,6 +107,7 @@ def parse_args():
         choices=["clip", "t5"],
         help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
     )
+    parser.add_argument("--t5_max_length", type=int, default=120, help="the max length for the tokens")
     parser.add_argument("--t5_cache_folder", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--clip_checkpoint",
@@ -292,7 +293,9 @@ if __name__ == "__main__":
     assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder"
     logger.info("T5 init")
     text_encoder = T5Embedder(
-        cache_dir=args.t5_cache_folder, pretrained_ckpt=os.path.join(args.t5_cache_folder, "model.ckpt")
+        cache_dir=args.t5_cache_folder,
+        pretrained_ckpt=os.path.join(args.t5_cache_folder, "model.ckpt"),
+        model_max_length=args.t5_max_length,
     )
     tokenizer = text_encoder.tokenizer
 
