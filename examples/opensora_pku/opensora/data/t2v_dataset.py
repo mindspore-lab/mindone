@@ -92,7 +92,7 @@ class TextVideoDataset:
             self.img_cap_list = self.get_img_cap_list()
 
         assert (
-            self.sample_n_frames >= self.use_image_num
+            self.sample_n_frames >= self.use_image_num and self.use_image_num >= 0
         ), "expect to have use_image_num no greater than sample_n_frames,"
         f" but got {self.sample_n_frames} < {self.use_image_num}."
         if filter_nonexistent:
@@ -104,7 +104,7 @@ class TextVideoDataset:
         self.pixel_transforms = create_video_transforms(
             sample_size[0],
             sample_size[1],
-            sample_n_frames,
+            self.sample_n_frames + self.use_image_num,  # visual transform for both video and images
             interpolation="bicubic",
             backend=transform_backend,
             disable_flip=disable_flip,

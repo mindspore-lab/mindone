@@ -132,18 +132,23 @@ def main(args):
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    # 2.2 vae
-    logger.info("vae init")
-    ae_config = OmegaConf.load(args.vae_config)
-    vae = instantiate_from_config(ae_config.generator)
-    vae.init_from_ckpt(args.vae_checkpoint)
-    vae.set_train(False)
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    if train_with_vae_latent:
+        logger.info("Train with vae latent cache.")
+        vae = None
+    else:
+        # 2.2 vae
+        logger.info("vae init")
+        ae_config = OmegaConf.load(args.vae_config)
+        vae = instantiate_from_config(ae_config.generator)
+        vae.init_from_ckpt(args.vae_checkpoint)
+        vae.set_train(False)
 
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-    logger.info("Use amp level O2 for causal 3D VAE.")
+        vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+        logger.info("Use amp level O2 for causal 3D VAE.")
 
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
+        for param in vae.get_parameters():  # freeze vae
+            param.requires_grad = False
 
     # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     latent_size = args.image_size // 8
@@ -192,8 +197,6 @@ def main(args):
     latte_model.set_train(True)
 
     # 2.3 ldm with loss
-    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
-    logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
@@ -357,7 +360,8 @@ def main(args):
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.image_size}",
-                f"Frames: {args.num_frames}",
+                f"Number of frames: {args.num_frames}",
+                f"Use image num: {args.use_image_num}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
