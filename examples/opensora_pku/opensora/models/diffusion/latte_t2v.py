@@ -1891,6 +1891,8 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 if use_image_num != 0 and self.training:
                     hidden_states_video = hidden_states[:, :frame, ...]
                     hidden_states_image = hidden_states[:, frame:, ...]
+                    if i == 0:
+                        hidden_states_video = hidden_states_video + self.temp_pos_embed
 
                     hidden_states_video = temp_block(
                         hidden_states_video,
@@ -1908,7 +1910,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
                         input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
                     )
                     hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        -1, hidden_states.shape[-2], hidden_states.shape[-1]
+                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
                     )
 
                 else:
