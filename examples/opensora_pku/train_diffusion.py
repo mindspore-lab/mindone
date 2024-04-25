@@ -223,6 +223,7 @@ def main(args):
         video_column=args.video_column,
         caption_column=args.caption_column,
         disable_flip=args.disable_flip,
+        filter_nonexistent=args.filter_nonexistent,  # for loading safty
     )
     dataset = create_dataloader(
         ds_config,

@@ -32,6 +32,13 @@ def parse_train_args(parser):
         help="path to video-text annotation file. csv or json file is supported. \
         video indicates the relative path of video file in video_folder. caption - the text caption for video",
     )
+    parser.add_argument(
+        "--filter_nonexistent",
+        default=False,
+        type=str2bool,
+        help="Whether to filter nonexistent sample when loading the dataset. "
+        "Set it to True if you are not sure whether the dataset file contains non-existent samples.",
+    )
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"

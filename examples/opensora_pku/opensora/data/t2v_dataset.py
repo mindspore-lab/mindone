@@ -42,7 +42,7 @@ class TextVideoDataset:
         disable_flip=True,
         token_max_length=120,
         use_text_preprocessing=True,
-        filter_data=False,
+        filter_nonexistent=True,
     ):
         """
         text_emb_folder: root dir of text embed saved in npz files. Expected to have the same file name and directory strcutre as videos. e.g.
@@ -63,28 +63,12 @@ class TextVideoDataset:
         ), "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."
         logger.info(f"loading annotations from {data_file_path} ...")
         self.parse_data_file(data_file_path)
-        if filter_data:
-            self.filter_nonexistent_file()
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
 
         self.video_folder = video_folder
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         self.is_image = is_image
         self.vae_scale_factor = vae_scale_factor
-
-        sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
-
-        # it should match the transformation used in SD/VAE pretraining, especially for normalization
-        self.pixel_transforms = create_video_transforms(
-            sample_size[0],
-            sample_size[1],
-            sample_n_frames,
-            interpolation="bicubic",
-            backend=transform_backend,
-            disable_flip=disable_flip,
-        )
         self.transform_backend = transform_backend
         self.tokenizer = tokenizer
         self.video_column = video_column
@@ -106,6 +90,21 @@ class TextVideoDataset:
         self.use_img_from_vid = use_img_from_vid
         if self.use_image_num != 0 and not self.use_img_from_vid:
             self.img_cap_list = self.get_img_cap_list()
+
+        if filter_nonexistent:
+            self.filter_nonexistent_file()
+        self.length = len(self.dataset)
+        logger.info(f"Num data samples: {self.length}")
+        sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
+        # it should match the transformation used in SD/VAE pretraining, especially for normalization
+        self.pixel_transforms = create_video_transforms(
+            sample_size[0],
+            sample_size[1],
+            sample_n_frames,
+            interpolation="bicubic",
+            backend=transform_backend,
+            disable_flip=disable_flip,
+        )
         # prepare replacement data
         max_attempts = 100
         self.prev_ok_sample = self.get_replace_data(max_attempts)
