@@ -1,5 +1,5 @@
 # model
-image_size: 256
+image_size: 512
 num_frames: 17
 use_image_num: 4
 frame_stride: 1
@@ -21,7 +21,7 @@ start_learning_rate: 2.e-5
 end_learning_rate: 2.e-5
 warmup_steps: 0   # TODO: ablate
 
-batch_size: 4
+batch_size: 2
 clip_grad: True
 max_grad_norm: 1.0
 use_ema: False
