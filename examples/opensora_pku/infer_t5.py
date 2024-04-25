@@ -60,6 +60,7 @@ def main(args):
             data_file_path=args.data_file_path,
             tokenizer=None,  # tokenizer,
             caption_column=args.caption_column,
+            video_column=args.video_column,
         )
         dataset = create_dataloader(
             ds_config,
@@ -170,6 +171,7 @@ def parse_args():
         help="output dir to save the embeddings, if None, will treat the parent dir of data_file_path as output dir.",
     )
     parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in data file ")
+    parser.add_argument("--video_column", type=str, default="video", help="video column string in data file ")
     parser.add_argument("--t5_model_dir", default="models/t5-v1_1-xxl", type=str, help="the T5 cache folder path")
     parser.add_argument("--t5_max_length", type=int, help="the max length for the tokens", required=True)
     # MS new args
