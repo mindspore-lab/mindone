@@ -117,10 +117,10 @@ class DiffusionWithLoss(nn.Cell):
                 # (b, c, f, h, w) -> (b, f, c, h, w) -> (b*f, c, h, w) -> (b*f, c, 1, h, w)
                 images = images.permute(0, 2, 1, 3, 4).reshape(-1, C, H, W).unsqueeze(2)
                 images = ops.stop_gradient(self.vae_encode(images))  # (b*f, c, 1, h, w)
-                _, c, _, h, w = images.shape
                 # (b*f, c, 1, h, w) -> (b*f, c, h, w) -> (b, f, c, h, w) -> (b, c, f, h, w)
+                _, c, _, h, w = images.shape
                 images = images.squeeze(2).reshape(B, self.use_image_num, c, h, w).permute(0, 2, 1, 3, 4)
-                x = ops.cat([videos, images], axis=2)  # b c 16+4, h, w
+                z = ops.cat([videos, images], axis=2)  # b c 16+4, h, w
         else:
             raise ValueError("Incorrect Dimensions of x")
         return z
