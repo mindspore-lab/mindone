@@ -3,6 +3,7 @@ import datetime
 import logging
 import os
 import sys
+from pathlib import Path
 
 import numpy as np
 import yaml
@@ -56,7 +57,11 @@ def parse_args():
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument(
-        "--latent_path", type=str, default="samples/denoised_latent_00.npz", help="path to save t5 embedding"
+        "--latent_path",
+        type=str,
+        nargs="+",
+        default=["samples/denoised_latent_00.npz"],
+        help="path(s) to save t5 embedding",
     )
     parser.add_argument(
         "--use_fp16",
@@ -139,15 +144,16 @@ if __name__ == "__main__":
 
         return out
 
-    z = np.load(args.latent_path)
-    z = ms.Tensor(z)
+    for lpath in args.latent_path:
+        z = np.load(lpath)
+        z = ms.Tensor(z)
 
-    logger.info(f"Decoding for latent of shape {z.shape}, from {args.latent_path}")
-    vids = vae_decode_video(z)
-    vids = vids.asnumpy()
+        logger.info(f"Decoding for latent of shape {z.shape}, from {lpath}")
+        vids = vae_decode_video(z)
+        vids = vids.asnumpy()
 
-    for i in range(vids.shape[0]):
-        save_fp = f"{save_dir}/{i:03d}.{args.save_format}"
-        save_videos(vids[i : i + 1], save_fp, fps=args.fps)
-        logger.info(f"save to {save_fp}")
-
+        base = Path(os.path.basename(lpath)).with_suffix("")
+        for i in range(vids.shape[0]):
+            save_fp = f"{save_dir}/{base}-{i:03d}.{args.save_format}"
+            save_videos(vids[i : i + 1], save_fp, fps=args.fps)
+            logger.info(f"Video saved in {save_fp}")
