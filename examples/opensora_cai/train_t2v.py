@@ -155,14 +155,12 @@ def main(args):
     latte_model = STDiT_XL_2(**model_extra_args)
 
     # mixed precision
-    if args.dtype == "fp32":
-        model_dtype = ms.float32
-    else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
             latte_model,
             amp_level=args.amp_level,
-            dtype=model_dtype,
+            dtype=dtype_map[args.dtype],
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
         )
     # load checkpoint
@@ -187,6 +185,8 @@ def main(args):
         vae = vae.set_train(False)
         for param in vae.get_parameters():
             param.requires_grad = False
+        if args.vae_dtype in ["fp16", "bf16"]:
+            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
     else:
         vae = None
 
@@ -349,7 +349,7 @@ def main(args):
                 f"Distributed mode: {args.use_parallel}",
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use model dtype: {model_dtype}",
+                f"Use model dtype: {args.dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.image_size}",

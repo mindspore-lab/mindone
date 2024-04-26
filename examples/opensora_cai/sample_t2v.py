@@ -119,8 +119,8 @@ def main(args):
         use_fp16=False,
     )
     vae = vae.set_train(False)
-    if args.dtype in ["fp16", "bf16"]:
-        vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.dtype])
+    if args.vae_dtype in ["fp16", "bf16"]:
+        vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
 
     # 2.3 text encoder
     if args.embed_path is None:
@@ -277,6 +277,13 @@ def parse_args():
     )
     parser.add_argument(
         "--dtype",
+        default="fp32",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--vae_dtype",
         default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],

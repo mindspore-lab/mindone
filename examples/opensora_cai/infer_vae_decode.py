@@ -64,6 +64,14 @@ def parse_args():
         type=str2bool,
         help="whether use fp16.",
     )
+    parser.add_argument(
+        "--save_format",
+        default="mp4",
+        choices=["gif", "mp4"],
+        type=str,
+        help="video format for saving the sampling output, gif or mp4",
+    )
+    parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
@@ -139,6 +147,7 @@ if __name__ == "__main__":
     vids = vids.asnumpy()
 
     for i in range(vids.shape[0]):
-        save_fp = f"{save_dir}/{i}.gif"
-        save_videos(vids[i : i + 1], save_fp, loop=0)
+        save_fp = f"{save_dir}/{i:03d}.{args.save_format}"
+        save_videos(vids[i : i + 1], save_fp, fps=args.fps)
         logger.info(f"save to {save_fp}")
+
