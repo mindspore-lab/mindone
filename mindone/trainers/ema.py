@@ -25,7 +25,7 @@ class EMA(nn.Cell):
             self.net_weight = ms.ParameterTuple(network.trainable_params())
         else:
             self.net_weight = ms.ParameterTuple(network.get_parameters())
-        self.ema_weight = self.net_weight.clone(prefix="ema", init="same")
+        self.ema_weight = self.net_weight.clone(prefix="ema")
         self.swap_cache = self.net_weight.clone(prefix="swap", init="zeros")
 
         self.ema_decay = ema_decay

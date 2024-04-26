@@ -5,8 +5,8 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [x] refactor Masked MultiHeadCrossAttention without xformers
     - [ ] more efficient masking and attention computation for text tokens with dynamic length.
 - [ ] Text-to-video generation pipeline (to be refactored)
-    - [x] video generation in FP32 precision on GPUs: 256x256x16, 512x512x16
-    - [ ] video generation in FP32 precision on Ascends
+    - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
+    - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
     - [ ] Mixed precision optimization (BF16)  on Ascend
     - [ ] Flash attention optimization on Ascend
 - [ ] Training
@@ -26,6 +26,7 @@ pip install -r requirements.txt
 
 MindSpore version: >= 2.2.12
 
+To enable flash attention, please use mindspore>=2.3-20240422.
 
 ## Preparation
 
@@ -38,6 +39,11 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 - VAE: [safetensor download link](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main)
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt`
+
+    For `sd-vae-ft-ema`, run:
+    ```
+    python tools/vae_converter.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    ```
 
 - STDiT: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
@@ -101,20 +107,63 @@ After running, the text embeddings saved as npz file for each caption will be in
 
 Please change `csv_path` to your video-caption annotation file accordingly.
 
-### 2. Train STDiT
+### 2. Generate VAE embeddings (Optional)
+```
+python infer_vae.py \
+    --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
+    --output_dir ../videocomposer/datasets/webvid5_vae_256x256 \
+    --vae_checkpoint models/sd-vae-ft-ema.ckpt \    # or sd-vae-ft-mse.ckpt
+    --video_folder ../videocomposer/datasets/webvid5  \
+    --image_size 256 \
+```
+
+After running, the vae latents saved as npz file for each video will be in `output_dir`.
+
+
+### 3. Train STDiT
 
 ```
 python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
     --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
     --video_folder "../videocomposer/datasets/webvid5" \
-    --embed_folder "../videocomposer/datasets/webvid5" \
+    --text_embed_folder "../videocomposer/datasets/webvid5" \
 ```
+
+To to enable training with the cached vae latents, please append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"`.
 
 Please change `csv_path`,`video_folder`, `embed_folder` according to your data location.
 
 For detailed usage, please check `python train_t2v.py -h`
 
 Note that the training precision is under continuous optimization.
+
+
+#### Notes about MindSpore 2.3
+
+Training on MS2.3 allows much better performance with its new feautres (such as kbk and dvm)
+
+To enable kbk mode on ms2.3, please set
+```
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+```
+
+To improve training perforamnce, you may append `--enable_dvm=True` to the training command.
+
+Here is an example for training on MS2.3:
+```
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
+    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
+    --video_folder "../videocomposer/datasets/webvid5" \
+    --text_embed_folder "../videocomposer/datasets/webvid5" \
+    --enable_dvm=True \
+```
+
+
 
 
 ### Evaluate
