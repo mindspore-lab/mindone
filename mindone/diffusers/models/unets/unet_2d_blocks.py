@@ -619,6 +619,7 @@ class CrossAttnDownBlock2D(nn.Cell):
         resnets = []
         attentions = []
 
+        self.num_layers = num_layers
         self.has_cross_attention = True
         self.num_attention_heads = num_attention_heads
         if isinstance(transformer_layers_per_block, int):
@@ -695,9 +696,10 @@ class CrossAttnDownBlock2D(nn.Cell):
     ) -> Tuple[ms.Tensor, Tuple[ms.Tensor, ...]]:
         output_states = ()
 
+        # This line of code must be retained, otherwise an unexpected error will be reported
         blocks = list(zip(self.resnets, self.attentions))
 
-        for i, (resnet, attn) in enumerate(blocks):
+        for i, (resnet, attn) in enumerate(zip(self.resnets, self.attentions)):
             hidden_states = resnet(hidden_states, temb)
             hidden_states = attn(
                 hidden_states,
@@ -709,7 +711,7 @@ class CrossAttnDownBlock2D(nn.Cell):
             )[0]
 
             # apply additional residuals to the output of the last pair of resnet and attention blocks
-            if i == len(blocks) - 1 and additional_residuals is not None:
+            if i == self.num_layers - 1 and additional_residuals is not None:
                 hidden_states = hidden_states + additional_residuals
 
             output_states = output_states + (hidden_states,)
