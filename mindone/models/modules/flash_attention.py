@@ -130,11 +130,12 @@ class MSFlashAttention(nn.Cell):
             )
             return out
 
+        q_dtype = q.dtype
         q = self._rearange_input(q)
         k = self._rearange_input(k)
         v = self._rearange_input(v)
         if mask is not None:
             mask = mask.to(ms.uint8)
         out = self.flash_attention(q, k, v, None, None, None, mask)[3]
-        out = self._rearange_output(out)
+        out = self._rearange_output(out, q_dtype)
         return out

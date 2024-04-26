@@ -97,7 +97,7 @@ class MultiHeadCrossAttention(nn.Cell):
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.num_heads,
-                attention_dropout=attn_drop,
+                input_layout="BSH",
                 dtype=attn_dtype,
             )
         else:
@@ -149,7 +149,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
                 # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
-                mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
+                mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -206,7 +206,7 @@ class SelfAttention(nn.Cell):
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim,
                 head_num=num_heads,
-                attention_dropout=attn_drop,
+                input_layout="BSH",
                 dtype=attn_dtype,
             )
         else:
@@ -242,7 +242,7 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
+                mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
