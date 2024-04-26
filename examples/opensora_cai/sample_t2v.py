@@ -95,14 +95,14 @@ def main(args):
     latte_model = STDiT_XL_2(**model_extra_args)
     latte_model = latte_model.set_train(False)
 
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype == "fp32":
         model_dtype = ms.float32
     else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
         latte_model = auto_mixed_precision(
             latte_model,
-            amp_level="O2",
-            dtype=model_dtype,
+            amp_level=args.amp_level,
+            dtype=dtype_map[args.dtype],
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],  # NOTE: keep it the same as training setting
         )
 
@@ -121,6 +121,8 @@ def main(args):
         use_fp16=False,
     )
     vae = vae.set_train(False)
+    if args.dtype in ["fp16", "bf16"]:
+        vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.dtype])
 
     # 2.3 text encoder
     if args.embed_path is None:
@@ -129,6 +131,8 @@ def main(args):
         text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
         mask = mask.to(ms.uint8)
         text_emb = None
+        if args.dtype in ["fp16", "bf16"]:
+            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
         dat = np.load(args.embed_path)
         text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
@@ -162,7 +166,8 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
-            f"Use model dtype: {model_dtype}",
+            f"dtype: {args.dtype}",
+            f"amp_level: {args.amp_level}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",
@@ -274,10 +279,17 @@ def parse_args():
     )
     parser.add_argument(
         "--dtype",
-        default="fp16",
+        default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--amp_level",
+        default="O2",
+        type=str,
+        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
+            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
     parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
     parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
