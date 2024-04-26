@@ -7,11 +7,12 @@ model_version: "LatteT2V-XL/122"
 pretrained_model_path: "path/to/pretrained/model"
 vae_checkpoint: "models/ae/causal_vae_488.ckpt"
 sd_scale_factor: 0.18215
-enable_flash_attention: False
+enable_flash_attention: True
 use_recompute: True
 
 # precision
 dtype: "fp16"
+amp_level: "O1"
 init_loss_scale: 65536
 
 # training hyper-params
@@ -30,4 +31,5 @@ optim_eps: 1.e-8
 weight_decay: 1e-2
 
 epochs: 2000
-ckpt_save_interval: 100
+ckpt_save_interval: 500
+ckpt_max_keep: 3

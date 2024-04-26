@@ -11,7 +11,7 @@ We aim to achieve efficient training and inference on Ascend NPU devices based o
         - [x] Training (precision to be improved)
     - [x] Latte Text-to-Video (Coming soon)
         - [x] Inference
-        - [ ] Training (coming soon)
+        - [x] Training
 
 ## Installation
 
@@ -163,15 +163,19 @@ For example, you can run the first stage with:
 
 ### Training
 
+The training method of [Open-Sora-Plan-v1.0.0 report](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md#training-diffusion-model) is a multi-stage cascaded training approach. They firstly trained the `17x256x256` model, then the `65x256x256` model, and finally the`65x512x512` model. In addition,  they use image-video-joint training to improve the loss convergence.
+
 Before training, please download the `t2v.pt` from [HF webpage of Latte](https://huggingface.co/maxin-cn/Latte/tree/main), and run checkpoint conversion using:
 
 ```bash
 python tools/model_conversion/convert_latte.py --src models/t2v.pt --target models/t2v.ckpt
 ```
-`models/t2v.ckpt` serves as the pretrained weights for training `LatteT2V` model.
+`models/t2v.ckpt` serves as the pretrained weights for training `17x256x256` model at the first stage.
 
-#### webvid5 dataset training
+#### Webvid5 dataset training
+We support training with csv file, a data file format like `examples/videocomposer/datasets/webvid5/video_caption.csv`. Here, we use `webvid5` as a toy example to explain the training process. You can change the csv file to a larger dataset file.
 
+Before training, we recommend you to extract the T5 embedding and save them as embedding cache, using the folllowing command.
 ```
 python infer_t5.py \
     --data_file_path ../videocomposer/datasets/webvid5/video_caption.csv \
@@ -183,10 +187,7 @@ python infer_t5.py \
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`
 
-Please change `data_file_path` to your video-caption annotation file accordingly.
-
-Train the Latte-T2V model:
-
+And then, you can train the `17x256x256` model:
 ```
 # enable kbk
 export MS_ENABLE_ACLNN=1
@@ -197,13 +198,14 @@ python train_diffusion.py --config configs/diffusion/training/latte_17x256x256_1
     --text_embed_folder "../videocomposer/datasets/webvid5" \
 ```
 
-#### pku-dataset training
+It trains the model with $lr=2\times 10^{-5}$ for 2000 epochs, with a batch size that equals to 4. See more training hyper-parameters in `configs/diffusion/training/latte_17x256x256_122.yaml`.
 
-Download PKU-OpenSora dataset from the [HF webpage](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.0.0).
 
-Details about this dataset.
+#### PKU-OpenSora dataset training
 
-Extract t5 embedding
+Please download PKU-OpenSora dataset from the [HF webpage](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.0.0).
+
+Then extract t5 embedding with:
 ```
 python infer_t5.py \
     --data_file_path path/to/data.json \
@@ -212,3 +214,18 @@ python infer_t5.py \
     --caption_column "cap" \
     --video_column "path" \
 ```
+Then run training with:
+```
+# enable kbk
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+python train_diffusion.py --config configs/diffusion/training/latte_17x256x256_122.yaml \
+    --data_file_path path/to/data.json \
+    --video_folder path/to/pku-opensora/data/dir \
+    --text_embed_folder path/to/pku-opensora/t5-embedding/dir  \
+    --video_column "path" \
+    --caption_colun "cap" \
+    --output_path path/to/exp/output/dir \
+```
+
+The checkpoint files, training log files will be saved to `output_path`.
