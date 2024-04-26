@@ -198,3 +198,56 @@ class GroupNorm(nn.Cell):
         expanded_shape = (1, -1) + (1,) * len(x_shape[2:])
         output = x * self.weight.reshape(expanded_shape) + self.bias.reshape(expanded_shape)
         return output
+
+
+class AdaLayerNorm(nn.Cell):
+    r"""
+    Norm layer modified to incorporate timestep embeddings.
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+        num_embeddings (`int`): The size of the embeddings dictionary.
+    """
+
+    def __init__(self, embedding_dim: int, num_embeddings: int):
+        super().__init__()
+        self.emb = nn.Embedding(num_embeddings, embedding_dim)
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, embedding_dim * 2)
+        self.norm = LayerNorm(embedding_dim, elementwise_affine=False)
+
+    def construct(self, x: ms.Tensor, timestep: ms.Tensor) -> ms.Tensor:
+        emb = self.linear(self.silu(self.emb(timestep)))
+        scale, shift = ops.chunk(emb, 2)
+        x = self.norm(x) * (1 + scale) + shift
+        return x
+
+
+class AdaLayerNormZero(nn.Cell):
+    r"""
+    Norm layer adaptive layer norm zero (adaLN-Zero).
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+        num_embeddings (`int`): The size of the embeddings dictionary.
+    """
+
+    def __init__(self, embedding_dim: int, num_embeddings: int):
+        super().__init__()
+        from .embeddings import CombinedTimestepLabelEmbeddings
+
+        self.emb = CombinedTimestepLabelEmbeddings(num_embeddings, embedding_dim)
+
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, bias=True)
+        self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+
+    def construct(
+        self,
+        x: ms.Tensor,
+        timestep: ms.Tensor,
+        class_labels: ms.Tensor,
+        hidden_dtype=None,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+        emb = self.linear(self.silu(self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)))
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, dim=1)
+        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
