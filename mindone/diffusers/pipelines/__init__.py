@@ -6,6 +6,9 @@ from ..utils import _LazyModule
 _import_structure = {
     "ddim": ["DDIMPipeline"],
     "ddpm": ["DDPMPipeline"],
+    "stable_diffusion": [
+        "StableDiffusionPipeline",
+    ],
     "stable_diffusion_xl": [
         "StableDiffusionXLPipeline",
     ],
@@ -19,6 +22,7 @@ if TYPE_CHECKING:
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+    from .stable_diffusion import StableDiffusionPipeline
     from .stable_diffusion_xl import StableDiffusionXLPipeline
 else:
     import sys

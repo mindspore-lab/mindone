@@ -4,7 +4,7 @@ from diffusion import SpacedDiffusion
 from diffusion.diffusion_utils import discretized_gaussian_log_likelihood, extract_into_tensor, mean_flat, normal_kl
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 
 class NetworkWithLoss(nn.Cell):
@@ -14,12 +14,10 @@ class NetworkWithLoss(nn.Cell):
         diffusion: SpacedDiffusion,
         vae: Optional[nn.Cell] = None,
         scale_factor: float = 0.18215,
-        condition: str = "class",
-        text_encoder: Optional[nn.Cell] = None,
-        cond_stage_trainable: bool = False,
+        condition: Optional[str] = "class",
         model_config: Dict[str, Any] = {},
     ):
-        super().__init__()
+        super().__init__(auto_prefix=False)
         self.network = network.set_grad()
         self.vae = vae
         self.diffusion = diffusion
@@ -33,27 +31,10 @@ class NetworkWithLoss(nn.Cell):
         if condition is not None:
             assert isinstance(condition, str)
             condition = condition.lower()
+
         self.condition = condition
-        self.text_encoder = text_encoder
-        if self.condition == "text":
-            assert self.text_encoder is not None, "Expect to get text encoder"
 
         self.scale_factor = scale_factor
-        self.cond_stage_trainable = cond_stage_trainable
-
-        if self.cond_stage_trainable:
-            self.text_encoder.set_train(True)
-            self.text_encoder.set_grad(True)
-
-    def get_condition_embeddings(self, text_tokens):
-        # text conditions inputs for cross-attention
-        # optional: for some conditions, concat to latents, or add to time embedding
-        if self.cond_stage_trainable:
-            text_emb = self.text_encoder(text_tokens)
-        else:
-            text_emb = ops.stop_gradient(self.text_encoder(text_tokens))
-
-        return text_emb
 
     def vae_encode(self, x):
         if self.latent_input:
@@ -65,43 +46,6 @@ class NetworkWithLoss(nn.Cell):
 
     def get_latents(self, x):
         return self.vae_encode(x)
-
-    def construct(self, x: ms.Tensor, labels: Optional[ms.Tensor] = None, text_tokens: Optional[ms.Tensor] = None):
-        """
-        Diffusion model forward and loss computation for training
-
-        Args:
-            x: pixel values of video frames or images, resized and normalized to shape [bs, 3, 256, 256]
-                or latent value when vae is not provided, in shape [bs, 4, 32, 32]
-            labels: class label ids [bs, ], optional
-            text: text tokens padded to fixed shape [bs, 77], optional
-
-        Returns:
-            loss
-
-        Notes:
-            - inputs should matches dataloder output order
-            - assume input/output shape: (b c h w)
-        """
-        # 1. get image/video latents z using vae
-        x = self.get_latents(x)
-
-        # 2. get conditions
-        if self.condition == "text":
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = None
-
-        if self.condition == "class":
-            y = labels
-        else:
-            y = None
-
-        loss = self.compute_loss(x, y, text_embed)
-        return loss
-
-    def apply_model(self, *args, **kwargs):
-        return self.network(*args, **kwargs)
 
     def _cal_vb(self, model_output, model_var_values, x, x_t, t, mask=None):
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
@@ -121,32 +65,12 @@ class NetworkWithLoss(nn.Cell):
         vb = ops.where((t == 0), decoder_nll, kl)
         return vb
 
-    def compute_loss(self, x, y, text_embed):
-        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
-        noise = ops.randn_like(x)
-        x_t = self.diffusion.q_sample(x, t, noise=noise)
-        model_output = self.apply_model(x_t, t, y=y, text_embed=text_embed)
-
-        B, C = x_t.shape[:2]
-        assert model_output.shape == (B, C * 2) + x_t.shape[2:]
-        model_output, model_var_values = ops.split(model_output, C, axis=1)
-
-        # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
-
-        loss = mean_flat((noise - model_output) ** 2) + vb
-        loss = loss.mean()
-        return loss
-
-
-class FiTWithLoss(NetworkWithLoss):
     def construct(
         self,
         x: ms.Tensor,
-        labels: Optional[ms.Tensor] = None,
-        pos: Optional[ms.Tensor] = None,
-        mask: Optional[ms.Tensor] = None,
-        text_tokens: Optional[ms.Tensor] = None,
+        labels: ms.Tensor,
+        pos: ms.Tensor,
+        mask: ms.Tensor,
     ):
         """
         Diffusion model forward and loss computation for training
@@ -167,20 +91,15 @@ class FiTWithLoss(NetworkWithLoss):
         x = self.get_latents(x)
 
         # 2. get conditions
-        if self.condition == "text":
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = None
-
         if self.condition == "class":
             y = labels
         else:
             y = None
 
-        loss = self.compute_loss(x, y, text_embed, pos, mask)
+        loss = self.compute_loss(x, y, pos, mask)
         return loss
 
-    def apply_model(self, x_t, t, y, pos, mask, **kwargs):
+    def apply_model(self, x_t, t, y, pos, mask):
         return self.network(x_t, t, y=y, pos=pos, mask=mask)
 
     def unpatchify(self, x):
@@ -190,10 +109,10 @@ class FiTWithLoss(NetworkWithLoss):
         nw = self.model_config["W"] // p
         x = ops.reshape(x, (x.shape[0], nh, nw, p, p, c))
         x = ops.transpose(x, (0, 5, 1, 3, 2, 4))
-        x = ops.reshape(x, (x.shape[0], c, nh * p, nh * p))
+        x = ops.reshape(x, (x.shape[0], c, nh * p, nw * p))
         return x
 
-    def compute_loss(self, x, y, text_embed, pos, mask):
+    def compute_loss(self, x: Tensor, y: Tensor, pos: Tensor, mask: Tensor) -> Tensor:
         D = x.shape[2]
         # convert x to 4-dim first for q_sample, prevent potential bug
         x = self.unpatchify(x)
@@ -201,7 +120,7 @@ class FiTWithLoss(NetworkWithLoss):
 
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
-        model_output = self.apply_model(x_t, t, y=y, text_embed=text_embed, pos=pos, mask=mask)
+        model_output = self.apply_model(x_t, t, y, pos, mask)
 
         B, C = x_t.shape[:2]
         assert model_output.shape == (B, C * 2) + x_t.shape[2:]
