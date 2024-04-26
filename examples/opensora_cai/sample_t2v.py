@@ -96,9 +96,7 @@ def main(args):
     latte_model = latte_model.set_train(False)
 
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-    if args.dtype == "fp32":
-        model_dtype = ms.float32
-    else:
+    if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
             latte_model,
             amp_level=args.amp_level,
@@ -203,7 +201,7 @@ def main(args):
 
         # infer
         start_time = time.time()
-        x_samples = pipeline(inputs, latent_save_fp=f"outputs/denoised_latent_{i:02d}.npy")
+        x_samples = pipeline(inputs, latent_save_fp=f"samples/denoised_latent_{i:02d}.npy")
         x_samples = x_samples.asnumpy()
         batch_time = time.time() - start_time
 
@@ -258,7 +256,7 @@ def parse_args():
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-mse.ckpt",
+        default="models/sd-vae-ft-ema.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
