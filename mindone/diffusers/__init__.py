@@ -63,6 +63,7 @@ if TYPE_CHECKING:
         DDPMPipeline,
         DiffusionPipeline,
         StableDiffusionPipeline,
+        StableDiffusionXLInpaintPipeline,
         StableDiffusionXLPipeline,
     )
     from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
