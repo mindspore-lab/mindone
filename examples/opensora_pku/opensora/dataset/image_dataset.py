@@ -30,7 +30,7 @@ class ImageDataset:
         size=384,
         crop_size=256,
         random_crop=False,
-        flip=False,
+        disable_flip=True,
         image_column="file_name",
         expand_dim_t=False,
     ):
@@ -52,7 +52,7 @@ class ImageDataset:
             size,
             crop_size,
             random_crop=random_crop,
-            flip=flip,
+            disable_flip=disable_flip,
             backend=self.transform_backend,
         )
         self.image_column = image_column

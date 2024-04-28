@@ -186,7 +186,7 @@ if __name__ == "__main__":
         help="If specified, set the precision mode for Ascend configurations.",
     )
     parser.add_argument(
-        "--dataset_name", default="image", type=str, choices=["image", "video"], help="dataset name, image or video"
+        "--dataset_name", default="video", type=str, choices=["image", "video"], help="dataset name, image or video"
     )
 
     args = parser.parse_args()
