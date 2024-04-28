@@ -176,13 +176,15 @@ def main(args):
         original_rgb = transform_to_rgb(original_rgb).transpose(1, 2, 0)  # c h w -> h w c
 
         image = Image.fromarray(np.concatenate([x, original_rgb], axis=1) if args.grid else x)
-        image.save(save_fp.replace("mp4", "jpg"))
+        save_fp = save_fp.replace("mp4", "jpg")
+        image.save(save_fp)
     else:
         save_video_data = video_recon.transpose(0, 1, 3, 4, 2).asnumpy()  # (b t c h w) -> (b t h w c)
         save_video_data = transform_to_rgb(save_video_data, rescale_to_uint8=False)
         original_rgb = x_vae.asnumpy().transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-        save_video_data = np.concatenate([original_rgb, save_video_data], axis=2) if args.grid else save_video_data
+        save_video_data = np.concatenate([original_rgb, save_video_data], axis=3) if args.grid else save_video_data
         save_videos(save_video_data, save_fp, loop=0)
+    logger.info(f"Save reconstructed data to {save_fp}")
 
 
 if __name__ == "__main__":
