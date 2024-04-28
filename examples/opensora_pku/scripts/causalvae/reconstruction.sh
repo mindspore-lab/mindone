@@ -4,6 +4,5 @@ python examples/rec_imvi_vae.py \
     --rec_path rec.mp4 \
     --sample_rate 1 \
     --num_frames 65 \
-    --resolution 512 \
-    --crop_size 512 \
-    --ae CausalVAEModel_4x8x8 \
+    --sample_size 512 \
+    --ae CausalVAEModel_4x8x8

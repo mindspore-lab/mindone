@@ -1,8 +1,5 @@
 # from .imagebase import imagebase_ae, imagebase_ae_stride, imagebase_ae_channel
-from .videobase import (  # VQVAEConfiguration,; VQVAEModel,; VQVAETrainer,
-    CausalVQVAEConfiguration,
-    CausalVQVAEModel,
-    CausalVQVAETrainer,
+from .videobase import (  # VQVAEConfiguration,; VQVAEModel,; VQVAETrainer,; CausalVQVAEConfiguration,; CausalVQVAEModel,; CausalVQVAETrainer,
     videobase_ae,
     videobase_ae_channel,
     videobase_ae_stride,

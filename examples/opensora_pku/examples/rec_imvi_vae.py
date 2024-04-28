@@ -19,21 +19,20 @@ import sys
 
 import numpy as np
 from decord import VideoReader, cpu
-
-sys.path.append(".")
-from opensora.models.ae import getae_wrapper
-from opensora.utils.dataset_utils import create_video_transforms
 from PIL import Image
 
 import mindspore as ms
 from mindspore import nn, ops
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
+
+sys.path.append(".")
+from opensora.models.ae import getae_wrapper
+from opensora.utils.dataset_utils import create_video_transforms
 
 logger = logging.getLogger(__name__)
 
