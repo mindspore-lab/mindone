@@ -377,7 +377,9 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-                f"Distributed mode: {args.use_parallel}",
+                f"Distributed mode: {args.use_parallel}" + f"\nParallel mode: {args.parallel_mode}"
+                if args.use_parallel
+                else "",
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use model dtype: {model_dtype}",
