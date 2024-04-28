@@ -94,6 +94,7 @@ class MultiHeadCrossAttention(nn.Cell):
         )
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
+            assert attn_drop==0., 'attn drop is not supported in FA currently.'
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.num_heads,
