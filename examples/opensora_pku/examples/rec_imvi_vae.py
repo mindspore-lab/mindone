@@ -72,22 +72,21 @@ def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
 
     frame_id_list = np.linspace(s, e - 1, num_frames, dtype=int)
     video_data = decord_vr.get_batch(frame_id_list).asnumpy()
-    video_data = video_data.transpose(3, 0, 1, 2)  # (T, H, W, C) -> (C, T, H, W)
     return video_data
 
 
 def preprocess(video_data, sample_size=128):
-    num_frames = video_data.shape[1]
+    num_frames = video_data.shape[0]
     video_transform = create_video_transforms(
         sample_size, sample_size, num_frames=num_frames, backend="al", disable_flip=True
     )
 
-    inputs = {"image": video_data[:, 0]}
+    inputs = {"image": video_data[0]}
     for i in range(num_frames - 1):
-        inputs[f"image{i}"] = video_data[:, i + 1]
+        inputs[f"image{i}"] = video_data[i + 1]
 
     video_outputs = video_transform(**inputs)
-    video_outputs = np.stack(list(video_outputs.values()), axis=0)
+    video_outputs = np.stack(list(video_outputs.values()), axis=0)  # (t h w c)
     video_outputs = (video_outputs / 255.0) * 2 - 1.0
     # (t h w c) -> (c t h w)
     video_outputs = np.transpose(video_outputs, (3, 0, 1, 2))
