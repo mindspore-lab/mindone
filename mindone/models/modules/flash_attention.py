@@ -113,7 +113,7 @@ class MSFlashAttention(nn.Cell):
             B, S = x.shape[:2]
             x = x.reshape(B, S, -1, self.head_dim + self.d_pad)
         if self.need_pad:
-            x = x[:, :, :, :self.head_dim]
+            x = x[:, :, :, : self.head_dim]
         return x.to(dtype)
 
     def construct(self, q, k, v, mask=None):

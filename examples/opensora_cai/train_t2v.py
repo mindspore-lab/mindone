@@ -117,10 +117,10 @@ def init_env(
 
 
 def set_all_reduce_fusion(
-        params,
-        split_num: int = 7,
-        distributed: bool = False,
-        parallel_mode: str = "data",
+    params,
+    split_num: int = 7,
+    distributed: bool = False,
+    parallel_mode: str = "data",
 ) -> None:
     """Set allreduce fusion strategy by split_num."""
 
@@ -275,7 +275,8 @@ def main(args):
         latent_diffusion_with_loss.trainable_params(),
         split_num=7,
         distributed=args.use_parallel,
-        parallel_mode=args.parallel_mode,)
+        parallel_mode=args.parallel_mode,
+    )
 
     # build optimizer
     optimizer = create_optimizer(

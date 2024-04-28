@@ -97,6 +97,7 @@ class MultiHeadCrossAttention(nn.Cell):
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.num_heads,
+                attention_dropout=attn_drop,
                 input_layout="BSH",
                 dtype=attn_dtype,
             )
@@ -206,6 +207,7 @@ class SelfAttention(nn.Cell):
             self.flash_attention = MSFlashAttention(
                 head_dim=head_dim,
                 head_num=num_heads,
+                attention_dropout=attn_drop,
                 input_layout="BSH",
                 dtype=attn_dtype,
             )
@@ -223,7 +225,6 @@ class SelfAttention(nn.Cell):
         mask: (b n), 1 - valid, 0 - padded
         """
         x_dtype = x.dtype
-        h = self.num_heads
         B, N, C = x.shape
 
         qkv = self.qkv(x)
