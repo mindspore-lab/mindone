@@ -128,6 +128,14 @@ def process_in_chunks(
     return ops.cat(output_chunks, axis=2).permute(0, 2, 1, 3, 4)
 
 
+def transform_to_rgb(x, rescale_to_uint8=True):
+    x = np.clip(x, -1, 1)
+    x = (x + 1) / 2
+    if rescale_to_uint8:
+        x = (255 * x).astype(np.uint8)
+    return x
+
+
 def main(args):
     init_env(args)
     set_logger(name="", output_dir=args.output_path, rank=0)
@@ -150,26 +158,31 @@ def main(args):
         amp_level = "O0"
 
     x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.sample_size)
-    x_vae = ms.Tensor(x_vae, args.dtype).unsqueeze(0)  # b c t h w
+    dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
+
     if args.enable_time_chunk:
         video_recon = process_in_chunks(x_vae, vae, 7, 2)
     else:
         latents = vae.encode(x_vae)
-        latents = latents.to(ms.float16)
+        latents = latents.to(dtype)
         video_recon = vae.decode(latents)  # b t c h w
 
-    if video_recon.shape[2] == 1:
-        x = video_recon[0, 0, :, :, :]
-        x = x.squeeze().asnumpy()
-        x = np.clip(x, -1, 1)
-        x = (x + 1) / 2
-        x = (255 * x).astype(np.uint8)
-        x = x.transpose(1, 2, 0)
-        image = Image.fromarray(x)
-        image.save(args.rec_path.replace("mp4", "jpg"))
+    save_fp = os.path.join(args.output_path, args.rec_path)
+    if video_recon.shape[1] == 1:
+        x = video_recon[0, 0, :, :, :].squeeze().asnumpy()
+        original_rgb = x_vae[0, 0, :, :, :].squeeze().asnumpy()
+        x = transform_to_rgb(x).transpose(1, 2, 0)  # c h w -> h w c
+        original_rgb = transform_to_rgb(original_rgb).transpose(1, 2, 0)  # c h w -> h w c
+
+        image = Image.fromarray(np.concatenate([x, original_rgb], axis=1) if args.grid else x)
+        image.save(save_fp.replace("mp4", "jpg"))
     else:
-        save_video_data = video_recon[0].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-        save_videos(save_video_data, args.rec_path, loop=0)
+        save_video_data = video_recon.transpose(0, 1, 3, 4, 2).asnumpy()  # (b t c h w) -> (b t h w c)
+        save_video_data = transform_to_rgb(save_video_data, rescale_to_uint8=False)
+        original_rgb = x_vae.asnumpy().transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+        save_video_data = np.concatenate([original_rgb, save_video_data], axis=2) if args.grid else save_video_data
+        save_videos(save_video_data, save_fp, loop=0)
 
 
 if __name__ == "__main__":
@@ -204,6 +217,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_path", default="samples/vae_recons", type=str, help="output directory to save inference results"
+    )
+    parser.add_argument(
+        "--grid",
+        action="store_true",
+        help="whether to use grid to show original and reconstructed data",
     )
     args = parser.parse_args()
     main(args)
