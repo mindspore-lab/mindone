@@ -21,6 +21,7 @@ sys.path.insert(0, mindone_lib_path)
 
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
+from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ def main(args):
     # build dataloader for large amount of captions
     if args.csv_path is not None:
         ds_config = dict(
-            csv_path=args.csv_path,
+            csv_path=to_abspath(__dir__, args.csv_path),
             tokenizer=None,  # tokenizer,
         )
         dataset = create_dataloader(
@@ -75,7 +76,7 @@ def main(args):
         logger.info(f"Num batches: {dataset_size}")
 
     # model initiate and weight loading
-    ckpt_path = args.t5_model_dir
+    ckpt_path = to_abspath(__dir__, args.t5_model_dir)
     text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", ckpt_path)
     text_encoder.set_train(False)
     for param in text_encoder.get_parameters():  # freeze latte_model

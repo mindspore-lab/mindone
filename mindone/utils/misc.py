@@ -1,3 +1,4 @@
+import os
 from inspect import isfunction
 from typing import List, Tuple, Union
 
@@ -30,3 +31,7 @@ def default(val, d):
     if exists(val):
         return val
     return d() if isfunction(d) else d
+
+
+def to_abspath(root_path, rel_path):
+    return os.path.join(root_path, rel_path)

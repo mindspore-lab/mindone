@@ -36,6 +36,7 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
+from mindone.utils.misc import to_abspath
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -183,7 +184,7 @@ def main(args):
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
-        latte_model.load_from_checkpoint(args.pretrained_model_path)
+        latte_model.load_from_checkpoint(to_abspath(__dir__, args.pretrained_model_path))
     else:
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
@@ -196,7 +197,7 @@ def main(args):
         vae = AutoencoderKL(
             SD_CONFIG,
             VAE_Z_CH,
-            ckpt_path=args.vae_checkpoint,
+            ckpt_path=to_abspath(__dir__, args.vae_checkpoint),
             use_fp16=False,
         )
         vae = vae.set_train(False)
@@ -224,9 +225,9 @@ def main(args):
 
     # 3. create dataset
     ds_config = dict(
-        csv_path=args.csv_path,
-        video_folder=args.video_folder,
-        text_emb_folder=args.text_embed_folder,
+        csv_path=to_abspath(__dir__, args.csv_path),
+        video_folder=to_abspath(__dir__, args.video_folder),
+        text_emb_folder=to_abspath(__dir__, args.text_embed_folder),
         return_text_emb=True,
         vae_latent_folder=args.vae_latent_folder,
         return_vae_latent=train_with_vae_latent,
