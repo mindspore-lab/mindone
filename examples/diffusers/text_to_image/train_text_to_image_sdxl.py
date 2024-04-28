@@ -40,7 +40,7 @@ from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, multinomial_rand, set_seed
+from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, multinomial, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -1126,7 +1126,7 @@ class TrainStep(nn.Cell):
             # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
             # Use our own implemented multinomial generator because ops.multinomial is invalid on some hardware.
             weights = generate_timestep_weights(self.args, self.noise_scheduler_num_train_timesteps)
-            timesteps = multinomial_rand(weights, size=(bsz,))
+            timesteps = multinomial(weights, bsz, replacement=True).long()
 
         # Add noise to the model input according to the noise magnitude at each timestep
         # (this is the forward diffusion process)

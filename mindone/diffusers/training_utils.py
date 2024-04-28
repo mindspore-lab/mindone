@@ -4,6 +4,7 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import ops
+from mindspore.common.api import _function_forbid_reuse
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
 
 
@@ -60,16 +61,40 @@ def compute_snr(noise_scheduler, timesteps):
     return snr
 
 
-def multinomial_rand(p: ms.Tensor, size: tuple):
-    assert isinstance(p, ms.Tensor) and p.ndim == 1, "Probability p should be a 1-dim MindSpore tensor."
+@_function_forbid_reuse
+def multinomial(input, num_samples, replacement=True, **kwargs):
+    assert isinstance(input, ms.Tensor) and input.ndim in (
+        1,
+        2,
+    ), "argument input should be a MindSpore Tensor with 1 or 2 dim."
+    assert (
+        replacement or num_samples <= input.shape[-1]
+    ), "cannot sample n_sample > prob_dist.size(-1) samples without replacement."
 
-    p = p.float()
-    p /= p.sum()
-    p = p.cumsum()
-    for _ in size:
-        p = p.expand_dims(axis=0)
+    input = input.float()
+    input /= input.sum(-1, keepdims=True)
 
-    rand = ops.rand(*size, dtype=p.dtype).expand_dims(-1)
-    multinomial_rand = ops.ge(rand, p).float().sum(axis=-1).long()
+    if num_samples == 1 or not replacement:
+        # The algorithm is from gumbel softmax.
+        # s = argmax( logp - log(-log(eps)) ) where eps ~ U(0, 1)
+        # Here we can apply exp to the formula which will not affect result of
+        # argmax or topk. Then we have
+        # s = argmax( p / (-log(eps)) ) where eps ~ U(0, 1).
+        # We can also simplify the formula above by
+        # s = argmax( p / q ) where q ~ Exp(1)
+        # No proper Exp generator op in MindSpore,
+        # so we still generate it by -log(eps)
+        q = -ops.log(ops.rand_like(input))
+        if num_samples == 1:
+            result = (input / q).argmax(-1, keepdim=True)
+        else:
+            _, result = ops.topk(input / q, k=num_samples, dim=-1)
+    else:
+        # To generate scalar random variable X with cumulative distribution F(x)
+        # just let X = F^(-1)(U) where U ~ U(0, 1)
+        input = input.cumsum(-1).expand_dims(-1)
+        rshape = (1, num_samples) if input.ndim == 2 else (input.shape[0], 1, num_samples)
+        rand = ops.rand(*rshape, dtype=input.dtype)
+        result = ops.ge(rand, input).long().sum(-2)
 
-    return multinomial_rand
+    return result.long()
