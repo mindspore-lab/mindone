@@ -6,17 +6,14 @@ from mindspore import nn
 
 from mindone.utils.config import instantiate_from_config
 
-from .. import videobase_ae_yaml
-
 
 class CausalVAEModelWrapper(nn.Cell):
-    def __init__(self, model_name="CausalVAEModel_4x8x8"):
+    def __init__(self, model_config="causal_vae_488.yaml"):
         super(CausalVAEModelWrapper, self).__init__()
         # if os.path.exists(ckpt):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
         # self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir)
-        model_config = videobase_ae_yaml[model_name]
-        model_config = os.path.join(os.path.abspath(__file__), model_config)
+        model_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_config)
         self.vae = config = OmegaConf.load(model_config)
         self.vae = instantiate_from_config(config.generator)
 

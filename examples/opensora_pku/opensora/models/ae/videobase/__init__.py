@@ -9,7 +9,8 @@
 #     CausalVQVAETrainer,
 #     CausalVQVAEModel, CausalVQVAEModelWrapper
 # )
-from .causal_vae import CausalVAEModel, CausalVAEModelWrapper
+from .causal_vae import CausalVAEModelWrapper
+from .causal_vae.modeling_causalvae import CausalVAEModel
 
 videobase_ae_stride = {
     "CausalVAEModel_4x8x8": [4, 8, 8],

@@ -2,7 +2,7 @@
 Run causal vae reconstruction on a given video.
 Usage example:
 python examples/rec_imvi_vae.py \
-    --model_path LanguageBind/Open-Sora-Plan-v1.0.0 \
+    --model_path path/to/vae/ckpt \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
     --sample_rate 1 \
@@ -31,7 +31,7 @@ from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
-from opensora.models.ae import getae_wrapper
+from opensora.models.ae import getae_model_config, getae_wrapper
 from opensora.utils.dataset_utils import create_video_transforms
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,8 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     kwarg = {}
-    vae = getae_wrapper(args.ae)(args.model_path, subfolder="vae", cache_dir="cache_dir", **kwarg)
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), **kwarg)
+    vae.init_from_ckpt(args.model_path)
     # if args.enable_tiling:
     #     vae.vae.enable_tiling()
     #     vae.vae.tile_overlap_factor = args.tile_overlap_factor
