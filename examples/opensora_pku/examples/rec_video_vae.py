@@ -11,6 +11,7 @@ import mindspore as ms
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
@@ -148,13 +149,21 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--ae", type=str, default="")
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
     parser.add_argument("--sample_fps", type=int, default=30)
-    parser.add_argument("--crop_size", type=int, default=None)
+    parser.add_argument("--resolution", type=int, default=512)
+    parser.add_argument("--crop_size", type=int, default=512)
     parser.add_argument("--num_frames", type=int, default=17)
     parser.add_argument("--sample_rate", type=int, default=1)
+    parser.add_argument(
+        "--expand_dim_t",
+        default=False,
+        type=str2bool,
+        help="expand temporal axis for image data, used for vae 3d inference with image data",
+    )
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=8)
     # parser.add_argument("--tile_overlap_factor", type=float, default=0.25)

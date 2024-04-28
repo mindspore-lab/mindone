@@ -8,4 +8,5 @@ python examples/rec_video_vae.py \
     --resolution 512 \
     --crop_size 512 \
     --num_workers 8 \
-    --ckpt results/pretrained_488 \
+    --ae CausalVAEModel_4x8x8 \
+    --model_path results/pretrained_488 \
