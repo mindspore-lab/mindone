@@ -125,19 +125,24 @@ def main(args):
         latents = vae.encode(x)
         video_recon = vae.decode(latents)
         for idx, video in enumerate(video_recon):
-            file_name = os.path.basename(str(file_paths[0]))
+            file_name = os.path.basename(eval(str(file_paths))[idx])
             output_path = os.path.join(generated_video_dir, file_name)
+            video = video.unsqueeze(0)  # (bs=1)
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
                 save_data = transform_to_rgb(x[idx].asnumpy())
+                # (b c t h w) -> (b t h w c)
+                save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
                 save_videos(
                     save_data,
                     origin_output_path,
                     loop=0,
                     fps=sample_fps / sample_rate,
                 )
-            save_data = transform_to_rgb(video)
+            save_data = transform_to_rgb(video.asnumpy())
+            # (b t c h w) -> (b t h w c)
+            save_data = np.transpose(save_data, (0, 1, 3, 4, 2))
             save_videos(
                 save_data,
                 output_path,
