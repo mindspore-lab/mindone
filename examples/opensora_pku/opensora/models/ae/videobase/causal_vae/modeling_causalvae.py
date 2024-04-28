@@ -5,7 +5,6 @@ import numpy as np
 import mindspore as ms
 from mindspore import nn, ops
 
-from ..modeling_videobase import VideoBaseAE
 from .modules import (
     CausalConv3d,
     Normalize,
@@ -21,7 +20,7 @@ from .modules import (
 logger = logging.getLogger(__name__)
 
 
-class CausalVAEModel(VideoBaseAE):
+class CausalVAEModel(nn.Cell):
     def __init__(
         self,
         ddconfig,
