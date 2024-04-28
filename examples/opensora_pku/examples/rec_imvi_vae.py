@@ -203,5 +203,8 @@ if __name__ == "__main__":
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
     )
+    parser.add_argument(
+        "--output_path", default="samples/vae_recons", type=str, help="output directory to save inference results"
+    )
     args = parser.parse_args()
     main(args)

@@ -1,12 +1,10 @@
-from midnspore import nn
-
 import mindspore as ms
 
 from mindone.diffusers import ModelMixin
 from mindone.diffusers.configuration_utils import ConfigMixin
 
 
-class VideoBaseAE(nn.Cell, ModelMixin, ConfigMixin):
+class VideoBaseAE(ModelMixin, ConfigMixin):
     config_name = "config.json"
     _supports_gradient_checkpointing = False
 
