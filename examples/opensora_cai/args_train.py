@@ -35,13 +35,13 @@ def parse_train_args(parser):
     parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
     parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
+    # model
     parser.add_argument(
         "--pretrained_model_path",
         default="",
         type=str,
         help="Specify the pretrained model path, either a pretrained " "DiT model or a pretrained Latte model.",
     )
-    # model
     parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
     parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
     # ms
@@ -97,6 +97,9 @@ def parse_train_args(parser):
         default=10,
         type=int,
         help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
+    )
+    parser.add_argument(
+        "--train_steps", default=-1, type=int, help="If not -1, limit the number of training steps to the set value"
     )
     parser.add_argument("--init_loss_scale", default=65536, type=float, help="loss scale")
     parser.add_argument("--loss_scale_factor", default=2, type=float, help="loss scale factor")
@@ -167,8 +170,13 @@ def parse_train_args(parser):
         type=float,
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
-
-    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs")
+    parser.add_argument(
+        "--ckpt_save_steps",
+        default=-1,
+        type=int,
+        help="save checkpoint every this steps. If -1, use ckpt_save_interval will be used.",
+    )
     parser.add_argument("--ckpt_max_keep", default=10, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
         "--step_mode",
@@ -184,7 +192,12 @@ def parse_train_args(parser):
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+    parser.add_argument(
+        "--log_interval",
+        default=1,
+        type=int,
+        help="log interval in the unit of data sink size.. E.g. if data sink size = 10, log_inteval=2, log every 20 steps",
+    )
     return parser
 
 

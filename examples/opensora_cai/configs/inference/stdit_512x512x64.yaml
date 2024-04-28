@@ -20,5 +20,8 @@ seed: 42
 ddim_sampling: False
 
 captions:
-- "A snowy forest landscape with a dirt road running through it. The road is flanked by trees covered in snow, and the ground is also covered in snow. The sun is shining, creating a bright and serene atmosphere. The road appears to be empty, and there are no people or animals visible in the video. The style of the video is a natural landscape shot, with a focus on the beauty of the snowy forest and the peacefulness of the road."
-- "The video captures the majestic beauty of a waterfall cascading down a cliff into a serene lake. The waterfall, with its powerful flow, is the central focus of the video."
+- "a young girl standing in a field of flowers"
+- "a young girl in a field of dandelions"
+- "a person in a kayak in a river"
+- "a young boy holding a basketball up to his face"
+- "a man with a surprised look on his face"

@@ -156,13 +156,12 @@ class TextVideoDataset:
         replace_data = None
         attempts = min(max_attempts, self.length)
         for idx in range(attempts):
-            # TODO: uncomment after training verified
-            # try:
-            pixel_values, text, mask = self.get_batch(idx)
-            replace_data = copy.deepcopy((pixel_values, text, mask))
-            #    break
-            # except Exception as e:
-            #     print("\tError msg: {}".format(e), flush=True)
+            try:
+                pixel_values, text, mask = self.get_batch(idx)
+                replace_data = copy.deepcopy((pixel_values, text, mask))
+                break
+            except Exception as e:
+                print("\tError msg: {}".format(e), flush=True)
 
         assert replace_data is not None, f"Fail to preload sample in {attempts} attempts."
 

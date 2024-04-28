@@ -21,7 +21,7 @@ init_loss_scale: 65536
 
 # training hyper-params
 scheduler: "cosine_decay"
-start_learning_rate: 5.e-5
+start_learning_rate: 1.e-4
 end_learning_rate: 2.e-5
 warmup_steps: 500   # TODO: ablate
 
