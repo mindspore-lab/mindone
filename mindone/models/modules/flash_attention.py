@@ -59,6 +59,10 @@ class MSFlashAttention(nn.Cell):
         super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
         self.use_new_flash_attention = USE_NEW_FA
+        self.input_layout = input_layout
+        if input_layout not in ["BSH", "BNSD"]:
+            raise ValueError(f"input_layout must be in ['BSH', 'BNSD'], but get {input_layout}.")
+        self.head_dim = head_dim
         if self.use_new_flash_attention:
             self.flash_attention = FlashAttention(
                 scale_value=head_dim**-0.5,
@@ -88,26 +92,34 @@ class MSFlashAttention(nn.Cell):
             raise ValueError("head_dim must <= 256!")
         self.need_pad = self.d_pad != 0
 
-    def construct(self, q, k, v, mask=None):
-        B, N, S1, D = q.shape
-        _, _, S2, _ = k.shape
-
+    def _rearange_input(self, x):
+        x = x.to(self.dtype)
         if self.need_pad:
-            q = ops.pad(q, (0, self.d_pad))
-            k = ops.pad(k, (0, self.d_pad))
-            v = ops.pad(v, (0, self.d_pad))
-        if self.use_new_flash_attention:
-            out = self.flash_attention(
-                q.to(self.dtype),
-                k.to(self.dtype),
-                v.to(self.dtype),
-                None,
-                None,
-                None,
-                mask,
-                None,
-            )[3]
-        else:
+            if self.input_layout == "BNSD":
+                B, N, S, D = x.shape
+                pad = ops.zeros((B, N, S, self.d_pad), x.dtype)
+            else:
+                B, S = x.shape[:2]
+                x = x.reshape(B, S, -1, self.head_dim)
+                pad = ops.zeros((B, S, x.shape[2], self.d_pad), x.dtype)
+            x = ops.concat((x, pad), axis=-1)
+        if self.input_layout == "BSH":
+            B, S = x.shape[:2]
+            x = x.reshape(B, S, -1)
+        return x
+
+    def _rearange_output(self, x, dtype):
+        if self.input_layout == "BSH":
+            B, S = x.shape[:2]
+            x = x.reshape(B, S, -1, self.head_dim + self.d_pad)
+        if self.need_pad:
+            x = x[:, :, :, : self.head_dim]
+        return x.to(dtype)
+
+    def construct(self, q, k, v, mask=None):
+        if not self.use_new_flash_attention:
+            B, N, S1, D = q.shape
+            S2 = k.shape[2]
             if mask is None:
                 mask = ops.zeros((B, S1, S2), self.fa_mask_dtype)
             out = self.flash_attention(
@@ -116,6 +128,14 @@ class MSFlashAttention(nn.Cell):
                 v.to(self.dtype),
                 mask.to(self.fa_mask_dtype),
             )
-        if self.need_pad:
-            out = out[:, :, :, :D]
+            return out
+
+        q_dtype = q.dtype
+        q = self._rearange_input(q)
+        k = self._rearange_input(k)
+        v = self._rearange_input(v)
+        if mask is not None:
+            mask = mask.to(ms.uint8)
+        out = self.flash_attention(q, k, v, None, None, None, mask)[3]
+        out = self._rearange_output(out, q_dtype)
         return out

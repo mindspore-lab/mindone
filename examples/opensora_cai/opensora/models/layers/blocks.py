@@ -18,10 +18,16 @@ class Attention(nn.Cell):
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         """
-        q: (b h n_q d), h - num_head, n_q - seq_len of q
-        k v: (b h n_k d), (b h n_v d)
+        q: (b n_q h d), h - num_head, n_q - seq_len of q
+        k v: (b n_k h d), (b h n_v d)
         mask: (b 1 n_k), 0 - keep, 1 indicates discard.
         """
+
+        # (b n h d) -> (b h n d)
+        q = ops.transpose(k, (0, 2, 1, 3))
+        k = ops.transpose(k, (0, 2, 1, 3))
+        v = ops.transpose(v, (0, 2, 1, 3))
+
         b, h, n_q, d = q.shape
         _, _, n_k, _ = k.shape
 
@@ -51,7 +57,8 @@ class Attention(nn.Cell):
         out = ops.matmul(attn, v)
 
         out = ops.reshape(out, (b, h, -1, d))
-
+        # (b h n d) -> (b n h d)
+        out = ops.transpose(out, (0, 2, 1, 3))
         return out
 
 
@@ -87,10 +94,12 @@ class MultiHeadCrossAttention(nn.Cell):
         )
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
+            assert attn_drop == 0.0, "attn drop is not supported in FA currently."
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.num_heads,
                 attention_dropout=attn_drop,
+                input_layout="BSH",
                 dtype=attn_dtype,
             )
         else:
@@ -100,14 +109,6 @@ class MultiHeadCrossAttention(nn.Cell):
 
         self.proj = nn.Dense(d_model, d_model, has_bias=has_bias).to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
-
-    @staticmethod
-    def _rearange_out(x):
-        #  (b h n d) -> (b n h d) ->  (b n h*d)
-        b, h, n, d = x.shape
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h * d))
-        return x
 
     def construct(self, x, cond, mask=None):
         """
@@ -129,16 +130,14 @@ class MultiHeadCrossAttention(nn.Cell):
         kv = self.kv_linear(cond)  # .reshape((1, -1, 2, self.num_heads, self.head_dim))
 
         # 2. reshape qkv for multi-head attn
-        # q: (B N C) -> (B N num_head head_dim) -> (B num_head N head_dim)
+        # q: (B N C) -> (B N num_head head_dim)
         q = ops.reshape(q, (B, N, self.num_heads, self.head_dim))
-        q = ops.transpose(q, (0, 2, 1, 3))
 
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        k, v = ops.unstack(kv, axis=2)
-        # (B n h d) -> (B h n d)
-        k = ops.transpose(k, (0, 2, 1, 3))
-        v = ops.transpose(v, (0, 2, 1, 3))
+        k, v = ops.split(kv, 1, axis=2)
+        k = ops.squeeze(k, axis=2)
+        v = ops.squeeze(v, axis=2)
 
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
@@ -152,7 +151,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
                 # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
-                mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
+                mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -161,8 +160,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 mask = mask[:, None, :]
             x = self.attention(q, k, v, mask)
 
-        # (b h n d) -> (b n h d) ->  (b n h*d)
-        x = self._rearange_out(x)
+        x = ops.reshape(x, (B, N, -1))
 
         # 4. output projection
         x = self.proj(x)
@@ -211,6 +209,7 @@ class SelfAttention(nn.Cell):
                 head_dim=head_dim,
                 head_num=num_heads,
                 attention_dropout=attn_drop,
+                input_layout="BSH",
                 dtype=attn_dtype,
             )
         else:
@@ -227,18 +226,15 @@ class SelfAttention(nn.Cell):
         mask: (b n), 1 - valid, 0 - padded
         """
         x_dtype = x.dtype
-        h = self.num_heads
         B, N, C = x.shape
 
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = ops.unstack(qkv, axis=2)  # (b n h d)
-
-        # (b n h d) -> (b h n d)
-        q = q.transpose(0, 2, 1, 3)
-        k = k.transpose(0, 2, 1, 3)
-        v = v.transpose(0, 2, 1, 3)
+        q, k, v = ops.split(qkv, 1, axis=2)  # (b n h d)
+        q = ops.squeeze(q, axis=2)
+        k = ops.squeeze(k, axis=2)
+        v = ops.squeeze(v, axis=2)
 
         # mask process
         if mask is not None:
@@ -248,16 +244,15 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask, int(q.shape[-2]), axis=-2)
+                mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
                 mask = mask[:, None, :]
             out = self.attention(q, k, v, mask)
 
-        b, h, n, d = out.shape
-        # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
-        out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+        # reshape FA output to original attn input format (b n h*d)
+        out = out.view(B, N, -1)
 
         return self.proj_drop(self.proj(out)).to(x_dtype)
 
