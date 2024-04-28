@@ -128,11 +128,10 @@ def main(args):
         for idx, video in enumerate(video_recon):
             file_name = os.path.basename(eval(str(file_paths))[idx])
             output_path = os.path.join(generated_video_dir, file_name)
-            video = video.unsqueeze(0)  # (bs=1)
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
-                save_data = transform_to_rgb(x[idx].asnumpy(), rescale_to_uint8=False)
+                save_data = transform_to_rgb(x[idx : idx + 1].asnumpy(), rescale_to_uint8=False)
                 # (b c t h w) -> (b t h w c)
                 save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
                 save_videos(
@@ -141,6 +140,7 @@ def main(args):
                     loop=0,
                     fps=sample_fps / sample_rate,
                 )
+            video = video.unsqueeze(0)  # (bs=1)
             save_data = transform_to_rgb(video.asnumpy(), rescale_to_uint8=False)
             # (b t c h w) -> (b t h w c)
             save_data = np.transpose(save_data, (0, 1, 3, 4, 2))
