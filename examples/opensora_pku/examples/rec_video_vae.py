@@ -116,7 +116,7 @@ def main(args):
     # ---- Prepare Dataset
 
     # ---- Inference ----
-    for batch in tqdm(ds_iter):
+    for batch in tqdm(ds_iter, total=num_batches):
         if args.dataset_name == "image":
             x = batch["image"]
         else:
@@ -150,6 +150,7 @@ def main(args):
                 loop=0,
                 fps=sample_fps / sample_rate,
             )
+    logger.info(f"Finish video reconstruction, and save videos to {generated_video_dir}")
     # ---- Inference ----
 
 
