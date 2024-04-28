@@ -72,7 +72,7 @@ def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
 
     frame_id_list = np.linspace(s, e - 1, num_frames, dtype=int)
     video_data = decord_vr.get_batch(frame_id_list).asnumpy()
-    video_data = video_data.permute(3, 0, 1, 2)  # (T, H, W, C) -> (C, T, H, W)
+    video_data = video_data.transpose(3, 0, 1, 2)  # (T, H, W, C) -> (C, T, H, W)
     return video_data
 
 
@@ -87,8 +87,8 @@ def preprocess(video_data, sample_size=128):
         inputs[f"image{i}"] = video_data[:, i + 1]
 
     video_outputs = video_transform(**inputs)
-    video_outputs = (video_outputs / 255.0) * 2 - 1.0
     video_outputs = np.stack(list(video_outputs.values()), axis=0)
+    video_outputs = (video_outputs / 255.0) * 2 - 1.0
     # (t h w c) -> (c t h w)
     video_outputs = np.transpose(video_outputs, (3, 0, 1, 2))
     return video_outputs
@@ -134,8 +134,7 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     kwarg = {}
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), **kwarg)
-    vae.init_from_ckpt(args.model_path)
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, **kwarg)
     # if args.enable_tiling:
     #     vae.vae.enable_tiling()
     #     vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -152,7 +151,7 @@ def main(args):
         amp_level = "O0"
 
     x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.sample_size)
-    x_vae = x_vae  # b c t h w
+    x_vae = ms.Tensor(x_vae, args.dtype).unsqueeze(0)  # b c t h w
     if args.enable_time_chunk:
         video_recon = process_in_chunks(x_vae, vae, 7, 2)
     else:
@@ -182,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, default="results/pretrained")
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--sample_size", type=int, default=None)
-    parser.add_argument("--num_frames", type=int, default=100)
+    parser.add_argument("--num_frames", type=int, default=65)
     parser.add_argument("--sample_rate", type=int, default=1)
     # parser.add_argument('--tile_overlap_factor', type=float, default=0.25)
     # parser.add_argument('--enable_tiling', action='store_true')

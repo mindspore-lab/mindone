@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 
 import mindspore as ms
@@ -14,6 +16,8 @@ from .modules import (
     make_attn,
     nonlinearity,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CausalVAEModel(nn.Cell):
@@ -36,7 +40,7 @@ class CausalVAEModel(nn.Cell):
         self.decoder = Decoder(dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, **ddconfig)
         assert ddconfig["double_z"]
         if ddconfig["split_time_upsample"]:
-            print("Exclude first frame from time upsample")
+            logger.info("Exclude first frame from time upsample")
         self.quant_conv = CausalConv3d(
             2 * ddconfig["z_channels"],
             2 * embed_dim,
@@ -100,7 +104,7 @@ class CausalVAEModel(nn.Cell):
                 new_state_dict[key_3d] = vae2d_sd[key_2d]
             elif "conv" in key_2d or "nin_shortcut" in key_2d:
                 if shape_3d[:2] != shape_2d[:2]:
-                    print(key_2d, shape_3d, shape_2d)
+                    logger.info(key_2d, shape_3d, shape_2d)
                 w = vae2d_sd[key_2d]
                 new_w = ms.ops.zeros(shape_3d, dtype=w.dtype)
                 # tail initialization
@@ -118,9 +122,9 @@ class CausalVAEModel(nn.Cell):
 
             m, u = ms.load_param_into_net(self, new_state_dict)
             if len(m) > 0:
-                print("net param not loaded: ", m)
+                logger.info("net param not loaded: ", m)
             if len(u) > 0:
-                print("checkpoint param not loaded: ", u)
+                logger.info("checkpoint param not loaded: ", u)
 
     def init_from_ckpt(self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder."]):
         # TODO: support auto download pretrained checkpoints
@@ -129,11 +133,11 @@ class CausalVAEModel(nn.Cell):
         for k in keys:
             for ik in ignore_keys:
                 if k.startswith(ik):
-                    print("Deleting key {} from state_dict.".format(k))
+                    logger.info("Deleting key {} from state_dict.".format(k))
                     del sd[k]
 
         ms.load_param_into_net(self, sd, strict_load=False)
-        print(f"Restored from {path}")
+        logger.info(f"Restored from {path}")
 
     def _encode(self, x):
         # return latent distribution, N(mean, logvar)
@@ -368,7 +372,7 @@ class Decoder(nn.Cell):
         block_in = ch * ch_mult[self.num_resolutions - 1]
         curr_res = resolution // 2 ** (self.num_resolutions - 1)
         self.z_shape = (1, z_channels, curr_res, curr_res)
-        print("Working with z of shape {} = {} dimensions.".format(self.z_shape, np.prod(self.z_shape)))
+        logger.info("Working with z of shape {} = {} dimensions.".format(self.z_shape, np.prod(self.z_shape)))
 
         # z to block_in
         self.conv_in = CausalConv3d(z_channels, block_in, kernel_size=3, padding=1)
