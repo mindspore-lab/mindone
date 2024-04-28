@@ -103,9 +103,10 @@ class ClippedGELUActivation(nn.Cell):
         super().__init__()
         self.min = min
         self.max = max
+        self.gelu = get_activation("gelu")
 
     def construct(self, x: Tensor) -> Tensor:
-        return ops.clip(gelu(x), self.min, self.max)
+        return ops.clip(self.gelu(x), self.min, self.max)
 
 
 class AccurateGELUActivation(nn.Cell):
@@ -217,12 +218,13 @@ def get_activation(activation_string):
         raise KeyError(f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}")
 
 
+# avoid initiate activation modules
 # For backwards compatibility with: from activations import gelu_python
-gelu_python = get_activation("gelu_python")
-gelu_new = get_activation("gelu_new")
-gelu = get_activation("gelu")
-gelu_fast = get_activation("gelu_fast")
-quick_gelu = get_activation("quick_gelu")
-silu = get_activation("silu")
-mish = get_activation("mish")
-linear_act = get_activation("linear")
+# gelu_python = get_activation("gelu_python")
+# gelu_new = get_activation("gelu_new")
+# gelu = get_activation("gelu")
+# gelu_fast = get_activation("gelu_fast")
+# quick_gelu = get_activation("quick_gelu")
+# silu = get_activation("silu")
+# mish = get_activation("mish")
+# linear_act = get_activation("linear")
