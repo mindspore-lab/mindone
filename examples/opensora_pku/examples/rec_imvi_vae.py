@@ -2,7 +2,7 @@
 Run causal vae reconstruction on a given video.
 Usage example:
 python examples/rec_imvi_vae.py \
-    --model_path path/to/vae/ckpt \
+    --model_path LanguageBind/Open-Sora-Plan-v1.0.0 \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
     --sample_rate 1 \
@@ -19,6 +19,8 @@ import sys
 
 import numpy as np
 from decord import VideoReader, cpu
+from opensora.models.ae import getae_wrapper
+from opensora.utils.dataset_utils import create_video_transforms
 from PIL import Image
 
 import mindspore as ms
