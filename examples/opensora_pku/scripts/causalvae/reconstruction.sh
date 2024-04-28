@@ -5,4 +5,6 @@ python examples/rec_imvi_vae.py \
     --sample_rate 1 \
     --num_frames 65 \
     --sample_size 512 \
-    --ae CausalVAEModel_4x8x8
+    --ae CausalVAEModel_4x8x8 \
+    --grid \
+    --output_path samples/causal_vae_4x8x8_recons \
