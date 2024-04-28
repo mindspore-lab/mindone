@@ -7,5 +7,5 @@ mpirun --allow-run-as-root -n 4 --output-filename log_output --merge-stderr-to-s
     --dtype=fp32 \
     --batch_size=4 \
     --csv_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
-    --output_dir tmp_t5_emb \
+    --output_path tmp_t5_emb \
     --use_parallel=True \

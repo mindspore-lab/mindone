@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import logging
 import os
 import sys
@@ -88,12 +87,9 @@ def init_env(
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
-    os.makedirs(save_dir, exist_ok=True)
-    set_logger(name="", output_dir=save_dir)
+    set_logger(name="", output_dir=args.output_path)
 
-    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel)
+    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target)
     print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions
@@ -131,15 +127,15 @@ def main(args):
 
     # infer
     if args.csv_path is not None:
-        ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
-        if args.output_dir is None:
+        if args.output_path is None:
             output_folder = os.path.dirname(args.csv_path)
         else:
-            output_folder = args.output_dir
+            output_folder = args.output_path
         os.makedirs(output_folder, exist_ok=True)
 
         logger.info(f"Output embeddings will be saved: {output_folder}")
 
+        ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
             start_time = time.time()
             file_paths = data["file_path"]
@@ -170,6 +166,10 @@ def main(args):
         logger.info(f"Done. Embeddings saved in {output_folder}")
 
     else:
+        if args.output_path is None:
+            args.output_path = "outputs/t5_embed.npz"
+        os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
+
         text_tokens = []
         mask = []
         text_emb = []
@@ -206,7 +206,7 @@ def parse_args():
         help="path to csv annotation file, If None, video_caption.csv is expected to live under `data_path`",
     )
     parser.add_argument(
-        "--output_dir",
+        "--output_path",
         type=str,
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
@@ -256,7 +256,6 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
-    parser.add_argument("--output_path", type=str, default="outputs/t5_embed.npz", help="path to save t5 embedding")
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
 
     default_args = parser.parse_args()
