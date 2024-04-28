@@ -54,6 +54,7 @@ def main(args):
     sample_fps = args.sample_fps
     batch_size = args.batch_size
     num_workers = args.num_workers
+    assert args.dataset_name == "video", "Only support video reconstruction!"
     init_env(args)
 
     if not os.path.exists(args.generated_video_dir):
@@ -131,7 +132,7 @@ def main(args):
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
-                save_data = transform_to_rgb(x[idx].asnumpy())
+                save_data = transform_to_rgb(x[idx].asnumpy(), rescale_to_uint8=False)
                 # (b c t h w) -> (b t h w c)
                 save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
                 save_videos(
@@ -140,7 +141,7 @@ def main(args):
                     loop=0,
                     fps=sample_fps / sample_rate,
                 )
-            save_data = transform_to_rgb(video.asnumpy())
+            save_data = transform_to_rgb(video.asnumpy(), rescale_to_uint8=False)
             # (b t c h w) -> (b t h w c)
             save_data = np.transpose(save_data, (0, 1, 3, 4, 2))
             save_videos(

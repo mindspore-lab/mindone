@@ -7,7 +7,8 @@ python examples/rec_imvi_vae.py \
     --rec_path rec.mp4 \
     --sample_rate 1 \
     --num_frames 65 \
-    --sample_size 512 \
+    --resolution 512 \
+    --crop_size 512 \
     --ae CausalVAEModel_4x8x8 \
 """
 import argparse
@@ -74,10 +75,10 @@ def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
     return video_data
 
 
-def preprocess(video_data, sample_size=128):
+def preprocess(video_data, resolution=128, crop_size=128):
     num_frames = video_data.shape[0]
     video_transform = create_video_transforms(
-        sample_size, sample_size, num_frames=num_frames, backend="al", disable_flip=True
+        resolution, crop_size, num_frames=num_frames, backend="al", disable_flip=True
     )
 
     inputs = {"image": video_data[0]}
@@ -156,7 +157,7 @@ def main(args):
     else:
         amp_level = "O0"
 
-    x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.sample_size)
+    x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.resolution, args.crop_size)
     dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
 
@@ -196,7 +197,8 @@ if __name__ == "__main__":
     parser.add_argument("--ae", type=str, default="")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
     parser.add_argument("--fps", type=int, default=30)
-    parser.add_argument("--sample_size", type=int, default=None)
+    parser.add_argument("--resolution", type=int, default=None)
+    parser.add_argument("--crop_size", type=int, default=None)
     parser.add_argument("--num_frames", type=int, default=65)
     parser.add_argument("--sample_rate", type=int, default=1)
     # parser.add_argument('--tile_overlap_factor', type=float, default=0.25)
