@@ -2,14 +2,16 @@ import logging
 import os
 import sys
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sdv2_lib_path = os.path.abspath(os.path.join(__dir__, "../../../stable_diffusion_v2"))
+sys.path.insert(0, sdv2_lib_path)
+
+from ldm.modules.encoders.modules import FrozenCLIPEmbedder
 from opensora.utils.model_utils import remove_pname_prefix
 
 import mindspore as ms
 
 from .t5 import T5Embedder
-
-sys.path.append("../stable_diffusion_v2")
-from ldm.modules.encoders.modules import FrozenCLIPEmbedder
 
 logger = logging.getLogger(__name__)
 
