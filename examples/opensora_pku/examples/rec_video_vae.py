@@ -129,7 +129,6 @@ def main(args):
         for idx, video in enumerate(video_recon):
             file_name = os.path.basename(eval(str(file_paths))[idx])
             output_path = os.path.join(generated_video_dir, file_name)
-            video = video.unsqueeze(0)  # (bs=1)
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
