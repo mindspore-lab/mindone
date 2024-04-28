@@ -19,10 +19,6 @@ import sys
 
 import numpy as np
 from decord import VideoReader, cpu
-
-sys.path.append(".")
-from opensora.models.ae import getae_wrapper
-from opensora.utils.dataset_utils import create_video_transforms
 from PIL import Image
 
 import mindspore as ms
