@@ -16,8 +16,8 @@ from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
-from opensora.dataset.loader import create_dataloader
 from opensora.models.ae import getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 
 logger = logging.getLogger(__name__)
 
@@ -101,18 +101,18 @@ def main(args):
         ), "num of frames must be odd if split_time_upsample is True"
     else:
         ds_config.update(dict(expand_dim_t=args.expand_dim_t))
-
-    dataset = create_dataloader(
-        ds_config=ds_config,
+    dataset = VideoDataset(**ds_config)
+    dataloader = create_dataloader(
+        dataset,
         batch_size=batch_size,
         ds_name=args.dataset_name,
         num_parallel_workers=num_workers,
         shuffle=False,
         drop_remainder=False,
     )
-    num_batches = dataset.get_dataset_size()
+    num_batches = dataloader.get_dataset_size()
     logger.info("Number of batches: %d", num_batches)
-    ds_iter = dataset.create_dict_iterator(1)
+    ds_iter = dataloader.create_dict_iterator(1)
     # ---- Prepare Dataset
 
     # ---- Inference ----
