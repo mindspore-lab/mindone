@@ -112,7 +112,7 @@ def main(args):
     train_loader = create_dataloader(
         dataset,
         shuffle=True,
-        num_parallel_workers=args.num_workers,
+        num_parallel_workers=args.num_parallel_workers,
         batch_size=args.batch_size,
         drop_remainder=True,
         device_num=device_num,
@@ -340,7 +340,7 @@ def main(args):
             # TODO: eval while training
 
 
-def parse_train_args(parser):
+def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--use_discriminator",
         default=True,
@@ -375,5 +375,5 @@ def parse_train_args(parser):
 
 
 if __name__ == "__main__":
-    args = parse_args(additional_parse_args=parse_train_args)
+    args = parse_args(additional_parse_args=parse_causalvae_train_args)
     main(args)
