@@ -87,7 +87,8 @@ def init_env(
 
 
 def main(args):
-    set_logger(name="", output_dir=args.output_path)
+    log_dir = args.output_path if os.path.isdir(args.output_path) else os.path.dirname(args.output_path)
+    set_logger(name="", output_dir=log_dir)
 
     rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target)
     print(f"rank_id {rank_id}, device_num {device_num}")
@@ -166,8 +167,10 @@ def main(args):
         logger.info(f"Done. Embeddings saved in {output_folder}")
 
     else:
+        import pdb; pdb.set_trace()
+
         if args.output_path is None:
-            args.output_path = "outputs/t5_embed.npz"
+            args.output_path = "samples/t5_embed.npz"
         os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
 
         text_tokens = []
