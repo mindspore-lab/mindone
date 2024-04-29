@@ -1,9 +1,8 @@
 python opensora/train/train_causalvae.py \
-    --exp_name "exp_name" \
     --batch_size 1 \
     --precision fp16 \
-    --max_steps 40000 \
-    --save_steps 100 \
+    --epochs 3000 \
+    --ckpt_save_interval 500 \
     --output_dir results/causalvae \
     --video_path /remote-home1/dataset/data_split_tt \
     --video_num_frames 17 \
