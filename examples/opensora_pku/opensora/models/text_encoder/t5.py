@@ -43,7 +43,6 @@ class T5Embedder(nn.Cell):
         hf_token=None,
         use_text_preprocessing=True,
         t5_model_kwargs=None,
-        dtype=None,
         model_max_length=120
     ):
         super().__init__()

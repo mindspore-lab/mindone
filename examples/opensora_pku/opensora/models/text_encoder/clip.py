@@ -8,6 +8,8 @@ import ftfy
 from bs4 import BeautifulSoup
 from transformers import CLIPTokenizer
 
+import mindspore as ms
+
 from mindone.transformers import CLIPTextModel
 
 
@@ -18,7 +20,6 @@ class CLIPEmbedder:
 
     def __init__(
         self,
-        device="cuda",
         model_name="openai/clip-vit-base-patch32",
         cache_dir="./cache_dir",
         use_text_preprocessing=True,
@@ -59,11 +60,14 @@ class CLIPEmbedder:
         """
         self._validate_input_list(texts, str)
 
-        batch_encoding = self.tokenizer(
-            texts, return_tensors="pt", truncation=True, max_length=self.max_length, padding="max_length"
-        )
+        batch_encoding = self.tokenizer(texts, truncation=True, max_length=self.max_length, padding="max_length")
+        text_input_ids = ms.Tensor(batch_encoding.input_ids)
+        attention_mask = ms.Tensor(batch_encoding.attention_mask)
+        text_features, _ = self.get_text_features(text_input_ids, attention_mask)
+        return text_features
 
-        outputs = self.text_model(**batch_encoding)
+    def get_text_features(self, input_ids, attention_mask):
+        outputs = self.text_model(input_ids=input_ids, attention_mask=attention_mask)
 
         return outputs.last_hidden_state, outputs.pooler_output
 
