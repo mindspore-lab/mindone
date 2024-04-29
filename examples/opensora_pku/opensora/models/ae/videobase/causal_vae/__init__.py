@@ -17,8 +17,12 @@ class CausalVAEModelWrapper(nn.Cell):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
         # self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir)
         model_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_config)
-        config = OmegaConf.load(model_config)
-        vae = instantiate_from_config(config.generator)
+        if isinstance(model_config, str) and model_config.endswith(".yaml"):
+            model_config = OmegaConf.load(model_config)
+        else:
+            assert isinstance(model_config, OmegaConf), "Expect to have model_config as a OmegaConf input"
+
+        vae = instantiate_from_config(model_config.generator)
         if model_path is not None:
             if os.path.exists(model_path):
                 vae.init_from_ckpt(model_path)

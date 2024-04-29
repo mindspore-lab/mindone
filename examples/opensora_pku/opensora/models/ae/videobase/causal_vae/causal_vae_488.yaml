@@ -19,7 +19,7 @@ generator:
       split_time_upsample: True # if True, exclude 1st frame from temporal upsampling. The input frames need to be an odd number
 
 discriminator:
-  target: opensora.models.ae.losses.discriminator.NLayerDiscriminator
+  target: opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator
 
 lossconfig:
   disc_start: 50001
