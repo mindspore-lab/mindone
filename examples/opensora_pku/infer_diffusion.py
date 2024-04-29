@@ -4,20 +4,25 @@ import logging
 import os
 import sys
 import time
+from typing import Tuple
 
 import numpy as np
 import yaml
 from omegaconf import OmegaConf
+from tqdm import tqdm
 from utils.model_utils import _check_cfgs_in_parser
 
 import mindspore as ms
 from mindspore import nn
+from mindspore.communication.management import get_group_size, get_rank, init
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
+import pandas as pd
+from opensora.data.text_dataset import create_dataloader
 from opensora.models.diffusion.latte_t2v import Attention, LatteT2V, LayerNorm
 from opensora.text_encoders.t5_embedder import T5Embedder
 
@@ -33,18 +38,77 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
-def init_env(args):
-    # no parallel mode currently
-    ms.set_context(mode=args.mode)  # needed for MS2.0
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    ms.set_context(
-        mode=args.mode,
-        device_target=args.device_target,
-        device_id=device_id,
-    )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
-    return device_id
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    parallel_mode: str = "data",
+    enable_dvm: bool = False,
+) -> Tuple[int, int, int]:
+    """
+    Initialize MindSpore environment.
+
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
+    if distributed:
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # ms2.2.23 parallel needs
+            # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
+        )
+        if parallel_mode == "optim":
+            print("use optim parallel")
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                enable_parallel_optimizer=True,
+            )
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+        else:
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+                device_num=device_num,
+            )
+
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        logger.info(dict(zip(var_info, var_value)))
+
+    else:
+        device_num = 1
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
+        )
+
+    if enable_dvm:
+        print("enable dvm")
+        ms.set_context(enable_graph_kernel=True)
+
+    return rank_id, device_num
 
 
 def parse_args():
@@ -74,13 +138,8 @@ def parse_args():
         default=1000,
         help="number of classes, applies only when condition is `class`",
     )
-    parser.add_argument(
-        "--num_samples",
-        type=int,
-        default=3,
-        help="number of videos to be generated unconditionally. If using text or class as conditions,"
-        " the number of samples will be defined by the number of class labels or text captions",
-    )
+
+    parser.add_argument("--batch_size", default=4, type=int, help="batch size for dataloader")
     parser.add_argument(
         "--model_version",
         type=str,
@@ -129,7 +188,14 @@ def parse_args():
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+    )
+    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
+
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
@@ -213,8 +279,16 @@ if __name__ == "__main__":
 
     # 1. init env
     args = parse_args()
-    init_env(args)
-    set_random_seed(args.seed)
+    # 1. init
+    rank_id, device_num = init_env(
+        args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        device_target=args.device_target,
+        max_device_memory=args.max_device_memory,
+        parallel_mode=args.parallel_mode,
+        enable_dvm=args.enable_dvm,
+    )
 
     # 2. model initiate and weight loading
     # 2.1 latte
@@ -269,29 +343,64 @@ if __name__ == "__main__":
         param.requires_grad = False
     vae.latent_size = (latent_size, latent_size)
 
-    if len(args.captions) == 1 and args.captions[0].endswith(".txt"):
-        with open(args.captions[0], "r") as f:
-            captions = f.readlines()
-            captions = [x.strip() for x in captions]
-        args.captions = captions
+    # parse the caption input
+    if not isinstance(args.captions, list):
+        args.captions = [args.captions]
+    # if input is a text file, where each line is a caption, load it into a list
+    if len(args.captions) == 1 and args.captions[0].endswith("txt"):
+        captions = open(args.captions[0], "r").readlines()
+        args.captions = [i.strip() for i in captions]
+    if len(args.captions) == 1 and args.captions[0].endswith("csv"):
+        captions = pd.read_csv(args.captions[0])
+        args.captions = [i.strip() for i in captions["cap"]]
     n = len(args.captions)
     assert n > 0, "No captions provided"
+    logger.info(f"Number of prompts: {n}")
+    logger.info(f"Number of generated samples for each prompt {args.num_videos_per_prompt}")
+
+    # create dataloader for the captions
+    csv_file = {"path": [], "cap": []}
+    for i in range(n):
+        for i_video in range(args.num_videos_per_prompt):
+            ext = ".npy" if args.save_latents else ".gif"
+            csv_file["path"].append(f"{i_video}-{args.captions[i].strip()[:100]}.{ext}")
+            csv_file["cap"].append(args.captions[i])
+    temp_dataset_csv = os.path.join(save_dir, "dataset.csv")
+    pd.to_csv(temp_dataset_csv, index=False, columns=csv_file.keys(), data=csv_file.values())
+
+    ds_config = dict(
+        csv_path=temp_dataset_csv,
+        tokenizer=None,  # tokenizer,
+    )
+    dataset = create_dataloader(
+        ds_config,
+        args.batch_size,
+        ds_name="text",
+        num_parallel_workers=12,
+        max_rowsize=32,
+        shuffle=False,  # be in order
+        device_num=device_num,
+        rank_id=rank_id,
+        drop_remainder=False,
+    )
+    dataset_size = dataset.get_dataset_size()
+    logger.info(f"Num batches: {dataset_size}")
+    ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
+
     if args.decode_latents:
-        for i in range(n):
-            for i_video in range(args.num_videos_per_prompt):
-                save_fp = f"{args.input_latents_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
-                assert os.path.exists(
-                    save_fp
-                ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
-                loaded_latent = np.load(save_fp)
-                decode_data = vae.decode(ms.Tensor(loaded_latent) / args.sd_scale_factor)
-                decode_data = ms.ops.clip_by_value(
-                    (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
-                ).asnumpy()
-                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
-                save_video_data = decode_data.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-                save_videos(save_video_data, save_fp, loop=0)
-                logger.info(f"video save to {save_fp}")
+        for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
+            save_fp = os.path.join(args.input_latent_dir, data["path"][0])
+            assert os.path.exists(
+                save_fp
+            ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
+            loaded_latent = np.load(save_fp)
+            decode_data = vae.decode(ms.Tensor(loaded_latent) / args.sd_scale_factor)
+            decode_data = ms.ops.clip_by_value(
+                (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
+            ).asnumpy()
+            save_fp = os.path.join(save_dir, data["path"][0].replace(".npy", ".gif"))
+            save_video_data = decode_data.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+            save_videos(save_video_data, save_fp, loop=0)
         sys.exit()
 
     assert args.condition == "text", "LatteT2V only support text condition"
@@ -341,14 +450,9 @@ if __name__ == "__main__":
     start_time = time.time()
 
     # infer
-    video_grids = []
-    if not isinstance(args.captions, list):
-        args.captions = [args.captions]
-    if len(args.captions) == 1 and args.captions[0].endswith("txt"):
-        captions = open(args.captions[0], "r").readlines()
-        args.captions = [i.strip() for i in captions]
-    for prompt in args.captions:
-        print("Processing the ({}) prompt".format(prompt))
+    for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
+        prompt = data["cap"]
+        file_path = os.path.join(save_dir, data["path"][0])
         videos = pipeline(
             prompt,
             video_length=video_length,
@@ -357,25 +461,16 @@ if __name__ == "__main__":
             num_inference_steps=args.sampling_steps,
             guidance_scale=args.guidance_scale,
             enable_temporal_attentions=True,
-            num_videos_per_prompt=args.num_videos_per_prompt,
             mask_feature=False,
             output_type="latents" if args.save_latents else "pil",
         ).video.asnumpy()
-        video_grids.append(videos)
-    x_samples = np.stack(video_grids, axis=0)
-
+        if args.save_latents:
+            assert ".npy" in file_path, "Only support .npy for saving latent data"
+            np.save(save_fp, videos)
+        else:
+            assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
+            videos = videos.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+            save_videos(save_video_data, save_fp, loop=0)
     end_time = time.time()
-
-    # save result
-    for i in range(n):
-        for i_video in range(args.num_videos_per_prompt):
-            if args.save_latents:
-                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.npy"
-                save_latent_data = x_samples[i : i + 1, i_video]
-                np.save(save_fp, save_latent_data)
-                logger.info(f"latent save to {save_fp}")
-            else:
-                save_fp = f"{save_dir}/{i_video}-{args.captions[i].strip()[:100]}.gif"
-                save_video_data = x_samples[i : i + 1, i_video].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-                save_videos(save_video_data, save_fp, loop=0)
-                logger.info(f"video save to {save_fp}")
+    time_cost = end_time - start_time
+    logger.info(f"Inference time cost: {time_cost:0.3f}s")
