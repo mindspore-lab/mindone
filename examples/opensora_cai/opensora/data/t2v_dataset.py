@@ -267,8 +267,8 @@ class TextVideoDataset:
         """
         Returns:
             tuple (video, text_data)
-                - video: preprocessed video frames in shape (f, c, h, w) for vae encoding
-                - text_data: if tokenizer provided, tokens shape (context_max_len,), otherwise text string
+                - video (np.float32): preprocessed video frames in shape (f, c, h, w) for vae encoding
+                - text_data: np.float32 if return embedding, tokens shape (context_max_len,), otherwise np.int64
         """
         try:
             pixel_values, text, mask = self.get_batch(idx)
@@ -322,7 +322,7 @@ class TextVideoDataset:
                 text_data = tokens
             else:
                 raise ValueError("tokenizer must be provided to generate text mask if text embeddings are not cached.")
-
+        
         return pixel_values, text_data, mask.astype(np.uint8)
 
     def traverse_single_video_frames(self, video_index):

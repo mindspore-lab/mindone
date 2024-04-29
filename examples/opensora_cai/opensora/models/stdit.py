@@ -449,7 +449,6 @@ class STDiT(nn.Cell):
         self.enable_sequence_parallelism = enable_sequence_parallelism
         self.sp_rank = None
 
-        print("D--: recompute!!: ", use_recompute)
         if use_recompute:
             for block in self.blocks:
                 self.recompute(block)
@@ -474,11 +473,9 @@ class STDiT(nn.Cell):
             x (ms.Tensor): output latent representation; of shape [B, C, T, H, W]
         """
 
-        # print("D--: stdit inputs: ", x.shape, timestep.shape, mask.shape)
-
-        x = x.to(self.dtype)
-        timestep = timestep.to(self.dtype)
-        y = y.to(self.dtype)
+        # x = x.to(self.dtype)
+        # timestep = timestep.to(self.dtype)
+        # y = y.to(self.dtype)
 
         # embedding
         if self.patchify_conv3d_replace is None:

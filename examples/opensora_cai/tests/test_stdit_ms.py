@@ -14,7 +14,7 @@ sys.path.append("./")
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit import STDiT_XL_2  # STDiTBlock
 
-use_mask = True
+use_mask = False
 print("use mask: ", use_mask)
 
 # data config
@@ -120,8 +120,8 @@ def _diff_res(ms_val, pt_val):
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=0)
-    out_fp32 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt")
+    ms.set_context(mode=1)
+    # out_fp32 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt")
     out_o2 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt", amp="O2")
 
-    print(_diff_res(out_o2, out_fp32))
+    # print(_diff_res(out_o2, out_fp32))

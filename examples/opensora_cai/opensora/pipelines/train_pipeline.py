@@ -81,7 +81,7 @@ class DiffusionWithLoss(nn.Cell):
     def vae_encode(self, x):
         image_latents = self.vae.encode(x)
         image_latents = image_latents * self.scale_factor
-        return image_latents.astype(ms.float16)
+        return image_latents
 
     def vae_decode(self, x):
         """
@@ -157,6 +157,7 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
+        print("D--: Diffusion with loss inputs: ", x.dtype, text_tokens.dtype)
         # 1. get image/video latents z using vae
         if not self.video_emb_cached:
             x = self.get_latents(x)
@@ -169,6 +170,7 @@ class DiffusionWithLoss(nn.Cell):
             text_embed = self.get_condition_embeddings(text_tokens)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+        print("D--: after transpose: ", x.dtype, text_tokens.dtype)
 
         loss = self.compute_loss(x, text_embed, mask)
 
@@ -217,6 +219,8 @@ class DiffusionWithLoss(nn.Cell):
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         text_embed = ops.expand_dims(text_embed, axis=1)
+
+        print("D--: after q_sample and y expand: ", x_t.dtype, text_embed.dtype)
         model_output = self.apply_model(x_t, t, text_embed, mask)
 
         # (b c t h w),

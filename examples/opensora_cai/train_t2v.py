@@ -72,7 +72,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # ms2.2.23 parallel needs
             # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
@@ -107,7 +106,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
     if enable_dvm:
