@@ -41,6 +41,7 @@ class DiffusionWithLoss(nn.Cell):
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
+        dtype=ms.float32,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -52,6 +53,7 @@ class DiffusionWithLoss(nn.Cell):
             condition = condition.lower()
         self.condition = condition
         self.text_encoder = text_encoder
+        self.dtype = dtype
 
         self.scale_factor = scale_factor
         self.cond_stage_trainable = cond_stage_trainable
@@ -143,6 +145,7 @@ class DiffusionWithLoss(nn.Cell):
                 unet2d input/output shape: (b c h w)
         """
         # 1. get image/video latents z using vae
+        x = x.to(self.dtype)
         if not self.video_emb_cached:
             x = self.get_latents(x)
         else:
@@ -151,7 +154,7 @@ class DiffusionWithLoss(nn.Cell):
 
         # 2. get conditions
         if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
+            text_embed = self.get_condition_embeddings(text_tokens, mask)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
 

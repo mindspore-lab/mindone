@@ -226,6 +226,7 @@ def main(args):
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
         use_image_num=args.use_image_num,
+        dtype=model_dtype,
     )
 
     # 3. create dataset
