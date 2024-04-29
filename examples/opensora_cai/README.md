@@ -8,11 +8,11 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
     - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
     - [ ] Mixed precision optimization (BF16)  on Ascend
-    - [ ] Flash attention optimization on Ascend
+    - [x] Flash attention optimization on Ascend
 - [ ] Training
     - [x] Text embedding-cached STDiT training on GPUs and Ascends
         - [x] small dataset
-        - [ ] train with long frames
+        - [x] train with long frames, up to **512x512x300**
     - [ ] Training with online T5-embedding
     - [ ] Train in BF16 precision
     - [ ] Zero2 and sequence-parallel training
