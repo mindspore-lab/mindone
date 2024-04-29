@@ -2,8 +2,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from mindspore import Tensor, ops
 
-VIDEO_EXTENSIONS = {".mp4"}
-
 
 class ClipScoreText:
     def __init__(self, model, processor):
