@@ -269,6 +269,11 @@ if __name__ == "__main__":
         param.requires_grad = False
     vae.latent_size = (latent_size, latent_size)
 
+    if len(args.captions) == 1 and args.captions[0].endswith(".txt"):
+        with open(args.captions[0], "r") as f:
+            captions = f.readlines()
+            captions = [x.strip() for x in captions]
+        args.captions = captions
     n = len(args.captions)
     assert n > 0, "No captions provided"
     if args.decode_latents:
