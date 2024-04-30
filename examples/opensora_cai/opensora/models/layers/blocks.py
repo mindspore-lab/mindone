@@ -23,7 +23,7 @@ class Attention(nn.Cell):
             k v: (b n_k h d), (b h n_v d)
             mask: (b 1 n_k), 0 - keep, 1 indicates discard.
         return:
-            ms.Tensor (b n_q h d) 
+            ms.Tensor (b n_q h d)
         """
 
         # (b n h d) -> (b h n d)
@@ -161,7 +161,6 @@ class MultiHeadCrossAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, :]
             x = self.attention(q, k, v, mask)
-            
 
         x = ops.reshape(x, (B, N, -1))
 

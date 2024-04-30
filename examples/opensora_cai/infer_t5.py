@@ -167,8 +167,6 @@ def main(args):
         logger.info(f"Done. Embeddings saved in {output_folder}")
 
     else:
-        import pdb; pdb.set_trace()
-
         if args.output_path is None:
             args.output_path = "samples/t5_embed.npz"
         os.makedirs(os.path.dirname(args.output_path), exist_ok=True)

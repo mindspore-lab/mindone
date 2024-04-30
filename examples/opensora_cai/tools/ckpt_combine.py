@@ -12,7 +12,7 @@ def get_parser():
         "--distri_ckpt_dir", type=str, help="directory of distributed saved checkpoints from optimizer parallel"
     )
     parser.add_argument("--epoch_num", type=int, help="target epoch of checkpoints want to use")
-    #parser.add_argument("--step_num", type=int, help="target number of step want to use")
+    # parser.add_argument("--step_num", type=int, help="target number of step want to use")
     parser.add_argument("--combined_ckpt_path", type=str, help="the path to save new combined checkpoint")
 
     return parser
@@ -52,7 +52,7 @@ def combine(args):
     new_ckpt_data = {}
     for key, param in ori_ckpt.items():
         # import pdb; pdb.set_trace()
-        if ('pos_embed' not in key) and (not key.startswith('network.')):
+        if ("pos_embed" not in key) and (not key.startswith("network.")):
             key = "network." + key
         if key in distri_first_ckpt.keys():
             if param.value().shape:
@@ -67,15 +67,17 @@ def combine(args):
                             param_data = ops.concat((param_data, distri_ckpt[key].value()))
                             new_ckpt_data[key] = param_data
                 elif "scale_shift_table" in key:
-                    # for scale_shift_table [6, 1152], the first card [3, 1152] and last card [3, 1152] 
+                    # for scale_shift_table [6, 1152], the first card [3, 1152] and last card [3, 1152]
                     for i in range(rank_size):
                         rank_name = "{}".format(i)
                         distri_ckpt = ckpts_dict[rank_name]
                         # import pdb; pdb.set_trace()
-                        assert distri_ckpt[key].shape[0]==param.shape[0]//2, f'Get {key}, {distri_ckpt[key].shape}, rank {i}'
+                        assert (
+                            distri_ckpt[key].shape[0] == param.shape[0] // 2
+                        ), f"Get {key}, {distri_ckpt[key].shape}, rank {i}"
                         if key not in new_ckpt_data:
                             new_ckpt_data[key] = distri_ckpt[key].value()
-                        elif i == (rank_size-1): 
+                        elif i == (rank_size - 1):
                             param_data = new_ckpt_data[key].value()
                             param_data = ops.concat((param_data, distri_ckpt[key].value()))
                             new_ckpt_data[key] = param_data

@@ -322,7 +322,7 @@ class TextVideoDataset:
                 text_data = tokens
             else:
                 raise ValueError("tokenizer must be provided to generate text mask if text embeddings are not cached.")
-        
+
         return pixel_values, text_data, mask.astype(np.uint8)
 
     def traverse_single_video_frames(self, video_index):
