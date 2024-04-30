@@ -157,7 +157,6 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-        print("D--: Diffusion with loss inputs: ", x.dtype, text_tokens.dtype)
         # 1. get image/video latents z using vae
         if not self.video_emb_cached:
             x = self.get_latents(x)
@@ -170,8 +169,6 @@ class DiffusionWithLoss(nn.Cell):
             text_embed = self.get_condition_embeddings(text_tokens)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
-        print("D--: after transpose: ", x.dtype, text_tokens.dtype)
-
         loss = self.compute_loss(x, text_embed, mask)
 
         return loss
@@ -200,8 +197,6 @@ class DiffusionWithLoss(nn.Cell):
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl) / ms.numpy.log(2.0)  # TODO:
 
-        # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype)
-
         # NOTE: make sure it's computed in fp32 since this func contains many exp.
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
         decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
@@ -219,8 +214,6 @@ class DiffusionWithLoss(nn.Cell):
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         text_embed = ops.expand_dims(text_embed, axis=1)
-
-        print("D--: after q_sample and y expand: ", x_t.dtype, text_embed.dtype)
         model_output = self.apply_model(x_t, t, text_embed, mask)
 
         # (b c t h w),
