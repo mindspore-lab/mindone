@@ -46,6 +46,7 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    precision_mode: str = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -66,8 +67,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # ms2.2.23 parallel needs
-            # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
             print("use optim parallel")
@@ -101,13 +100,13 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
     if enable_dvm:
         print("enable dvm")
         ms.set_context(enable_graph_kernel=True)
-
+    if precision_mode is not None and len(precision_mode) > 0:
+        ms.set_context(ascend_config={"precision_mode": precision_mode})
     return rank_id, device_num
 
 
@@ -139,7 +138,7 @@ def parse_args():
         help="number of classes, applies only when condition is `class`",
     )
 
-    parser.add_argument("--batch_size", default=4, type=int, help="batch size for dataloader")
+    parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
     parser.add_argument(
         "--model_version",
         type=str,
@@ -288,8 +287,10 @@ if __name__ == "__main__":
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
+        precision_mode=args.precision_mode,
     )
-
+    if args.precision_mode == "allow_fp32_to_fp16":
+        logger.warning(f"T5 model may produce wrong results under {args.precision_mode} precision mode!")
     # 2. model initiate and weight loading
     # 2.1 latte
     logger.info(f"Latte-{args.model_version} init")
@@ -366,11 +367,13 @@ if __name__ == "__main__":
             csv_file["path"].append(f"{i_video}-{args.captions[i].strip()[:100]}.{ext}")
             csv_file["cap"].append(args.captions[i])
     temp_dataset_csv = os.path.join(save_dir, "dataset.csv")
-    pd.to_csv(temp_dataset_csv, index=False, columns=csv_file.keys(), data=csv_file.values())
+    pd.DataFrame.from_dict(csv_file).to_csv(temp_dataset_csv, index=False, columns=csv_file.keys())
 
     ds_config = dict(
-        csv_path=temp_dataset_csv,
+        data_file_path=temp_dataset_csv,
         tokenizer=None,  # tokenizer,
+        video_column="path",
+        caption_column="cap",
     )
     dataset = create_dataloader(
         ds_config,
@@ -389,18 +392,25 @@ if __name__ == "__main__":
 
     if args.decode_latents:
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
-            save_fp = os.path.join(args.input_latent_dir, data["path"][0])
-            assert os.path.exists(
-                save_fp
-            ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
-            loaded_latent = np.load(save_fp)
-            decode_data = vae.decode(ms.Tensor(loaded_latent) / args.sd_scale_factor)
+            file_paths = data["path"]
+            loaded_latents = []
+            for i_sample in range(args.batch_size):
+                save_fp = os.path.join(args.input_latent_dir, file_paths[i_sample])
+                assert os.path.exists(
+                    save_fp
+                ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
+                loaded_latents.append(np.load(save_fp))
+            loaded_latents = np.stack(loaded_latents)
+            decode_data = vae.decode(ms.Tensor(loaded_latents) / args.sd_scale_factor)
             decode_data = ms.ops.clip_by_value(
                 (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
             ).asnumpy()
-            save_fp = os.path.join(save_dir, data["path"][0].replace(".npy", ".gif"))
-            save_video_data = decode_data.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-            save_videos(save_video_data, save_fp, loop=0)
+            for i_sample in range(args.batch_size):
+                save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", ".gif")
+                save_video_data = decode_data[i_sample : i_sample + 1].transpose(
+                    0, 2, 3, 4, 1
+                )  # (b c t h w) -> (b t h w c)
+                save_videos(save_video_data, save_fp, loop=0)
         sys.exit()
 
     assert args.condition == "text", "LatteT2V only support text condition"
@@ -451,7 +461,8 @@ if __name__ == "__main__":
 
     # infer
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
-        prompt = data["cap"]
+        prompt = [x for x in data["caption"]]
+        file_paths = data["file_path"]
         file_path = os.path.join(save_dir, data["path"][0])
         videos = pipeline(
             prompt,
@@ -464,13 +475,17 @@ if __name__ == "__main__":
             mask_feature=False,
             output_type="latents" if args.save_latents else "pil",
         ).video.asnumpy()
-        if args.save_latents:
-            assert ".npy" in file_path, "Only support .npy for saving latent data"
-            np.save(save_fp, videos)
-        else:
-            assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
-            videos = videos.transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-            save_videos(save_video_data, save_fp, loop=0)
+        for i_sample in range(args.batch_size):
+            file_path = os.path.join(save_dir, file_paths[i_sample])
+            if args.save_latents:
+                assert ".npy" in file_path, "Only support .npy for saving latent data"
+                np.save(file_path, videos[i_sample : i + i_sample])
+            else:
+                assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
+                videos = videos[i_sample : i + i_sample].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                save_videos(save_video_data, file_path, loop=0)
     end_time = time.time()
     time_cost = end_time - start_time
     logger.info(f"Inference time cost: {time_cost:0.3f}s")
+    logger.info(f"Inference speed: {n / time_cost:0.3f} samples/s")
+    logger.info(f"{'latents' if args.save_latents else 'videos' } saved to {save_dir}")
