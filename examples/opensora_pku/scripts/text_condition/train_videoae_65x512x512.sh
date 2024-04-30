@@ -1,0 +1,26 @@
+python opensora/train/train_t2v.py \
+    --model LatteT2V-XL/122 \
+    --text_encoder_name DeepFloyd/t5-v1_1-xxl \
+    --dataset t2v \
+    --ae CausalVAEModel_4x8x8 \
+    --ae_path CausalVAEModel_4x8x8 \
+    --data_file_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
+    --video_folder /remote-home1/dataset/data_split_tt \
+    --frame_stride 1 \
+    --num_frames 65 \
+    --image_size 512 \
+    --use_recompute=True \
+    --batch_size=4 \
+    --gradient_accumulation_steps=1 \
+    --max_train_steps=1000000 \
+    --start_learning_rate=2e-05 \
+    --lr_scheduler="constant" \
+    --lr_warmup_steps=0 \
+    --mixed_precision="fp16" \
+    --epochs=5000 \
+    --ckpt_save_interval=500 \
+    --output_dir="output" \
+    --pretrained_model_path models/t2v.pt \
+    --model_max_length 300 \
+    --use_image_num 16 \
+    --use_img_from_vid
