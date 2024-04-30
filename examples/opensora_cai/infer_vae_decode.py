@@ -63,6 +63,7 @@ def parse_args():
         default=["samples/denoised_latent_00.npz"],
         help="path(s) to save t5 embedding",
     )
+    parser.add_argument("--video_save_dir", default=None, type=str, help="generated video saving dir")
     parser.add_argument(
         "--use_fp16",
         default=False,
@@ -95,13 +96,15 @@ def parse_args():
 
 
 if __name__ == "__main__":
+    args = parse_args()
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
+    if args.video_save_dir is None:
+        args.video_save_dir = "samples"
+    save_dir = os.path.join(args.video_save_dir, time_str)
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    args = parse_args()
     init_env(args)
     set_random_seed(args.seed)
 

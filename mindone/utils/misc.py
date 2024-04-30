@@ -33,5 +33,7 @@ def default(val, d):
     return d() if isfunction(d) else d
 
 
-def to_abspath(root_path, rel_path):
-    return os.path.join(root_path, rel_path)
+def to_abspath(root_dir: str, tmp_path: str):
+    if tmp_path.startswith("/"):
+        return tmp_path
+    return os.path.join(root_dir, tmp_path)

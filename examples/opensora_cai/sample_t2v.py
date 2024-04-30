@@ -50,7 +50,9 @@ def read_captions_from_csv(csv_path, caption_column="caption"):
 
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
+    if args.latent_save_dir is None:
+        args.latent_save_dir = "samples"
+    save_dir = os.path.join(args.latent_save_dir, time_str)
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
@@ -201,7 +203,7 @@ def main(args):
 
         # infer
         start_time = time.time()
-        x_samples = pipeline(inputs, latent_save_fp=f"samples/denoised_latent_{i:02d}.npy")
+        x_samples = pipeline(inputs, latent_save_fp=os.path.join(args.latent_save_dir, f"denoised_latent_{i:02d}.npy"))
         x_samples = x_samples.asnumpy()
         batch_time = time.time() - start_time
 
@@ -253,6 +255,7 @@ def parse_args():
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
     )
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
+    parser.add_argument("--latent_save_dir", default=None, type=str, help="latent files saving dir")
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
