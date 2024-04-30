@@ -10,16 +10,18 @@ import time
 import yaml
 from omegaconf import OmegaConf
 
+import mindspore as ms
+from mindspore import Model
+from mindspore.train.callback import TimeMonitor
+
 sys.path.append(".")
-from opensora.models.ae import getae_model_config, getae_wrapper
+mindone_lib_path = os.path.abspath("../../")
+sys.path.insert(0, mindone_lib_path)
+from opensora.models.ae import getae_model_config
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
 from opensora.utils.utils import get_precision
-
-import mindspore as ms
-from mindspore import Model
-from mindspore.train.callback import TimeMonitor
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -27,12 +29,8 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils.config import str2bool
-
-mindone_lib_path = os.path.abspath("../../")
-sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config
+from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -53,9 +51,13 @@ def main(args):
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # Load Config
-    kwarg = {}
-    model_config = OmegaConf.load(getae_model_config(args.ae))
-    ae = getae_wrapper(args.ae)(model_config, args.load_from_checkpoint, **kwarg)
+    model_config = os.path.join("opensora/models/ae/videobase/causal_vae/", getae_model_config(args.ae))
+    model_config = OmegaConf.load(model_config)
+    ae = instantiate_from_config(model_config)
+    if args.load_from_checkpoint is not None and len(args.load_from_chckpoint) > 0:
+        ae.init_from_ckpt(args.load_from_checkpoint)
+    else:
+        logger.info("No pre-trained model is loaded.")
 
     # discriminator (D)
     use_discriminator = args.use_discriminator and (model_config.lossconfig.disc_weight > 0.0)
@@ -103,6 +105,7 @@ def main(args):
         sample_n_frames=args.video_num_frames,
         return_image=False,
         dynamic_sample=args.dynamic_sample,
+        output_columns=["video"],  # return video only, not the file path
     )
     assert not (
         args.video_num_frames % 2 == 0 and model_config.generator.params.ddconfig.split_time_upsample
@@ -119,14 +122,14 @@ def main(args):
         rank_id=rank_id,
         ds_name="video",
     )
-    num_batches = train_loader.get_num_batches()
+    num_batches = train_loader.get_dataset_size()
 
     # 5. build training utils
     # torch scale lr by: model.learning_rate = accumulate_grad_batches * ngpu * bs * base_lr
     if args.scale_lr:
-        learning_rate = args.base_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+        learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
     else:
-        learning_rate = args.base_learning_rate
+        learning_rate = args.start_learning_rate
     if not args.decay_steps:
         args.decay_steps = max(1, args.epochs * num_batches - args.warmup_steps)
     lr = create_scheduler(
@@ -272,15 +275,16 @@ def main(args):
                 callback.append(ProfilerCallback())
 
             logger.info("Start training...")
-            # backup config files
-            shutil.copyfile(args.config, os.path.join(args.output_dir, os.path.basename(args.config)))
+            if args.config is not None and len(args.config) > 0:
+                # backup config files
+                shutil.copyfile(args.config, os.path.join(args.output_dir, os.path.basename(args.config)))
 
             with open(os.path.join(args.output_dir, "args.yaml"), "w") as f:
                 yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
         model.train(
             args.epochs,
-            dataset,
+            train_loader,
             callbacks=callback,
             dataset_sink_mode=args.dataset_sink_mode,
             sink_size=args.sink_size,
@@ -290,13 +294,13 @@ def main(args):
         if rank_id == 0:
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
         # output_numpy=True ?
-        ds_iter = dataset.create_dict_iterator(args.epochs - start_epoch)
+        ds_iter = train_loader.create_dict_iterator(args.epochs - start_epoch)
 
         for epoch in range(start_epoch, args.epochs):
             start_time_e = time.time()
             for step, data in enumerate(ds_iter):
                 start_time_s = time.time()
-                x = data["image"]
+                x = data["video"]
 
                 global_step = epoch * num_batches + step
                 global_step = ms.Tensor(global_step, dtype=ms.int64)
@@ -343,7 +347,7 @@ def main(args):
 def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--use_discriminator",
-        default=True,
+        default=False,
         type=str2bool,
         help="Whether to use the discriminator in the training process. "
         "Phase 1 training does not use discriminator, set False to reduce memory cost in graph mode.",
@@ -368,10 +372,10 @@ def parse_causalvae_train_args(parser):
     parser.add_argument("--resolution", default=256, type=int, help="The resolution of the videos.")
 
     parser.add_argument("--load_from_checkpoint", default=None, help="Load the model from a specified checkpoint.")
-
-    args = parser.parse_args()
-
-    return args
+    parser.add_argument(
+        "--random_crop", default=False, type=str2bool, help="Whether to use random crop. If False, use center crop"
+    )
+    return parser
 
 
 if __name__ == "__main__":

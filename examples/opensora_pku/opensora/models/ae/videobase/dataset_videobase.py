@@ -45,6 +45,8 @@ class VideoDataset:
         transform_backend="al",
         video_column="video",
         disable_flip=True,
+        dynamic_sample=False,
+        output_columns=["video", "path"],
     ):
         logger.info(f"loading annotations from {csv_path} ...")
 
@@ -64,6 +66,7 @@ class VideoDataset:
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         self.return_image = return_image
+        self.dynamic_sample = dynamic_sample
 
         self.pixel_transforms = create_video_transforms(
             size=size,
@@ -74,6 +77,8 @@ class VideoDataset:
         )
         self.transform_backend = transform_backend
         self.video_column = video_column
+        self.output_columns = output_columns
+        assert "video" in self.output_columns, "At least video should be returned"
 
         # prepare replacement data
         max_attempts = 100
@@ -112,7 +117,11 @@ class VideoDataset:
         video_length = len(video_reader)
 
         if not self.return_image:
-            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+            if self.dynamic_sample:
+                sample_stride = random.randint(1, self.sample_stride)
+            else:
+                sample_stride = self.sample_stride
+            clip_length = min(video_length, (self.sample_n_frames - 1) * sample_stride + 1)
             start_idx = random.randint(0, video_length - clip_length)
             batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
         else:
@@ -173,7 +182,10 @@ class VideoDataset:
 
         pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
-        return pixel_values, video_path
+        if "path" in self.output_columns:
+            return pixel_values, video_path
+        else:
+            return pixel_values
 
 
 # TODO: parse in config dict
@@ -206,9 +218,10 @@ def create_dataloader(
         ds_config, dataset config, args for ImageDataset or VideoDataset
         ds_name: dataset name, image or video
     """
+    column_names = dataset.get("output_columns", ["video"])
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=[ds_name, "path"],
+        column_names=column_names,
         num_shards=device_num,
         shard_id=rank_id,
         python_multiprocessing=True,

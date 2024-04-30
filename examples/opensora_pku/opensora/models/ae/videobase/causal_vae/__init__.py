@@ -1,6 +1,7 @@
 import logging
 import os
 
+import omegaconf
 from omegaconf import OmegaConf
 
 from mindspore import nn
@@ -16,11 +17,13 @@ class CausalVAEModelWrapper(nn.Cell):
         # if os.path.exists(ckpt):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
         # self.vae = CausalVAEModel.from_pretrained(model_path, subfolder=subfolder, cache_dir=cache_dir)
-        model_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_config)
         if isinstance(model_config, str) and model_config.endswith(".yaml"):
+            model_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), model_config)
             model_config = OmegaConf.load(model_config)
         else:
-            assert isinstance(model_config, OmegaConf), "Expect to have model_config as a OmegaConf input"
+            assert isinstance(
+                model_config, omegaconf.DictConfig
+            ), "Expect to have model_config as a omegaconf.DictConfi input"
 
         vae = instantiate_from_config(model_config.generator)
         if model_path is not None:
