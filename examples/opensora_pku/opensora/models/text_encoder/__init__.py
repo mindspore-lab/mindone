@@ -11,7 +11,7 @@ class T5Wrapper(nn.Cell):
         super(T5Wrapper, self).__init__()
         self.model_name = args.text_encoder_name
         self.model_max_length = args.token_max_length
-        dtype = get_precision(args)
+        dtype = get_precision(args.precision)
         t5_model_kwargs = {
             "cache_dir": "./cache_dir",
             "low_cpu_mem_usage": True,
@@ -31,7 +31,7 @@ class CLIPWrapper(nn.Cell):
         super(CLIPWrapper, self).__init__()
         self.model_name = args.text_encoder_name
         self.model_max_length = args.token_max_length
-        dtype = get_precision(args)
+        dtype = get_precision(args.precision)
         model_kwargs = {"cache_dir": "./cache_dir", "low_cpu_mem_usage": True, "dtype": dtype}
         self.text_enc = CLIPEmbedder(self.model_name, **model_kwargs)
 

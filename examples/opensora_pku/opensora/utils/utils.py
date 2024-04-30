@@ -32,10 +32,10 @@ def get_experiment_dir(root_dir, args):
     return root_dir
 
 
-def get_precision(args):
-    if args.mixed_precision == "bf16":
+def get_precision(mixed_precision):
+    if mixed_precision == "bf16":
         dtype = ms.bfloat16
-    elif args.mixed_precision == "fp16":
+    elif mixed_precision == "fp16":
         dtype = ms.float16
     else:
         dtype = ms.float32
