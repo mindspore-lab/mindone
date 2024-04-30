@@ -187,6 +187,9 @@ Take SD 2.0 as an example:
 python text_to_image.py --prompt "elven forest" -v 2.0 --negative_prompt "moss" --scale 9.0 --seed 42
 ```
 
+##### Inference with different samplers
+By default, the inference use dpm++ 2M samplers. You can use others if needed. The support list and detailed illustrations refer to  [schedulers](docs/en/schedulers.md).
+
 ##### Distributed Inference
 
   For parallel inference, take SD1.5 on the Chinese art dataset as an example:
@@ -563,6 +566,12 @@ Currently, we support the following diffusion schedulers.
 - UniPC
 
 Detailed illustrations and comparison of these schedulers can be viewed in [Diffusion Process Schedulers](docs/en/schedulers.md).
+
+### Inference on pre-trained models derived from SD
+
+You could infer with other existing pre-trained models derived from SD, which has undergone extensive fine-tuning processes or trained from scratch on specific datasets. Convert the weights from torch to mindsport format first and do inference with samplers.
+
+Here we provide an example of running inference on the Deliberate Model. Please refer to the instructions here, [Inference with the Deliberate Model](docs/en/Inference_with_Deliberate.md).
 
 ### Training with v-prediction
 
