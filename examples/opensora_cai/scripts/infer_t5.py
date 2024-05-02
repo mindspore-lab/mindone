@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from opensora.data.text_dataset import create_dataloader
+from opensora.datasets.text_dataset import create_dataloader
 from opensora.models.text_encoders import get_text_encoder_and_tokenizer
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
@@ -16,7 +16,7 @@ import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from mindone.utils.amp import auto_mixed_precision

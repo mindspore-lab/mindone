@@ -9,7 +9,7 @@ import sys
 from typing import Tuple
 
 import yaml
-from args_train import parse_args
+from .args_train import parse_args
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -18,10 +18,10 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
-from opensora.data.t2v_dataset import create_dataloader
-from opensora.diffusion import create_diffusion
+from opensora.datasets.t2v_dataset import create_dataloader
+from opensora.schedulers.iddpm import create_diffusion
 from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit import STDiT_XL_2

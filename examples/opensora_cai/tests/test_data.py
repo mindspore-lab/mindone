@@ -7,7 +7,7 @@ from tqdm import tqdm
 import mindspore as ms
 
 sys.path.append("./")
-from opensora.data.t2v_dataset import TextVideoDataset, create_dataloader
+from opensora.datasets.t2v_dataset import TextVideoDataset, create_dataloader
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))

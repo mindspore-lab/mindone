@@ -1,9 +1,9 @@
 space_scale: 1.0
 time_scale: 0.6666666667
 
-checkpoint: "models/OpenSora-v1-HQ-16x512x512.ckpt"
+ckpt_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
 t5_model_dir: "models/t5-v1_1-xxl/"
-vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
+vae_ckpt_path: "models/sd-vae-ft-ema.ckpt"
 
 image_size: 512
 num_frames: 64

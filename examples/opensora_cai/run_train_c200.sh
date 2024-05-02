@@ -7,7 +7,7 @@ export GRAPH_OP_RUN=1
 output_dir=outputs/stdit_256x256x16_fa_debug
 
 # mpirun --allow-run-as-root -n 8 --output-filename $output_dir/logs --merge-stderr-to-stdout \
-    python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
+    python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
         --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
         --video_folder "../videocomposer/datasets/webvid5" \
         --text_embed_folder "../videocomposer/datasets/webvid5" \

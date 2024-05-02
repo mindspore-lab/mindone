@@ -13,7 +13,7 @@ import mindspore as ms
 from mindspore import nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
@@ -58,11 +58,11 @@ def main(args):
     init_env(args.mode, args.device_target, args.enable_dvm)
     set_random_seed(args.seed)
 
-    # get captions from cfg or prompt_file
-    if args.prompt_file is not None:
-        if args.prompt_file.endswith(".csv"):
-            captions = read_captions_from_csv(args.prompt_file)
-        elif args.prompt_file.endswith(".txt"):
+    # get captions from cfg or prompt_path
+    if args.prompt_path is not None:
+        if args.prompt_path.endswith(".csv"):
+            captions = read_captions_from_csv(args.prompt_path)
+        elif args.prompt_path.endswith(".txt"):
             captions = []
             with open(args.caption_file, "r") as fp:
                 for line in fp:
@@ -248,7 +248,7 @@ def parse_args():
         " the number of samples will be defined by the number of class labels or text captions",
     )
     parser.add_argument(
-        "--checkpoint",
+        "--ckpt_path",
         type=str,
         default="",
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
@@ -305,7 +305,7 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
-    parser.add_argument("--prompt_file", default=None, type=str, help="path to a csv file containing captions")
+    parser.add_argument("--prompt_path", default=None, type=str, help="path to a csv file containing captions")
     parser.add_argument(
         "--save_format",
         default="mp4",

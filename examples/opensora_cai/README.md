@@ -1,36 +1,143 @@
-A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from hpcaitech.
-
-## TODOs
-- [x] STDiT implementation and inference
-    - [x] refactor Masked MultiHeadCrossAttention without xformers
-    - [ ] more efficient masking and attention computation for text tokens with dynamic length.
-- [ ] Text-to-video generation pipeline (to be refactored)
-    - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
-    - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
-    - [ ] Mixed precision optimization (BF16)  on Ascend
-    - [x] Flash attention optimization on Ascend
-- [ ] Training
-    - [x] Text embedding-cached STDiT training on GPUs and Ascends
-        - [x] small dataset
-        - [x] train with long frames, up to **512x512x300**
-    - [ ] Training with online T5-embedding
-    - [ ] Train in BF16 precision
-    - [ ] Zero2 and sequence-parallel training
 
 
-## Requirements
+## Open-Sora: Democratizing Efficient Video Production for All
 
-```
+Here we provide an efficient MindSpore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora), an open-source project that aim to foster innovation, creativity, and inclusivity within the field of content creation. 
+
+This repository is built on the models and code released by hpcaitech. We are grateful for their exceptional work and generous contribution to open source.
+
+<h4>Open-Sora is still at an early stage and under active development.</h4>
+
+
+
+## 📰 News & States
+
+|        Official News   | MindSpore Support     |
+| ------------------ | ---------- | 
+| **[2024.04.25]** 🤗 We released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces. | N.A.      |
+| **[2024.04.25]** 🔥 We released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Coming soon     |
+| **[2024.03.18]** We released **Open-Sora 1.0**, a fully open-source project for video generation.  |  ✅ VAE + STDiT training and inference | 
+| **[2024.03.04]** Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora) | ✅ Parallel training on Ascend devices|
+
+
+
+## 🎥 Demo
+
+The following videos are generated based on MindSpore and Ascend 910*.
+
+<summary>OpenSora 1.0 Demo</summary>
+
+| **2s 512×512**                                                                                                                                                                 | **2s 512×512**                                                                                                                                                              | **2s 512×512**                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [<img src="assets/readme/sample_0.gif" width="">](https://github.com/hpcaitech/Open-Sora/assets/99191637/de1963d3-b43b-4e68-a670-bb821ebb6f80)                                 | [<img src="assets/readme/sample_1.gif" width="">](https://github.com/hpcaitech/Open-Sora/assets/99191637/13f8338f-3d42-4b71-8142-d234fbd746cc)                              | [<img src="assets/readme/sample_2.gif" width="">](https://github.com/hpcaitech/Open-Sora/assets/99191637/fa6a65a6-e32a-4d64-9a9e-eabb0ebb8c16)    |
+| A serene night scene in a forested area. [...] The video is a time-lapse, capturing the transition from day to night, with the lake and forest serving as a constant backdrop. | A soaring drone footage captures the majestic beauty of a coastal cliff, [...] The water gently laps at the rock base and the greenery that clings to the top of the cliff. | The majestic beauty of a waterfall cascading down a cliff into a serene lake. [...] The camera angle provides a bird's eye view of the waterfall. |
+| [<img src="assets/readme/sample_3.gif" width="">](https://github.com/hpcaitech/Open-Sora/assets/99191637/64232f84-1b36-4750-a6c0-3e610fa9aa94)                                 | [<img src="assets/readme/sample_4.gif" width="">](https://github.com/hpcaitech/Open-Sora/assets/99191637/983a1965-a374-41a7-a76b-c07941a6c1e9)                              | [<img src="assets/readme/sample_5.gif" width="">](https://github.com/hpcaitech/Open-Sora/assets/99191637/ec10c879-9767-4c31-865f-2e8d6cf11e65)    |
+| A bustling city street at night, filled with the glow of car headlights and the ambient light of streetlights. [...]                                                           | The vibrant beauty of a sunflower field. The sunflowers are arranged in neat rows, creating a sense of order and symmetry. [...]                                            | A serene underwater scene featuring a sea turtle swimming through a coral reef. The turtle, with its greenish-brown shell [...]                   |
+
+Videos are downsampled to `.gif` for display. Click for original videos. Prompts are trimmed for display,
+see [here](/assets/texts/t2v_samples.txt) for full prompts.
+
+
+## 🔆 Features
+
+- 📍 **Open-Sora 1.0** with the following features
+    - ✅ Text-to-video generation in 256x256 or 512x512 resolution and up to 64 frames.
+    - ✅ Three-stage training: i) 16x256x256 video pretraining, ii) 16x512x512 video finetuning, and iii) 64x512x512 videos
+    - ✅ Optimized training receipes for MindSpore+Ascend framework (see `configs/opensora/train/xxx_ms.yaml`)
+    - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), data sink, mixed precision, and graph compilation.
+    - ✅ Data parallelism + Optimizer parallelism, allow training on 300x512x512 videos
+
+<details>
+<summary>View more</summary>
+
+* ✅ Following the findings in OpenSora, we also adopt the VAE from stable diffusion for video latent encoding.
+* ✅ We pick the **STDiT** model as our video diffusion transformer following the best practice in OpenSora.
+* ✅ Support T5 text conditioning.
+
+</details>
+
+### TODO
+* [ ] Support OpenSora 1.1 **[WIP]**
+    - [ ] Support variable aspect ratios, resolutions, and durations.
+    - [ ] Support image and video conditioning
+* [ ] Zero2 and sequence-parallel training **[WIP]** 
+* [ ] Scaling model parameters and dataset size. 
+
+You contributions are welcome.
+
+<details>
+<summary>View more</summary>
+* [ ] Evaluation pipeline.
+* [ ] Complete the data processing pipeline (including dense optical flow, aesthetics scores, text-image similarity, etc.).
+
+</details>
+
+## Contents
+
+* [Installation](#installation)
+* [Model Weights](#model-weights)
+* [Inference](#inference)
+* [Data Processing](#data-processing)
+* [Training](#training)
+* [Evaluation](#evaluation)
+* [Contribution](#contribution)
+* [Acknowledgement](#acknowledgement)
+
+Other useful documents and links are listed below.
+
+* Repo structure: [structure.md](docs/structure.md)
+* Config file explanation: [config.md](docs/config.md)
+* Useful commands: [commands.md](docs/commands.md)
+
+
+## Installation
+
+1. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
+> To use flash attention, it's recommend to use mindspore version at least 2.3-20240422.
+
+
+
+2. Install requirements
+```bash
 pip install -r requirements.txt
 ```
 
-MindSpore version: >= 2.2.12
+In case `decord` package is not available, try `pip install eva-decord`.
+For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
-To enable flash attention, please use mindspore>=2.3-20240422.
+<details onclose>
 
-## Preparation
+```
+1. install ffmpeg 4, referring to https://ffmpeg.org/releases
+    wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
+    tar -xvf ffmpeg-4.0.1.tar.bz2
+    mv ffmpeg-4.0.1 ffmpeg
+    cd ffmpeg
+    ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
+    make -j 64
+    make install
+2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
+    git clone --recursive https://github.com/dmlc/decord
+    cd decord
+    rm build && mkdir build && cd build
+    cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+    make -j 64
+    make install
+    cd ../python
+    python3 setup.py install --user
+```
 
-Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
+</details>
+
+## Model Weights
+
+### Open-Sora 1.1 Model Weights
+
+Coming soon.
+
+### Open-Sora 1.0 Model Weights
+
+Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows.
 
 - T5: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
 
@@ -49,130 +156,202 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/OpenSora-v1-16x256x256.pth --target models/OpenSora-v1-16x256x256.ckpt`
 
+    Training orders: 16x256x256 $\rightarrow$ 16x256x256 HQ $\rightarrow$ 16x512x512 HQ.
+
 - PixArt-α: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth)  (for training only)
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
-    It will be used for better model initialziation.
+    
+    In the first stage training (16x256x256), STDiT is partially initialized from [PixArt-α](https://github.com/PixArt-alpha/PixArt-alpha).
+
 
 ## Inference
 
-To generate video conditioning on captions:
-```
-python sample_t2v.py --config configs/inference/stdit_256x256x16.yaml
-```
-> By default, FP32 is used to ensure the best precision. Nan values may incur in stdit forward pass using fp16, resulting in dark videos.
 
-- To run on GPU, append
-`--device_target GPU`
+### Open-Sora 1.1 Command Line Inference
 
-- To run with cached t5 embedding, append
-`--embed_path outputs/t5_embed.npz`
+Coming soon
 
-For more usage, please run `python sample_t2v.py -h`
+### Open-Sora 1.0 Command Line Inference
 
-To get t5 embedding for a few captions:
-```
-python infer_t5.py --config configs/inference/stdit_256x256x16.yaml --output_path=outputs/t5_embed.npz
-```
+You can run text-to-video inference via the script `scripts/inference.py` as follows.
 
-Here are some generation results in 256x256 resolution.
+```bash
+# Sample 16x256x256 videos
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-16x256x256.ckpt --prompt_path /path/to/prompt.txt
 
-<p float="left">
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/b3780fdc-6b14-425f-a26b-9564c0f492a2 width="24%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/16fe702e-31ac-4651-bce8-876aec7212f9 width="24%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/864a8a41-fd68-4343-ae71-6c25b28f1e6b width="24%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/fde06430-9fd8-48b2-b8ba-890f60d47534 width="24%" />
-</p>
+# Sample 16x512x512 videos
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
 
-<p float="left">
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/bd63e6fb-c498-4673-b260-505a168b0efa width="24%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/89136878-ae3b-4d16-a8f9-71ee9ecc420e width="24%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/ac42f81c-519b-4717-9f04-5585e0509323 width="24%" />
-<img src=https://github.com/SamitHuang/mindone/assets/8156835/66a5c543-9693-4129-b2af-edef67abff79 width="24%" />
-</p>
-
-(source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
-
-
-## Training
-
-### 1. Generate T5 embeddings
-```
-python infer_t5.py \
-    --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
-    --output_dir ../videocomposer/datasets/webvid5 \
+# Sample 64x512x512 videos
+bash scripts/run/run_sample_3stages.sh
 ```
 
-After running, the text embeddings saved as npz file for each caption will be in `output_dir`
+We provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory cost, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
 
-Please change `csv_path` to your video-caption annotation file accordingly.
+For more usage on the inference script, please run `python scripts/inference.py -h`
 
-### 2. Generate VAE embeddings (Optional)
+
+## Data Processing
+
+<details>
+<summary>View more</summary>
+
+The text-video pair data should be organized as follows for example.
+
+```text
+.
+├── video_caption.csv
+├── video_folder
+│   ├── part01
+│   │   ├── vid001.mp4
+│   │   ├── vid002.mp4
+│   │   └── ...
+│   └── part02
+│       ├── vid001.mp4
+│       ├── vid002.mp4
+│       └── ...
 ```
-python infer_vae.py \
-    --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
-    --output_dir ../videocomposer/datasets/webvid5_vae_256x256 \
-    --vae_checkpoint models/sd-vae-ft-ema.ckpt \    # or sd-vae-ft-mse.ckpt
-    --video_folder ../videocomposer/datasets/webvid5  \
-    --image_size 256 \
+
+The `video_folder` contains all the video files. The csv file `video_caption.csv` records the relative video path and its text caption in each line, as follows.
+
+```text
+video,caption
+video_folder/part01/vid001.mp4,a cartoon character is walking throu
+video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
+```
+
+### Cache Text Embeddings
+
+For acceleration, we pre-compute the t5 embedding before training stdit.
+
+```bash
+python scripts/infer_t5.py \
+    --csv_path /path/to/video_caption.csv \
+    --output_dir /path/to/text_embed_folder \
+```
+
+After running, the text embeddings saved as npz file for each caption will be in `output_dir`. Please change `csv_path` to your video-caption annotation file accordingly.
+
+### Cache Video Embedding (Optional)
+
+If the storage budget is sufficient, you may also cache the video embedding by
+
+```bash
+python scripts/infer_vae.py\
+    --csv_path /path/to/video_caption.csv  \
+    --video_folder /path/to/video_folder  \
+    --output_dir /path/to/video_embed_folder  \
+    --vae_checkpoint models/sd-vae-ft-ema.ckpt \
+    --image_size 512 \
 ```
 
 After running, the vae latents saved as npz file for each video will be in `output_dir`.
 
-
-### 3. Train STDiT
-
-```
-python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
-    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
-    --video_folder "../videocomposer/datasets/webvid5" \
-    --text_embed_folder "../videocomposer/datasets/webvid5" \
-```
-
-To to enable training with the cached vae latents, please append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"`.
-
-Please change `csv_path`,`video_folder`, `embed_folder` according to your data location.
-
-For detailed usage, please check `python train_t2v.py -h`
-
-Note that the training precision is under continuous optimization.
-
-
-#### Notes about MindSpore 2.3
-
-Training on MS2.3 allows much better performance with its new feautres (such as kbk and dvm)
-
-To enable kbk mode on ms2.3, please set
-```
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
-
-```
-
-To improve training perforamnce, you may append `--enable_dvm=True` to the training command.
-
-Here is an example for training on MS2.3:
-```
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
-
-python train_t2v.py --config configs/train/stdit_256x256x16.yaml \
-    --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
-    --video_folder "../videocomposer/datasets/webvid5" \
-    --text_embed_folder "../videocomposer/datasets/webvid5" \
-    --enable_dvm=True \
+Finally, the training data should be like follows.
+```text
+.
+├── video_caption.csv
+├── video_folder
+│   ├── part01
+│   │   ├── vid001.mp4
+│   │   ├── vid002.mp4
+│   │   └── ...
+│   └── part02
+│       ├── vid001.mp4
+│       ├── vid002.mp4
+│       └── ...
+├── text_embed_folder
+│   ├── part01
+│   │   ├── vid001.npz
+│   │   ├── vid002.npz
+│   │   └── ...
+│   └── part02
+│       ├── vid001.npz
+│       ├── vid002.npz
+│       └── ...
+├── video_embed_folder  # optional
+│   ├── part01
+│   │   ├── vid001.npz
+│   │   ├── vid002.npz
+│   │   └── ...
+│   └── part02
+│       ├── vid001.npz
+│       ├── vid002.npz
+│       └── ...
 ```
 
+</details>
 
+## Training
 
+### Open-Sora 1.1 Training
 
-### Evaluate
-To evaluate the training result:
+Coming soon
 
+### Open-Sora 1.0 Training
+
+Once the data is prepared, run the following commands to launch training.
+
+```bash
+# standalone training, 16x256x256
+python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
+    --csv_path /path/to/video_caption.csv \
+    --video_folder /path/to/video_folder \
+    --text_embed_folder /path/to/text_embed_folder \
 ```
-python sample_t2v.py \
-    --config configs/inference/stdit_256x256x16_webvid.yaml \
-    --checkpoint /path/to/your_trained_model.ckpt \
+> To use the cached video embedding, please replace `--video_folder` with `--video_embed_folder` and pass the path to the video embedding folder.
+
+For parallel training, please use `msrun` and pass `--use_parallel=True`
+
+```bash
+# 8 NPUs, 64x512x512
+msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+    python scripts/train.py --config configs/opensora/train/stdit_512x512x64_ms.yaml \
+    --csv_path /path/to/video_caption.csv \
+    --video_folder /path/to/video_folder \
+    --text_embed_folder /path/to/text_embed_folder \
+    --use_parallel True \
 ```
 
-You may change the source captions in the config yaml file (key `captions:`)
+#### Performance
+
+We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+
+| Model          |   Context      |  Precision         |  BS  | NPUs  |   Resolution  |  Train T. (s/step)  |
+|:---------------|:---------------|:--------------|:-------------:|:---------:|:----------:|:------------:|
+| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      2 | 8    |    16x256x256  |  1.10  |
+| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 8    |    16x512x512  |  1.67   |
+| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 8    |    64x512x512  |  6.70  |
+| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 64    |    64x512x512  | 6.81  |
+| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 8    |    300x512x512  | 37  |
+> Context: {G:GPU, D:Ascend}{chip type}-{number of NPUs}-{mindspore version}.
+
+Note that training on 300 frames at 512x512 resolution are achived by optimization+data parallelism.
+
+## Evaluation
+
+As the evaluation tools are common for both MindSpore and Torch, please refer to the original [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
+
+
+## Contribution
+
+Thanks goes to the support from MindSpore team and the open-source contributions from the OpenSora project.
+
+If you wish to contribute to this project, you can refer to the [Contribution Guideline](../../CONTRIBUTING.md).
+
+## Acknowledgement
+
+* [ColossalAI](https://github.com/hpcaitech/ColossalAI): A powerful large model parallel acceleration and optimization
+  system.
+* [DiT](https://github.com/facebookresearch/DiT): Scalable Diffusion Models with Transformers.
+* [OpenDiT](https://github.com/NUS-HPC-AI-Lab/OpenDiT): An acceleration for DiT training. We adopt valuable acceleration
+  strategies for training progress from OpenDiT.
+* [PixArt](https://github.com/PixArt-alpha/PixArt-alpha): An open-source DiT-based text-to-image model.
+* [Latte](https://github.com/Vchitect/Latte): An attempt to efficiently train DiT for video.
+* [StabilityAI VAE](https://huggingface.co/stabilityai/sd-vae-ft-mse-original): A powerful image VAE model.
+* [CLIP](https://github.com/openai/CLIP): A powerful text-image embedding model.
+* [T5](https://github.com/google-research/text-to-text-transfer-transformer): A powerful text encoder.
+* [LLaVA](https://github.com/haotian-liu/LLaVA): A powerful image captioning model based on [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Yi-34B](https://huggingface.co/01-ai/Yi-34B).
+
+We are grateful for their exceptional work and generous contribution to open source.

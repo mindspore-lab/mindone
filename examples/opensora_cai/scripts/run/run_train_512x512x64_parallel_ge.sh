@@ -17,7 +17,7 @@ num_frames=64
 output_dir=outputs/stdit_512x512x$num_frames
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
-	python train_t2v.py --config configs/train/stdit_512x512x64_ms.yaml \
+	python scripts/train.py --config configs/opensora/train/stdit_512x512x64_ms.yaml \
 	--csv_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
 	--video_folder datasets/sora_overfitting_dataset_0410 \
 	--text_embed_folder datasets/sora_overfitting_dataset_0410 \
