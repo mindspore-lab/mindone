@@ -112,7 +112,7 @@ class Upsample2D(nn.Cell):
         # TODO(Suraj): Remove this cast once the issue is fixed in PyTorch
         # https://github.com/pytorch/pytorch/issues/86679
         dtype = hidden_states.dtype
-        if dtype == ms.bfloat16:
+        if dtype == ms.float16:
             hidden_states = hidden_states.to(ms.float32)
 
         # if `output_size` is passed we force the interpolation output
@@ -125,7 +125,7 @@ class Upsample2D(nn.Cell):
                 hidden_states = ops.interpolate(hidden_states, size=output_size, mode="nearest")
 
         # If the input is bfloat16, we cast back to bfloat16
-        if dtype == ms.bfloat16:
+        if dtype == ms.float16:
             hidden_states = hidden_states.to(dtype)
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed

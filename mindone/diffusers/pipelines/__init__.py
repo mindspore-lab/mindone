@@ -9,9 +9,7 @@ _import_structure = {
     "stable_diffusion": [
         "StableDiffusionPipeline",
     ],
-    "stable_diffusion_xl": [
-        "StableDiffusionXLPipeline",
-    ],
+    "stable_diffusion_xl": ["StableDiffusionXLPipeline", "StableDiffusionXLImg2ImgPipeline"],
     "pipeline_utils": [
         "DiffusionPipeline",
         "ImagePipelineOutput",
@@ -23,7 +21,7 @@ if TYPE_CHECKING:
     from .ddpm import DDPMPipeline
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
     from .stable_diffusion import StableDiffusionPipeline
-    from .stable_diffusion_xl import StableDiffusionXLPipeline
+    from .stable_diffusion_xl import StableDiffusionXLImg2ImgPipeline, StableDiffusionXLPipeline
 else:
     import sys
 

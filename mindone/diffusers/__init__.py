@@ -34,6 +34,7 @@ _import_structure = {
         "DiffusionPipeline",
         "StableDiffusionPipeline",
         "StableDiffusionXLPipeline",
+        "StableDiffusionXLImg2ImgPipeline",
     ],
     "schedulers": [
         "DDIMScheduler",
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
         DDPMPipeline,
         DiffusionPipeline,
         StableDiffusionPipeline,
+        StableDiffusionXLImg2ImgPipeline,
         StableDiffusionXLPipeline,
     )
     from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
