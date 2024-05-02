@@ -331,8 +331,7 @@ Note that training on 300 frames at 512x512 resolution are achived by optimizati
 
 ## Evaluation
 
-As the evaluation tools are common for both MindSpore and Torch, please refer to the original [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
-
+Please refer to the original hpcaitech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
 
 ## Contribution
 
