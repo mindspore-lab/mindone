@@ -12,11 +12,11 @@ This repository is built on the models and code released by hpcaitech. We are gr
 
 ## 📰 News & States
 
-|        Official News   | MindSpore Support     |
+|        Official News from hpcaitech  | MindSpore Support     |
 | ------------------ | ---------- | 
-| **[2024.04.25]** 🤗 We released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces. | N.A.      |
-| **[2024.04.25]** 🔥 We released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Coming soon     |
-| **[2024.03.18]** We released **Open-Sora 1.0**, a fully open-source project for video generation.  |  ✅ VAE + STDiT training and inference | 
+| **[2024.04.25]** 🤗 hpcaitech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces. | N.A.      |
+| **[2024.04.25]** 🔥 hpcaitech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Coming soon     |
+| **[2024.03.18]** hpcaitech released **Open-Sora 1.0**, a fully open-source project for video generation.  |  ✅ VAE + STDiT training and inference | 
 | **[2024.03.04]** Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora) | ✅ Parallel training on Ascend devices|
 
 
