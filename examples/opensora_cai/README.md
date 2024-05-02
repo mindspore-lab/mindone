@@ -60,7 +60,7 @@ see [here](/assets/texts/t2v_samples.txt) for full prompts.
 * [ ] Support OpenSora 1.1 **[WIP]**
     - [ ] Support variable aspect ratios, resolutions, and durations.
     - [ ] Support image and video conditioning
-* [ ] Zero2 and sequence-parallel training **[WIP]** 
+* [ ] Optimizer-parallel and sequence-parallel training **[WIP]** 
 * [ ] Scaling model parameters and dataset size. 
 
 You contributions are welcome.
