@@ -42,7 +42,7 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     For `sd-vae-ft-ema`, run:
     ```
-    python tools/vae_converter.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    python tools/.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)

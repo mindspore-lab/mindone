@@ -6,7 +6,7 @@ opensora_cai
 ├── assets
 │   └── texts                               -> prompts used for text-conditioned generation
 │       └── t2v_samples.txt
-├── configs                                 -> Configs for training & inference
+├── configs                                 -> configs for training & inference
 │   ├── opensora
 │   │   ├── inference
 │   │   │   ├── stdit_256x256x16.yaml
@@ -32,10 +32,10 @@ opensora_cai
 │   │   ├── text_encoder                    -> Text encoder
 │   │   ├── layers                          -> Common layers
 │   │   └── stidit                          -> STDiT models
-│   ├── pipelines
+│   ├── pipelines                           
 │   │   ├── __init__.py
-│   │   ├── infer_pipeline.py
-│   │   └── train_pipeline.py
+│   │   ├── infer_pipeline.py               -> efficient inference pipeline for MindSpore
+│   │   └── train_pipeline.py               -> efficient training pipeline for MindSpore
 │   ├── schedulers
 │   │   └── iddpm                           -> IDDPM for training and inference
 │   │       ├── __init__.py
@@ -51,8 +51,8 @@ opensora_cai
 │   ├── infer_vae.py
 │   ├── infer_vae_decode.py
 │   ├── inference.py                        -> diffusion inference script
-│   ├── run                                 -> Scripts for quick running
+│   ├── run                                 -> scripts for quick running
 │   └── train.py                            -> diffusion training script
-├── tests                                   -> Tests for the project
-└── tools                                   -> Tools for checkpoint conversion and visualization
+├── tests                                   -> tests for the project
+└── tools                                   -> tools for checkpoint conversion and visualization
 ```

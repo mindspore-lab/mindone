@@ -220,3 +220,14 @@ class T5Embedder(nn.Cell):
         caption = re.sub(r"^\.\S+$", "", caption)
 
         return caption.strip()
+
+
+def get_text_encoder_and_tokenizer(name, ckpt_path):
+    if name == "t5":
+        logger.info("T5 init")
+        text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
+        tokenizer = text_encoder.tokenizer
+    else:
+        raise NotImplementedError
+
+    return text_encoder, tokenizer
