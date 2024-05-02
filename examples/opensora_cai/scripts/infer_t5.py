@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 from opensora.datasets.text_dataset import create_dataloader
-from opensora.models.text_encoders import get_text_encoder_and_tokenizer
+from opensora.models.text_encoder.text_encoders import get_text_encoder_and_tokenizer
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
 

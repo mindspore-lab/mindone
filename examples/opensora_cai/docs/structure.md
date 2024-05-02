@@ -4,9 +4,9 @@
 opensora_cai
 ├── README.md
 ├── assets
-│   └── texts
+│   └── texts                           -> prompts used for text-conditioned generation
 │       └── t2v_samples.txt
-├── configs
+├── configs                             -> Configs for training & inference
 │   ├── opensora
 │   │   ├── inference
 │   │   │   ├── stdit_256x256x16.yaml
@@ -30,19 +30,9 @@ opensora_cai
 │   ├── models
 │   │   ├── autoencoder.py
 │   │   ├── flan_t5_large
-│   │   │   ├── mininlp
-│   │   │   │   ├── activations.py
-│   │   │   │   ├── configs.py
-│   │   │   │   ├── download.py
-│   │   │   │   ├── legacy.py
-│   │   │   │   ├── mixins.py
-│   │   │   │   ├── pretrained_config.py
-│   │   │   │   ├── pretrained_model.py
-│   │   │   │   └── pretrained_tokenizer.py
 │   │   │   ├── t5.py
 │   │   │   └── t5_config.py
-│   │   ├── layers
-│   │   │   └── blocks.py
+│   │   ├── layers                          -> Common layers
 │   │   ├── stdit.py
 │   │   ├── t5.py
 │   │   └── text_encoders.py
@@ -51,37 +41,22 @@ opensora_cai
 │   │   ├── infer_pipeline.py
 │   │   └── train_pipeline.py
 │   ├── schedulers
-│   │   └── iddpm
+│   │   └── iddpm                           -> IDDPM for training and inference
 │   │       ├── __init__.py
 │   │       ├── diffusion_utils.py
 │   │       ├── gaussian_diffusion.py
 │   │       ├── respace.py
 │   │       └── timestep_sampler.py
 │   └── utils
-│       ├── cond_data.py
-│       ├── load_models.py
-│       ├── model_utils.py
-│       └── util.py
-├── quick_start.md
 ├── requirements.txt
 ├── scripts
 │   ├── args_train.py
 │   ├── infer_t5.py
 │   ├── infer_vae.py
 │   ├── infer_vae_decode.py
-│   ├── inference.py
-│   ├── run
-│   │   └── run_train_512x512x64_parallel_ge.sh
-│   └── train.py
-├── tests
-│   ├── test_data.py
-│   ├── test_stdit.py
-│   ├── test_stdit_block.py
-│   └── test_stdit_ms.py
-└── tools
-    ├── ckpt_combine.py
-    ├── convert_pt2ms.py
-    ├── plot.py
-    ├── t5_convert.py
-    └── vae_converter.py
+│   ├── inference.py                        -> diffusion inference script
+│   ├── run                                 -> Scripts for quick running
+│   └── train.py                            -> diffusion training script
+├── tests                                   -> Tests for the project
+└── tools                                   -> Tools for checkpoint conversion and visualization
 ```

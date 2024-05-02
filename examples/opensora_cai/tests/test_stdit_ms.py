@@ -12,7 +12,7 @@ from mindone.utils.amp import auto_mixed_precision
 
 sys.path.append("./")
 from opensora.models.layers.blocks import Attention, LayerNorm
-from opensora.models.stdit import STDiT_XL_2  # STDiTBlock
+from opensora.models.stdit.stdit import STDiT_XL_2  # STDiTBlock
 
 use_mask = False
 print("use mask: ", use_mask)

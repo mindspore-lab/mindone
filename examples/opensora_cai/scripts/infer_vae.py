@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import yaml
 from opensora.datasets.t2v_dataset import create_dataloader
-from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
 

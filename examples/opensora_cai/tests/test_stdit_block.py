@@ -10,7 +10,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from opensora.models.stdit import STDiTBlock
+from opensora.models.stdit.stdit import STDiTBlock
 
 from mindone.utils.amp import auto_mixed_precision
 
@@ -203,7 +203,7 @@ def compare_stdit():
     pt_code_path = "/home/mindocr/yx/Open-Sora/"
     # pt_code_path = "/srv/hyx/Open-Sora/"
     sys.path.append(pt_code_path)
-    from opensora.models.stdit.stdit import STDiTBlock as STD_PT
+    from opensora.models.stdit.stdit.stdit import STDiTBlock as STD_PT
 
     ckpt_fn = "stdb"
     ckpt_fp_pt = f"tests/{ckpt_fn}.pth"

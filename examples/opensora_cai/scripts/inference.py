@@ -16,10 +16,10 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.models.layers.blocks import Attention, LayerNorm
-from opensora.models.stdit import STDiT_XL_2
-from opensora.models.text_encoders import get_text_encoder_and_tokenizer
+from opensora.models.stdit.stdit import STDiT_XL_2
+from opensora.models.text_encoder.text_encoders import get_text_encoder_and_tokenizer
 from opensora.pipelines import InferPipeline
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 

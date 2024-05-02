@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from opensora.models.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 
 import mindspore as ms
