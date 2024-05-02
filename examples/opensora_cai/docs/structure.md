@@ -21,6 +21,7 @@ opensora_cai
 │   └── opensora-v1-1
 ├── docs
 │   ├── config.md
+│   ├── quick_start.md
 │   └── structure.md
 ├── opensora
 │   ├── datasets
