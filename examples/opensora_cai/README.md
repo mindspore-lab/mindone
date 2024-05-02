@@ -191,6 +191,8 @@ For more usage on the inference script, please run `python scripts/inference.py 
 
 ## Data Processing
 
+Currently, we didn't implement the complete pipeline for data processing from raw videos to high-quality text-video pairs. We provide the data processing tools as follows.
+
 <details>
 <summary>View more</summary>
 
