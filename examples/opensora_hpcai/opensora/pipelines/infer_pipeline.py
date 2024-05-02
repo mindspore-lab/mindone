@@ -5,7 +5,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import ops
 
-from ..diffusion import create_diffusion
+from ..schedulers.iddpm import create_diffusion
 
 __all__ = ["InferPipeline"]
 
