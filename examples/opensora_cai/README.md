@@ -319,14 +319,15 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model          |   Context      |  Precision         |  BS  | NPUs  |   Resolution  |  Train T. (s/step)  |
 |:---------------|:---------------|:--------------|:-------------:|:---------:|:----------:|:------------:|
-| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      2 | 8    |    16x256x256  |  1.10  |
-| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 8    |    16x512x512  |  1.67   |
-| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 8    |    64x512x512  |  6.70  |
-| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 64    |    64x512x512  | 6.81  |
-| STDiT-XL/2     |    D910\*x1-MS2.3(20240423)       |      FP16   |      1 | 8    |    300x512x512  | 37  |
+| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      2 | 8    |    16x256x256  |  1.10  |
+| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 8    |    16x512x512  |  1.67   |
+| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 8    |    64x512x512  |  6.70  |
+| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 64    |    64x512x512  | 6.81  |
+| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 8    |    300x512x512  | 37  |
 > Context: {G:GPU, D:Ascend}{chip type}-{number of NPUs}-{mindspore version}.
 
-Note that training on 300 frames at 512x512 resolution are achived by optimization+data parallelism.
+Note that training on 300 frames at 512x512 resolution are achived by optimization+data parallelism with t5 cached embeddings.
+
 
 ## Evaluation
 
