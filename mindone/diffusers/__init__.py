@@ -35,6 +35,7 @@ _import_structure = {
         "StableDiffusionPipeline",
         "StableDiffusionXLPipeline",
         "StableDiffusionXLImg2ImgPipeline",
+        "StableDiffusionImg2ImgPipeline",
     ],
     "schedulers": [
         "DDIMScheduler",
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
         DDIMPipeline,
         DDPMPipeline,
         DiffusionPipeline,
+        StableDiffusionImg2ImgPipeline,
         StableDiffusionPipeline,
         StableDiffusionXLImg2ImgPipeline,
         StableDiffusionXLPipeline,
