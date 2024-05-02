@@ -91,8 +91,7 @@ Other useful documents and links are listed below.
 ## Installation
 
 1. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
-> To use flash attention, it's recommend to use mindspore version at least 2.3-20240422.
-
+> To use flash attention, it's recommended to use mindspore 2.3rc2 (release soon).
 
 
 2. Install requirements
