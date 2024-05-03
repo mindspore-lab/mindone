@@ -54,7 +54,7 @@ class T5Embedder(nn.Cell):
         self.hf_token = hf_token
         self.cache_dir = cache_dir
         self.dir_or_name = dir_or_name
-        cache_dir = os.path.join(self.cache_dir, "t5-v1_1-xxl")
+        cache_dir = os.path.join(self.cache_dir, self.dir_or_name)
         self.dtype = dtype
 
         self.tokenizer = AutoTokenizer.from_pretrained(cache_dir)

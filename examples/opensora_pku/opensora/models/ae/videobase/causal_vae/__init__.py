@@ -1,3 +1,4 @@
+import glob
 import logging
 import os
 
@@ -28,6 +29,15 @@ class CausalVAEModelWrapper(nn.Cell):
         vae = instantiate_from_config(model_config.generator)
         if model_path is not None:
             if os.path.exists(model_path):
+                if not model_path.endswith(".ckpt"):
+                    assert os.path.isdir(
+                        model_path
+                    ), f"Expect model_path to be a directory or a checkpoint file, but got {model_path}"
+                    model_path = glob.glob(os.path.join(model_path, "*.ckpt"))
+                    assert (
+                        len(model_path) == 1
+                    ), f"Expect one checkpoint file in {model_path}, but got {len(model_path)}"
+                    model_path = model_path[0]
                 vae.init_from_ckpt(model_path)
             else:
                 logger.info(f"Model path {model_path} not exists")
