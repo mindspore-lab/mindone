@@ -282,7 +282,7 @@ if __name__ == "__main__":
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
         )
 
-    video_length, image_size = transformer_model.config.video_length, args.image_size
+    video_length, image_size = transformer_model.config.video_length, int(args.version.split("x")[1])
     latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     if args.force_images:
         video_length = 1
@@ -433,8 +433,8 @@ if __name__ == "__main__":
         videos = pipeline(
             prompt,
             video_length=video_length,
-            height=args.image_size,
-            width=args.image_size,
+            height=image_size,
+            width=image_size,
             num_inference_steps=args.num_sampling_steps,
             guidance_scale=args.guidance_scale,
             enable_temporal_attentions=not args.force_images,
