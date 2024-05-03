@@ -101,7 +101,7 @@ class InferPipeline(ABC):
 
         return y
 
-    def data_prepare(self, inputs, save_npz=True):
+    def data_prepare(self, inputs):
         x = inputs["noise"]
         mask = inputs.get("mask", None)
 

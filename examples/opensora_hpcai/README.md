@@ -62,7 +62,7 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 * [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 
-You contributions are welcome.
+Your contributions are welcome.
 
 <details>
 <summary>View more</summary>
