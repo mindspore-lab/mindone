@@ -126,7 +126,7 @@ class Frechet_Kernel_Video_Distance:
             frames = 2.0 * frames / 255.0 - 1  # [-1, 1]
             pred = self.model(frames)
             pred_arr.append(pred)
-        pred_arr = ops.cat(pred_arr, 0)
+        pred_arr = ops.cat(pred_arr, 0).float()
         return pred_arr
 
     def comput_fvd(self, gen_feature, gt_feature):
