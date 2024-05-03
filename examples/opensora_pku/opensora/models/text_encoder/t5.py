@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor, nn, ops
 
 from mindone.transformers import T5EncoderModel
 
@@ -43,7 +43,8 @@ class T5Embedder(nn.Cell):
         hf_token=None,
         use_text_preprocessing=True,
         t5_model_kwargs=None,
-        model_max_length=120
+        model_max_length=120,
+        dtype=ms.float32,
     ):
         super().__init__()
         self.use_text_preprocessing = use_text_preprocessing
@@ -51,6 +52,7 @@ class T5Embedder(nn.Cell):
         self.cache_dir = cache_dir
         self.dir_or_name = dir_or_name
         cache_dir = os.path.join(self.cache_dir, "t5-v1_1-xxl")
+        self.dtype = dtype
 
         self.tokenizer = AutoTokenizer.from_pretrained(cache_dir)
         self.model = T5EncoderModel.from_pretrained(cache_dir, **t5_model_kwargs)
@@ -88,7 +90,7 @@ class T5Embedder(nn.Cell):
 
     def get_text_embeddings(self, texts):
         text_tokens, mask = self.get_text_tokens_and_mask(texts)
-        text_encoder_embs = self.construct(text_tokens, mask)
+        text_encoder_embs = ops.stop_gradient(self.construct(text_tokens, mask))
         return text_encoder_embs, mask
 
     def text_preprocessing(self, text):
@@ -218,3 +220,13 @@ class T5Embedder(nn.Cell):
         caption = re.sub(r"^\.\S+$", "", caption)
 
         return caption.strip()
+
+
+if __name__ == "__main__":
+    t5 = T5Embedder(cache_dir="./cache_dir", dtype=ms.float32)
+    prompts = ["I am a test caption", "Test twice"]
+    caption_embs, emb_masks = t5.get_text_embeddings(prompts)
+    emb_dict = {
+        "caption_feature": caption_embs.float().cpu().data.numpy(),
+        "attention_mask": emb_masks.cpu().data.numpy(),
+    }
