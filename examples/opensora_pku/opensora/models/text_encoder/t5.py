@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+import glob
 import html
+import json
 import logging
 import os
 import re
@@ -8,6 +10,7 @@ import urllib.parse as ul
 import ftfy
 from bs4 import BeautifulSoup
 from transformers import AutoTokenizer
+from transformers.models.t5.configuration_t5 import T5Config
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -42,7 +45,7 @@ class T5Embedder(nn.Cell):
         cache_dir="./cache_dir",
         hf_token=None,
         use_text_preprocessing=True,
-        t5_model_kwargs=None,
+        t5_model_kwargs={},
         model_max_length=120,
         dtype=ms.float32,
     ):
@@ -55,10 +58,29 @@ class T5Embedder(nn.Cell):
         self.dtype = dtype
 
         self.tokenizer = AutoTokenizer.from_pretrained(cache_dir)
-        self.model = T5EncoderModel.from_pretrained(cache_dir, **t5_model_kwargs)
-
+        with open(os.path.join(cache_dir, "config.json"), "r") as file:
+            config = json.load(file)
+            config = T5Config(**config)
+        # self.model = T5EncoderModel.from_pretrained(cache_dir, **t5_model_kwargs)
+        model = T5EncoderModel(config, **t5_model_kwargs)
+        ckpt_path = glob.glob(os.path.join(cache_dir, "*.ckpt"))
+        if len(ckpt_path) == 0:
+            logger.info("No checkpoint found in the cache directory. Use random initialization.")
+        else:
+            assert len(ckpt_path) == 1, "Multiple checkpoints found in the cache directory."
+            ckpt_path = ckpt_path[0]
+            logger.info(f"Load checkpoint from {ckpt_path}.")
+            param_dict = ms.load_checkpoint(ckpt_path)
+            param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
+            if len(param_not_load) > 0:
+                logger.warning(f"Parameter not loaded: {param_not_load}")
+            if len(ckpt_not_load) > 0:
+                logger.warning(f"Checkpoint not loaded: {ckpt_not_load}")
+        self.model = model
         self.model_max_length = model_max_length
         self.tokenizer.context_length = model_max_length
+        if self.dtype != ms.float32:
+            raise NotImplementedError("Only float32 is supported.")
 
     def construct(self, text_tokens: Tensor, mask: Tensor = None):
         text_encoder_embs = self.model(
@@ -223,10 +245,6 @@ class T5Embedder(nn.Cell):
 
 
 if __name__ == "__main__":
-    t5 = T5Embedder(cache_dir="./cache_dir", dtype=ms.float32)
+    t5 = T5Embedder(cache_dir="DeepFloyd", dtype=ms.float32)
     prompts = ["I am a test caption", "Test twice"]
     caption_embs, emb_masks = t5.get_text_embeddings(prompts)
-    emb_dict = {
-        "caption_feature": caption_embs.float().cpu().data.numpy(),
-        "attention_mask": emb_masks.cpu().data.numpy(),
-    }
