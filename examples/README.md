@@ -38,7 +38,8 @@ Here we provide various examples for image/video/audio generation models built o
 <details open markdown>
 <summary> Sora-like Projects</summary>
 
-- [ ] [PKU Open-Sora-Plan](opensora_pku/README.md)  (coming soon)
+
+- [x] [PKU Open-Sora-Plan](opensora_pku/README.md)
 - [x] [hpcaitech Open-Sora](opensora_hpcai/README.md)
 
 </details>
