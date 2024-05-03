@@ -178,8 +178,6 @@ def clean_caption(caption):
     caption = re.sub(r"^\.\S+$", "", caption)
 
     return caption.strip()
-<<<<<<< HEAD
-
 
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     actions_dest = [action.dest for action in parser._actions]
@@ -187,5 +185,4 @@ def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     for k in cfgs.keys():
         if k not in actions_dest and k not in defaults_key:
             raise KeyError(f"{k} does not exist in ArgumentParser!")
-=======
->>>>>>> 7baaa9d (get text encoder init.py)
+
