@@ -180,6 +180,7 @@ def main(args):
 
     for i in range(0, num_prompts, args.batch_size):
         if text_emb is None:
+            batch_prompts = captions[i : i + args.batch_size]
             ns = args.batch_size if i + args.batch_size <= len(captions) else len(captions)-i
         else:
             ns = args.batch_size if i + args.batch_size <= text_emb.shape[0] else text_emb.shape[0]-i
