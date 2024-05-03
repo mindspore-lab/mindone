@@ -1,3 +1,0 @@
-moviepy
-scenedetect >=0.6.3
-av

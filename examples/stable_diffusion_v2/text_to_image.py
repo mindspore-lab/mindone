@@ -28,7 +28,7 @@ from utils import model_utils
 from utils.download import download_checkpoint
 from utils.long_prompt import get_text_embeddings
 
-from mindone.tools.safety_checker import SafetyChecker
+from mindone.metrics import SafetyChecker
 
 logger = logging.getLogger("text_to_image")
 
@@ -236,7 +236,7 @@ def main(args):
 
     # create safety checker
     if args.check_safety:
-        safety_checker = SafetyChecker(safety_version=args.safety_version, backend="ms", model_name=args.model_name)
+        safety_checker = SafetyChecker(safety_version=args.safety_version, model_name=args.model_name)
 
     # log
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
