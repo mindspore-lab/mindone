@@ -261,7 +261,7 @@ class TextVideoDataset:
             images = video[select_image_idx]  # num_img, h, w, c
             video = np.concatenate([video, images], axis=0)  # num_frame+num_img, h, w, c
             text_data = np.stack([text_data] * (1 + self.use_image_num))
-            mask = np.stack([mask] * (1 + self.use_image_num))  # 1+self.use_image_num, l
+            mask = np.stack([mask] * (1 + self.use_image_num)) if mask is not None else None  # 1+self.use_image_num, l
         elif self.use_image_num != 0 and not self.use_img_from_vid:
             raise NotImplementedError
         else:
@@ -347,7 +347,7 @@ class TextVideoDataset:
                 text_data = tokens
             else:
                 raise ValueError("tokenizer must be provided to generate text mask if text embeddings are not cached.")
-
+        assert mask is not None, "text mask must be returned."
         return pixel_values, text_data, mask.astype(np.uint8)
 
     def get_token_ids_mask(self, caption):

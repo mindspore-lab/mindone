@@ -178,7 +178,7 @@ def main(args):
 
     # 3. create dataset
     ds_config = dict(
-        data_path=args.data_path,
+        data_file_path=args.data_path,
         video_folder=args.video_folder,
         text_emb_folder=None,
         return_text_emb=False,

@@ -70,7 +70,7 @@ class DiffusionWithLoss(nn.Cell):
             self.text_encoder = None
             logger.info("Train with text embedding inputs")
         else:
-            raise NotImplementedError
+            self.text_encoder = text_encoder
 
         if self.cond_stage_trainable and self.text_encoder:
             self.text_encoder.set_train(True)
