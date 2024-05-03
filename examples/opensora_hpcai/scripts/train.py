@@ -20,14 +20,13 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+from args_train import parse_args
 from opensora.datasets.t2v_dataset import create_dataloader
-from opensora.schedulers.iddpm import create_diffusion
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2
+from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
-
-from args_train import parse_args
+from opensora.schedulers.iddpm import create_diffusion
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network

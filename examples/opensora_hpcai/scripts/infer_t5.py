@@ -4,6 +4,7 @@ import os
 import sys
 import time
 from pathlib import Path
+
 import numpy as np
 import yaml
 from tqdm import tqdm
@@ -18,8 +19,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.datasets.text_dataset import create_dataloader
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
+from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -187,9 +188,7 @@ def main(args):
             batch_prompts = captions[i : i + args.batch_size]
             ns = len(batch_prompts)
 
-            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(
-                batch_prompts, return_tensor=True
-            )
+            batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(batch_prompts, return_tensor=True)
             batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
 
             # save result
@@ -200,11 +199,12 @@ def main(args):
                 global_idx = i + j
                 prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
                 save_fp = f"{output_dir}/{global_idx:03d}-{prompt}.npz"
-                np.savez(save_fp, 
-                        mask=batch_mask[j:j+1],
-                        text_emb=batch_text_emb[j:j+1],
-                        tokens=batch_text_tokens[j:j+1],
-                        )
+                np.savez(
+                    save_fp,
+                    mask=batch_mask[j : j + 1],
+                    text_emb=batch_text_emb[j : j + 1],
+                    tokens=batch_text_tokens[j : j + 1],
+                )
 
         logger.info(f"Finished. Embeddeings saved in {output_dir}")
 
@@ -224,7 +224,9 @@ def parse_args():
         type=str,
         help="path to csv annotation file",
     )
-    parser.add_argument("--prompt_path", default=None, type=str, help="path to a txt file, each line of which is a text prompt")
+    parser.add_argument(
+        "--prompt_path", default=None, type=str, help="path to a txt file, each line of which is a text prompt"
+    )
     parser.add_argument(
         "--output_path",
         type=str,

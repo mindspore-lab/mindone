@@ -1,9 +1,9 @@
 """Prepare conditional images: transform, normalization, and saving"""
 import os
-import pandas as pd
 
 import albumentations
 import numpy as np
+import pandas as pd
 from PIL import Image
 
 
@@ -11,10 +11,12 @@ def load_rgb_images(image_paths):
     assert isinstance(image_paths, list) and len(image_paths) > 0, "image paths must be a non-empty list of strings"
     return [Image.open(path).convert("RGB") for path in image_paths]
 
+
 def read_captions_from_csv(path, caption_column="caption"):
     df = pd.read_csv(path, usecols=[caption_column])
     captions = df[caption_column].values.tolist()
     return captions
+
 
 def read_captions_from_txt(path):
     captions = []
@@ -22,6 +24,7 @@ def read_captions_from_txt(path):
         for line in fp:
             captions.append(line.strip())
     return captions
+
 
 def transform_conditional_images(image_paths, H, W, random_crop=True, normalize=True, save_dir=None):
     if isinstance(image_paths, str):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
 import html
 import logging
+import os
 import re
 import urllib.parse as ul
 

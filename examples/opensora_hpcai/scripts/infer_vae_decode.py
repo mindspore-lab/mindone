@@ -1,12 +1,13 @@
 import argparse
 import datetime
+import glob
 import logging
 import os
 import sys
-import yaml
-import glob
-from pathlib import Path
+
 import numpy as np
+import yaml
+
 import mindspore as ms
 from mindspore import ops
 
@@ -85,7 +86,7 @@ def main(args):
         out = ops.stack(out, axis=0)
 
         return out
-    
+
     latent_paths = sorted(glob.glob(os.path.join(args.latent_folder, "*.npy")))
     for lpath in latent_paths:
         z = np.load(lpath)
@@ -94,12 +95,13 @@ def main(args):
         logger.info(f"Decoding latent of shape {z.shape} from {lpath}")
         vid = vae_decode_video(z)
         vid = vid.asnumpy()
-        
-        assert vid.shape[0]==1
-        fn = os.path.basename(lpath)[:-4] 
+
+        assert vid.shape[0] == 1
+        fn = os.path.basename(lpath)[:-4]
         save_fp = f"{save_dir}/{fn}.{args.save_format}"
         save_videos(vid, save_fp, fps=args.fps)
         logger.info(f"Video saved in {save_fp}")
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -128,7 +130,7 @@ def parse_args():
     parser.add_argument(
         "--output_path",
         type=str,
-        default='samples',
+        default="samples",
         help="output dir to save the generated videos",
     )
     parser.add_argument(
@@ -167,4 +169,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args)
-    

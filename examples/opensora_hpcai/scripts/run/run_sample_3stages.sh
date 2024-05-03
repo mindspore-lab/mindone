@@ -8,7 +8,7 @@ device_target=Ascend
 # ckpt_path=models/models/OpenSora-v1-HQ-16x256x256.ckpt
 # device_target=GPU
 
-rm -rf samples/t5_embed 
+rm -rf samples/t5_embed
 rm -rf samples/denoised_latents
 
 python scripts/infer_t5.py --config $config \

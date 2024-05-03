@@ -1,10 +1,10 @@
 import argparse
 import datetime
+import glob
 import logging
 import os
 import sys
 import time
-import glob
 
 import numpy as np
 import yaml
@@ -17,13 +17,13 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
+from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
-from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
+from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -41,12 +41,13 @@ def init_env(mode, device_target, enable_dvm=False):
     if enable_dvm:
         ms.set_context(enable_graph_kernel=True)
 
+
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     save_dir = f"{args.output_path}/{time_str}"
     os.makedirs(save_dir, exist_ok=True)
     if args.save_latent:
-        latent_dir = os.path.join(args.output_path, 'denoised_latents')
+        latent_dir = os.path.join(args.output_path, "denoised_latents")
         os.makedirs(latent_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
@@ -128,7 +129,7 @@ def main(args):
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
-        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, '*.npz')))
+        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
         for fp in embed_paths:
@@ -137,9 +138,9 @@ def main(args):
             text_tokens.append(dat["tokens"])
             mask.append(dat["mask"])
             text_emb.append(dat["text_emb"])
-        text_tokens = np.concatenate(text_tokens) 
-        mask= np.concatenate(mask) 
-        text_emb = np.concatenate(text_emb) 
+        text_tokens = np.concatenate(text_tokens)
+        mask = np.concatenate(mask)
+        text_emb = np.concatenate(text_emb)
 
         num_prompts = text_emb.shape[0]
         text_tokens = ms.Tensor(text_tokens)
@@ -181,9 +182,9 @@ def main(args):
     for i in range(0, num_prompts, args.batch_size):
         if text_emb is None:
             batch_prompts = captions[i : i + args.batch_size]
-            ns = args.batch_size if i + args.batch_size <= len(captions) else len(captions)-i
+            ns = args.batch_size if i + args.batch_size <= len(captions) else len(captions) - i
         else:
-            ns = args.batch_size if i + args.batch_size <= text_emb.shape[0] else text_emb.shape[0]-i
+            ns = args.batch_size if i + args.batch_size <= text_emb.shape[0] else text_emb.shape[0] - i
 
         # prepare inputs
         inputs = {}
@@ -200,7 +201,7 @@ def main(args):
             inputs["text_tokens"] = None
             inputs["text_emb"] = text_emb[i : i + ns]
             inputs["mask"] = mask[i : i + ns]
-        
+
         logger.info("Sampling for")
         for j in range(ns):
             if text_emb is None:
@@ -237,10 +238,10 @@ def main(args):
 
             # save decoded latents
             if args.save_latent:
-                np.save(latent_save_fp, latents[j:j+1].asnumpy())
+                np.save(latent_save_fp, latents[j : j + 1].asnumpy())
                 logger.info(f"Denoised latents saved in {latent_save_fp}")
 
-            
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -286,7 +287,10 @@ def parse_args():
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument(
-        "--vae_micro_batch_size", type=int, default=None, help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation"
+        "--vae_micro_batch_size",
+        type=int,
+        default=None,
+        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
@@ -334,7 +338,7 @@ def parse_args():
     parser.add_argument(
         "--output_path",
         type=str,
-        default='samples',
+        default="samples",
         help="output dir to save the generated videos",
     )
     parser.add_argument(
@@ -347,7 +351,12 @@ def parse_args():
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
     parser.add_argument("--text_embed_folder", type=str, default=None, help="path to t5 embedding")
-    parser.add_argument("--save_latent", type=str2bool, default=True, help="Save denoised video latent. If True, the denoised latents will be saved in $output_path/denoised_latents")
+    parser.add_argument(
+        "--save_latent",
+        type=str2bool,
+        default=True,
+        help="Save denoised video latent. If True, the denoised latents will be saved in $output_path/denoised_latents",
+    )
     parser.add_argument(
         "--use_vae_decode",
         type=str2bool,

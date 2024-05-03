@@ -32,7 +32,7 @@ opensora_cai
 │   │   ├── text_encoder                    -> Text encoder
 │   │   ├── layers                          -> Common layers
 │   │   └── stidit                          -> STDiT models
-│   ├── pipelines                           
+│   ├── pipelines
 │   │   ├── __init__.py
 │   │   ├── infer_pipeline.py               -> efficient inference pipeline for MindSpore
 │   │   └── train_pipeline.py               -> efficient training pipeline for MindSpore

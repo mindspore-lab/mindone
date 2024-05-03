@@ -1,7 +1,8 @@
 import math
-import numpy as np
 import numbers
 from typing import Optional, Tuple, Type
+
+import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
@@ -608,7 +609,6 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=
     if cls_token and extra_tokens > 0:
         pos_embed = np.concatenate([np.zeros([extra_tokens, embed_dim]), pos_embed], axis=0)
     return pos_embed
-
 
 
 #################################################################################

@@ -1,7 +1,5 @@
 from abc import ABC
 
-import numpy as np
-
 import mindspore as ms
 from mindspore import ops
 
@@ -39,7 +37,7 @@ class InferPipeline(ABC):
         self.condition = condition
 
         self.vae = vae
-        self.micro_batch_size = micro_batch_size 
+        self.micro_batch_size = micro_batch_size
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
         if self.guidance_rescale > 1.0:
@@ -174,4 +172,4 @@ class InferPipeline(ABC):
                 images = self.vae_decode_video(latents)
             return images, latents
         else:
-            return None, latents 
+            return None, latents

@@ -9,11 +9,11 @@ image_size: 512
 num_frames: 64
 batch_size: 1
 enable_flash_attention: True
-dtype: "fp16"
+dtype: "bf16"
 
-# vae (TODO: use bf16)
+# vae
 sd_scale_factor: 0.18215
-vae_micro_batch_size: 8 
+vae_micro_batch_size: 16
 
 # sampling
 sampling_steps: 100

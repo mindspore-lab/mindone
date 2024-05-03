@@ -2,7 +2,7 @@
 
 ## Open-Sora: Democratizing Efficient Video Production for All
 
-Here we provide an efficient MindSpore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora), an open-source project that aim to foster innovation, creativity, and inclusivity within the field of content creation. 
+Here we provide an efficient MindSpore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora), an open-source project that aim to foster innovation, creativity, and inclusivity within the field of content creation.
 
 This repository is built on the models and code released by hpcaitech. We are grateful for their exceptional work and generous contribution to open source.
 
@@ -13,10 +13,10 @@ This repository is built on the models and code released by hpcaitech. We are gr
 ## 📰 News & States
 
 |        Official News from hpcaitech  | MindSpore Support     |
-| ------------------ | ---------- | 
+| ------------------ | ---------- |
 | **[2024.04.25]** 🤗 hpcaitech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces. | N.A.      |
 | **[2024.04.25]** 🔥 hpcaitech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Coming soon     |
-| **[2024.03.18]** hpcaitech released **Open-Sora 1.0**, a fully open-source project for video generation.  |  ✅ VAE + STDiT training and inference | 
+| **[2024.03.18]** hpcaitech released **Open-Sora 1.0**, a fully open-source project for video generation.  |  ✅ VAE + STDiT training and inference |
 | **[2024.03.04]** hpcaitech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora) | ✅ Parallel training on Ascend devices|
 
 
@@ -59,8 +59,8 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 * [ ] Support OpenSora 1.1 **[WIP]**
     - [ ] Support variable aspect ratios, resolutions, and durations.
     - [ ] Support image and video conditioning
-* [ ] Optimizer-parallel and sequence-parallel training **[WIP]** 
-* [ ] Scaling model parameters and dataset size. 
+* [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
+* [ ] Scaling model parameters and dataset size.
 
 You contributions are welcome.
 
@@ -145,19 +145,19 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
 
 - VAE: Download the safetensor checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main))
 
-    Convert to ms checkpoint: 
+    Convert to ms checkpoint:
     ```
     python tools/convert_vae.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
-    Convert to ms checkpoint: 
-    
+    Convert to ms checkpoint:
+
     ```
     python tools/convert_pt2ms.py --src /path/to/OpenSora-v1-16x256x256.pth --target models/OpenSora-v1-16x256x256.ckpt
     ```
-    
+
     Training orders: 16x256x256 $\rightarrow$ 16x256x256 HQ $\rightarrow$ 16x512x512 HQ.
 
     These model weights are partially initialized from [PixArt-α](https://github.com/PixArt-alpha/PixArt-alpha). The number of
@@ -165,11 +165,11 @@ parameters is 724M. More information about training can be found in hpcaitech's 
 
 - PixArt-α: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth)  (for training only)
 
-    Convert to ms checkpoint: 
+    Convert to ms checkpoint:
     ```
     python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt
     ```
-    
+
 
 ## Inference
 
@@ -190,10 +190,10 @@ python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16
 python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 64x512x512 videos
-bash scripts/run/run_sample_3stages.sh
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora.ckpt --prompt_path /path/to/prompt.txt
 ```
 
-We provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory cost, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
+We also provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
 
 For more usage on the inference script, please run `python scripts/inference.py -h`
 

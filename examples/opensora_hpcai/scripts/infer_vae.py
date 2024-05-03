@@ -4,10 +4,12 @@ import logging
 import os
 import sys
 import time
+from pathlib import Path
+
 import numpy as np
 import yaml
 from tqdm import tqdm
-from pathlib import Path
+
 import mindspore as ms
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))

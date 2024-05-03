@@ -1,27 +1,28 @@
-import math
 import os
-import numpy as np
-import mindspore as ms
-from mindspore import Tensor, nn, ops
-from mindspore.common.initializer import XavierUniform, initializer
-from mindcv.models.layers import DropPath
 
+import numpy as np
+from mindcv.models.layers import DropPath
 from opensora.models.layers.blocks import (
+    CaptionEmbedder,
     LayerNorm,
     LinearPatchEmbed,
     Mlp,
     MultiHeadCrossAttention,
     PatchEmbed,
     PatchEmbed3D,
-    TimestepEmbedder,
-    CaptionEmbedder,
     SelfAttention,
     T2IFinalLayer,
+    TimestepEmbedder,
     approx_gelu,
     get_1d_sincos_pos_embed,
     get_2d_sincos_pos_embed,
     t2i_modulate,
 )
+
+import mindspore as ms
+from mindspore import Tensor, nn, ops
+from mindspore.common.initializer import XavierUniform, initializer
+
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
 
@@ -158,6 +159,7 @@ class STDiT(nn.Cell):
         - `patchify_conv3d_replace`: If None, use the default conv3d for patch embedding. If `conv2d`, replace 1xhxw conv3d with hxw conv2d equivalently. \
                 If `linear`, replace the conv3d with a dense layer equivalently.
     """
+
     def __init__(
         self,
         input_size=(1, 32, 32),
