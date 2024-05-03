@@ -205,7 +205,7 @@ class VideoGenPipeline(DiffusionPipeline):
             prompt_embeds_attention_mask = attention_mask
 
             prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
-            prompt_embeds = prompt_embeds[0]
+            prompt_embeds = prompt_embeds[0] if isinstance(prompt_embeds, (list, tuple)) else prompt_embeds
         else:
             prompt_embeds_attention_mask = ops.ones_like(prompt_embeds)
 
@@ -244,7 +244,11 @@ class VideoGenPipeline(DiffusionPipeline):
                 ms.Tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
-            negative_prompt_embeds = negative_prompt_embeds[0]
+            negative_prompt_embeds = (
+                negative_prompt_embeds[0]
+                if isinstance(negative_prompt_embeds, (list, tuple))
+                else negative_prompt_embeds
+            )
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
