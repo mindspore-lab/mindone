@@ -81,7 +81,7 @@ class DiffusionWithLoss(nn.Cell):
     def vae_encode(self, x):
         image_latents = self.vae.encode(x)
         image_latents = image_latents * self.scale_factor
-        return image_latents.astype(ms.float16)
+        return image_latents
 
     def vae_decode(self, x):
         """
@@ -169,7 +169,6 @@ class DiffusionWithLoss(nn.Cell):
             text_embed = self.get_condition_embeddings(text_tokens)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
-
         loss = self.compute_loss(x, text_embed, mask)
 
         return loss
@@ -197,8 +196,6 @@ class DiffusionWithLoss(nn.Cell):
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
         kl = mean_flat(kl) / ms.numpy.log(2.0)  # TODO:
-
-        # print('D--: kl input type ', t.dtype, x.dtype,  model_mean.dtype, kl.dtype)
 
         # NOTE: make sure it's computed in fp32 since this func contains many exp.
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)

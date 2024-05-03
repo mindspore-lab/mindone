@@ -3,6 +3,7 @@ STDiT training script
 """
 import datetime
 import logging
+import math
 import os
 import sys
 from typing import Tuple
@@ -71,7 +72,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # ms2.2.23 parallel needs
             # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
@@ -106,7 +106,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
     if enable_dvm:
@@ -134,8 +133,9 @@ def set_all_reduce_fusion(
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    args.output_path = os.path.join(args.output_path, time_str)
+    if args.add_datetime:
+        time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
     rank_id, device_num = init_env(
@@ -250,10 +250,48 @@ def main(args):
     )
     dataset_size = dataset.get_dataset_size()
 
+    # compute total steps and data epochs (in unit of data sink size)
+    if args.train_steps == -1:
+        assert args.epochs != -1
+        total_train_steps = args.epochs * dataset_size
+    else:
+        total_train_steps = args.train_steps
+
+    if args.dataset_sink_mode and args.sink_size != -1:
+        steps_per_sink = args.sink_size
+    else:
+        steps_per_sink = dataset_size
+    sink_epochs = math.ceil(total_train_steps / steps_per_sink)
+
+    if args.ckpt_save_steps == -1:
+        ckpt_save_interval = args.ckpt_save_interval
+        step_mode = False
+    else:
+        step_mode = not args.dataset_sink_mode
+        if not args.dataset_sink_mode:
+            ckpt_save_interval = args.ckpt_save_steps
+        else:
+            # still need to count interval in sink epochs
+            ckpt_save_interval = max(1, args.ckpt_save_steps // steps_per_sink)
+            if args.ckpt_save_steps % steps_per_sink != 0:
+                logger.warning(
+                    f"`ckpt_save_steps` must be times of sink size or dataset_size under dataset sink mode."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                )
+    step_mode = step_mode if args.step_mode is None else args.step_mode
+
+    logger.info(f"train_steps: {total_train_steps}, train_epochs: {args.epochs}, sink_size: {args.sink_size}")
+    logger.info(f"total train steps: {total_train_steps}, sink epochs: {sink_epochs}")
+    logger.info(
+        "ckpt_save_interval: {} {}".format(
+            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+        )
+    )
+
     # 4. build training utils: lr, optim, callbacks, trainer
     # build learning rate scheduler
     if not args.decay_steps:
-        args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
+        args.decay_steps = total_train_steps - args.warmup_steps  # fix lr scheduling
         if args.decay_steps <= 0:
             logger.warning(
                 f"decay_steps is {args.decay_steps}, please check epochs, dataset_size and warmup_steps. "
@@ -268,7 +306,7 @@ def main(args):
         end_lr=args.end_learning_rate,
         warmup_steps=args.warmup_steps,
         decay_steps=args.decay_steps,
-        num_epochs=args.epochs,
+        total_steps=total_train_steps,
     )
 
     set_all_reduce_fusion(
@@ -346,8 +384,9 @@ def main(args):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=args.ckpt_max_keep,
-            step_mode=args.step_mode,
-            ckpt_save_interval=args.ckpt_save_interval,
+            step_mode=step_mode,
+            use_step_unit=(args.ckpt_save_steps != -1),
+            ckpt_save_interval=ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name="STDiT",
@@ -401,7 +440,7 @@ def main(args):
 
     # 6. train
     model.train(
-        args.epochs,
+        sink_epochs,
         dataset,
         callbacks=callback,
         dataset_sink_mode=args.dataset_sink_mode,

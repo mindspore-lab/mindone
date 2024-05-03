@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import logging
 import os
 import sys
@@ -14,11 +13,13 @@ from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 
@@ -27,32 +28,70 @@ logger = logging.getLogger(__name__)
 skip_vae = True
 
 
-def init_env(args):
-    # no parallel mode currently
-    ms.set_context(mode=args.mode)  # needed for MS2.0
-    device_id = int(os.getenv("DEVICE_ID", 0))
-    rank_id = 0
-    ms.set_context(
-        mode=args.mode,
-        device_target=args.device_target,
-        device_id=device_id,
-    )
-    if args.precision_mode is not None:
-        ms.set_context(ascend_config={"precision_mode": args.precision_mode})
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    enable_dvm: bool = False,
+):
+    """
+    Initialize MindSpore environment.
 
-    device_num = 1
-    return device_id, rank_id, device_num
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
+    if distributed:
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+        init()
+        device_num = get_group_size()
+        rank_id = get_rank()
+        logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+        ms.reset_auto_parallel_context()
+
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            gradients_mean=True,
+            device_num=device_num,
+        )
+
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        logger.info(dict(zip(var_info, var_value)))
+
+    else:
+        device_num = 1
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+
+    if enable_dvm:
+        ms.set_context(enable_graph_kernel=True)
+
+    return rank_id, device_num
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
-    os.makedirs(save_dir, exist_ok=True)
-    set_logger(name="", output_dir=save_dir)
+    log_dir = args.output_path if os.path.isdir(args.output_path) else os.path.dirname(args.output_path)
+    set_logger(name="", output_dir=log_dir)
 
-    device_id, rank_id, device_num = init_env(args)
-    print(f"D--: rank_id {rank_id}, device_num {device_num}")
-    set_random_seed(args.seed)
+    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target)
+    print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions
     if args.csv_path is not None:
@@ -81,22 +120,25 @@ def main(args):
     for param in text_encoder.get_parameters():  # freeze latte_model
         param.requires_grad = False
 
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    if args.dtype in ["fp16", "bf16"]:
+        text_encoder = auto_mixed_precision(text_encoder, amp_level=args.amp_level, dtype=dtype_map[args.dtype])
+
     logger.info("Start embedding...")
 
     # infer
     if args.csv_path is not None:
-        ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
-        if args.output_dir is None:
+        if args.output_path is None:
             output_folder = os.path.dirname(args.csv_path)
         else:
-            output_folder = args.output_dir
+            output_folder = args.output_path
         os.makedirs(output_folder, exist_ok=True)
 
         logger.info(f"Output embeddings will be saved: {output_folder}")
 
-        for step, data in tqdm(enumerate(ds_iter)):
+        ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
+        for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
             start_time = time.time()
-
             file_paths = data["file_path"]
             captions = data["caption"]
             captions = [str(captions[i]) for i in range(len(captions))]
@@ -106,7 +148,7 @@ def main(args):
             text_emb = text_encoder(text_tokens, mask)
 
             end_time = time.time()
-            logger.info(f"Time cost: {end_time-start_time:0.3f}s")
+            time_cost = end_time - start_time
 
             # save the embeddings aligning to video frames
             for i in range(text_emb.shape[0]):
@@ -121,10 +163,14 @@ def main(args):
                     text_emb=text_emb[i].asnumpy().astype(np.float32),
                     # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
                 )
-
+        logger.info(f"Curretn step time cost: {time_cost:0.3f}s")
         logger.info(f"Done. Embeddings saved in {output_folder}")
 
     else:
+        if args.output_path is None:
+            args.output_path = "samples/t5_embed.npz"
+        os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
+
         text_tokens = []
         mask = []
         text_emb = []
@@ -137,7 +183,7 @@ def main(args):
 
             text_tokens.append(batch_text_tokens.asnumpy())
             mask.append(batch_mask.asnumpy().astype(np.uint8))
-            text_emb.append(batch_text_emb.asnumpy())
+            text_emb.append(batch_text_emb.asnumpy().astype(np.float32))
         text_tokens = np.concatenate(text_tokens)
         mask = np.concatenate(mask)
         text_emb = np.concatenate(text_emb)
@@ -161,7 +207,7 @@ def parse_args():
         help="path to csv annotation file, If None, video_caption.csv is expected to live under `data_path`",
     )
     parser.add_argument(
-        "--output_dir",
+        "--output_path",
         type=str,
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
@@ -171,6 +217,7 @@ def parse_args():
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
@@ -184,6 +231,13 @@ def parse_args():
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--amp_level",
+        default="O2",
+        type=str,
+        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
+            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
     parser.add_argument(
         "--precision_mode",
@@ -203,7 +257,6 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
-    parser.add_argument("--output_path", type=str, default="outputs/t5_embed.npz", help="path to save t5 embedding")
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
 
     default_args = parser.parse_args()

@@ -21,7 +21,7 @@ from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit import STDiT_XL_2
 from opensora.models.text_encoders import get_text_encoder_and_tokenizer
 from opensora.pipelines import InferPipeline
-from opensora.utils.model_utils import _check_cfgs_in_parser, count_params, str2bool
+from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -111,16 +111,19 @@ def main(args):
         logger.warning("STDiT uses random initialization!")
 
     # 2.2 vae
-    logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        VAE_Z_CH,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,
-    )
-    vae = vae.set_train(False)
-    if args.vae_dtype in ["fp16", "bf16"]:
-        vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+    if args.use_vae_decode:
+        logger.info("vae init")
+        vae = AutoencoderKL(
+            SD_CONFIG,
+            VAE_Z_CH,
+            ckpt_path=args.vae_checkpoint,
+            use_fp16=False,
+        )
+        vae = vae.set_train(False)
+        if args.vae_dtype in ["fp16", "bf16"]:
+            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+    else:
+        vae = None
 
     # 2.3 text encoder
     if args.embed_path is None:
@@ -155,15 +158,11 @@ def main(args):
     )
 
     # 4. print key info
-    num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_latte, num_params_latte_trainable = count_params(latte_model)
-    num_params = num_params_vae + num_params_latte
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num of samples: {n}",
-            f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"dtype: {args.dtype}",
             f"amp_level: {args.amp_level}",
             f"Sampling steps {args.sampling_steps}",
@@ -202,20 +201,22 @@ def main(args):
         # infer
         start_time = time.time()
         x_samples = pipeline(inputs, latent_save_fp=f"samples/denoised_latent_{i:02d}.npy")
-        x_samples = x_samples.asnumpy()
-        batch_time = time.time() - start_time
 
-        logger.info(
-            f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s"
-        )
+        if x_samples is not None:
+            x_samples = x_samples.asnumpy()
+            batch_time = time.time() - start_time
 
-        # save result
-        for j in range(ns):
-            global_idx = i * args.batch_size + j
-            prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
-            save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
-            save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
-            logger.info(f"save to {save_fp}")
+            logger.info(
+                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s"
+            )
+
+            # save result
+            for j in range(ns):
+                global_idx = i * args.batch_size + j
+                prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
+                save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
+                save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
+                logger.info(f"save to {save_fp}")
 
 
 def parse_args():
@@ -315,6 +316,12 @@ def parse_args():
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
     parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
+    parser.add_argument(
+        "--use_vae_decode",
+        type=str2bool,
+        default=True,
+        help="if False, skip vae decode to save memory (you can use infer_vae_decode.py to decode the saved denoised latent later.",
+    )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))

@@ -18,13 +18,16 @@ class Attention(nn.Cell):
 
     def construct(self, q: Tensor, k: Tensor, v: Tensor, mask: Optional[Tensor] = None) -> Tensor:
         """
-        q: (b n_q h d), h - num_head, n_q - seq_len of q
-        k v: (b n_k h d), (b h n_v d)
-        mask: (b 1 n_k), 0 - keep, 1 indicates discard.
+        args:
+            q: (b n_q h d), h - num_head, n_q - seq_len of q
+            k v: (b n_k h d), (b h n_v d)
+            mask: (b 1 n_k), 0 - keep, 1 indicates discard.
+        return:
+            ms.Tensor (b n_q h d)
         """
 
         # (b n h d) -> (b h n d)
-        q = ops.transpose(k, (0, 2, 1, 3))
+        q = ops.transpose(q, (0, 2, 1, 3))
         k = ops.transpose(k, (0, 2, 1, 3))
         v = ops.transpose(v, (0, 2, 1, 3))
 
@@ -48,12 +51,10 @@ class Attention(nn.Cell):
             mask = ops.repeat_interleave(mask, h, axis=0)
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
-            # sim = ops.masked_fill(sim, mask, ops.cast(float("-inf"), sim.dtype))
 
         # (b h n_q n_k)
         attn = ops.softmax(sim, axis=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
-        # out = ops.bmm(attn.to(ms.float16), v.to(ms.float16))
         out = ops.matmul(attn, v)
 
         out = ops.reshape(out, (b, h, -1, d))
@@ -136,6 +137,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
         k, v = ops.split(kv, 1, axis=2)
+        # (b n h d)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
 
