@@ -361,8 +361,12 @@ class TextVideoDataset:
             add_special_tokens=True,
             return_tensors=None,
         )
-        input_ids = text_tokens_and_mask["input_ids"].squeeze(0)
-        mask = text_tokens_and_mask["attention_mask"].squeeze(0)
+        input_ids = ms.Tensor(text_tokens_and_mask["input_ids"])
+        mask = ms.Tensor(text_tokens_and_mask["attention_mask"])
+        if input_ids.shape[0] == 1:
+            input_ids = input_ids.squeeze(0)
+        if mask.shape[0] == 1:
+            mask = mask.squeeze(0)
         return input_ids, mask
 
     def traverse_single_video_frames(self, video_index):

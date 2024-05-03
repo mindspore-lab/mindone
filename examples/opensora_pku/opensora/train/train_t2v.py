@@ -193,6 +193,7 @@ def main(args):
         caption_column=args.caption_column,
         disable_flip=False,  # use random flip
         use_image_num=args.use_image_num,
+        token_max_length=args.model_max_length,
     )
     dataset = create_dataloader(
         ds_config,
