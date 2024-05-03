@@ -254,7 +254,7 @@ def main(args):
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
-    ckpt_dir = os.path.join(args.output_dir, "ckpt")
+    ckpt_dir = os.path.join(args.output_path, "ckpt")
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
@@ -355,7 +355,7 @@ def main(args):
 
         logger.info("Start training...")
 
-        with open(os.path.join(args.output_dir, "args.yaml"), "w") as f:
+        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
