@@ -77,6 +77,10 @@ class T5Embedder(nn.Cell):
             if len(ckpt_not_load) > 0:
                 logger.warning(f"Checkpoint not loaded: {ckpt_not_load}")
         self.model = model
+        self.model.set_train(False)
+        for param in self.model.get_parameters():
+            param.requires_grad = False
+
         self.model_max_length = model_max_length
         self.tokenizer.context_length = model_max_length
         if self.dtype != ms.float32:

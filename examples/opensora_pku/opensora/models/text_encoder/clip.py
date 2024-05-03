@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+import glob
 import html
+import json
+import logging
 import os
 import re
 import urllib.parse as ul
@@ -7,10 +10,13 @@ import urllib.parse as ul
 import ftfy
 from bs4 import BeautifulSoup
 from transformers import CLIPTokenizer
+from transformers.models.clip.configuration_clip import CLIPTextConfig
 
 import mindspore as ms
 
 from mindone.transformers import CLIPTextModel
+
+logger = logging.getLogger(__name__)
 
 
 class CLIPEmbedder:
@@ -28,16 +34,34 @@ class CLIPEmbedder:
         """
         Initializes the CLIPEmbedder with specified model and configurations.
         """
-        self.model_name = model_name
-        self.cache_dir = cache_dir
+        self.cache_dir = os.path.join(cache_dir, model_name)
         self.use_text_preprocessing = use_text_preprocessing
         self.max_length = max_length
 
-        os.makedirs(self.cache_dir, exist_ok=True)
+        assert os.path.exists(self.cache_dir), f"Cache directory {self.cache_dir} does not exist."
 
-        self.tokenizer = CLIPTokenizer.from_pretrained(model_name)
-        self.text_model = CLIPTextModel.from_pretrained(model_name, cache_dir=self.cache_dir)
+        self.tokenizer = CLIPTokenizer.from_pretrained(self.cache_dir)
+        with open(os.path.join(self.cache_dir, "config.json"), "r") as file:
+            config = json.load(file)
+            config = CLIPTextConfig(**config)
+        text_model = CLIPTextModel(config)
 
+        ckpt_path = glob.glob(os.path.join(self.cache_dir, "*.ckpt"))
+        if len(ckpt_path) == 0:
+            logger.info("No checkpoint found in the cache directory. Use random initialization.")
+        else:
+            assert len(ckpt_path) == 1, "Multiple checkpoints found in the cache directory."
+            ckpt_path = ckpt_path[0]
+            logger.info(f"Load checkpoint from {ckpt_path}.")
+            param_dict = ms.load_checkpoint(ckpt_path)
+            param_not_load, ckpt_not_load = ms.load_param_into_net(text_model, param_dict)
+            if len(param_not_load) > 0:
+                logger.warning(f"Parameter not loaded: {param_not_load}")
+            if len(ckpt_not_load) > 0:
+                logger.warning(f"Checkpoint not loaded: {ckpt_not_load}")
+
+        self.text_model = text_model
+        self.text_model.set_train(False)
         for param in self.text_model.get_parameters():
             param.requires_grad = False
 
