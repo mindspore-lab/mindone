@@ -27,7 +27,7 @@ def init_env(args):
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.set_context(
         mode=args.mode,
-        device_target=args.device_target,
+        device_target=args.device,
         device_id=device_id,
     )
     if args.precision_mode is not None:
@@ -63,10 +63,11 @@ def main(args):
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
     kwarg = {}
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, **kwarg)
-    # if args.enable_tiling:
-    #     vae.vae.enable_tiling()
-    #     vae.vae.tile_overlap_factor = args.tile_overlap_factor
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ckpt, **kwarg)
+    if args.enable_tiling:
+        raise NotImplementedError
+        # vae.vae.enable_tiling()
+        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
 
     vae.set_train(False)
     for param in vae.get_parameters():
@@ -159,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument("--ae", type=str, default="")
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
-    parser.add_argument("--model_path", type=str, default="results/pretrained")
+    parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
     parser.add_argument("--sample_fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=512)
     parser.add_argument("--crop_size", type=int, default=512)
@@ -173,8 +174,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=8)
-    # parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
-    # parser.add_argument('--enable_tiling', action='store_true')
+    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument("--enable_tiling", action="store_true")
     parser.add_argument("--output_origin", action="store_true")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
@@ -185,7 +186,7 @@ if __name__ == "__main__":
         help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \
                 if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
     )
-    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
+    parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--precision_mode",
         default="must_keep_origin_dtype",
