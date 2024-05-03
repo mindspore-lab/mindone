@@ -4,20 +4,20 @@ import logging
 import os
 import sys
 import time
-from pathlib import Path
-
 import numpy as np
 import yaml
-from opensora.datasets.t2v_dataset import create_dataloader
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
-from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
-
+from pathlib import Path
 import mindspore as ms
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
+from opensora.datasets.t2v_dataset import create_dataloader
+from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
@@ -212,8 +212,8 @@ def parse_args():
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
 
     default_args = parser.parse_args()
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
-
+    __dir__ = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.abspath(os.path.join(__dir__, ".."))
     if default_args.config:
         logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
         default_args.config = os.path.join(abs_path, default_args.config)

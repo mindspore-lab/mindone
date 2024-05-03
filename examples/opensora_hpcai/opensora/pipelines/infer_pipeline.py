@@ -32,12 +32,14 @@ class InferPipeline(ABC):
         guidance_rescale=1.0,
         num_inference_steps=50,
         ddim_sampling=True,
+        micro_batch_size=None,
     ):
         super().__init__()
         self.model = model
         self.condition = condition
 
         self.vae = vae
+        self.micro_batch_size = micro_batch_size 
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
         if self.guidance_rescale > 1.0:
@@ -58,7 +60,6 @@ class InferPipeline(ABC):
         image_latents = image_latents * self.scale_factor
         return image_latents.astype(ms.float16)
 
-    @ms.jit
     def vae_decode(self, x):
         """
         Args:
@@ -68,7 +69,17 @@ class InferPipeline(ABC):
         """
         b, c, h, w = x.shape
 
-        y = self.vae.decode(x / self.scale_factor)
+        if self.micro_batch_size is None:
+            y = self.vae.decode(x / self.scale_factor)
+        else:
+            bs = self.micro_batch_size
+            y_out = []
+            for i in range(0, x.shape[0], bs):
+                x_bs = x[i : i + bs]
+                y_bs = self.vae.decode(x_bs / self.scale_factor)
+                y_out.append(y_bs)
+            y = ops.concat(y_out, axis=0)
+
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
         # (b 3 H W) -> (b H W 3)
@@ -128,7 +139,7 @@ class InferPipeline(ABC):
 
         return text_emb
 
-    def __call__(self, inputs, latent_save_fp=None):
+    def __call__(self, inputs):
         """
         args:
             inputs: dict
@@ -154,10 +165,6 @@ class InferPipeline(ABC):
                 self.model.construct, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
             )
 
-        if latent_save_fp is not None:
-            np.save(latent_save_fp, latents.asnumpy())
-            print(f"Denoised latents saved in {latent_save_fp}")
-
         if self.vae is not None:
             if latents.dim() == 4:
                 images = self.vae_decode(latents)
@@ -165,6 +172,6 @@ class InferPipeline(ABC):
                 # latents: (b c t h w)
                 # out: (b T H W C)
                 images = self.vae_decode_video(latents)
-            return images
+            return images, latents
         else:
-            return None
+            return None, latents 

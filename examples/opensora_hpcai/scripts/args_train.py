@@ -207,7 +207,9 @@ def parse_train_args(parser):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser = parse_train_args(parser)
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+
+    __dir__ = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.abspath(os.path.join(__dir__, ".."))
     default_args = parser.parse_args()
     if default_args.config:
         default_args.config = os.path.join(abs_path, default_args.config)

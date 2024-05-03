@@ -3,8 +3,8 @@ import logging
 import mindspore as ms
 from mindspore import nn, ops
 
-from ..diffusion import SpacedDiffusion
-from ..diffusion.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
+from ..schedulers.iddpm import SpacedDiffusion
+from ..schedulers.iddpm.diffusion_utils import _extract_into_tensor, discretized_gaussian_log_likelihood, mean_flat, normal_kl
 
 __all__ = ["DiffusionWithLoss"]
 

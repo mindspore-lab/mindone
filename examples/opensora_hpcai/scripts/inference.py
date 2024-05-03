@@ -4,9 +4,9 @@ import logging
 import os
 import sys
 import time
+import glob
 
 import numpy as np
-import pandas as pd
 import yaml
 
 import mindspore as ms
@@ -23,6 +23,7 @@ from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.pipelines import InferPipeline
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
+from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -36,23 +37,17 @@ def init_env(mode, device_target, enable_dvm=False):
     ms.set_context(
         mode=mode,
         device_target=device_target,
-        # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # FIXME: enable it may lead to NaN in sampling
     )
     if enable_dvm:
-        print("D--: enable dvm")
         ms.set_context(enable_graph_kernel=True)
-
-
-def read_captions_from_csv(csv_path, caption_column="caption"):
-    df = pd.read_csv(csv_path, usecols=[caption_column])
-    captions = df[caption_column].values.tolist()
-    return captions
-
 
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
+    save_dir = f"{args.output_path}/{time_str}"
     os.makedirs(save_dir, exist_ok=True)
+    if args.save_latent:
+        latent_dir = os.path.join(args.output_path, 'denoised_latents')
+        os.makedirs(latent_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
@@ -64,10 +59,7 @@ def main(args):
         if args.prompt_path.endswith(".csv"):
             captions = read_captions_from_csv(args.prompt_path)
         elif args.prompt_path.endswith(".txt"):
-            captions = []
-            with open(args.caption_file, "r") as fp:
-                for line in fp:
-                    captions.append(line.strip())
+            captions = read_captions_from_txt(args.prompt_path)
     else:
         captions = args.captions
 
@@ -105,9 +97,9 @@ def main(args):
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],  # NOTE: keep it the same as training setting
         )
 
-    if len(args.checkpoint) > 0:
-        logger.info(f"Loading ckpt {args.checkpoint} into STDiT")
-        latte_model.load_from_checkpoint(args.checkpoint)
+    if len(args.ckpt_path) > 0:
+        logger.info(f"Loading ckpt {args.ckpt_path} into STDiT")
+        latte_model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning("STDiT uses random initialization!")
 
@@ -127,23 +119,34 @@ def main(args):
         vae = None
 
     # 2.3 text encoder
-    if args.embed_path is None:
+    if args.text_embed_folder is None:
         text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", args.t5_model_dir)
-        n = len(captions)
+        num_prompts = len(captions)
         text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
         mask = mask.to(ms.uint8)
         text_emb = None
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
-        dat = np.load(args.embed_path)
-        text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
-        n = text_emb.shape[0]
+        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, '*.npz')))
+        prompt_prefix = []
+        text_tokens, mask, text_emb = [], [], []
+        for fp in embed_paths:
+            prompt_prefix.append(os.path.basename(fp)[:-4])
+            dat = np.load(fp)
+            text_tokens.append(dat["tokens"])
+            mask.append(dat["mask"])
+            text_emb.append(dat["text_emb"])
+        text_tokens = np.concatenate(text_tokens) 
+        mask= np.concatenate(mask) 
+        text_emb = np.concatenate(text_emb) 
+
+        num_prompts = text_emb.shape[0]
         text_tokens = ms.Tensor(text_tokens)
         mask = ms.Tensor(mask, dtype=ms.uint8)
         text_emb = ms.Tensor(text_emb, dtype=ms.float32)
         text_encoder = None
-    assert n > 0, "No captions provided"
+    assert num_prompts > 0, "No captions provided"
     logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
 
     # 3. build inference pipeline
@@ -156,6 +159,7 @@ def main(args):
         guidance_rescale=args.guidance_scale,
         ddim_sampling=args.ddim_sampling,
         condition="text",
+        micro_batch_size=args.vae_micro_batch_size,
     )
 
     # 4. print key info
@@ -163,7 +167,7 @@ def main(args):
     key_info += "\n".join(
         [
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-            f"Num of samples: {n}",
+            f"Num of captions: {num_prompts}",
             f"dtype: {args.dtype}",
             f"amp_level: {args.amp_level}",
             f"Sampling steps {args.sampling_steps}",
@@ -174,14 +178,15 @@ def main(args):
     key_info += "\n" + "=" * 50
     logger.info(key_info)
 
-    for i in range(0, len(captions), args.batch_size):
-        batch_prompts = captions[i : i + args.batch_size]
-        ns = len(batch_prompts)
+    for i in range(0, num_prompts, args.batch_size):
+        if text_emb is None:
+            ns = args.batch_size if i + args.batch_size <= len(captions) else len(captions)-i
+        else:
+            ns = args.batch_size if i + args.batch_size <= text_emb.shape[0] else text_emb.shape[0]-i
 
         # prepare inputs
         inputs = {}
         # b c t h w
-        # z = ops.randn([ns, VAE_Z_CH] + list(input_size), dtype=ms.float32)
         z = np.random.randn(*([ns, VAE_Z_CH] + list(input_size)))  # for ensure generate the same noise
         z = ms.Tensor(z, dtype=ms.float32)
         inputs["noise"] = z
@@ -194,32 +199,47 @@ def main(args):
             inputs["text_tokens"] = None
             inputs["text_emb"] = text_emb[i : i + ns]
             inputs["mask"] = mask[i : i + ns]
-
-        logger.info("Sampling for captions: ")
+        
+        logger.info("Sampling for")
         for j in range(ns):
-            logger.info(captions[i + j])
+            if text_emb is None:
+                logger.info(captions[i + j])
+            else:
+                logger.info(prompt_prefix[i + j])
 
         # infer
         start_time = time.time()
-        x_samples = pipeline(inputs, latent_save_fp=f"samples/denoised_latent_{i:02d}.npy")
+        x_samples, latents = pipeline(inputs)
+        batch_time = time.time() - start_time
+        logger.info(
+            f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s"
+        )
 
+        # save result
         if x_samples is not None:
             x_samples = x_samples.asnumpy()
-            batch_time = time.time() - start_time
-
-            logger.info(
-                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s"
-            )
-
-            # save result
-            for j in range(ns):
-                global_idx = i * args.batch_size + j
+        for j in range(ns):
+            global_idx = i + j
+            if args.text_embed_folder is None:
                 prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
+                latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
+            else:
+                fn = prompt_prefix[global_idx]
+                save_fp = f"{save_dir}/{fn}.{args.save_format}"
+                latent_save_fp = f"{latent_dir}/{fn}.npy"
+
+            # save videos
+            if x_samples is not None:
                 save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
-                logger.info(f"save to {save_fp}")
+                logger.info(f"Video saved in {save_fp}")
 
+            # save decoded latents
+            if args.save_latent:
+                np.save(latent_save_fp, latents[j:j+1].asnumpy())
+                logger.info(f"Denoised latents saved in {latent_save_fp}")
 
+            
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -263,6 +283,9 @@ def parse_args():
     )
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
+    )
+    parser.add_argument(
+        "--vae_micro_batch_size", type=int, default=None, help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation"
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
@@ -308,6 +331,12 @@ def parse_args():
     )
     parser.add_argument("--prompt_path", default=None, type=str, help="path to a csv file containing captions")
     parser.add_argument(
+        "--output_path",
+        type=str,
+        default='samples',
+        help="output dir to save the generated videos",
+    )
+    parser.add_argument(
         "--save_format",
         default="mp4",
         choices=["gif", "mp4"],
@@ -316,7 +345,8 @@ def parse_args():
     )
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
-    parser.add_argument("--embed_path", type=str, default=None, help="path to t5 embedding")
+    parser.add_argument("--text_embed_folder", type=str, default=None, help="path to t5 embedding")
+    parser.add_argument("--save_latent", type=str2bool, default=True, help="Save denoised video latent. If True, the denoised latents will be saved in $output_path/denoised_latents")
     parser.add_argument(
         "--use_vae_decode",
         type=str2bool,
@@ -325,7 +355,9 @@ def parse_args():
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+
+    __dir__ = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.abspath(os.path.join(__dir__, ".."))
     if default_args.config:
         logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
         default_args.config = os.path.join(abs_path, default_args.config)

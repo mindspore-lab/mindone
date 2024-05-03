@@ -4,12 +4,8 @@ import os
 import sys
 import time
 from pathlib import Path
-
 import numpy as np
 import yaml
-from opensora.datasets.text_dataset import create_dataloader
-from opensora.models.text_encoder.text_encoders import get_text_encoder_and_tokenizer
-from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 from tqdm import tqdm
 
 import mindspore as ms
@@ -18,6 +14,12 @@ from mindspore.communication.management import get_group_size, get_rank, init
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
+from opensora.datasets.text_dataset import create_dataloader
+from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
+from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
+from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -87,8 +89,7 @@ def init_env(
 
 
 def main(args):
-    log_dir = args.output_path if os.path.isdir(args.output_path) else os.path.dirname(args.output_path)
-    set_logger(name="", output_dir=log_dir)
+    set_logger(name="", output_dir="logs/infer_t5")
 
     rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target)
     print(f"rank_id {rank_id}, device_num {device_num}")
@@ -124,17 +125,15 @@ def main(args):
     if args.dtype in ["fp16", "bf16"]:
         text_encoder = auto_mixed_precision(text_encoder, amp_level=args.amp_level, dtype=dtype_map[args.dtype])
 
-    logger.info("Start embedding...")
-
     # infer
     if args.csv_path is not None:
         if args.output_path is None:
-            output_folder = os.path.dirname(args.csv_path)
+            output_dir = os.path.dirname(args.csv_path)
         else:
-            output_folder = args.output_path
-        os.makedirs(output_folder, exist_ok=True)
-
-        logger.info(f"Output embeddings will be saved: {output_folder}")
+            output_dir = args.output_path
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Output embeddings will be saved: {output_dir}")
+        logger.info("Start embedding...")
 
         ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
@@ -153,7 +152,7 @@ def main(args):
             # save the embeddings aligning to video frames
             for i in range(text_emb.shape[0]):
                 fn = Path(str(file_paths[i])).with_suffix(".npz")
-                npz_fp = os.path.join(output_folder, fn)
+                npz_fp = os.path.join(output_dir, fn)
                 if not os.path.exists(os.path.dirname(npz_fp)):
                     os.makedirs(os.path.dirname(npz_fp))
 
@@ -164,31 +163,50 @@ def main(args):
                     # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
                 )
         logger.info(f"Curretn step time cost: {time_cost:0.3f}s")
-        logger.info(f"Done. Embeddings saved in {output_folder}")
+        logger.info(f"Done. Embeddings saved in {output_dir}")
 
     else:
         if args.output_path is None:
-            args.output_path = "samples/t5_embed.npz"
-        os.makedirs(os.path.dirname(args.output_path), exist_ok=True)
+            output_dir = "samples/t5_embed"
+        else:
+            output_dir = args.output_path
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Output embeddings will be saved: {output_dir}")
 
-        text_tokens = []
-        mask = []
-        text_emb = []
-        for i in range(0, len(args.captions), args.batch_size):
+        # get captions from cfg or prompt_path
+        if args.prompt_path is not None:
+            if args.prompt_path.endswith(".csv"):
+                captions = read_captions_from_csv(args.prompt_path)
+            elif args.prompt_path.endswith(".txt"):
+                captions = read_captions_from_txt(args.prompt_path)
+        else:
+            captions = args.captions
+        logger.info(f"Number of captions: {len(captions)}")
+
+        for i in tqdm(range(0, len(captions), args.batch_size)):
+            batch_prompts = captions[i : i + args.batch_size]
+            ns = len(batch_prompts)
+
             batch_text_tokens, batch_mask = text_encoder.get_text_tokens_and_mask(
-                args.captions[i : i + args.batch_size], return_tensor=True
+                batch_prompts, return_tensor=True
             )
-            logger.info(f"Num tokens: {batch_mask.asnumpy().sum(1)}")
             batch_text_emb = text_encoder(batch_text_tokens, batch_mask)
 
-            text_tokens.append(batch_text_tokens.asnumpy())
-            mask.append(batch_mask.asnumpy().astype(np.uint8))
-            text_emb.append(batch_text_emb.asnumpy().astype(np.float32))
-        text_tokens = np.concatenate(text_tokens)
-        mask = np.concatenate(mask)
-        text_emb = np.concatenate(text_emb)
-        np.savez(args.output_path, tokens=text_tokens, mask=mask, text_emb=text_emb)
-        print("Embeddeings saved in ", args.output_path)
+            # save result
+            batch_mask = batch_mask.asnumpy().astype(np.uint8)
+            batch_text_emb = batch_text_emb.asnumpy().astype(np.float32)
+            batch_text_tokens = batch_text_tokens.asnumpy()
+            for j in range(ns):
+                global_idx = i + j
+                prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
+                save_fp = f"{output_dir}/{global_idx:03d}-{prompt}.npz"
+                np.savez(save_fp, 
+                        mask=batch_mask[j:j+1],
+                        text_emb=batch_text_emb[j:j+1],
+                        tokens=batch_text_tokens[j:j+1],
+                        )
+
+        logger.info(f"Finished. Embeddeings saved in {output_dir}")
 
 
 def parse_args():
@@ -204,8 +222,9 @@ def parse_args():
         "--csv_path",
         default=None,
         type=str,
-        help="path to csv annotation file, If None, video_caption.csv is expected to live under `data_path`",
+        help="path to csv annotation file",
     )
+    parser.add_argument("--prompt_path", default=None, type=str, help="path to a txt file, each line of which is a text prompt")
     parser.add_argument(
         "--output_path",
         type=str,
@@ -260,8 +279,8 @@ def parse_args():
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
 
     default_args = parser.parse_args()
-    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
-
+    __dir__ = os.path.dirname(os.path.abspath(__file__))
+    abs_path = os.path.abspath(os.path.join(__dir__, ".."))
     if default_args.config:
         logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
         default_args.config = os.path.join(abs_path, default_args.config)
