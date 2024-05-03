@@ -29,7 +29,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "--settings_path",
-    default="mindone/tools/safety_checker/safety_settings_v2.yaml",
+    default="mindone/metrics/config/safety_settings_v2.yaml",
     type=str,
     help="YAML file for a list of NSFW concepts as safety settings"
     " Default: mindone/metrics/config/safety_settings_v2.yaml",
