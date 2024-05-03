@@ -1,7 +1,7 @@
 import logging
 
-from opensora.diffusion.diffusion import SpacedDiffusion
-from opensora.diffusion.diffusion.diffusion_utils import (
+from opensora.models.diffusion.diffusion import SpacedDiffusion_T as SpacedDiffusion
+from opensora.models.diffusion.diffusion.diffusion_utils import (
     _extract_into_tensor,
     discretized_gaussian_log_likelihood,
     mean_flat,

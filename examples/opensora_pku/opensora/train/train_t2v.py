@@ -188,13 +188,12 @@ def main(args):
         sample_size=args.max_image_size,
         sample_stride=args.sample_rate,
         sample_n_frames=args.num_frames,
-        tokenizer=None,
+        tokenizer=tokenizer,
         video_column=args.video_column,
         caption_column=args.caption_column,
         disable_flip=args.disable_flip,
         filter_nonexistent=args.filter_nonexistent,  # for loading safty
         use_image_num=args.use_image_num,
-        tokenizer=tokenizer,
     )
     dataset = create_dataloader(
         ds_config,

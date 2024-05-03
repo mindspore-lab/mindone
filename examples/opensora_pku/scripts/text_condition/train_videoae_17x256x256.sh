@@ -21,7 +21,6 @@ python opensora/train/train_t2v.py \
     --precision="fp16" \
     --checkpointing_steps=500 \
     --output_dir="t2v-f17-256-img4-videovae488-bf16-ckpt-xformers-bs4-lr2e-5-t5" \
-    --allow_tf32 \
     --pretrained t2v.pt \
     --use_deepspeed \
     --model_max_length 300 \
