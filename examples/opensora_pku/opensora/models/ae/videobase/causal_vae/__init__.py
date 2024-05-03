@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class CausalVAEModelWrapper(nn.Cell):
-    def __init__(self, model_config="causal_vae_488.yaml", model_path=None):
+    def __init__(self, model_config="causal_vae_488.yaml", model_path=None, subfolder=None):
         super(CausalVAEModelWrapper, self).__init__()
         # if os.path.exists(ckpt):
         # self.vae = CausalVAEModel.load_from_checkpoint(ckpt)
@@ -28,6 +28,7 @@ class CausalVAEModelWrapper(nn.Cell):
 
         vae = instantiate_from_config(model_config.generator)
         if model_path is not None:
+            model_path = os.path.join(model_path, subfolder) if subfolder else model_path
             if os.path.exists(model_path):
                 if not model_path.endswith(".ckpt"):
                     assert os.path.isdir(

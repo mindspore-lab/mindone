@@ -288,7 +288,7 @@ if __name__ == "__main__":
         video_length = 1
         ext = "jpg"
     else:
-        ext = "mp4"
+        ext = "gif" if not args.save_latents else "npy"  # save video as gif or save denoised latents as npy files.
 
     transformer_model = transformer_model.set_train(False)
     for param in transformer_model.get_parameters():  # freeze transformer_model
@@ -296,8 +296,7 @@ if __name__ == "__main__":
 
     # 2.2 vae
     logger.info("vae init")
-    kwarg = {}
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, **kwarg)
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
     if args.enable_tiling:
         raise NotImplementedError
         # vae.vae.enable_tiling()
@@ -330,7 +329,6 @@ if __name__ == "__main__":
     csv_file = {"path": [], "cap": []}
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
-            ext = ".npy" if args.save_latents else ".gif"
             csv_file["path"].append(f"{i_video}-{args.text_prompt[i].strip()[:100]}.{ext}")
             csv_file["cap"].append(args.text_prompt[i])
     temp_dataset_csv = os.path.join(save_dir, "dataset.csv")
@@ -432,7 +430,6 @@ if __name__ == "__main__":
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
-        file_path = os.path.join(save_dir, data["path"][0])
         videos = pipeline(
             prompt,
             video_length=video_length,
@@ -446,20 +443,15 @@ if __name__ == "__main__":
         ).video.asnumpy()
         for i_sample in range(args.batch_size):
             file_path = os.path.join(save_dir, file_paths[i_sample])
+            assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
             if args.save_latents:
-                assert ".npy" in file_path, "Only support .npy for saving latent data"
                 np.save(file_path, videos[i_sample : i_sample + 1])
             else:
                 if args.force_images:
                     image = videos[i_sample, :, 0].permute(1, 2, 0)  # (b c t h w)  ->(c, h, w) -> (h, w, c)
-                    if ext not in file_path:
-                        file_path = (
-                            "/".join(file_path.split("/")[:-1]) + file_path.split("/")[-1].split(".")[0] + f".{ext}"
-                        )
                     image = (image * 255).round().clip(0, 255).astype(np.uint8)
                     Image.from_numpy(image).save(file_path)
                 else:
-                    assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
                     videos = videos[i_sample : i_sample + 1].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
                     save_videos(save_video_data, file_path, loop=0, fps=args.fps)
     end_time = time.time()
@@ -467,3 +459,12 @@ if __name__ == "__main__":
     logger.info(f"Inference time cost: {time_cost:0.3f}s")
     logger.info(f"Inference speed: {n / time_cost:0.3f} samples/s")
     logger.info(f"{'latents' if args.save_latents else 'videos' } saved to {save_dir}")
+
+    # delete files that are no longer needed
+    if os.path.exists(temp_dataset_csv):
+        os.remove(temp_dataset_csv)
+
+    if args.decode_latents:
+        npy_files = glob.glob(os.path.join(args.input_latent_dir, "*.npy"))
+        for fp in npy_files:
+            os.remove(fp)
