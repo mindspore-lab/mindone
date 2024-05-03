@@ -140,15 +140,15 @@ def main(args):
         args.ckpt_save_interval = args.save_steps
         logger.info("save_steps is set, override ckpt_save_interval to {}".format(args.ckpt_save_interval))
 
-    if not args.decay_steps:
-        args.decay_steps = max(1, args.epochs * num_batches - args.warmup_steps)
+    if not args.lr_decay_steps:
+        args.lr_decay_steps = max(1, args.epochs * num_batches - args.lr_warmup_steps)
     lr = create_scheduler(
         steps_per_epoch=num_batches,
-        name=args.scheduler,
+        name=args.lr_scheduler,
         lr=learning_rate,
         end_lr=args.end_learning_rate,
-        warmup_steps=args.warmup_steps,
-        decay_steps=args.decay_steps,
+        warmup_steps=args.lr_warmup_steps,
+        decay_steps=args.lr_decay_steps,
         num_epochs=args.epochs,
     )
 
