@@ -299,7 +299,7 @@ Coming soon
 
 ### Open-Sora 1.0 Training
 
-Once the data is prepared, run the following commands to launch training.
+Once the training data including the [T5 text embeddings](#cache-text-embeddings) is prepared, you can run the following commands to launch training.
 
 ```bash
 # standalone training, 16x256x256
@@ -321,6 +321,8 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_d
     --text_embed_folder /path/to/text_embed_folder \
     --use_parallel True \
 ```
+
+For more usages, please check `python scripts/train.py -h`. You may also see the example shell scripts in `scripts/run` for quick reference.
 
 #### Performance
 
