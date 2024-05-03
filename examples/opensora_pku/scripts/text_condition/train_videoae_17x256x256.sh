@@ -3,7 +3,7 @@ python opensora/train/train_t2v.py \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
-    --ae_path CausalVAEModel_4x8x8 \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.0.0/vae \
     --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
     --video_folder /remote-home1/dataset/data_split_tt \
     --sample_rate 1 \
@@ -20,9 +20,8 @@ python opensora/train/train_t2v.py \
     --lr_warmup_steps=0 \
     --precision="fp16" \
     --checkpointing_steps=500 \
-    --output_dir="t2v-f17-256-img4-videovae488-bf16-ckpt-xformers-bs4-lr2e-5-t5" \
-    --pretrained t2v.pt \
-    --use_deepspeed \
+    --output_dir="t2v-f17-256-img4-videovae488-fp16-ckpt-xformers-bs4-lr2e-5-t5" \
+    --pretrained pretrained/t2v.ckpt \
     --model_max_length 300 \
     --use_image_num 4 \
     --use_img_from_vid

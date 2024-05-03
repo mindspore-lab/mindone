@@ -72,12 +72,12 @@ def main(args):
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
     )
-    set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:
         raise NotImplementedError
 
     logger.info("vae init")
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
     if args.enable_tiling:
         raise NotImplementedError
         # vae.vae.enable_tiling()
@@ -254,7 +254,7 @@ def main(args):
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
-    ckpt_dir = os.path.join(args.output_dir, "ckpt")
+    ckpt_dir = os.path.join(args.output_path, "ckpt")
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
@@ -355,7 +355,7 @@ def main(args):
 
         logger.info("Start training...")
 
-        with open(os.path.join(args.output_dir, "args.yaml"), "w") as f:
+        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
@@ -412,6 +412,7 @@ def parse_t2v_train_args(parser):
             " training using `--resume_from_checkpoint`."
         ),
     )
+    return parser
 
 
 if __name__ == "__main__":
