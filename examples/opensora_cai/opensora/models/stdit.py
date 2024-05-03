@@ -15,7 +15,7 @@ from opensora.models.layers.blocks import (
 )
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer  # , Zero
 
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
@@ -53,7 +53,7 @@ class STDiTBlock(nn.Cell):
         )
         self.cross_attn = self.mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
-
+        # TODO: check parsing approx_gelu
         self.mlp = Mlp(
             in_features=hidden_size, hidden_features=int(hidden_size * mlp_ratio), act_layer=approx_gelu, drop=0
         )
@@ -276,15 +276,17 @@ class CaptionEmbedder(nn.Cell):
     Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
     """
 
-    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer=nn.GELU(approximate=True), token_num=120):
+    # FIXME: rm nn.GELU instantiate for parallel training
+    def __init__(self, in_channels, hidden_size, uncond_prob, act_layer=nn.GELU, token_num=120):
         super().__init__()
+
         self.y_proj = Mlp(
             in_features=in_channels, hidden_features=hidden_size, out_features=hidden_size, act_layer=act_layer, drop=0
         )
 
         y_embedding = ops.randn(token_num, in_channels) / in_channels**0.5
         # just for token dropping replacement, not learnable
-        self.y_embedding = ms.Parameter(ms.Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
+        self.y_embedding = ms.Parameter(Tensor(y_embedding, dtype=ms.float32), requires_grad=False)
 
         self.uncond_prob = uncond_prob
 
@@ -297,7 +299,11 @@ class CaptionEmbedder(nn.Cell):
         else:
             drop_ids = force_drop_ids == 1
 
-        caption = ops.where(drop_ids[:, None, None, None], self.y_embedding, caption.to(self.y_embedding.dtype))
+        # manually expand dims to avoid infer-shape bug in ms2.3 daily
+        caption = ops.where(
+            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype)
+        )
+
         return caption
 
     def construct(self, caption, train, force_drop_ids=None):
@@ -318,6 +324,7 @@ class T2IFinalLayer(nn.Cell):
     def __init__(self, hidden_size, num_patch, out_channels):
         super().__init__()
         self.norm_final = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        # (1152, 4*8)
         self.linear = nn.Dense(hidden_size, num_patch * out_channels, has_bias=True)
         self.scale_shift_table = ms.Parameter(ops.randn(2, hidden_size) / hidden_size**0.5)
         self.out_channels = out_channels
@@ -380,8 +387,8 @@ class STDiT(nn.Cell):
 
         pos_embed = self.get_spatial_pos_embed()
         pos_embed_temporal = self.get_temporal_pos_embed()
-        self.pos_embed = ms.Tensor(pos_embed, dtype=ms.float32)
-        self.pos_embed_temporal = ms.Tensor(pos_embed_temporal, dtype=ms.float32)
+        self.pos_embed = Tensor(pos_embed, dtype=ms.float32)
+        self.pos_embed_temporal = Tensor(pos_embed_temporal, dtype=ms.float32)
 
         # conv3d replacement. FIXME: after CANN+MS support bf16 and fp32, remove redundancy
         self.patchify_conv3d_replace = patchify_conv3d_replace
@@ -493,6 +500,7 @@ class STDiT(nn.Cell):
         x = ops.reshape(x, (B, TS, C))
 
         t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
+        # why project again on t ?
         t0 = self.t_block(t)  # [B, C]
         y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
 

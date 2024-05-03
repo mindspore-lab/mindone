@@ -104,6 +104,9 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
 
         # 1. compute gradients (of the up-scaled loss w.r.t. the model weights)
         grads = self.grad(self.network, weights)(*inputs, scaling_sens_filled)
+        if self.accum_steps == 1:
+            grads = self.grad_reducer(grads)
+            scaling_sens = ops.depend(scaling_sens, grads)
 
         # 2. down-scale gradients by loss_scale. grads = grads / scaling_sense  / grad_accum_steps
         # also divide gradients by accumulation steps to avoid taking mean of  the accumulated gradients later
@@ -150,7 +153,6 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                     loss = F.depend(loss, self.optimizer.get_lr())
             else:
                 # 5. gradient reduction on distributed GPUs/NPUs
-                grads = self.grad_reducer(grads)
                 # 6. clip grad
                 if self.clip_grad:
                     grads = ops.clip_by_global_norm(grads, self.clip_norm)

@@ -21,7 +21,7 @@ class PerfRecorder(object):
         self.save_dir = save_dir
         self.sep = separator
         if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+            os.makedirs(save_dir, exist_ok=True)
             _logger.info(f"{save_dir} not exist. Created.")
 
         self.log_txt_fp = os.path.join(save_dir, file_name)

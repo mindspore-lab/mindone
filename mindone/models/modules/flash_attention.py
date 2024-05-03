@@ -1,10 +1,8 @@
 """FlashAttention Wrapper"""
 import logging
-import math
 from typing import List, Optional
 
 import mindspore as ms
-import mindspore.numpy as msnp
 from mindspore import nn, ops
 
 from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
@@ -61,9 +59,13 @@ class MSFlashAttention(nn.Cell):
         super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
         self.use_new_flash_attention = USE_NEW_FA
+        self.input_layout = input_layout
+        if input_layout not in ["BSH", "BNSD"]:
+            raise ValueError(f"input_layout must be in ['BSH', 'BNSD'], but get {input_layout}.")
+        self.head_dim = head_dim
         if self.use_new_flash_attention:
             self.flash_attention = FlashAttention(
-                scale_value=1.0 / math.sqrt(head_dim),
+                scale_value=head_dim**-0.5,
                 head_num=head_num,
                 input_layout=input_layout,
                 keep_prob=1 - attention_dropout,
@@ -77,45 +79,63 @@ class MSFlashAttention(nn.Cell):
             )  # TODO: how high_precision affect the training or inference quality
         self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
         self.dtype = dtype
-        self.fix_head_dims = fix_head_dims  # A list of integers to be mapped to 2**n * 64
-        if self.fix_head_dims is not None and not isinstance(self.fix_head_dims, (list, tuple)):
-            self.fix_head_dims = [self.fix_head_dims]
+        cand_d_list = [64, 80, 96, 120, 128, 256]
+        self.d_pad = 0
+        for d in cand_d_list:
+            if head_dim == d:
+                self.d_pad = 0
+                break
+            elif head_dim < d:
+                self.d_pad = d - head_dim
+                break
+        if head_dim > 256:
+            raise ValueError("head_dim must <= 256!")
+        self.need_pad = self.d_pad != 0
+
+    def _rearange_input(self, x):
+        x = x.to(self.dtype)
+        if self.need_pad:
+            if self.input_layout == "BNSD":
+                B, N, S, D = x.shape
+                pad = ops.zeros((B, N, S, self.d_pad), x.dtype)
+            else:
+                B, S = x.shape[:2]
+                x = x.reshape(B, S, -1, self.head_dim)
+                pad = ops.zeros((B, S, x.shape[2], self.d_pad), x.dtype)
+            x = ops.concat((x, pad), axis=-1)
+        if self.input_layout == "BSH":
+            B, S = x.shape[:2]
+            x = x.reshape(B, S, -1)
+        return x
+
+    def _rearange_output(self, x, dtype):
+        if self.input_layout == "BSH":
+            B, S = x.shape[:2]
+            x = x.reshape(B, S, -1, self.head_dim + self.d_pad)
+        if self.need_pad:
+            x = x[:, :, :, : self.head_dim]
+        return x.to(dtype)
 
     def construct(self, q, k, v, mask=None):
-        q_b, h, q_n, d = q.shape  # (b, h, n, d)
-        head_dim = d
-
-        #   a trick to pad head dimensions to 2**n * 64
-        if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
-            # pad to 2**n * 64 to avoid accuracy errors
-            padding_size = 64 * 2 ** math.ceil(math.log(head_dim / 64, 2)) - head_dim
-            q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-            k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-            v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-        if self.use_new_flash_attention:
-            if mask is not None:
-                mask = mask.to(self.fa_mask_dtype)
-                if mask.dim() == 3:
-                    mask = mask[:, None, :, :]
-            out = self.flash_attention(
-                q.to(self.dtype),
-                k.to(self.dtype),
-                v.to(self.dtype),
-                None,
-                None,
-                None,
-                mask,
-                None,
-            )[3]
-        else:
+        if not self.use_new_flash_attention:
+            B, N, S1, D = q.shape
+            S2 = k.shape[2]
             if mask is None:
-                mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+                mask = ops.zeros((B, S1, S2), self.fa_mask_dtype)
             out = self.flash_attention(
                 q.to(self.dtype),
                 k.to(self.dtype),
                 v.to(self.dtype),
                 mask.to(self.fa_mask_dtype),
             )
-        if self.fix_head_dims is not None and head_dim in self.fix_head_dims:
-            out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
+            return out
+
+        q_dtype = q.dtype
+        q = self._rearange_input(q)
+        k = self._rearange_input(k)
+        v = self._rearange_input(v)
+        if mask is not None:
+            mask = mask.to(ms.uint8)
+        out = self.flash_attention(q, k, v, None, None, None, mask)[3]
+        out = self._rearange_output(out, q_dtype)
         return out

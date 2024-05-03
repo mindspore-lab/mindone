@@ -6,7 +6,6 @@ import datetime
 import logging
 import os
 import sys
-from typing import Tuple
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -16,15 +15,14 @@ import yaml
 from args_train import parse_args
 from data.imagenet_dataset import create_dataloader_imagenet_latent
 from diffusion import create_diffusion
-from pipelines.train_pipeline import FiTWithLoss
+from pipelines.train_pipeline import NetworkWithLoss
 from utils.model_utils import load_fit_ckpt_params
 
-import mindspore as ms
 from mindspore import Model, nn
-from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
+from mindone.env import init_train_env
 from mindone.models.fit import FiT_models
 
 # load training modules
@@ -37,69 +35,10 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-) -> Tuple[int, int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"}, # TODO: tune
-        )
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
-        )
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    return device_id, rank_id, device_num
 
 
 def set_fit_all_params(fit_model, train=True, **kwargs):
@@ -123,7 +62,7 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_env(
+    _, rank_id, device_num = init_train_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
@@ -138,6 +77,7 @@ def main(args):
     fit_model = FiT_models[args.model_name](
         num_classes=1000,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
+        pos=args.embed_method,
     )
     if args.use_fp16:
         fit_model = auto_mixed_precision(fit_model, amp_level="O2")
@@ -153,14 +93,12 @@ def main(args):
     diffusion = create_diffusion(timestep_respacing="")
 
     model_config = dict(C=4, H=args.image_size // 8, W=args.image_size // 8, patch_size=args.patch_size)
-    latent_diffusion_with_loss = FiTWithLoss(
+    latent_diffusion_with_loss = NetworkWithLoss(
         fit_model,
         diffusion,
         vae=None,
         scale_factor=args.sd_scale_factor,
         condition=args.condition,
-        text_encoder=None,
-        cond_stage_trainable=False,
         model_config=model_config,
     )
 

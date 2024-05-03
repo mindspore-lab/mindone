@@ -31,12 +31,15 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
-def init_env(args):
-    ms.set_context(mode=args.mode)
+def init_env(mode, device_target, enable_dvm=False):
     ms.set_context(
-        mode=args.mode,
-        device_target=args.device_target,
+        mode=mode,
+        device_target=device_target,
+        # ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # FIXME: enable it may lead to NaN in sampling
     )
+    if enable_dvm:
+        print("D--: enable dvm")
+        ms.set_context(enable_graph_kernel=True)
 
 
 def read_captions_from_csv(csv_path, caption_column="caption"):
@@ -52,7 +55,7 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    init_env(args)
+    init_env(args.mode, args.device_target, args.enable_dvm)
     set_random_seed(args.seed)
 
     # get captions from cfg or prompt_file
@@ -87,19 +90,18 @@ def main(args):
         space_scale=args.space_scale,  # 0.5 for 256x256. 1. for 512
         time_scale=args.time_scale,
         patchify_conv3d_replace="conv2d",  # for Ascend
+        enable_flashattn=args.enable_flash_attention,
     )
     latte_model = STDiT_XL_2(**model_extra_args)
     latte_model = latte_model.set_train(False)
 
-    if args.dtype == "fp32":
-        model_dtype = ms.float32
-    else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
             latte_model,
-            amp_level="O2",
-            dtype=model_dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],  # NOTE: keep it the same as training setting
+            amp_level=args.amp_level,
+            dtype=dtype_map[args.dtype],
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],  # NOTE: keep it the same as training setting
         )
 
     if len(args.checkpoint) > 0:
@@ -117,13 +119,18 @@ def main(args):
         use_fp16=False,
     )
     vae = vae.set_train(False)
+    if args.vae_dtype in ["fp16", "bf16"]:
+        vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
 
     # 2.3 text encoder
     if args.embed_path is None:
         text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", args.t5_model_dir)
         n = len(captions)
         text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
+        mask = mask.to(ms.uint8)
         text_emb = None
+        if args.dtype in ["fp16", "bf16"]:
+            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
         dat = np.load(args.embed_path)
         text_tokens, mask, text_emb = dat["tokens"], dat["mask"], dat["text_emb"]
@@ -157,7 +164,8 @@ def main(args):
             f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
-            f"Use model dtype: {model_dtype}",
+            f"dtype: {args.dtype}",
+            f"amp_level: {args.amp_level}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",
@@ -193,7 +201,7 @@ def main(args):
 
         # infer
         start_time = time.time()
-        x_samples = pipeline(inputs, latent_save_fp=f"outputs/denoised_latent_{i:02d}.npy")
+        x_samples = pipeline(inputs, latent_save_fp=f"samples/denoised_latent_{i:02d}.npy")
         x_samples = x_samples.asnumpy()
         batch_time = time.time() - start_time
 
@@ -248,13 +256,13 @@ def parse_args():
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-mse.ckpt",
+        default="models/sd-vae-ft-ema.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-
+    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     # MS new args
@@ -269,10 +277,24 @@ def parse_args():
     )
     parser.add_argument(
         "--dtype",
-        default="fp16",
+        default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--vae_dtype",
+        default="fp32",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--amp_level",
+        default="O2",
+        type=str,
+        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
+            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
     parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
     parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")

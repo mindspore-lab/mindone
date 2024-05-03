@@ -74,7 +74,10 @@ class TextVideoDataset:
         csv_path,
         video_folder,
         text_emb_folder=None,
+        vae_latent_folder=None,
         return_text_emb=False,
+        return_vae_latent=False,
+        vae_scale_factor=0.18215,
         sample_size=256,
         sample_stride=4,
         sample_n_frames=16,
@@ -114,6 +117,7 @@ class TextVideoDataset:
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         self.is_image = is_image
+        self.vae_scale_factor = vae_scale_factor
 
         sample_size = tuple(sample_size) if not isinstance(sample_size, int) else (sample_size, sample_size)
 
@@ -138,6 +142,10 @@ class TextVideoDataset:
         if return_text_emb:
             assert text_emb_folder is not None
         self.text_emb_folder = text_emb_folder
+        self.return_vae_latent = return_vae_latent
+        if return_vae_latent:
+            assert vae_latent_folder is not None
+        self.vae_latent_folder = vae_latent_folder
 
         # prepare replacement data
         max_attempts = 100
@@ -182,39 +190,79 @@ class TextVideoDataset:
             text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
             text_emb, mask = self.parse_text_emb(text_emb_path)
 
-        # in case missing .mp4 in csv file
-        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
-            if video_path[-4] != ".":
-                video_path = video_path + ".mp4"
+        if not self.return_vae_latent:
+            # in case missing .mp4 in csv file
+            if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+                if video_path[-4] != ".":
+                    video_path = video_path + ".mp4"
+                else:
+                    raise ValueError(f"video file format is not verified: {video_path}")
+
+            video_reader = VideoReader(video_path)
+
+            video_length = len(video_reader)
+
+            if not self.is_image:
+                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+                start_idx = random.randint(0, video_length - clip_length)
+                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
             else:
-                raise ValueError(f"video file format is not verified: {video_path}")
+                batch_index = [random.randint(0, video_length - 1)]
 
-        video_reader = VideoReader(video_path)
+            if video_path.endswith(".gif"):
+                pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
+            else:
+                pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
+            # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
+            # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
+            del video_reader
 
-        video_length = len(video_reader)
+            if self.return_text_emb:
+                return pixel_values, text_emb, mask
+            else:
+                return pixel_values, caption, None
 
-        if not self.is_image:
-            clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
-            start_idx = random.randint(0, video_length - clip_length)
-            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
         else:
-            batch_index = [random.randint(0, video_length - 1)]
+            vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
+            vae_latent_data = np.load(vae_latent_path)
+            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
+            video_length = len(latent_mean)
+            if not self.is_image:
+                clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
+                start_idx = random.randint(0, video_length - clip_length)
+                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+            else:
+                batch_index = [random.randint(0, video_length - 1)]
+            latent_mean = latent_mean[batch_index]
+            latent_std = latent_std[batch_index]
+            vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
+            vae_latent = vae_latent * self.vae_scale_factor
+            vae_latent = vae_latent.astype(np.float32)
 
-        if video_path.endswith(".gif"):
-            pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
-        else:
-            pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
-        # print("D--: video clip shape ", pixel_values.shape, pixel_values.dtype)
-        # pixel_values = pixel_values / 255. # let's keep uint8 for fast compute
-        del video_reader
-
-        if self.return_text_emb:
-            return pixel_values, text_emb, mask
-        else:
-            return pixel_values, caption, None
+            if self.return_text_emb:
+                return vae_latent, text_emb, mask
+            else:
+                return vae_latent, caption, None
 
     def __len__(self):
         return self.length
+
+    def apply_transform(self, pixel_values):
+        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
+        if self.transform_backend == "al":
+            inputs = {"image": pixel_values[0]}
+            num_frames = len(pixel_values)
+            for i in range(num_frames - 1):
+                inputs[f"image{i}"] = pixel_values[i + 1]
+
+            output = self.pixel_transforms(**inputs)
+
+            pixel_values = np.stack(list(output.values()), axis=0)
+            # (f h w c) -> (f c h w)
+            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
+        else:
+            raise NotImplementedError
+        return pixel_values
 
     def __getitem__(self, idx):
         """
@@ -237,26 +285,17 @@ class TextVideoDataset:
 
             if idx >= self.length:
                 raise IndexError  # needed for checking the end of dataset iteration
+        if not self.return_vae_latent:
+            # apply visual transform and normalization
+            pixel_values = self.apply_transform(pixel_values)
 
-        # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
-        if self.transform_backend == "al":
-            inputs = {"image": pixel_values[0]}
-            num_frames = len(pixel_values)
-            for i in range(num_frames - 1):
-                inputs[f"image{i}"] = pixel_values[i + 1]
+            if self.is_image:
+                pixel_values = pixel_values[0]
 
-            output = self.pixel_transforms(**inputs)
-
-            pixel_values = np.stack(list(output.values()), axis=0)
-            # (f h w c) -> (f c h w)
-            pixel_values = np.transpose(pixel_values, (0, 3, 1, 2))
+            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
         else:
-            raise NotImplementedError
-
-        if self.is_image:
-            pixel_values = pixel_values[0]
-
-        pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+            # pixel_values is the vae encoder's output sample * scale_factor
+            pass
 
         # randomly set caption to be empty
         if self.random_drop_text:
@@ -287,17 +326,61 @@ class TextVideoDataset:
 
         return pixel_values, text_data, mask.astype(np.uint8)
 
+    def traverse_single_video_frames(self, video_index):
+        video_dict = self.dataset[video_index]
+        video_fn = video_dict[self.video_column]
+        video_path = os.path.join(self.video_folder, video_fn)
+
+        # video_name = os.path.basename(video_fn).split(".")[0]
+        # read video
+        video_path = os.path.join(self.video_folder, video_fn)
+        # in case missing .mp4 in csv file
+        if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
+            if video_path[-4] != ".":
+                video_path = video_path + ".mp4"
+            else:
+                raise ValueError(f"video file format is not verified: {video_path}")
+
+        video_reader = VideoReader(video_path)
+        video_length = len(video_reader)
+
+        # Sampling video frames
+        clips_indices = []
+        start_idx = 0
+        while start_idx + self.sample_n_frames < video_length:
+            clips_indices.append([start_idx, start_idx + self.sample_n_frames])
+            start_idx += self.sample_n_frames
+        if start_idx < video_length:
+            clips_indices.append([start_idx, video_length])
+        assert len(clips_indices) > 0 and clips_indices[-1][-1] == video_length, "incorrect sampled clips!"
+
+        for clip_indices in clips_indices:
+            i, j = clip_indices
+            frame_indice = list(range(i, j, 1))
+            select_video_frames = [
+                f"{index}" for index in frame_indice
+            ]  # return indexes as strings, for the purpose of saving frame-wise embedding cache
+            if video_path.endswith(".gif"):
+                pixel_values = video_reader[frame_indice]  # shape: (f, h, w, c)
+            else:
+                pixel_values = video_reader.get_batch(frame_indice).asnumpy()  # shape: (f, h, w, c)
+            pixel_values = self.apply_transform(pixel_values)
+            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+            return_dict = {"video": pixel_values}
+            yield video_fn, select_video_frames, return_dict
+
 
 def create_dataloader(
     ds_config,
     batch_size,
     ds_name="text_video",
     num_parallel_workers=12,
-    max_rowsize=32,
+    max_rowsize=64,
     shuffle=True,
     device_num=1,
     rank_id=0,
     drop_remainder=True,
+    return_dataset=False,
 ):
     if ds_name == "text_video":
         dataset = TextVideoDataset(**ds_config)
@@ -320,5 +403,6 @@ def create_dataloader(
         batch_size,
         drop_remainder=drop_remainder,
     )
-
+    if return_dataset:
+        return dl, dataset
     return dl

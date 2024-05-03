@@ -50,6 +50,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
+    enable_dvm: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -74,7 +75,7 @@ def init_env(
             # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
-            print("D--: use optim parallel")
+            print("use optim parallel")
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
                 enable_parallel_optimizer=True,
@@ -108,7 +109,28 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
+    if enable_dvm:
+        print("enable dvm")
+        ms.set_context(enable_graph_kernel=True)
+
     return rank_id, device_num
+
+
+def set_all_reduce_fusion(
+    params,
+    split_num: int = 7,
+    distributed: bool = False,
+    parallel_mode: str = "data",
+) -> None:
+    """Set allreduce fusion strategy by split_num."""
+
+    if distributed and parallel_mode == "data":
+        all_params_num = len(params)
+        step = all_params_num // split_num
+        split_list = [i * step for i in range(1, split_num)]
+        split_list.append(all_params_num - 1)
+        logger.info(f"Distribute config set: dall_params_num: {all_params_num}, set all_reduce_fusion: {split_list}")
+        ms.set_auto_parallel_context(all_reduce_fusion_config=split_list)
 
 
 def main(args):
@@ -123,6 +145,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
+        enable_dvm=args.enable_dvm,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -149,15 +172,13 @@ def main(args):
     latte_model = STDiT_XL_2(**model_extra_args)
 
     # mixed precision
-    if args.dtype == "fp32":
-        model_dtype = ms.float32
-    else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
             latte_model,
-            amp_level="O2",
-            dtype=model_dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+            amp_level=args.amp_level,
+            dtype=dtype_map[args.dtype],
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
         )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
@@ -170,17 +191,24 @@ def main(args):
     # 2.2 vae
     # TODO: use mindone/models/autoencoders in future
     logger.info("vae init")
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        VAE_Z_CH,
-        ckpt_path=args.vae_checkpoint,
-        use_fp16=False,
-    )
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():
-        param.requires_grad = False
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    if not train_with_vae_latent:
+        vae = AutoencoderKL(
+            SD_CONFIG,
+            VAE_Z_CH,
+            ckpt_path=args.vae_checkpoint,
+            use_fp16=False,
+        )
+        vae = vae.set_train(False)
+        for param in vae.get_parameters():
+            param.requires_grad = False
+        if args.vae_dtype in ["fp16", "bf16"]:
+            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+    else:
+        vae = None
 
     # 2.3 ldm with loss
+    logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
     latent_diffusion_with_loss = DiffusionWithLoss(
         latte_model,
@@ -191,15 +219,18 @@ def main(args):
         text_encoder=None,
         cond_stage_trainable=False,
         text_emb_cached=True,
-        video_emb_cached=False,
+        video_emb_cached=train_with_vae_latent,
     )
 
     # 3. create dataset
     ds_config = dict(
         csv_path=args.csv_path,
         video_folder=args.video_folder,
-        text_emb_folder=args.embed_folder,
+        text_emb_folder=args.text_embed_folder,
         return_text_emb=True,
+        vae_latent_folder=args.vae_latent_folder,
+        return_vae_latent=train_with_vae_latent,
+        vae_scale_factor=args.sd_scale_factor,
         sample_size=args.image_size,
         sample_stride=args.frame_stride,
         sample_n_frames=args.num_frames,
@@ -209,7 +240,13 @@ def main(args):
         disable_flip=args.disable_flip,
     )
     dataset = create_dataloader(
-        ds_config, batch_size=args.batch_size, shuffle=True, device_num=device_num, rank_id=rank_id
+        ds_config,
+        batch_size=args.batch_size,
+        shuffle=True,
+        device_num=device_num,
+        rank_id=rank_id,
+        num_parallel_workers=args.num_parallel_workers,
+        max_rowsize=args.max_rowsize,
     )
     dataset_size = dataset.get_dataset_size()
 
@@ -232,6 +269,13 @@ def main(args):
         warmup_steps=args.warmup_steps,
         decay_steps=args.decay_steps,
         num_epochs=args.epochs,
+    )
+
+    set_all_reduce_fusion(
+        latent_diffusion_with_loss.trainable_params(),
+        split_num=7,
+        distributed=args.use_parallel,
+        parallel_mode=args.parallel_mode,
     )
 
     # build optimizer
@@ -329,7 +373,7 @@ def main(args):
                 f"Distributed mode: {args.use_parallel}",
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use model dtype: {model_dtype}",
+                f"Use model dtype: {args.dtype}",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.image_size}",
