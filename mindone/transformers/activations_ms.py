@@ -103,10 +103,9 @@ class ClippedGELUActivation(nn.Cell):
         super().__init__()
         self.min = min
         self.max = max
-        self.gelu = get_activation("gelu")
 
     def construct(self, x: Tensor) -> Tensor:
-        return ops.clip(self.gelu(x), self.min, self.max)
+        return ops.clip(gelu(x), self.min, self.max)
 
 
 class AccurateGELUActivation(nn.Cell):
