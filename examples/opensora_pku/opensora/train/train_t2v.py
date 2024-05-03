@@ -107,8 +107,8 @@ def main(args):
     ), f"Image size must be divisible by ae_stride_h, but found max_image_size ({args.max_image_size}), "
     " ae_stride_h ({ae_stride_h})."
 
-    latent_size = args.image_size // 8
-    vae.latent_size = (latent_size, latent_size)
+    latent_size = (args.max_image_size // ae_stride_h, args.max_image_size // ae_stride_w)
+    vae.latent_size = latent_size
 
     logger.info(f"Init Latte T2V model: {args.model}")
     ae_time_stride = 4
@@ -135,7 +135,7 @@ def main(args):
 
     # mixed precision
     if args.precision == "fp32":
-        model_dtype = ms.float32
+        model_dtype = get_precision(args.precision)
     else:
         model_dtype = get_precision(args.precision)
         latte_model = auto_mixed_precision(
@@ -180,9 +180,9 @@ def main(args):
     ds_config = dict(
         data_path=args.data_path,
         video_folder=args.video_folder,
-        text_emb_folder=args.text_embed_folder,
-        return_text_emb=True,
-        vae_latent_folder=args.vae_latent_folder,
+        text_emb_folder=None,
+        return_text_emb=False,
+        vae_latent_folder=None,
         return_vae_latent=False,
         vae_scale_factor=args.sd_scale_factor,
         sample_size=args.max_image_size,
@@ -191,8 +191,7 @@ def main(args):
         tokenizer=tokenizer,
         video_column=args.video_column,
         caption_column=args.caption_column,
-        disable_flip=args.disable_flip,
-        filter_nonexistent=args.filter_nonexistent,  # for loading safty
+        disable_flip=False,  # use random flip
         use_image_num=args.use_image_num,
     )
     dataset = create_dataloader(
@@ -411,6 +410,13 @@ def parse_t2v_train_args(parser):
             " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"
             " training using `--resume_from_checkpoint`."
         ),
+    )
+    parser.add_argument(
+        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
+    )
+    parser.add_argument("--video_column", default="path", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument(
+        "--caption_column", default="cap", type=str, help="name of column for captions saved in csv file"
     )
     return parser
 

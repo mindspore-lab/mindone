@@ -3,7 +3,7 @@ python opensora/train/train_t2v.py \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.0.0/vae \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.0.0 \
     --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
     --video_folder /remote-home1/dataset/data_split_tt \
     --sample_rate 1 \
