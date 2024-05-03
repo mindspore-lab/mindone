@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import logging
 import os
 import sys
@@ -8,7 +7,7 @@ from typing import Tuple
 
 import numpy as np
 import yaml
-from omegaconf import OmegaConf
+from PIL import Image
 from pipeline_videogen import VideoGenPipeline
 from tqdm import tqdm
 from utils.model_utils import _check_cfgs_in_parser
@@ -18,18 +17,21 @@ from mindspore import nn
 from mindspore.communication.management import get_group_size, get_rank, init
 
 # TODO: remove in future when mindone is ready for install
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 
 import pandas as pd
+
+sys.path.append(".")
 from opensora.data.text_dataset import create_dataloader
-from opensora.models.diffusion.latte_t2v import Attention, LatteT2V, LayerNorm
-from opensora.text_encoders.t5_embedder import T5Embedder
+from opensora.models.ae import ae_stride_config, getae_model_config, getae_wrapper
+from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
+from opensora.models.diffusion.latte.modules import Attention
+from opensora.models.text_encoder.t5 import T5Embedder
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config, str2bool
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -119,11 +121,35 @@ def parse_args():
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
+    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.0.0")
     parser.add_argument(
-        "--vae_config",
+        "--version",
         type=str,
-        default="configs/ae/causal_vae_488.yaml",
-        help="path to load a config yaml file that describes the VAE model",
+        default="17x256x256",
+        help="Model version in ['17x256x256', '65x256x256', '65x512x512'] ",
+    )
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
+
+    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--save_img_path", type=str, default="./sample_videos/t2v")
+
+    parser.add_argument("--guidance_scale", type=float, default=7.5, help="the scale for classifier-free guidance")
+
+    parser.add_argument("--sample_method", type=str, default="DDPM")
+    parser.add_argument("--num_sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
+    parser.add_argument("--fps", type=int, default=24)
+    parser.add_argument(
+        "--text_prompt",
+        type=str,
+        nargs="+",
+        help="A list of text prompts to be generated with. Also allow input a txt file or csv file.",
+    )
+    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument(
+        "--force_images", default=False, type=str2bool, help="Whether to generate images given text prompts"
+    )
+    parser.add_argument(
+        "--enable_tiling", default=False, type=str2bool, help="whether to use vae tiling to save memory"
     )
     parser.add_argument(
         "--image_size",
@@ -131,62 +157,15 @@ def parse_args():
         default=256,
         help="image size in [256, 512]",
     )
-    parser.add_argument(
-        "--num_classes",
-        type=int,
-        default=1000,
-        help="number of classes, applies only when condition is `class`",
-    )
 
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
-    parser.add_argument(
-        "--model_version",
-        type=str,
-        default="17x256x256",
-        help="Model version in ['17x256x256', '65x256x256', '65x512x512'] ",
-    )
-    parser.add_argument(
-        "--condition",
-        default=None,
-        type=str,
-        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
-        " `class` means using class labels as conditions.",
-    )
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        default="",
-        help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
-    )
-    parser.add_argument(
-        "--text_encoder",
-        default=None,
-        type=str,
-        choices=["clip", "t5"],
-        help="text encoder for extract text embeddings: clip text encoder or t5-v1_1-xxl.",
-    )
-    parser.add_argument("--t5_max_length", type=int, default=120, help="the max length for the tokens")
-    parser.add_argument("--t5_cache_folder", default=None, type=str, help="the T5 cache folder path")
-    parser.add_argument(
-        "--clip_checkpoint",
-        type=str,
-        default=None,
-        help="CLIP text encoder checkpoint (or sd checkpoint to only load the text encoder part.)",
-    )
-    parser.add_argument(
-        "--vae_checkpoint",
-        type=str,
-        default="models/ae/causal_vae_488.ckpt",
-        help="VAE checkpoint file path which is used to load vae weight.",
-    )
+    parser.add_argument("--token_max_length", type=int, default=120, help="the max length for the tokens")
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
 
-    parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
-    parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     # MS new args
-    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
+    parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
@@ -225,22 +204,8 @@ def parse_args():
         help="whether use recompute.",
     )
     parser.add_argument(
-        "--patch_embedder",
-        type=str,
-        default="conv",
-        choices=["conv", "linear"],
-        help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
-    )
-    parser.add_argument(
-        "--captions",
-        type=str,
-        nargs="+",
-        help="A list of text captions to be generated with",
-    )
-    parser.add_argument(
         "--num_videos_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
     )
-    parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     parser.add_argument(
         "--save_latents",
         action="store_true",
@@ -271,19 +236,17 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"samples/{time_str}"
-    os.makedirs(save_dir, exist_ok=True)
-    set_logger(name="", output_dir=save_dir)
-
     # 1. init env
     args = parse_args()
+    save_dir = args.save_img_path
+    os.makedirs(save_dir, exist_ok=True)
+    set_logger(name="", output_dir=save_dir)
     # 1. init
     rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
-        device_target=args.device_target,
+        device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
@@ -293,17 +256,17 @@ if __name__ == "__main__":
         logger.warning(f"T5 model may produce wrong results under {args.precision_mode} precision mode!")
     # 2. model initiate and weight loading
     # 2.1 latte
-    logger.info(f"Latte-{args.model_version} init")
+    logger.info(f"Latte-{args.version} init")
 
-    assert args.condition == "text", "LatteT2V only support text condition now!"
     assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder now!"
 
     latte_model = LatteT2V.from_pretrained_2d(
-        "models",
-        subfolder=args.model_version,
+        args.model_path,
+        subfolder=args.version,
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
+    latte_model.force_images = args.force_images
     # mixed precision
     if args.dtype == "fp32":
         model_dtype = ms.float32
@@ -317,9 +280,12 @@ if __name__ == "__main__":
         )
 
     video_length, image_size = latte_model.config.video_length, args.image_size
-    # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
-    latent_size = args.image_size // 8
-
+    latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
+    if args.force_images:
+        video_length = 1
+        ext = "jpg"
+    else:
+        ext = "mp4"
     if len(args.checkpoint) > 0:
         logger.info(f"Loading ckpt {args.checkpoint} into LatteT2V")
         latte_model.load_from_checkpoint(args.checkpoint)
@@ -332,9 +298,12 @@ if __name__ == "__main__":
 
     # 2.2 vae
     logger.info("vae init")
-    config = OmegaConf.load(args.vae_config)
-    vae = instantiate_from_config(config.generator)
-    vae.init_from_ckpt(args.vae_checkpoint)
+    kwarg = {}
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, **kwarg)
+    if args.enable_tiling:
+        raise NotImplementedError
+        # vae.vae.enable_tiling()
+        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
     vae.set_train(False)
 
     vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
@@ -345,16 +314,16 @@ if __name__ == "__main__":
     vae.latent_size = (latent_size, latent_size)
 
     # parse the caption input
-    if not isinstance(args.captions, list):
-        args.captions = [args.captions]
+    if not isinstance(args.text_prompt, list):
+        args.text_prompt = [args.text_prompt]
     # if input is a text file, where each line is a caption, load it into a list
-    if len(args.captions) == 1 and args.captions[0].endswith("txt"):
-        captions = open(args.captions[0], "r").readlines()
-        args.captions = [i.strip() for i in captions]
-    if len(args.captions) == 1 and args.captions[0].endswith("csv"):
-        captions = pd.read_csv(args.captions[0])
-        args.captions = [i.strip() for i in captions["cap"]]
-    n = len(args.captions)
+    if len(args.text_prompt) == 1 and args.text_prompt[0].endswith("txt"):
+        captions = open(args.text_prompt[0], "r").readlines()
+        args.text_prompt = [i.strip() for i in captions]
+    if len(args.text_prompt) == 1 and args.text_prompt[0].endswith("csv"):
+        captions = pd.read_csv(args.text_prompt[0])
+        args.text_prompt = [i.strip() for i in captions["cap"]]
+    n = len(args.text_prompt)
     assert n > 0, "No captions provided"
     logger.info(f"Number of prompts: {n}")
     logger.info(f"Number of generated samples for each prompt {args.num_videos_per_prompt}")
@@ -364,8 +333,8 @@ if __name__ == "__main__":
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
             ext = ".npy" if args.save_latents else ".gif"
-            csv_file["path"].append(f"{i_video}-{args.captions[i].strip()[:100]}.{ext}")
-            csv_file["cap"].append(args.captions[i])
+            csv_file["path"].append(f"{i_video}-{args.text_prompt[i].strip()[:100]}.{ext}")
+            csv_file["cap"].append(args.text_prompt[i])
     temp_dataset_csv = os.path.join(save_dir, "dataset.csv")
     pd.DataFrame.from_dict(csv_file).to_csv(temp_dataset_csv, index=False, columns=csv_file.keys())
 
@@ -410,21 +379,25 @@ if __name__ == "__main__":
                 save_video_data = decode_data[i_sample : i_sample + 1].transpose(
                     0, 2, 3, 4, 1
                 )  # (b c t h w) -> (b t h w c)
-                save_videos(save_video_data, save_fp, loop=0)
+                save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
         sys.exit()
 
-    assert args.condition == "text", "LatteT2V only support text condition"
-    assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder"
     logger.info("T5 init")
     text_encoder = T5Embedder(
-        cache_dir=args.t5_cache_folder,
-        pretrained_ckpt=os.path.join(args.t5_cache_folder, "model.ckpt"),
-        model_max_length=args.t5_max_length,
+        dir_or_name=args.text_encoder_name,
+        cache_dir="./",
+        model_max_length=args.token_max_length,
     )
     tokenizer = text_encoder.tokenizer
 
     # 3. build inference pipeline
-    scheduler = DDIMScheduler() if args.ddim_sampling else DDPMScheduler()
+    if args.sample_method == "DDIM":
+        scheduler = DDIMScheduler()
+    elif args.sample_method == "DDPM":
+        scheduler = DDPMScheduler()
+    else:
+        raise ValueError(f"Not supported sampling method {args.sample_method}")
+
     text_encoder = text_encoder.model
     pipeline = VideoGenPipeline(
         vae=vae,
@@ -448,15 +421,13 @@ if __name__ == "__main__":
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
             f"Use model dtype: {model_dtype}",
-            f"Sampling steps {args.sampling_steps}",
-            f"DDIM sampling: {args.ddim_sampling}",
+            f"Sampling steps {args.num_sampling_steps}",
+            f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
         ]
     )
     key_info += "\n" + "=" * 50
     logger.info(key_info)
-
-    logger.info(f"Sampling for {n} samples with condition {args.condition}")
     start_time = time.time()
 
     # infer
@@ -469,9 +440,9 @@ if __name__ == "__main__":
             video_length=video_length,
             height=args.image_size,
             width=args.image_size,
-            num_inference_steps=args.sampling_steps,
+            num_inference_steps=args.num_sampling_steps,
             guidance_scale=args.guidance_scale,
-            enable_temporal_attentions=True,
+            enable_temporal_attentions=not args.force_images,
             mask_feature=False,
             output_type="latents" if args.save_latents else "pil",
         ).video.asnumpy()
@@ -479,11 +450,20 @@ if __name__ == "__main__":
             file_path = os.path.join(save_dir, file_paths[i_sample])
             if args.save_latents:
                 assert ".npy" in file_path, "Only support .npy for saving latent data"
-                np.save(file_path, videos[i_sample : i + i_sample])
+                np.save(file_path, videos[i_sample : i_sample + 1])
             else:
-                assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
-                videos = videos[i_sample : i + i_sample].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
-                save_videos(save_video_data, file_path, loop=0)
+                if args.force_images:
+                    image = videos[i_sample, :, 0].permute(1, 2, 0)  # (b c t h w)  ->(c, h, w) -> (h, w, c)
+                    if ext not in file_path:
+                        file_path = (
+                            "/".join(file_path.split("/")[:-1]) + file_path.split("/")[-1].split(".")[0] + f".{ext}"
+                        )
+                    image = (image * 255).round().clip(0, 255).astype(np.uint8)
+                    Image.from_numpy(image).save(file_path)
+                else:
+                    assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
+                    videos = videos[i_sample : i_sample + 1].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                    save_videos(save_video_data, file_path, loop=0, fps=args.fps)
     end_time = time.time()
     time_cost = end_time - start_time
     logger.info(f"Inference time cost: {time_cost:0.3f}s")
