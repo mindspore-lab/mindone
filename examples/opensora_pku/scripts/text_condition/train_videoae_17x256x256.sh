@@ -18,7 +18,7 @@ python opensora/train/train_t2v.py \
     --start_learning_rate=2e-05 \
     --lr_scheduler="constant" \
     --lr_warmup_steps=0 \
-    --mixed_precision="bf16" \
+    --precision="fp16" \
     --checkpointing_steps=500 \
     --output_dir="t2v-f17-256-img4-videovae488-bf16-ckpt-xformers-bs4-lr2e-5-t5" \
     --allow_tf32 \

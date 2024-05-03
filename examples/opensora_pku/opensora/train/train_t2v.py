@@ -7,22 +7,23 @@ import os
 import sys
 
 import yaml
-from opensora.models.ae import ae_channel_config, ae_stride_config, getae_model_config, getae_wrapper
-from opensora.train.commons import create_loss_scaler, init_env, parse_args
 
 import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
 sys.path.insert(0, mindone_lib_path)
+sys.path.append("./")
 from opensora.dataset.t2v_dataset import create_dataloader
+from opensora.models.ae import ae_channel_config, ae_stride_config, getae_model_config, getae_wrapper
 from opensora.models.diffusion.diffusion import create_diffusion_T as create_diffusion
 from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.diffusion.latte.net_with_loss import DiffusionWithLoss
 from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.train.commons import create_loss_scaler, init_env, parse_args
+from opensora.utils.utils import get_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
@@ -133,10 +134,10 @@ def main(args):
     )
 
     # mixed precision
-    if args.dtype == "fp32":
+    if args.precision == "fp32":
         model_dtype = ms.float32
     else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        model_dtype = get_precision(args.precision)
         latte_model = auto_mixed_precision(
             latte_model,
             amp_level=args.amp_level,
