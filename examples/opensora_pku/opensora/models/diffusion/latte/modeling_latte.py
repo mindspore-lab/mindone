@@ -9,19 +9,25 @@ from mindspore import Parameter, nn, ops
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 
 # from mindone.diffusers.utils import USE_PEFT_BACKEND
-from mindone.diffusers.models.embeddings import ImagePositionalEmbeddings, PatchEmbed, SinusoidalPositionalEmbedding
 from mindone.diffusers.models.modeling_utils import ModelMixin
-from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormZero
 
 from .modules import (
+    AdaLayerNorm,
     AdaLayerNormSingle,
+    AdaLayerNormZero,
     CaptionProjection,
     FeedForward,
     GatedSelfAttentionDense,
+    ImagePositionalEmbeddings,
     LayerNorm,
     MultiHeadAttention,
+    PatchEmbed,
+    SinusoidalPositionalEmbedding,
 )
 from .pos import get_1d_sincos_pos_embed
+
+# from mindone.diffusers.models.normalization import AdaLayerNorm, AdaLayerNormZero
+
 
 # from mindone.diffusers.models.lora import LoRACompatibleConv, LoRACompatibleLinear
 
