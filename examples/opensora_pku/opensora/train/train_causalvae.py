@@ -48,6 +48,8 @@ def main(args):
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
     )
+    if args.exp_name is not None and len(args.exp_name) > 0:
+        args.output_dir = os.path.join(args.output_dir, args.exp_name)
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # Load Config
@@ -130,6 +132,14 @@ def main(args):
         learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
     else:
         learning_rate = args.start_learning_rate
+    if args.max_steps is not None and args.max_steps > 0:
+        args.epochs = args.max_steps // num_batches
+        logger.info("max_steps is set, override epochs to {}".format(args.epochs))
+    if args.save_steps is not None and args.save_steps > 0:
+        args.step_mode = True  # use step mode to save ckpt
+        args.ckpt_save_interval = args.save_steps
+        logger.info("save_steps is set, override ckpt_save_interval to {}".format(args.ckpt_save_interval))
+
     if not args.decay_steps:
         args.decay_steps = max(1, args.epochs * num_batches - args.warmup_steps)
     lr = create_scheduler(
@@ -263,6 +273,7 @@ def main(args):
                 ckpt_save_dir=ckpt_dir,
                 ema=ema,
                 ckpt_save_policy="latest_k",
+                step_mode=args.step_mode,
                 ckpt_max_keep=args.ckpt_max_keep,
                 ckpt_save_interval=args.ckpt_save_interval,
                 log_interval=args.log_interval,
@@ -356,6 +367,9 @@ def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--output_dir", default="results/causalvae", help="The directory where training results are saved."
     )
+    parser.add_argument("--exp_name", default=None, help="The name of the experiment.")
+    parser.add_argument("--max_steps", dafault=None, type=int, help="The maximum number of training steps.")
+    parser.add_argument("--save_steps", default=None, type=int, help="The interval steps to save checkpoints.")
 
     parser.add_argument(
         "--video_path", default="/remote-home1/dataset/data_split_tt", help="The path where the video data is stored."
