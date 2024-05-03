@@ -22,7 +22,7 @@ from .diffusion_utils import (
 
 
 @ms.jit_class
-class GaussianDiffusion:
+class GaussianDiffusion_T:
     """
     Utilities for training and sampling diffusion models.
     Original ported from this codebase:
@@ -168,7 +168,7 @@ class GaussianDiffusion:
         if model_kwargs is None:
             model_kwargs = {}
 
-        B, F, C = x.shape[:3]
+        B, C, F = x.shape[:3]
 
         assert t.shape == (B,)
         model_output = model(x, t, **model_kwargs)
@@ -177,8 +177,8 @@ class GaussianDiffusion:
         else:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
-            assert model_output.shape == (B, F, C * 2, *x.shape[3:])
-            model_output, model_var_values = ops.split(model_output, C, axis=2)
+            assert model_output.shape == (B, C * 2, F, *x.shape[3:])
+            model_output, model_var_values = ops.split(model_output, C, axis=1)
 
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
             max_log = _extract_into_tensor(self.log_betas, t, x.shape)
