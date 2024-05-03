@@ -43,7 +43,7 @@ def main(args):
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
-        device_target=args.device_target,
+        device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,

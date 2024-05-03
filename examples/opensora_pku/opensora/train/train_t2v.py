@@ -5,25 +5,24 @@ import datetime
 import logging
 import os
 import sys
-from typing import Tuple
 
 import yaml
-from args_train import parse_args
-from omegaconf import OmegaConf
+from opensora.models.ae import ae_channel_config, ae_stride_config, getae_model_config, getae_wrapper
+from opensora.train.commons import create_loss_scaler, init_env, parse_args
 
 import mindspore as ms
 from mindspore import Model, nn
-from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 from opensora.dataset.t2v_dataset import create_dataloader
-from opensora.diffusion.diffusion import create_diffusion
-from opensora.models.diffusion.latte.modeling_latte import Attention, Latte_models, LayerNorm
+from opensora.models.diffusion.diffusion import create_diffusion_T as create_diffusion
+from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNorm
+from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.diffusion.latte.net_with_loss import DiffusionWithLoss
+from opensora.models.text_encoder.t5 import T5Embedder
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
@@ -32,88 +31,13 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
-from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
 logger = logging.getLogger(__name__)
-
-
-def init_env(
-    mode: int = ms.GRAPH_MODE,
-    seed: int = 42,
-    distributed: bool = False,
-    max_device_memory: str = None,
-    device_target: str = "Ascend",
-    parallel_mode: str = "data",
-    enable_dvm: bool = False,
-) -> Tuple[int, int, int]:
-    """
-    Initialize MindSpore environment.
-
-    Args:
-        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
-        seed: The seed value for reproducibility. Default is 42.
-        distributed: Whether to enable distributed training. Default is False.
-    Returns:
-        A tuple containing the device ID, rank ID and number of devices.
-    """
-    set_random_seed(seed)
-
-    if max_device_memory is not None:
-        ms.set_context(max_device_memory=max_device_memory)
-
-    if distributed:
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # ms2.2.23 parallel needs
-            # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
-        )
-        if parallel_mode == "optim":
-            print("use optim parallel")
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
-                enable_parallel_optimizer=True,
-            )
-            init()
-            device_num = get_group_size()
-            rank_id = get_rank()
-        else:
-            init()
-            device_num = get_group_size()
-            rank_id = get_rank()
-            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
-            ms.reset_auto_parallel_context()
-
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-                gradients_mean=True,
-                device_num=device_num,
-            )
-
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
-
-    else:
-        device_num = 1
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
-        )
-
-    if enable_dvm:
-        print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
-
-    return rank_id, device_num
 
 
 def set_all_reduce_fusion(
@@ -135,48 +59,62 @@ def set_all_reduce_fusion(
 
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    args.output_path = os.path.join(args.output_path, time_str)
+    args.output_path = os.path.join(args.output_dir, time_str)
 
     # 1. init
     rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
-        device_target=args.device_target,
+        device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
     )
-    set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+    if args.use_deepspeed:
+        raise NotImplementedError
 
-    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
-    if train_with_vae_latent:
-        logger.info("Train with vae latent cache.")
-        vae = None
-    else:
-        # 2.2 vae
-        logger.info("vae init")
-        ae_config = OmegaConf.load(args.vae_config)
-        vae = instantiate_from_config(ae_config.generator)
-        vae.init_from_ckpt(args.vae_checkpoint)
-        vae.set_train(False)
+    logger.info("vae init")
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
+    if args.enable_tiling:
+        raise NotImplementedError
+        # vae.vae.enable_tiling()
+        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+    vae.set_train(False)
 
-        vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-        logger.info("Use amp level O2 for causal 3D VAE.")
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
+    logger.info("Use amp level O2 for causal 3D VAE.")
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
 
-        for param in vae.get_parameters():  # freeze vae
-            param.requires_grad = False
+    ae_stride_t, ae_stride_h, ae_stride_w = ae_stride_config[args.ae]
+    args.ae_stride_t, args.ae_stride_h, args.ae_stride_w = ae_stride_t, ae_stride_h, ae_stride_w
+    args.ae_stride = args.ae_stride_h
+    patch_size = args.model[-3:]
+    patch_size_t, patch_size_h, patch_size_w = int(patch_size[0]), int(patch_size[1]), int(patch_size[2])
+    args.patch_size = patch_size_h
+    args.patch_size_t, args.patch_size_h, args.patch_size_w = patch_size_t, patch_size_h, patch_size_w
+    assert (
+        ae_stride_h == ae_stride_w
+    ), f"Support only ae_stride_h == ae_stride_w now, but found ae_stride_h ({ae_stride_h}), ae_stride_w ({ae_stride_w})"
+    assert (
+        patch_size_h == patch_size_w
+    ), f"Support only patch_size_h == patch_size_w now, but found patch_size_h ({patch_size_h}), patch_size_w ({patch_size_w})"
+    assert (
+        args.max_image_size % ae_stride_h == 0
+    ), f"Image size must be divisible by ae_stride_h, but found max_image_size ({args.max_image_size}), "
+    " ae_stride_h ({ae_stride_h})."
 
-    # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     latent_size = args.image_size // 8
     vae.latent_size = (latent_size, latent_size)
 
-    logger.info(f"Init Latte T2V model: {args.model_version}")
+    logger.info(f"Init Latte T2V model: {args.model}")
     ae_time_stride = 4
     video_length = args.num_frames // ae_time_stride + 1
-    latte_model = Latte_models[args.model_version](
-        in_channels=ae_config.generator.params.ddconfig.z_channels,
-        out_channels=ae_config.generator.params.ddconfig.z_channels * 2,
+    latte_model = Latte_models[args.model](
+        in_channels=ae_channel_config[args.ae],
+        out_channels=ae_channel_config[args.ae] * 2,
         attention_bias=True,
         sample_size=latent_size,
         num_vector_embeds=None,
@@ -206,12 +144,20 @@ def main(args):
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
         )
     # load checkpoint
-    if len(args.pretrained_model_path) > 0:
-        logger.info(f"Loading ckpt {args.pretrained_model_path}...")
-        latte_model.load_from_checkpoint(args.pretrained_model_path)
+    if len(args.pretrained) > 0:
+        logger.info(f"Loading ckpt {args.pretrained}...")
+        latte_model.load_from_checkpoint(args.pretrained)
     else:
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
+
+    logger.info("T5 init")
+    text_encoder = T5Embedder(
+        dir_or_name=args.text_encoder_name,
+        cache_dir="./",
+        model_max_length=args.model_max_length,
+    )
+    tokenizer = text_encoder.tokenizer
 
     # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
@@ -221,25 +167,25 @@ def main(args):
         vae=vae,
         scale_factor=args.sd_scale_factor,
         condition="text",
-        text_encoder=None,
+        text_encoder=text_encoder,
         cond_stage_trainable=False,
-        text_emb_cached=True,
-        video_emb_cached=train_with_vae_latent,
+        text_emb_cached=False,
+        video_emb_cached=False,
         use_image_num=args.use_image_num,
         dtype=model_dtype,
     )
 
     # 3. create dataset
     ds_config = dict(
-        data_file_path=args.data_file_path,
+        data_path=args.data_path,
         video_folder=args.video_folder,
         text_emb_folder=args.text_embed_folder,
         return_text_emb=True,
         vae_latent_folder=args.vae_latent_folder,
-        return_vae_latent=train_with_vae_latent,
+        return_vae_latent=False,
         vae_scale_factor=args.sd_scale_factor,
-        sample_size=args.image_size,
-        sample_stride=args.frame_stride,
+        sample_size=args.max_image_size,
+        sample_stride=args.sample_rate,
         sample_n_frames=args.num_frames,
         tokenizer=None,
         video_column=args.video_column,
@@ -247,6 +193,7 @@ def main(args):
         disable_flip=args.disable_flip,
         filter_nonexistent=args.filter_nonexistent,  # for loading safty
         use_image_num=args.use_image_num,
+        tokenizer=tokenizer,
     )
     dataset = create_dataloader(
         ds_config,
@@ -260,23 +207,31 @@ def main(args):
     dataset_size = dataset.get_dataset_size()
 
     # 4. build training utils: lr, optim, callbacks, trainer
+    if args.max_train_steps is not None and args.max_train_steps > 0:
+        args.epochs = args.max_train_steps // dataset_size
+        logger.info(f"Forcing training epochs to {args.epochs} when using max_train_steps {args.max_train_steps}")
+    if args.checkpointing_steps is not None and args.checkpointing_steps > 0:
+        logger.info(f"Saving checkpoints every {args.checkpointing_steps} steps")
+        args.step_mode = True
+        args.ckpt_save_interval = args.checkpointing_steps
+
     # build learning rate scheduler
-    if not args.decay_steps:
-        args.decay_steps = args.epochs * dataset_size - args.warmup_steps  # fix lr scheduling
-        if args.decay_steps <= 0:
+    if not args.lr_decay_steps:
+        args.lr_decay_steps = args.epochs * dataset_size - args.lr_warmup_steps  # fix lr scheduling
+        if args.lr_decay_steps <= 0:
             logger.warning(
-                f"decay_steps is {args.decay_steps}, please check epochs, dataset_size and warmup_steps. "
+                f"decay_steps is {args.lr_decay_steps}, please check epochs, dataset_size and warmup_steps. "
                 f"Will force decay_steps to be set to 1."
             )
-            args.decay_steps = 1
+            args.lr_decay_steps = 1
 
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
-        name=args.scheduler,
+        name=args.lr_scheduler,
         lr=args.start_learning_rate,
         end_lr=args.end_learning_rate,
         warmup_steps=args.warmup_steps,
-        decay_steps=args.decay_steps,
+        decay_steps=args.lr_decay_steps,
         num_epochs=args.epochs,
     )
     set_all_reduce_fusion(
@@ -297,17 +252,9 @@ def main(args):
         lr=lr,
     )
 
-    if args.loss_scaler_type == "dynamic":
-        loss_scaler = DynamicLossScaleUpdateCell(
-            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
-        )
-    elif args.loss_scaler_type == "static":
-        loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
-    else:
-        raise ValueError
-
+    loss_scaler = create_loss_scaler(args)
     # resume ckpt
-    ckpt_dir = os.path.join(args.output_path, "ckpt")
+    ckpt_dir = os.path.join(args.output_dir, "ckpt")
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
@@ -358,7 +305,7 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
-            model_name=args.model_version.replace("/", "-"),
+            model_name=args.model.replace("/", "-"),
             record_lr=False,
         )
         callback.append(save_cb)
@@ -408,7 +355,7 @@ def main(args):
 
         logger.info("Start training...")
 
-        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
+        with open(os.path.join(args.output_dir, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
@@ -422,7 +369,52 @@ def main(args):
     )
 
 
+def parse_t2v_train_args(parser):
+    parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
+    parser.add_argument("--dataset", type=str, required=True)
+    parser.add_argument("--data_path", type=str, required=True)
+    parser.add_argument("--model", type=str, default="DiT-XL/122")
+    parser.add_argument("--num_classes", type=int, default=1000)
+    parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
+    parser.add_argument("--ae_path", type=str, default="stabilityai/sd-vae-ft-mse")
+    parser.add_argument("--sample_rate", type=int, default=4)
+    parser.add_argument("--num_frames", type=int, default=16)
+    parser.add_argument("--max_image_size", type=int, default=128)
+    parser.add_argument("--dynamic_frames", action="store_true")
+    parser.add_argument("--compress_kv", action="store_true")
+    parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="math")
+    parser.add_argument("--pretrained", type=str, default=None)
+
+    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument("--enable_tiling", action="store_true")
+
+    parser.add_argument("--video_folder", type=str, default="")
+    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--model_max_length", type=int, default=120)
+
+    parser.add_argument("--enable_tracker", action="store_true")
+    parser.add_argument("--use_image_num", type=int, default=0)
+    parser.add_argument("--use_img_from_vid", action="store_true")
+    parser.add_argument("--use_deepspeed", action="store_true")
+    parser.add_argument(
+        "--max_train_steps",
+        type=int,
+        default=None,
+        help="Total number of training steps to perform.  If provided, overrides num_train_epochs.",
+    )
+    parser.add_argument(
+        "--checkpointing_steps",
+        type=int,
+        default=None,
+        help=(
+            "Save a checkpoint of the training state every X updates. These checkpoints can be used both as final"
+            " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"
+            " training using `--resume_from_checkpoint`."
+        ),
+    )
+
+
 if __name__ == "__main__":
     logger.debug("process id:", os.getpid())
-    args = parse_args()
+    args = parse_args(additional_parse_args=parse_t2v_train_args)
     main(args)

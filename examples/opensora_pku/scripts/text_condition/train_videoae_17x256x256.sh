@@ -4,23 +4,26 @@ python opensora/train/train_t2v.py \
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
     --ae_path CausalVAEModel_4x8x8 \
-    --data_file_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
+    --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
     --video_folder /remote-home1/dataset/data_split_tt \
-    --frame_stride 1 \
+    --sample_rate 1 \
     --num_frames 17 \
-    --image_size 256 \
-    --use_recompute=True \
+    --max_image_size 256 \
+    --use_recompute True \
+    --enable_flash_attention True \
     --batch_size=4 \
+    --num_parallel_workers 10 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
     --start_learning_rate=2e-05 \
     --lr_scheduler="constant" \
     --lr_warmup_steps=0 \
-    --mixed_precision="fp16" \
-    --epochs=5000 \
-    --ckpt_save_interval=500 \
-    --output_dir="output" \
-    --pretrained_model_path models/t2v.pt \
+    --mixed_precision="bf16" \
+    --checkpointing_steps=500 \
+    --output_dir="t2v-f17-256-img4-videovae488-bf16-ckpt-xformers-bs4-lr2e-5-t5" \
+    --allow_tf32 \
+    --pretrained t2v.pt \
+    --use_deepspeed \
     --model_max_length 300 \
     --use_image_num 4 \
     --use_img_from_vid
