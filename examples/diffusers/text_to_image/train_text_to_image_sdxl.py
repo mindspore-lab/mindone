@@ -40,7 +40,7 @@ from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, set_seed
+from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, multinomial, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -572,6 +572,9 @@ def generate_timestep_weights(args, num_timesteps):
                 "When using the range strategy for timestep bias, you must provide an ending timestep smaller than the number of timesteps."
             )
         bias_indices = slice(range_begin, range_end)
+        num_to_bias = range_end - range_begin
+        if range_end < 0:
+            num_to_bias += num_timesteps
     else:  # 'none' or any other string
         return weights
     if args.timestep_bias_multiplier <= 0:
@@ -582,7 +585,7 @@ def generate_timestep_weights(args, num_timesteps):
         )
 
     # Apply the bias
-    weights[bias_indices] *= args.timestep_bias_multiplier
+    weights[bias_indices] = ops.ones(num_to_bias) * args.timestep_bias_multiplier
 
     # Normalize
     weights /= weights.sum()
@@ -694,22 +697,6 @@ def main():
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
 
-    if args.scale_lr:
-        args.learning_rate = (
-            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
-        )
-
-    # Optimizer creation
-    params_to_optimize = unet.trainable_params()
-    optimizer = nn.AdamWeightDecay(  # will silently filter bn and bias
-        params_to_optimize,
-        learning_rate=args.learning_rate,
-        beta1=args.adam_beta1,
-        beta2=args.adam_beta2,
-        weight_decay=args.adam_weight_decay,
-        eps=args.adam_epsilon,
-    )
-
     # Get the datasets: you can either provide your own training and evaluation files (see below)
     # or specify a Dataset from the hub (the dataset will be downloaded automatically from the datasets Hub).
     from datasets import disable_caching
@@ -798,8 +785,6 @@ def main():
                 th, tw = args.resolution, args.resolution
                 if h < th or w < tw:
                     raise ValueError(f"Required crop size {(th, tw)} is larger than input image size {(h, w)}")
-                if w == tw and h == th:
-                    return 0, 0, h, w
                 y1 = np.random.randint(0, h - th + 1, size=(1,)).item()
                 x1 = np.random.randint(0, w - tw + 1, size=(1,)).item()
                 image = image.crop((x1, y1, x1 + tw, y1 + th))
@@ -873,6 +858,8 @@ def main():
         column_names=UnravelDataset.columns,
         shuffle=True,
         num_parallel_workers=args.dataloader_num_workers,
+        num_shards=args.world_size,
+        shard_id=args.rank,
     ).batch(
         batch_size=args.train_batch_size,
         num_parallel_workers=args.dataloader_num_workers,
@@ -885,10 +872,27 @@ def main():
         args.max_train_steps = args.num_train_epochs * num_update_steps_per_epoch
         overrode_max_train_steps = True
 
+    if args.scale_lr:
+        args.learning_rate = (
+            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
+        )
+
     lr_scheduler = get_scheduler(  # noqa: F841
         args.lr_scheduler,
+        args.learning_rate,
         num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
+    )
+
+    # Optimizer creation
+    params_to_optimize = unet.trainable_params()
+    optimizer = nn.AdamWeightDecay(  # will silently filter bn and bias
+        params_to_optimize,
+        learning_rate=lr_scheduler,
+        beta1=args.adam_beta1,
+        beta2=args.adam_beta2,
+        weight_decay=args.adam_weight_decay,
+        eps=args.adam_epsilon,
     )
 
     # Prepare everything with our `accelerator`.
@@ -968,7 +972,7 @@ def main():
             # Get the most recent checkpoint
             dirs = os.listdir(args.output_dir)
             dirs = [d for d in dirs if d.startswith("checkpoint")]
-            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
+            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1].split(".")[0]))
             path = dirs[-1] if len(dirs) > 0 else None
 
         if path is None:
@@ -981,7 +985,7 @@ def main():
                 logger.info(f"Resuming from checkpoint {path}")
             state_dict = ms.load_checkpoint(os.path.join(args.output_dir, path))
             ms.load_param_into_net(unet, state_dict)  # todo: what about optimizer and scaler?
-            global_step = int(path.split("-")[1])
+            global_step = int(path.split("-")[1].split(".")[0])
 
             initial_global_step = global_step
             first_epoch = global_step // num_update_steps_per_epoch
@@ -1027,7 +1031,7 @@ def main():
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
                         checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
-                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
+                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1].split(".")[0]))
 
                         # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
                         if len(checkpoints) >= args.checkpoints_total_limit:
@@ -1129,8 +1133,9 @@ class TrainStep(nn.Cell):
         else:
             # Sample a random timestep for each image, potentially biased by the timestep weights.
             # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
+            # Use our own implemented multinomial generator because ops.multinomial is invalid on some hardware.
             weights = generate_timestep_weights(self.args, self.noise_scheduler_num_train_timesteps)
-            timesteps = ops.multinomial(weights, bsz, replacement=True).long()
+            timesteps = multinomial(weights, bsz, replacement=True).long()
 
         # Add noise to the model input according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
