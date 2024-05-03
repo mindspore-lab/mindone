@@ -6,11 +6,10 @@ import time
 from typing import Tuple
 
 import numpy as np
+import pandas as pd
 import yaml
 from PIL import Image
-from pipeline_videogen import VideoGenPipeline
 from tqdm import tqdm
-from utils.model_utils import _check_cfgs_in_parser
 
 import mindspore as ms
 from mindspore import nn
@@ -19,15 +18,13 @@ from mindspore.communication.management import get_group_size, get_rank, init
 # TODO: remove in future when mindone is ready for install
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-
-import pandas as pd
-
-sys.path.append(".")
-from opensora.data.text_dataset import create_dataloader
+from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.ae import ae_stride_config, getae_model_config, getae_wrapper
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
+from pipeline_videogen import VideoGenPipeline
+from utils.utils import _check_cfgs_in_parser
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
 from mindone.utils.amp import auto_mixed_precision
