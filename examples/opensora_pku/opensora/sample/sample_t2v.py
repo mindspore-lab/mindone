@@ -1,4 +1,5 @@
 import argparse
+import glob
 import logging
 import os
 import sys
@@ -18,13 +19,14 @@ from mindspore.communication.management import get_group_size, get_rank, init
 # TODO: remove in future when mindone is ready for install
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
+sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.ae import ae_stride_config, getae_model_config, getae_wrapper
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
+from opensora.utils.utils import _check_cfgs_in_parser
 from pipeline_videogen import VideoGenPipeline
-from utils.utils import _check_cfgs_in_parser
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
 from mindone.utils.amp import auto_mixed_precision
@@ -254,43 +256,42 @@ if __name__ == "__main__":
     # 2. model initiate and weight loading
     # 2.1 latte
     logger.info(f"Latte-{args.version} init")
-
-    assert args.text_encoder == "t5", "LatteT2V only support t5 text encoder now!"
-
-    latte_model = LatteT2V.from_pretrained_2d(
+    transformer_model = LatteT2V.from_pretrained_2d(
         args.model_path,
         subfolder=args.version,
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
-    latte_model.force_images = args.force_images
+    ckpt_paths = glob.glob(os.path.join(args.model_path, args.version, "*.ckpt"))
+    assert len(ckpt_paths) > 0, f"No ckpt found under {os.path.join(args.model_path, args.version)}"
+    if len(ckpt_paths) > 1:
+        logger.warning(f"Multiple ckpts found under {os.path.join(args.model_path, args.version)}")
+    ckpt = ckpt_paths[0]
+    logger.info(f"Loading ckpt {ckpt} into LatteT2V")
+    transformer_model.load_from_checkpoint(ckpt)
+    transformer_model.force_images = args.force_images
     # mixed precision
     if args.dtype == "fp32":
         model_dtype = ms.float32
     else:
         model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        latte_model = auto_mixed_precision(
-            latte_model,
+        transformer_model = auto_mixed_precision(
+            transformer_model,
             amp_level=args.amp_level,
             dtype=model_dtype,
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
         )
 
-    video_length, image_size = latte_model.config.video_length, args.image_size
+    video_length, image_size = transformer_model.config.video_length, args.image_size
     latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     if args.force_images:
         video_length = 1
         ext = "jpg"
     else:
         ext = "mp4"
-    if len(args.checkpoint) > 0:
-        logger.info(f"Loading ckpt {args.checkpoint} into LatteT2V")
-        latte_model.load_from_checkpoint(args.checkpoint)
-    else:
-        logger.warning("Latte uses random initialization!")
 
-    latte_model = latte_model.set_train(False)
-    for param in latte_model.get_parameters():  # freeze latte_model
+    transformer_model = transformer_model.set_train(False)
+    for param in transformer_model.get_parameters():  # freeze transformer_model
         param.requires_grad = False
 
     # 2.2 vae
@@ -401,13 +402,13 @@ if __name__ == "__main__":
         text_encoder=text_encoder,
         tokenizer=tokenizer,
         scheduler=scheduler,
-        transformer=latte_model,
+        transformer=transformer_model,
         vae_scale_factor=args.sd_scale_factor,
     )
 
     # 4. print key info
     num_params_vae, num_params_vae_trainable = count_params(vae)
-    num_params_latte, num_params_latte_trainable = count_params(latte_model)
+    num_params_latte, num_params_latte_trainable = count_params(transformer_model)
     num_params = num_params_vae + num_params_latte
     num_params_trainable = num_params_vae_trainable + num_params_latte_trainable
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
