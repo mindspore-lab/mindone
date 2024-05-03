@@ -218,13 +218,12 @@ def get_activation(activation_string):
         raise KeyError(f"function {activation_string} not found in ACT2FN mapping {list(ACT2FN.keys())}")
 
 
-# avoid initiating activation func outside nn.Cell.__init__
 # For backwards compatibility with: from activations import gelu_python
-# gelu_python = get_activation("gelu_python")
-# gelu_new = get_activation("gelu_new")
-# gelu = get_activation("gelu")
-# gelu_fast = get_activation("gelu_fast")
-# quick_gelu = get_activation("quick_gelu")
-# silu = get_activation("silu")
-# mish = get_activation("mish")
-# linear_act = get_activation("linear")
+gelu_python = get_activation("gelu_python")
+gelu_new = get_activation("gelu_new")
+gelu = get_activation("gelu")
+gelu_fast = get_activation("gelu_fast")
+quick_gelu = get_activation("quick_gelu")
+silu = get_activation("silu")
+mish = get_activation("mish")
+linear_act = get_activation("linear")
