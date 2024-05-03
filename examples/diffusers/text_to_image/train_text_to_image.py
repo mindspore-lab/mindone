@@ -14,128 +14,82 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Fine-tuning script for Stable Diffusion XL for text2image."""
 
 import argparse
-import functools
 import logging
 import math
 import os
 import random
 import shutil
-import time
-from multiprocessing import Process, Queue
 from pathlib import Path
 
 import numpy as np
 import yaml
 from datasets import load_dataset
 from tqdm.auto import tqdm
-from transformers import AutoTokenizer, PretrainedConfig
+from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import Tensor, context, nn, ops
+from mindspore import context, nn, ops
 from mindspore.amp import DynamicLossScaler, LossScaler, StaticLossScaler, all_finite
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
-from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionXLPipeline, UNet2DConditionModel
+from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, multinomial, set_seed
+from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, set_seed
+from mindone.diffusers.utils import deprecate
+from mindone.transformers import CLIPTextModel
 
 logger = logging.getLogger(__name__)
-
 
 DATASET_NAME_MAPPING = {
     "lambdalabs/pokemon-blip-captions": ("image", "text"),
 }
 
 
-class CompileProgressBar:
-    def __init__(self, duration, enable):
-        self.duration = duration
-        self.enable = enable
-        self.q: Queue = None
-        self.p: Process = None
+def log_validation(pipeline, args, trackers, logging_dir, epoch):
+    logger.info("Running validation... ")
+    pipeline.unet.set_train(False)
 
-    def compile_progress_bar(self):
-        pb = tqdm(total=self.duration, bar_format="{l_bar}{bar}| [{elapsed}<{remaining}]")
-        while True:
-            if self.q.empty():
-                time.sleep(1)
-                if pb.last_print_n < self.duration:
-                    pb.update(1)
-                else:
-                    pb.refresh(lock_args=pb.lock_args)
-            else:
-                if self.q.get():
-                    pb.update(self.duration - pb.last_print_n)
-                pb.close()
-                break
-
-    def __enter__(self):
-        if self.enable:
-            self.q = Queue()
-            self.p = Process(target=self.compile_progress_bar)
-            self.p.start()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.enable:
-            if exc_type:
-                logger.error(f"Oops! Error happens when compiling. {exc_type}: {exc_val}.")
-                self.q.put(False)
-            else:
-                self.q.put(True)
-            self.p.join()
-            self.p.close()
-            self.q.close()
-
-
-def maybe_compile(m: nn.Cell, enable_progress_bar: bool, *model_args, **model_kwargs):
-    if os.getenv("MS_JIT") != "0" and context._get_mode() == context.GRAPH_MODE:
-        logger.info(f"Compiling {m.__class__.__name__}...")
-        estimated_duration = sum(p.numel() for p in m.get_parameters()) * 2e-7
-        with CompileProgressBar(estimated_duration, enable_progress_bar):
-            compile_begin = time.perf_counter()
-            m.compile(*model_args, **model_kwargs)
-            compile_end = time.perf_counter()
-        logger.info(f"Compiling is finished, elapsed time {compile_end - compile_begin:.2f} s")
-
-
-def import_model_class_from_model_name_or_path(
-    pretrained_model_name_or_path: str, revision: str, subfolder: str = "text_encoder"
-):
-    text_encoder_config = PretrainedConfig.from_pretrained(
-        pretrained_model_name_or_path, subfolder=subfolder, revision=revision
-    )
-    model_class = text_encoder_config.architectures[0]
-
-    if model_class == "CLIPTextModel":
-        from mindone.transformers import CLIPTextModel
-
-        return CLIPTextModel
-    elif model_class == "CLIPTextModelWithProjection":
-        from mindone.transformers import CLIPTextModelWithProjection
-
-        return CLIPTextModelWithProjection
+    if args.seed is None:
+        generator = None
     else:
-        raise ValueError(f"{model_class} is not supported.")
+        generator = np.random.Generator(np.random.PCG64(seed=args.seed))
+
+    images = []
+    for i in range(len(args.validation_prompts)):
+        image = pipeline(args.validation_prompts[i], num_inference_steps=20, generator=generator)[0][0]
+        images.append(image)
+
+    if is_master(args):
+        validation_logging_dir = os.path.join(logging_dir, "validation", f"epoch{epoch}")
+        os.makedirs(validation_logging_dir, exist_ok=True)
+        for idx, img in enumerate(images):
+            img.save(os.path.join(validation_logging_dir, f"{idx:04d}.jpg"))
+
+    for tracker_name, tracker_writer in trackers.items():
+        if tracker_name == "tensorboard":
+            np_images = np.stack([np.asarray(img) for img in images])
+            tracker_writer.add_images("validation", np_images, epoch, dataformats="NHWC")
+        else:
+            logger.warning(f"image logging not implemented for {tracker_name}")
+
+    logger.info("Validation done.")
+
+    return images
 
 
-def parse_args(input_args=None):
+def parse_args():
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
+    parser.add_argument(
+        "--input_perturbation", type=float, default=0, help="The scale of input perturbation. Recommended 0.1."
+    )
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
         default=None,
         required=True,
         help="Path to pretrained model or model identifier from huggingface.co/models.",
-    )
-    parser.add_argument(
-        "--pretrained_vae_model_name_or_path",
-        type=str,
-        default=None,
-        help="Path to pretrained VAE model with better numerical stability. More details: https://github.com/huggingface/diffusers/pull/4038.",
     )
     parser.add_argument(
         "--revision",
@@ -186,27 +140,6 @@ def parse_args(input_args=None):
         help="The column of the dataset containing a caption or a list of captions.",
     )
     parser.add_argument(
-        "--validation_prompt",
-        type=str,
-        default=None,
-        help="A prompt that is used during validation to verify that the model is learning.",
-    )
-    parser.add_argument(
-        "--num_validation_images",
-        type=int,
-        default=4,
-        help="Number of images that should be generated during validation with `validation_prompt`.",
-    )
-    parser.add_argument(
-        "--validation_epochs",
-        type=int,
-        default=1,
-        help=(
-            "Run fine-tuning validation every X epochs. The validation process consists of running the prompt"
-            " `args.validation_prompt` multiple times: `args.num_validation_images`."
-        ),
-    )
-    parser.add_argument(
         "--max_train_samples",
         type=int,
         default=None,
@@ -216,15 +149,16 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--proportion_empty_prompts",
-        type=float,
-        default=0,
-        help="Proportion of image prompts to be replaced with empty strings. Defaults to 0 (no prompt replacement).",
+        "--validation_prompts",
+        type=str,
+        default=None,
+        nargs="+",
+        help=("A set of prompts evaluated every `--validation_epochs` and logged to `--report_to`."),
     )
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="sdxl-model-finetuned",
+        default="sd-model-finetuned",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
     parser.add_argument(
@@ -237,7 +171,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--resolution",
         type=int,
-        default=1024,
+        default=512,
         help=(
             "The resolution for input images, all the images in the train/validation dataset will be resized to this"
             " resolution"
@@ -266,31 +200,6 @@ def parse_args(input_args=None):
         type=int,
         default=None,
         help="Total number of training steps to perform.  If provided, overrides num_train_epochs.",
-    )
-    parser.add_argument(
-        "--checkpointing_steps",
-        type=int,
-        default=500,
-        help=(
-            "Save a checkpoint of the training state every X updates. These checkpoints can be used both as final"
-            " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"
-            " training using `--resume_from_checkpoint`."
-        ),
-    )
-    parser.add_argument(
-        "--checkpoints_total_limit",
-        type=int,
-        default=None,
-        help=("Max number of checkpoints to store."),
-    )
-    parser.add_argument(
-        "--resume_from_checkpoint",
-        type=str,
-        default=None,
-        help=(
-            "Whether training should be resumed from a previous checkpoint. Use a path saved by"
-            ' `--checkpointing_steps`, or `"latest"` to automatically select the last available checkpoint.'
-        ),
     )
     parser.add_argument(
         "--gradient_accumulation_steps",
@@ -328,68 +237,32 @@ def parse_args(input_args=None):
         "--lr_warmup_steps", type=int, default=500, help="Number of steps for the warmup in the lr scheduler."
     )
     parser.add_argument(
-        "--timestep_bias_strategy",
-        type=str,
-        default="none",
-        choices=["earlier", "later", "range", "none"],
-        help=(
-            "The timestep bias strategy, which may help direct the model toward learning low or high frequency details."
-            " Choices: ['earlier', 'later', 'range', 'none']."
-            " The default is 'none', which means no bias is applied, and training proceeds normally."
-            " The value of 'later' will increase the frequency of the model's final training timesteps."
-        ),
-    )
-    parser.add_argument(
-        "--timestep_bias_multiplier",
-        type=float,
-        default=1.0,
-        help=(
-            "The multiplier for the bias. Defaults to 1.0, which means no bias is applied."
-            " A value of 2.0 will double the weight of the bias, and a value of 0.5 will halve it."
-        ),
-    )
-    parser.add_argument(
-        "--timestep_bias_begin",
-        type=int,
-        default=0,
-        help=(
-            "When using `--timestep_bias_strategy=range`, the beginning (inclusive) timestep to bias."
-            " Defaults to zero, which equates to having no specific bias."
-        ),
-    )
-    parser.add_argument(
-        "--timestep_bias_end",
-        type=int,
-        default=1000,
-        help=(
-            "When using `--timestep_bias_strategy=range`, the final timestep (inclusive) to bias."
-            " Defaults to 1000, which is the number of timesteps that Stable Diffusion is trained on."
-        ),
-    )
-    parser.add_argument(
-        "--timestep_bias_portion",
-        type=float,
-        default=0.25,
-        help=(
-            "The portion of timesteps to bias. Defaults to 0.25, which 25% of timesteps will be biased."
-            " A value of 0.5 will bias one half of the timesteps. The value provided for `--timestep_bias_strategy` determines"
-            " whether the biased portions are in the earlier or later timesteps."
-        ),
-    )
-    parser.add_argument(
         "--snr_gamma",
         type=float,
         default=None,
         help="SNR weighting gamma to be used if rebalancing the loss. Recommended value is 5.0. "
         "More details here: https://arxiv.org/abs/2303.09556.",
     )
-    parser.add_argument("--use_ema", action="store_true", help="Whether to use EMA model.")
+    parser.add_argument(
+        "--use_8bit_adam", action="store_true", help="Whether or not to use 8-bit Adam from bitsandbytes."
+    )
     parser.add_argument(
         "--allow_tf32",
         action="store_true",
         help=(
             "Whether or not to allow TF32 on Ampere GPUs. Can be used to speed up training. For more information, see"
             " https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices"
+        ),
+    )
+    parser.add_argument("--use_ema", action="store_true", help="Whether to use EMA model.")
+    parser.add_argument(
+        "--non_ema_revision",
+        type=str,
+        default=None,
+        required=False,
+        help=(
+            "Revision of pretrained non-ema model identifier. Must be a branch, tag or git identifier of the local or"
+            " remote repository specified with --pretrained_model_name_or_path."
         ),
     )
     parser.add_argument(
@@ -407,9 +280,6 @@ def parse_args(input_args=None):
             "https://www.mindspore.cn/tutorials/experts/en/r2.2/optimize/execution_opt.html#data-sinking. "
             "Note: To avoid breaking the iteration logic of the training, the size of data sinking is set to 1."
         ),
-    )
-    parser.add_argument(
-        "--use_8bit_adam", action="store_true", help="Whether or not to use 8-bit Adam from bitsandbytes."
     )
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam optimizer.")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
@@ -440,15 +310,6 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--report_to",
-        type=str,
-        default="tensorboard",
-        help=(
-            'The integration to report the results and logs to. Supported platforms are `"tensorboard"`'
-            ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
-        ),
-    )
-    parser.add_argument(
         "--mixed_precision",
         type=str,
         default=None,
@@ -459,23 +320,69 @@ def parse_args(input_args=None):
             " flag passed with the `accelerate.launch` command. Use this argument to override the accelerate config."
         ),
     )
+    parser.add_argument(
+        "--report_to",
+        type=str,
+        default="tensorboard",
+        help=(
+            'The integration to report the results and logs to. Supported platforms are `"tensorboard"`'
+            ' (default), `"wandb"` and `"comet_ml"`. Use `"all"` to report to all integrations.'
+        ),
+    )
     parser.add_argument("--distributed", default=False, action="store_true", help="Enable distributed training")
+    parser.add_argument(
+        "--checkpointing_steps",
+        type=int,
+        default=500,
+        help=(
+            "Save a checkpoint of the training state every X updates. These checkpoints are only suitable for resuming"
+            " training using `--resume_from_checkpoint`."
+        ),
+    )
+    parser.add_argument(
+        "--checkpoints_total_limit",
+        type=int,
+        default=None,
+        help=("Max number of checkpoints to store."),
+    )
+    parser.add_argument(
+        "--resume_from_checkpoint",
+        type=str,
+        default=None,
+        help=(
+            "Whether training should be resumed from a previous checkpoint. Use a path saved by"
+            ' `--checkpointing_steps`, or `"latest"` to automatically select the last available checkpoint.'
+        ),
+    )
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
     parser.add_argument("--noise_offset", type=float, default=0, help="The scale of noise offset.")
+    parser.add_argument(
+        "--validation_epochs",
+        type=int,
+        default=5,
+        help="Run validation every X epochs.",
+    )
 
-    if input_args is not None:
-        args = parser.parse_args(input_args)
-    else:
-        args = parser.parse_args()
+    args = parser.parse_args()
 
     # Sanity checks
     if args.dataset_name is None and args.train_data_dir is None:
         raise ValueError("Need either a dataset name or a training folder.")
 
-    if args.proportion_empty_prompts < 0 or args.proportion_empty_prompts > 1:
-        raise ValueError("`--proportion_empty_prompts` must be in the range [0, 1].")
+    # default to using the same revision for the non-ema model if not specified
+    if args.non_ema_revision is None:
+        args.non_ema_revision = args.revision
+    else:
+        deprecate(
+            "non_ema_revision!=None",
+            "0.15.0",
+            message=(
+                "Downloading 'non_ema' weights from revision branches of the Hub is deprecated. Please make sure to"
+                " use `--variant=non_ema` instead."
+            ),
+        )
 
     # Limitations for NOW.
     def error_template(feature, flag):
@@ -495,102 +402,6 @@ def parse_args(input_args=None):
         )
 
     return args
-
-
-# Adapted from pipelines.StableDiffusionXLPipeline.encode_prompt
-def encode_prompt(batch, text_encoders, tokenizers, proportion_empty_prompts, caption_column, is_train=True):
-    prompt_embeds_list = []
-    prompt_batch = batch[caption_column]
-
-    captions = []
-    for caption in prompt_batch:
-        if random.random() < proportion_empty_prompts:
-            captions.append("")
-        elif isinstance(caption, str):
-            captions.append(caption)
-        elif isinstance(caption, (list, np.ndarray)):
-            # take a random caption if there are multiple
-            captions.append(random.choice(caption) if is_train else caption[0])
-
-    for tokenizer, text_encoder in zip(tokenizers, text_encoders):
-        text_inputs = tokenizer(
-            captions,
-            padding="max_length",
-            max_length=tokenizer.model_max_length,
-            truncation=True,
-            return_tensors="np",
-        )
-        text_input_ids = text_inputs.input_ids
-        prompt_embeds = text_encoder(
-            Tensor(text_input_ids),
-            output_hidden_states=True,
-        )
-
-        # We are only ALWAYS interested in the pooled output of the final text encoder
-        pooled_prompt_embeds = prompt_embeds[0]
-        prompt_embeds = prompt_embeds[-1][-2]
-        bs_embed, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-        prompt_embeds_list.append(prompt_embeds)
-
-    prompt_embeds = ops.concat(prompt_embeds_list, axis=-1)
-    pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
-    return {"prompt_embeds": prompt_embeds.numpy(), "pooled_prompt_embeds": pooled_prompt_embeds.numpy()}
-
-
-def compute_vae_encodings(batch, vae):
-    images = batch.pop("pixel_values")
-    pixel_values = Tensor(images)
-    pixel_values = pixel_values.float()
-    pixel_values = pixel_values.to(dtype=vae.dtype)
-
-    model_input = vae.diag_gauss_dist.sample(vae.encode(pixel_values)[0])
-    model_input = model_input * vae.config.scaling_factor
-    return {"model_input": model_input.numpy()}
-
-
-def generate_timestep_weights(args, num_timesteps):
-    weights = ops.ones(num_timesteps)
-
-    # Determine the indices to bias
-    num_to_bias = int(args.timestep_bias_portion * num_timesteps)
-
-    if args.timestep_bias_strategy == "later":
-        bias_indices = slice(-num_to_bias, None)
-    elif args.timestep_bias_strategy == "earlier":
-        bias_indices = slice(0, num_to_bias)
-    elif args.timestep_bias_strategy == "range":
-        # Out of the possible 1000 timesteps, we might want to focus on eg. 200-500.
-        range_begin = args.timestep_bias_begin
-        range_end = args.timestep_bias_end
-        if range_begin < 0:
-            raise ValueError(
-                "When using the range strategy for timestep bias, you must provide a beginning timestep greater or equal to zero."
-            )
-        if range_end > num_timesteps:
-            raise ValueError(
-                "When using the range strategy for timestep bias, you must provide an ending timestep smaller than the number of timesteps."
-            )
-        bias_indices = slice(range_begin, range_end)
-        num_to_bias = range_end - range_begin
-        if range_end < 0:
-            num_to_bias += num_timesteps
-    else:  # 'none' or any other string
-        return weights
-    if args.timestep_bias_multiplier <= 0:
-        return ValueError(
-            "The parameter --timestep_bias_multiplier is not intended to be used to disable the training of specific timesteps."
-            " If it was intended to disable timestep bias, use `--timestep_bias_strategy none` instead."
-            " A timestep bias multiplier less than or equal to 0 is not allowed."
-        )
-
-    # Apply the bias
-    weights[bias_indices] = ops.ones(num_to_bias) * args.timestep_bias_multiplier
-
-    # Normalize
-    weights /= weights.sum()
-
-    return weights
 
 
 def main():
@@ -614,83 +425,51 @@ def main():
 
     # Handle the repository creation
     if is_master(args):
-        os.makedirs(args.output_dir, exist_ok=True)
-        os.makedirs(logging_dir, exist_ok=True)
+        if args.output_dir is not None:
+            os.makedirs(args.output_dir, exist_ok=True)
+            os.makedirs(logging_dir, exist_ok=True)
 
-    # Load the tokenizers
-    tokenizer_one = AutoTokenizer.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="tokenizer",
-        revision=args.revision,
-        use_fast=False,
-    )
-    tokenizer_two = AutoTokenizer.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="tokenizer_2",
-        revision=args.revision,
-        use_fast=False,
-    )
-
-    # import correct text encoder classes
-    text_encoder_cls_one = import_model_class_from_model_name_or_path(args.pretrained_model_name_or_path, args.revision)
-    text_encoder_cls_two = import_model_class_from_model_name_or_path(
-        args.pretrained_model_name_or_path, args.revision, subfolder="text_encoder_2"
-    )
-
-    # Load scheduler and models
+    # Load scheduler, tokenizer and models.
     noise_scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
     # Get the target for loss depending on the prediction type
     if args.prediction_type is not None:
         # set prediction_type of scheduler if defined
         noise_scheduler.register_to_config(prediction_type=args.prediction_type)
-    # Check for terminal SNR in combination with SNR Gamma
-    text_encoder_one = text_encoder_cls_one.from_pretrained(
+    tokenizer = CLIPTokenizer.from_pretrained(
+        args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
+    )
+    text_encoder = CLIPTextModel.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant
     )
-    text_encoder_two = text_encoder_cls_two.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="text_encoder_2", revision=args.revision, variant=args.variant
-    )
-    vae_path = (
-        args.pretrained_model_name_or_path
-        if args.pretrained_vae_model_name_or_path is None
-        else args.pretrained_vae_model_name_or_path
-    )
     vae = AutoencoderKL.from_pretrained(
-        vae_path,
-        subfolder="vae" if args.pretrained_vae_model_name_or_path is None else None,
-        revision=args.revision,
-        variant=args.variant,
+        args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision, variant=args.variant
     )
     unet = UNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
+        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
     )
     # set sample_size of unet
     unet.register_to_config(sample_size=args.resolution // (2 ** (len(vae.config.block_out_channels) - 1)))
 
-    # Freeze vae and text encoders.
+    # Freeze vae and text_encoder and set unet to trainable
     def freeze_params(m: nn.Cell):
         for p in m.get_parameters():
             p.require_grad = False
 
     freeze_params(vae)
-    freeze_params(text_encoder_one)
-    freeze_params(text_encoder_two)
-    # Set unet as trainable.
+    freeze_params(text_encoder)
     unet.set_train(True)
 
-    # For mixed precision training we cast all non-trainable weights to half-precision
-    # as these weights are only used for inference, keeping weights in full precision is not required.
+    # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to
+    # half-precision as these weights are only used for inference, keeping weights in full precision is not required.
     weight_dtype = ms.float32
     if args.mixed_precision == "fp16":
         weight_dtype = ms.float16
     elif args.mixed_precision == "bf16":
         weight_dtype = ms.bfloat16
 
-    # Move unet, vae and text_encoder to device and cast to weight_dtype
-    # The VAE is in float32 to avoid NaN losses.
-    vae.to(ms.float32)
-    text_encoder_one.to(weight_dtype)
-    text_encoder_two.to(weight_dtype)
+    # Move text_encode and vae to gpu and cast to weight_dtype
+    text_encoder.to(dtype=weight_dtype)
+    vae.to(dtype=weight_dtype)
 
     # TODO: support EMA, xformers_memory_efficient_attention, TF32, AdamW8bit
 
@@ -721,6 +500,7 @@ def main():
                 args.dataset_name,
                 args.dataset_config_name,
                 cache_dir=args.cache_dir,
+                data_dir=args.train_data_dir,
             )
     else:
         data_files = {}
@@ -758,96 +538,56 @@ def main():
             )
 
     # Preprocessing the datasets.
-    train_resize = vision.Resize(args.resolution, interpolation=vision.Inter.BILINEAR)
-    train_crop = vision.CenterCrop(args.resolution) if args.center_crop else vision.RandomCrop(args.resolution)
-    train_flip = vision.RandomHorizontalFlip(prob=1.0)
-    train_transforms = transforms.Compose([vision.ToTensor(), vision.Normalize([0.5], [0.5], is_hwc=False)])
+    # We need to tokenize input captions and transform the images.
+    def tokenize_captions(examples, is_train=True):
+        captions = []
+        for caption in examples[caption_column]:
+            if isinstance(caption, str):
+                captions.append(caption)
+            elif isinstance(caption, (list, np.ndarray)):
+                # take a random caption if there are multiple
+                captions.append(random.choice(caption) if is_train else caption[0])
+            else:
+                raise ValueError(
+                    f"Caption column `{caption_column}` should contain either strings or lists of strings."
+                )
+        inputs = tokenizer(
+            captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="np"
+        )
+        return inputs.input_ids
+
+    # Preprocessing the datasets.
+    train_transforms = transforms.Compose(
+        [
+            vision.Resize(args.resolution, interpolation=vision.Inter.BILINEAR),
+            vision.CenterCrop(args.resolution) if args.center_crop else vision.RandomCrop(args.resolution),
+            vision.RandomHorizontalFlip() if args.random_flip else lambda x: x,
+            vision.ToTensor(),
+            vision.Normalize([0.5], [0.5], is_hwc=False),
+        ]
+    )
 
     def preprocess_train(examples):
         images = [image.convert("RGB") for image in examples[image_column]]
-        # image aug
-        original_sizes = []
-        all_images = []
-        crop_top_lefts = []
-        add_time_ids = []
-        for image in images:
-            original_sizes.append((image.height, image.width))
-            image = train_resize(image)
-            if args.random_flip and random.random() < 0.5:
-                # flip
-                image = train_flip(image)
-            if args.center_crop:
-                y1 = max(0, int(round((image.height - args.resolution) / 2.0)))
-                x1 = max(0, int(round((image.width - args.resolution) / 2.0)))
-                image = train_crop(image)
-            else:
-                h, w = image.height, image.width
-                th, tw = args.resolution, args.resolution
-                if h < th or w < tw:
-                    raise ValueError(f"Required crop size {(th, tw)} is larger than input image size {(h, w)}")
-                y1 = np.random.randint(0, h - th + 1, size=(1,)).item()
-                x1 = np.random.randint(0, w - tw + 1, size=(1,)).item()
-                image = image.crop((x1, y1, x1 + tw, y1 + th))
-            crop_top_left = (y1, x1)
-            crop_top_lefts.append(crop_top_left)
-            add_time_id = original_sizes[-1] + crop_top_lefts[-1] + (args.resolution, args.resolution)
-            add_time_ids.append(add_time_id)
-            image = train_transforms(image)[0]
-            all_images.append(image)
-
-        examples["original_sizes"] = original_sizes
-        examples["crop_top_lefts"] = crop_top_lefts
-        examples["add_time_ids"] = add_time_ids
-        examples["pixel_values"] = all_images
+        examples["pixel_values"] = [train_transforms(image)[0] for image in images]
+        examples["input_ids"] = tokenize_captions(examples)
         return examples
 
-    # with accelerator.main_process_first(): todo: how to ensure main process first?
     if args.max_train_samples is not None:
         dataset["train"] = dataset["train"].shuffle(seed=args.seed).select(range(args.max_train_samples))
     # Set the training transforms
     train_dataset = dataset["train"].with_transform(preprocess_train)
 
-    # Let's first compute all the embeddings so that we can free up the text encoders
-    # from memory. We will pre-compute the VAE encodings too.
-    text_encoders = [text_encoder_one, text_encoder_two]
-    tokenizers = [tokenizer_one, tokenizer_two]
-    compute_embeddings_fn = functools.partial(
-        encode_prompt,
-        text_encoders=text_encoders,
-        tokenizers=tokenizers,
-        proportion_empty_prompts=args.proportion_empty_prompts,
-        caption_column=args.caption_column,
-    )
-    compute_vae_encodings_fn = functools.partial(compute_vae_encodings, vae=vae)
-    # with accelerator.main_process_first(): todo: how to ensure main process first?
-    from datasets.fingerprint import Hasher
-
-    # fingerprint used by the cache for the other processes to load the result
-    # details: https://github.com/huggingface/diffusers/pull/4038#discussion_r1266078401
-    new_fingerprint = Hasher.hash(args)
-    new_fingerprint_for_vae = Hasher.hash(vae_path)
-    train_dataset = train_dataset.map(compute_embeddings_fn, batched=True, new_fingerprint=new_fingerprint)
-    train_dataset = train_dataset.map(
-        compute_vae_encodings_fn,
-        batched=True,
-        batch_size=args.train_batch_size,
-        new_fingerprint=new_fingerprint_for_vae,
-    )
-
-    # todo: delete used text_encoder& vae to saving memory. this might not work...
-    # del text_encoders, tokenizers, vae
-    # gc.collect()
-
     class UnravelDataset:
-        columns = ["model_input", "prompt_embeds", "pooled_prompt_embeds", "add_time_ids"]
-
         def __init__(self, data):
             self.data = data
 
         def __getitem__(self, idx):
-            idx = idx.item() if isinstance(idx, np.integer) else idx  # what the fuck?
-            example = self.data[idx]  # members are list
-            return tuple(np.array(example[column], dtype=np.float32) for column in self.columns)
+            idx = idx.item() if isinstance(idx, np.integer) else idx
+            example = self.data[idx]
+            pixel_values = example["pixel_values"]
+            input_ids = example["input_ids"]
+            return np.array(pixel_values, dtype=np.float32), np.array(input_ids, dtype=np.int32)
 
         def __len__(self):
             return len(self.data)
@@ -855,11 +595,11 @@ def main():
     # DataLoaders creation:
     train_dataloader = GeneratorDataset(
         UnravelDataset(train_dataset),
-        column_names=UnravelDataset.columns,
+        column_names=["pixel_values", "input_ids"],
         shuffle=True,
-        num_parallel_workers=args.dataloader_num_workers,
-        num_shards=args.world_size,
         shard_id=args.rank,
+        num_shards=args.world_size,
+        num_parallel_workers=args.dataloader_num_workers,
     ).batch(
         batch_size=args.train_batch_size,
         num_parallel_workers=args.dataloader_num_workers,
@@ -877,17 +617,15 @@ def main():
             args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
         )
 
-    lr_scheduler = get_scheduler(  # noqa: F841
+    lr_scheduler = get_scheduler(
         args.lr_scheduler,
         args.learning_rate,
         num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
     )
 
-    # Optimizer creation
-    params_to_optimize = unet.trainable_params()
-    optimizer = nn.AdamWeightDecay(  # will silently filter bn and bias
-        params_to_optimize,
+    optimizer = nn.AdamWeightDecay(
+        unet.trainable_params(),
         learning_rate=lr_scheduler,
         beta1=args.adam_beta1,
         beta2=args.adam_beta2,
@@ -896,8 +634,7 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    # todo: auto mixed precision here
-    unet.to_float(weight_dtype)  # maybe using `to(weight_dtype)` gives faster performance?
+    unet.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -907,6 +644,7 @@ def main():
     args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
 
     # We need to initialize the trackers we use, and also store our configuration.
+    # The trackers initializes automatically on the main process.
     if is_master(args):
         with open(logging_dir / "hparams.yml", "w") as f:
             yaml.dump(vars(args), f, indent=4)
@@ -919,9 +657,9 @@ def main():
         else:
             logger.warning(f"Tracker {tracker_name} is not implemented, omitting...")
 
-    # todo: may write the function `unwrap_model` to remove the disgusting _backbone prefix after amp?
-
     train_step = TrainStep(
+        vae=vae,
+        text_encoder=text_encoder,
         unet=unet,
         optimizer=optimizer,
         scaler=StaticLossScaler(65536),
@@ -931,23 +669,19 @@ def main():
 
     if args.enable_mindspore_data_sink:
         sink_process = ms.data_sink(train_step, train_dataloader)
-        logger.warning(
-            "Data sinking is enable by setting `--enable_mindspore_data_sink`. "
-            "Model compiling will be done implicitly in the first step of first epoch if you are using `Graph Mode`"
-        )
     else:
         sink_process = None
-        maybe_compile(train_step, is_master(args), *[x.to(weight_dtype) for x in next(iter(train_dataloader))])
 
-    # create pipeline for validation
-    pipeline = StableDiffusionXLPipeline(
+    pipeline = StableDiffusionPipeline.from_pretrained(
+        args.pretrained_model_name_or_path,
         vae=vae,
-        text_encoder=text_encoder_one,
-        text_encoder_2=text_encoder_two,
-        tokenizer=tokenizer_one,
-        tokenizer_2=tokenizer_two,
+        text_encoder=text_encoder,
+        tokenizer=tokenizer,
         unet=unet,
-        scheduler=noise_scheduler,
+        safety_checker=None,
+        revision=args.revision,
+        variant=args.variant,
+        mindspore_dtype=weight_dtype,
     )
     pipeline.set_progress_bar_config(disable=True)
 
@@ -984,7 +718,7 @@ def main():
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
             state_dict = ms.load_checkpoint(os.path.join(args.output_dir, path))
-            ms.load_param_into_net(unet, state_dict)  # todo: what about optimizer and scaler?
+            ms.load_param_into_net(unet, state_dict)
             global_step = int(path.split("-")[1].split(".")[0])
 
             initial_global_step = global_step
@@ -994,8 +728,8 @@ def main():
         initial_global_step = 0
 
     # run inference
-    if args.validation_prompt and args.num_validation_images > 0:
-        validate(pipeline, args, trackers, logging_dir, first_epoch)
+    if args.validation_prompts is not None:
+        log_validation(pipeline, args, trackers, logging_dir, first_epoch)
 
     progress_bar = tqdm(
         range(0, args.max_train_steps),
@@ -1012,11 +746,9 @@ def main():
             if args.enable_mindspore_data_sink
             else enumerate(train_dataloader.create_tuple_iterator())
         ):
-            # todo: support accumulation
             if args.enable_mindspore_data_sink:
                 loss = sink_process()
             else:
-                batch = [x.to(weight_dtype) for x in batch]
                 loss = train_step(*batch)
 
             progress_bar.update(1)
@@ -1025,8 +757,8 @@ def main():
                 if tracker_name == "tensorboard":
                     tracker.add_scalar("train/loss", loss.numpy().item(), global_step)
 
-            if is_master(args):
-                if global_step % args.checkpointing_steps == 0:
+            if global_step % args.checkpointing_steps == 0:
+                if is_master(args):
                     # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
@@ -1048,7 +780,7 @@ def main():
                                 shutil.rmtree(removing_checkpoint)
 
                     save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-                    ms.save_checkpoint(unet, save_path)  # todo: save trainer?
+                    ms.save_checkpoint(unet, save_path)
                     logger.info(f"Saved state to {save_path}")
 
             logs = {"step_loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}
@@ -1057,17 +789,16 @@ def main():
             if global_step >= args.max_train_steps:
                 break
 
-        # run inference
-        if args.validation_prompt is not None and (epoch + 1) % args.validation_epochs == 0:
-            validate(pipeline, args, trackers, logging_dir, epoch + 1)
+        if args.validation_prompts is not None and (epoch + 1) % args.validation_epochs == 0:
+            log_validation(pipeline, args, trackers, logging_dir, epoch + 1)
 
     # Serialize pipeline.
     if is_master(args):
         pipeline.save_pretrained(args.output_dir)
 
-    # run inference
-    if args.validation_prompt and args.num_validation_images > 0:
-        validate(pipeline, args, trackers, logging_dir, args.num_train_epochs)
+    # Run a final round of inference.
+    if args.validation_prompts is not None:
+        log_validation(pipeline, args, trackers, logging_dir, args.num_train_epochs)
     for tracker_name, tracker in trackers.items():
         if tracker_name == "tensorboard":
             tracker.close()
@@ -1076,6 +807,8 @@ def main():
 class TrainStep(nn.Cell):
     def __init__(
         self,
+        vae: nn.Cell,
+        text_encoder: nn.Cell,
         unet: nn.Cell,
         optimizer: nn.Optimizer,
         scaler: LossScaler,
@@ -1112,59 +845,59 @@ class TrainStep(nn.Cell):
                     setattr(self, name, kwargs[name])
 
         self.args = ArgsJitWrapper(**vars(args))
+        self.vae = vae
+        self.vae_scaling_factor = self.vae.config.scaling_factor
+        self.weight_dtype = self.vae.dtype
+        self.text_encoder = text_encoder
         self.noise_scheduler = noise_scheduler
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
         self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
 
         self.forward_and_backward = ops.value_and_grad(self.forward, None, weights=self.weights, has_aux=True)
 
-    def forward(self, model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
+    def forward(self, pixel_values, input_ids):
+        # Convert images to latent space
+        latents = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values.to(self.weight_dtype))[0])
+        latents = latents * self.vae_scaling_factor
+
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = ops.randn_like(latents, dtype=latents.dtype)
         if self.args.noise_offset:
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-            noise_offset = self.args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
+            noise_offset = self.args.noise_offset * ops.randn((latents.shape[0], latents.shape[1], 1, 1))
             noise += noise_offset.to(noise.dtype)
-
-        bsz = model_input.shape[0]
-        if self.args.timestep_bias_strategy == "none":
-            # Sample a random timestep for each image without bias.
-            timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        if self.args.input_perturbation:
+            noise_perturbation = self.args.input_perturbation * ops.randn_like(noise, dtype=noise.dtype)
+            new_noise = noise + noise_perturbation.to(noise.dtype)
         else:
-            # Sample a random timestep for each image, potentially biased by the timestep weights.
-            # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
-            # Use our own implemented multinomial generator because ops.multinomial is invalid on some hardware.
-            weights = generate_timestep_weights(self.args, self.noise_scheduler_num_train_timesteps)
-            timesteps = multinomial(weights, bsz, replacement=True).long()
+            new_noise = None  # graph need this placeholder
+        bsz = latents.shape[0]
+        # Sample a random timestep for each image
+        timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        timesteps = timesteps.long()
 
-        # Add noise to the model input according to the noise magnitude at each timestep
+        # Add noise to the latents according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_model_input = self.noise_scheduler.add_noise(model_input, noise, timesteps)
+        if self.args.input_perturbation:
+            noisy_latents = self.noise_scheduler.add_noise(latents, new_noise, timesteps)
+        else:
+            noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
         # TODO: method of scheduler should not change the dtype of input.
         #  Remove the casting after cuiyushi confirm that.
-        noisy_model_input = noisy_model_input.to(model_input.dtype)
+        noisy_latents = noisy_latents.to(latents.dtype)
 
-        # Predict the noise residual
-        unet_added_conditions = {"time_ids": add_time_ids, "text_embeds": pooled_prompt_embeds}
-        model_pred = self.unet(
-            noisy_model_input,
-            timesteps,
-            prompt_embeds,
-            added_cond_kwargs=unet_added_conditions,
-            return_dict=False,
-        )[0]
+        # Get the text embedding for conditioning
+        encoder_hidden_states = self.text_encoder(input_ids)[0]
 
         if self.noise_scheduler_prediction_type == "epsilon":
             target = noise
         elif self.noise_scheduler_prediction_type == "v_prediction":
-            target = self.noise_scheduler.get_velocity(model_input, noise, timesteps)
-        elif self.noise_scheduler_prediction_type == "sample":
-            # We set the target to latents here, but the model_pred will return the noise sample prediction.
-            target = model_input
-            # We will have to subtract the noise residual from the prediction to get the target sample.
-            model_pred = model_pred - noise
+            target = self.noise_scheduler.get_velocity(latents, noise, timesteps)
         else:
             raise ValueError(f"Unknown prediction type {self.noise_scheduler_prediction_type}")
+
+        # Predict the noise residual and compute loss
+        model_pred = self.unet(noisy_latents, timesteps, encoder_hidden_states, return_dict=False)[0]
 
         if self.args.snr_gamma is None:
             loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
@@ -1208,35 +941,6 @@ class TrainStep(nn.Cell):
             loss = self.update(loss, grads)
 
         return loss
-
-
-def validate(pipeline, args, trackers, logging_dir, epoch):
-    logger.info(
-        f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
-        f" {args.validation_prompt}."
-    )
-    pipeline.unet.set_train(False)
-
-    # run inference
-    generator = np.random.Generator(np.random.PCG64(seed=args.seed)) if args.seed else None
-    pipeline_args = {"prompt": args.validation_prompt}
-    images = [
-        pipeline(**pipeline_args, generator=generator, num_inference_steps=25)[0][0]
-        for _ in range(args.num_validation_images)
-    ]
-
-    if is_master(args):
-        validation_logging_dir = os.path.join(logging_dir, "validation", f"epoch{epoch}")
-        os.makedirs(validation_logging_dir, exist_ok=True)
-        for idx, img in enumerate(images):
-            img.save(os.path.join(validation_logging_dir, f"{idx:04d}.jpg"))
-
-    for tracker_name, tracker in trackers.items():
-        if tracker_name == "tensorboard":
-            np_images = np.stack([np.asarray(img) for img in images])
-            tracker.add_images("validation", np_images, epoch, dataformats="NHWC")
-
-    logger.info("Validation done.")
 
 
 if __name__ == "__main__":
