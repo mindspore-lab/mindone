@@ -120,7 +120,7 @@ class SafetyChecker:
         print(f"{len(paths)} videos are loaded")
         nsfw_concept = []
         for path in tqdm(paths):
-            container = av.open(path, metadata_errors='ignore')
+            container = av.open(path, metadata_errors="ignore")
             # only want to look at keyframes.
             stream = container.streams.video[0]
             stream.codec_context.skip_frame = "NONKEY"
