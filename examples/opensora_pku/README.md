@@ -37,8 +37,8 @@ Videos are saved to `.gif` for display. See the text prompts in `examples/prompt
     - ✅ CausalVAE-4x8x8 training and inference. Supports video reconstruction.
     - ✅ T5 TextEncoder model inference.
     - ✅ Text-to-video generation in 256x256 or 512x512 resolution and up to 65 frames.
-    - ✅ Three-stage training: i) 16x256x256 pretraining, ii) 65x256x256 finetuning, and iii) 65x512x512 finetuning.
-    - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), data sink, mixed precision, data parallelism, and graph compilation.
+    - ✅ Three-stage training: i) 17x256x256 pretraining, ii) 65x256x256 finetuning, and iii) 65x512x512 finetuning.
+    - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, etc..
 
 
 ### TODO
@@ -72,12 +72,13 @@ Other useful documents and links are listed below.
 
 
 ## Installation
+1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-1. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
+2. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
 > To use flash attention, it's recommended to use mindspore 2.3rc2 (release soon).
 
 
-2. Install requirements
+3. Install requirements
 ```bash
 pip install -r requirements.txt
 ```
@@ -157,7 +158,7 @@ python examples/rec_imvi_vae.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.0.0/vae \
     --video_path test.mp4 \
     --rec_path rec.mp4 \
-    --device cuda \
+    --device Ascend \
     --sample_rate 1 \
     --num_frames 65 \
     --resolution 512 \
@@ -188,13 +189,7 @@ You can change the `version` to `17x256x256` or `65x256x256` for sampling with o
 ## Training
 
 ### Preparation
-Please download the [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset). The json file `sharegpt4v_path_cap_64x512x512.json` contains multiple pairs of the video path and the caption. An example is like this:
-```json
-[{"path": "path/to/video1", "cap": ["a-dummpy-caption1"]},
-{"path": "path/to/video2", "cap": ["a-dummpy-caption2"]}
-...
-]
-```
+Please download the [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset). The downloaded dataset should contain video folders and a json file which contains captions and video paths.
 
 The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `pretrained/t2v.pt`. Then run model conversion with:
 ```bash
