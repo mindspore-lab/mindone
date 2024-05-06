@@ -431,13 +431,11 @@ if __name__ == "__main__":
                 np.save(file_path, videos[i_sample : i_sample + 1])
             else:
                 if args.force_images:
-                    image = videos[i_sample, :, 0].permute(1, 2, 0)  # (b c t h w)  ->(c, h, w) -> (h, w, c)
+                    image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
                     image = (image * 255).round().clip(0, 255).astype(np.uint8)
                     Image.from_numpy(image).save(file_path)
                 else:
-                    save_video_data = videos[i_sample : i_sample + 1].transpose(
-                        0, 2, 3, 4, 1
-                    )  # (b c t h w) -> (b t h w c)
+                    save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
                     save_videos(save_video_data, file_path, loop=0, fps=args.fps)
     end_time = time.time()
     time_cost = end_time - start_time
