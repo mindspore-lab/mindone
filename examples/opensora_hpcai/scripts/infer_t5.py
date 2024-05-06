@@ -24,6 +24,7 @@ from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
+from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
@@ -285,7 +286,7 @@ def parse_args():
     abs_path = os.path.abspath(os.path.join(__dir__, ".."))
     if default_args.config:
         logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
-        default_args.config = os.path.join(abs_path, default_args.config)
+        default_args.config = to_abspath(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
             # _check_cfgs_in_parser(cfg, parser)
@@ -296,6 +297,11 @@ def parse_args():
                 )
             )
     args = parser.parse_args()
+    # convert to absolute path, necessary for modelarts
+    args.csv_path = to_abspath(abs_path, args.csv_path)
+    args.prompt_path = to_abspath(abs_path, args.prompt_path)
+    args.output_path = to_abspath(abs_path, args.output_path)
+    args.t5_model_dir = to_abspath(abs_path, args.t5_model_dir)
     return args
 
 
