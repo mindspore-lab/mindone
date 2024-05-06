@@ -293,7 +293,7 @@ if __name__ == "__main__":
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
-    vae.latent_size = (latent_size, latent_size)
+    vae.latent_size = latent_size
 
     # parse the caption input
     if not isinstance(args.text_prompt, list):
