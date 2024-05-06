@@ -739,6 +739,6 @@ class VideoGenPipeline(DiffusionPipeline):
         video = self.vae.decode(latents)
         # video = rearrange(video, 'b c t h w -> b t c h w').contiguous()
         # video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2)
-        video = ops.clip_by_value((video + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+        video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
-        return video  # b c t h w
+        return video  # b t h w c
