@@ -453,7 +453,7 @@ def main():
     # Freeze vae and text_encoder and set unet to trainable
     def freeze_params(m: nn.Cell):
         for p in m.get_parameters():
-            p.require_grad = False
+            p.requires_grad = False
 
     freeze_params(vae)
     freeze_params(text_encoder)
