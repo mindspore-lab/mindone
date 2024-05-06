@@ -2,7 +2,7 @@ python examples/rec_video_vae.py \
     --batch_size 1 \
     --real_video_dir ../test_eval/eyes_test \
     --generated_video_dir ../test_eval/eyes_gen \
-    --device cuda \
+    --device Ascend \
     --sample_fps 10 \
     --sample_rate 1 \
     --num_frames 17 \
