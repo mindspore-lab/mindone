@@ -212,7 +212,7 @@ class DiffusionWithLoss(nn.Cell):
     def compute_loss(self, x, text_embed, mask):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
-        x_t = self.diffusion.q_sample(x, t, noise=noise)
+        x_t = self.diffusion.q_sample(x.to(ms.float32), t, noise=noise)
 
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)

@@ -203,6 +203,11 @@ def main(args):
         vae = vae.set_train(False)
         for param in vae.get_parameters():
             param.requires_grad = False
+            if args.vae_param_dtype in ['fp16', 'bf16']:
+                # filter out norm
+                if 'norm' not in param.name: 
+                    param.set_dtype(dtype_map[args.vae_param_dtype]) 
+                
         if args.vae_dtype in ["fp16", "bf16"]:
             vae = auto_mixed_precision(vae, amp_level=args.vae_amp_level, dtype=dtype_map[args.vae_dtype])
     else:

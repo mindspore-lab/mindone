@@ -130,14 +130,21 @@ def parse_train_args(parser):
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+        help="what computation data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
         "--vae_dtype",
         default="fp32",
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+        help="what compuatation data type to use for vae. Default is `fp32`, which corresponds to ms.float32",
+    )
+    parser.add_argument(
+        "--vae_param_dtype",
+        default="fp32",
+        type=str,
+        choices=["bf16", "fp16", "fp32"],
+        help="what param data type to use for vae. Default is `fp32`, which corresponds to ms.float32",
     )
     parser.add_argument(
         "--amp_level",
