@@ -542,7 +542,7 @@ class T5Stack(T5PreTrainedModel):
             [T5Block(config, has_relative_attention_bias=bool(i == 0)) for i in range(self.num_layers)]
         )
         self.final_layer_norm = T5LayerNorm(config.d_model, eps=config.layer_norm_epsilon)
-        self.dropout = nn.Dropout(config.dropout_rate)
+        self.dropout = nn.Dropout(p=config.dropout_rate)
         self.use_cache = config.use_cache
 
     def get_input_embeddings(self):
