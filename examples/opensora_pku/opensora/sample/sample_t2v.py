@@ -153,10 +153,6 @@ def parse_args():
     )
 
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
-    )
-
     # MS new args
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
@@ -351,7 +347,7 @@ if __name__ == "__main__":
                 ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
                 loaded_latents.append(np.load(save_fp))
             loaded_latents = np.stack(loaded_latents)
-            decode_data = vae.decode(ms.Tensor(loaded_latents) / args.sd_scale_factor)
+            decode_data = vae.decode(ms.Tensor(loaded_latents))
             decode_data = ms.ops.clip_by_value(
                 (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
             ).asnumpy()
@@ -389,7 +385,6 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         scheduler=scheduler,
         transformer=transformer_model,
-        vae_scale_factor=args.sd_scale_factor,
     )
 
     # 4. print key info

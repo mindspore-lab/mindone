@@ -111,14 +111,12 @@ class VideoGenPipeline(DiffusionPipeline):
         text_encoder,
         vae,
         scheduler,
-        vae_scale_factor: float = 0.18215,
     ):
         super().__init__()
 
         self.register_modules(
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
-        self.vae_scale_factor = vae_scale_factor
         # self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
     # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
@@ -738,7 +736,7 @@ class VideoGenPipeline(DiffusionPipeline):
 
     def decode_latents(self, latents):
         # video = self.vae.decode(latents)
-        video = self.vae.decode(latents / self.vae_scale_factor)
+        video = self.vae.decode(latents)
         # video = rearrange(video, 'b c t h w -> b t c h w').contiguous()
         # video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2)
         video = ops.clip_by_value((video + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
