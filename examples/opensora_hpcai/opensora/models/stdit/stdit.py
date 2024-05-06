@@ -274,14 +274,19 @@ class STDiT(nn.Cell):
         self.sp_rank = None
 
         if use_recompute:
+            # TODO: ms flash attention don't need recompute
             for block in self.blocks:
                 self.recompute(block)
+                # self.recompute(block.mlp)
+                # self.recompute(block.attn)
+                # self.recompute(block.cross_attn)
+                # self.recompute(block.attn_temp)
+
 
     def recompute(self, b):
         if not b._has_config_recompute:
-            if not isinstance(b, MSFlashAttention):
-                print("recompute for: ", b.__class__.__name__)
-                b.recompute()
+            print("recompute for: ", b.__class__.__name__)
+            b.recompute()
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])
         else:

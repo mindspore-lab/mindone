@@ -204,7 +204,7 @@ def main(args):
         for param in vae.get_parameters():
             param.requires_grad = False
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+            vae = auto_mixed_precision(vae, amp_level=args.vae_amp_level, dtype=dtype_map[args.vae_dtype])
     else:
         vae = None
 

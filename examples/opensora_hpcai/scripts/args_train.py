@@ -146,6 +146,11 @@ def parse_train_args(parser):
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
+    parser.add_argument(
+        "--vae_amp_level",
+        default="O2",
+        type=str,
+        help="O2 or O3")
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--vae_checkpoint",
