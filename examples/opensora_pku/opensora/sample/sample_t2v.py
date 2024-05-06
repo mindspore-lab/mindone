@@ -151,15 +151,8 @@ def parse_args():
     parser.add_argument(
         "--enable_tiling", default=False, type=str2bool, help="whether to use vae tiling to save memory"
     )
-    parser.add_argument(
-        "--image_size",
-        type=int,
-        default=256,
-        help="image size in [256, 512]",
-    )
 
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
-    parser.add_argument("--token_max_length", type=int, default=120, help="the max length for the tokens")
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
@@ -196,12 +189,6 @@ def parse_args():
         default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
-    )
-    parser.add_argument(
-        "--use_recompute",
-        default=False,
-        type=str2bool,
-        help="whether use recompute.",
     )
     parser.add_argument(
         "--num_videos_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
@@ -260,7 +247,6 @@ if __name__ == "__main__":
         args.model_path,
         subfolder=args.version,
         enable_flash_attention=args.enable_flash_attention,
-        use_recompute=args.use_recompute,
     )
     transformer_model.force_images = args.force_images
     # mixed precision
@@ -381,11 +367,11 @@ if __name__ == "__main__":
     text_encoder = T5Embedder(
         dir_or_name=args.text_encoder_name,
         cache_dir="./",
-        model_max_length=args.token_max_length,
     )
     tokenizer = text_encoder.tokenizer
     # mixed precision
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=ms.bfloat16)
+    text_encoder.dtype = ms.bfloat16
     logger.info("Use amp level O2 for text encoder T5 with dtype=ms.bfloat16")
 
     # 3. build inference pipeline
