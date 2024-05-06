@@ -17,6 +17,7 @@ from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.models.ae import getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 from opensora.utils.utils import get_precision
 
@@ -76,7 +77,8 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        vae = auto_mixed_precision(vae, amp_level, dtype)
+        custom_fp32_cells = [] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
     elif args.precision == "fp32":
         amp_level = "O0"
