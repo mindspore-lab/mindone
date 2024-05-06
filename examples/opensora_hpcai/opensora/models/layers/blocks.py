@@ -23,10 +23,9 @@ class LlamaRMSNorm(nn.Cell):
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: Tensor):
-        hidden_states = hidden_states.astype(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keep_dims=True)
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.gamma * hidden_states.astype(self.gamma.dtype)  # Match weight dtype
+        return self.gamma * hidden_states
 
 
 class Attention(nn.Cell):
@@ -211,7 +210,7 @@ class SelfAttention(nn.Cell):
         qk_norm: bool = False,
         attn_drop=0.0,
         proj_drop=0.0,
-        norm_layer: nn.Cell = LlamaRMSNorm,
+        norm_layer: Type[nn.Cell] = LlamaRMSNorm,
         enable_flash_attention=False,
         rope=None,
     ):
@@ -724,7 +723,7 @@ class SizeEmbedder(nn.Cell):
 
 
 class PositionEmbedding2D(nn.Cell):
-    def __init__(self, dim: int) -> None:
+    def __init__(self, dim: int):
         super().__init__()
         self.dim = dim
         assert dim % 4 == 0, "dim must be divisible by 4"

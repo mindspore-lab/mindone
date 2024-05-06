@@ -14,7 +14,7 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from inference import init_env
-from opensora.models.layers.blocks import Attention, LayerNorm
+from opensora.models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm
 from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
@@ -86,7 +86,7 @@ def main(args):
             latte_model,
             amp_level=args.amp_level,
             dtype=dtype_map[args.dtype],
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],  # NOTE: keep it the same as training setting
+            custom_fp32_cells=[LayerNorm, Attention, LlamaRMSNorm, nn.SiLU, nn.GELU],
         )
 
     if len(args.ckpt_path) > 0:

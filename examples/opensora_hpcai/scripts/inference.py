@@ -307,16 +307,28 @@ def parse_args():
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
-    parser.add_argument("--frame_interval", type=int)
-    parser.add_argument("--loop", type=int, default=1)
-    parser.add_argument("--model_max_length", type=int, default=120)
-    parser.add_argument("--condition_frame_length", type=int)
-    parser.add_argument("--mask_strategy", type=str, nargs="+")
-    parser.add_argument("--reference_path", type=str, nargs="+")
+    parser.add_argument(
+        "--frame_interval",
+        type=int,
+        help="Frames sampling frequency. Final video FPS will be equal to FPS / frame_interval.",
+    )
+    parser.add_argument("--loop", type=int, default=1, help="Number of times to loop video generation task.")
+    parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
+    parser.add_argument(
+        "--condition_frame_length",
+        type=int,
+        help="Number of frames generated in a previous loop to use as a conditioning for the next loop.",
+    )
+    parser.add_argument(
+        "--mask_strategy", type=str, nargs="+", help="Masking strategy for Image/Video-to-Video generation task."
+    )
+    parser.add_argument(
+        "--reference_path", type=str, nargs="+", help="References for Image/Video-to-Video generation task."
+    )
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
-    parser.add_argument("--debug", type=str2bool, default=False)
+    parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
