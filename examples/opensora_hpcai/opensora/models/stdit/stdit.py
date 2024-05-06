@@ -24,6 +24,7 @@ from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
+from mindone.models.modules.flash_attention import MSFlashAttention
 
 
 class STDiTBlock(nn.Cell):
@@ -278,7 +279,9 @@ class STDiT(nn.Cell):
 
     def recompute(self, b):
         if not b._has_config_recompute:
-            b.recompute()
+            if not isinstance(b, MSFlashAttention):
+                print("recompute for: ", b.__class__.__name__)
+                b.recompute()
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])
         else:

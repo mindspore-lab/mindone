@@ -199,7 +199,6 @@ def main(args):
             SD_CONFIG,
             VAE_Z_CH,
             ckpt_path=args.vae_checkpoint,
-            use_fp16=False,
         )
         vae = vae.set_train(False)
         for param in vae.get_parameters():
