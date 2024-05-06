@@ -9,4 +9,4 @@ python examples/rec_video_vae.py \
     --resolution 512 \
     --crop_size 512 \
     --num_workers 8 \
-    --ckpt results/pretrained_488/causal_vae.ckpt
+    --ckpt LanguageBind/Open-Sora-Plan-v1.0.0/vae
