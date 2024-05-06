@@ -18,6 +18,7 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 from opensora.models.ae import getae_model_config, getae_wrapper
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
+from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
 
@@ -72,14 +73,15 @@ def main(args):
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.dtype != "fp32":
+    if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        dtype = get_precision(args.precision)
         vae = auto_mixed_precision(vae, amp_level, dtype)
-        logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
-    else:
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
         amp_level = "O0"
-        dtype = ms.float32
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
 
     ds_config = dict(
         data_folder=real_video_dir,
@@ -157,7 +159,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ae", type=str, default="")
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
     parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
@@ -179,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_origin", action="store_true")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
-        "--dtype",
+        "--precision",
         default="fp16",
         type=str,
         choices=["fp32", "fp16", "bf16"],
