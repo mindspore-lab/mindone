@@ -22,10 +22,11 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.ae import ae_stride_config, getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.utils.utils import _check_cfgs_in_parser
+from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from pipeline_videogen import VideoGenPipeline
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
@@ -181,7 +182,7 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--dtype",
+        "--precision",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
@@ -251,36 +252,32 @@ if __name__ == "__main__":
         enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
     )
-    if args.precision_mode == "allow_fp32_to_fp16":
-        logger.warning(f"T5 model may produce wrong results under {args.precision_mode} precision mode!")
+
     # 2. model initiate and weight loading
     # 2.1 latte
     logger.info(f"Latte-{args.version} init")
-    transformer_model = LatteT2V.from_pretrained_2d(
+    transformer_model = LatteT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
-    ckpt_paths = glob.glob(os.path.join(args.model_path, args.version, "*.ckpt"))
-    assert len(ckpt_paths) > 0, f"No ckpt found under {os.path.join(args.model_path, args.version)}"
-    if len(ckpt_paths) > 1:
-        logger.warning(f"Multiple ckpts found under {os.path.join(args.model_path, args.version)}")
-    ckpt = ckpt_paths[0]
-    logger.info(f"Loading ckpt {ckpt} into LatteT2V")
-    transformer_model.load_from_checkpoint(ckpt)
     transformer_model.force_images = args.force_images
     # mixed precision
-    if args.dtype == "fp32":
-        model_dtype = ms.float32
-    else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    dtype = get_precision(args.precision)
+    if args.precision in ["fp16", "bf16"]:
+        amp_level = "O2"
         transformer_model = auto_mixed_precision(
             transformer_model,
             amp_level=args.amp_level,
-            dtype=model_dtype,
+            dtype=dtype,
             custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
         )
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
+        amp_level = "O0"
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
 
     video_length, image_size = transformer_model.config.video_length, int(args.version.split("x")[1])
     latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
@@ -302,9 +299,11 @@ if __name__ == "__main__":
         # vae.vae.enable_tiling()
         # vae.vae.tile_overlap_factor = args.tile_overlap_factor
     vae.set_train(False)
-
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-    logger.info("Use amp level O2 for causal 3D VAE.")
+    # use amp level O2 for causal 3D VAE with bfloat16
+    vae = auto_mixed_precision(
+        vae, amp_level="O2", dtype=ms.bfloat16, custom_fp32_cells=[TimeDownsample2x, TimeUpsample2x]
+    )
+    logger.info("Use amp level O2 for causal 3D VAE with dtype=ms.bfloat16")
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
@@ -385,6 +384,9 @@ if __name__ == "__main__":
         model_max_length=args.token_max_length,
     )
     tokenizer = text_encoder.tokenizer
+    # mixed precision
+    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=ms.bfloat16)
+    logger.info("Use amp level O2 for text encoder T5 with dtype=ms.bfloat16")
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":
@@ -416,7 +418,7 @@ if __name__ == "__main__":
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use model dtype: {model_dtype}",
+            f"Use model dtype: {dtype}",
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
