@@ -435,7 +435,9 @@ if __name__ == "__main__":
                     image = (image * 255).round().clip(0, 255).astype(np.uint8)
                     Image.from_numpy(image).save(file_path)
                 else:
-                    videos = videos[i_sample : i_sample + 1].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                    save_video_data = videos[i_sample : i_sample + 1].transpose(
+                        0, 2, 3, 4, 1
+                    )  # (b c t h w) -> (b t h w c)
                     save_videos(save_video_data, file_path, loop=0, fps=args.fps)
     end_time = time.time()
     time_cost = end_time - start_time
