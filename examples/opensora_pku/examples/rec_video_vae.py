@@ -184,7 +184,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--precision",
-        default="fp16",
+        default="bf16",
         type=str,
         choices=["fp32", "fp16", "bf16"],
         help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \
