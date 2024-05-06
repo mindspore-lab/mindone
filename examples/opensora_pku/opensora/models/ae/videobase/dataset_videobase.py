@@ -218,7 +218,7 @@ def create_dataloader(
         ds_config, dataset config, args for ImageDataset or VideoDataset
         ds_name: dataset name, image or video
     """
-    column_names = dataset.get("output_columns", ["video"])
+    column_names = getattr(dataset, "output_columns", ["video"])
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
         column_names=column_names,
