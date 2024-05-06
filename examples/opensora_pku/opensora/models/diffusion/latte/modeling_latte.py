@@ -1533,6 +1533,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         model = cls.from_config(config, **kwargs)
         return model
 
+    @classmethod
     def from_pretrained(cls, pretrained_model_path, subfolder=None, **kwargs):
         if subfolder is not None:
             pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
