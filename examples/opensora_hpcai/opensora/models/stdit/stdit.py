@@ -296,10 +296,6 @@ class STDiT(nn.Cell):
             x (ms.Tensor): output latent representation; of shape [B, C, T, H, W]
         """
 
-        # x = x.to(self.dtype)
-        # timestep = timestep.to(self.dtype)
-        # y = y.to(self.dtype)
-
         # embedding
         if self.patchify_conv3d_replace is None:
             x = self.x_embedder(x)  # out: [B, N, C]=[B, thw, C]
@@ -343,7 +339,7 @@ class STDiT(nn.Cell):
         x = self.unpatchify(x)  # [B, C_out, T, H, W]
 
         # cast to float32 for better accuracy
-        x = x.astype(ms.float32)
+        # x = x.astype(ms.float32)
         return x
 
     def construct_with_cfg(self, x, t, y, mask=None, cfg_scale=4.0):

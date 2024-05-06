@@ -185,8 +185,6 @@ class DiffusionWithLoss(nn.Cell):
         # make sure all inputs are fp32 for accuracy
         model_output = model_output.to(ms.float32)
         model_var_values = model_var_values.to(ms.float32)
-        x = x.to(ms.float32)
-        x_t = x_t.to(ms.float32)
 
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
         # p_mean_variance(model=lambda *_: frozen_out, x_t, t, clip_denoised=False) begin

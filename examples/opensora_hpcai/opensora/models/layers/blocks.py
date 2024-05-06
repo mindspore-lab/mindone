@@ -259,7 +259,7 @@ class SelfAttention(nn.Cell):
         # reshape FA output to original attn input format (b n h*d)
         out = out.view(B, N, -1)
 
-        return self.proj_drop(self.proj(out)).to(x_dtype)
+        return self.proj_drop(self.proj(out))
 
 
 class LayerNorm(nn.Cell):
@@ -280,8 +280,8 @@ class LayerNorm(nn.Cell):
 
     def construct(self, x: Tensor):
         oridtype = x.dtype
-        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
-        return x.to(oridtype)
+        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        return x
 
 
 class GELU(nn.GELU):
@@ -390,9 +390,6 @@ class TimestepEmbedder(nn.Cell):
 
     def construct(self, t, dtype):
         t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
-        # diff
-        if t_freq.dtype != dtype:
-            t_freq = t_freq.to(dtype)
         t_emb = self.mlp(t_freq)
         return t_emb
 

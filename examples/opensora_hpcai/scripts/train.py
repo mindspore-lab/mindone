@@ -179,7 +179,8 @@ def main(args):
             latte_model,
             amp_level=args.amp_level,
             dtype=dtype_map[args.dtype],
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
+            # custom_fp32_cells=[Attention],
+            # custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
         )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
