@@ -33,6 +33,7 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 from opensora.models.ae import getae_model_config, getae_wrapper
 from opensora.utils.dataset_utils import create_video_transforms
+from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
 
@@ -150,16 +151,18 @@ def main(args):
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.dtype != "fp32":
+    if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+        dtype = get_precision(args.precision)
         vae = auto_mixed_precision(vae, amp_level, dtype)
-        logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
-    else:
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
         amp_level = "O0"
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
 
     x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.resolution, args.crop_size)
-    dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
 
     if args.enable_time_chunk:
@@ -195,7 +198,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--video_path", type=str, default="")
     parser.add_argument("--rec_path", type=str, default="")
-    parser.add_argument("--ae", type=str, default="")
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=None)
@@ -208,7 +211,7 @@ if __name__ == "__main__":
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
-        "--dtype",
+        "--precision",
         default="fp16",
         type=str,
         choices=["fp32", "fp16", "bf16"],
