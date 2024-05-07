@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
@@ -14,13 +14,12 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from inference import init_env
-from opensora.models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm
 from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
-from utils import apply_mask_strategy, get_references, process_mask_strategies, process_prompts
+from utils import WHITELIST_OPS, apply_mask_strategy, get_references, process_mask_strategies, process_prompts
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -83,10 +82,7 @@ def main(args):
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
-            latte_model,
-            amp_level=args.amp_level,
-            dtype=dtype_map[args.dtype],
-            custom_fp32_cells=[LayerNorm, Attention, LlamaRMSNorm, nn.SiLU, nn.GELU],
+            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
         )
 
     if len(args.ckpt_path) > 0:

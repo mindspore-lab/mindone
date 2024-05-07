@@ -4,9 +4,15 @@ from typing import List, Tuple, Union
 
 import cv2
 import numpy as np
+from opensora.models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm
 from PIL import Image
 
+from mindspore.nn import GELU, SiLU
+
 from mindone.data.video_reader import VideoReader
+
+# SORA's whitelist (FP32) operators
+WHITELIST_OPS = [LayerNorm, Attention, LlamaRMSNorm, SiLU, GELU]
 
 VID_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv")
 IMG_EXTENSIONS = (".jpg", ".jpeg", ".png", ".ppm", ".bmp", ".pgm", ".tif", ".tiff", ".webp")
