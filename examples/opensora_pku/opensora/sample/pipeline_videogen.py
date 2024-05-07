@@ -762,7 +762,7 @@ class VideoGenPipeline(DiffusionPipeline):
         else:
             per_sample_func = self.decode_latents_per_sample_in_chunks
         out = []
-        bs = latents.size(0)
+        bs = latents.shape[0]
         for i in range(bs):
             out.append(per_sample_func(latents[i : i + 1]))
         out = ops.cat(out, axis=0)
@@ -775,7 +775,7 @@ class VideoGenPipeline(DiffusionPipeline):
         overlap: int,
     ):
         assert (chunk_size + overlap - 1) % 4 == 0
-        num_frames = video_data.size(2)
+        num_frames = video_data.shape[2]
         output_chunks = []
 
         start = 0
