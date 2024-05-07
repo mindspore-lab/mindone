@@ -128,6 +128,10 @@ class VideoGenPipeline(DiffusionPipeline):
             masked_feature = emb * mask[:, None, :, None]  # 1 120 4096
             return masked_feature, emb.shape[2]
 
+    @ms.jit  # FIXME: on ms2.3, in pynative mode, text encoder's output has nan problem.
+    def text_encoding_func(self, input_ids, attention_mask):
+        return self.text_encoder(input_ids, attention_mask=attention_mask)
+
     # Adapted from diffusers.pipelines.deepfloyd_if.pipeline_if.encode_prompt
     def encode_prompt(
         self,
@@ -202,7 +206,7 @@ class VideoGenPipeline(DiffusionPipeline):
             attention_mask = ms.Tensor(text_inputs.attention_mask)
             prompt_embeds_attention_mask = attention_mask
 
-            prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
+            prompt_embeds = self.text_encoding_func(text_input_ids, attention_mask=attention_mask)
             prompt_embeds = prompt_embeds[0] if isinstance(prompt_embeds, (list, tuple)) else prompt_embeds
         else:
             prompt_embeds_attention_mask = ops.ones_like(prompt_embeds)
@@ -238,7 +242,7 @@ class VideoGenPipeline(DiffusionPipeline):
                 return_tensors=None,
             )
             attention_mask = ms.Tensor(uncond_input.attention_mask)
-            negative_prompt_embeds = self.text_encoder(
+            negative_prompt_embeds = self.text_encoding_func(
                 ms.Tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
