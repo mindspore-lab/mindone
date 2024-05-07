@@ -415,17 +415,21 @@ if __name__ == "__main__":
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
-        videos = pipeline(
-            prompt,
-            video_length=video_length,
-            height=image_size,
-            width=image_size,
-            num_inference_steps=args.num_sampling_steps,
-            guidance_scale=args.guidance_scale,
-            enable_temporal_attentions=not args.force_images,
-            mask_feature=False,
-            output_type="latents" if args.save_latents else "pil",
-        ).video.asnumpy()
+        videos = (
+            pipeline(
+                prompt,
+                video_length=video_length,
+                height=image_size,
+                width=image_size,
+                num_inference_steps=args.num_sampling_steps,
+                guidance_scale=args.guidance_scale,
+                enable_temporal_attentions=not args.force_images,
+                mask_feature=False,
+                output_type="latents" if args.save_latents else "pil",
+            )
+            .video.to(ms.float32)
+            .asnumpy()
+        )
         for i_sample in range(args.batch_size):
             file_path = os.path.join(save_dir, file_paths[i_sample])
             assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
