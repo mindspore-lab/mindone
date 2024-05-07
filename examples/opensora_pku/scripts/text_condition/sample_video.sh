@@ -1,3 +1,5 @@
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
 python opensora/sample/sample_t2v.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.0.0 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
