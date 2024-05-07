@@ -37,8 +37,7 @@ def run():
 
     command = f"bash /home/ma-user/modelarts/user-job-dir/mindone/mindone/utils/modelarts/run_train_modelarts.sh {master_addr} {node_rank} {work_dir} {script_name} {args}"
     print("Running command:", command)
-    return_code = os.system(command)     
-
+    os.system(command)     
  
  
 if __name__ == "__main__":
