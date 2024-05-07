@@ -16,7 +16,7 @@ shift
 shift
 shift
 
-#export GLOG_v=1 MS_SUBMODULE_LOG_v="{RUNTIME_FRAMEWORK:0}"  
+#export GLOG_v=1 MS_SUBMODULE_LOG_v="{RUNTIME_FRAMEWORK:0}"
 
 
 #export MS_SIMULATION_LEVEL=1
@@ -32,7 +32,7 @@ unset RANK_ID
 # if [[ $MS_SIMULATION_LEVEL == 1 ]]; then
 # 	export MS_MEMORY_STATISTIC=2
 # 	#export MS_MEMORY_TRACE_PATH=/cache/
-# 	python /home/ma-user/modelarts/user-job-dir/${work_dir}/run_mindformer.py $@ 
+# 	python /home/ma-user/modelarts/user-job-dir/${work_dir}/run_mindformer.py $@
 # else
 # 	msrun --worker_num=$RANK_SIZE --local_worker_num=8  --master_addr=$master_addr --node_rank=$node_rank --log_dir=/home/ma-user/modelarts/user-job-dir/device --join=False /home/ma-user/modelarts/user-job-dir/${work_dir}/run_mindformer.py $@
 # fi

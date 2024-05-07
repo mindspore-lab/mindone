@@ -1,6 +1,6 @@
 import os
 from inspect import isfunction
-from typing import List, Tuple, Union, Optional
+from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import ops

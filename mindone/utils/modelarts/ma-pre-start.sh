@@ -60,5 +60,3 @@ npu-smi info
 unset RANK_TABLE_FILE
 
 dryrun=0
-
-
