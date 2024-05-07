@@ -151,6 +151,12 @@ def parse_args():
     parser.add_argument(
         "--enable_tiling", default=False, type=str2bool, help="whether to use vae tiling to save memory"
     )
+    parser.add_argument(
+        "--enable_time_chunk",
+        type=str2bool,
+        default=False,
+        help="Whether to enable vae decoding to process temporal frames as small, overlapped chunks. Defaults to False.",
+    )
 
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
     # MS new args
@@ -387,6 +393,7 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         scheduler=scheduler,
         transformer=transformer_model,
+        enable_time_chunk=args.enable_time_chunk,
     )
 
     # 4. print key info
