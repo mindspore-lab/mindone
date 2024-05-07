@@ -41,7 +41,7 @@ EXAMPLE_DOC_STRING = """
         >>> from mindspore.diffusers import StableDiffusionXLPipeline
 
         >>> pipe = StableDiffusionXLPipeline.from_pretrained(
-        ...     "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=ms.float16
+        ...     "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
         ... )
 
         >>> prompt = "a photo of an astronaut riding a horse on mars"
@@ -65,12 +65,14 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     return noise_cfg
 
 
-# Inspired by diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
     if sample_mode == "sample":
         return vae.diag_gauss_dist.sample(encoder_output)
-    # elif hasattr(encoder_output, "latent") and sample_mode == "argmax":
-    #     return encoder_output.latent.mode()
+    elif sample_mode == "argmax":
+        return vae.diag_gauss_dist.sample(encoder_output).argmax()
+    # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents
     else:
         return encoder_output
 
@@ -180,7 +182,7 @@ class StableDiffusionXLImg2ImgPipeline(DiffusionPipeline):
         "add_text_embeds",
         "add_time_ids",
         "negative_pooled_prompt_embeds",
-        # "negative_add_time_ids",
+        "negative_add_time_ids",
         "add_neg_time_ids",
     ]
 
@@ -416,32 +418,6 @@ class StableDiffusionXLImg2ImgPipeline(DiffusionPipeline):
             )
 
         return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
-
-    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.encode_image
-    def encode_image(self, image, num_images_per_prompt, output_hidden_states=None):
-        dtype = next(self.image_encoder.get_parameters()).dtype
-
-        if not isinstance(image, ms.Tensor):
-            image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
-
-        image = image.to(dtype=dtype)
-        if output_hidden_states:
-            image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True).hidden_states[-2]
-            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(
-                ops.zeros_like(image), output_hidden_states=True
-            ).hidden_states[-2]
-            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
-                num_images_per_prompt, dim=0
-            )
-            return image_enc_hidden_states, uncond_image_enc_hidden_states
-        else:
-            image_embeds = self.image_encoder(image).image_embeds
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
-
-            return image_embeds, uncond_image_embeds
 
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
@@ -695,15 +671,15 @@ class StableDiffusionXLImg2ImgPipeline(DiffusionPipeline):
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            timesteps (`torch.Tensor`):
-                generate embedding vectors at these timesteps
+            w (`ms.Tensor`):
+                Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
-                dimension of the embeddings to generate
+                Dimension of the embeddings to generate.
             dtype:
-                data type of the generated embeddings
+                Data type of the generated embeddings.
 
         Returns:
-            `ms.Tensor`: Embedding vectors with shape `(len(timesteps), embedding_dim)`
+            `ms.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -1117,7 +1093,7 @@ class StableDiffusionXLImg2ImgPipeline(DiffusionPipeline):
         # 9.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ops.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
+            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)

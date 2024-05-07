@@ -64,26 +64,14 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
-    """
-    Rescale `noise_cfg` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
-    Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
-    """
-    std_text = noise_pred_text.std(dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
-    std_cfg = noise_cfg.std(dim=list(range(1, noise_cfg.ndim)), keepdim=True)
-    # rescale the results from guidance (fixes overexposure)
-    noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
-    # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
-    noise_cfg = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_cfg
-    return noise_cfg
-
-
-# Inspired by diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
     if sample_mode == "sample":
         return vae.diag_gauss_dist.sample(encoder_output)
-    # elif hasattr(encoder_output, "latent") and sample_mode == "argmax":
-    #     return encoder_output.latent.mode()
+    elif sample_mode == "argmax":
+        return vae.diag_gauss_dist.sample(encoder_output).argmax()
+    # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents
     else:
         return encoder_output
 
@@ -734,15 +722,15 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            timesteps (`ms.Tensor`):
-                generate embedding vectors at these timesteps
+            w (`ms.Tensor`):
+                Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
-                dimension of the embeddings to generate
+                Dimension of the embeddings to generate.
             dtype:
-                data type of the generated embeddings
+                Data type of the generated embeddings.
 
         Returns:
-            `ms.Tensor`: Embedding vectors with shape `(len(timesteps), embedding_dim)`
+            `ms.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -803,7 +791,6 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-        guidance_rescale: float = 0.0,
         clip_skip: Optional[int] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
@@ -868,10 +855,6 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
             cross_attention_kwargs (`dict`, *optional*):
                 A kwargs dictionary that if specified is passed along to the [`AttentionProcessor`] as defined in
                 [`self.processor`](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
-            guidance_rescale (`float`, *optional*, defaults to 0.0):
-                Guidance rescale factor from [Common Diffusion Noise Schedules and Sample Steps are
-                Flawed](https://arxiv.org/pdf/2305.08891.pdf). Guidance rescale factor should fix overexposure when
-                using zero terminal SNR.
             clip_skip (`int`, *optional*):
                 Number of layers to be skipped from CLIP while computing the prompt embeddings. A value of 1 means that
                 the output of the pre-final layer will be used for computing the prompt embeddings.

@@ -64,7 +64,7 @@ EXAMPLE_DOC_STRING = """
         >>> prompt = "A majestic tiger sitting on a bench"
         >>> image = pipe(
         ...     prompt=prompt, image=init_image, mask_image=mask_image, num_inference_steps=50, strength=0.80
-        ... )[0][0]
+        ... ).images[0]
         ```
 """
 
@@ -218,17 +218,16 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image: bool
     return mask, masked_image
 
 
-# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
-def retrieve_latents(
-    encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
-):
-    mean, logvar = ops.chunk(encoder_output[0], 2, axis=1)
-    logvar = ops.clamp(logvar, -30.0, 20.0)
-    std = ops.exp(0.5 * logvar)
-
-    sample = randn_tensor(mean.shape, generator=generator, dtype=encoder_output[0].dtype)
-    x = mean + std * sample
-    return x
+def retrieve_latents(vae, encoder_output: ms.Tensor, sample_mode: str = "sample"):
+    if sample_mode == "sample":
+        return vae.diag_gauss_dist.sample(encoder_output)
+    elif sample_mode == "argmax":
+        return vae.diag_gauss_dist.sample(encoder_output).argmax()
+    # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents
+    else:
+        return encoder_output
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
@@ -589,7 +588,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat(num_images_per_prompt, -1)
+        prompt_embeds = ops.tile(prompt_embeds, (1, 1, num_images_per_prompt))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -601,13 +600,13 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             else:
                 negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.unet.dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat(num_images_per_prompt, -1)
+            negative_prompt_embeds = ops.tile(negative_prompt_embeds, (1, 1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = pooled_prompt_embeds.repeat(num_images_per_prompt, -1)
+        pooled_prompt_embeds = ops.tile(pooled_prompt_embeds, (1, num_images_per_prompt))
         pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed * num_images_per_prompt, -1)
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.repeat(num_images_per_prompt, -1).view(
+            negative_pooled_prompt_embeds = ops.tile(negative_pooled_prompt_embeds, (1, num_images_per_prompt)).view(
                 bs_embed * num_images_per_prompt, -1
             )
 
@@ -766,11 +765,11 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
 
         if image.shape[1] == 4:
             image_latents = image.to(dtype=dtype)
-            image_latents = image_latents.repeat(batch_size // image_latents.shape[0], 0) #??? two 1
+            image_latents = ops.tile(image_latents, (batch_size // image_latents.shape[0], 1, 1, 1))
         elif return_image_latents or (latents is None and not is_strength_max):
             image = image.to(dtype=dtype)
             image_latents = self._encode_vae_image(image=image, generator=generator)
-            image_latents = image_latents.repeat(batch_size // image_latents.shape[0], 0) #??? two 1
+            image_latents = ops.tile(image_latents, (batch_size // image_latents.shape[0], 1, 1, 1))
 
         if latents is None and add_noise:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -803,12 +802,12 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
 
         if isinstance(generator, list):
             image_latents = [
-                retrieve_latents(self.vae.encode(image[i : i + 1]), generator=generator[i])
+                retrieve_latents(self.vae, self.vae.encode(image[i : i + 1]), generator=generator[i])
                 for i in range(image.shape[0])
             ]
             image_latents = ops.cat(image_latents, dim=0)
         else:
-            image_latents = retrieve_latents(self.vae.encode(image), generator=generator)
+            image_latents = retrieve_latents(self.vae, self.vae.encode(image), generator=generator)
 
         if self.vae.config.force_upcast:
             self.vae.to(dtype)
@@ -836,7 +835,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
                     f" a total batch size of {batch_size}, but {mask.shape[0]} masks were passed. Make sure the number"
                     " of masks that you pass is divisible by the total requested batch size."
                 )
-            mask = mask.repeat(batch_size // mask.shape[0], 0)
+            mask = ops.tile(mask, (batch_size // mask.shape[0], 1, 1, 1))
 
         mask = ops.cat([mask] * 2) if do_classifier_free_guidance else mask
 
@@ -856,9 +855,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
                         f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                         " Make sure the number of images that you pass is divisible by the total requested batch size."
                     )
-                masked_image_latents = masked_image_latents.repeat(
-                    batch_size // masked_image_latents.shape[0], 0
-                )
+                masked_image_latents = ops.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
             masked_image_latents = (
                 ops.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
@@ -965,15 +962,15 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            timesteps (`torch.Tensor`):
-                generate embedding vectors at these timesteps
+            w (`ms.Tensor`):
+                Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
-                dimension of the embeddings to generate
+                Dimension of the embeddings to generate.
             dtype:
-                data type of the generated embeddings
+                Data type of the generated embeddings.
 
         Returns:
-            `torch.FloatTensor`: Embedding vectors with shape `(len(timesteps), embedding_dim)`
+            `ms.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -1348,7 +1345,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
                 f"steps is {num_inference_steps} which is < 1 and not appropriate for this pipeline."
             )
         # at which timestep to set the initial noise (n.b. 50% if strength is 0.5)
-        latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
+        latent_timestep = ops.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
         is_strength_max = strength == 1.0
 
@@ -1469,12 +1466,12 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             dtype=prompt_embeds.dtype,
             text_encoder_projection_dim=text_encoder_projection_dim,
         )
-        add_time_ids = add_time_ids.repeat(batch_size * num_images_per_prompt, 1)
+        add_time_ids = ops.tile(add_time_ids, (1, batch_size * num_images_per_prompt))
 
         if self.do_classifier_free_guidance:
             prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
             add_text_embeds = ops.cat([negative_pooled_prompt_embeds, add_text_embeds], axis=0)
-            add_neg_time_ids = add_neg_time_ids.repeat(batch_size * num_images_per_prompt, 1)
+            add_neg_time_ids = ops.tile(add_neg_time_ids, (1, batch_size * num_images_per_prompt))
             add_time_ids = ops.cat([add_neg_time_ids, add_time_ids], axis=0)
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
@@ -1512,7 +1509,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
         # 11.1 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).repeat(batch_size * num_images_per_prompt)
+            guidance_scale_tensor = ops.tile(ms.Tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             )
