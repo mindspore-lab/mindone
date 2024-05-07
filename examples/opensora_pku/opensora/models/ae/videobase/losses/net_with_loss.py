@@ -24,13 +24,17 @@ class GeneratorWithLoss(nn.Cell):
         logvar_init=0.0,
         discriminator=None,
         dtype=ms.float32,
+        lpips_ckpt_path=None,
     ):
         super().__init__()
 
         # build perceptual models for loss compute
         self.autoencoder = autoencoder
         # TODO: set dtype for LPIPS ?
-        self.perceptual_loss = LPIPS()  # freeze params inside
+        perceptual_loss = LPIPS()  # freeze params inside
+        assert lpips_ckpt_path is not None, "LPIPS ckpt path is not provided"
+        perceptual_loss.load_from_pretrained(lpips_ckpt_path)
+        self.perceptual_loss = perceptual_loss
 
         self.l1 = nn.L1Loss(reduction="none")
         # TODO: is self.logvar trainable?

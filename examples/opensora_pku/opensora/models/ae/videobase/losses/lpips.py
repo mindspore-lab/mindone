@@ -22,7 +22,6 @@ class LPIPS(nn.Cell):
         self.lin3 = NetLinLayer(self.chns[3], use_dropout=use_dropout)
         self.lin4 = NetLinLayer(self.chns[4], use_dropout=use_dropout)
         # load NetLin metric layers
-        self.load_from_pretrained()
 
         self.lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
         self.lins = nn.CellList(self.lins)
@@ -34,7 +33,7 @@ class LPIPS(nn.Cell):
         for param in self.trainable_params():
             param.requires_grad = False
 
-    def load_from_pretrained(self, ckpt_path="models/ae/lpips_vgg-426bf45c.ckpt"):
+    def load_from_pretrained(self, ckpt_path):
         # TODO: just load ms ckpt
         if not os.path.exists(ckpt_path):
             raise ValueError(

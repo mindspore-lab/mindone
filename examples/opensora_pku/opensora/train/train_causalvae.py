@@ -86,7 +86,12 @@ def main(args):
 
     # 3. build net with loss (core)
     # G with loss
-    ae_with_loss = GeneratorWithLoss(ae, discriminator=disc, **model_config.lossconfig)
+    ae_with_loss = GeneratorWithLoss(
+        ae,
+        discriminator=disc,
+        lpips_ckpt_path=os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt"),
+        **model_config.lossconfig,
+    )
     disc_start = model_config.lossconfig.disc_start
 
     # D with loss
