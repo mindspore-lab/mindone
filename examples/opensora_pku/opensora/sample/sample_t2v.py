@@ -205,12 +205,6 @@ def parse_args():
         action="store_true",
         help="whether to load the existing latents saved in npy files and run vae decoding",
     )
-    parser.add_argument(
-        "--input_latents_dir",
-        type=str,
-        default="",
-        help="the directory where the latents in npy files are saved in. Only works when decode_latents is True.",
-    )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
     if default_args.config:
@@ -347,10 +341,10 @@ if __name__ == "__main__":
             file_paths = data["path"]
             loaded_latents = []
             for i_sample in range(args.batch_size):
-                save_fp = os.path.join(args.input_latent_dir, file_paths[i_sample])
+                save_fp = os.path.join(save_dir, file_paths[i_sample])
                 assert os.path.exists(
                     save_fp
-                ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
+                ), f"{save_fp} does not exist! Please check the npy files under {save_dir} or check if you run `--save_latents` ahead."
                 loaded_latents.append(np.load(save_fp))
             loaded_latents = np.stack(loaded_latents)
             decode_data = vae.decode(ms.Tensor(loaded_latents))
@@ -461,6 +455,6 @@ if __name__ == "__main__":
         os.remove(temp_dataset_csv)
 
     if args.decode_latents:
-        npy_files = glob.glob(os.path.join(args.input_latent_dir, "*.npy"))
+        npy_files = glob.glob(os.path.join(save_dir, "*.npy"))
         for fp in npy_files:
             os.remove(fp)

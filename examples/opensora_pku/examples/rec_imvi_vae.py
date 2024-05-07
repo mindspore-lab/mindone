@@ -102,7 +102,7 @@ def process_in_chunks(
     overlap: int,
 ):
     assert (chunk_size + overlap - 1) % 4 == 0
-    num_frames = video_data.size(2)
+    num_frames = video_data.shape[2]
     output_chunks = []
 
     start = 0

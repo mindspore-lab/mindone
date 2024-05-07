@@ -10,7 +10,7 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | ------------------ | ---------- |
 | **[2024.04.09]** 🚀 PKU shared the latest exploration on metamorphic time-lapse video generation: [MagicTime](https://github.com/PKU-YuanGroup/MagicTime), and the dataset for train (updating): [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).| N.A.  |
 | **[2024.04.07]** 🔥🔥🔥 PKU released Open-Sora-Plan v1.0.0. See their [report]([docs/Report-v1.0.0.md](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md)). | ✅ CausalVAE+LatteT2V+T5 inference and three-stage training (`17x256x256`, `65x256x256`, `65x512x512`)  |
-| **[2024.03.27]** 🚀🚀🚀 PKU released the report of [VideoCausalVAE](docs/CausalVideoVAE.md), which supports both images and videos.  | ✅ CausalVAE training and inference |
+| **[2024.03.27]** 🚀🚀🚀 PKU released the report of [VideoCausalVAE](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Train_And_Eval_CausalVideoVAE.md), which supports both images and videos.  | ✅ CausalVAE training and inference |
 | **[2024.03.10]** 🚀🚀🚀 PKU supports training a latent size of 225×90×90 (t×h×w), which means to **train 1 minute of 1080P video with 30FPS** (2× interpolated frames and 2× super resolution) under class-condition.| frame interpolation and super-resolution are under-development.|
 | **[2024.03.08]** PKU support the training code of text condition with 16 frames of 512x512. |   ✅ CausalVAE+LatteT2V+T5 training (`16x512x512`)|
 | **[2024.03.07]** PKU support training with 128 frames (when sample rate = 3, which is about 13 seconds) of 256x256, or 64 frames (which is about 6 seconds) of 512x512. | class-conditioned training is under-development.|
@@ -62,8 +62,6 @@ You contributions are welcome.
 * [Inference](#inference)
 * [Data Processing](#data-processing)
 * [Training](#training)
-* [Evaluation](#evaluation)
-* [Contribution](#contribution)
 * [Acknowledgement](#acknowledgement)
 
 Other useful documents and links are listed below.
@@ -169,6 +167,14 @@ Please change the `--video_path` to the existing video file path and `--rec_path
 
 You can also run video reconstruction given an input video folder. See `scripts/causalvae/gen_video.sh`.
 
+Some reconstruction results are listed below (left: source video clip, right: reconstructed).
+
+![mixkit-step003-00](https://github.com/SamitHuang/mindone/assets/8156835/bb04783f-4cc1-4179-8882-940898803a6e)
+
+![mixkit-step000-00](https://github.com/SamitHuang/mindone/assets/8156835/1582f678-55dd-4ba1-9692-4d8961a37658)
+
+![mixkit-step002-00](https://github.com/SamitHuang/mindone/assets/8156835/f1a5e323-f3d9-4bc7-a5d2-7c6044ed52f7)
+
 ### Open-Sora-Plan v1.0.0 Command Line Inference
 
 You can run text-to-video inference using the script `scripts/text_condition/sample_video.sh`.
@@ -184,12 +190,53 @@ python opensora/sample/sample_t2v.py \
     --guidance_scale 7.5 \
     --num_sampling_steps 250
 ```
-You can change the `version` to `17x256x256` or `65x256x256` for sampling with other resolutions and numbers of frames.
+You can change the `version` to `17x256x256` or `65x256x256` to change the number of frames and resolutions.
+
+> In case of OOM error, there are two options:
+> 1. Pass `--enable_time_chunk True` to allow vae decoding temporal frames as small, overlapped chunks. This can reduce the memory usage, which sacrificies a bit of temporal consistency.
+> 2. Seperate the inference into two stages. In stage 1, please run inference with `--save_latents`. This will save some `.npy` files in the output directory. Then in stage 2, please run the same inference script with `--decode_latents`. The generated videos will be saved in the output directory.
+
 
 ## Training
 
-### Preparation
-Please download the [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset). The downloaded dataset should contain video folders and a json file which contains captions and video paths.
+### Causal Video VAE
+
+#### Preparation
+
+To train the causal vae model, you need to prepare a video dataset. You can download this video dataset following the instruction of [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).
+
+Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows:
+
+```
+python tools/model_conversion/inflate_vae2d_to_vae3d.py \
+    --src /path/to/vae_2d.ckpt  \
+    --target pretrained/causal_vae_488_init.ckpt
+```
+> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae.py` for model conversion, e.g. after downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights.
+
+Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/` for training with lpips loss.
+
+#### Standalone Training
+
+To launch a single-card training, you can refer to `scripts/causalvae/train.sh`. Please revise the `--video_path` to the path of the folder where the videos are stored, and run:
+```bash
+bash scripts/causalvae/train.sh
+```
+
+#### Multi-Device Training
+
+For parallel training, please use `msrun` and pass `--use_parallel=True`.
+```bash
+# 8 NPUs
+msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_log"  \
+    python opensora/train/train_causalvae.py  \
+    --use_parallel True \
+    ... # pass other arguments
+```
+
+### Training Diffusion Model
+
+#### Preparation
 
 The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `pretrained/t2v.pt`. Then run model conversion with:
 ```bash
@@ -198,34 +245,39 @@ python tools/model_conversion/convert_latte.py \
   --target pretrained/t2v.ckpt
 ```
 
+The [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset) includes the video files and one json file which records the video paths and captions. Please pass the json file path to `opensora/train/train_t2v.py` via `--data_path` and pass the video folder path to `opensora/train/train_t2v.py` via `--video_folder`.
+
 ### Standalone Training
+
+Before launching the first-stage training, please make sure the pretrained checkpoint is stored as `pretrained/t2v.ckpt`.
 ```bash
 # start 17x256x256 pretraining
 bash scripts/text_condition/train_videoae_17x256x256.sh
-# befor training, change --pretrained to the ckpt path from the last stage
-# start 65x256x256 finetuning
+```
+After the first-stage training, please revise `scripts/text_condition/train_videoae_65x256x256.sh`, and change `--pretrained` to the checkpoint path from the last stage. Then run:
+
+```bash
 bash scripts/text_condition/train_videoae_65x256x256.sh
-# befor training, change --pretrained to the ckpt path from the last stage
+```
+Simiarly, please revise the `--pretrained` checkpoint path and start the third-stage training with:
+
+```bash
 # start 65x512x512 finetuning
 bash scripts/text_condition/train_videoae_65x512x512.sh
 ```
 
+
 ### Multi-Device Training
 
-For parallel training, please use `msrun` and pass `--use_parallel=True`
+For parallel training, please use `msrun` and pass `--use_parallel=True`.
 
-Taking 17x256x256 as an example,
 ```bash
 # 8 NPUs, 64x512x512
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_log"  \
     python opensora/train/train_t2v.py  \
     --use_parallel True \
-    --num_frames 65 \
-    --max_image_size 256 \
     ... # pass other arguments
 ```
-
-
 
 
 ## 👍 Acknowledgement
