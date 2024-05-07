@@ -5,17 +5,12 @@ import numpy as np
 import mindspore as ms
 from mindspore import nn, ops
 
-from .modules import (
-    CausalConv3d,
-    Normalize,
-    ResnetBlock3D,
-    SpatialDownsample2x,
-    SpatialUpsample2x,
-    TimeDownsample2x,
-    TimeUpsample2x,
-    make_attn,
-    nonlinearity,
-)
+from ..modules.attention import make_attn
+from ..modules.conv import CausalConv3d
+from ..modules.normalize import Normalize
+from ..modules.ops import nonlinearity
+from ..modules.resnet_block import ResnetBlock3D
+from ..modules.updownsample import SpatialDownsample2x, SpatialUpsample2x, TimeDownsample2x, TimeUpsample2x
 
 logger = logging.getLogger(__name__)
 
