@@ -99,10 +99,10 @@ def main(args):
 
     # infer
     if args.csv_path is not None:
-        if args.output_dir is None:
+        if args.output_path is None:
             output_folder = os.path.dirname(args.csv_path)
         else:
-            output_folder = args.output_dir
+            output_folder = args.output_path
         os.makedirs(output_folder, exist_ok=True)
 
         logger.info(f"Output embeddings will be saved: {output_folder}")
