@@ -303,7 +303,7 @@ Once the training data including the [T5 text embeddings](#cache-text-embeddings
 
 ```bash
 # standalone training, 16x256x256
-python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
+python scripts/train.py --config configs/opensora/train/stdit_256x256x16_ms.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
@@ -322,7 +322,7 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_d
     --use_parallel True \
 ```
 
-For more usages, please check `python scripts/train.py -h`. You may also see the example shell scripts in `scripts/run` for quick reference.
+For more usage, please check `python scripts/train.py -h`. You may also see the example shell scripts in `scripts/run` for quick reference.
 
 #### Performance
 

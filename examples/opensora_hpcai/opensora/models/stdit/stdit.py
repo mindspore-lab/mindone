@@ -275,8 +275,14 @@ class STDiT(nn.Cell):
 
         if use_recompute:
             # TODO: ms flash attention don't need recompute
-            for block in self.blocks:
-                self.recompute(block)
+            # forbid_start = 0
+            # num_forbid = 6
+            # forbid_blocks = [forbid_start+i for i in range(num_forbid)]
+            # print('recompute forbid: ', forbid_blocks)
+            for i, block in enumerate(self.blocks):
+                # if i not in forbid_blocks:
+                if i < len(self.blocks) - 7:
+                    self.recompute(block)
                 # self.recompute(block.mlp)
                 # self.recompute(block.attn)
                 # self.recompute(block.cross_attn)
