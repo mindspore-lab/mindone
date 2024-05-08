@@ -184,6 +184,7 @@ class STDiT(nn.Cell):
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
         use_recompute=False,
+        num_recompute_blocks=None,
         patchify_conv3d_replace=None,
     ):
         super().__init__()
@@ -275,13 +276,12 @@ class STDiT(nn.Cell):
 
         if use_recompute:
             # TODO: ms flash attention don't need recompute
-            # forbid_start = 0
-            # num_forbid = 6
-            # forbid_blocks = [forbid_start+i for i in range(num_forbid)]
-            # print('recompute forbid: ', forbid_blocks)
+            if num_recompute_blocks is None:
+                num_recompute_blocks = len(self.blocks)
+            print("Num recomputed stdit blocks: {}".format(num_recompute_blocks))
             for i, block in enumerate(self.blocks):
-                # if i not in forbid_blocks:
-                if i < len(self.blocks) - 7:
+                # recompute the first N blocks
+                if i < num_recompute_blocks:
                     self.recompute(block)
                 # self.recompute(block.mlp)
                 # self.recompute(block.attn)
@@ -291,7 +291,6 @@ class STDiT(nn.Cell):
 
     def recompute(self, b):
         if not b._has_config_recompute:
-            print("recompute for: ", b.__class__.__name__)
             b.recompute()
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])

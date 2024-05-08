@@ -53,6 +53,7 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    global_bf16: bool = False, 
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -112,6 +113,9 @@ def init_env(
         print("enable dvm")
         ms.set_context(enable_graph_kernel=True)
 
+    if global_bf16:
+        ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
+
     return rank_id, device_num
 
 
@@ -146,6 +150,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
+        global_bf16=args.global_bf16,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -167,6 +172,7 @@ def main(args):
         patchify_conv3d_replace="conv2d",  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
+        num_recompute_blocks=args.num_recompute_blocks
     )
     logger.info(f"STDiT input size: {input_size}")
     latte_model = STDiT_XL_2(**model_extra_args)
@@ -174,13 +180,14 @@ def main(args):
     # mixed precision
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
-        latte_model = auto_mixed_precision(
-            latte_model,
-            amp_level=args.amp_level,
-            dtype=dtype_map[args.dtype],
-            # custom_fp32_cells=[Attention],
-            # custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
-        )
+        if not args.global_bf16:
+            latte_model = auto_mixed_precision(
+                latte_model,
+                amp_level=args.amp_level,
+                dtype=dtype_map[args.dtype],
+                # custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
+                # custom_fp32_cells=[Attention],
+            )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
@@ -374,7 +381,11 @@ def main(args):
         ema=ema,
     )
     
-    model = Model(net_with_grads)
+    if args.global_bf16: 
+        model = Model(net_with_grads, amp_level="O0")
+    else:
+        model = Model(net_with_grads)
+        
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()

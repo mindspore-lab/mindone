@@ -126,6 +126,11 @@ def parse_train_args(parser):
         help="whether use recompute.",
     )
     parser.add_argument(
+        "--num_recompute_blocks",
+        default=None,
+        type=int,
+        help="If None, all stdit blocks will be applied with recompute (gradient checkpointing). If int, the first N blocks will be applied with recompute")
+    parser.add_argument(
         "--dtype",
         default="fp16",
         type=str,
@@ -139,6 +144,7 @@ def parse_train_args(parser):
         choices=["bf16", "fp16", "fp32"],
         help="what compuatation data type to use for vae. Default is `fp32`, which corresponds to ms.float32",
     )
+    parser.add_argument("--global_bf16", default=False, type=str2bool, help="Experimental. If True, dtype and vae_dtype will be override, operators will be computered in CANN bf16 operators")
     parser.add_argument(
         "--vae_param_dtype",
         default="fp32",
@@ -207,7 +213,6 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
-
     parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
     parser.add_argument(
         "--log_level",
