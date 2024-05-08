@@ -483,7 +483,7 @@ class FeedForward(nn.Cell):
         return hidden_states
 
 
-class BasicTransformerBlock_(nn.Cell):
+class BasicTransformerBlock_Temporal(nn.Cell):
     r"""
     A basic Transformer block.
 
@@ -704,6 +704,68 @@ class BasicTransformerBlock_(nn.Cell):
         if hidden_states.ndim == 4:
             hidden_states = hidden_states.squeeze(1)
 
+        return hidden_states
+
+
+class BasicTransformerBlock_(nn.Cell):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.block = BasicTransformerBlock_Temporal(*args, **kwargs)
+
+    def construct(
+        self,
+        input_batch_size: int,
+        frame: int,
+        use_image_num: int,
+        hidden_states: ms.Tensor,
+        timestep: Optional[ms.Tensor] = None,
+        cross_attention_kwargs: Dict[str, Any] = None,
+        class_labels: Optional[ms.Tensor] = None,
+        add_with_temp_pos_embed: bool = False,
+        temp_pos_embed: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        # (b f) t d -> (b t) f d
+        hidden_states = hidden_states.view(
+            input_batch_size, frame + use_image_num, hidden_states.shape[1], hidden_states.shape[2]
+        )
+        hidden_states = hidden_states.permute(0, 2, 1, 3).view(-1, frame + use_image_num, hidden_states.shape[-1])
+        # a wrapper to handle image-video joint training
+        if use_image_num != 0 and self.training:
+            hidden_states_video = hidden_states[:, :frame, ...]
+            hidden_states_image = hidden_states[:, frame:, ...]
+            if add_with_temp_pos_embed:
+                hidden_states_video = hidden_states_video + temp_pos_embed
+
+            hidden_states_video = self.block(
+                hidden_states_video,
+                None,  # attention_mask
+                None,  # encoder_hidden_states
+                None,  # encoder_attention_mask
+                timestep,
+                cross_attention_kwargs,
+                class_labels,
+            )
+
+            hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
+        else:
+            if add_with_temp_pos_embed:
+                hidden_states = hidden_states + temp_pos_embed
+
+            hidden_states = self.block(
+                hidden_states,
+                None,  # attention_mask
+                None,  # encoder_hidden_states
+                None,  # encoder_attention_mask
+                timestep,
+                cross_attention_kwargs,
+                class_labels,
+            )
+
+        # (b t) f d -> (b f) t d
+        hidden_states = hidden_states.view(input_batch_size, -1, hidden_states.shape[1], hidden_states.shape[2])
+        hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+            input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+        )
         return hidden_states
 
 
@@ -1326,58 +1388,17 @@ class Latte(ModelMixin, ConfigMixin):
             )
 
             if enable_temporal_attentions:
-                # (b f) t d -> (b t) f d
-                hidden_states = hidden_states.view(
-                    input_batch_size, frame + use_image_num, hidden_states.shape[1], hidden_states.shape[2]
-                )
-                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                    -1, frame + use_image_num, hidden_states.shape[-1]
-                )
-
-                if use_image_num != 0 and self.training:
-                    hidden_states_video = hidden_states[:, :frame, ...]
-                    hidden_states_image = hidden_states[:, frame:, ...]
-
-                    hidden_states_video = temp_block(
-                        hidden_states_video,
-                        None,  # attention_mask
-                        None,  # encoder_hidden_states
-                        None,  # encoder_attention_mask
-                        timestep_temp,
-                        cross_attention_kwargs,
-                        class_labels,
-                    )
-
-                    hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
-                    # (b t) f d -> (b f) t d
-                    hidden_states = hidden_states.view(
-                        input_batch_size, -1, hidden_states.shape[1], hidden_states.shape[2]
-                    )
-                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
-                    )
-
-                else:
-                    if i == 0:
-                        hidden_states = hidden_states + self.temp_pos_embed
-
-                    hidden_states = temp_block(
-                        hidden_states,
-                        None,  # attention_mask
-                        None,  # encoder_hidden_states
-                        None,  # encoder_attention_mask
-                        timestep_temp,
-                        cross_attention_kwargs,
-                        class_labels,
-                    )
-
-                    # (b t) f d -> (b f) t d
-                    hidden_states = hidden_states.view(
-                        input_batch_size, -1, hidden_states.shape[1], hidden_states.shape[2]
-                    )
-                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
-                    )
+                hidden_states = temp_block(
+                    input_batch_size,
+                    frame,
+                    use_image_num,
+                    hidden_states,
+                    timestep_temp,
+                    cross_attention_kwargs,
+                    class_labels,
+                    add_with_temp_pos_embed=i == 0,
+                    temp_pos_embed=self.temp_pos_embed,
+                )  # (b t) f d -> (b f) t d
 
         # if self.is_input_patches:
         if self.norm_type != "ada_norm_single":
@@ -1881,58 +1902,17 @@ class LatteT2V(ModelMixin, ConfigMixin):
             )
 
             if enable_temporal_attentions:
-                # b c f h w, f = 16 + 4
-                # (b f) t d -> (b t) f d
-                hidden_states = hidden_states.view(input_batch_size, frame + use_image_num, -1, hidden_states.shape[-1])
-                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                    -1, frame + use_image_num, hidden_states.shape[-1]
-                )
-
-                if use_image_num != 0 and self.training:
-                    hidden_states_video = hidden_states[:, :frame, ...]
-                    hidden_states_image = hidden_states[:, frame:, ...]
-                    if i == 0:
-                        hidden_states_video = hidden_states_video + self.temp_pos_embed
-
-                    hidden_states_video = temp_block(
-                        hidden_states_video,
-                        None,  # attention_mask
-                        None,  # encoder_hidden_states
-                        None,  # encoder_attention_mask
-                        timestep_temp,
-                        cross_attention_kwargs,
-                        class_labels,
-                    )
-
-                    hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
-                    # (b t) f d -> (b f) t d
-                    hidden_states = hidden_states.view(
-                        input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
-                    )
-                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
-                    )
-
-                else:
-                    if i == 0:
-                        hidden_states = hidden_states + self.temp_pos_embed
-
-                    hidden_states = temp_block(
-                        hidden_states,
-                        None,  # attention_mask
-                        None,  # encoder_hidden_states
-                        None,  # encoder_attention_mask
-                        timestep_temp,
-                        cross_attention_kwargs,
-                        class_labels,
-                    )
-                    # (b t) f d -> (b f) t d
-                    hidden_states = hidden_states.view(
-                        input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
-                    )
-                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
-                    )
+                hidden_states = temp_block(
+                    input_batch_size,
+                    frame,
+                    use_image_num,
+                    hidden_states,
+                    timestep_temp,
+                    cross_attention_kwargs,
+                    class_labels,
+                    add_with_temp_pos_embed=i == 0,
+                    temp_pos_embed=self.temp_pos_embed,
+                )  # (b t) f d -> (b f) t d
 
         # if self.is_input_patches:
         if self.norm_type != "ada_norm_single":
