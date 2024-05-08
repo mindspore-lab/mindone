@@ -184,6 +184,20 @@ def parse_args():
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
+        "--vae_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for vae. Default is `bf16`, which corresponds to ms.bfloat16",
+    )
+    parser.add_argument(
+        "--text_encoder_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
+    )
+    parser.add_argument(
         "--amp_level", type=str, default="O2", help="Set the amp level for the transformer model. Defaults to O2."
     )
     parser.add_argument(
@@ -267,7 +281,9 @@ if __name__ == "__main__":
         video_length = 1
         ext = "jpg"
     else:
-        ext = "gif" if not args.save_latents else "npy"  # save video as gif or save denoised latents as npy files.
+        ext = (
+            "gif" if not (args.save_latents or args.decode_latents) else "npy"
+        )  # save video as gif or save denoised latents as npy files.
 
     transformer_model = transformer_model.set_train(False)
     for param in transformer_model.get_parameters():  # freeze transformer_model
@@ -281,11 +297,11 @@ if __name__ == "__main__":
         # vae.vae.enable_tiling()
         # vae.vae.tile_overlap_factor = args.tile_overlap_factor
     vae.set_train(False)
-    # use amp level O2 for causal 3D VAE with bfloat16
-    vae = auto_mixed_precision(
-        vae, amp_level="O2", dtype=ms.bfloat16, custom_fp32_cells=[TimeDownsample2x, TimeUpsample2x]
-    )
-    logger.info("Use amp level O2 for causal 3D VAE with dtype=ms.bfloat16")
+    # use amp level O2 for causal 3D VAE with bfloat16 or float16
+    vae_dtype = get_precision(args.vae_precision)
+    custom_fp32_cells = [TimeDownsample2x, TimeUpsample2x] if vae_dtype == ms.bfloat16 else []
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
 
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
@@ -370,9 +386,10 @@ if __name__ == "__main__":
     )
     tokenizer = text_encoder.tokenizer
     # mixed precision
-    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=ms.bfloat16)
-    text_encoder.dtype = ms.bfloat16
-    logger.info("Use amp level O2 for text encoder T5 with dtype=ms.bfloat16")
+    text_encoder_dtype = get_precision(args.text_encoder_precision)
+    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
+    text_encoder.dtype = text_encoder_dtype
+    logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":
