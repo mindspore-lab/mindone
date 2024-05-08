@@ -118,7 +118,7 @@ def main(args):
             vae = auto_mixed_precision(vae,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.vae_dtype],
-                custom_fp32_cells=nn.GroupNorm,
+                custom_fp32_cells=[nn.GroupNorm],
                 )
     else:
         vae = None
