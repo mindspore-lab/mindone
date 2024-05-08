@@ -342,19 +342,8 @@ def parse_args():
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
-    parser.add_argument(
-        "--image_size",
-        type=int,
-        default=256,
-        nargs="+",
-        help="image size in [256, 512]",
-    )
-    parser.add_argument(
-        "--num_frames",
-        type=int,
-        default=16,
-        help="number of frames",
-    )
+    parser.add_argument("--image_size", type=int, default=256, nargs="+", help="image size in [256, 512]")
+    parser.add_argument("--num_frames", type=int, default=16, help="number of frames")
     parser.add_argument(
         "--num_samples",
         type=int,

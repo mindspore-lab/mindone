@@ -40,6 +40,10 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 ## 🔆 Features
 
 - 📍 **Open-Sora 1.0** with the following features
+    - ✅ Improved ST-DiT architecture includes rope positional encoding, qk norm, longer text length, etc.
+    - ✅ Support image and video conditioning and video editing, and thus support animating images, connecting videos, etc.
+
+- 📍 **Open-Sora 1.0** with the following features
     - ✅ Text-to-video generation in 256x256 or 512x512 resolution and up to 64 frames.
     - ✅ Three-stage training: i) 16x256x256 video pretraining, ii) 16x512x512 video fine-tuning, and iii) 64x512x512 videos
     - ✅ Optimized training recipes for MindSpore+Ascend framework (see `configs/opensora/train/xxx_ms.yaml`)
@@ -57,8 +61,8 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 
 ### TODO
 * [ ] Support OpenSora 1.1 **[WIP]**
+    - [x] Support image and video conditioning.
     - [ ] Support variable aspect ratios, resolutions, and durations.
-    - [x] Support image and video conditioning (training coming soon)
 * [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 
@@ -66,6 +70,7 @@ Your contributions are welcome.
 
 <details>
 <summary>View more</summary>
+
 * [ ] Evaluation pipeline.
 * [ ] Complete the data processing pipeline (including dense optical flow, aesthetics scores, text-image similarity, etc.).
 
@@ -192,7 +197,7 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 #### Image/Video-to-Video Generation
 
 ```shell
-python scripts/inference_i2v.py --config configs/opensora-v1-1/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`, and `reference_path`.
@@ -248,6 +253,10 @@ video,caption
 video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
+
+> [!IMPORTANT]
+> OpenSora v1.1 also requires the `length` field, which represents the number of frames,
+> in the CSV file (i.e. `video, length, caption`).
 
 ### Cache Text Embeddings
 
@@ -315,7 +324,37 @@ Finally, the training data should be like follows.
 
 ### Open-Sora 1.1 Training
 
-Coming soon
+Stand-alone training for Stage 1 of OpenSora v1.1:
+
+```shell
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
+    --csv_path /path/to/video_caption.csv \
+    --video_folder /path/to/video_folder \
+    --text_embed_folder /path/to/text_embed_folder \
+    --vae_latent_folder /path/to/video_embed_folder
+```
+
+`text_embed_folder` and `vae_latent_folder` are optional and used to speed up the training.
+You can find more in [T5 text embeddings](#cache-text-embeddings) and [VAE Video Embeddings](#cache-video-embedding-optional)
+
+For parallel training, use `msrun` and along with `--use_parallel=True`:
+
+```shell
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
+    python scripts/train.py --config configs/opensora-v1-1/train/train_stage1.yaml \
+    --csv_path /path/to/video_caption.csv \
+    --video_folder /path/to/video_folder \
+    --text_embed_folder /path/to/text_embed_folder \
+    --vae_latent_folder /path/to/video_embed_folder \
+    --use_parallel True
+```
+
 
 ### Open-Sora 1.0 Training
 

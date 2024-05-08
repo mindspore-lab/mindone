@@ -1,4 +1,5 @@
 import os
+import re
 
 import numpy as np
 from mindcv.models.layers import DropPath
@@ -292,7 +293,7 @@ class STDiT(nn.Cell):
         else:
             b.add_flags(output_no_recompute=True)
 
-    def construct(self, x, timestep, y, mask=None):
+    def construct(self, x, timestep, y, mask=None, **kwargs):
         """
         Args:
             x (ms.Tensor): latent representation of video; of shape [B, C, T, H, W]
@@ -467,14 +468,9 @@ class STDiT(nn.Cell):
             print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
             sd = ms.load_checkpoint(ckpt_path)
-            # filter 'network.' prefix
-            rm_prefix = ["network."]
-            all_pnames = list(sd.keys())
-            for pname in all_pnames:
-                for pre in rm_prefix:
-                    if pname.startswith(pre):
-                        new_pname = pname.replace(pre, "")
-                        sd[new_pname] = sd.pop(pname)
+
+            regex = re.compile(r"^network\.|\._backbone")
+            sd = {regex.sub("", k): v for k, v in sd.items()}
 
             # load conv3d weight from pretrained conv2d or dense layer
             key_3d = "x_embedder.proj.weight"

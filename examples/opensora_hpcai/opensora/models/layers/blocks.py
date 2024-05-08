@@ -139,6 +139,7 @@ class MultiHeadCrossAttention(nn.Cell):
         Return:
             (B, N, C)
         """
+        x_dtype = x.dtype
         B, N, C = x.shape
 
         # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
@@ -184,10 +185,7 @@ class MultiHeadCrossAttention(nn.Cell):
         x = ops.reshape(x, (B, N, -1))
 
         # 4. output projection
-        x = self.proj(x)
-        x = self.proj_drop(x)
-
-        return x
+        return self.proj_drop(self.proj(x)).to(x_dtype)
 
 
 class SelfAttention(nn.Cell):
@@ -748,11 +746,14 @@ class PositionEmbedding2D(nn.Cell):
         if base_size is not None:
             grid_h *= base_size / h
             grid_w *= base_size / w
-        grid_h, grid_w = ops.meshgrid(
-            grid_w,
-            grid_h,
-            indexing="ij",
-        )  # here w goes first
+
+        orig_dtype = grid_h.dtype
+        if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
+            grid_h = grid_h.astype(ms.float32)
+            grid_w = grid_w.astype(ms.float32)
+        grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
+        grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
+
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
         emb_h = self._get_sin_cos_emb(grid_h)
