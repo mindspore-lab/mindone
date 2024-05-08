@@ -14,7 +14,7 @@ export MS_DATASET_SINK_QUEUE=4
 export GLOG_v=2
 num_frames=64
 
-output_dir=outputs/stdit_RC-7_512x512x$num_frames
+output_dir=outputs/stdit_fastest_512x512x$num_frames
 
 msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
 	python scripts/train.py --config configs/opensora/train/stdit_512x512x64_ms.yaml \
@@ -26,7 +26,6 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
     --vae_amp_level=O2 \
     --optim=adamw \
     --vae_dtype=fp16 \
-    --vae_param_dtype=fp32 \
     --dataset_sink_mode=True \
     --num_recompute_blocks=21 \
     --num_parallel_workers=16 \

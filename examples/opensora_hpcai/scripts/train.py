@@ -27,6 +27,7 @@ from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
+from opensora.utils.amp import auto_mixed_precision
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
@@ -34,7 +35,6 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -214,7 +214,11 @@ def main(args):
                 if 'norm' not in param.name: 
                     param.set_dtype(dtype_map[args.vae_param_dtype]) 
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, amp_level=args.vae_amp_level, dtype=dtype_map[args.vae_dtype])
+            vae = auto_mixed_precision(vae, 
+                amp_level=args.vae_amp_level,
+                dtype=dtype_map[args.vae_dtype],
+                custom_fp32_cells=nn.GroupNorm if args.vae_keep_gn_fp32 else [],
+                )
     else:
         vae = None
 

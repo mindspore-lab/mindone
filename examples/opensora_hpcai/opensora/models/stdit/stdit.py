@@ -288,7 +288,6 @@ class STDiT(nn.Cell):
                 # self.recompute(block.cross_attn)
                 # self.recompute(block.attn_temp)
 
-
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute()

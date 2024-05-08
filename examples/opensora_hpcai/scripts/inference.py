@@ -24,8 +24,8 @@ from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
+from opensora.utils.amp import auto_mixed_precision
 
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
@@ -115,7 +115,11 @@ def main(args):
         )
         vae = vae.set_train(False)
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+            vae = auto_mixed_precision(vae,
+                amp_level=args.amp_level,
+                dtype=dtype_map[args.vae_dtype],
+                custom_fp32_cells=nn.GroupNorm,
+                )
     else:
         vae = None
 
