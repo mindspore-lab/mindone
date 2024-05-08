@@ -338,7 +338,7 @@ if __name__ == "__main__":
 
     if args.decode_latents:
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
-            file_paths = data["path"]
+            file_paths = data["file_path"]
             loaded_latents = []
             for i_sample in range(args.batch_size):
                 save_fp = os.path.join(save_dir, file_paths[i_sample])
@@ -346,7 +346,9 @@ if __name__ == "__main__":
                     save_fp
                 ), f"{save_fp} does not exist! Please check the npy files under {save_dir} or check if you run `--save_latents` ahead."
                 loaded_latents.append(np.load(save_fp))
-            loaded_latents = np.stack(loaded_latents)
+            loaded_latents = (
+                np.stack(loaded_latents) if loaded_latents[0].ndim == 4 else np.concatenate(loaded_latents, axis=0)
+            )
             decode_data = vae.decode(ms.Tensor(loaded_latents))
             decode_data = (
                 ms.ops.clip_by_value((decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
