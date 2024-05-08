@@ -23,6 +23,7 @@ import random
 import shutil
 from pathlib import Path
 
+import datasets
 import numpy as np
 import yaml
 from datasets import load_dataset
@@ -392,9 +393,6 @@ def parse_args():
     assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
     assert args.allow_tf32 is False, error_template("TF32 Data Type", "allow_tf32")
     assert args.use_8bit_adam is False, error_template("AdamW8bit", "use_8bit_adam")
-    assert args.enable_xformers_memory_efficient_attention is False, error_template(
-        "Memory Efficient Attention from 'xformers'", "enable_xformers_memory_efficient_attention"
-    )
     if args.push_to_hub is True:
         raise ValueError(
             "You cannot use --push_to_hub due to a security risk of uploading your data to huggingface-hub. "
@@ -418,6 +416,7 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
+    datasets.utils.logging.get_logger().propagate = False
 
     # If passed along, set the training seed now.
     if args.seed is not None:
@@ -471,7 +470,10 @@ def main():
     text_encoder.to(dtype=weight_dtype)
     vae.to(dtype=weight_dtype)
 
-    # TODO: support EMA, xformers_memory_efficient_attention, TF32, AdamW8bit
+    # TODO: support EMA, TF32, AdamW8bit
+
+    if args.enable_xformers_memory_efficient_attention:
+        unet.enable_xformers_memory_efficient_attention()
 
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
@@ -740,12 +742,13 @@ def main():
         disable=not is_master(args),
     )
 
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.set_train(True)
         for step, batch in (
             ((_, None) for _ in range(len(train_dataloader)))  # dummy iterator
             if args.enable_mindspore_data_sink
-            else enumerate(train_dataloader.create_tuple_iterator())
+            else enumerate(train_dataloader_iter)
         ):
             if args.enable_mindspore_data_sink:
                 loss = sink_process()

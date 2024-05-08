@@ -24,6 +24,7 @@ import random
 import shutil
 from pathlib import Path
 
+import datasets
 import numpy as np
 import yaml
 from datasets import disable_caching, load_dataset
@@ -457,6 +458,7 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
+    datasets.utils.logging.get_logger().propagate = False
 
     # If passed along, set the training seed now.
     if args.seed is not None:
@@ -536,12 +538,8 @@ def main():
 
     # Move unet, vae and text_encoder to device and cast to weight_dtype
     # The VAE is in float32 to avoid NaN losses.
+    vae.to(dtype=ms.float32)
     unet.to(dtype=weight_dtype)
-
-    if args.pretrained_vae_model_name_or_path is None:
-        vae.to(dtype=ms.float32)
-    else:
-        vae.to(dtype=weight_dtype)
     text_encoder_one.to(dtype=weight_dtype)
     text_encoder_two.to(dtype=weight_dtype)
 
@@ -973,6 +971,7 @@ def main():
         disable=not is_master(args),
     )
 
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.set_train(True)
         if args.train_text_encoder:
@@ -981,7 +980,7 @@ def main():
         for step, batch in (
             ((_, None) for _ in range(len(train_dataloader)))  # dummy iterator
             if args.enable_mindspore_data_sink
-            else enumerate(train_dataloader.create_tuple_iterator())
+            else enumerate(train_dataloader_iter)
         ):
             if args.enable_mindspore_data_sink:
                 loss = sink_process()
@@ -1123,15 +1122,9 @@ class TrainStep(nn.Cell):
 
     def forward(self, pixel_values, input_ids_one, input_ids_two, add_time_ids):
         # Convert images to latent space
-        if self.args.pretrained_vae_model_name_or_path is None:
-            pixel_values = pixel_values
-        else:
-            pixel_values = pixel_values.to(self.weight_dtype)
-
         model_input = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values)[0])
         model_input = model_input * self.vae_scaling_factor
-        if self.args.pretrained_vae_model_name_or_path is None:
-            model_input = model_input.to(self.weight_dtype)
+        model_input = model_input.to(self.weight_dtype)
 
         # Sample noise that we'll add to the latents
         noise = ops.randn_like(model_input, dtype=model_input.dtype)

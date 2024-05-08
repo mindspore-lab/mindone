@@ -24,6 +24,7 @@ import random
 import shutil
 from pathlib import Path
 
+import datasets
 import numpy as np
 import yaml
 from datasets import disable_caching, load_dataset
@@ -411,6 +412,7 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
+    datasets.utils.logging.get_logger().propagate = False
 
     # If passed along, set the training seed now.
     if args.seed is not None:
@@ -764,12 +766,13 @@ def main():
         disable=not is_master(args),
     )
 
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.set_train(True)
         for step, batch in (
             ((_, None) for _ in range(len(train_dataloader)))  # dummy iterator
             if args.enable_mindspore_data_sink
-            else enumerate(train_dataloader.create_tuple_iterator())
+            else enumerate(train_dataloader_iter)
         ):
             if args.enable_mindspore_data_sink:
                 loss = sink_process()
