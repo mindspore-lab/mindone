@@ -28,7 +28,7 @@ from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
@@ -68,12 +68,11 @@ def init_env(
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
-
+    
     if distributed:
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
             print("use optim parallel")
@@ -374,7 +373,7 @@ def main(args):
         clip_norm=args.max_grad_norm,
         ema=ema,
     )
-
+    
     model = Model(net_with_grads)
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
@@ -399,7 +398,7 @@ def main(args):
         )
         callback.append(save_cb)
         if args.profile:
-            callback.append(ProfilerCallback())
+            callback.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
 
     # 5. log and save config
     if rank_id == 0:

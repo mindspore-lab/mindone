@@ -287,3 +287,25 @@ class ProfilerCallback(ms.Callback):
             _logger.info(f"finish analyzing profiler in step range [{self.start_step}, {self.end_step}]")
             if self.exit_after_analyze:
                 run_context.request_stop()
+
+class ProfilerCallbackEpoch(ms.Callback):
+    def __init__(self, start_epoch, stop_epoch, output_dir="./profiler_data"):
+        super().__init__()
+        self.start_epoch = start_epoch
+        self.stop_epoch = stop_epoch
+        self.profiler = ms.Profiler(start_profile=False, output_path=output_dir)
+
+    def on_train_epoch_begin(self, run_context):
+        cb_params = run_context.original_args()
+        epoch_num = cb_params.cur_epoch_num
+        if epoch_num == self.start_epoch:
+            self.profiler.start()
+
+    def on_train_epoch_end(self, run_context):
+        cb_params = run_context.original_args()
+        epoch_num = cb_params.cur_epoch_num
+        if epoch_num == self.stop_epoch:
+            self.profiler.stop()
+            self.profiler.analyse()
+
+
