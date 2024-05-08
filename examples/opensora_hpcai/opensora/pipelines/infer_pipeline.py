@@ -56,7 +56,7 @@ class InferPipeline(ABC):
     def vae_encode(self, x):
         image_latents = self.vae.encode(x)
         image_latents = image_latents * self.scale_factor
-        return image_latents.astype(ms.float16)
+        return image_latents
 
     def vae_decode(self, x):
         """

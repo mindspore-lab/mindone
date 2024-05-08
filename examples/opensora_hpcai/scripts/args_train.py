@@ -1,9 +1,17 @@
 import argparse
 import logging
 import os
+import sys
 
 import yaml
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
+
+from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger()
 
@@ -212,13 +220,21 @@ def parse_args():
     abs_path = os.path.abspath(os.path.join(__dir__, ".."))
     default_args = parser.parse_args()
     if default_args.config:
-        default_args.config = os.path.join(abs_path, default_args.config)
+        default_args.config = to_abspath(abs_path, default_args.config)
         with open(default_args.config, "r") as f:
             cfg = yaml.safe_load(f)
             _check_cfgs_in_parser(cfg, parser)
             parser.set_defaults(**cfg)
     args = parser.parse_args()
-
+    # convert to absolute path, necessary for modelarts
+    args.csv_path = to_abspath(abs_path, args.csv_path)
+    args.video_folder = to_abspath(abs_path, args.video_folder)
+    args.text_embed_folder = to_abspath(abs_path, args.text_embed_folder)
+    args.vae_latent_folder = to_abspath(abs_path, args.vae_latent_folder)
+    args.output_path = to_abspath(abs_path, args.output_path)
+    args.pretrained_model_path = to_abspath(abs_path, args.pretrained_model_path)
+    args.t5_model_dir = to_abspath(abs_path, args.t5_model_dir)
+    args.vae_checkpoint = to_abspath(abs_path, args.vae_checkpoint)
     print(args)
 
     return args
