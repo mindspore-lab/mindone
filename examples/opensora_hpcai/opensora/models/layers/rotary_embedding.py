@@ -125,7 +125,7 @@ class RotaryEmbedding(nn.Cell):
             assert freq_seq_len >= seq_len
             seq_len = freq_seq_len
 
-        freqs = self(self.get_seq_pos(seq_len, dtype=dtype, offset=offset), seq_len=seq_len, offset=offset)
+        freqs = self.construct(self.get_seq_pos(seq_len, dtype=dtype, offset=offset), seq_len=seq_len, offset=offset)
 
         if seq_dim == -3:
             freqs = freqs.unsqueeze(1)  # n d -> n 1 d

@@ -131,7 +131,8 @@ def main(args):
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
-        ddim_sampling=False,  # FIXME
+        guidance_channels=args.guidance_channels,
+        ddim_sampling=False,  # TODO: add ddim support
         condition="text",
         micro_batch_size=args.vae_micro_batch_size,
     )
@@ -239,7 +240,7 @@ def main(args):
             global_idx = i + j
             prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
             save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
-            save_videos(videos[j], save_fp, fps=args.fps)
+            save_videos(videos[j], save_fp, fps=args.fps / args.frame_interval)
             logger.info(f"save to {save_fp}")
 
 

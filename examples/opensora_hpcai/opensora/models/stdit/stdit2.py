@@ -114,6 +114,8 @@ class STDiT2Block(nn.Cell):
             3, axis=1
         )
 
+        shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (None,) * 6
+        shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = (None,) * 3
         if frames_mask is not None:
             shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = (
                 self.scale_shift_table[None] + t0.reshape(B, 6, -1)

@@ -198,7 +198,8 @@ def get_transforms_video(name="center", image_size=(256, 256)):
 
         video = video.astype(np.float32) / 255.0
 
-        return (video - np.array([0.5, 0.5, 0.5])) / np.array([0.5, 0.5, 0.5])  # Normalize
+        # Normalize
+        return (video - np.array([0.5, 0.5, 0.5], dtype=np.float32)) / np.array([0.5, 0.5, 0.5], dtype=np.float32)
 
     return transform_video
 
@@ -215,7 +216,8 @@ def get_transforms_image(name="center", image_size=(256, 256)):
 
         image = np.array(image, dtype=np.float32) / 255.0
 
-        return (image - np.array([0.5, 0.5, 0.5])) / np.array([0.5, 0.5, 0.5])  # Normalize
+        # Normalize
+        return (image - np.array([0.5, 0.5, 0.5], dtype=np.float32)) / np.array([0.5, 0.5, 0.5], dtype=np.float32)
 
     return transform
 

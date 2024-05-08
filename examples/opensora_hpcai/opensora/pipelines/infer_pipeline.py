@@ -28,6 +28,7 @@ class InferPipeline:
         condition: str = None,
         scale_factor=1.0,
         guidance_rescale=1.0,
+        guidance_channels: Optional[int] = None,
         num_inference_steps=50,
         ddim_sampling=True,
         micro_batch_size=None,
@@ -40,6 +41,7 @@ class InferPipeline:
         self.micro_batch_size = micro_batch_size
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
+        self.guidance_channels = guidance_channels
         if self.guidance_rescale > 1.0:
             self.use_cfg = True
         else:
@@ -161,7 +163,7 @@ class InferPipeline:
             model_kwargs.update(additional_kwargs)
 
         if self.use_cfg:
-            model_kwargs["cfg_scale"] = self.guidance_rescale
+            model_kwargs.update({"cfg_scale": self.guidance_rescale, "cfg_channel": self.guidance_channels})
             latents = self.sampling_func(
                 self.model.construct_with_cfg,
                 z.shape,

@@ -1,6 +1,6 @@
 import math
 import numbers
-from typing import Optional, Tuple, Type
+from typing import Optional, Tuple, Type, Union
 
 import numpy as np
 
@@ -741,7 +741,7 @@ class PositionEmbedding2D(nn.Cell):
         self,
         h: int,
         w: int,
-        scale: float = 1.0,
+        scale: Union[Tensor, float] = 1.0,
         base_size: Optional[int] = None,
     ) -> Tensor:
         grid_h = ops.arange(h) / scale

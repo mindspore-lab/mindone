@@ -14,6 +14,7 @@ batch_size: 1
 # sampling
 sampling_steps: 100
 guidance_scale: 7.0
+guidance_channels: 3
 seed: 42
 ddim_sampling: False
 

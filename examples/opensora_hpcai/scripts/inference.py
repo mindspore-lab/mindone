@@ -40,6 +40,7 @@ def init_env(mode, device_target, enable_dvm=False, debug: bool = False):
     ms.set_context(
         mode=mode,
         device_target=device_target,
+        gpu_config={"matmul_allow_tf32": True},
         pynative_synchronize=debug,
     )
     if enable_dvm:
@@ -303,6 +304,11 @@ def parse_args():
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
+    parser.add_argument(
+        "--guidance_channels",
+        type=int,
+        help="How many channels to use for classifier-free diffusion. If None, use half of the latent channels",
+    )
     parser.add_argument(
         "--frame_interval",
         type=int,
