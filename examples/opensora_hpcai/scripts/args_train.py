@@ -144,7 +144,7 @@ def parse_train_args(parser):
         choices=["bf16", "fp16", "fp32"],
         help="what compuatation data type to use for vae. Default is `fp32`, which corresponds to ms.float32",
     )
-    parser.add_argument("--global_bf16", default=False, type=str2bool, help="Experimental. If True, dtype and vae_dtype will be override, operators will be computered in CANN bf16 operators")
+    parser.add_argument("--global_bf16", default=False, type=str2bool, help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN")
     parser.add_argument(
         "--vae_param_dtype",
         default="fp32",
