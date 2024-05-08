@@ -463,7 +463,6 @@ if __name__ == "__main__":
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
-        file_path = os.path.join(save_dir, data["path"][0])
         videos = pipeline(
             prompt,
             video_length=video_length,
