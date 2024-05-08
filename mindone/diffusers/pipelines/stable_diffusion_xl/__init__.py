@@ -10,10 +10,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
-    from .pipeline_stable_diffusion_xl import (
-        StableDiffusionXLPipeline,
-        StableDiffusionXLPipelineOutput,
-    )
+    from .pipeline_stable_diffusion_xl import StableDiffusionXLPipeline, StableDiffusionXLPipelineOutput
     from .pipeline_stable_diffusion_xl_img2img import StableDiffusionXLImg2ImgPipeline
     from .pipeline_stable_diffusion_xl_inpaint import StableDiffusionXLInpaintPipeline
 

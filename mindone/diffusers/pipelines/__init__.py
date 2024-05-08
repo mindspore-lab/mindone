@@ -26,7 +26,11 @@ if TYPE_CHECKING:
     from .ddpm import DDPMPipeline
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput
     from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionPipeline
-    from .stable_diffusion_xl import StableDiffusionXLImg2ImgPipeline, StableDiffusionXLPipeline, StableDiffusionXLInpaintPipeline
+    from .stable_diffusion_xl import (
+        StableDiffusionXLImg2ImgPipeline,
+        StableDiffusionXLPipeline,
+        StableDiffusionXLInpaintPipeline,
+    )
 else:
     import sys
 

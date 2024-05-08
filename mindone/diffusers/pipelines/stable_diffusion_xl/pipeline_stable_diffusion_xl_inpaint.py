@@ -17,10 +17,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
-
-import mindspore as ms
-from mindspore import ops
-
 from transformers import (
     CLIPImageProcessor,
     CLIPTextModel,
@@ -29,10 +25,11 @@ from transformers import (
     CLIPVisionModelWithProjection,
 )
 
+import mindspore as ms
+from mindspore import ops
+
 from ...image_processor import PipelineImageInput, VaeImageProcessor
-
 from ...models import AutoencoderKL, UNet2DConditionModel
-
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging
 from ...utils.mindspore_utils import randn_tensor
@@ -95,7 +92,7 @@ def mask_pil_to_ms(mask, height, width):
         mask = mask.astype(np.float32) / 255.0
     elif isinstance(mask, list) and isinstance(mask[0], np.ndarray):
         mask = np.concatenate([m[None, None, :] for m in mask], axis=0)
-    
+
     mask = ms.Tensor(mask)
     return mask
 
@@ -358,7 +355,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
         feature_extractor: CLIPImageProcessor = None,
         requires_aesthetics_score: bool = False,
         force_zeros_for_empty_prompt: bool = True,
-        #add_watermarker: Optional[bool] = None,
+        # add_watermarker: Optional[bool] = None,
     ):
         super().__init__()
 
@@ -381,7 +378,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             vae_scale_factor=self.vae_scale_factor, do_normalize=False, do_binarize=True, do_convert_grayscale=True
         )
 
-        #add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+        # add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
 
         # if add_watermarker:
         #     self.watermark = StableDiffusionXLWatermarker()
@@ -412,7 +409,6 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             uncond_image_embeds = ops.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
-
 
     # Copied from diffusers.pipelines.stable_diffusion_xl.pipeline_stable_diffusion_xl.StableDiffusionXLPipeline.encode_prompt
     def encode_prompt(
@@ -559,7 +555,6 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
 
             negative_prompt_embeds_list = []
             for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders):
-
                 max_length = prompt_embeds.shape[1]
                 uncond_input = tokenizer(
                     negative_prompt,
@@ -823,9 +818,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
         # resize the mask to latents shape as we concatenate the mask to the latents
         # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
         # and half precision
-        mask = ops.interpolate(
-            mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
-        )
+        mask = ops.interpolate(mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor))
 
         # duplicate mask and masked_image_latents for each generation per prompt, using mps friendly method
         if mask.shape[0] < batch_size:
@@ -855,7 +848,9 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
                         f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                         " Make sure the number of images that you pass is divisible by the total requested batch size."
                     )
-                masked_image_latents = ops.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
+                masked_image_latents = ops.tile(
+                    masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
+                )
 
             masked_image_latents = (
                 ops.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
@@ -1562,9 +1557,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
 
                     if i < len(timesteps) - 1:
                         noise_timestep = timesteps[i + 1:i + 2]
-                        init_latents_proper = self.scheduler.add_noise(
-                            init_latents_proper, noise, noise_timestep
-                        )
+                        init_latents_proper = self.scheduler.add_noise(init_latents_proper, noise, noise_timestep)
 
                     latents = (1 - init_mask) * init_latents_proper + init_mask * latents
 
@@ -1606,12 +1599,8 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
             has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
             if has_latents_mean and has_latents_std:
-                latents_mean = (
-                    ms.Tensor(self.vae.config.latents_mean).view(1, 4, 1, 1)
-                )
-                latents_std = (
-                    ms.Tensor(self.vae.config.latents_std).view(1, 4, 1, 1)
-                )
+                latents_mean = ms.Tensor(self.vae.config.latents_mean).view(1, 4, 1, 1)
+                latents_std = ms.Tensor(self.vae.config.latents_std).view(1, 4, 1, 1)
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor
