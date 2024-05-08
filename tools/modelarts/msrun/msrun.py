@@ -4,7 +4,7 @@ import sys
 
 """
 On modelarts, usage example:
-python /home/ma-user/modelarts/user-job-dir/mindone/mindone/utils/modelarts/msrun.py mindone/examples/opensora_hpcai/scripts train.py
+python /home/ma-user/modelarts/user-job-dir/mindone/tools/modelarts/msrun/msrun.py mindone/examples/opensora_hpcai/scripts train.py
 """
 
 
@@ -33,10 +33,9 @@ def run():
     print("job start with ")
 
     # install packages before launching training on modelarts
-    # return_code = os.system(
-    #     f"bash /home/ma-user/modelarts/user-job-dir/{work_dir}/ma-pre-start.sh")
+    # os.system(f"bash /home/ma-user/modelarts/user-job-dir/tools/modelarts/msrun/ma-pre-start.sh")
 
-    command = f"bash /home/ma-user/modelarts/user-job-dir/mindone/mindone/utils/modelarts/run_train_modelarts.sh \
+    command = f"bash /home/ma-user/modelarts/user-job-dir/mindone/tools/modelarts/msrun/run_train_modelarts.sh \
         {master_addr} {node_rank} {work_dir} {script_name} {args}"
     print("Running command:", command)
     os.system(command)
