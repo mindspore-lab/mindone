@@ -363,8 +363,8 @@ if __name__ == "__main__":
     csv_file = {"path": [], "cap": []}
     for i in range(n):
         for i_video in range(args.num_videos_per_prompt):
-            ext = ".npy" if args.save_latents else ".gif"
-            csv_file["path"].append(f"{i_video}-{args.captions[i].strip()[:100]}.{ext}")
+            ext = ".npy" if (args.save_latents or args.decode_latents) else ".gif"
+            csv_file["path"].append(f"{i_video}-{args.captions[i].strip()[:100]}{ext}")
             csv_file["cap"].append(args.captions[i])
     temp_dataset_csv = os.path.join(save_dir, "dataset.csv")
     pd.DataFrame.from_dict(csv_file).to_csv(temp_dataset_csv, index=False, columns=csv_file.keys())
@@ -392,15 +392,15 @@ if __name__ == "__main__":
 
     if args.decode_latents:
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
-            file_paths = data["path"]
+            file_paths = data["file_path"]
             loaded_latents = []
             for i_sample in range(args.batch_size):
-                save_fp = os.path.join(args.input_latent_dir, file_paths[i_sample])
+                save_fp = os.path.join(args.input_latents_dir, file_paths[i_sample])
                 assert os.path.exists(
                     save_fp
                 ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
                 loaded_latents.append(np.load(save_fp))
-            loaded_latents = np.stack(loaded_latents)
+            loaded_latents = np.stack(loaded_latents) if loaded_latents[0].ndim == 4 else np.concatenate(loaded_latents)
             decode_data = vae.decode(ms.Tensor(loaded_latents) / args.sd_scale_factor)
             decode_data = ms.ops.clip_by_value(
                 (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
