@@ -67,9 +67,8 @@ def main(args):
     kwarg = {}
     vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ckpt, **kwarg)
     if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.enable_tiling()
+        vae.vae.tile_overlap_factor = args.tile_overlap_factor
 
     vae.set_train(False)
     for param in vae.get_parameters():
