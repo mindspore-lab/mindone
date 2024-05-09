@@ -332,18 +332,16 @@ if __name__ == "__main__":
             loaded_latents = (
                 np.stack(loaded_latents) if loaded_latents[0].ndim == 4 else np.concatenate(loaded_latents, axis=0)
             )
-            decode_data = vae.decode(ms.Tensor(loaded_latents))
             decode_data = (
-                ms.ops.clip_by_value((decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-                .to(ms.float32)
-                .asnumpy()
-            )
+                vae.decode(ms.Tensor(loaded_latents)).permute(0, 1, 3, 4, 2).to(ms.float32)
+            )  # (b t c h w) -> (b t h w c)
+            decode_data = ms.ops.clip_by_value(
+                (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
+            ).asnumpy()
             for i_sample in range(args.batch_size):
                 save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", ".gif")
-                save_video_data = decode_data[i_sample : i_sample + 1].transpose(
-                    0, 1, 3, 4, 2
-                )  # (b t c h w) -> (b t h w c)
-                save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
+                save_video_data = decode_data[i_sample : i_sample + 1]
+                save_videos(save_video_data, save_fp, loop=0, fps=args.fps)  # (b t h w c)
         sys.exit()
 
     # 4. latte model initiate and weight loading

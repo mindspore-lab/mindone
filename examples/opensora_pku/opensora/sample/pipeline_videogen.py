@@ -742,7 +742,7 @@ class VideoGenPipeline(DiffusionPipeline):
 
     def decode_latents_per_sample(self, latents):
         # video = self.vae.decode(latents)
-        video = self.vae.decode(latents)
+        video = self.vae.decode(latents).to(ms.float32)
         # video = rearrange(video, 'b c t h w -> b t c h w').contiguous()
         # video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2)
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
@@ -750,7 +750,7 @@ class VideoGenPipeline(DiffusionPipeline):
         return video  # b t h w c
 
     def decode_latents_per_sample_in_chunks(self, latents):
-        video = self.process_in_chunks(latents, 7, 2)
+        video = self.process_in_chunks(latents, 7, 2).to(ms.float32)
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(
             0, 2, 3, 4, 1
         )  # b c t h w -> b t h w c
