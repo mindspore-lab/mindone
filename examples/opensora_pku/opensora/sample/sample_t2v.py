@@ -29,7 +29,7 @@ from opensora.models.text_encoder.t5 import T5Embedder
 from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from pipeline_videogen import VideoGenPipeline
 
-from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
+from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -135,7 +135,7 @@ def parse_args():
 
     parser.add_argument("--guidance_scale", type=float, default=7.5, help="the scale for classifier-free guidance")
 
-    parser.add_argument("--sample_method", type=str, default="DDPM")
+    parser.add_argument("--sample_method", type=str, default="PNDM")
     parser.add_argument("--num_sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument(
@@ -390,6 +390,10 @@ if __name__ == "__main__":
         scheduler = DDIMScheduler()
     elif args.sample_method == "DDPM":
         scheduler = DDPMScheduler()
+    elif args.sample_method == "PNDM":
+        scheduler = PNDMScheduler()
+    elif args.sample_method == "EulerDiscrete":
+        scheduler = EulerDiscreteScheduler()
     else:
         raise ValueError(f"Not supported sampling method {args.sample_method}")
 
