@@ -15,19 +15,20 @@ frame_stride: 2
 num_parallel_workers: 16
 max_rowsize: 96
 
-# precision
-dtype: "fp16"
+# mixed precision
+vae_dtype: "fp16"
+global_bf16: True  # stidit
 init_loss_scale: 65536
 
 # training hyper-params
-scheduler: "cosine_decay"
-start_learning_rate: 1.e-4
+scheduler: "constant"
+start_learning_rate: 2.e-5
 end_learning_rate: 2.e-5
-warmup_steps: 500   # TODO: ablate
+warmup_steps: 0
 
 batch_size: 1
 clip_grad: True
-max_grad_norm: 5.0
+max_grad_norm: 1.0
 use_ema: False
 
 optim: "adamw_re"
@@ -35,4 +36,4 @@ optim_eps: 1.e-8
 weight_decay: 0.
 
 epochs: 20000
-ckpt_save_interval: 100
+ckpt_save_interval: 50
