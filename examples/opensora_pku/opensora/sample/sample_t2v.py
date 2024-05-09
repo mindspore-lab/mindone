@@ -256,9 +256,8 @@ if __name__ == "__main__":
     logger.info("vae init")
     vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
     if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.enable_tiling()
+        vae.vae.tile_overlap_factor = args.tile_overlap_factor
     # use amp level O2 for causal 3D VAE with bfloat16 or float16
     vae_dtype = get_precision(args.vae_precision)
     custom_fp32_cells = [TimeDownsample2x, TimeUpsample2x] if vae_dtype == ms.bfloat16 else []

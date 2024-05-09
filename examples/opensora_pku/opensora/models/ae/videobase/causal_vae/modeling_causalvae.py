@@ -62,6 +62,13 @@ class CausalVAEModel(nn.Cell):
 
         # self.encoder.recompute()
         # self.decoder.recompute()
+        self.tile_sample_min_size = 256
+        self.tile_sample_min_size_t = 65
+        hidden_size_mult = ddconfig["ch_mult"]
+        self.tile_latent_min_size = int(self.tile_sample_min_size / (2 ** (len(hidden_size_mult) - 1)))
+        # self.tile_latent_min_size_t = int((self.tile_sample_min_size_t-1) / (2 ** self.time_compress)) + 1
+        self.tile_overlap_factor = 0.25
+        self.use_tiling = False
 
     def init_from_vae2d(self, path):
         # default: tail init
@@ -151,15 +158,96 @@ class CausalVAEModel(nn.Cell):
         return z
 
     def encode(self, x):
-        # embedding, get latent representation z
-        posterior_mean, posterior_logvar = self._encode(x)
+        if self.use_tiling and (x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size):
+            posterior_mean, posterior_logvar = self.tiled_encode2d(x)
+        else:
+            # embedding, get latent representation z
+            posterior_mean, posterior_logvar = self._encode(x)
         z = self.sample(posterior_mean, posterior_logvar)
 
         return z
 
+    def tiled_encode2d(self, x):
+        overlap_size = int(self.tile_sample_min_size * (1 - self.tile_overlap_factor))
+        blend_extent = int(self.tile_latent_min_size * self.tile_overlap_factor)
+        row_limit = self.tile_latent_min_size - blend_extent
+
+        # Split the image into 512x512 tiles and encode them separately.
+        rows = []
+        for i in range(0, x.shape[3], overlap_size):
+            row = []
+            for j in range(0, x.shape[4], overlap_size):
+                tile = x[
+                    :,
+                    :,
+                    :,
+                    i : i + self.tile_sample_min_size,
+                    j : j + self.tile_sample_min_size,
+                ]
+                tile = self.encoder(tile)
+                tile = self.quant_conv(tile)
+                row.append(tile)
+            rows.append(row)
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                # blend the above tile and the left tile
+                # to the current tile and add the current tile to the result row
+                if i > 0:
+                    tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
+                if j > 0:
+                    tile = self.blend_h(row[j - 1], tile, blend_extent)
+                result_row.append(tile[:, :, :, :row_limit, :row_limit])
+            result_rows.append(ops.cat(result_row, axis=4))
+
+        moments = ops.cat(result_rows, axis=3)
+        mean, logvar = self.split(moments)
+        return mean, logvar
+
     def decode(self, z):
+        if self.use_tiling and (z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size):
+            return self.tiled_decode2d(z)
         z = self.post_quant_conv(z)
         dec = self.decoder(z)
+        return dec
+
+    def tiled_decode2d(self, z):
+        overlap_size = int(self.tile_latent_min_size * (1 - self.tile_overlap_factor))
+        blend_extent = int(self.tile_sample_min_size * self.tile_overlap_factor)
+        row_limit = self.tile_sample_min_size - blend_extent
+
+        # Split z into overlapping 64x64 tiles and decode them separately.
+        # The tiles have an overlap to avoid seams between tiles.
+        rows = []
+        for i in range(0, z.shape[3], overlap_size):
+            row = []
+            for j in range(0, z.shape[4], overlap_size):
+                tile = z[
+                    :,
+                    :,
+                    :,
+                    i : i + self.tile_latent_min_size,
+                    j : j + self.tile_latent_min_size,
+                ]
+                tile = self.post_quant_conv(tile)
+                decoded = self.decoder(tile)
+                row.append(decoded)
+            rows.append(row)
+        result_rows = []
+        for i, row in enumerate(rows):
+            result_row = []
+            for j, tile in enumerate(row):
+                # blend the above tile and the left tile
+                # to the current tile and add the current tile to the result row
+                if i > 0:
+                    tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
+                if j > 0:
+                    tile = self.blend_h(row[j - 1], tile, blend_extent)
+                result_row.append(tile[:, :, :, :row_limit, :row_limit])
+            result_rows.append(ops.cat(result_row, axis=4))
+
+        dec = ops.cat(result_rows, axis=3)
         return dec
 
     def construct(self, input):
@@ -170,6 +258,28 @@ class CausalVAEModel(nn.Cell):
         recons = self.decode(z)
 
         return recons, posterior_mean, posterior_logvar
+
+    def enable_tiling(self, use_tiling: bool = True):
+        self.use_tiling = use_tiling
+
+    def disable_tiling(self):
+        self.enable_tiling(False)
+
+    def blend_v(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
+        blend_extent = min(a.shape[3], b.shape[3], blend_extent)
+        for y in range(blend_extent):
+            b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (
+                y / blend_extent
+            )
+        return b
+
+    def blend_h(self, a: ms.Tensor, b: ms.Tensor, blend_extent: int) -> ms.Tensor:
+        blend_extent = min(a.shape[4], b.shape[4], blend_extent)
+        for x in range(blend_extent):
+            b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (
+                x / blend_extent
+            )
+        return b
 
 
 class Encoder(nn.Cell):

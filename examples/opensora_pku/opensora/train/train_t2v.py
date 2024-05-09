@@ -79,9 +79,8 @@ def main(args):
     logger.info("vae init")
     vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
     if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.enable_tiling()
+        vae.vae.tile_overlap_factor = args.tile_overlap_factor
     vae.set_train(False)
 
     vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
