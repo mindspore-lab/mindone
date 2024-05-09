@@ -190,7 +190,7 @@ def main(args):
             0, 2, 3, 4, 1
         )  # (b c t h w) -> (b t h w c)
         save_video_data = np.concatenate([original_rgb, save_video_data], axis=3) if args.grid else save_video_data
-        save_videos(save_video_data, save_fp, loop=0)
+        save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
     if args.grid:
         logger.info(f"Save original vs. reconstructed data to {save_fp}")
     else:
