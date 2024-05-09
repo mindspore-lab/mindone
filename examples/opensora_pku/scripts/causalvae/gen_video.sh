@@ -11,4 +11,5 @@ python examples/rec_video_vae.py \
     --resolution 512 \
     --crop_size 512 \
     --num_workers 8 \
-    --ckpt LanguageBind/Open-Sora-Plan-v1.0.0/vae
+    --ckpt LanguageBind/Open-Sora-Plan-v1.0.0/vae \
+    --enable_tiling
