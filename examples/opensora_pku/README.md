@@ -170,11 +170,13 @@ You can also run video reconstruction given an input video folder. See `scripts/
 
 Some reconstruction results are listed below (left: source video clip, right: reconstructed).
 
-![mixkit-example-00](https://github.com/wtomin/mindone-assets/raw/main/opensora_pku/causalvae/reconstruction/girl-dancing.mp4)
+![mixkit-example-00](https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/girl.gif?raw=true)
 
-![mixkit-step000-00](https://github.com/SamitHuang/mindone/assets/8156835/1582f678-55dd-4ba1-9692-4d8961a37658)
+![mixkit-step000-00](https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/highway.gif?raw=true)
 
-![mixkit-step002-00](https://github.com/SamitHuang/mindone/assets/8156835/f1a5e323-f3d9-4bc7-a5d2-7c6044ed52f7)
+![mixkit-step002-00](https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/parrot.gif?raw=true)
+
+![mixkit-step003-00](https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/waves.gif?raw=true)
 
 ### Open-Sora-Plan v1.0.0 Command Line Inference
 
