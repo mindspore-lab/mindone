@@ -250,33 +250,26 @@ if __name__ == "__main__":
         precision_mode=args.precision_mode,
     )
 
-    # 2. model initiate and weight loading
-    # 2.1 latte
-    logger.info(f"Latte-{args.version} init")
-    transformer_model = LatteT2V.from_pretrained(
-        args.model_path,
-        subfolder=args.version,
-        enable_flash_attention=args.enable_flash_attention,
-    )
-    transformer_model.force_images = args.force_images
-    # mixed precision
-    dtype = get_precision(args.precision)
-    if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        transformer_model = auto_mixed_precision(
-            transformer_model,
-            amp_level=args.amp_level,
-            dtype=dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
-        )
-        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
-    elif args.precision == "fp32":
-        amp_level = "O0"
-    else:
-        raise ValueError(f"Unsupported precision {args.precision}")
-
-    video_length, image_size = transformer_model.config.video_length, int(args.version.split("x")[1])
+    # 2. vae model initiate and weight loading
+    image_size = int(args.version.split("x")[1])
     latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
+    logger.info("vae init")
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
+    if args.enable_tiling:
+        raise NotImplementedError
+        # vae.vae.enable_tiling()
+        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+    # use amp level O2 for causal 3D VAE with bfloat16 or float16
+    vae_dtype = get_precision(args.vae_precision)
+    custom_fp32_cells = [TimeDownsample2x, TimeUpsample2x] if vae_dtype == ms.bfloat16 else []
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
+    vae.set_train(False)
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
+    vae.latent_size = latent_size
+
+    # 3. handle input text prompts
     if args.force_images:
         video_length = 1
         ext = "jpg"
@@ -285,29 +278,6 @@ if __name__ == "__main__":
             "gif" if not (args.save_latents or args.decode_latents) else "npy"
         )  # save video as gif or save denoised latents as npy files.
 
-    transformer_model = transformer_model.set_train(False)
-    for param in transformer_model.get_parameters():  # freeze transformer_model
-        param.requires_grad = False
-
-    # 2.2 vae
-    logger.info("vae init")
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
-    if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
-    vae.set_train(False)
-    # use amp level O2 for causal 3D VAE with bfloat16 or float16
-    vae_dtype = get_precision(args.vae_precision)
-    custom_fp32_cells = [TimeDownsample2x, TimeUpsample2x] if vae_dtype == ms.bfloat16 else []
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
-
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
-    vae.latent_size = latent_size
-
-    # parse the caption input
     if not isinstance(args.text_prompt, list):
         args.text_prompt = [args.text_prompt]
     # if input is a text file, where each line is a caption, load it into a list
@@ -374,10 +344,39 @@ if __name__ == "__main__":
             for i_sample in range(args.batch_size):
                 save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", ".gif")
                 save_video_data = decode_data[i_sample : i_sample + 1].transpose(
-                    0, 2, 3, 4, 1
-                )  # (b c t h w) -> (b t h w c)
+                    0, 1, 3, 4, 2
+                )  # (b t c h w) -> (b t h w c)
                 save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
         sys.exit()
+
+    # 4. latte model initiate and weight loading
+    logger.info(f"Latte-{args.version} init")
+    transformer_model = LatteT2V.from_pretrained(
+        args.model_path,
+        subfolder=args.version,
+        enable_flash_attention=args.enable_flash_attention,
+    )
+    transformer_model.force_images = args.force_images
+    # mixed precision
+    dtype = get_precision(args.precision)
+    if args.precision in ["fp16", "bf16"]:
+        amp_level = "O2"
+        transformer_model = auto_mixed_precision(
+            transformer_model,
+            amp_level=args.amp_level,
+            dtype=dtype,
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+        )
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
+        amp_level = "O0"
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
+
+    transformer_model = transformer_model.set_train(False)
+    for param in transformer_model.get_parameters():  # freeze transformer_model
+        param.requires_grad = False
+    video_length = transformer_model.config.video_length
 
     logger.info("T5 init")
     text_encoder = T5Embedder(
