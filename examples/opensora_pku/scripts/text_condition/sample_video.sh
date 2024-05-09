@@ -9,4 +9,5 @@ python opensora/sample/sample_t2v.py \
     --save_img_path "./sample_videos/prompt_list_0" \
     --fps 24 \
     --guidance_scale 7.5 \
-    --num_sampling_steps 250
+    --num_sampling_steps 250 \
+    --enable_tiling

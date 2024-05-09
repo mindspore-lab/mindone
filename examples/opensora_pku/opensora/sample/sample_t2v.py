@@ -148,9 +148,7 @@ def parse_args():
     parser.add_argument(
         "--force_images", default=False, type=str2bool, help="Whether to generate images given text prompts"
     )
-    parser.add_argument(
-        "--enable_tiling", default=False, type=str2bool, help="whether to use vae tiling to save memory"
-    )
+    parser.add_argument("--enable_tiling", action="store_true", help="whether to use vae tiling to save memory")
     parser.add_argument(
         "--enable_time_chunk",
         type=str2bool,
