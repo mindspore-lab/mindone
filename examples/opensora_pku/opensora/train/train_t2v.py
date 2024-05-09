@@ -151,13 +151,18 @@ def main(args):
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
-    logger.info("T5 init")
-    text_encoder = T5Embedder(
-        dir_or_name=args.text_encoder_name,
-        cache_dir="./",
-        model_max_length=args.model_max_length,
-    )
-    tokenizer = text_encoder.tokenizer
+    use_text_embed = args.text_embed_folder is not None and os.path.exists(args.text_embed_folder)
+    if not use_text_embed:
+        logger.info("T5 init")
+        text_encoder = T5Embedder(
+            dir_or_name=args.text_encoder_name,
+            cache_dir="./",
+            model_max_length=args.model_max_length,
+        )
+        tokenizer = text_encoder.tokenizer
+    else:
+        text_encoder = None
+        tokenizer = None
 
     # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
@@ -179,8 +184,8 @@ def main(args):
     ds_config = dict(
         data_file_path=args.data_path,
         video_folder=args.video_folder,
-        text_emb_folder=None,
-        return_text_emb=False,
+        text_emb_folder=args.text_embed_folder,
+        return_text_emb=use_text_embed,
         vae_latent_folder=None,
         return_vae_latent=False,
         vae_scale_factor=args.sd_scale_factor,
@@ -372,6 +377,9 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, required=True)
     parser.add_argument("--data_path", type=str, required=True)
+    parser.add_argument(
+        "--text_embed_folder", type=str, default=None, help="the folder path to the t5 text embeddings and masks"
+    )
     parser.add_argument("--model", type=str, default="DiT-XL/122")
     parser.add_argument("--num_classes", type=int, default=1000)
     parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
