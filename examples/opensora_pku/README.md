@@ -162,6 +162,7 @@ python examples/rec_imvi_vae.py \
     --resolution 512 \
     --crop_size 512 \
     --ae CausalVAEModel_4x8x8 \
+    --enable_tiling \
 ```
 Please change the `--video_path` to the existing video file path and `--rec_path` to the reconstructed video file path.
 
@@ -169,7 +170,7 @@ You can also run video reconstruction given an input video folder. See `scripts/
 
 Some reconstruction results are listed below (left: source video clip, right: reconstructed).
 
-![mixkit-step003-00](https://github.com/SamitHuang/mindone/assets/8156835/bb04783f-4cc1-4179-8882-940898803a6e)
+![mixkit-example-00](https://github.com/wtomin/mindone-assets/raw/main/opensora_pku/causalvae/reconstruction/girl-dancing.mp4)
 
 ![mixkit-step000-00](https://github.com/SamitHuang/mindone/assets/8156835/1582f678-55dd-4ba1-9692-4d8961a37658)
 
@@ -188,7 +189,8 @@ python opensora/sample/sample_t2v.py \
     --save_img_path "./sample_videos/prompt_list_0" \
     --fps 24 \
     --guidance_scale 7.5 \
-    --num_sampling_steps 250
+    --num_sampling_steps 250 \
+    --enable_tiling
 ```
 You can change the `version` to `17x256x256` or `65x256x256` to change the number of frames and resolutions.
 
@@ -247,9 +249,20 @@ python tools/model_conversion/convert_latte.py \
 
 The [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset) includes the video files and one json file which records the video paths and captions. Please pass the json file path to `opensora/train/train_t2v.py` via `--data_path` and pass the video folder path to `opensora/train/train_t2v.py` via `--video_folder`.
 
+For acceleration, we pre-compute the t5 embedding before training the diffusion transformer.
+
+```bash
+python opensora/sample/sample_text_embed.py \
+    --data_file_path /path/to/video_caption.json \
+    --output_dir /path/to/text_embed_folder \
+```
+
+After running, the text embeddings saved as npz file for each caption will be in `output_dir`. Please change `data_file_path` to your video-caption annotation file accordingly.
+
 ### Standalone Training
 
-Before launching the first-stage training, please make sure the pretrained checkpoint is stored as `pretrained/t2v.ckpt`.
+Before launching the first-stage training, please make sure the pretrained checkpoint is stored as `pretrained/t2v.ckpt`, and `--text_embed_folder` in the following shell scripts are set to the text embedding folder that you generated ahead.
+
 ```bash
 # start 17x256x256 pretraining
 bash scripts/text_condition/train_videoae_17x256x256.sh
