@@ -186,7 +186,9 @@ def main(args):
     else:
         save_video_data = video_recon.transpose(0, 1, 3, 4, 2).to(ms.float32).asnumpy()  # (b t c h w) -> (b t h w c)
         save_video_data = transform_to_rgb(save_video_data, rescale_to_uint8=False)
-        original_rgb = x_vae.to(ms.float32).asnumpy().transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+        original_rgb = transform_to_rgb(x_vae.to(ms.float32).asnumpy(), rescale_to_uint8=False).transpose(
+            0, 2, 3, 4, 1
+        )  # (b c t h w) -> (b t h w c)
         save_video_data = np.concatenate([original_rgb, save_video_data], axis=3) if args.grid else save_video_data
         save_videos(save_video_data, save_fp, loop=0)
     if args.grid:
