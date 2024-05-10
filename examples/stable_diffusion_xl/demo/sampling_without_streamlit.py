@@ -133,13 +133,15 @@ def get_parser_sample():
         "--init_latent_path",
         type=str,
         default=None,
-        help="path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.",
+        help="path to initial latent noise (npy file). If not None, seed will not make effect and the "
+        "initial latent noise will be used for sampling.",
     )
     parser.add_argument(
         "--init_noise_scheduler_path",
         type=str,
         default=None,
-        help="path to initial sampler noise (npy file). If not None, seed will not make effect and the initial noise will be used for sampling. Currently only supported in the EulerA sampler.",
+        help="path to initial sampler noise (npy file). If not None, seed will not make effect and the initial noise "
+        "will be used for sampling. Currently only supported in the EulerA sampler.",
     )
     parser.add_argument("--precision_keep_origin_dtype", type=ast.literal_eval, default=False)
     parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
