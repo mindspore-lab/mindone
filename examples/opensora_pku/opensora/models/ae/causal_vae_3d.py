@@ -5,7 +5,6 @@ from mindspore import nn, ops
 
 from .modules import (
     CausalConv3d,
-    Normalize,
     ResnetBlock3D,
     SpatialDownsample2x,
     SpatialUpsample2x,
@@ -287,7 +286,8 @@ class Encoder(nn.Cell):
         self.mid.update_parameters_name(prefix=self.param_prefix + "mid.")
 
         # end
-        self.norm_out = Normalize(block_in, extend=True)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
+
         self.conv_out = CausalConv3d(
             block_in,
             2 * z_channels if double_z else z_channels,
@@ -421,7 +421,7 @@ class Decoder(nn.Cell):
                 self.up.append(up)
 
         # end
-        self.norm_out = Normalize(block_in, extend=True)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
 
         self.conv_out = CausalConv3d(block_in, out_ch, kernel_size=3, padding=1)
 

@@ -134,9 +134,9 @@ class ResnetBlock3D(nn.Cell):
         self.upcast_sigmoid = upcast_sigmoid
 
         # FIXME: GroupNorm precision mismatch with PT.
-        self.norm1 = Normalize(in_channels, extend=True)
+        self.norm1 = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         self.conv1 = CausalConv3d(in_channels, out_channels, 3, padding=1)
-        self.norm2 = Normalize(out_channels, extend=True)
+        self.norm2 = nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=1e-6, affine=True)
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = CausalConv3d(out_channels, out_channels, 3, padding=1)
         if self.in_channels != self.out_channels:
@@ -214,25 +214,6 @@ def nonlinearity(x, upcast=False):
         return x * (ops.sigmoid(x.astype(ms.float32))).astype(ori_dtype)
     else:
         return x * (ops.sigmoid(x))
-
-
-class GroupNormExtend(nn.GroupNorm):
-    # GroupNorm supporting tensors with more than 4 dim
-    def construct(self, x):
-        x_shape = x.shape
-        if x.ndim >= 5:
-            x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
-        y = super().construct(x)
-        return y.view(x_shape)
-
-
-def Normalize(in_channels, num_groups=32, extend=False):
-    if extend:
-        return GroupNormExtend(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(
-            ms.float32
-        )
-    else:
-        return nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
 
 
 class Upsample(nn.Cell):
@@ -424,13 +405,13 @@ class ResnetBlock(nn.Cell):
         self.use_conv_shortcut = conv_shortcut
         self.upcast_sigmoid = upcast_sigmoid
 
-        self.norm1 = Normalize(in_channels)
+        self.norm1 = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         self.conv1 = nn.Conv2d(
             in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         ).to_float(dtype)
         if temb_channels > 0:
             self.temb_proj = nn.Dense(temb_channels, out_channels, bias_init="normal").to_float(dtype)
-        self.norm2 = Normalize(out_channels)
+        self.norm2 = nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=1e-6, affine=True)
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = nn.Conv2d(
             out_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
@@ -474,7 +455,7 @@ class AttnBlock(nn.Cell):
         self.in_channels = in_channels
         self.dtype = dtype
         self.bmm = ops.BatchMatMul()
-        self.norm = Normalize(in_channels)
+        self.norm = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True).to_float(
             dtype
         )
@@ -524,7 +505,7 @@ class AttnBlock3D(nn.Cell):
         self.dtype = dtype
 
         self.bmm = ops.BatchMatMul()
-        self.norm = Normalize(in_channels, extend=True)
+        self.norm = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
 
         # TODO: 1x1 conv3d can be replaced with flatten and Linear
         self.q = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1)
@@ -677,7 +658,7 @@ class Encoder(nn.Cell):
         )
 
         # end
-        self.norm_out = Normalize(block_in)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
         self.conv_out = nn.Conv2d(
             block_in,
             2 * z_channels if double_z else z_channels,
@@ -808,7 +789,7 @@ class Decoder(nn.Cell):
                 self.up.append(up)
 
         # end
-        self.norm_out = Normalize(block_in)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
         self.conv_out = nn.Conv2d(
             block_in, out_ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         ).to_float(self.dtype)

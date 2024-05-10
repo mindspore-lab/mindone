@@ -10,6 +10,7 @@ import time
 import yaml
 from omegaconf import OmegaConf
 from opensora.data.loader import create_dataloader
+from opensora.models.ae.causal_vae_3d import TimeDownsample2x, TimeUpsample2x
 from opensora.models.ae.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 
 import mindspore as ms
@@ -88,7 +89,8 @@ def main(args):
     if args.dtype != "fp32":
         amp_level = "O2"
         dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        ae = auto_mixed_precision(ae, amp_level, dtype)
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        ae = auto_mixed_precision(ae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
         if use_discriminator:
             disc = auto_mixed_precision(disc, amp_level, dtype)
         logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")

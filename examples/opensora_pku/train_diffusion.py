@@ -22,6 +22,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 from opensora.data.t2v_dataset import create_dataloader
 from opensora.diffusion import create_diffusion
+from opensora.models.ae.causal_vae_3d import TimeDownsample2x, TimeUpsample2x
 from opensora.models.diffusion.latte_t2v import Attention, Latte_models, LayerNorm
 from opensora.pipelines import DiffusionWithLoss
 
@@ -163,9 +164,10 @@ def main(args):
         vae = instantiate_from_config(ae_config.generator)
         vae.init_from_ckpt(args.vae_checkpoint)
         vae.set_train(False)
-
-        vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-        logger.info("Use amp level O2 for causal 3D VAE.")
+        vae_dtype = ms.bfloat16
+        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
 
         for param in vae.get_parameters():  # freeze vae
             param.requires_grad = False
