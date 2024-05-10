@@ -148,6 +148,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
+        mempool_block_size=args.mempool_block_size,
     )
     set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
