@@ -255,7 +255,9 @@ class STDiT(nn.Cell):
                 for i in range(self.depth)
             ]
         )
-        self.final_layer = T2IFinalLayer(hidden_size, int(np.prod(self.patch_size)), self.out_channels)
+        self.final_layer = T2IFinalLayer(
+            hidden_size, int(np.prod(self.patch_size)), self.out_channels, d_t=self.num_temporal, d_s=self.num_spatial
+        )
 
         # init model
         self.initialize_weights()

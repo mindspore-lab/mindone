@@ -22,11 +22,11 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.datasets.t2v_dataset import create_dataloader
-from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
+from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import resume_train_network
@@ -176,10 +176,7 @@ def main(args):
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
-            latte_model,
-            amp_level=args.amp_level,
-            dtype=dtype_map[args.dtype],
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
+            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
         )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:

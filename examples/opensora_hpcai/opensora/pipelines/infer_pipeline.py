@@ -1,14 +1,14 @@
-from abc import ABC
+from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import Tensor, ops
 
 from ..schedulers.iddpm import create_diffusion
 
 __all__ = ["InferPipeline"]
 
 
-class InferPipeline(ABC):
+class InferPipeline:
     """An Inference pipeline for diffusion model
 
     Args:
@@ -28,6 +28,7 @@ class InferPipeline(ABC):
         condition: str = None,
         scale_factor=1.0,
         guidance_rescale=1.0,
+        guidance_channels: Optional[int] = None,
         num_inference_steps=50,
         ddim_sampling=True,
         micro_batch_size=None,
@@ -40,6 +41,7 @@ class InferPipeline(ABC):
         self.micro_batch_size = micro_batch_size
         self.scale_factor = scale_factor
         self.guidance_rescale = guidance_rescale
+        self.guidance_channels = guidance_channels
         if self.guidance_rescale > 1.0:
             self.use_cfg = True
         else:
@@ -53,12 +55,12 @@ class InferPipeline(ABC):
             self.sampling_func = self.diffusion.p_sample_loop
 
     @ms.jit
-    def vae_encode(self, x):
+    def vae_encode(self, x: Tensor) -> Tensor:
         image_latents = self.vae.encode(x)
         image_latents = image_latents * self.scale_factor
         return image_latents
 
-    def vae_decode(self, x):
+    def vae_decode(self, x: Tensor) -> Tensor:
         """
         Args:
             x: (b c h w), denoised latent
@@ -137,7 +139,12 @@ class InferPipeline(ABC):
 
         return text_emb
 
-    def __call__(self, inputs):
+    def __call__(
+        self,
+        inputs: dict,
+        frames_mask: Optional[Tensor] = None,
+        additional_kwargs: Optional[dict] = None,
+    ) -> Tuple[Union[Tensor, None], Tensor]:
         """
         args:
             inputs: dict
@@ -152,10 +159,19 @@ class InferPipeline(ABC):
         if mask is not None:
             model_kwargs["mask"] = mask
 
+        if additional_kwargs is not None:
+            model_kwargs.update(additional_kwargs)
+
         if self.use_cfg:
-            model_kwargs["cfg_scale"] = self.guidance_rescale
+            model_kwargs.update({"cfg_scale": self.guidance_rescale, "cfg_channel": self.guidance_channels})
             latents = self.sampling_func(
-                self.model.construct_with_cfg, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+                self.model.construct_with_cfg,
+                z.shape,
+                z,
+                clip_denoised=False,
+                model_kwargs=model_kwargs,
+                progress=True,
+                frames_mask=frames_mask,
             )
             latents, _ = latents.chunk(2, axis=0)
         else:

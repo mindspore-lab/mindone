@@ -5,6 +5,7 @@
 
 
 from functools import partial
+from typing import Optional
 
 import numpy as np
 
@@ -272,12 +273,13 @@ class GaussianDiffusion:
     def p_sample(
         self,
         model,
-        x,
+        x: Tensor,
         t,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
         model_kwargs=None,
+        frames_mask: Optional[np.ndarray] = None,
     ):
         """
         Sample x_{t-1} from the model at the given timestep.
@@ -295,6 +297,27 @@ class GaussianDiffusion:
                  - 'sample': a random sample from the model.
                  - 'pred_xstart': a prediction of x_0.
         """
+        if frames_mask is not None:
+            if frames_mask.shape[0] != x.shape[0]:
+                frames_mask = frames_mask.reshape(1, -1).repeat(2, axis=0)  # HACK
+            mask_t = (frames_mask * len(self.betas)).astype(np.int32)
+
+            # x0: copy unchanged x values
+            # x_noise: add noise to x values
+            x0 = x.copy()
+            x_noise = x0 * _extract_into_tensor(self.sqrt_alphas_cumprod, t, x.shape) + ops.randn_like(
+                x
+            ) * _extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x.shape)
+
+            # active noise addition
+            mask_t_equall = (mask_t == t.unsqueeze(1))[:, None, :, None, None]
+            x = ops.where(Tensor(mask_t_equall), x_noise, x0)  # FIXME: numpy
+
+            # create frames_mask
+            mask_t_upper = (mask_t > t.unsqueeze(1))[:, None, :, None, None]
+            batch_size = x.shape[0]
+            model_kwargs["frames_mask"] = Tensor(mask_t_upper.reshape(batch_size, -1), dtype=ms.bool_)  # FIXME: numpy
+
         out = self.p_mean_variance(
             model,
             x,
@@ -308,6 +331,11 @@ class GaussianDiffusion:
         if cond_fn is not None:
             out["mean"] = self.condition_mean(cond_fn, out, x, t, model_kwargs=model_kwargs)
         sample = out["mean"] + nonzero_mask * ops.exp(0.5 * out["log_variance"]) * noise
+
+        if frames_mask is not None:
+            mask_t_lower = (mask_t < t.unsqueeze(1))[:, None, :, None, None]
+            sample = ops.where(Tensor(mask_t_lower), x0, sample)  # FIXME: numpy
+
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
     def p_sample_loop(
@@ -320,6 +348,7 @@ class GaussianDiffusion:
         cond_fn=None,
         model_kwargs=None,
         progress=False,
+        frames_mask: Optional[Tensor] = None,
     ):
         """
         Generate samples from the model.
@@ -347,6 +376,7 @@ class GaussianDiffusion:
             cond_fn=cond_fn,
             model_kwargs=model_kwargs,
             progress=progress,
+            frames_mask=frames_mask,
         ):
             final = sample
         return final["sample"]
@@ -361,6 +391,7 @@ class GaussianDiffusion:
         cond_fn=None,
         model_kwargs=None,
         progress=False,
+        frames_mask: Optional[Tensor] = None,
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -393,6 +424,7 @@ class GaussianDiffusion:
                 denoised_fn=denoised_fn,
                 cond_fn=cond_fn,
                 model_kwargs=model_kwargs,
+                frames_mask=frames_mask,
             )
             yield out
             img = out["sample"]
