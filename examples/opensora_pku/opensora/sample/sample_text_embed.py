@@ -136,7 +136,7 @@ def main(args):
     )
 
     # mixed precision
-    text_encoder_dtype = get_precision(args.text_encoder_precision)
+    text_encoder_dtype = get_precision(args.precision)
     text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
     text_encoder.dtype = text_encoder_dtype
     logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
@@ -248,7 +248,7 @@ def parse_args():
         help="output dir to save the embeddings, if None, will treat the parent dir of data_file_path as output dir.",
     )
     parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
-    parser.add_argument("--t5_model_dir", default="models/t5-v1_1-xxl", type=str, help="the T5 cache folder path")
+    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
@@ -261,7 +261,7 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--dtype",
+        "--precision",
         default="bf16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
@@ -300,7 +300,7 @@ def parse_args():
             parser.set_defaults(
                 **dict(
                     captions=cfg["captions"],
-                    t5_model_dir=cfg["t5_model_dir"],
+                    text_encoder_name=cfg["text_encoder_name"],
                 )
             )
     args = parser.parse_args()

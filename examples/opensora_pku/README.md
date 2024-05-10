@@ -164,7 +164,7 @@ python examples/rec_imvi_vae.py \
     --ae CausalVAEModel_4x8x8 \
     --enable_tiling \
 ```
-Please change the `--video_path` to the existing video file path and `--rec_path` to the reconstructed video file path.
+Please change the `--video_path` to the existing video file path and `--rec_path` to the reconstructed video file path. You can set `--grid` to save the original video and the reconstructed video in the same output file.
 
 You can also run video reconstruction given an input video folder. See `scripts/causalvae/gen_video.sh`.
 
