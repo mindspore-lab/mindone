@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--source",
+        "--src",
         "-s",
         type=str,
         help="path to vae torch checkpoint",
@@ -81,17 +81,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if not os.path.exists(args.source):
-        raise ValueError(f"The provided source file {args.source} does not exist!")
+    if not os.path.exists(args.src):
+        raise ValueError(f"The provided source file {args.src} does not exist!")
 
     if not args.target.endswith(".ckpt"):
         os.makedirs(args.target, exist_ok=True)
-        target_fp = os.path.join(args.target, os.path.basename(args.source).split(".")[0] + ".ckpt")
+        target_fp = os.path.join(args.target, os.path.basename(args.src).split(".")[0] + ".ckpt")
     else:
         target_fp = args.target
 
     if os.path.exists(target_fp):
         print(f"Warnings: {target_fp} will be overwritten!")
 
-    torch_to_ms_weight(args.source, target_fp)
+    torch_to_ms_weight(args.src, target_fp)
     print(f"Converted weight saved to {target_fp}")

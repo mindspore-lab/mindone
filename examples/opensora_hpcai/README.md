@@ -160,7 +160,7 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
 
     Convert to ms checkpoint:
     ```
-    python tools/convert_vae.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
@@ -256,10 +256,10 @@ For acceleration, we pre-compute the t5 embedding before training stdit.
 ```bash
 python scripts/infer_t5.py \
     --csv_path /path/to/video_caption.csv \
-    --output_dir /path/to/text_embed_folder \
+    --output_path /path/to/text_embed_folder \
 ```
 
-After running, the text embeddings saved as npz file for each caption will be in `output_dir`. Please change `csv_path` to your video-caption annotation file accordingly.
+After running, the text embeddings saved as npz file for each caption will be in `output_path`. Please change `csv_path` to your video-caption annotation file accordingly.
 
 ### Cache Video Embedding (Optional)
 
@@ -269,12 +269,12 @@ If the storage budget is sufficient, you may also cache the video embedding by
 python scripts/infer_vae.py\
     --csv_path /path/to/video_caption.csv  \
     --video_folder /path/to/video_folder  \
-    --output_dir /path/to/video_embed_folder  \
+    --output_path /path/to/video_embed_folder  \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \
     --image_size 512 \
 ```
 
-After running, the vae latents saved as npz file for each video will be in `output_dir`.
+After running, the vae latents saved as npz file for each video will be in `output_path`.
 
 Finally, the training data should be like follows.
 ```text

@@ -45,7 +45,7 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     For `sd-vae-ft-ema`, run:
     ```
-    python tools/.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    python tools/.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT:
