@@ -170,10 +170,13 @@ You can also run video reconstruction given an input video folder. See `scripts/
 
 Some reconstruction results are listed below (left: source video clip, right: reconstructed). As mentioned in the [OpenSora-PKU report-v1.0.0](https://github.com/PKU-YuanGroup/Open-Sora-Plan/blob/main/docs/Report-v1.0.0.md#causalvideovae-1), the current released version of CausalVideoVAE (v1.0.0) still has two main drawbacks: motion blurring and gridding effect.
 
-<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/girl.gif?raw=true" width=224> <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/highway.gif?raw=true" width=224>
+<p float="center">
+<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/girl.gif?raw=true" width="50%" /><img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/highway.gif?raw=true" width="50%" />
+</p>
 
-<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/parrot.gif?raw=true" width=224> <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/waves.gif?raw=truee" width=224>
-
+<p float="center">
+<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/parrot.gif?raw=true" width="50%" /><img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/causalvae/reconstruction/waves.gif?raw=true" width="50%" />
+</p>
 
 ### Open-Sora-Plan v1.0.0 Command Line Inference
 
