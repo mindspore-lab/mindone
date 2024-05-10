@@ -4,7 +4,7 @@ ckpt_path=outputs/trained_stdit.ckpt
 prompt_path=assets/texts/t2v_samples.txt
 device_target=Ascend
 
-# config=configs/opensora-v1/inference/stdit_256x256x16.yaml
+# config=configs/opensora/inference/stdit_256x256x16.yaml
 # ckpt_path=models/models/OpenSora-v1-HQ-16x256x256.ckpt
 # device_target=GPU
 

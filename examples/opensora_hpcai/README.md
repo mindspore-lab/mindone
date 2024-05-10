@@ -204,13 +204,13 @@ You can run text-to-video inference via the script `scripts/inference.py` as fol
 
 ```bash
 # Sample 16x256x256 videos
-python scripts/inference.py --config configs/opensora-v1/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-16x256x256.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-16x256x256.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 16x512x512 videos
-python scripts/inference.py --config configs/opensora-v1/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 64x512x512 videos
-python scripts/inference.py --config configs/opensora-v1/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora-v1.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora-v1.ckpt --prompt_path /path/to/prompt.txt
 ```
 
 We also provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
@@ -323,7 +323,7 @@ Once the training data including the [T5 text embeddings](#cache-text-embeddings
 
 ```bash
 # standalone training, 16x256x256
-python scripts/train.py --config configs/opensora-v1/train/stdit_256x256x16.yaml \
+python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
@@ -335,7 +335,7 @@ For parallel training, please use `msrun` and pass `--use_parallel=True`
 ```bash
 # 8 NPUs, 64x512x512
 msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_dir  \
-    python scripts/train.py --config configs/opensora-v1/train/stdit_512x512x64_ms.yaml \
+    python scripts/train.py --config configs/opensora/train/stdit_512x512x64_ms.yaml \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video_folder \
     --text_embed_folder /path/to/text_embed_folder \
