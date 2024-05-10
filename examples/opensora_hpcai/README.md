@@ -139,7 +139,7 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
   Convert to ms checkpoint:
 
   ```
-  python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt
+  python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safetensors --target models/opensora_v1.1_stage3.ckpt
   ```
 
 - T5 and VAE models are identical to OpenSora 1.0 and can be downloaded from the links below.
