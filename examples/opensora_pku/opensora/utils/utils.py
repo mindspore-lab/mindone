@@ -179,10 +179,10 @@ def clean_caption(caption):
 
     return caption.strip()
 
+
 def _check_cfgs_in_parser(cfgs: dict, parser: argparse.ArgumentParser):
     actions_dest = [action.dest for action in parser._actions]
     defaults_key = parser._defaults.keys()
     for k in cfgs.keys():
         if k not in actions_dest and k not in defaults_key:
             raise KeyError(f"{k} does not exist in ArgumentParser!")
-
