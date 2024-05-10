@@ -1,7 +1,16 @@
 from typing import Any
 
-from mindspore import Tensor
-from mindspore.common.initializer import Constant, Normal, One, XavierNormal, XavierUniform, Zero, initializer
+from mindspore import Parameter, Tensor
+from mindspore.common.initializer import (
+    Constant,
+    Normal,
+    One,
+    TruncatedNormal,
+    XavierNormal,
+    XavierUniform,
+    Zero,
+    initializer,
+)
 
 
 def exists(val: Any) -> bool:
@@ -17,27 +26,31 @@ def default(val: Any, d: Any) -> Any:
     return d()
 
 
-def normal_(tensor: Tensor, mean: float = 0.0, std: float = 1.0) -> None:
+def normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0) -> None:
     tensor.set_data(initializer(Normal(std, mean), tensor.shape, tensor.dtype))
 
 
-def constant_(tensor: Tensor, val: float) -> None:
+def trunc_normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0, a: float = -2.0, b: float = 2.0) -> None:
+    tensor.set_data(initializer(TruncatedNormal(std, mean, a, b), tensor.shape, tensor.dtype))
+
+
+def constant_(tensor: Parameter, val: float) -> None:
     tensor.set_data(initializer(Constant(val), tensor.shape, tensor.dtype))
 
 
-def ones_(tensor: Tensor) -> None:
+def ones_(tensor: Parameter) -> None:
     tensor.set_data(initializer(One(), tensor.shape, tensor.dtype))
 
 
-def zeros_(tensor: Tensor) -> None:
+def zeros_(tensor: Parameter) -> None:
     tensor.set_data(initializer(Zero(), tensor.shape, tensor.dtype))
 
 
-def xavier_uniform_(tensor: Tensor, gain: float = 1.0) -> None:
+def xavier_uniform_(tensor: Parameter, gain: float = 1.0) -> None:
     tensor.set_data(initializer(XavierUniform(gain), tensor.shape, tensor.dtype))
 
 
-def xavier_normal_(tensor: Tensor, gain: float = 1.0) -> None:
+def xavier_normal_(tensor: Parameter, gain: float = 1.0) -> None:
     tensor.set_data(initializer(XavierNormal(gain), tensor.shape, tensor.dtype))
 
 
