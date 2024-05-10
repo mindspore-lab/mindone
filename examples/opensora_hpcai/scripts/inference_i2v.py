@@ -18,8 +18,9 @@ from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
-from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
-from utils import WHITELIST_OPS, apply_mask_strategy, get_references, process_mask_strategies, process_prompts
+from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
+from opensora.utils.model_utils import WHITELIST_OPS
+from opensora.utils.util import apply_mask_strategy, process_mask_strategies, process_prompts
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger

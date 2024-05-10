@@ -21,8 +21,7 @@ from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
-from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
-from utils import WHITELIST_OPS
+from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
