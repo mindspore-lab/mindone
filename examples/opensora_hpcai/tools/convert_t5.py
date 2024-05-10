@@ -67,7 +67,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--source",
+        "--src",
         "-s",
         nargs="+",
         default=[],
@@ -84,12 +84,12 @@ if __name__ == "__main__":
 
     if not args.target.endswith(".ckpt"):
         os.makedirs(args.target, exist_ok=True)
-        target_fp = os.path.join(args.target, os.path.basename(args.source).split(".")[0] + ".ckpt")
+        target_fp = os.path.join(args.target, os.path.basename(args.src).split(".")[0] + ".ckpt")
     else:
         target_fp = args.target
 
     if os.path.exists(target_fp):
         print(f"Warnings: {target_fp} will be overwritten!")
 
-    torch_to_ms_weight(args.source, target_fp)
+    torch_to_ms_weight(args.src, target_fp)
     print(f"Converted weight saved to {target_fp}")
