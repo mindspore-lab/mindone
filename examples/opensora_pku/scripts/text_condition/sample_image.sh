@@ -8,6 +8,6 @@ python opensora/sample/sample_t2v.py \
     --version 65x512x512 \
     --save_img_path "./sample_images/prompt_list_0" \
     --fps 24 \
-    --guidance_scale 7.5 \
+    --guidance_scale 4.5 \
     --num_sampling_steps 250 \
     --force_images
