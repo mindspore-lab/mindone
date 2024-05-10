@@ -97,7 +97,6 @@ def get_parser_sample():
         default=1.0,
         help="For DynamicThresholding. Valid only when thresholding=True.",
     )
-
     parser.add_argument(
         "--discretization",
         type=str,
