@@ -39,7 +39,6 @@ def init_env(mode, device_target, enable_dvm=False, debug: bool = False):
     ms.set_context(
         mode=mode,
         device_target=device_target,
-        gpu_config={"matmul_allow_tf32": True},
         pynative_synchronize=debug,
     )
     if enable_dvm:
