@@ -51,6 +51,7 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    mempool_block_size: str = "9GB",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -63,6 +64,7 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    ms.set_context(mempool_block_size=mempool_block_size)
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
