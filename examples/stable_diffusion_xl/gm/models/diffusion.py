@@ -253,7 +253,7 @@ class DiffusionEngine(nn.Cell):
         filter=None,
         adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
-        init_latent_path=None,           # '/path/to/sdxl_init_latent.npy'
+        init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
         init_noise_scheduler_path=None,  # '/path/to/euler_a_noise_scheduler.npy'
         control: Optional[Tensor] = None,
         lpw=False,
@@ -317,7 +317,15 @@ class DiffusionEngine(nn.Cell):
             init_noise_scheduler = None
 
         print("Sample latent Starting...")
-        samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states, control=control, init_noise_scheduler=init_noise_scheduler)
+        samples_z = sampler(
+            self,
+            randn,
+            cond=c,
+            uc=uc,
+            adapter_states=adapter_states,
+            control=control,
+            init_noise_scheduler=init_noise_scheduler,
+        )
         print("Sample latent Done.")
 
         print("Decode latent Starting...")
