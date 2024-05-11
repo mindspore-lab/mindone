@@ -362,7 +362,9 @@ Note that training on 300 frames at 512x512 resolution is achieved by optimizati
 
 ## Evaluation
 
-Please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
+Please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md).
+
+You can also refer to [metrics doc](../../scripts/README.md) to use CLIP score metric.
 
 ## Contribution
 
