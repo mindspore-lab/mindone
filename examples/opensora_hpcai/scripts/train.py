@@ -111,7 +111,8 @@ def init_env(
 
     if enable_dvm:
         print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
+        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
