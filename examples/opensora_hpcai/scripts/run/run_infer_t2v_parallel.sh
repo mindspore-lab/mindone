@@ -7,3 +7,5 @@ mpirun --allow-run-as-root -n 4 --output-filename log_output --merge-stderr-to-s
     --ckpt_path outputs/stdit_vaeO2Fp16_ditBf16_rc-4_512x512x64/2024-05-09T01-45-32/ckpt/STDiT-e200.ckpt \
     --prompt_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
     --use_parallel=True \
+    --append_timestr=False \
+    --output_path samples/para_t2v \

@@ -111,8 +111,12 @@ def data_parallel_split(x, device_id, device_num):
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"{args.output_path}/{time_str}"
+    if args.append_timestr:
+        time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        save_dir = f"{args.output_path}/{time_str}"
+    else:
+        save_dir = f"{args.output_path}"
+
     os.makedirs(save_dir, exist_ok=True)
     if args.save_latent:
         latent_dir = os.path.join(args.output_path, "denoised_latents")
@@ -417,6 +421,12 @@ def parse_args():
         type=str,
         default="samples",
         help="output dir to save the generated videos",
+    )
+    parser.add_argument(
+        "--append_timestr",
+        type=str2bool,
+        default=True,
+        help="If true, an subfolder named with timestamp under output_path will be created to save the sampling results",
     )
     parser.add_argument(
         "--save_format",
