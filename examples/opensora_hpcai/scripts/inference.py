@@ -11,6 +11,7 @@ import yaml
 
 import mindspore as ms
 from mindspore import nn
+from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
@@ -75,7 +76,6 @@ def init_env(
 
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
         var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-        logger.info(dict(zip(var_info, var_value)))
 
     else:
         device_num = 1
@@ -94,14 +94,20 @@ def init_env(
 
 # split captions or t5-embedding according to rank_num and rank_id
 def data_parallel_split(x, device_id, device_num):
-    if device_num in [None, 1]:
-        return x
     n = len(x)  
     shard_size = n // device_num
+    if device_id == None:
+        device_id = 0
+    base_data_idx = device_id * shard_size
+
+    if device_num in [None, 1]:
+        shard = x  
     if device_id == device_num - 1:
-        return x[devide_id*shard_size:]
+        shard = x[devide_id*shard_size:]
     else:
-        return x[device_id*shard_size: (device_id+1)*shard_size]
+        shard = x[device_id*shard_size: (device_id+1)*shard_size]
+
+    return shard, base_data_idx
 
 
 def main(args):
@@ -111,11 +117,11 @@ def main(args):
     if args.save_latent:
         latent_dir = os.path.join(args.output_path, "denoised_latents")
         os.makedirs(latent_dir, exist_ok=True)
-    set_logger(name="", output_dir=save_dir)
 
     # 1. init env
     rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target, enable_dvm=args.enable_dvm)
     set_random_seed(args.seed)
+    set_logger(name="", output_dir=save_dir)
 
     # 1.1 get captions from cfg or prompt_path
     if args.prompt_path is not None:
@@ -127,8 +133,7 @@ def main(args):
         captions = args.captions
 
     # split for data parallel
-    captions = data_parallel_split(captions, rank_id, device_num)
-    # logger.info(f"Num captions for rank {rank_id}: {len(captions)}")
+    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)
     print(f"Num captions for rank {rank_id}: {len(captions)}")
 
     # 2. model initiate and weight loading
@@ -292,7 +297,7 @@ def main(args):
         if x_samples is not None:
             x_samples = x_samples.asnumpy()
         for j in range(ns):
-            global_idx = i + j
+            global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
                 prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
