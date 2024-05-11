@@ -33,14 +33,75 @@ from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    enable_dvm: bool = False,
+):
+    """
+    Initialize MindSpore environment.
 
-def init_env(mode, device_target, enable_dvm=False):
-    ms.set_context(
-        mode=mode,
-        device_target=device_target,
-    )
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
+    if distributed:
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+        init()
+        device_num = get_group_size()
+        rank_id = get_rank()
+        logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+        ms.reset_auto_parallel_context()
+
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            gradients_mean=True,
+            device_num=device_num,
+        )
+
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        logger.info(dict(zip(var_info, var_value)))
+
+    else:
+        device_num = 1
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+
     if enable_dvm:
-        ms.set_context(enable_graph_kernel=True)
+        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+
+    return rank_id, device_num
+
+
+# split captions or t5-embedding according to rank_num and rank_id
+def data_parallel_split(x, device_id, device_num):
+    if device_num in [None, 1]:
+        return x
+    n = len(x)  
+    shard_size = n // device_num
+    if device_id == device_num - 1:
+        return x[devide_id*shard_size:]
+    else:
+        return x[device_id*shard_size: (device_id+1)*shard_size]
 
 
 def main(args):
@@ -53,10 +114,10 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    init_env(args.mode, args.device_target, args.enable_dvm)
+    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target, enable_dvm=args.enable_dvm)
     set_random_seed(args.seed)
 
-    # get captions from cfg or prompt_path
+    # 1.1 get captions from cfg or prompt_path
     if args.prompt_path is not None:
         if args.prompt_path.endswith(".csv"):
             captions = read_captions_from_csv(args.prompt_path)
@@ -64,6 +125,11 @@ def main(args):
             captions = read_captions_from_txt(args.prompt_path)
     else:
         captions = args.captions
+
+    # split for data parallel
+    captions = data_parallel_split(captions, rank_id, device_num)
+    # logger.info(f"Num captions for rank {rank_id}: {len(captions)}")
+    print(f"Num captions for rank {rank_id}: {len(captions)}")
 
     # 2. model initiate and weight loading
     # 2.1 latte
@@ -133,6 +199,7 @@ def main(args):
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
+        assert args.use_parallel, 'parallel inference is not supported for t5 cached sampling currently.'
         embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
@@ -302,6 +369,7 @@ def parse_args():
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
