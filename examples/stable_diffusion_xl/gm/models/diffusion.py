@@ -1,5 +1,6 @@
 # reference to https://github.com/Stability-AI/generative-models
 
+import copy
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Union
 
@@ -47,19 +48,23 @@ class DiffusionEngine(nn.Cell):
         self.latents_std = list(latents_std) if latents_std else latents_std
         self.disable_first_stage_amp = disable_first_stage_amp
 
+        # 1. unet
         if network_config is not None:
             model = instantiate_from_config(network_config)
             self.model = (get_obj_from_str(network_wrapper) if network_wrapper is not None else OpenAIWrapper)(model)
         else:
             self.model = None
 
-        self.denoiser = instantiate_from_config(denoiser_config)
-        self.sampler = instantiate_from_config(sampler_config) if sampler_config is not None else None
-
+        # 2. vae
         self.first_stage_model = self.init_freeze_first_stage(first_stage_config) if load_first_stage_model else None
+
+        # 3. text-encoders and vector conditioner
         self.conditioner = (
             instantiate_from_config(default(conditioner_config, UNCONDITIONAL_CONFIG)) if load_conditioner else None
         )
+
+        self.denoiser = instantiate_from_config(denoiser_config)
+        self.sampler = instantiate_from_config(sampler_config) if sampler_config is not None else None
 
         # for train
         self.sigma_sampler = instantiate_from_config(sigma_sampler_config) if sigma_sampler_config else None
@@ -68,19 +73,49 @@ class DiffusionEngine(nn.Cell):
         if ckpt_path is not None:
             self.load_pretrained(ckpt_path)
 
-    def load_pretrained(self, path: str) -> None:
-        if path.endswith("ckpt"):
-            sd = ms.load_checkpoint(path)
-        else:
-            raise NotImplementedError
+    def load_pretrained(self, ckpts, verbose=True):
+        load_first_stage_model = self.first_stage_model is not None
+        load_conditioner = self.conditioner is not None
 
-        missing, unexpected = ms.load_param_into_net(self, sd, strict_load=False)
-        print(f"Restored from {path} with {len(missing)} missing and {len(unexpected)} unexpected keys")
-        if len(missing) > 0:
-            missing = [k for k in missing if (not k.startswith("optimizer.") and not k.startswith("ema."))]
-            print(f"Missing Keys: {missing}")
-        if len(unexpected) > 0:
-            print(f"Unexpected Keys: {unexpected}")
+        if ckpts:
+            print(f"Loading model from {ckpts}")
+            if isinstance(ckpts, str):
+                ckpts = [ckpts]
+
+            sd_dict = {}
+            for ckpt in ckpts:
+                assert ckpt.endswith(".ckpt")
+                _sd_dict = ms.load_checkpoint(ckpt)
+                sd_dict.update(_sd_dict)
+
+                if "global_step" in sd_dict:
+                    global_step = sd_dict["global_step"]
+                    print(f"loaded ckpt from global step {global_step}")
+                    print(f"Global Step: {sd_dict['global_step']}")
+
+            # FIXME: parameter auto-prefix name bug on mindspore 2.2.10
+            sd_dict = {k.replace("._backbone", ""): v for k, v in sd_dict.items()}
+
+            # filter first_stage_model and conditioner
+            _keys = copy.deepcopy(list(sd_dict.keys()))
+            for _k in _keys:
+                if not load_first_stage_model and _k.startswith("first_stage_model."):
+                    sd_dict.pop(_k)
+                if not load_conditioner and _k.startswith("conditioner."):
+                    sd_dict.pop(_k)
+
+            m, u = ms.load_param_into_net(self, sd_dict, strict_load=False)
+
+            if len(m) > 0 and verbose:
+                ignore_lora_key = len(ckpts) == 1
+                m = m if not ignore_lora_key else [k for k in m if "lora_" not in k]
+                print("missing keys:")
+                print(m)
+            if len(u) > 0 and verbose:
+                print("unexpected keys:")
+                print(u)
+        else:
+            print("WARNING: No checkpoints were provided.")
 
     def init_freeze_first_stage(self, config):
         model = instantiate_from_config(config)
@@ -219,6 +254,7 @@ class DiffusionEngine(nn.Cell):
         adapter_states: Optional[List[Tensor]] = None,
         amp_level="O0",
         init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
+        init_noise_scheduler_path=None,  # '/path/to/euler_a_noise_scheduler.npy'
         control: Optional[Tensor] = None,
         lpw=False,
         max_embeddings_multiples=4,
@@ -275,8 +311,21 @@ class DiffusionEngine(nn.Cell):
         else:
             randn = Tensor(np.random.randn(*shape), ms.float32)
 
+        if init_noise_scheduler_path is not None:
+            init_noise_scheduler = Tensor(np.load(init_noise_scheduler_path), ms.float32)
+        else:
+            init_noise_scheduler = None
+
         print("Sample latent Starting...")
-        samples_z = sampler(self, randn, cond=c, uc=uc, adapter_states=adapter_states, control=control)
+        samples_z = sampler(
+            self,
+            randn,
+            cond=c,
+            uc=uc,
+            adapter_states=adapter_states,
+            control=control,
+            init_noise_scheduler=init_noise_scheduler,
+        )
         print("Sample latent Done.")
 
         print("Decode latent Starting...")

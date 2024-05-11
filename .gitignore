@@ -126,7 +126,6 @@ save/
 
 
 # dataset
-datasets/
 save/
 
 # ms files
@@ -140,4 +139,3 @@ download.txt
 *.tar.gz
 *hf*.py
 *torch*.py
-*.txt

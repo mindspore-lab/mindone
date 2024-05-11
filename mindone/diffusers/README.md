@@ -104,7 +104,17 @@ Most base, utility and mixin class are available.
 ### Scheduler
 - [x] DDIMScheduler
 - [x] DDPMScheduler
+- [x] DEISMultistepScheduler
+- [x] DPMSolverMultistepScheduler
+- [x] DPMSolverSinglestepScheduler
+- [x] EulerAncestralDiscreteScheduler
 - [x] EulerDiscreteScheduler
+- [x] HeunDiscreteScheduler
+- [x] KDPM2AncestralDiscreteScheduler
+- [x] KDPM2DiscreteScheduler
+- [x] LMSDiscreteScheduler
+- [x] PNDMScheduler
+- [x] UniPCMultistepScheduler
 
 ### Loader
 - [ ] LoRA

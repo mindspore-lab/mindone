@@ -107,10 +107,13 @@ class AncestralSampler(SingleStepDiffusionSampler):
 
         return self.euler_step(x, d, dt)
 
-    def ancestral_step(self, x, sigma, next_sigma, sigma_up):
+    def ancestral_step(self, x, sigma, next_sigma, sigma_up, **kwargs):
+        init_noise = kwargs.pop("init_noise", None)
+        _noise = self.noise_sampler(x) if init_noise is None else init_noise
+
         x = ops.where(
             append_dims(next_sigma, x.ndim) > 0.0,
-            x + self.noise_sampler(x) * self.s_noise * append_dims(sigma_up, x.ndim),
+            x + _noise * self.s_noise * append_dims(sigma_up, x.ndim),
             x,
         )
         return x
@@ -118,8 +121,13 @@ class AncestralSampler(SingleStepDiffusionSampler):
     def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
 
+        init_noise_scheduler = kwargs.pop("init_noise_scheduler", None)
+
         for i in self.get_sigma_gen(num_sigmas):
-            x = self.sampler_step(s_in * sigmas[i], s_in * sigmas[i + 1], model, x, cond, uc, **kwargs)
+            init_noise = None if init_noise_scheduler is None else init_noise_scheduler[i]
+            x = self.sampler_step(
+                s_in * sigmas[i], s_in * sigmas[i + 1], model, x, cond, uc, init_noise=init_noise, **kwargs
+            )
 
         return x
 
@@ -205,10 +213,12 @@ class EulerAncestralSampler(AncestralSampler):
         self.eta = eta
 
     def sampler_step(self, sigma, next_sigma, model, x, cond, uc, **kwargs):
+        init_noise = kwargs.pop("init_noise", None)
+
         sigma_down, sigma_up = get_ancestral_step(sigma, next_sigma)
         denoised = self.denoise(x, model, sigma, cond, uc, **kwargs)
         x = self.ancestral_euler_step(x, denoised, sigma, sigma_down)
-        x = self.ancestral_step(x, sigma, next_sigma, sigma_up)
+        x = self.ancestral_step(x, sigma, next_sigma, sigma_up, init_noise=init_noise)
 
         return x
 

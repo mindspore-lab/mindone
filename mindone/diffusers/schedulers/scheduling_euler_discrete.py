@@ -290,7 +290,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             self._init_step_index(timestep)
 
         sigma = self.sigmas[self.step_index]
-        sample = sample / ((sigma**2 + 1) ** 0.5)
+        sample = (sample / ((sigma**2 + 1) ** 0.5)).to(sample.dtype)
 
         self.is_scale_input_called = True
         return sample
@@ -327,7 +327,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
                 f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
             )
 
-        sigmas = np.array(((1 - self.alphas_cumprod.numpy()) / self.alphas_cumprod.numpy()) ** 0.5)
+        sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         log_sigmas = np.log(sigmas)
 
         if self.config.interpolation_type == "linear":
@@ -409,15 +409,18 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        indices = (schedule_timesteps == timestep).nonzero()
+        if (schedule_timesteps == timestep).sum() > 1:
+            pos = 1
+        else:
+            pos = 0
 
         # The sigma index that is taken for the **very** first `step`
         # is always the second index (or the last index if there is only 1)
         # This way we can ensure we don't accidentally skip a sigma in
         # case we start in the middle of the denoising schedule (e.g. for image-to-image)
-        pos = 1 if len(indices) > 1 else 0
+        indices = (schedule_timesteps == timestep).nonzero()
 
-        return indices[pos].item()
+        return int(indices[pos])
 
     def _init_step_index(self, timestep):
         if self.begin_index is None:
@@ -504,10 +507,12 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if self.config.prediction_type == "original_sample" or self.config.prediction_type == "sample":
             pred_original_sample = model_output
         elif self.config.prediction_type == "epsilon":
-            pred_original_sample = sample - sigma_hat * model_output
+            pred_original_sample = sample - sigma_hat.to(model_output.dtype) * model_output
         elif self.config.prediction_type == "v_prediction":
             # denoised = model_output * c_out + input * c_skip
-            pred_original_sample = model_output * (-sigma / (sigma**2 + 1) ** 0.5) + (sample / (sigma**2 + 1))
+            pred_original_sample = (model_output * (-sigma / (sigma**2 + 1) ** 0.5)).to(model_output.dtype) + (
+                sample / (sigma**2 + 1)
+            )
         else:
             raise ValueError(
                 f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, or `v_prediction`"
@@ -537,6 +542,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         noise: ms.Tensor,
         timesteps: ms.Tensor,
     ) -> ms.Tensor:
+        broadcast_shape = original_samples.shape
         # Make sure sigmas and timesteps have the same device and dtype as original_samples
         sigmas = self.sigmas.to(dtype=original_samples.dtype)
         schedule_timesteps = self.timesteps
@@ -548,8 +554,9 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             step_indices = [self.begin_index] * timesteps.shape[0]
 
         sigma = sigmas[step_indices].flatten()
-        while len(sigma.shape) < len(original_samples.shape):
-            sigma = sigma.unsqueeze(-1)
+        # while len(sigma.shape) < len(original_samples.shape):
+        #     sigma = sigma.unsqueeze(-1)
+        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples
