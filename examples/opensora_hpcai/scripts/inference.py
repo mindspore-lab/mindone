@@ -103,7 +103,7 @@ def data_parallel_split(x, device_id, device_num):
     if device_num in [None, 1]:
         shard = x  
     if device_id == device_num - 1:
-        shard = x[devide_id*shard_size:]
+        shard = x[device_id*shard_size:]
     else:
         shard = x[device_id*shard_size: (device_id+1)*shard_size]
 
