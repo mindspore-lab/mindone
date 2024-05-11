@@ -198,8 +198,12 @@ class BasicTransformerBlock(nn.Cell):
 
         # 1. Prepare GLIGEN inputs
         if cross_attention_kwargs is not None:
-            cross_attention_kwargs = cross_attention_kwargs.copy()
-            gligen_kwargs = cross_attention_kwargs.pop("gligen", None)
+            if "gligen" in cross_attention_kwargs:
+                raise NotImplementedError(
+                    f"GLIGEN is not yet supported. Do not pass {cross_attention_kwargs['gligen']=}"
+                )
+            else:
+                gligen_kwargs = None
         else:
             cross_attention_kwargs = {}
             gligen_kwargs = None

@@ -161,7 +161,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         """
         Whether gradient checkpointing is activated for this model or not.
         """
-        return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for m in self.cells())
+        return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for _, m in self.cells_and_names())
 
     def enable_gradient_checkpointing(self) -> None:
         """
