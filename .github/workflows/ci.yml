@@ -43,3 +43,12 @@ jobs:
     - name: Test with pytest (ST)
       run: |
         pytest tests/st
+    # todo: test diffusers/schedulers
+    - name: Test Diffusers
+      run: |
+        pip install "torch==2.2.1"
+        pip install "diffusers==0.27.0"
+        pip install "OmegaConf"
+        export PYTHONPATH=$(pwd):$PYTHONPATH
+        pytest tests/diffusers/test_schedulers_graph.py
+        pytest tests/diffusers/test_schedulers.py

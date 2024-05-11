@@ -38,8 +38,17 @@ _import_structure = {
     "schedulers": [
         "DDIMScheduler",
         "DDPMScheduler",
+        "DEISMultistepScheduler",
+        "DPMSolverMultistepScheduler",
+        "DPMSolverSinglestepScheduler",
+        "EulerAncestralDiscreteScheduler",
         "EulerDiscreteScheduler",
+        "HeunDiscreteScheduler",
+        "KDPM2AncestralDiscreteScheduler",
+        "KDPM2DiscreteScheduler",
+        "LMSDiscreteScheduler",
         "PNDMScheduler",
+        "UniPCMultistepScheduler",
         "SchedulerMixin",
     ],
     "utils": [
@@ -66,7 +75,22 @@ if TYPE_CHECKING:
         StableDiffusionPipeline,
         StableDiffusionXLPipeline,
     )
-    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
+    from .schedulers import (
+        DDIMScheduler,
+        DDPMScheduler,
+        DEISMultistepScheduler,
+        DPMSolverMultistepScheduler,
+        DPMSolverSinglestepScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        HeunDiscreteScheduler,
+        KDPM2AncestralDiscreteScheduler,
+        KDPM2DiscreteScheduler,
+        LMSDiscreteScheduler,
+        PNDMScheduler,
+        SchedulerMixin,
+        UniPCMultistepScheduler,
+    )
     from .utils import logging
 
 else:
