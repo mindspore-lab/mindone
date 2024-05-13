@@ -1,8 +1,5 @@
-import os
-
 import cv2
 import numpy as np
-from PIL import Image
 from scipy import linalg
 from sklearn.metrics.pairwise import polynomial_kernel
 from tqdm import tqdm
@@ -10,7 +7,8 @@ from tqdm import tqdm
 import mindspore as ms
 from mindspore import ops
 
-from .models.inceptioni3d import inceptioni_3d_fvd
+from ..video_data import TextVideoDataset
+from .inceptioni3d import inceptioni_3d_fvd
 
 
 def _symmetric_matrix_square_root(mat, eps=1e-10):
@@ -80,59 +78,54 @@ def polynomial_mmd(X, Y):
 
 
 class Frechet_Kernel_Video_Distance:
-    def __init__(self, ckpt_path=None, num_frames=32):
+    def __init__(self, ckpt_path=None, sample_n_frames=64, sample_stride=1):
         # TODO: set context
         if ckpt_path is not None:
             self.model = inceptioni_3d_fvd(pretrained=False, ckpt_path=ckpt_path)
         else:
             self.model = inceptioni_3d_fvd(pretrained=True)
-        self.num_frames = num_frames
+        self.sample_n_frames = sample_n_frames
+        self.sample_stride = sample_stride
         self.model.set_train(False)
 
-    def comput_mode_feature(self, gen_video_list, gt_video_list):
-        gen_feature = self.calucation(gen_video_list, self.num_frames)
-        gt_feature = self.calucation(gt_video_list, self.num_frames)
+    def comput_mode_feature(self, gen_video_folder, gt_video_folder, gen_csv_path=None, gt_csv_path=None):
+        gen_feature = self.calucation(gen_video_folder, csv_path=gen_csv_path, sample_n_frames=self.sample_n_frames)
+        gt_feature = self.calucation(
+            gt_video_folder,
+            csv_path=gt_csv_path,
+            sample_stride=self.sample_stride,
+            sample_n_frames=self.sample_n_frames,
+        )
 
         return gen_feature, gt_feature
 
-    def calucation(self, video_list, num_frames):
+    def calucation(self, video_folder, csv_path=None, sample_stride=1, sample_n_frames=16):
         pred_arr = []
-        for path in tqdm(video_list):
-            if not os.path.exists(path):
-                raise FileNotFoundError(path)
-            cap = cv2.VideoCapture(path)
-
-            frames = []
-            index = 0
-            while cap.isOpened():
-                ret, frame = cap.read()
-
-                if ret:
-                    frame = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                    frames.append(frame)
-                    index += 1
-                else:
-                    break
-            cap.release()
-            frames = [i.resize((224, 224)) for i in frames]
-            frames = np.stack(frames, axis=0)  # (b*t, h, w, c)
-            bt, h, w, c = frames.shape
-            if bt > num_frames:
-                b = bt // num_frames
-                frames = ms.Tensor(frames[: b * num_frames]).view(b, num_frames, h, w, c)  # (b, num_frames, h, w, c)
-            else:
-                frames = ops.unsqueeze(ms.Tensor(frames), dim=0)  # (1, bt, h, w, c)
-            frames = ops.permute(frames, (0, 4, 1, 2, 3))
-            frames = 2.0 * frames / 255.0 - 1  # [-1, 1]
-            pred = self.model(frames)
+        dataset = TextVideoDataset(
+            video_folder, csv_path=csv_path, sample_stride=sample_stride, sample_n_frames=sample_n_frames
+        )
+        for video_index in tqdm(range(len(dataset)), total=len(dataset)):
+            pixel_values, _ = dataset.get_video_frame(video_index)  # (f c h w)
+            pixel_values = ((pixel_values + 1) * 127.5).astype(np.uint8)  # (f c h w)
+            pixel_values = np.transpose(pixel_values, (0, 2, 3, 1))  # (f h w c)
+            pixel_values = [cv2.resize(pixel_values, (224, 224)) for pixel_value in pixel_values]
+            pixel_values = np.stack(pixel_values, axis=0)  # (f h w c)
+            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)  # (f h w c)
+            pixel_values = ops.unsqueeze(ms.Tensor(pixel_values), dim=0)  # (1 f h w c)
+            pixel_values = ops.permute(pixel_values, (0, 4, 1, 2, 3))  # (1 c f h w)
+            pred = self.model(pixel_values)
             pred_arr.append(pred)
+
         pred_arr = ops.cat(pred_arr, 0).float()
+
         return pred_arr
 
     def comput_fvd(self, gen_feature, gt_feature):
         fvd = frechet_distance(gen_feature, gt_feature)
+        fvd = fvd / gen_feature.shape[0]
         return fvd
 
     def comput_kvd(self, gen_feature, gt_feature):
         kvd = polynomial_mmd(gen_feature, gt_feature)
+        kvd = kvd / gen_feature.shape[0]
         return kvd

@@ -470,7 +470,7 @@ if __name__ == "__main__":
     # simple test
     from mindspore import amp
 
-    ms.set_context(mode=ms.PYNATIVE_MODE)
+    ms.set_context(mode=0)
     net = inceptioni_3d_fvd(pretrained=True)
     amp_level = "O2"
     net = amp.auto_mixed_precision(net, amp_level)
