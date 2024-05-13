@@ -1,5 +1,6 @@
+import os
 from inspect import isfunction
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import mindspore as ms
 from mindspore import ops
@@ -30,3 +31,9 @@ def default(val, d):
     if exists(val):
         return val
     return d() if isfunction(d) else d
+
+
+def to_abspath(root_dir: str, tmp_path: Optional[str]):
+    if not tmp_path or tmp_path.startswith("/"):
+        return tmp_path
+    return os.path.join(root_dir, tmp_path)

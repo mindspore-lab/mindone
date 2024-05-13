@@ -97,7 +97,6 @@ def get_parser_sample():
         default=1.0,
         help="For DynamicThresholding. Valid only when thresholding=True.",
     )
-
     parser.add_argument(
         "--discretization",
         type=str,
@@ -134,6 +133,13 @@ def get_parser_sample():
         type=str,
         default=None,
         help="path to initial latent noise (npy file). If not None, seed will not make effect and the initial latent noise will be used for sampling.",
+    )
+    parser.add_argument(
+        "--init_noise_scheduler_path",
+        type=str,
+        default=None,
+        help="path to initial sampler noise (npy file). If not None, seed will not make effect and the initial noise will be used "
+        "for sampling. Currently only supported in the EulerA sampler.",
     )
     parser.add_argument("--precision_keep_origin_dtype", type=ast.literal_eval, default=False)
     parser.add_argument("--save_path", type=str, default="outputs/demo/", help="save dir")
@@ -271,6 +277,7 @@ def run_txt2img(
                 filter=filter,
                 amp_level=amp_level,
                 init_latent_path=args.init_latent_path,
+                init_noise_scheduler_path=args.init_noise_scheduler_path,
                 control=control,
             )
             print(f"Txt2Img sample step {sampler.num_steps}, time cost: {time.time() - s_time:.2f}s")
@@ -535,8 +542,11 @@ if __name__ == "__main__":
     if args.deterministic:
         # get same results for each run
         ms.context.set_context(deterministic="ON")
-        # FIXME: Bug on MindSpore 2.2.11
+
+        # FIXME: Bug on MindSpore 2.2.11, If not setting `pynative_synchronize=True`, there may be a relatively small
+        #  probability(~1%) of the result not meeting expectations.
         ms.context.set_context(pynative_synchronize=True)
+
     if args.precision_keep_origin_dtype:
         ms.context.set_context(ascend_config=dict(precision_mode="must_keep_origin_dtype"))
 

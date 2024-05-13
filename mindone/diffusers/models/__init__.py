@@ -21,6 +21,7 @@ _import_structure = {
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "unets.unet_2d": ["UNet2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],
 }
 
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import Transformer2DModel
-    from .unets import UNet2DConditionModel
+    from .unets import UNet2DConditionModel, UNet2DModel
 
 else:
     import sys

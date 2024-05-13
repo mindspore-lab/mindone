@@ -371,6 +371,7 @@ def do_sample(
     amp_level="O0",
     max_n_chunks: Optional[int] = None,
     init_latent_path=None,  # '/path/to/sdxl_init_latent.npy'
+    init_noise_scheduler_path=None,  # '/path/to/euler_a_noise_scheduler.npy'
     **kwargs,
 ):
     """
@@ -437,8 +438,15 @@ def do_sample(
     else:
         randn = Tensor(np.random.randn(*shape), ms.float32)
 
+    if init_noise_scheduler_path is not None:
+        init_noise_scheduler = Tensor(np.load(init_noise_scheduler_path), ms.float32)
+    else:
+        init_noise_scheduler = None
+
     print("Sample latent Starting...")
-    samples_z = sampler(model, randn, cond=c, uc=uc, adapter_states=adapter_states)
+    samples_z = sampler(
+        model, randn, cond=c, uc=uc, adapter_states=adapter_states, init_noise_scheduler=init_noise_scheduler
+    )
     print("Sample latent Done.")
 
     print("Decode latent Starting...")

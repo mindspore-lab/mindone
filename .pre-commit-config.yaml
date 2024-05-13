@@ -9,6 +9,7 @@ repos:
       - id: mixed-line-ending
         args: ["--fix=lf"]
       - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
 
   - repo: https://github.com/PyCQA/isort
     rev: 5.11.5

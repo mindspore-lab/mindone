@@ -17,6 +17,7 @@ _import_structure = {
         "AutoencoderKL",
         "ModelMixin",
         "UNet2DConditionModel",
+        "UNet2DModel",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -37,8 +38,17 @@ _import_structure = {
     "schedulers": [
         "DDIMScheduler",
         "DDPMScheduler",
+        "DEISMultistepScheduler",
+        "DPMSolverMultistepScheduler",
+        "DPMSolverSinglestepScheduler",
+        "EulerAncestralDiscreteScheduler",
         "EulerDiscreteScheduler",
+        "HeunDiscreteScheduler",
+        "KDPM2AncestralDiscreteScheduler",
+        "KDPM2DiscreteScheduler",
+        "LMSDiscreteScheduler",
         "PNDMScheduler",
+        "UniPCMultistepScheduler",
         "SchedulerMixin",
     ],
     "utils": [
@@ -48,7 +58,7 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
-    from .models import AutoencoderKL, ModelMixin, UNet2DConditionModel
+    from .models import AutoencoderKL, ModelMixin, UNet2DConditionModel, UNet2DModel
     from .optimization import (
         get_constant_schedule,
         get_constant_schedule_with_warmup,
@@ -65,7 +75,22 @@ if TYPE_CHECKING:
         StableDiffusionPipeline,
         StableDiffusionXLPipeline,
     )
-    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
+    from .schedulers import (
+        DDIMScheduler,
+        DDPMScheduler,
+        DEISMultistepScheduler,
+        DPMSolverMultistepScheduler,
+        DPMSolverSinglestepScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        HeunDiscreteScheduler,
+        KDPM2AncestralDiscreteScheduler,
+        KDPM2DiscreteScheduler,
+        LMSDiscreteScheduler,
+        PNDMScheduler,
+        SchedulerMixin,
+        UniPCMultistepScheduler,
+    )
     from .utils import logging
 
 else:
