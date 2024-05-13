@@ -5,6 +5,7 @@ from ...utils import _LazyModule
 _import_structure = {
     "pipeline_output": ["StableDiffusionPipelineOutput"],
     "pipeline_stable_diffusion": ["StableDiffusionPipeline"],
+    "pipeline_stable_diffusion_img2img": ["StableDiffusionImg2ImgPipeline"],
     "safety_checker": ["StableDiffusionSafetyChecker"],
 }
 
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
         StableDiffusionPipelineOutput,
         StableDiffusionSafetyChecker,
     )
+    from .pipeline_stable_diffusion_img2img import StableDiffusionImg2ImgPipeline
 
 else:
     import sys
