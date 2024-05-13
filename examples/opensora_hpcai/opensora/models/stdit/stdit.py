@@ -353,7 +353,8 @@ class STDiT(nn.Cell):
         # cast to float32 for better accuracy
         # x = x.astype(ms.float32)
         return x
-
+    
+    @ms.jit
     def construct_with_cfg(self, x, t, y, mask=None, cfg_scale=4.0):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.

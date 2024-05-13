@@ -160,7 +160,7 @@ class InferPipeline(ABC):
             latents, _ = latents.chunk(2, axis=0)
         else:
             latents = self.sampling_func(
-                self.model.construct, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+                self.model, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
             )
 
         if self.vae is not None:
