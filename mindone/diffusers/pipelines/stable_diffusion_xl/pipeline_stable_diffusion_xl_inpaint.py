@@ -127,7 +127,8 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image: bool
     """
 
     # checkpoint. TOD(Yiyi) - need to clean this up later
-    deprecation_message = "The prepare_mask_and_masked_image method is deprecated and will be removed in a future version. Please use VaeImageProcessor.preprocess instead"
+    deprecation_message = "The prepare_mask_and_masked_image method is deprecated and will be removed in a future version. \
+                           Please use VaeImageProcessor.preprocess instead"
     deprecate(
         "prepare_mask_and_masked_image",
         "0.30.0",
@@ -661,7 +662,8 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs},"
+                f"but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -928,18 +930,26 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
             and (expected_add_embed_dim - passed_add_embed_dim) == self.unet.config.addition_time_embed_dim
         ):
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to enable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=True)` to make sure `aesthetic_score` {aesthetic_score} and `negative_aesthetic_score` {negative_aesthetic_score} is correctly used by the model."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim},"
+                f"but a vector of {passed_add_embed_dim} was created. Please make sure to enable `requires_aesthetics_score`"
+                f"with `pipe.register_to_config(requires_aesthetics_score=True)` to make sure `aesthetic_score` {aesthetic_score}"
+                f"and `negative_aesthetic_score` {negative_aesthetic_score} is correctly used by the model."
             )
         elif (
             expected_add_embed_dim < passed_add_embed_dim
             and (passed_add_embed_dim - expected_add_embed_dim) == self.unet.config.addition_time_embed_dim
         ):
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to disable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=False)` to make sure `target_size` {target_size} is correctly used by the model."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim},"
+                f"but a vector of {passed_add_embed_dim} was created. Please make sure to disable `requires_aesthetics_score`"
+                f"with `pipe.register_to_config(requires_aesthetics_score=False)` to make sure `target_size` {target_size}"
+                "is correctly used by the model."
             )
         elif expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim},"
+                f"but a vector of {passed_add_embed_dim} was created. The model has an incorrect config."
+                f"Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
             )
 
         add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
@@ -1096,8 +1106,8 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
                 The size of margin in the crop to be applied to the image and masking. If `None`, no crop is applied to image and mask_image. If
                 `padding_mask_crop` is not `None`, it will first find a rectangular region with the same aspect ration of the image and
                 contains all masked area, and then expand that area based on `padding_mask_crop`. The image and mask_image will then be cropped based on
-                the expanded area before resizing to the original image size for inpainting. This is useful when the masked area is small while the image is large
-                and contain information inreleant for inpainging, such as background.
+                the expanded area before resizing to the original image size for inpainting. This is useful when the masked area is small
+                while the image is large and contain information inreleant for inpainging, such as background.
             strength (`float`, *optional*, defaults to 0.9999):
                 Conceptually, indicates how much to transform the masked portion of the reference `image`. Must be
                 between 0 and 1. `image` will be used as a starting point, adding more noise to it the larger the
@@ -1556,7 +1566,7 @@ class StableDiffusionXLInpaintPipeline(DiffusionPipeline):
                         init_mask = mask
 
                     if i < len(timesteps) - 1:
-                        noise_timestep = timesteps[i + 1:i + 2]
+                        noise_timestep = timesteps[i + 1 : i + 2]
                         init_latents_proper = self.scheduler.add_noise(init_latents_proper, noise, noise_timestep)
 
                     latents = (1 - init_mask) * init_latents_proper + init_mask * latents

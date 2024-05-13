@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionPipeline
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,
-        StableDiffusionXLPipeline,
         StableDiffusionXLInpaintPipeline,
+        StableDiffusionXLPipeline,
     )
 else:
     import sys

@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import ops
 
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
@@ -469,7 +469,8 @@ class StableDiffusionXLImg2ImgPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs},"
+                f"but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -643,18 +644,26 @@ class StableDiffusionXLImg2ImgPipeline(DiffusionPipeline):
             and (expected_add_embed_dim - passed_add_embed_dim) == self.unet.config.addition_time_embed_dim
         ):
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to enable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=True)` to make sure `aesthetic_score` {aesthetic_score} and `negative_aesthetic_score` {negative_aesthetic_score} is correctly used by the model."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim},"
+                f"but a vector of {passed_add_embed_dim} was created. Please make sure to enable `requires_aesthetics_score`"
+                f"with `pipe.register_to_config(requires_aesthetics_score=True)` to make sure `aesthetic_score` {aesthetic_score}"
+                f"and `negative_aesthetic_score` {negative_aesthetic_score} is correctly used by the model."
             )
         elif (
             expected_add_embed_dim < passed_add_embed_dim
             and (passed_add_embed_dim - expected_add_embed_dim) == self.unet.config.addition_time_embed_dim
         ):
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. Please make sure to disable `requires_aesthetics_score` with `pipe.register_to_config(requires_aesthetics_score=False)` to make sure `target_size` {target_size} is correctly used by the model."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim},"
+                f"but a vector of {passed_add_embed_dim} was created. Please make sure to disable `requires_aesthetics_score`"
+                f"with `pipe.register_to_config(requires_aesthetics_score=False)` to make sure `target_size` {target_size}"
+                "is correctly used by the model."
             )
         elif expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim},"
+                f"but a vector of {passed_add_embed_dim} was created. The model has an incorrect config."
+                f"Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
             )
 
         add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
