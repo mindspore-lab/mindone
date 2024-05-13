@@ -72,6 +72,9 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     config = OmegaConf.load(args.model_config)
+    config.generator.params.resnet_micro_batch_size = args.vae_micro_batch_size
+    if args.vae_micro_batch_size:
+        logger.info(f"Using VAE micro batch size {args.vae_micro_batch_size}")
     model = instantiate_from_config(config.generator)
     model.init_from_ckpt(args.ckpt_path)
     model.set_train(False)
@@ -259,6 +262,9 @@ def parse_args():
         choices=["fp32", "fp16", "bf16"],
         help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \
                 if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
+    )
+    parser.add_argument(
+        "--vae_micro_batch_size", type=int, default=None, help="Set to one to reduce vae encoder's memory peak"
     )
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
 

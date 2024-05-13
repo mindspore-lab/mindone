@@ -125,13 +125,24 @@ class CausalConv3d(nn.Cell):
 
 class ResnetBlock3D(nn.Cell):
     def __init__(
-        self, *, in_channels, out_channels=None, conv_shortcut=False, dropout, dtype=ms.float32, upcast_sigmoid=False
+        self,
+        *,
+        in_channels,
+        out_channels=None,
+        conv_shortcut=False,
+        dropout,
+        dtype=ms.float32,
+        upcast_sigmoid=False,
+        micro_batch_size=None,
     ):
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = in_channels if out_channels is None else out_channels
         self.use_conv_shortcut = conv_shortcut
         self.upcast_sigmoid = upcast_sigmoid
+        self.micro_batch_size = micro_batch_size
+        if self.micro_batch_size is not None:
+            assert self.micro_batch_size > 0, f"Expect to have a positive micro_batch_size, but got {micro_batch_size}"
 
         # FIXME: GroupNorm precision mismatch with PT.
         self.norm1 = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
@@ -145,7 +156,7 @@ class ResnetBlock3D(nn.Cell):
             else:
                 self.nin_shortcut = CausalConv3d(in_channels, out_channels, 1, padding=0)
 
-    def construct(self, x):
+    def cal_batch(self, x):
         h = x
         h = self.norm1(h)
         h = nonlinearity(h, self.upcast_sigmoid)
@@ -160,6 +171,15 @@ class ResnetBlock3D(nn.Cell):
             else:
                 x = self.nin_shortcut(x)
         return x + h
+
+    def construct(self, x):
+        if self.micro_batch_size is None:
+            return self.cal_batch(x)
+        else:
+            y = []
+            for x_batch in ops.split(x, self.micro_batch_size, axis=0):
+                y.append(self.cal_batch(x_batch))
+            return ops.concat(y, axis=0)
 
 
 class CausalConv3dZeroPad(nn.Cell):

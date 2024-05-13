@@ -206,6 +206,9 @@ def parse_train_args(parser):
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
+    parser.add_argument(
+        "--vae_micro_batch_size", type=int, default=None, help="Set to one to reduce vae encoder's memory peak"
+    )
     return parser
 
 

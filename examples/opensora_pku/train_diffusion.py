@@ -161,6 +161,9 @@ def main(args):
         # 2.2 vae
         logger.info("vae init")
         ae_config = OmegaConf.load(args.vae_config)
+        ae_config.generator.params.resnet_micro_batch_size = args.vae_micro_batch_size
+        if args.vae_micro_batch_size:
+            logger.info(f"Using VAE micro batch size {args.vae_micro_batch_size}")
         vae = instantiate_from_config(ae_config.generator)
         vae.init_from_ckpt(args.vae_checkpoint)
         vae.set_train(False)

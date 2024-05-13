@@ -26,13 +26,18 @@ class CausalVAEModel(nn.Cell):
         monitor=None,
         use_fp16=False,
         upcast_sigmoid=False,
+        resnet_micro_batch_size=False,
     ):
         super().__init__()
         self.dtype = ms.float16 if use_fp16 else ms.float32
         # print("D--: ddconfig: ", ddconfig)
 
-        self.encoder = Encoder(dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, **ddconfig)
-        self.decoder = Decoder(dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, **ddconfig)
+        self.encoder = Encoder(
+            dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, resnet_micro_batch_size=resnet_micro_batch_size, **ddconfig
+        )
+        self.decoder = Decoder(
+            dtype=self.dtype, upcast_sigmoid=upcast_sigmoid, resnet_micro_batch_size=resnet_micro_batch_size, **ddconfig
+        )
         assert ddconfig["double_z"]
         if ddconfig["split_time_upsample"]:
             print("Exclude first frame from time upsample")
@@ -192,6 +197,7 @@ class Encoder(nn.Cell):
         dtype=ms.float32,
         time_compress=2,  # diff 3d
         upcast_sigmoid=False,
+        resnet_micro_batch_size=None,
         **ignore_kwargs,
     ):
         """
@@ -243,6 +249,7 @@ class Encoder(nn.Cell):
                         dropout=dropout,
                         dtype=self.dtype,
                         upcast_sigmoid=upcast_sigmoid,
+                        micro_batch_size=resnet_micro_batch_size,
                     )
                 )
                 block_in = block_out
@@ -274,6 +281,7 @@ class Encoder(nn.Cell):
             dropout=dropout,
             dtype=self.dtype,
             upcast_sigmoid=upcast_sigmoid,
+            micro_batch_size=resnet_micro_batch_size,
         )
         self.mid.attn_1 = make_attn(block_in, attn_type=attn_type, dtype=self.dtype)
         self.mid.block_2 = ResnetBlock3D(
@@ -282,6 +290,7 @@ class Encoder(nn.Cell):
             dropout=dropout,
             dtype=self.dtype,
             upcast_sigmoid=upcast_sigmoid,
+            micro_batch_size=resnet_micro_batch_size,
         )
         self.mid.update_parameters_name(prefix=self.param_prefix + "mid.")
 
@@ -347,6 +356,7 @@ class Decoder(nn.Cell):
         split_time_upsample=True,  # TODO: ablate
         dtype=ms.float32,
         upcast_sigmoid=False,
+        resnet_micro_batch_size=None,
         **ignorekwargs,
     ):
         super().__init__()
@@ -375,9 +385,21 @@ class Decoder(nn.Cell):
 
         # middle
         self.mid = nn.Cell()
-        self.mid.block_1 = ResnetBlock3D(in_channels=block_in, out_channels=block_in, dropout=dropout, dtype=self.dtype)
+        self.mid.block_1 = ResnetBlock3D(
+            in_channels=block_in,
+            out_channels=block_in,
+            dropout=dropout,
+            dtype=self.dtype,
+            micro_batch_size=resnet_micro_batch_size,
+        )
         self.mid.attn_1 = make_attn(block_in, attn_type=attn_type, dtype=self.dtype)
-        self.mid.block_2 = ResnetBlock3D(in_channels=block_in, out_channels=block_in, dropout=dropout, dtype=self.dtype)
+        self.mid.block_2 = ResnetBlock3D(
+            in_channels=block_in,
+            out_channels=block_in,
+            dropout=dropout,
+            dtype=self.dtype,
+            micro_batch_size=resnet_micro_batch_size,
+        )
         self.mid.update_parameters_name(prefix=self.param_prefix + "mid.")
 
         # upsampling
@@ -394,6 +416,7 @@ class Decoder(nn.Cell):
                         out_channels=block_out,
                         dropout=dropout,
                         dtype=self.dtype,
+                        micro_batch_size=resnet_micro_batch_size,
                     )
                 )
                 block_in = block_out
