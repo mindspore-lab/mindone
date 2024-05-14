@@ -21,12 +21,8 @@ class AutoencoderKL(nn.Cell):
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
         assert ddconfig["double_z"]
-        self.quant_conv = nn.Conv2d(
-            2 * ddconfig["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True
-        )
-        self.post_quant_conv = nn.Conv2d(
-            embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True
-        )
+        self.quant_conv = nn.Conv2d(2 * ddconfig["z_channels"], 2 * embed_dim, 1, pad_mode="valid", has_bias=True)
+        self.post_quant_conv = nn.Conv2d(embed_dim, ddconfig["z_channels"], 1, pad_mode="valid", has_bias=True)
         self.embed_dim = embed_dim
 
         if monitor is not None:

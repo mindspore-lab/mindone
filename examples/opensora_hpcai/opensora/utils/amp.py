@@ -52,15 +52,13 @@ def auto_mixed_precision(network, amp_level="O0", dtype=ms.float16, custom_fp32_
         try:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST
-                + custom_fp32_cells,
+                AMP_BLACK_LIST + custom_fp32_cells,
                 dtype,
             )
         except Exception:
             _auto_black_list(
                 network,
-                AMP_BLACK_LIST
-                + custom_fp32_cells,
+                AMP_BLACK_LIST + custom_fp32_cells,
             )
     elif amp_level == "O3":
         network.to_float(dtype)

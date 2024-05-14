@@ -31,4 +31,3 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
     --use_ema=False \
     --profile=True \
     --output_path=$output_dir \
-

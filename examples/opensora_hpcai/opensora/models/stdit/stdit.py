@@ -24,7 +24,6 @@ from mindspore import Tensor, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
-from mindone.models.modules.flash_attention import MSFlashAttention
 
 
 class STDiTBlock(nn.Cell):
@@ -353,7 +352,7 @@ class STDiT(nn.Cell):
         # cast to float32 for better accuracy
         # x = x.astype(ms.float32)
         return x
-    
+
     @ms.jit
     def construct_with_cfg(self, x, t, y, mask=None, cfg_scale=4.0):
         """

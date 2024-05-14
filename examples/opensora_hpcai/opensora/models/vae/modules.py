@@ -1,9 +1,7 @@
 import logging
-from typing import Tuple, Union
 
 import numpy as np
 
-import mindspore as ms
 from mindspore import nn, ops
 
 _logger = logging.getLogger(__name__)
@@ -24,8 +22,10 @@ def cast_tuple(t, length=1):
 def nonlinearity(x):
     return x * (ops.sigmoid(x))
 
+
 def Normalize(in_channels, num_groups=32):
     return nn.GroupNorm(num_groups=num_groups, num_channels=in_channels, eps=1e-6, affine=True)
+
 
 class Upsample(nn.Cell):
     def __init__(self, in_channels, with_conv):
@@ -136,9 +136,7 @@ class AttnBlock(nn.Cell):
         self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
         self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
         self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True
-        )
+        self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
     def construct(self, x):
         h_ = x
@@ -167,6 +165,7 @@ class AttnBlock(nn.Cell):
 
         return x + h_
 
+
 def make_attn(in_channels, attn_type="vanilla"):
     assert attn_type in ["vanilla", "vanilla3D"], f"attn_type {attn_type} not supported"
     _logger.debug(f"making attention of type '{attn_type}' with {in_channels} in_channels")
@@ -174,6 +173,7 @@ def make_attn(in_channels, attn_type="vanilla"):
         return AttnBlock(in_channels)
     else:
         raise NotImplementedError
+
 
 # used in vae
 class Encoder(nn.Cell):
@@ -206,7 +206,8 @@ class Encoder(nn.Cell):
 
         # downsampling
         self.conv_in = nn.Conv2d(
-            in_channels, self.ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
+            in_channels, self.ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+        )
 
         curr_res = resolution
         in_ch_mult = (1,) + tuple(ch_mult)
@@ -384,8 +385,7 @@ class Decoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in)
-        self.conv_out = nn.Conv2d(
-            block_in, out_ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
 
     def construct(self, z):
         # timestep embedding

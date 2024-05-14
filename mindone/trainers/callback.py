@@ -288,6 +288,7 @@ class ProfilerCallback(ms.Callback):
             if self.exit_after_analyze:
                 run_context.request_stop()
 
+
 class ProfilerCallbackEpoch(ms.Callback):
     def __init__(self, start_epoch, stop_epoch, output_dir="./profiler_data"):
         super().__init__()
@@ -307,5 +308,3 @@ class ProfilerCallbackEpoch(ms.Callback):
         if epoch_num == self.stop_epoch:
             self.profiler.stop()
             self.profiler.analyse()
-
-

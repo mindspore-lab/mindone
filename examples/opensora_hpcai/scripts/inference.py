@@ -23,9 +23,9 @@ from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
+from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
-from opensora.utils.amp import auto_mixed_precision
 
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
@@ -33,6 +33,7 @@ from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
+
 
 def init_env(
     mode: int = ms.GRAPH_MODE,
@@ -73,10 +74,6 @@ def init_env(
             gradients_mean=True,
             device_num=device_num,
         )
-
-        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
-
     else:
         device_num = 1
         rank_id = 0
@@ -94,18 +91,18 @@ def init_env(
 
 # split captions or t5-embedding according to rank_num and rank_id
 def data_parallel_split(x, device_id, device_num):
-    n = len(x)  
+    n = len(x)
     shard_size = n // device_num
-    if device_id == None:
+    if device_id is None:
         device_id = 0
     base_data_idx = device_id * shard_size
 
     if device_num in [None, 1]:
-        shard = x  
+        shard = x
     if device_id == device_num - 1:
-        shard = x[device_id*shard_size:]
+        shard = x[device_id * shard_size :]
     else:
-        shard = x[device_id*shard_size: (device_id+1)*shard_size]
+        shard = x[device_id * shard_size : (device_id + 1) * shard_size]
 
     return shard, base_data_idx
 
@@ -123,7 +120,9 @@ def main(args):
         os.makedirs(latent_dir, exist_ok=True)
 
     # 1. init env
-    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target, enable_dvm=args.enable_dvm)
+    rank_id, device_num = init_env(
+        args.mode, args.seed, args.use_parallel, device_target=args.device_target, enable_dvm=args.enable_dvm
+    )
     set_random_seed(args.seed)
     set_logger(name="", output_dir=save_dir)
 
@@ -190,11 +189,12 @@ def main(args):
         )
         vae = vae.set_train(False)
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae,
+            vae = auto_mixed_precision(
+                vae,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.vae_dtype],
                 custom_fp32_cells=[nn.GroupNorm],
-                )
+            )
     else:
         vae = None
 
@@ -208,7 +208,7 @@ def main(args):
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
-        assert args.use_parallel, 'parallel inference is not supported for t5 cached sampling currently.'
+        assert args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []

@@ -129,7 +129,8 @@ def parse_train_args(parser):
         "--num_recompute_blocks",
         default=None,
         type=int,
-        help="If None, all stdit blocks will be applied with recompute (gradient checkpointing). If int, the first N blocks will be applied with recompute")
+        help="If None, all stdit blocks will be applied with recompute (gradient checkpointing). If int, the first N blocks will be applied with recompute",
+    )
     parser.add_argument(
         "--dtype",
         default="fp16",
@@ -150,7 +151,12 @@ def parse_train_args(parser):
         type=str2bool,
         help="whether keep GroupNorm in fp32.",
     )
-    parser.add_argument("--global_bf16", default=False, type=str2bool, help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN")
+    parser.add_argument(
+        "--global_bf16",
+        default=False,
+        type=str2bool,
+        help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN",
+    )
     parser.add_argument(
         "--vae_param_dtype",
         default="fp32",
@@ -165,11 +171,7 @@ def parse_train_args(parser):
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
-    parser.add_argument(
-        "--vae_amp_level",
-        default="O2",
-        type=str,
-        help="O2 or O3")
+    parser.add_argument("--vae_amp_level", default="O2", type=str, help="O2 or O3")
     parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
     parser.add_argument(
         "--vae_checkpoint",

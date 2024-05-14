@@ -230,7 +230,6 @@ class SelfAttention(nn.Cell):
         x: (b n c)
         mask: (b n), 1 - valid, 0 - padded
         """
-        x_dtype = x.dtype
         B, N, C = x.shape
 
         qkv = self.qkv(x)
@@ -279,7 +278,6 @@ class LayerNorm(nn.Cell):
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        oridtype = x.dtype
         x, _, _ = self.layer_norm(x, self.gamma, self.beta)
         return x
 

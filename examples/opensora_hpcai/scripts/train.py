@@ -22,7 +22,6 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.datasets.t2v_dataset import create_dataloader
-from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
@@ -53,7 +52,7 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
-    global_bf16: bool = False, 
+    global_bf16: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -69,7 +68,7 @@ def init_env(
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
-    
+
     if distributed:
         ms.set_context(
             mode=mode,
@@ -173,7 +172,7 @@ def main(args):
         patchify_conv3d_replace="conv2d",  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
-        num_recompute_blocks=args.num_recompute_blocks
+        num_recompute_blocks=args.num_recompute_blocks,
     )
     logger.info(f"STDiT input size: {input_size}")
     latte_model = STDiT_XL_2(**model_extra_args)
@@ -210,16 +209,17 @@ def main(args):
         vae = vae.set_train(False)
         for param in vae.get_parameters():
             param.requires_grad = False
-            if args.vae_param_dtype in ['fp16', 'bf16']:
+            if args.vae_param_dtype in ["fp16", "bf16"]:
                 # filter out norm
-                if 'norm' not in param.name: 
-                    param.set_dtype(dtype_map[args.vae_param_dtype]) 
+                if "norm" not in param.name:
+                    param.set_dtype(dtype_map[args.vae_param_dtype])
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, 
+            vae = auto_mixed_precision(
+                vae,
                 amp_level=args.vae_amp_level,
                 dtype=dtype_map[args.vae_dtype],
                 custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
-                )
+            )
     else:
         vae = None
 
@@ -385,12 +385,12 @@ def main(args):
         clip_norm=args.max_grad_norm,
         ema=ema,
     )
-    
-    if args.global_bf16: 
+
+    if args.global_bf16:
         model = Model(net_with_grads, amp_level="O0")
     else:
         model = Model(net_with_grads)
-        
+
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
