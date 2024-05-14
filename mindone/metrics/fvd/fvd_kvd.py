@@ -108,7 +108,7 @@ class Frechet_Kernel_Video_Distance:
             pixel_values, _ = dataset.get_video_frame(video_index)  # (f c h w)
             pixel_values = ((pixel_values + 1) * 127.5).astype(np.uint8)  # (f c h w)
             pixel_values = np.transpose(pixel_values, (0, 2, 3, 1))  # (f h w c)
-            pixel_values = [cv2.resize(pixel_values, (224, 224)) for pixel_value in pixel_values]
+            pixel_values = [cv2.resize(pixel_value, (224, 224)) for pixel_value in pixel_values]
             pixel_values = np.stack(pixel_values, axis=0)  # (f h w c)
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)  # (f h w c)
             pixel_values = ops.unsqueeze(ms.Tensor(pixel_values), dim=0)  # (1 f h w c)

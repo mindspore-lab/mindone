@@ -96,7 +96,7 @@ def _create_4d_causal_attention_mask(
         bsz, tgt_len = input_ids_shape
         mask = ops.full((tgt_len, tgt_len), float("-inf"), dtype=dtype)
         mask_cond = ops.arange(mask.shape[-1])
-        mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0)
+        mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0.0)
 
         mask = mask.to(dtype)
 

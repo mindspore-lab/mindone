@@ -24,14 +24,15 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
-context.set_context(mode=0)
 
 if args.metric in ["clip_score_text", "clip_score_frame"]:
+    context.set_context(mode=1)
     clip_score = ClipScore(model_name=args.model_name)
     print(f"start calculating {args.metric}")
     score = clip_score.calucation_score(args.gen_video_dir, args.gen_csv_path, metric=args.metric)
     print("{}: {}".format(args.metric, score))
-elif args.metric in ["fvd", "kvd"]:
+elif args.metric in ["FVD", "KVD"]:
+    context.set_context(mode=0)
     distance = Frechet_Kernel_Video_Distance(sample_n_frames=args.sample_n_frames, sample_stride=args.sample_stride)
     print("start calculating model feature")
     gen_feature, gt_feature = distance.comput_mode_feature(
