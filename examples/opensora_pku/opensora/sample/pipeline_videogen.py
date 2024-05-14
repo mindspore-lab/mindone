@@ -111,15 +111,15 @@ class VideoGenPipeline(DiffusionPipeline):
         text_encoder,
         vae,
         scheduler,
-        vae_scale_factor: float = 0.18215,
+        enable_time_chunk=False,  # allow to process temporal frames as overlapped chunks
     ):
         super().__init__()
 
         self.register_modules(
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
-        self.vae_scale_factor = vae_scale_factor
         # self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.enable_time_chunk = enable_time_chunk
 
     # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
     def mask_text_embeddings(self, emb, mask):
@@ -129,6 +129,10 @@ class VideoGenPipeline(DiffusionPipeline):
         else:
             masked_feature = emb * mask[:, None, :, None]  # 1 120 4096
             return masked_feature, emb.shape[2]
+
+    @ms.jit  # FIXME: on ms2.3, in pynative mode, text encoder's output has nan problem.
+    def text_encoding_func(self, input_ids, attention_mask):
+        return self.text_encoder(input_ids, attention_mask=attention_mask)
 
     # Adapted from diffusers.pipelines.deepfloyd_if.pipeline_if.encode_prompt
     def encode_prompt(
@@ -204,7 +208,7 @@ class VideoGenPipeline(DiffusionPipeline):
             attention_mask = ms.Tensor(text_inputs.attention_mask)
             prompt_embeds_attention_mask = attention_mask
 
-            prompt_embeds = self.text_encoder(text_input_ids, attention_mask=attention_mask)
+            prompt_embeds = self.text_encoding_func(text_input_ids, attention_mask=attention_mask)
             prompt_embeds = prompt_embeds[0] if isinstance(prompt_embeds, (list, tuple)) else prompt_embeds
         else:
             prompt_embeds_attention_mask = ops.ones_like(prompt_embeds)
@@ -240,7 +244,7 @@ class VideoGenPipeline(DiffusionPipeline):
                 return_tensors=None,
             )
             attention_mask = ms.Tensor(uncond_input.attention_mask)
-            negative_prompt_embeds = self.text_encoder(
+            negative_prompt_embeds = self.text_encoding_func(
                 ms.Tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
@@ -736,11 +740,66 @@ class VideoGenPipeline(DiffusionPipeline):
 
         return VideoPipelineOutput(video=video)
 
-    def decode_latents(self, latents):
+    def decode_latents_per_sample(self, latents):
         # video = self.vae.decode(latents)
-        video = self.vae.decode(latents / self.vae_scale_factor)
+        video = self.vae.decode(latents).to(ms.float32)
         # video = rearrange(video, 'b c t h w -> b t c h w').contiguous()
         # video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2)
-        video = ops.clip_by_value((video + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+        video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
-        return video  # b c t h w
+        return video  # b t h w c
+
+    def decode_latents_per_sample_in_chunks(self, latents):
+        video = self.process_in_chunks(latents, 7, 2).to(ms.float32)
+        video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(
+            0, 2, 3, 4, 1
+        )  # b c t h w -> b t h w c
+        return video  # b t h w c
+
+    def decode_latents(self, latents):
+        if not self.enable_time_chunk:
+            per_sample_func = self.decode_latents_per_sample
+        else:
+            per_sample_func = self.decode_latents_per_sample_in_chunks
+        out = []
+        bs = latents.shape[0]
+        for i in range(bs):
+            out.append(per_sample_func(latents[i : i + 1]))
+        out = ops.cat(out, axis=0)
+        return out  # b t h w c
+
+    def process_in_chunks(
+        self,
+        video_data: ms.Tensor,
+        chunk_size: int,
+        overlap: int,
+    ):
+        assert (chunk_size + overlap - 1) % 4 == 0
+        num_frames = video_data.shape[2]
+        output_chunks = []
+
+        start = 0
+        while start < num_frames:
+            end = min(start + chunk_size, num_frames)
+            if start + chunk_size + overlap < num_frames:
+                end += overlap
+            chunk = video_data[:, :, start:end, :, :]
+
+            latents = chunk  # no need to run vae encoding
+            recon_chunk = self.vae.decode(latents)  # b t c h w
+            recon_chunk = recon_chunk.permute(0, 2, 1, 3, 4)  # b t c h w -> b c t h w
+
+            if output_chunks:
+                overlap_step = min(overlap, recon_chunk.shape[2])
+                overlap_tensor = (
+                    output_chunks[-1][:, :, -overlap_step:] * 1 / 4 + recon_chunk[:, :, :overlap_step] * 3 / 4
+                )
+                output_chunks[-1] = ops.cat((output_chunks[-1][:, :, :-overlap], overlap_tensor), axis=2)
+                if end < num_frames:
+                    output_chunks.append(recon_chunk[:, :, overlap:])
+                else:
+                    output_chunks.append(recon_chunk[:, :, :, :, :])
+            else:
+                output_chunks.append(recon_chunk)
+            start += chunk_size
+        return ops.cat(output_chunks, axis=2)  # b c t h w

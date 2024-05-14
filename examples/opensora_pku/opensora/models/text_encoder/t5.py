@@ -15,7 +15,8 @@ from transformers.models.t5.configuration_t5 import T5Config
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
-from mindone.transformers import T5EncoderModel
+# from mindone.transformers import T5EncoderModel
+from .t5_encoder import T5EncoderModel
 
 logger = logging.getLogger(__name__)
 

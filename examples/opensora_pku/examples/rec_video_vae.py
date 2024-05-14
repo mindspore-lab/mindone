@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore import nn
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
@@ -17,7 +18,9 @@ from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.models.ae import getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
+from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
 
@@ -65,21 +68,22 @@ def main(args):
     kwarg = {}
     vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ckpt, **kwarg)
     if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.enable_tiling()
+        vae.vae.tile_overlap_factor = args.tile_overlap_factor
 
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.dtype != "fp32":
+    if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        vae = auto_mixed_precision(vae, amp_level, dtype)
-        logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
-    else:
+        dtype = get_precision(args.precision)
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
         amp_level = "O0"
-        dtype = ms.float32
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
 
     ds_config = dict(
         data_folder=real_video_dir,
@@ -132,7 +136,7 @@ def main(args):
             if args.output_origin:
                 os.makedirs(os.path.join(generated_video_dir, "origin/"), exist_ok=True)
                 origin_output_path = os.path.join(generated_video_dir, "origin/", file_name)
-                save_data = transform_to_rgb(x[idx : idx + 1].asnumpy(), rescale_to_uint8=False)
+                save_data = transform_to_rgb(x[idx : idx + 1].to(ms.float32).asnumpy(), rescale_to_uint8=False)
                 # (b c t h w) -> (b t h w c)
                 save_data = np.transpose(save_data, (0, 2, 3, 4, 1))
                 save_videos(
@@ -142,7 +146,7 @@ def main(args):
                     fps=sample_fps / sample_rate,
                 )
             video = video.unsqueeze(0)  # (bs=1)
-            save_data = transform_to_rgb(video.asnumpy(), rescale_to_uint8=False)
+            save_data = transform_to_rgb(video.to(ms.float32).asnumpy(), rescale_to_uint8=False)
             # (b t c h w) -> (b t h w c)
             save_data = np.transpose(save_data, (0, 1, 3, 4, 2))
             save_videos(
@@ -157,7 +161,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ae", type=str, default="")
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
     parser.add_argument("--ckpt", type=str, default="results/pretrained/causal_vae.ckpt")
@@ -179,8 +183,8 @@ if __name__ == "__main__":
     parser.add_argument("--output_origin", action="store_true")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
-        "--dtype",
-        default="fp16",
+        "--precision",
+        default="bf16",
         type=str,
         choices=["fp32", "fp16", "bf16"],
         help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \

@@ -14,7 +14,8 @@ decord
 safetensors
 omegaconf
 pyyaml
-tokenizers
+tokenizers>=0.15.2
 sentencepiece
-transformers
+transformers>=4.39.3
 pyav
+huggingface_hub>=0.22.2
