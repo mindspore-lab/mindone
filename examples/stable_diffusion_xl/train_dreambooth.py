@@ -163,6 +163,9 @@ def get_parser_train():
             " We recommend setting it as [number of class images] / [number of instance images]."
         ),
     )
+
+    # args for dynamic shape
+    parser.add_argument("--dynamic_shape", type=ast.literal_eval, default=False)
     return parser
 
 
@@ -259,7 +262,7 @@ def train(args):
         # Graph Mode
         from gm.models.trainer_factory import TrainOneStepCellDreamBooth
 
-        model = auto_mixed_precision(model, amp_level=args.ms_amp_level)
+        model.model = auto_mixed_precision(model.model, amp_level=args.ms_amp_level)
 
         train_step_fn = TrainOneStepCellDreamBooth(
             model,
@@ -272,6 +275,25 @@ def train(args):
             clip_grad=args.clip_grad,
             clip_norm=args.max_grad_norm,
         )
+
+        if args.dynamic_shape:
+            input_dyn = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+            token1 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token2 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token3 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token4 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token5 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token = [token1, token2, token3, token4, token5]
+
+            input_dyn_2 = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+            token6 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token7 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token8 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token9 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token10 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token_reg = [token6, token7, token8, token9, token10]
+
+            train_step_fn.set_inputs(input_dyn, input_dyn_2, *token, *token_reg)
 
         if model.disable_first_stage_amp:
             train_step_fn.first_stage_model.to_float(ms.float32)

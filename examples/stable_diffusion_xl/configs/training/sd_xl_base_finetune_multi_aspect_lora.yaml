@@ -18,8 +18,14 @@ model:
                     target: gm.modules.diffusionmodules.discretizer.LegacyDDPMDiscretization
 
         network_config:
-            target: gm.modules.diffusionmodules.openaimodel.UNetModel
+            target: gm.modules.diffusionmodules.openaimodel.UNetModel_lora
             params:
+                lora_dim: 4                 # for LoRA
+                lora_alpha: 4               # for LoRA
+                lora_dropout: 0.0           # for LoRA
+                lora_merge_weights: False   # for LoRA
+                only_save_lora: True        # for LoRA
+
                 adm_in_channels: 2816
                 num_classes: sequential
                 in_channels: 4
@@ -33,9 +39,8 @@ model:
                 use_linear_in_transformer: True
                 transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
                 context_dim: 2048
-                spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
+                spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
                 legacy: False
-                use_recompute: False
 
         conditioner_config:
             target: gm.modules.GeneralConditioner
@@ -98,9 +103,11 @@ model:
                     num_res_blocks: 2
                     attn_resolutions: []
                     dropout: 0.0
+                    decoder_attn_dtype: fp16
                 lossconfig:
                     target: mindspore.nn.Identity
 
+        # Module for Train
         sigma_sampler_config:
             target: gm.modules.diffusionmodules.sigma_sampling.DiscreteSampling
             params:
@@ -113,7 +120,7 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-5
+    base_learning_rate: 1.0e-4
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD

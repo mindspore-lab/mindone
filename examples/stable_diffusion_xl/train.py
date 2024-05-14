@@ -174,7 +174,7 @@ def get_parser_train():
         help="ModelArts: local device path to checkpoint folder",
     )
 
-    # args for env
+    # args for dynamic shape
     parser.add_argument("--dynamic_shape", type=ast.literal_eval, default=False)
     return parser
 
