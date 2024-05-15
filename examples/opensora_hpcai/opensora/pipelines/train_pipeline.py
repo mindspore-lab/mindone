@@ -130,12 +130,12 @@ class DiffusionWithLoss(nn.Cell):
             if C != 3:
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
             x = ops.reshape(x, (-1, C, H, W))
-            
+
             if self.micro_batch_size is not None:
                 # split into smaller frames to reduce memory cost
-                x = ops.split(x, (B*F) // self.micro_batch_size, axis=0)
+                x = ops.split(x, (B * F) // self.micro_batch_size, axis=0)
                 z_clips = []
-                for clip in x: 
+                for clip in x:
                     z_clips.append(ops.stop_gradient(self.vae_encode(clip)))
                 z = ops.cat(z_clips, axis=0)
             else:
