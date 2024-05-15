@@ -483,7 +483,7 @@ if __name__ == "__main__":
                 np.save(file_path, videos[i_sample : i + i_sample])
             else:
                 assert ".gif" in file_path or ".mp4" in file_path, "Only support .gif or .mp4 for saving video data"
-                videos = videos[i_sample : i + i_sample].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                save_video_data = videos[i_sample : i + i_sample].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
                 save_videos(save_video_data, file_path, loop=0)
     end_time = time.time()
     time_cost = end_time - start_time
