@@ -34,6 +34,7 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
+
 def init_env(
     mode: int = ms.GRAPH_MODE,
     seed: int = 42,
@@ -56,6 +57,7 @@ def init_env(
     set_random_seed(seed)
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+        
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
