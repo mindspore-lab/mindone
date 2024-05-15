@@ -215,7 +215,7 @@ def main(args):
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
-        assert args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
+        assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []

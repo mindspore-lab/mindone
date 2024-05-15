@@ -49,6 +49,7 @@ class InferPipeline:
 
         self.text_encoder = text_encoder
         self.diffusion = create_diffusion(str(num_inference_steps))
+
         if ddim_sampling:
             self.sampling_func = self.diffusion.ddim_sample_loop
         else:
@@ -175,6 +176,7 @@ class InferPipeline:
             )
             latents, _ = latents.chunk(2, axis=0)
         else:
+            # TODO: update for v1.1
             latents = self.sampling_func(
                 self.model, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
             )
