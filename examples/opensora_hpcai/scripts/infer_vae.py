@@ -18,7 +18,7 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.datasets.t2v_dataset import create_dataloader
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
 from mindone.utils.logger import set_logger

@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt

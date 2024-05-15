@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.datasets.t2v_dataset import create_dataloader
 from opensora.models.stdit.stdit import STDiT_XL_2
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
