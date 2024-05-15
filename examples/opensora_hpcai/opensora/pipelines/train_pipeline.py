@@ -45,6 +45,7 @@ class DiffusionWithLoss(nn.Cell):
         cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
+        micro_batch_size: int = None,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -62,6 +63,7 @@ class DiffusionWithLoss(nn.Cell):
 
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
+        self.micro_batch_size = micro_batch_size
 
         if self.text_emb_cached:
             self.text_encoder = None
@@ -128,8 +130,16 @@ class DiffusionWithLoss(nn.Cell):
             if C != 3:
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
             x = ops.reshape(x, (-1, C, H, W))
-
-            z = ops.stop_gradient(self.vae_encode(x))
+            
+            if self.micro_batch_size is not None:
+                # split into smaller frames to reduce memory cost
+                x = ops.split(x, (B*F) // self.micro_batch_size, axis=0)
+                z_clips = []
+                for clip in x: 
+                    z_clips.append(ops.stop_gradient(self.vae_encode(clip)))
+                z = ops.cat(z_clips, axis=0)
+            else:
+                z = ops.stop_gradient(self.vae_encode(x))
 
             # (b*f c h w) -> (b f c h w)
             z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))

@@ -236,6 +236,7 @@ def main(args):
         cond_stage_trainable=False,
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
+        micro_batch_size=args.vae_micro_batch_size,
     )
 
     # 3. create dataset
