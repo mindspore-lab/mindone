@@ -18,6 +18,7 @@ sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 from opensora.models.ae import getae_model_config
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
@@ -55,8 +56,8 @@ def main(args):
     # Load Config
     model_config = os.path.join("opensora/models/ae/videobase/causal_vae/", getae_model_config(args.ae))
     model_config = OmegaConf.load(model_config)
-    ae = instantiate_from_config(model_config)
-    if args.load_from_checkpoint is not None and len(args.load_from_chckpoint) > 0:
+    ae = instantiate_from_config(model_config.generator)
+    if args.load_from_checkpoint is not None and len(args.load_from_checkpoint) > 0:
         ae.init_from_ckpt(args.load_from_checkpoint)
     else:
         logger.info("No pre-trained model is loaded.")
@@ -74,19 +75,27 @@ def main(args):
 
     # mixed precision
     # TODO: set softmax, sigmoid computed in FP32. manually set inside network since they are ops, instead of layers whose precision will be set by AMP level.
-    if args.precision != "fp32":
+    if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        ae = auto_mixed_precision(ae, amp_level, dtype)
+        custom_fp32_cells = [] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        ae = auto_mixed_precision(ae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         if use_discriminator:
             disc = auto_mixed_precision(disc, amp_level, dtype)
-        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
-    else:
+    elif args.precision == "fp32":
         amp_level = "O0"
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
 
     # 3. build net with loss (core)
     # G with loss
-    ae_with_loss = GeneratorWithLoss(ae, discriminator=disc, **model_config.lossconfig)
+    ae_with_loss = GeneratorWithLoss(
+        ae,
+        discriminator=disc,
+        lpips_ckpt_path=os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt"),
+        **model_config.lossconfig,
+    )
     disc_start = model_config.lossconfig.disc_start
 
     # D with loss
@@ -368,7 +377,7 @@ def parse_causalvae_train_args(parser):
         "--output_dir", default="results/causalvae", help="The directory where training results are saved."
     )
     parser.add_argument("--exp_name", default=None, help="The name of the experiment.")
-    parser.add_argument("--max_steps", dafault=None, type=int, help="The maximum number of training steps.")
+    parser.add_argument("--max_steps", default=None, type=int, help="The maximum number of training steps.")
     parser.add_argument("--save_steps", default=None, type=int, help="The interval steps to save checkpoints.")
 
     parser.add_argument(

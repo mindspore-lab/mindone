@@ -2,7 +2,6 @@ import mindspore as ms
 from mindspore import nn
 
 from .conv import CausalConv3d
-from .normalize import Normalize
 from .ops import nonlinearity
 
 
@@ -27,13 +26,13 @@ class ResnetBlock(nn.Cell):
         self.use_conv_shortcut = conv_shortcut
         self.upcast_sigmoid = upcast_sigmoid
 
-        self.norm1 = Normalize(in_channels)
+        self.norm1 = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         self.conv1 = nn.Conv2d(
             in_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
         ).to_float(dtype)
         if temb_channels > 0:
             self.temb_proj = nn.Dense(temb_channels, out_channels, bias_init="normal").to_float(dtype)
-        self.norm2 = Normalize(out_channels)
+        self.norm2 = nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=1e-6, affine=True)
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = nn.Conv2d(
             out_channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
@@ -82,9 +81,9 @@ class ResnetBlock3D(nn.Cell):
         self.upcast_sigmoid = upcast_sigmoid
 
         # FIXME: GroupNorm precision mismatch with PT.
-        self.norm1 = Normalize(in_channels, extend=True)
+        self.norm1 = nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         self.conv1 = CausalConv3d(in_channels, out_channels, 3, padding=1)
-        self.norm2 = Normalize(out_channels, extend=True)
+        self.norm2 = nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=1e-6, affine=True)
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = CausalConv3d(out_channels, out_channels, 3, padding=1)
         if self.in_channels != self.out_channels:

@@ -45,7 +45,7 @@ class T5LayerNorm(nn.Cell):
         Construct a layernorm module in the T5 style. No bias and no subtraction of mean.
         """
         super().__init__()
-        self.weight = ms.Parameter(ops.ones(hidden_size, ms.float32))
+        self.weight = ms.Parameter(np.ones(hidden_size).astype(np.float32))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):

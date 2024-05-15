@@ -321,8 +321,20 @@ def train(args):
         raise ValueError("args.ms_mode value must in [0, 1]")
 
     # 5. Start Training
-    if args.max_num_ckpt is not None and args.max_num_ckpt <= 0:
-        raise ValueError("args.max_num_ckpt must be None or a positive integer!")
+    print("***** Hyper-Parameters *****")
+    print(f"  Training Args: {args}")
+    print(f"  Training Config: {config}")
+
+    print("***** Running training *****")
+    print(f"  Num examples = {total_step * per_batch_size * args.rank_size}")
+    print(f"  Num Steps = {total_step}")
+    print(f"  Instantaneous batch size per device = {per_batch_size}")
+    print(
+        f"  Total train batch size (w. parallel, distributed & accumulation) = {per_batch_size * args.rank_size * args.gradient_accumulation_steps}"
+    )
+    print(f"  Gradient Accumulation steps = {args.gradient_accumulation_steps}")
+    print(f"  Total optimization steps = {total_step // args.gradient_accumulation_steps}")
+
     if args.task == "txt2img":
         train_fn = train_txt2img if not args.data_sink else train_txt2img_datasink
         train_fn(

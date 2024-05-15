@@ -220,6 +220,8 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         timesteps = np.concatenate([self.prk_timesteps, self.plms_timesteps]).astype(np.int64)
         self.timesteps = ms.Tensor(timesteps)
+        self.prk_timesteps = ms.Tensor(self.prk_timesteps)
+        self.plms_timesteps = ms.Tensor(self.plms_timesteps)
 
         self.ets = []
         self.counter = 0
@@ -293,7 +295,7 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         diff_to_prev = 0 if self.counter % 2 else self.config.num_train_timesteps // self.num_inference_steps // 2
         prev_timestep = timestep - diff_to_prev
-        timestep = self.prk_timesteps[self.counter // 4 * 4]
+        timestep = ms.Tensor(self.prk_timesteps[self.counter // 4 * 4])
 
         if self.counter % 4 == 0:
             self.cur_model_output += 1 / 6 * model_output
@@ -423,7 +425,9 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
         beta_prod_t_prev = 1 - alpha_prod_t_prev
 
         if self.config.prediction_type == "v_prediction":
-            model_output = (alpha_prod_t**0.5) * model_output + (beta_prod_t**0.5) * sample
+            model_output = ((alpha_prod_t**0.5) * model_output).to(model_output.dtype) + (
+                (beta_prod_t**0.5) * sample
+            ).to(sample.dtype)
         elif self.config.prediction_type != "epsilon":
             raise ValueError(
                 f"prediction_type given as {self.config.prediction_type} must be one of `epsilon` or `v_prediction`"
@@ -441,9 +445,9 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
         ) ** (0.5)
 
         # full formula (9)
-        prev_sample = (
-            sample_coeff * sample - (alpha_prod_t_prev - alpha_prod_t) * model_output / model_output_denom_coeff
-        )
+        prev_sample = (sample_coeff).to(sample.dtype) * sample - (
+            (alpha_prod_t_prev - alpha_prod_t).to(model_output.dtype) * model_output / model_output_denom_coeff
+        ).to(model_output.dtype)
 
         return prev_sample
 

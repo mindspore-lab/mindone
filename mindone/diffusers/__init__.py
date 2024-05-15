@@ -34,12 +34,24 @@ _import_structure = {
         "DiffusionPipeline",
         "StableDiffusionPipeline",
         "StableDiffusionXLPipeline",
+        "StableDiffusionXLImg2ImgPipeline",
+        "StableDiffusionXLInpaintPipeline",
+        "StableDiffusionImg2ImgPipeline",
     ],
     "schedulers": [
         "DDIMScheduler",
         "DDPMScheduler",
+        "DEISMultistepScheduler",
+        "DPMSolverMultistepScheduler",
+        "DPMSolverSinglestepScheduler",
+        "EulerAncestralDiscreteScheduler",
         "EulerDiscreteScheduler",
+        "HeunDiscreteScheduler",
+        "KDPM2AncestralDiscreteScheduler",
+        "KDPM2DiscreteScheduler",
+        "LMSDiscreteScheduler",
         "PNDMScheduler",
+        "UniPCMultistepScheduler",
         "SchedulerMixin",
     ],
     "utils": [
@@ -63,10 +75,28 @@ if TYPE_CHECKING:
         DDIMPipeline,
         DDPMPipeline,
         DiffusionPipeline,
+        StableDiffusionImg2ImgPipeline,
         StableDiffusionPipeline,
+        StableDiffusionXLImg2ImgPipeline,
+        StableDiffusionXLInpaintPipeline,
         StableDiffusionXLPipeline,
     )
-    from .schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler, SchedulerMixin
+    from .schedulers import (
+        DDIMScheduler,
+        DDPMScheduler,
+        DEISMultistepScheduler,
+        DPMSolverMultistepScheduler,
+        DPMSolverSinglestepScheduler,
+        EulerAncestralDiscreteScheduler,
+        EulerDiscreteScheduler,
+        HeunDiscreteScheduler,
+        KDPM2AncestralDiscreteScheduler,
+        KDPM2DiscreteScheduler,
+        LMSDiscreteScheduler,
+        PNDMScheduler,
+        SchedulerMixin,
+        UniPCMultistepScheduler,
+    )
     from .utils import logging
 
 else:

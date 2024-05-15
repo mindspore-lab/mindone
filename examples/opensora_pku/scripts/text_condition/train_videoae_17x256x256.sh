@@ -6,6 +6,7 @@ python opensora/train/train_t2v.py \
     --ae_path LanguageBind/Open-Sora-Plan-v1.0.0 \
     --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
     --video_folder /remote-home1/dataset/data_split_tt \
+    --text_embed_folder /path/to/text-embed-folder \
     --sample_rate 1 \
     --num_frames 17 \
     --max_image_size 256 \

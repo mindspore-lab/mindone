@@ -85,7 +85,7 @@ def create_dataloader(
 ):
     if ds_name == "text":
         dataset = TextDataset(**ds_config)
-        column_names = ["file_path", "caption"]
+        column_names = getattr(dataset, "output_columns", ["file_path", "caption"])
     else:
         raise NotImplementedError
 

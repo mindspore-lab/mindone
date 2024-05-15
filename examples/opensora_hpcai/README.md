@@ -2,9 +2,9 @@
 
 ## Open-Sora: Democratizing Efficient Video Production for All
 
-Here we provide an efficient MindSpore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora), an open-source project that aim to foster innovation, creativity, and inclusivity within the field of content creation.
+Here we provide an efficient MindSpore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora), an open-source project that aims to foster innovation, creativity, and inclusivity within the field of content creation.
 
-This repository is built on the models and code released by hpcaitech. We are grateful for their exceptional work and generous contribution to open source.
+This repository is built on the models and code released by HPC-AI Tech. We are grateful for their exceptional work and generous contribution to open source.
 
 <h4>Open-Sora is still at an early stage and under active development.</h4>
 
@@ -12,12 +12,12 @@ This repository is built on the models and code released by hpcaitech. We are gr
 
 ## 📰 News & States
 
-|        Official News from hpcaitech  | MindSpore Support     |
-| ------------------ | ---------- |
-| **[2024.04.25]** 🤗 hpcaitech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces. | N.A.      |
-| **[2024.04.25]** 🔥 hpcaitech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Coming soon     |
-| **[2024.03.18]** hpcaitech released **Open-Sora 1.0**, a fully open-source project for video generation.  |  ✅ VAE + STDiT training and inference |
-| **[2024.03.04]** hpcaitech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora) | ✅ Parallel training on Ascend devices|
+| Official News from HPC-AI Tech                                                                                                                                                                                                                                                                                                | MindSpore Support                     |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------|
+| **[2024.04.25]** 🤗 HPC-AI Tech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces.                                                                                                                                                                          | N.A.                                  |
+| **[2024.04.25]** 🔥 HPC-AI Tech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Image/Video-to-Video inference        |
+| **[2024.03.18]** HPC-AI Tech released **Open-Sora 1.0**, a fully open-source project for video generation.                                                                                                                                                                                                                    | ✅ VAE + STDiT training and inference  |
+| **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                  | ✅ Parallel training on Ascend devices |
 
 
 
@@ -27,29 +27,29 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 <summary>OpenSora 1.0 Demo</summary>
 
-| **2s 512×512**                                                                                                                                                                 | **2s 512×512**                                                                                                                                                              | **2s 512×512**                                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-|    ![009-A-serene-night-scene-in-a-forested-area -The-first](https://github.com/SamitHuang/mindone/assets/8156835/72f0dd45-bcf5-47b2-b2b3-24599bd9b16e) |      ![000-A-soaring-drone-footage-captures-the-majestic-beauty-of-a](https://github.com/SamitHuang/mindone/assets/8156835/6bde280b-80a7-4617-a53d-58981ef308c2) |  ![001-A-majestic-beauty-of-a-waterfall-cascading-down-a-cliff](https://github.com/SamitHuang/mindone/assets/8156835/a0b5d303-71d7-4de0-9592-0784bac398bf)|
-| A serene night scene in a forested area. [...] The video is a time-lapse, capturing the transition from day to night, with the lake and forest serving as a constant backdrop. | A soaring drone footage captures the majestic beauty of a coastal cliff, [...] The water gently laps at the rock base and the greenery that clings to the top of the cliff. | The majestic beauty of a waterfall cascading down a cliff into a serene lake. [...] The camera angle provides a bird's eye view of the waterfall. |
-|   ![006-A-bustling-city-street-at-night,-filled-with-the-glow](https://github.com/SamitHuang/mindone/assets/8156835/00a966c8-16fa-4799-98a6-3d69c2983e49) |        ![002-A-vibrant-scene-of-a-snowy-mountain-landscape -The-sky](https://github.com/SamitHuang/mindone/assets/8156835/fb243b36-b2dd-4bac-a8b2-812b5c3b35da)  |  ![004-A-serene-underwater-scene-featuring-a-sea-turtle-swimming-through](https://github.com/SamitHuang/mindone/assets/8156835/31a7f201-b436-4a85-a68c-e0cd58d8bca5) |
-| A bustling city street at night, filled with the glow of car headlights and the ambient light of streetlights. [...]                                                           | The vibrant beauty of a sunflower field. The sunflowers are arranged in neat rows, creating a sense of order and symmetry. [...]                                            | A serene underwater scene featuring a sea turtle swimming through a coral reef. The turtle, with its greenish-brown shell [...]    |
+| **2s 512×512**                                                                                                                                                                 | **2s 512×512**                                                                                                                                                              | **2s 512×512**                                                                                                                                                      |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ![009-A-serene-night-scene-in-a-forested-area -The-first](https://github.com/SamitHuang/mindone/assets/8156835/72f0dd45-bcf5-47b2-b2b3-24599bd9b16e)                           | ![000-A-soaring-drone-footage-captures-the-majestic-beauty-of-a](https://github.com/SamitHuang/mindone/assets/8156835/6bde280b-80a7-4617-a53d-58981ef308c2)                 | ![001-A-majestic-beauty-of-a-waterfall-cascading-down-a-cliff](https://github.com/SamitHuang/mindone/assets/8156835/a0b5d303-71d7-4de0-9592-0784bac398bf)           |
+| A serene night scene in a forested area. [...] The video is a time-lapse, capturing the transition from day to night, with the lake and forest serving as a constant backdrop. | A soaring drone footage captures the majestic beauty of a coastal cliff, [...] The water gently laps at the rock base and the greenery that clings to the top of the cliff. | The majestic beauty of a waterfall cascading down a cliff into a serene lake. [...] The camera angle provides a bird's eye view of the waterfall.                   |
+| ![006-A-bustling-city-street-at-night,-filled-with-the-glow](https://github.com/SamitHuang/mindone/assets/8156835/00a966c8-16fa-4799-98a6-3d69c2983e49)                        | ![002-A-vibrant-scene-of-a-snowy-mountain-landscape -The-sky](https://github.com/SamitHuang/mindone/assets/8156835/fb243b36-b2dd-4bac-a8b2-812b5c3b35da)                    | ![004-A-serene-underwater-scene-featuring-a-sea-turtle-swimming-through](https://github.com/SamitHuang/mindone/assets/8156835/31a7f201-b436-4a85-a68c-e0cd58d8bca5) |
+| A bustling city street at night, filled with the glow of car headlights and the ambient light of streetlights. [...]                                                           | The vibrant beauty of a sunflower field. The sunflowers are arranged in neat rows, creating a sense of order and symmetry. [...]                                            | A serene underwater scene featuring a sea turtle swimming through a coral reef. The turtle, with its greenish-brown shell [...]                                     |
 
-Videos are downsampled to `.gif` for display. Click for original videos. Prompts are trimmed for display, see [here](/assets/texts/t2v_samples.txt) for full prompts.
+Videos are downsampled to `.gif` for display. Click for original videos. Prompts are trimmed for display, see [here](assets/texts/t2v_samples.txt) for full prompts.
 
 
 ## 🔆 Features
 
 - 📍 **Open-Sora 1.0** with the following features
     - ✅ Text-to-video generation in 256x256 or 512x512 resolution and up to 64 frames.
-    - ✅ Three-stage training: i) 16x256x256 video pretraining, ii) 16x512x512 video finetuning, and iii) 64x512x512 videos
-    - ✅ Optimized training receipes for MindSpore+Ascend framework (see `configs/opensora/train/xxx_ms.yaml`)
-    - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), data sink, mixed precision, and graph compilation.
+    - ✅ Three-stage training: i) 16x256x256 video pretraining, ii) 16x512x512 video fine-tuning, and iii) 64x512x512 videos
+    - ✅ Optimized training recipes for MindSpore+Ascend framework (see `configs/opensora/train/xxx_ms.yaml`)
+    - ✅ Acceleration methods: flash attention, recompute (gradient checkpointing), data sink, mixed precision, and graph compilation.
     - ✅ Data parallelism + Optimizer parallelism, allow training on 300x512x512 videos
 
 <details>
 <summary>View more</summary>
 
-* ✅ Following the findings in OpenSora, we also adopt the VAE from stable diffusion for video latent encoding.
+* ✅ Following the findings in OpenSora, we also adopt the VAE from Stable Diffusion for video latent encoding.
 * ✅ We pick the **STDiT** model as our video diffusion transformer following the best practice in OpenSora.
 * ✅ Support T5 text conditioning.
 
@@ -58,7 +58,7 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 ### TODO
 * [ ] Support OpenSora 1.1 **[WIP]**
     - [ ] Support variable aspect ratios, resolutions, and durations.
-    - [ ] Support image and video conditioning
+    - [x] Support image and video conditioning (training coming soon)
 * [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 
@@ -129,7 +129,20 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 ### Open-Sora 1.1 Model Weights
 
-Coming soon.
+- STDit:
+
+| Stage | Resolution         | Model Size | Data                       | #iterations | URL                                                                    |
+|-------|--------------------|------------|----------------------------|-------------|------------------------------------------------------------------------|
+| 2     | mainly 144p & 240p | 700M       | 10M videos + 2M images     | 100k        | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) |
+| 3     | 144p to 720p       | 700M       | 500K HQ videos + 1M images | 4k          | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3) |
+
+  Convert to ms checkpoint:
+
+  ```
+  python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safetensors --target models/opensora_v1.1_stage3.ckpt
+  ```
+
+- T5 and VAE models are identical to OpenSora 1.0 and can be downloaded from the links below.
 
 ### Open-Sora 1.0 Model Weights
 
@@ -147,7 +160,7 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
 
     Convert to ms checkpoint:
     ```
-    python tools/convert_vae.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
@@ -161,9 +174,9 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
     Training orders: 16x256x256 $\rightarrow$ 16x256x256 HQ $\rightarrow$ 16x512x512 HQ.
 
     These model weights are partially initialized from [PixArt-α](https://github.com/PixArt-alpha/PixArt-alpha). The number of
-parameters is 724M. More information about training can be found in hpcaitech's **[report](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_01.md)**. More about the dataset can be found in [datasets.md](https://github.com/hpcaitech/Open-Sora/blob/main/docs/datasets.md) from hpcaitech. HQ means high quality.
+parameters is 724M. More information about training can be found in HPC-AI Tech's **[report](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_01.md)**. More about the dataset can be found in [datasets.md](https://github.com/hpcaitech/Open-Sora/blob/main/docs/datasets.md) from HPC-AI Tech. HQ means high quality.
 
-- PixArt-α: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth)  (for training only)
+- PixArt-α: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
     Convert to ms checkpoint:
     ```
@@ -176,7 +189,14 @@ parameters is 724M. More information about training can be found in hpcaitech's 
 
 ### Open-Sora 1.1 Command Line Inference
 
-Coming soon
+#### Image/Video-to-Video Generation
+
+```shell
+python scripts/inference_i2v.py --config configs/opensora-v1-1/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+```
+
+In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`, and `reference_path`.
+See [here](docs/quick_start.md#imagevideo-to-video) for more details.
 
 ### Open-Sora 1.0 Command Line Inference
 
@@ -190,7 +210,7 @@ python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16
 python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 64x512x512 videos
-python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora-v1.ckpt --prompt_path /path/to/prompt.txt
 ```
 
 We also provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
@@ -205,7 +225,7 @@ Currently, we didn't implement the complete pipeline for data processing from ra
 <details>
 <summary>View more</summary>
 
-The text-video pair data should be organized as follows for example.
+The text-video pair data should be organized as follows, for example.
 
 ```text
 .
@@ -225,7 +245,7 @@ The `video_folder` contains all the video files. The csv file `video_caption.csv
 
 ```text
 video,caption
-video_folder/part01/vid001.mp4,a cartoon character is walking throu
+video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
 
@@ -328,25 +348,25 @@ For more usage, please check `python scripts/train.py -h`. You may also see the 
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model          |   Context      |  Precision         |  BS  | NPUs  |   Resolution  |  Train T. (s/step)  |
-|:---------------|:---------------|:--------------|:-------------:|:---------:|:----------:|:------------:|
-| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      2 | 8    |    16x256x256  |  1.10  |
-| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 8    |    16x512x512  |  1.67   |
-| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 8    |    64x512x512  |  6.70  |
-| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 64    |    64x512x512  | 6.81  |
-| STDiT-XL/2     |    D910\*x1-MS2.3       |      FP16   |      1 | 8    |    300x512x512  | 37  |
+| Model      | Context        | Precision | BS | NPUs | Resolution  | Train T. (s/step) |
+|:-----------|:---------------|:----------|:--:|:----:|:-----------:|:-----------------:|
+| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 2  |  8   | 16x256x256  |       1.10        |
+| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 16x512x512  |       1.67        |
+| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 64x512x512  |       6.70        |
+| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  64  | 64x512x512  |       6.81        |
+| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 300x512x512 |        37         |
 > Context: {G:GPU, D:Ascend}{chip type}-{number of NPUs}-{mindspore version}.
 
-Note that training on 300 frames at 512x512 resolution are achived by optimization+data parallelism with t5 cached embeddings.
+Note that training on 300 frames at 512x512 resolution is achieved by optimization+data parallelism with t5 cached embeddings.
 
 
 ## Evaluation
 
-Please refer to the original hpcaitech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
+Please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
 
 ## Contribution
 
-Thanks goes to the support from MindSpore team and the open-source contributions from the OpenSora project.
+Thanks go to the support from MindSpore team and the open-source contributions from the OpenSora project.
 
 If you wish to contribute to this project, you can refer to the [Contribution Guideline](../../CONTRIBUTING.md).
 

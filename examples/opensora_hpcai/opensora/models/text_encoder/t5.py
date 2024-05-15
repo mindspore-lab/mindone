@@ -223,10 +223,10 @@ class T5Embedder(nn.Cell):
         return caption.strip()
 
 
-def get_text_encoder_and_tokenizer(name, ckpt_path):
+def get_text_encoder_and_tokenizer(name, ckpt_path, **kwargs):
     if name == "t5":
         logger.info("T5 init")
-        text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"))
+        text_encoder = T5Embedder(cache_dir=ckpt_path, pretrained_ckpt=os.path.join(ckpt_path, "model.ckpt"), **kwargs)
         tokenizer = text_encoder.tokenizer
     else:
         raise NotImplementedError

@@ -198,7 +198,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         rescale_betas_zero_snr: int = False,
     ):
         if trained_betas is not None:
-            self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
+            self.betas = ms.tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
             self.betas = ms.tensor(np.linspace(beta_start, beta_end, num_train_timesteps), dtype=ms.float32)
         elif beta_schedule == "scaled_linear":
@@ -427,6 +427,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
         """
         t = timestep
+        dtype = sample.dtype
 
         prev_t = self.previous_timestep(t)
 
@@ -446,11 +447,11 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # 2. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (15) from https://arxiv.org/pdf/2006.11239.pdf
         if self.config.prediction_type == "epsilon":
-            pred_original_sample = (sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)
+            pred_original_sample = ((sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)).to(dtype)
         elif self.config.prediction_type == "sample":
             pred_original_sample = model_output
         elif self.config.prediction_type == "v_prediction":
-            pred_original_sample = (alpha_prod_t**0.5) * sample - (beta_prod_t**0.5) * model_output
+            pred_original_sample = ((alpha_prod_t**0.5) * sample - (beta_prod_t**0.5) * model_output).to(dtype)
         else:
             raise ValueError(
                 f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample` or"
@@ -472,19 +473,23 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
         # 5. Compute predicted previous sample µ_t
         # See formula (7) from https://arxiv.org/pdf/2006.11239.pdf
-        pred_prev_sample = pred_original_sample_coeff * pred_original_sample + current_sample_coeff * sample
+        pred_prev_sample = (
+            pred_original_sample_coeff.to(dtype) * pred_original_sample + current_sample_coeff.to(dtype) * sample
+        )
 
         # 6. Add noise
         variance = 0
         if t > 0:
             variance_noise = randn_tensor(model_output.shape, generator=generator, dtype=model_output.dtype)
             if self.variance_type == "fixed_small_log":
-                variance = self._get_variance(t, predicted_variance=predicted_variance) * variance_noise
+                variance = self._get_variance(t, predicted_variance=predicted_variance).to(dtype) * variance_noise
             elif self.variance_type == "learned_range":
                 variance = self._get_variance(t, predicted_variance=predicted_variance)
-                variance = ops.exp(0.5 * variance) * variance_noise
+                variance = ops.exp(0.5 * variance).to(dtype) * variance_noise
             else:
-                variance = (self._get_variance(t, predicted_variance=predicted_variance) ** 0.5) * variance_noise
+                variance = (self._get_variance(t, predicted_variance=predicted_variance) ** 0.5).to(
+                    dtype
+                ) * variance_noise
 
         pred_prev_sample = pred_prev_sample + variance
 

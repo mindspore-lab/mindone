@@ -1,4 +1,4 @@
-A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from hpcaitech.
+A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora) from HPC-AI Tech.
 
 ## TODOs
 - [x] STDiT implementation and inference
@@ -7,8 +7,11 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
 - [ ] Text-to-video generation pipeline (to be refactored)
     - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
     - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
-    - [ ] Mixed precision optimization (BF16)  on Ascend
+    - [ ] Mixed precision optimization (BF16) on Ascend
     - [x] Flash attention optimization on Ascend
+- [ ] Image/Video-to-video generation pipeline (to be refactored)
+    - [x] Video generation in FP32 precision on Ascend 910*.
+    - [ ] Mixed precision optimization (FP16 and BF16) on Ascend.
 - [ ] Training
     - [x] Text embedding-cached STDiT training on GPUs and Ascends
         - [x] small dataset
@@ -42,25 +45,29 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
     For `sd-vae-ft-ema`, run:
     ```
-    python tools/.py --source /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    python tools/.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
-- STDiT: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
+- STDiT:
+    - OpenSora v1.1: [stage2](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) or [stage3](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3)
+    - OpenSora v1: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
-    Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/OpenSora-v1-16x256x256.pth --target models/OpenSora-v1-16x256x256.ckpt`
+    Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/checkpoint --target models/checkpoint_name.ckpt`
 
-- PixArt-α: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth)  (for training only)
+- PixArt-α: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
-    It will be used for better model initialziation.
+    It will be used for better model initialization.
 
 ## Inference
+
+### Text-to-Video
 
 To generate video conditioning on captions:
 ```
 python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
 ```
-> By default, FP32 is used to ensure the best precision. Nan values may incur in stdit forward pass using fp16, resulting in dark videos.
+> By default, FP32 is used to ensure the best precision. Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
 
 - To run on GPU, append
 `--device_target GPU`
@@ -93,6 +100,52 @@ Here are some generation results in 256x256 resolution.
 
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
+
+### Image/Video-to-Video
+
+Conditioning on images and videos in OpenSora is based on a frame masking strategy.
+Specifically, conditioning frames are unmasked and assigned a timestep of 0,
+while other frames are assigned a timestep _t_. An example is shown below:
+
+<p align="center"><img alt="mask strategy" src="https://github.com/mindspore-lab/mindone/assets/16683750/0cf5b478-288f-4f53-906d-26fb7b93182c" width="750"/></p>
+
+To generate videos conditioned on images and videos, you will need to specify the following parameters in the
+[config file](../configs/opensora-v1-1/sample.yaml):
+
+```yaml
+loop: 2
+condition_frame_length: 4
+captions:
+  - "In an ornate, historical hall, a massive tidal wave peaks and begins to crash. Two surfers, seizing the moment, skillfully navigate the face of the wave."
+mask_strategy:
+  - "0"
+reference_path:
+  - "assets/wave.png"
+```
+
+<p align="center"><img alt="mask strategy config" src="https://github.com/mindspore-lab/mindone/assets/16683750/734c5dc6-13ba-45e4-b3f2-6da9f523296c" width="750"/></p>
+
+Where:  
+`loop` (integer): Specifies the number of iterations for the video generation process, conditioning on references or videos generated in previous loops (if no reference is provided).  
+`condition_frame_length` (integer): The number of frames from the previous loop to use for conditioning.  
+`captions` (list of string): A list of captions for conditioning. Different captions can be assigned to each loop by separating them with `|X|`, where `X` represents the loop number.
+`mask_strategy` (list of string): A list of mask strategies in the format of six numbers separated by comma:
+- First number: The loop index to which the current mask strategy applies.
+- Second number: The index of the condition image or video in the `reference_path`.
+- Third number: The reference starting frame number to use for conditioning.
+- Fourth number: The position at which to insert reference frames into the generated video.
+- Fifth number: The number of frames used for conditioning.
+- Sixth number: The intensity of editing conditioning frames, where 0 means no edit and 1 means a complete edit.
+
+`reference_path` (list of string): A list of reference paths corresponding to each caption.
+Each loop can have a different reference path. In this case, the reference path must be separated by semicolon.
+
+The output video's length will be `loop * (num_frames - condition_frame_length) + condition_frame_length`.
+
+To generate a video with conditioning on images and videos, execute the following command:
+```shell
+python scripts/inference_i2v.py --config configs/opensora-v1-1/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+```
 
 ## Training
 
@@ -129,7 +182,7 @@ python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
     --text_embed_folder "../videocomposer/datasets/webvid5" \
 ```
 
-To to enable training with the cached vae latents, please append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"`.
+To enable training with the cached vae latents, please append `--vae_latent_folder "../videocomposer/datasets/webvid5_vae_256x256"`.
 
 Please change `csv_path`,`video_folder`, `embed_folder` according to your data location.
 
@@ -140,7 +193,7 @@ Note that the training precision is under continuous optimization.
 
 #### Notes about MindSpore 2.3
 
-Training on MS2.3 allows much better performance with its new feautres (such as kbk and dvm)
+Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
 
 To enable kbk mode on ms2.3, please set
 ```
@@ -149,7 +202,7 @@ export GRAPH_OP_RUN=1
 
 ```
 
-To improve training perforamnce, you may append `--enable_dvm=True` to the training command.
+To improve training performance, you may append `--enable_dvm=True` to the training command.
 
 Here is an example for training on MS2.3:
 ```

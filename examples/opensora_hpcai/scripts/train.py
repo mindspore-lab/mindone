@@ -27,6 +27,7 @@ from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
+from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
@@ -185,8 +186,7 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.dtype],
-                # custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
-                # custom_fp32_cells=[Attention],
+                # custom_fp32_cells=WHITELIST_OPS
             )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:

@@ -32,7 +32,9 @@ from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.models.ae import getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.utils.dataset_utils import create_video_transforms
+from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +102,7 @@ def process_in_chunks(
     overlap: int,
 ):
     assert (chunk_size + overlap - 1) % 4 == 0
-    num_frames = video_data.size(2)
+    num_frames = video_data.shape[2]
     output_chunks = []
 
     start = 0
@@ -143,23 +145,25 @@ def main(args):
     kwarg = {}
     vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, **kwarg)
     if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.vae.enable_tiling()
+        vae.vae.tile_overlap_factor = args.tile_overlap_factor
 
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.dtype != "fp32":
+    if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
-        dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        vae = auto_mixed_precision(vae, amp_level, dtype)
-        logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
-    else:
+        dtype = get_precision(args.precision)
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
         amp_level = "O0"
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
 
     x_vae = preprocess(read_video(args.video_path, args.num_frames, args.sample_rate), args.resolution, args.crop_size)
-    dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
+    dtype = get_precision(args.precision)
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
 
     if args.enable_time_chunk:
@@ -171,8 +175,8 @@ def main(args):
 
     save_fp = os.path.join(args.output_path, args.rec_path)
     if video_recon.shape[1] == 1:
-        x = video_recon[0, 0, :, :, :].squeeze().asnumpy()
-        original_rgb = x_vae[0, 0, :, :, :].squeeze().asnumpy()
+        x = video_recon[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
+        original_rgb = x_vae[0, 0, :, :, :].squeeze().to(ms.float32).asnumpy()
         x = transform_to_rgb(x).transpose(1, 2, 0)  # c h w -> h w c
         original_rgb = transform_to_rgb(original_rgb).transpose(1, 2, 0)  # c h w -> h w c
 
@@ -180,11 +184,13 @@ def main(args):
         save_fp = save_fp.replace("mp4", "jpg")
         image.save(save_fp)
     else:
-        save_video_data = video_recon.transpose(0, 1, 3, 4, 2).asnumpy()  # (b t c h w) -> (b t h w c)
+        save_video_data = video_recon.transpose(0, 1, 3, 4, 2).to(ms.float32).asnumpy()  # (b t c h w) -> (b t h w c)
         save_video_data = transform_to_rgb(save_video_data, rescale_to_uint8=False)
-        original_rgb = x_vae.asnumpy().transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+        original_rgb = transform_to_rgb(x_vae.to(ms.float32).asnumpy(), rescale_to_uint8=False).transpose(
+            0, 2, 3, 4, 1
+        )  # (b c t h w) -> (b t h w c)
         save_video_data = np.concatenate([original_rgb, save_video_data], axis=3) if args.grid else save_video_data
-        save_videos(save_video_data, save_fp, loop=0)
+        save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
     if args.grid:
         logger.info(f"Save original vs. reconstructed data to {save_fp}")
     else:
@@ -195,7 +201,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--video_path", type=str, default="")
     parser.add_argument("--rec_path", type=str, default="")
-    parser.add_argument("--ae", type=str, default="")
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
     parser.add_argument("--model_path", type=str, default="results/pretrained")
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--resolution", type=int, default=None)
@@ -208,8 +214,8 @@ if __name__ == "__main__":
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
-        "--dtype",
-        default="fp16",
+        "--precision",
+        default="bf16",
         type=str,
         choices=["fp32", "fp16", "bf16"],
         help="mixed precision type, if fp32, all layer precision is float32 (amp_level=O0),  \
