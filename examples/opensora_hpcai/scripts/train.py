@@ -27,7 +27,6 @@ from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
-from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
@@ -38,6 +37,9 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
+
+# from opensora.utils.model_utils import WHITELIST_OPS
+
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"

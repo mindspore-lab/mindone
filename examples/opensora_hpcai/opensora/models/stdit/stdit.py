@@ -369,7 +369,7 @@ class STDiT(nn.Cell):
         if cfg_channel is None:
             cfg_channel = self.in_channels
         # torch only takes the first 3 dimension for eps. but for z=4, out z=8, the first 4 dims are for eps, the rest 4 dim are for variance.
-        eps, rest = model_out[:, : cfg_channel], model_out[:, cfg_channel:]
+        eps, rest = model_out[:, :cfg_channel], model_out[:, cfg_channel:]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
