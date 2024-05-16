@@ -154,8 +154,6 @@ def main(args):
         if os.path.exists(npz_fp):
             if args.allow_overwrite:
                 logger.info(f"Overwritting {npz_fp}")
-            else:
-                raise ValueError(f"{npz_fp} already exist!")
         if args.save_distribution:
             np.savez(
                 npz_fp,
@@ -171,7 +169,7 @@ def main(args):
 
     # infer
     if args.csv_path is not None:
-        if args.output_path is None:
+        if args.output_path in [None, ""]:
             output_folder = os.path.dirname(args.csv_path)
         else:
             output_folder = args.output_path
@@ -190,6 +188,13 @@ def main(args):
                 assert args.batch_size == 1, "batch size > 1 is not supported due to dynamic frame numbers among videos"
                 for i in range(num_videos):
                     video_path = data["video_path"][i]
+
+                    fn = Path(str(video_path)).with_suffix(".npz")
+                    npz_fp = os.path.join(output_folder, fn)
+                    if os.path.exists(npz_fp) and not args.allow_overwrite:
+                        logger.info(f"{npz_fp} exists, skip vae encoding")
+                        continue
+
                     video_latent_mean = []
                     video_latent_std = []
 
@@ -197,7 +202,7 @@ def main(args):
                     bs = args.vae_micro_batch_size
                     for j in range(0, x.shape[0], bs):
                         x_bs = x[j : min(j + bs, x.shape[0])]
-                        mean, std = ms.ops.stop_gradient(vae._encode(ms.Tensor(x_bs, ms.float32)))
+                        mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
                         video_latent_mean.append(mean.asnumpy())
                         if args.save_distribution:
                             video_latent_std.append(std.asnumpy())
@@ -212,13 +217,20 @@ def main(args):
                 for i in range(num_videos):
                     video_path = data["video_path"][i]
                     abs_video_path = os.path.join(args.video_folder, video_path)
+
+                    fn = Path(str(video_path)).with_suffix(".npz")
+                    npz_fp = os.path.join(output_folder, fn)
+                    if os.path.exists(npz_fp) and not args.allow_overwrite:
+                        logger.info(f"{npz_fp} exists, skip vae encoding")
+                        continue
+
                     video_latent_mean = []
                     video_latent_std = []
 
                     for x_bs in ds.get_video_frames_in_batch(
                         abs_video_path, micro_batch_size=args.vae_micro_batch_size, sample_stride=args.frame_stride
                     ):
-                        mean, std = ms.ops.stop_gradient(vae._encode(ms.Tensor(x_bs, ms.float32)))
+                        mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
                         video_latent_mean.append(mean.asnumpy())
                         if args.save_distribution:
                             video_latent_std.append(std.asnumpy())
@@ -262,7 +274,7 @@ def parse_args():
         "--save_distribution",
         default=True,
         type=str2bool,
-        help="If True, will save mean and logvar representing vae latent distribution. \
+        help="If True, will save mean and std representing vae latent distribution. \
                 Otherwise, will only save mean (save half storage but loss vae sampling diversity).",
     )
     parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
@@ -331,7 +343,10 @@ def parse_args():
         help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN",
     )
     parser.add_argument(
-        "--allow_overwrite", type=str2bool, default=True, help="allow to overwrite the existing npz file."
+        "--allow_overwrite",
+        type=str2bool,
+        default=False,
+        help="If True, allow to overwrite the existing npz file. If False, will skip vae encoding if the latent npz file is already existed",
     )
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
 

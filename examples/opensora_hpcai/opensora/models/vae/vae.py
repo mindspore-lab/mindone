@@ -2,6 +2,7 @@ import logging
 import os
 
 import mindspore as ms
+from mindspore import ops
 
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 
@@ -38,3 +39,13 @@ class AutoencoderKL(AutoencoderKL_SD):
             _logger.warning(
                 f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!"
             )
+
+    def encode_with_moments_output(self, x):
+        """For latent caching usage"""
+        h = self.encoder(x)
+        moments = self.quant_conv(h)
+        mean, logvar = self.split(moments)
+        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+        std = self.exp(0.5 * logvar)
+
+        return mean, std
