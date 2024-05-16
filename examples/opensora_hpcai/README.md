@@ -342,7 +342,12 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_d
     --use_parallel True \
 ```
 
-For more usage, please check `python scripts/train.py -h`. You may also see the example shell scripts in `scripts/run` for quick reference.
+To train in bfloat16 precision, please parse `--global_bf16=True`
+
+For more usage, please check `python scripts/train.py -h`.
+You may also see the example shell scripts in `scripts/run` for quick reference.
+
+
 
 #### Performance
 
@@ -352,8 +357,8 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 |:-----------|:---------------|:----------|:--:|:----:|:-----------:|:-----------------:|
 | STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 2  |  8   | 16x256x256  |       1.10        |
 | STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 16x512x512  |       1.67        |
-| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 64x512x512  |       6.70        |
-| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  64  | 64x512x512  |       6.81        |
+| STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 64x512x512  |       5.72        |
+| STDiT-XL/2 | D910\*x1-MS2.3 | BF16      | 1  |  8  | 64x512x512  |        6.80        |
 | STDiT-XL/2 | D910\*x1-MS2.3 | FP16      | 1  |  8   | 300x512x512 |        37         |
 > Context: {G:GPU, D:Ascend}{chip type}-{number of NPUs}-{mindspore version}.
 
