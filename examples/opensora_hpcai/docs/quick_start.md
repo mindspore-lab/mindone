@@ -164,7 +164,7 @@ Please change `csv_path` to your video-caption annotation file accordingly.
 ```
 python scripts/infer_vae.py\
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
-    --output_dir ../videocomposer/datasets/webvid5_vae_256x256 \
+    --output_path ../videocomposer/datasets/webvid5_vae_256x256 \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \    # or sd-vae-ft-mse.ckpt
     --video_folder ../videocomposer/datasets/webvid5  \
     --image_size 256 \
