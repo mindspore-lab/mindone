@@ -315,7 +315,7 @@ def parse_args():
     parser.add_argument(
         "--vae_micro_batch_size",
         type=int,
-        default=None,
+        default=64,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
     parser.add_argument(
@@ -333,7 +333,6 @@ def parse_args():
     parser.add_argument(
         "--allow_overwrite", type=str2bool, default=True, help="allow to overwrite the existing npz file."
     )
-
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
 
     default_args = parser.parse_args()

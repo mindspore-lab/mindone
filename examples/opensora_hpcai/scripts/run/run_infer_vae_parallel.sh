@@ -8,6 +8,6 @@ python scripts/infer_vae.py \
     --output_path datasets/sora_overfitting_dataset_0410_vae_512x512 \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \
     --image_size 512 \
-    --vae_micro_batch_size 32 \
+    --vae_micro_batch_size 64 \
     --dl_return_all_frames=True \
     --use_parallel=True \
