@@ -25,7 +25,7 @@ from .utils import _prepare_prompt_learning_config
 
 MODEL_TYPE_TO_PEFT_MODEL_MAPPING: Dict[str, PeftModel] = {}
 
-PEFT_TYPE_TO_CONFIG_MAPPING: Dict[str, PeftConfig] = {
+PEFT_TYPE_TO_CONFIG_MAPPING = {
     "LORA": LoraConfig,
 }
 

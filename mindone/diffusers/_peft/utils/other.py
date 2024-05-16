@@ -45,6 +45,7 @@ class ModulesToSaveWrapper(nn.Cell):
         return self.modules_to_save[self.active_adapter].weight
 
     def update(self, adapter_name):
+        # TODO: deepcopy might not work on nn.Cell
         self.modules_to_save.update(nn.CellDict({adapter_name: copy.deepcopy(self.original_module)}))
         # self.original_module.requires_grad_(False)
         for p in self.original_module.get_parameters():

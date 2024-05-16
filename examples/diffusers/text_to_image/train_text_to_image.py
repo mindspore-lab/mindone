@@ -706,7 +706,7 @@ def main():
             # Get the most recent checkpoint
             dirs = os.listdir(args.output_dir)
             dirs = [d for d in dirs if d.startswith("checkpoint")]
-            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1].split(".")[0]))
+            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
             path = dirs[-1] if len(dirs) > 0 else None
 
         if path is None:
@@ -717,9 +717,10 @@ def main():
         else:
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
-            state_dict = ms.load_checkpoint(os.path.join(args.output_dir, path))
-            ms.load_param_into_net(unet, state_dict)
-            global_step = int(path.split("-")[1].split(".")[0])
+            # TODO: load optimizer & grad scaler etc. like accelerator.load_state
+            input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file))
+            global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
             first_epoch = global_step // num_update_steps_per_epoch
@@ -763,7 +764,7 @@ def main():
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
                         checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
-                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1].split(".")[0]))
+                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
 
                         # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
                         if len(checkpoints) >= args.checkpoints_total_limit:
@@ -780,7 +781,10 @@ def main():
                                 shutil.rmtree(removing_checkpoint)
 
                     save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-                    ms.save_checkpoint(unet, save_path)
+                    # TODO: save optimizer & grad scaler etc. like accelerator.save_state
+                    os.makedirs(save_path, exist_ok=True)
+                    output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
+                    ms.save_checkpoint(unet, output_model_file)
                     logger.info(f"Saved state to {save_path}")
 
             logs = {"step_loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}

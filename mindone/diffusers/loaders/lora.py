@@ -652,7 +652,7 @@ class LoraLoaderMixin:
         state_dict = {}
 
         def pack_weights(layers, prefix):
-            layers_weights = layers.parameters_dict() if isinstance(layers, nn.Cell) else layers
+            layers_weights = {k: v for k, v in layers.parameters_and_names()} if isinstance(layers, nn.Cell) else layers
             layers_state_dict = {f"{prefix}.{module_name}": param for module_name, param in layers_weights.items()}
             return layers_state_dict
 
@@ -697,7 +697,7 @@ class LoraLoaderMixin:
             if safe_serialization:
 
                 def save_function(weights, filename):
-                    return save_file(weights, filename, metadata={"format": "pt"})
+                    return save_file(weights, filename, metadata={"format": "np"})
 
             else:
                 save_function = ms.save_checkpoint
@@ -1139,7 +1139,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraLoaderMixin):
         state_dict = {}
 
         def pack_weights(layers, prefix):
-            layers_weights = layers.parameters_dict() if isinstance(layers, nn.Cell) else layers
+            layers_weights = {k: v for k, v in layers.parameters_and_names()} if isinstance(layers, nn.Cell) else layers
             layers_state_dict = {f"{prefix}.{module_name}": param for module_name, param in layers_weights.items()}
             return layers_state_dict
 

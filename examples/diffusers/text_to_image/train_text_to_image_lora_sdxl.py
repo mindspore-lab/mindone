@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
-from mindspore import Tensor, context, nn, ops
+from mindspore import context, nn, ops
 from mindspore.amp import DynamicLossScaler, LossScaler, StaticLossScaler, all_finite
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -58,8 +58,8 @@ DATASET_NAME_MAPPING = {
 }
 
 
-def unwrap_model(model):
-    for name, param in model.parameters_and_names():
+def unwrap_model(model, prefix=""):
+    for name, param in model.parameters_and_names(name_prefix=prefix):
         param.name = name
     return model
 
@@ -376,7 +376,7 @@ def parse_args(input_args=None):
     )
     parser.add_argument("--noise_offset", type=float, default=0, help="The scale of noise offset.")
     parser.add_argument(
-        "--rank",
+        "--lora_rank",
         type=int,
         default=4,
         help=("The dimension of the LoRA update matrices."),
@@ -425,27 +425,20 @@ def tokenize_prompt(tokenizer, prompt):
 
 
 # Adapted from pipelines.StableDiffusionXLPipeline.encode_prompt
-def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
-    prompt_embeds_list = []
+def encode_prompt(text_encoder_1, text_encoder_2, text_input_id_1, text_input_id_2):
+    prompt_embeds_1 = text_encoder_1(text_input_id_1, output_hidden_states=True)
+    prompt_embeds_1 = prompt_embeds_1[-1][-2]
+    bs_embed, seq_len, _ = prompt_embeds_1.shape
+    prompt_embeds_1 = prompt_embeds_1.view(bs_embed, seq_len, -1)
 
-    for i, text_encoder in enumerate(text_encoders):
-        if tokenizers is not None:
-            tokenizer = tokenizers[i]
-            text_input_ids = tokenize_prompt(tokenizer, prompt)
-        else:
-            assert text_input_ids_list is not None
-            text_input_ids = text_input_ids_list[i]
+    prompt_embeds_2 = text_encoder_2(text_input_id_2, output_hidden_states=True)
+    # We are only ALWAYS interested in the pooled output of the final text encoder
+    pooled_prompt_embeds = prompt_embeds_2[0]
+    prompt_embeds_2 = prompt_embeds_2[-1][-2]
+    bs_embed, seq_len, _ = prompt_embeds_2.shape
+    prompt_embeds_2 = prompt_embeds_2.view(bs_embed, seq_len, -1)
 
-        prompt_embeds = text_encoder(Tensor(text_input_ids), output_hidden_states=True)
-
-        # We are only ALWAYS interested in the pooled output of the final text encoder
-        pooled_prompt_embeds = prompt_embeds[0]
-        prompt_embeds = prompt_embeds[-1][-2]
-        bs_embed, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
-        prompt_embeds_list.append(prompt_embeds)
-
-    prompt_embeds = ops.concat(prompt_embeds_list, axis=-1)
+    prompt_embeds = ops.concat([prompt_embeds_1, prompt_embeds_2], axis=-1)
     pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
     return prompt_embeds, pooled_prompt_embeds
 
@@ -558,20 +551,19 @@ def main():
     # now we will add new LoRA weights to the attention layers
     # Set correct lora layers
     unet_lora_config = LoraConfig(
-        r=args.rank,
-        lora_alpha=args.rank,
+        r=args.lora_rank,
+        lora_alpha=args.lora_rank,
         init_lora_weights="gaussian",
         target_modules=["to_k", "to_q", "to_v", "to_out.0"],
     )
-
     unet.add_adapter(unet_lora_config)
 
     # The text encoder comes from 🤗 transformers, we will also attach adapters to it.
     if args.train_text_encoder:
         # ensure that dtype is float32, even if rest of the model that isn't trained is loaded in fp16
         text_lora_config = LoraConfig(
-            r=args.rank,
-            lora_alpha=args.rank,
+            r=args.lora_rank,
+            lora_alpha=args.lora_rank,
             init_lora_weights="gaussian",
             target_modules=["q_proj", "k_proj", "v_proj", "out_proj"],
         )
@@ -588,15 +580,15 @@ def main():
             text_encoder_two_lora_layers_to_save = None
 
             for model in models:
-                if isinstance(unwrap_model(model), type(unwrap_model(unet))):
+                if isinstance(model, type(unet)):
                     unet_lora_layers_to_save = convert_state_dict_to_diffusers(get_peft_model_state_dict(model))
-                elif isinstance(unwrap_model(model), type(unwrap_model(text_encoder_one))):
+                elif isinstance(model, type(text_encoder_one)):
                     text_encoder_one_lora_layers_to_save = convert_state_dict_to_diffusers(
-                        get_peft_model_state_dict(model)
+                        get_peft_model_state_dict(model, save_embedding_layers=False)
                     )
-                elif isinstance(unwrap_model(model), type(unwrap_model(text_encoder_two))):
+                elif isinstance(model, type(text_encoder_two)):
                     text_encoder_two_lora_layers_to_save = convert_state_dict_to_diffusers(
-                        get_peft_model_state_dict(model)
+                        get_peft_model_state_dict(model, save_embedding_layers=False)
                     )
                 else:
                     raise ValueError(f"unexpected save model: {model.__class__}")
@@ -616,11 +608,11 @@ def main():
         while len(models) > 0:
             model = models.pop()
 
-            if isinstance(model, type(unwrap_model(unet))):
+            if isinstance(model, type(unet)):
                 unet_ = model
-            elif isinstance(model, type(unwrap_model(text_encoder_one))):
+            elif isinstance(model, type(text_encoder_one)):
                 text_encoder_one_ = model
-            elif isinstance(model, type(unwrap_model(text_encoder_two))):
+            elif isinstance(model, type(text_encoder_two)):
                 text_encoder_two_ = model
             else:
                 raise ValueError(f"unexpected save model: {model.__class__}")
@@ -665,6 +657,15 @@ def main():
         models.extend([text_encoder_one, text_encoder_two])
     if args.mixed_precision == "fp16":
         cast_training_params(models, dtype=ms.float32)
+
+    # Print trainable parameters statistics
+    for peft_model in models:
+        all_params = sum(p.numel() for p in peft_model.get_parameters())
+        trainable_params = sum(p.numel() for p in peft_model.trainable_params())
+        logger.info(
+            f"{peft_model.__class__.__name__:<30s} ==> Trainable params: {trainable_params:<10,d} || "
+            f"All params: {all_params:<16,d} || Trainable ratio: {trainable_params / all_params:.8%}"
+        )
 
     # Get the datasets: you can either provide your own training and evaluation files (see below)
     # or specify a Dataset from the hub (the dataset will be downloaded automatically from the datasets Hub).
@@ -788,15 +789,18 @@ def main():
     train_dataset = dataset["train"].with_transform(preprocess_train, output_all_columns=True)
 
     class UnravelDataset:
-        columns = ["pixel_values", "input_ids_one", "input_ids_two", "add_time_ids"]
-
         def __init__(self, data):
             self.data = data
 
         def __getitem__(self, idx):
             idx = idx.item() if isinstance(idx, np.integer) else idx
             example = self.data[idx]
-            return tuple(np.array(example[column], dtype=np.float32) for column in self.columns)
+            return (
+                np.array(example["pixel_values"], dtype=np.float32),
+                np.array(example["input_ids_one"], dtype=np.int32),
+                np.array(example["input_ids_two"], dtype=np.int32),
+                np.array(example["add_time_ids"], dtype=np.int32),
+            )
 
         def __len__(self):
             return len(self.data)
@@ -804,7 +808,7 @@ def main():
     # DataLoaders creation:
     train_dataloader = GeneratorDataset(
         UnravelDataset(train_dataset),
-        column_names=UnravelDataset.columns,
+        column_names=["pixel_values", "input_ids_one", "input_ids_two", "add_time_ids"],
         shuffle=True,
         num_parallel_workers=args.dataloader_num_workers,
         num_shards=args.world_size,
@@ -832,6 +836,9 @@ def main():
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
     )
     # Optimizer creation
+    # we have to add prefix to param.name, otherwise the optimizer gives a fucking param.name duplication error!
+    text_encoder_one = unwrap_model(text_encoder_one, prefix="text_encoder_one")
+    text_encoder_two = unwrap_model(text_encoder_two, prefix="text_encoder_two")
     params_to_optimize = list(filter(lambda p: p.requires_grad, unet.get_parameters()))
     if args.train_text_encoder:
         params_to_optimize = (
@@ -901,12 +908,12 @@ def main():
     pipeline = StableDiffusionXLPipeline.from_pretrained(
         args.pretrained_model_name_or_path,
         vae=vae,
-        text_encoder=unwrap_model(text_encoder_one),
-        text_encoder_2=unwrap_model(text_encoder_two),
-        unet=unwrap_model(unet),
+        text_encoder=text_encoder_one,
+        text_encoder_2=text_encoder_two,
+        unet=unet,
         revision=args.revision,
         variant=args.variant,
-        torch_dtype=weight_dtype,
+        mindspore_dtype=weight_dtype,
     )
     pipeline.set_progress_bar_config(disable=True)
 
@@ -931,7 +938,7 @@ def main():
             # Get the most recent checkpoint
             dirs = os.listdir(args.output_dir)
             dirs = [d for d in dirs if d.startswith("checkpoint")]
-            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1].split(".")[0]))
+            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
             path = dirs[-1] if len(dirs) > 0 else None
 
         if path is None:
@@ -942,8 +949,11 @@ def main():
         else:
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
+            # TODO: load optimizer & grad scaler etc. like accelerator.load_state
             load_model_hook(models, os.path.join(args.output_dir, path))
-            global_step = int(path.split("-")[1].split(".")[0])
+            input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file))
+            global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
             first_epoch = global_step // num_update_steps_per_epoch
@@ -976,7 +986,6 @@ def main():
             if args.enable_mindspore_data_sink:
                 loss = sink_process()
             else:
-                batch = [x.to(weight_dtype) for x in batch]
                 loss = train_step(*batch)
 
             progress_bar.update(1)
@@ -991,7 +1000,7 @@ def main():
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
                         checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
-                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1].split(".")[0]))
+                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
 
                         # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
                         if len(checkpoints) >= args.checkpoints_total_limit:
@@ -1008,7 +1017,11 @@ def main():
                                 shutil.rmtree(removing_checkpoint)
 
                     save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
+                    # TODO: save optimizer & grad scaler etc. like accelerator.save_state
+                    os.makedirs(save_path, exist_ok=True)
                     save_model_hook(models, save_path)
+                    output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
+                    ms.save_checkpoint(unet, output_model_file)
                     logger.info(f"Saved state to {save_path}")
 
             logs = {"step_loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}
@@ -1029,9 +1042,12 @@ def main():
         if args.train_text_encoder:
             text_encoder_one = unwrap_model(text_encoder_one)
             text_encoder_two = unwrap_model(text_encoder_two)
-
-            text_encoder_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(text_encoder_one))
-            text_encoder_2_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(text_encoder_two))
+            text_encoder_lora_layers = convert_state_dict_to_diffusers(
+                get_peft_model_state_dict(text_encoder_one, save_embedding_layers=False)
+            )
+            text_encoder_2_lora_layers = convert_state_dict_to_diffusers(
+                get_peft_model_state_dict(text_encoder_two, save_embedding_layers=False)
+            )
         else:
             text_encoder_lora_layers = None
             text_encoder_2_lora_layers = None
@@ -1138,10 +1154,7 @@ class TrainStep(nn.Cell):
 
         # Predict the noise residual
         prompt_embeds, pooled_prompt_embeds = encode_prompt(
-            text_encoders=[self.text_encoder_one, self.text_encoder_two],
-            tokenizers=None,
-            prompt=None,
-            text_input_ids_list=[input_ids_one, input_ids_two],
+            self.text_encoder_one, self.text_encoder_two, input_ids_one, input_ids_two
         )
         unet_added_conditions = {"time_ids": add_time_ids, "text_embeds": pooled_prompt_embeds}
         model_pred = self.unet(
@@ -1210,8 +1223,8 @@ def validate(pipeline, args, trackers, logging_dir, epoch):
     )
     pipeline.unet.set_train(False)
     if args.train_text_encoder:
-        pipeline.text_encoder_one.set_train(False)
-        pipeline.text_encoder_two.set_train(False)
+        pipeline.text_encoder.set_train(False)
+        pipeline.text_encoder_2.set_train(False)
 
     # run inference
     generator = np.random.Generator(np.random.PCG64(seed=args.seed)) if args.seed else None

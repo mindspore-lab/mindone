@@ -53,6 +53,7 @@ class LoraLayer(BaseTunerLayer):
         self.lora_dropout = nn.CellDict({})
         self.lora_A = nn.CellDict({})
         self.lora_B = nn.CellDict({})
+        # TODO: LoRA Embedding should be a ParameterDict. Add it here if we support Embedding.
         # Mark the weight as unmerged
         self._disable_adapters = False
         self.merged_adapters = []

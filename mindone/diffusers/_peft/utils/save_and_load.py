@@ -66,7 +66,7 @@ def get_peft_model_state_dict(
 
     config = model.peft_config[adapter_name]
     if state_dict is None:
-        state_dict = model.parameters_dict()
+        state_dict = {k: v for k, v in model.parameters_and_names()}
     if config.peft_type in (PeftType.LORA, PeftType.ADALORA):
         # to_return = lora_state_dict(model, bias=model.peft_config.bias)
         # adapted from `https://github.com/microsoft/LoRA/blob/main/loralib/utils.py`

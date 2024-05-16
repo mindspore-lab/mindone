@@ -369,7 +369,7 @@ def parse_args():
     )
     parser.add_argument("--noise_offset", type=float, default=0, help="The scale of noise offset.")
     parser.add_argument(
-        "--rank",
+        "--lora_rank",
         type=int,
         default=4,
         help=("The dimension of the LoRA update matrices."),
@@ -461,8 +461,8 @@ def main():
         weight_dtype = ms.bfloat16
 
     unet_lora_config = LoraConfig(
-        r=args.rank,
-        lora_alpha=args.rank,
+        r=args.lora_rank,
+        lora_alpha=args.lora_rank,
         init_lora_weights="gaussian",
         target_modules=["to_k", "to_q", "to_v", "to_out.0"],
     )
@@ -477,6 +477,14 @@ def main():
     if args.mixed_precision == "fp16":
         # only upcast trainable parameters (LoRA) into fp32
         cast_training_params(unet, dtype=ms.float32)
+
+    # Print trainable parameters statistics
+    all_params = sum(p.numel() for p in unet.get_parameters())
+    trainable_params = sum(p.numel() for p in unet.trainable_params())
+    logger.info(
+        f"{unet.__class__.__name__:<30s} ==> Trainable params: {trainable_params:<10,d} || "
+        f"All params: {all_params:<16,d} || Trainable ratio: {trainable_params / all_params:.8%}"
+    )
 
     if args.enable_xformers_memory_efficient_attention:
         unet.enable_xformers_memory_efficient_attention()
@@ -631,7 +639,7 @@ def main():
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
     )
     # Initialize the optimizer
-    lora_layers = filter(lambda p: p.requires_grad, unet.get_parameters())
+    lora_layers = list(filter(lambda p: p.requires_grad, unet.get_parameters()))
     optimizer = nn.AdamWeightDecay(
         lora_layers,
         learning_rate=lr_scheduler,
@@ -680,6 +688,7 @@ def main():
         scaler=StaticLossScaler(65536),
         noise_scheduler=noise_scheduler,
         args=args,
+        weight_dtype=weight_dtype,
     ).set_train()
 
     if args.enable_mindspore_data_sink:
@@ -693,7 +702,7 @@ def main():
         vae=vae,
         text_encoder=text_encoder,
         tokenizer=tokenizer,
-        unet=unwrap_model(unet),
+        unet=unet,
         safety_checker=None,
         revision=args.revision,
         variant=args.variant,
@@ -722,7 +731,7 @@ def main():
             # Get the most recent checkpoint
             dirs = os.listdir(args.output_dir)
             dirs = [d for d in dirs if d.startswith("checkpoint")]
-            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1].split(".")[0]))
+            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
             path = dirs[-1] if len(dirs) > 0 else None
 
         if path is None:
@@ -733,9 +742,10 @@ def main():
         else:
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
-            state_dict = ms.load_checkpoint(os.path.join(args.output_dir, path))
-            ms.load_param_into_net(unet, state_dict)
-            global_step = int(path.split("-")[1].split(".")[0])
+            # TODO: load optimizer & grad scaler etc. like accelerator.load_state
+            input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file), strict_load=True)
+            global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
             first_epoch = global_step // num_update_steps_per_epoch
@@ -743,7 +753,7 @@ def main():
         initial_global_step = 0
 
     # run inference
-    if args.validation_prompts is not None:
+    if args.validation_prompt is not None:
         log_validation(pipeline, args, trackers, logging_dir, first_epoch)
 
     progress_bar = tqdm(
@@ -778,7 +788,7 @@ def main():
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
                         checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
-                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1].split(".")[0]))
+                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
 
                         # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
                         if len(checkpoints) >= args.checkpoints_total_limit:
@@ -795,11 +805,12 @@ def main():
                                 shutil.rmtree(removing_checkpoint)
 
                     save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-                    ms.save_checkpoint(unet, save_path)
+                    # TODO: save optimizer & grad scaler etc. like accelerator.save_state
+                    os.makedirs(save_path, exist_ok=True)
+                    output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
+                    ms.save_checkpoint(unet, output_model_file)
 
-                    unwrapped_unet = unwrap_model(unet)
-                    unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unwrapped_unet))
-
+                    unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
                     StableDiffusionPipeline.save_lora_weights(
                         save_directory=save_path,
                         unet_lora_layers=unet_lora_state_dict,
@@ -846,6 +857,7 @@ class TrainStep(nn.Cell):
         scaler: LossScaler,
         noise_scheduler,
         args,
+        weight_dtype,
     ):
         super().__init__()
         self.unet = unet.set_grad()
@@ -879,11 +891,11 @@ class TrainStep(nn.Cell):
         self.args = ArgsJitWrapper(**vars(args))
         self.vae = vae
         self.vae_scaling_factor = self.vae.config.scaling_factor
-        self.weight_dtype = self.vae.dtype
         self.text_encoder = text_encoder
         self.noise_scheduler = noise_scheduler
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
         self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
+        self.weight_dtype = weight_dtype
 
         self.forward_and_backward = ops.value_and_grad(self.forward, None, weights=self.weights, has_aux=True)
 

@@ -1,7 +1,3 @@
-# flake8: noqa
-# There's no way to ignore "F401 '...' imported but unused" warnings in this
-# module, but to preserve other warnings. So, don't check this module at all
-
 # coding=utf-8
 # Copyright 2023-present the HuggingFace Inc. team.
 #
