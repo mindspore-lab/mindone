@@ -49,6 +49,22 @@ python demo/sampling_without_streamlit.py \
   --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
 ```
 
+<details>
+<summary>Use synchronization to get a more stable result in PYNATIVE mode </summary>
+
+```diff
+import mindspore as ms
++ from mindspore.common.api import _pynative_executor
+
+...
+
+# where to synchronize
++ _pynative_executor.sync()
+
+```
+
+</details>
+
 ### 2. Inference with SDXL-Refiner
 
 ```shell

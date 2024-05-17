@@ -20,6 +20,7 @@ from transformers import BertTokenizer, CLIPTokenizer
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+from mindspore.common.api import _pynative_executor
 
 
 class AbstractEmbModel(nn.Cell):
@@ -167,6 +168,7 @@ class GeneralConditioner(nn.Cell):
             if not isinstance(emb_out, (list, tuple)):
                 emb_out = (emb_out,)
             for emb in emb_out:
+                _pynative_executor.sync()
                 if embedder.ucg_rate > 0.0 and embedder.legacy_ucg_val is None:
                     emb = (
                         expand_dims_like(

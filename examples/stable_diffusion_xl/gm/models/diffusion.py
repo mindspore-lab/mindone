@@ -13,6 +13,7 @@ from omegaconf import ListConfig, OmegaConf
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+from mindspore.common.api import _pynative_executor
 
 
 class DiffusionEngine(nn.Cell):
@@ -316,6 +317,7 @@ class DiffusionEngine(nn.Cell):
         else:
             init_noise_scheduler = None
 
+        _pynative_executor.sync()
         print("Sample latent Starting...")
         samples_z = sampler(
             self,
@@ -328,10 +330,12 @@ class DiffusionEngine(nn.Cell):
         )
         print("Sample latent Done.")
 
+        _pynative_executor.sync()
         print("Decode latent Starting...")
         samples_x = self.decode_first_stage(samples_z)
         samples_x = samples_x.asnumpy()
         print("Decode latent Done.")
+        _pynative_executor.sync()
 
         samples = np.clip((samples_x + 1.0) / 2.0, a_min=0.0, a_max=1.0)
 
