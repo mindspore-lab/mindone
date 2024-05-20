@@ -14,10 +14,28 @@ from .utils import _LazyModule
 _import_structure = {
     "configuration_utils": ["ConfigMixin"],
     "models": [
+        "AsymmetricAutoencoderKL",
         "AutoencoderKL",
+        "AutoencoderKLTemporalDecoder",
+        "AutoencoderTiny",
+        "ConsistencyDecoderVAE",
+        "ControlNetModel",
+        "I2VGenXLUNet",
+        "Kandinsky3UNet",
         "ModelMixin",
+        "MotionAdapter",
+        "MultiAdapter",
+        "PriorTransformer",
+        "T2IAdapter",
+        "T5FilmDecoder",
+        "Transformer2DModel",
         "UNet2DConditionModel",
         "UNet2DModel",
+        "UNet3DConditionModel",
+        "UNetMotionModel",
+        "UNetSpatioTemporalConditionModel",
+        "UVit2DModel",
+        "VQModel",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -49,7 +67,30 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
-    from .models import AutoencoderKL, ModelMixin, UNet2DConditionModel, UNet2DModel
+    from .models import (
+        AsymmetricAutoencoderKL,
+        AutoencoderKL,
+        AutoencoderKLTemporalDecoder,
+        AutoencoderTiny,
+        ConsistencyDecoderVAE,
+        ControlNetModel,
+        I2VGenXLUNet,
+        Kandinsky3UNet,
+        ModelMixin,
+        MotionAdapter,
+        MultiAdapter,
+        PriorTransformer,
+        T2IAdapter,
+        T5FilmDecoder,
+        Transformer2DModel,
+        UNet2DConditionModel,
+        UNet2DModel,
+        UNet3DConditionModel,
+        UNetMotionModel,
+        UNetSpatioTemporalConditionModel,
+        UVit2DModel,
+        VQModel,
+    )
     from .optimization import (
         get_constant_schedule,
         get_constant_schedule_with_warmup,

@@ -19,7 +19,8 @@ from mindspore import nn, ops
 from ..utils import logging
 from .activations import GEGLU, GELU, ApproximateGELU
 from .attention_processor import Attention
-from .normalization import LayerNorm
+from .embeddings import SinusoidalPositionalEmbedding
+from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, LayerNorm, RMSNorm
 
 logger = logging.get_logger(__name__)
 
@@ -37,6 +38,47 @@ def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int,
         axis=chunk_dim,
     )
     return ff_output
+
+
+class GatedSelfAttentionDense(nn.Cell):
+    r"""
+    A gated self-attention dense layer that combines visual features and object features.
+
+    Parameters:
+        query_dim (`int`): The number of channels in the query.
+        context_dim (`int`): The number of channels in the context.
+        n_heads (`int`): The number of heads to use for attention.
+        d_head (`int`): The number of channels in each head.
+    """
+
+    def __init__(self, query_dim: int, context_dim: int, n_heads: int, d_head: int):
+        super().__init__()
+
+        # we need a linear projection since we need cat visual feature and obj feature
+        self.linear = nn.Dense(context_dim, query_dim)
+
+        self.attn = Attention(query_dim=query_dim, heads=n_heads, dim_head=d_head)
+        self.ff = FeedForward(query_dim, activation_fn="geglu")
+
+        self.norm1 = LayerNorm(query_dim)
+        self.norm2 = LayerNorm(query_dim)
+
+        self.alpha_attn = ms.Parameter(ms.tensor(0.0), name="alpha_attn")
+        self.alpha_dense = ms.Parameter(ms.tensor(0.0), name="alpha_dense")
+
+        self.enabled = True
+
+    def construct(self, x: ms.Tensor, objs: ms.Tensor) -> ms.Tensor:
+        if not self.enabled:
+            return x
+
+        n_visual = x.shape[1]
+        objs = self.linear(objs)
+
+        x = x + self.alpha_attn.tanh() * self.attn(self.norm1(ops.cat([x, objs], axis=1)))[:, :n_visual, :]
+        x = x + self.alpha_dense.tanh() * self.ff(self.norm2(x))
+
+        return x
 
 
 class BasicTransformerBlock(nn.Cell):
@@ -103,8 +145,19 @@ class BasicTransformerBlock(nn.Cell):
         super().__init__()
         self.only_cross_attention = only_cross_attention
 
-        assert norm_type == "layer_norm", f"Only layer_norm not supported, but got {norm_type}!"
+        # We keep these boolean flags for backward-compatibility.
+        self.use_ada_layer_norm_zero = (num_embeds_ada_norm is not None) and norm_type == "ada_norm_zero"
+        self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
+        self.use_ada_layer_norm_single = norm_type == "ada_norm_single"
         self.use_layer_norm = norm_type == "layer_norm"
+        self.use_ada_layer_norm_continuous = norm_type == "ada_norm_continuous"
+
+        if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
+            raise ValueError(
+                f"`norm_type` is set to {norm_type}, but `num_embeds_ada_norm` is not defined. Please make sure to"
+                f" define `num_embeds_ada_norm` if setting `norm_type` to {norm_type}."
+            )
+
         self.norm_type = norm_type
         self.num_embeds_ada_norm = num_embeds_ada_norm
 
@@ -114,13 +167,28 @@ class BasicTransformerBlock(nn.Cell):
             )
 
         if positional_embeddings == "sinusoidal":
-            raise NotImplementedError("SinusoidalPositionalEmbedding is not implemented")
+            self.pos_embed = SinusoidalPositionalEmbedding(dim, max_seq_length=num_positional_embeddings)
         else:
             self.pos_embed = None
 
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        self.norm1 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        if norm_type == "ada_norm":
+            self.norm1 = AdaLayerNorm(dim, num_embeds_ada_norm)
+        elif norm_type == "ada_norm_zero":
+            self.norm1 = AdaLayerNormZero(dim, num_embeds_ada_norm)
+        elif norm_type == "ada_norm_continuous":
+            self.norm1 = AdaLayerNormContinuous(
+                dim,
+                ada_norm_continous_conditioning_embedding_dim,
+                norm_elementwise_affine,
+                norm_eps,
+                ada_norm_bias,
+                "rms_norm",
+            )
+        else:
+            self.norm1 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
@@ -137,7 +205,20 @@ class BasicTransformerBlock(nn.Cell):
             # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
-            self.norm2 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+            if norm_type == "ada_norm":
+                self.norm2 = AdaLayerNorm(dim, num_embeds_ada_norm)
+            elif norm_type == "ada_norm_continuous":
+                self.norm2 = AdaLayerNormContinuous(
+                    dim,
+                    ada_norm_continous_conditioning_embedding_dim,
+                    norm_elementwise_affine,
+                    norm_eps,
+                    ada_norm_bias,
+                    "rms_norm",
+                )
+            else:
+                self.norm2 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+
             self.attn2 = Attention(
                 query_dim=dim,
                 cross_attention_dim=cross_attention_dim if not double_self_attention else None,
@@ -153,7 +234,21 @@ class BasicTransformerBlock(nn.Cell):
             self.attn2 = None
 
         # 3. Feed-forward
-        self.norm3 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        if norm_type == "ada_norm_continuous":
+            self.norm3 = AdaLayerNormContinuous(
+                dim,
+                ada_norm_continous_conditioning_embedding_dim,
+                norm_elementwise_affine,
+                norm_eps,
+                ada_norm_bias,
+                "layer_norm",
+            )
+
+        elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm", "ada_norm_continuous"]:
+            self.norm3 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        elif norm_type == "layer_norm_i2vgen":
+            self.norm3 = None
+
         self.ff = FeedForward(
             dim,
             dropout=dropout,
@@ -165,7 +260,11 @@ class BasicTransformerBlock(nn.Cell):
 
         # 4. Fuser
         if attention_type == "gated" or attention_type == "gated-text-image":
-            raise NotImplementedError("GatedSelfAttentionDense is not implemented")
+            self.fuser = GatedSelfAttentionDense(dim, cross_attention_dim, num_attention_heads, attention_head_dim)
+
+        # 5. Scale-shift for PixArt-Alpha.
+        if norm_type == "ada_norm_single":
+            self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
         # let chunk size default to None
         self._chunk_size = None
@@ -189,9 +288,30 @@ class BasicTransformerBlock(nn.Cell):
     ) -> ms.Tensor:
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Self-Attention
-        batch_size = hidden_states.shape[0]  # noqa: F841
+        batch_size = hidden_states.shape[0]
 
-        norm_hidden_states = self.norm1(hidden_states)
+        # define variable outside branch to fool ai compiler, even they wouldn't be used in some branchs.
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (None,) * 6
+        if self.norm_type == "ada_norm":
+            norm_hidden_states = self.norm1(hidden_states, timestep)
+        elif self.norm_type == "ada_norm_zero":
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(
+                hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
+            )
+        elif self.norm_type in ["layer_norm", "layer_norm_i2vgen"]:
+            norm_hidden_states = self.norm1(hidden_states)
+        elif self.norm_type == "ada_norm_continuous":
+            norm_hidden_states = self.norm1(hidden_states, added_cond_kwargs["pooled_text_emb"])
+        elif self.norm_type == "ada_norm_single":
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
+            ).chunk(6, axis=1)
+            norm_hidden_states = self.norm1(hidden_states)
+            norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
+            if norm_hidden_states.shape[1] == 1:
+                norm_hidden_states = norm_hidden_states.squeeze(1)
+        else:
+            raise ValueError("Incorrect norm used")
 
         if self.pos_embed is not None:
             norm_hidden_states = self.pos_embed(norm_hidden_states)
@@ -210,9 +330,13 @@ class BasicTransformerBlock(nn.Cell):
             attention_mask=attention_mask,
             **cross_attention_kwargs,
         )
+        if self.norm_type == "ada_norm_zero":
+            attn_output = gate_msa.unsqueeze(1) * attn_output
+        elif self.norm_type == "ada_norm_single":
+            attn_output = gate_msa * attn_output
 
         hidden_states = attn_output + hidden_states
-        if hidden_states.ndim == 4:
+        if hidden_states.ndim == 4 and hidden_states.shape[1] == 1:
             hidden_states = hidden_states.squeeze(1)
 
         # 1.2 GLIGEN Control
@@ -221,7 +345,18 @@ class BasicTransformerBlock(nn.Cell):
 
         # 3. Cross-Attention
         if self.attn2 is not None:
-            norm_hidden_states = self.norm2(hidden_states)
+            if self.norm_type == "ada_norm":
+                norm_hidden_states = self.norm2(hidden_states, timestep)
+            elif self.norm_type in ["ada_norm_zero", "layer_norm", "layer_norm_i2vgen"]:
+                norm_hidden_states = self.norm2(hidden_states)
+            elif self.norm_type == "ada_norm_single":
+                # For PixArt norm2 isn't applied here:
+                # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L70C1-L76C103
+                norm_hidden_states = hidden_states
+            elif self.norm_type == "ada_norm_continuous":
+                norm_hidden_states = self.norm2(hidden_states, added_cond_kwargs["pooled_text_emb"])
+            else:
+                raise ValueError("Incorrect norm")
 
             if self.pos_embed is not None and self.norm_type != "ada_norm_single":
                 norm_hidden_states = self.pos_embed(norm_hidden_states)
@@ -235,7 +370,18 @@ class BasicTransformerBlock(nn.Cell):
             hidden_states = attn_output + hidden_states
 
         # 4. Feed-forward
-        norm_hidden_states = self.norm3(hidden_states)
+        # i2vgen doesn't have this norm 🤷‍♂️
+        if self.norm_type == "ada_norm_continuous":
+            norm_hidden_states = self.norm3(hidden_states, added_cond_kwargs["pooled_text_emb"])
+        elif not self.norm_type == "ada_norm_single":
+            norm_hidden_states = self.norm3(hidden_states)
+
+        if self.norm_type == "ada_norm_zero":
+            norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+
+        if self.norm_type == "ada_norm_single":
+            norm_hidden_states = self.norm2(hidden_states)
+            norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
 
         if self._chunk_size is not None:
             # "feed_forward_chunk_size" can be used to save memory
@@ -243,9 +389,215 @@ class BasicTransformerBlock(nn.Cell):
         else:
             ff_output = self.ff(norm_hidden_states)
 
+        if self.norm_type == "ada_norm_zero":
+            ff_output = gate_mlp.unsqueeze(1) * ff_output
+        elif self.norm_type == "ada_norm_single":
+            ff_output = gate_mlp * ff_output
+
         hidden_states = ff_output + hidden_states
-        if hidden_states.ndim == 4:
+        if hidden_states.ndim == 4 and hidden_states.shape[1] == 1:
             hidden_states = hidden_states.squeeze(1)
+
+        return hidden_states
+
+
+class TemporalBasicTransformerBlock(nn.Cell):
+    r"""
+    A basic Transformer block for video like data.
+
+    Parameters:
+        dim (`int`): The number of channels in the input and output.
+        time_mix_inner_dim (`int`): The number of channels for temporal attention.
+        num_attention_heads (`int`): The number of heads to use for multi-head attention.
+        attention_head_dim (`int`): The number of channels in each head.
+        cross_attention_dim (`int`, *optional*): The size of the encoder_hidden_states vector for cross attention.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        time_mix_inner_dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        cross_attention_dim: Optional[int] = None,
+    ):
+        super().__init__()
+        self.is_res = dim == time_mix_inner_dim
+
+        self.norm_in = LayerNorm(dim)
+
+        # Define 3 blocks. Each block has its own normalization layer.
+        # 1. Self-Attn
+        self.ff_in = FeedForward(
+            dim,
+            dim_out=time_mix_inner_dim,
+            activation_fn="geglu",
+        )
+
+        self.norm1 = LayerNorm(time_mix_inner_dim)
+        self.attn1 = Attention(
+            query_dim=time_mix_inner_dim,
+            heads=num_attention_heads,
+            dim_head=attention_head_dim,
+            cross_attention_dim=None,
+        )
+
+        # 2. Cross-Attn
+        if cross_attention_dim is not None:
+            # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
+            # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
+            # the second cross attention block.
+            self.norm2 = LayerNorm(time_mix_inner_dim)
+            self.attn2 = Attention(
+                query_dim=time_mix_inner_dim,
+                cross_attention_dim=cross_attention_dim,
+                heads=num_attention_heads,
+                dim_head=attention_head_dim,
+            )  # is self-attn if encoder_hidden_states is none
+        else:
+            self.norm2 = None
+            self.attn2 = None
+
+        # 3. Feed-forward
+        self.norm3 = LayerNorm(time_mix_inner_dim)
+        self.ff = FeedForward(time_mix_inner_dim, activation_fn="geglu")
+
+        # let chunk size default to None
+        self._chunk_size = None
+        self._chunk_dim = None
+
+    def set_chunk_feed_forward(self, chunk_size: Optional[int], **kwargs):
+        # Sets chunk feed-forward
+        self._chunk_size = chunk_size
+        # chunk dim should be hardcoded to 1 to have better speed vs. memory trade-off
+        self._chunk_dim = 1
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        num_frames: int,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        # Notice that normalization is always applied before the real computation in the following blocks.
+        # 0. Self-Attention
+        batch_size = hidden_states.shape[0]
+
+        batch_frames, seq_length, channels = hidden_states.shape
+        batch_size = batch_frames // num_frames
+
+        hidden_states = hidden_states[None, :].reshape(batch_size, num_frames, seq_length, channels)
+        hidden_states = hidden_states.permute(0, 2, 1, 3)
+        hidden_states = hidden_states.reshape(batch_size * seq_length, num_frames, channels)
+
+        residual = hidden_states
+        hidden_states = self.norm_in(hidden_states)
+
+        if self._chunk_size is not None:
+            hidden_states = _chunked_feed_forward(self.ff_in, hidden_states, self._chunk_dim, self._chunk_size)
+        else:
+            hidden_states = self.ff_in(hidden_states)
+
+        if self.is_res:
+            hidden_states = hidden_states + residual
+
+        norm_hidden_states = self.norm1(hidden_states)
+        attn_output = self.attn1(norm_hidden_states, encoder_hidden_states=None)
+        hidden_states = attn_output + hidden_states
+
+        # 3. Cross-Attention
+        if self.attn2 is not None:
+            norm_hidden_states = self.norm2(hidden_states)
+            attn_output = self.attn2(norm_hidden_states, encoder_hidden_states=encoder_hidden_states)
+            hidden_states = attn_output + hidden_states
+
+        # 4. Feed-forward
+        norm_hidden_states = self.norm3(hidden_states)
+
+        if self._chunk_size is not None:
+            ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
+        else:
+            ff_output = self.ff(norm_hidden_states)
+
+        if self.is_res:
+            hidden_states = ff_output + hidden_states
+        else:
+            hidden_states = ff_output
+
+        hidden_states = hidden_states[None, :].reshape(batch_size, seq_length, num_frames, channels)
+        hidden_states = hidden_states.permute(0, 2, 1, 3)
+        hidden_states = hidden_states.reshape(batch_size * num_frames, seq_length, channels)
+
+        return hidden_states
+
+
+class SkipFFTransformerBlock(nn.Cell):
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        kv_input_dim: int,
+        kv_input_dim_proj_use_bias: bool,
+        dropout=0.0,
+        cross_attention_dim: Optional[int] = None,
+        attention_bias: bool = False,
+        attention_out_bias: bool = True,
+    ):
+        super().__init__()
+        if kv_input_dim != dim:
+            self.kv_mapper = nn.Dense(kv_input_dim, dim, has_bias=kv_input_dim_proj_use_bias)
+        else:
+            self.kv_mapper = None
+
+        self.norm1 = RMSNorm(dim, 1e-06)
+
+        self.attn1 = Attention(
+            query_dim=dim,
+            heads=num_attention_heads,
+            dim_head=attention_head_dim,
+            dropout=dropout,
+            bias=attention_bias,
+            cross_attention_dim=cross_attention_dim,
+            out_bias=attention_out_bias,
+        )
+
+        self.norm2 = RMSNorm(dim, 1e-06)
+
+        self.attn2 = Attention(
+            query_dim=dim,
+            cross_attention_dim=cross_attention_dim,
+            heads=num_attention_heads,
+            dim_head=attention_head_dim,
+            dropout=dropout,
+            bias=attention_bias,
+            out_bias=attention_out_bias,
+        )
+
+    def construct(self, hidden_states, encoder_hidden_states, cross_attention_kwargs):
+        cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
+
+        if self.kv_mapper is not None:
+            encoder_hidden_states = self.kv_mapper(ops.silu(encoder_hidden_states))
+
+        norm_hidden_states = self.norm1(hidden_states)
+
+        attn_output = self.attn1(
+            norm_hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            **cross_attention_kwargs,
+        )
+
+        hidden_states = attn_output + hidden_states
+
+        norm_hidden_states = self.norm2(hidden_states)
+
+        attn_output = self.attn2(
+            norm_hidden_states,
+            encoder_hidden_states=encoder_hidden_states,
+            **cross_attention_kwargs,
+        )
+
+        hidden_states = attn_output + hidden_states
 
         return hidden_states
 

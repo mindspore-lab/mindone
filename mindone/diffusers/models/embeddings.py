@@ -11,7 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional
+import math
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -19,7 +20,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from .activations import get_activation
-from .normalization import LayerNorm
+from .attention_processor import Attention
 
 
 def get_timestep_embedding(
@@ -118,6 +119,76 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
     return emb
 
 
+class PatchEmbed(nn.Cell):
+    """2D Image to Patch Embedding"""
+
+    def __init__(
+        self,
+        height=224,
+        width=224,
+        patch_size=16,
+        in_channels=3,
+        embed_dim=768,
+        layer_norm=False,
+        flatten=True,
+        bias=True,
+        interpolation_scale=1,
+    ):
+        super().__init__()
+        from .normalization import LayerNorm
+
+        num_patches = (height // patch_size) * (width // patch_size)
+        self.flatten = flatten
+        self.layer_norm = layer_norm
+
+        self.proj = nn.Conv2d(
+            in_channels, embed_dim, kernel_size=(patch_size, patch_size), stride=patch_size, has_bias=bias
+        )
+        if layer_norm:
+            self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
+        else:
+            self.norm = None
+
+        self.patch_size = patch_size
+        # See:
+        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L161
+        self.height, self.width = height // patch_size, width // patch_size
+        self.base_size = height // patch_size
+        self.interpolation_scale = interpolation_scale
+        pos_embed = get_2d_sincos_pos_embed(
+            embed_dim, int(num_patches**0.5), base_size=self.base_size, interpolation_scale=self.interpolation_scale
+        )
+        self.pos_embed = ms.Tensor.from_numpy(pos_embed).float().unsqueeze(0)
+
+    def construct(self, latent):
+        height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
+
+        latent = self.proj(latent)
+        if self.flatten:
+            latent = latent.flatten(start_dim=2).swapaxes(1, 2)  # BCHW -> BNC
+        if self.layer_norm:
+            latent = self.norm(latent)
+
+        # Interpolate positional embeddings if needed. For PixArt-Alpha:
+        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160
+        if self.height != height or self.width != width:
+            # pos_embed = get_2d_sincos_pos_embed(
+            #     embed_dim=self.pos_embed.shape[-1],
+            #     grid_size=(height, width),
+            #     base_size=self.base_size,
+            #     interpolation_scale=self.interpolation_scale,
+            # )
+            # pos_embed = ms.Tensor(pos_embed, dtype=latent.dtype)
+            # pos_embed = pos_embed.float().unsqueeze(0)
+            raise NotImplementedError(
+                "A MindSpore version 'get_2d_sincos_pos_embed' method is needed and not implemented so far."
+            )
+        else:
+            pos_embed = self.pos_embed
+
+        return (latent + pos_embed).to(latent.dtype)
+
+
 class TimestepEmbedding(nn.Cell):
     def __init__(
         self,
@@ -182,6 +253,129 @@ class Timesteps(nn.Cell):
             downscale_freq_shift=self.downscale_freq_shift,
         )
         return t_emb
+
+
+class GaussianFourierProjection(nn.Cell):
+    """Gaussian Fourier embeddings for noise levels."""
+
+    def __init__(
+        self, embedding_size: int = 256, scale: float = 1.0, set_W_to_weight=True, log=True, flip_sin_to_cos=False
+    ):
+        super().__init__()
+        self.weight = ms.Parameter(ops.randn(embedding_size) * scale, requires_grad=False, name="weight")
+        self.log = log
+        self.flip_sin_to_cos = flip_sin_to_cos
+
+        if set_W_to_weight:
+            # to delete later
+            self.W = ms.Parameter(ops.randn(embedding_size) * scale, requires_grad=False, name="W")
+
+            self.weight = self.W
+
+    def construct(self, x):
+        if self.log:
+            x = ops.log(x)
+
+        x_proj = x[:, None] * self.weight[None, :] * 2 * np.pi
+
+        if self.flip_sin_to_cos:
+            out = ops.cat([ops.cos(x_proj), ops.sin(x_proj)], axis=-1)
+        else:
+            out = ops.cat([ops.sin(x_proj), ops.cos(x_proj)], axis=-1)
+        return out
+
+
+class SinusoidalPositionalEmbedding(nn.Cell):
+    """Apply positional information to a sequence of embeddings.
+
+    Takes in a sequence of embeddings with shape (batch_size, seq_length, embed_dim) and adds positional embeddings to
+    them
+
+    Args:
+        embed_dim: (int): Dimension of the positional embedding.
+        max_seq_length: Maximum sequence length to apply positional embeddings
+
+    """
+
+    def __init__(self, embed_dim: int, max_seq_length: int = 32):
+        super().__init__()
+        position = ops.arange(max_seq_length).unsqueeze(1)
+        # TODO: 'math' may cause some unexpected errors in GRAPH_MODE, keep an eye on it.
+        div_term = ops.exp(ops.arange(0, embed_dim, 2) * (-math.log(10000.0) / embed_dim))
+        pe = ops.zeros(size=(1, max_seq_length, embed_dim))
+        pe[0, :, 0::2] = ops.sin(position * div_term)
+        pe[0, :, 1::2] = ops.cos(position * div_term)
+        self.pe = pe
+
+    def construct(self, x):
+        _, seq_length, _ = x.shape
+        x = x + self.pe[:, :seq_length].to(x.dtype)
+        return x
+
+
+class ImagePositionalEmbeddings(nn.Cell):
+    """
+    Converts latent image classes into vector embeddings. Sums the vector embeddings with positional embeddings for the
+    height and width of the latent space.
+
+    For more details, see figure 10 of the dall-e paper: https://arxiv.org/abs/2102.12092
+
+    For VQ-diffusion:
+
+    Output vector embeddings are used as input for the transformer.
+
+    Note that the vector embeddings for the transformer are different than the vector embeddings from the VQVAE.
+
+    Args:
+        num_embed (`int`):
+            Number of embeddings for the latent pixels embeddings.
+        height (`int`):
+            Height of the latent image i.e. the number of height embeddings.
+        width (`int`):
+            Width of the latent image i.e. the number of width embeddings.
+        embed_dim (`int`):
+            Dimension of the produced vector embeddings. Used for the latent pixel, height, and width embeddings.
+    """
+
+    def __init__(
+        self,
+        num_embed: int,
+        height: int,
+        width: int,
+        embed_dim: int,
+    ):
+        super().__init__()
+
+        self.height = height
+        self.width = width
+        self.num_embed = num_embed
+        self.embed_dim = embed_dim
+
+        self.emb = nn.Embedding(self.num_embed, embed_dim)
+        self.height_emb = nn.Embedding(self.height, embed_dim)
+        self.width_emb = nn.Embedding(self.width, embed_dim)
+
+    def construct(self, index):
+        emb = self.emb(index)
+
+        height_emb = self.height_emb(ops.arange(self.height).view(1, self.height))
+
+        # 1 x H x D -> 1 x H x 1 x D
+        height_emb = height_emb.unsqueeze(2)
+
+        width_emb = self.width_emb(ops.arange(self.width).view(1, self.width))
+
+        # 1 x W x D -> 1 x 1 x W x D
+        width_emb = width_emb.unsqueeze(1)
+
+        pos_emb = height_emb + width_emb
+
+        # 1 x H x W x D -> 1 x L xD
+        pos_emb = pos_emb.view(1, self.height * self.width, -1)
+
+        emb = emb + pos_emb[:, : emb.shape[1], :]
+
+        return emb
 
 
 class LabelEmbedding(nn.Cell):
@@ -255,6 +449,7 @@ class ImageProjection(nn.Cell):
         num_image_text_embeds: int = 32,
     ):
         super().__init__()
+        from .normalization import LayerNorm
 
         self.num_image_text_embeds = num_image_text_embeds
         self.image_embeds = nn.Dense(image_embed_dim, self.num_image_text_embeds * cross_attention_dim)
@@ -268,3 +463,467 @@ class ImageProjection(nn.Cell):
         image_embeds = image_embeds.reshape(batch_size, self.num_image_text_embeds, -1)
         image_embeds = self.norm(image_embeds)
         return image_embeds
+
+
+class IPAdapterFullImageProjection(nn.Cell):
+    def __init__(self, image_embed_dim=1024, cross_attention_dim=1024):
+        super().__init__()
+        from .attention import FeedForward
+        from .normalization import LayerNorm
+
+        self.ff = FeedForward(image_embed_dim, cross_attention_dim, mult=1, activation_fn="gelu")
+        self.norm = LayerNorm(cross_attention_dim)
+
+    def construct(self, image_embeds: ms.Tensor):
+        return self.norm(self.ff(image_embeds))
+
+
+class CombinedTimestepLabelEmbeddings(nn.Cell):
+    def __init__(self, num_classes, embedding_dim, class_dropout_prob=0.1):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=1)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+        self.class_embedder = LabelEmbedding(num_classes, embedding_dim, class_dropout_prob)
+
+    def construct(self, timestep, class_labels, hidden_dtype=None):
+        timesteps_proj = self.time_proj(timestep)
+        hidden_dtype = hidden_dtype if hidden_dtype is not None else timesteps_proj.dtype
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
+
+        class_labels = self.class_embedder(class_labels)  # (N, D)
+
+        conditioning = timesteps_emb + class_labels  # (N, D)
+
+        return conditioning
+
+
+class TextTimeEmbedding(nn.Cell):
+    def __init__(self, encoder_dim: int, time_embed_dim: int, num_heads: int = 64):
+        super().__init__()
+        from .normalization import LayerNorm
+
+        self.norm1 = LayerNorm(encoder_dim)
+        self.pool = AttentionPooling(num_heads, encoder_dim)
+        self.proj = nn.Dense(encoder_dim, time_embed_dim)
+        self.norm2 = LayerNorm(time_embed_dim)
+
+    def construct(self, hidden_states):
+        hidden_states = self.norm1(hidden_states)
+        hidden_states = self.pool(hidden_states)
+        hidden_states = self.proj(hidden_states)
+        hidden_states = self.norm2(hidden_states)
+        return hidden_states
+
+
+class TextImageTimeEmbedding(nn.Cell):
+    def __init__(self, text_embed_dim: int = 768, image_embed_dim: int = 768, time_embed_dim: int = 1536):
+        super().__init__()
+        from .normalization import LayerNorm
+
+        self.text_proj = nn.Dense(text_embed_dim, time_embed_dim)
+        self.text_norm = LayerNorm(time_embed_dim)
+        self.image_proj = nn.Dense(image_embed_dim, time_embed_dim)
+
+    def construct(self, text_embeds: ms.Tensor, image_embeds: ms.Tensor):
+        # text
+        time_text_embeds = self.text_proj(text_embeds)
+        time_text_embeds = self.text_norm(time_text_embeds)
+
+        # image
+        time_image_embeds = self.image_proj(image_embeds)
+
+        return time_image_embeds + time_text_embeds
+
+
+class ImageTimeEmbedding(nn.Cell):
+    def __init__(self, image_embed_dim: int = 768, time_embed_dim: int = 1536):
+        super().__init__()
+        from .normalization import LayerNorm
+
+        self.image_proj = nn.Dense(image_embed_dim, time_embed_dim)
+        self.image_norm = LayerNorm(time_embed_dim)
+
+    def construct(self, image_embeds: ms.Tensor):
+        # image
+        time_image_embeds = self.image_proj(image_embeds)
+        time_image_embeds = self.image_norm(time_image_embeds)
+        return time_image_embeds
+
+
+class ImageHintTimeEmbedding(nn.Cell):
+    def __init__(self, image_embed_dim: int = 768, time_embed_dim: int = 1536):
+        super().__init__()
+        from .normalization import LayerNorm
+
+        self.image_proj = nn.Dense(image_embed_dim, time_embed_dim)
+        self.image_norm = LayerNorm(time_embed_dim)
+        self.input_hint_block = nn.SequentialCell(
+            nn.Conv2d(3, 16, 3, pad_mode="pad", padding=1, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(16, 16, 3, pad_mode="pad", padding=1, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(16, 32, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(32, 32, 3, pad_mode="pad", padding=1, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(32, 96, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(96, 96, 3, pad_mode="pad", padding=1, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(96, 256, 3, pad_mode="pad", padding=1, stride=2, has_bias=True),
+            nn.SiLU(),
+            nn.Conv2d(256, 4, 3, pad_mode="pad", padding=1, has_bias=True),
+        )
+
+    def construct(self, image_embeds: ms.Tensor, hint: ms.Tensor):
+        # image
+        time_image_embeds = self.image_proj(image_embeds)
+        time_image_embeds = self.image_norm(time_image_embeds)
+        hint = self.input_hint_block(hint)
+        return time_image_embeds, hint
+
+
+class AttentionPooling(nn.Cell):
+    # Copied from:
+    # https://github.com/deep-floyd/IF/blob/2f91391f27dd3c468bf174be5805b4cc92980c0b/deepfloyd_if/model/nn.py#L54
+
+    def __init__(self, num_heads, embed_dim, dtype=None):
+        super().__init__()
+        self.dtype = dtype if dtype else ms.float32
+        self.positional_embedding = ms.Parameter(
+            ops.randn(1, embed_dim) / embed_dim**0.5, name="positional_embedding"
+        )
+        self.k_proj = nn.Dense(embed_dim, embed_dim, dtype=self.dtype)
+        self.q_proj = nn.Dense(embed_dim, embed_dim, dtype=self.dtype)
+        self.v_proj = nn.Dense(embed_dim, embed_dim, dtype=self.dtype)
+        self.num_heads = num_heads
+        self.dim_per_head = embed_dim // self.num_heads
+
+    def construct(self, x: ms.Tensor):
+        bs, length, width = x.shape
+
+        def shape(x):
+            # (bs, length, width) --> (bs, length, n_heads, dim_per_head)
+            x = x.view(bs, -1, self.num_heads, self.dim_per_head)
+            # (bs, length, n_heads, dim_per_head) --> (bs, n_heads, length, dim_per_head)
+            x = x.swapaxes(1, 2)
+            # (bs, n_heads, length, dim_per_head) --> (bs*n_heads, length, dim_per_head)
+            x = x.reshape(bs * self.num_heads, -1, self.dim_per_head)
+            # (bs*n_heads, length, dim_per_head) --> (bs*n_heads, dim_per_head, length)
+            x = x.swapaxes(1, 2)
+            return x
+
+        class_token = x.mean(axis=1, keep_dims=True) + self.positional_embedding.to(x.dtype)
+        x = ops.cat([class_token, x], axis=1)  # (bs, length+1, width)
+
+        # (bs*n_heads, class_token_length, dim_per_head)
+        q = shape(self.q_proj(class_token))
+        # (bs*n_heads, length+class_token_length, dim_per_head)
+        k = shape(self.k_proj(x))
+        v = shape(self.v_proj(x))
+
+        # (bs*n_heads, class_token_length, length+class_token_length):
+        scale = float(1 / math.sqrt(math.sqrt(self.dim_per_head)))
+        weight = ops.bmm(q.swapaxes(-1, -2) * scale, k * scale)  # More stable with f16 than dividing afterwards
+        weight = ops.softmax(weight.float(), axis=-1).type(weight.dtype)
+
+        # (bs*n_heads, dim_per_head, class_token_length)
+        a = ops.bmm(v, weight.swapaxes(-1, -2))
+
+        # (bs, length+1, width)
+        a = a.reshape(bs, -1, 1).swapaxes(1, 2)
+
+        return a[:, 0, :]  # cls_token
+
+
+def get_fourier_embeds_from_boundingbox(embed_dim, box):
+    """
+    Args:
+        embed_dim: int
+        box: a 3-D tensor [B x N x 4] representing the bounding boxes for GLIGEN pipeline
+    Returns:
+        [B x N x embed_dim] tensor of positional embeddings
+    """
+
+    batch_size, num_boxes = box.shape[:2]
+
+    emb = 100 ** (ops.arange(embed_dim) / embed_dim)
+    emb = emb[None, None, None].to(dtype=box.dtype)
+    emb = emb * box.unsqueeze(-1)
+
+    emb = ops.stack((emb.sin(), emb.cos()), axis=-1)
+    emb = emb.permute(0, 1, 3, 4, 2).reshape(batch_size, num_boxes, embed_dim * 2 * 4)
+
+    return emb
+
+
+class GLIGENTextBoundingboxProjection(nn.Cell):
+    def __init__(self, positive_len, out_dim, feature_type="text-only", fourier_freqs=8):
+        super().__init__()
+        self.positive_len = positive_len
+        self.out_dim = out_dim
+
+        self.fourier_embedder_dim = fourier_freqs
+        self.position_dim = fourier_freqs * 2 * 4  # 2: sin/cos, 4: xyxy
+
+        if isinstance(out_dim, tuple):
+            out_dim = out_dim[0]
+
+        if feature_type == "text-only":
+            self.linears = nn.SequentialCell(
+                nn.Dense(self.positive_len + self.position_dim, 512),
+                nn.SiLU(),
+                nn.Dense(512, 512),
+                nn.SiLU(),
+                nn.Dense(512, out_dim),
+            )
+            self.null_positive_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_positive_feature")
+
+        elif feature_type == "text-image":
+            self.linears_text = nn.SequentialCell(
+                nn.Dense(self.positive_len + self.position_dim, 512),
+                nn.SiLU(),
+                nn.Dense(512, 512),
+                nn.SiLU(),
+                nn.Dense(512, out_dim),
+            )
+            self.linears_image = nn.SequentialCell(
+                nn.Dense(self.positive_len + self.position_dim, 512),
+                nn.SiLU(),
+                nn.Dense(512, 512),
+                nn.SiLU(),
+                nn.Dense(512, out_dim),
+            )
+            self.null_text_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_text_feature")
+            self.null_image_feature = ms.Parameter(ops.zeros([self.positive_len]), name="null_image_feature")
+
+        self.null_position_feature = ms.Parameter(ops.zeros([self.position_dim]), name="null_position_feature")
+
+    def construct(
+        self,
+        boxes,
+        masks,
+        positive_embeddings=None,
+        phrases_masks=None,
+        image_masks=None,
+        phrases_embeddings=None,
+        image_embeddings=None,
+    ):
+        masks = masks.unsqueeze(-1)
+
+        # embedding position (it may includes padding as placeholder)
+        xyxy_embedding = get_fourier_embeds_from_boundingbox(self.fourier_embedder_dim, boxes)  # B*N*4 -> B*N*C
+
+        # learnable null embedding
+        xyxy_null = self.null_position_feature.view(1, 1, -1)
+
+        # replace padding with learnable null embedding
+        xyxy_embedding = xyxy_embedding * masks + (1 - masks) * xyxy_null
+
+        # positionet with text only information
+        if positive_embeddings is not None:
+            # learnable null embedding
+            positive_null = self.null_positive_feature.view(1, 1, -1)
+
+            # replace padding with learnable null embedding
+            positive_embeddings = positive_embeddings * masks + (1 - masks) * positive_null
+
+            objs = self.linears(ops.cat([positive_embeddings, xyxy_embedding], axis=-1))
+
+        # positionet with text and image infomation
+        else:
+            phrases_masks = phrases_masks.unsqueeze(-1)
+            image_masks = image_masks.unsqueeze(-1)
+
+            # learnable null embedding
+            text_null = self.null_text_feature.view(1, 1, -1)
+            image_null = self.null_image_feature.view(1, 1, -1)
+
+            # replace padding with learnable null embedding
+            phrases_embeddings = phrases_embeddings * phrases_masks + (1 - phrases_masks) * text_null
+            image_embeddings = image_embeddings * image_masks + (1 - image_masks) * image_null
+
+            objs_text = self.linears_text(ops.cat([phrases_embeddings, xyxy_embedding], axis=-1))
+            objs_image = self.linears_image(ops.cat([image_embeddings, xyxy_embedding], axis=-1))
+            objs = ops.cat([objs_text, objs_image], axis=1)
+
+        return objs
+
+
+class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
+    """
+    For PixArt-Alpha.
+    Reference:
+    https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L164C9-L168C29
+    """
+
+    def __init__(self, embedding_dim, size_emb_dim, use_additional_conditions: bool = False):
+        super().__init__()
+
+        self.outdim = size_emb_dim
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+        self.use_additional_conditions = use_additional_conditions
+        if use_additional_conditions:
+            self.additional_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+            self.resolution_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
+            self.aspect_ratio_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=size_emb_dim)
+
+    def construct(self, timestep, resolution, aspect_ratio, batch_size, hidden_dtype):
+        timesteps_proj = self.time_proj(timestep)
+        hidden_dtype = hidden_dtype if hidden_dtype is not None else timesteps_proj.dtype
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
+
+        if self.use_additional_conditions:
+            resolution_emb = self.additional_condition_proj(resolution.flatten()).to(hidden_dtype)
+            resolution_emb = self.resolution_embedder(resolution_emb).reshape(batch_size, -1)
+            aspect_ratio_emb = self.additional_condition_proj(aspect_ratio.flatten()).to(hidden_dtype)
+            aspect_ratio_emb = self.aspect_ratio_embedder(aspect_ratio_emb).reshape(batch_size, -1)
+            conditioning = timesteps_emb + ops.cat([resolution_emb, aspect_ratio_emb], axis=1)
+        else:
+            conditioning = timesteps_emb
+
+        return conditioning
+
+
+class PixArtAlphaTextProjection(nn.Cell):
+    """
+    Projects caption embeddings. Also handles dropout for classifier-free guidance.
+    Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/nets/PixArt_blocks.py
+    """
+
+    def __init__(self, in_features, hidden_size, num_tokens=120):
+        super().__init__()
+        self.linear_1 = nn.Dense(in_channels=in_features, out_channels=hidden_size, has_bias=True)
+        self.act_1 = nn.GELU(approximate=True)
+        self.linear_2 = nn.Dense(in_channels=hidden_size, out_channels=hidden_size, has_bias=True)
+
+    def construct(self, caption):
+        hidden_states = self.linear_1(caption)
+        hidden_states = self.act_1(hidden_states)
+        hidden_states = self.linear_2(hidden_states)
+        return hidden_states
+
+
+class IPAdapterPlusImageProjection(nn.Cell):
+    """Resampler of IP-Adapter Plus.
+
+    Args:
+    ----
+        embed_dims (int): The feature dimension. Defaults to 768.
+        output_dims (int): The number of output channels, that is the same
+            number of the channels in the
+            `unet.config.cross_attention_dim`. Defaults to 1024.
+        hidden_dims (int): The number of hidden channels. Defaults to 1280.
+        depth (int): The number of blocks. Defaults to 8.
+        dim_head (int): The number of head channels. Defaults to 64.
+        heads (int): Parallel attention heads. Defaults to 16.
+        num_queries (int): The number of queries. Defaults to 8.
+        ffn_ratio (float): The expansion ratio of feedforward network hidden
+            layer channels. Defaults to 4.
+    """
+
+    def __init__(
+        self,
+        embed_dims: int = 768,
+        output_dims: int = 1024,
+        hidden_dims: int = 1280,
+        depth: int = 4,
+        dim_head: int = 64,
+        heads: int = 16,
+        num_queries: int = 8,
+        ffn_ratio: float = 4,
+    ) -> None:
+        super().__init__()
+        from .attention import FeedForward
+        from .normalization import LayerNorm  # Lazy import to avoid circular import
+
+        self.latents = ms.Parameter(ops.randn(1, num_queries, hidden_dims) / hidden_dims**0.5, name="latents")
+
+        self.proj_in = nn.Dense(embed_dims, hidden_dims)
+
+        self.proj_out = nn.Dense(hidden_dims, output_dims)
+        self.norm_out = LayerNorm(output_dims)
+
+        self.layers = nn.CellList([])
+        for _ in range(depth):
+            self.layers.append(
+                nn.CellList(
+                    [
+                        LayerNorm(hidden_dims),
+                        LayerNorm(hidden_dims),
+                        Attention(
+                            query_dim=hidden_dims,
+                            dim_head=dim_head,
+                            heads=heads,
+                            out_bias=False,
+                        ),
+                        nn.SequentialCell(
+                            LayerNorm(hidden_dims),
+                            FeedForward(hidden_dims, hidden_dims, activation_fn="gelu", mult=ffn_ratio, bias=False),
+                        ),
+                    ]
+                )
+            )
+
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        """Forward pass.
+
+        Args:
+        ----
+            x (ms.Tensor): Input Tensor.
+
+        Returns:
+        -------
+            ms.Tensor: Output Tensor.
+        """
+        latents = self.latents.tile((x.size(0), 1, 1))
+
+        x = self.proj_in(x)
+
+        for ln0, ln1, attn, ff in self.layers:
+            residual = latents
+
+            encoder_hidden_states = ln0(x)
+            latents = ln1(latents)
+            encoder_hidden_states = ops.cat([encoder_hidden_states, latents], axis=-2)
+            latents = attn(latents, encoder_hidden_states) + residual
+            latents = ff(latents) + latents
+
+        latents = self.proj_out(latents)
+        return self.norm_out(latents)
+
+
+class MultiIPAdapterImageProjection(nn.Cell):
+    def __init__(self, IPAdapterImageProjectionLayers: Union[List[nn.Cell], Tuple[nn.Cell]]):
+        super().__init__()
+        self.image_projection_layers = nn.CellList(IPAdapterImageProjectionLayers)
+
+    def construct(self, image_embeds: List[ms.Tensor]):
+        projected_image_embeds = []
+
+        # currently, we accept `image_embeds` as 1. a tensor (deprecated) with shape [batch_size, embed_dim] or [
+        # batch_size, sequence_length, embed_dim] 2. list of `n` tensors where `n` is number of ip-adapters,
+        # each tensor can hae shape [batch_size, num_images, embed_dim] or [batch_size, num_images, sequence_length,
+        # embed_dim]
+        if not isinstance(image_embeds, list):
+            image_embeds = [image_embeds.unsqueeze(1)]
+
+        assert len(image_embeds) == len(self.image_projection_layers), (
+            f"image_embeds must have the same length as "
+            f"image_projection_layers, "
+            f"got {len(image_embeds)} and "
+            f"{len(self.image_projection_layers)}"
+        )
+
+        for image_embed, image_projection_layer in zip(image_embeds, self.image_projection_layers):
+            batch_size, num_images = image_embed.shape[0], image_embed.shape[1]
+            image_embed = image_embed.reshape((batch_size * num_images,) + image_embed.shape[2:])
+            image_embed = image_projection_layer(image_embed)
+            image_embed = image_embed.reshape((batch_size, num_images) + image_embed.shape[1:])
+
+            projected_image_embeds.append(image_embed)
+
+        return projected_image_embeds

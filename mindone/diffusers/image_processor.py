@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
@@ -643,3 +644,97 @@ class VaeImageProcessor(ConfigMixin):
         image = image.convert("RGB")
 
         return image
+
+
+class IPAdapterMaskProcessor(VaeImageProcessor):
+    """
+    Image processor for IP Adapter image masks.
+
+    Args:
+        do_resize (`bool`, *optional*, defaults to `True`):
+            Whether to downscale the image's (height, width) dimensions to multiples of `vae_scale_factor`.
+        vae_scale_factor (`int`, *optional*, defaults to `8`):
+            VAE scale factor. If `do_resize` is `True`, the image is automatically resized to multiples of this factor.
+        resample (`str`, *optional*, defaults to `lanczos`):
+            Resampling filter to use when resizing the image.
+        do_normalize (`bool`, *optional*, defaults to `False`):
+            Whether to normalize the image to [-1,1].
+        do_binarize (`bool`, *optional*, defaults to `True`):
+            Whether to binarize the image to 0/1.
+        do_convert_grayscale (`bool`, *optional*, defaults to be `True`):
+            Whether to convert the images to grayscale format.
+
+    """
+
+    config_name = CONFIG_NAME
+
+    @register_to_config
+    def __init__(
+        self,
+        do_resize: bool = True,
+        vae_scale_factor: int = 8,
+        resample: str = "lanczos",
+        do_normalize: bool = False,
+        do_binarize: bool = True,
+        do_convert_grayscale: bool = True,
+    ):
+        super().__init__(
+            do_resize=do_resize,
+            vae_scale_factor=vae_scale_factor,
+            resample=resample,
+            do_normalize=do_normalize,
+            do_binarize=do_binarize,
+            do_convert_grayscale=do_convert_grayscale,
+        )
+
+    @staticmethod
+    def downsample(mask: ms.Tensor, batch_size: int, num_queries: int, value_embed_dim: int):
+        """
+        Downsamples the provided mask tensor to match the expected dimensions for scaled dot-product attention.
+        If the aspect ratio of the mask does not match the aspect ratio of the output image, a warning is issued.
+
+        Args:
+            mask (`ms.Tensor`):
+                The input mask tensor generated with `IPAdapterMaskProcessor.preprocess()`.
+            batch_size (`int`):
+                The batch size.
+            num_queries (`int`):
+                The number of queries.
+            value_embed_dim (`int`):
+                The dimensionality of the value embeddings.
+
+        Returns:
+            `ms.Tensor`:
+                The downsampled mask tensor.
+
+        """
+        o_h = mask.shape[1]
+        o_w = mask.shape[2]
+        ratio = o_w / o_h
+        mask_h = int(math.sqrt(num_queries / ratio))
+        mask_h = int(mask_h) + int((num_queries % int(mask_h)) != 0)
+        mask_w = num_queries // mask_h
+
+        mask_downsample = ops.interpolate(mask.unsqueeze(0), size=(mask_h, mask_w), mode="bicubic").squeeze(0)
+
+        # Repeat batch_size times
+        if mask_downsample.shape[0] < batch_size:
+            mask_downsample = mask_downsample.tile((batch_size, 1, 1))
+
+        mask_downsample = mask_downsample.view(mask_downsample.shape[0], -1)
+
+        downsampled_area = mask_h * mask_w
+        # If the output image and the mask do not have the same aspect ratio, tensor shapes will not match
+        # Pad tensor if downsampled_mask.shape[1] is smaller than num_queries
+        if downsampled_area < num_queries:
+            mask_downsample = ops.Pad(paddings=((0, num_queries - mask_downsample.shape[1]), (0, 0)))(mask_downsample)
+        # Discard last embeddings if downsampled_mask.shape[1] is bigger than num_queries
+        if downsampled_area > num_queries:
+            mask_downsample = mask_downsample[:, :num_queries]
+
+        # Repeat last dimension to match SDPA output shape
+        mask_downsample = mask_downsample.view(mask_downsample.shape[0], mask_downsample.shape[1], 1).tile(
+            (1, 1, value_embed_dim)
+        )
+
+        return mask_downsample
