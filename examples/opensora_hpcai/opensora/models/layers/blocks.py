@@ -253,6 +253,7 @@ class SelfAttention(nn.Cell):
         mask: (b n), 1 - valid, 0 - padded
         """
         B, N, C = x.shape
+        x_dtype = x.dtype
 
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
@@ -286,7 +287,7 @@ class SelfAttention(nn.Cell):
         # reshape FA output to original attn input format (b n h*d)
         out = out.view(B, N, -1)
 
-        return self.proj_drop(self.proj(out))
+        return self.proj_drop(self.proj(out)).to(x_dtype)
 
 
 class LayerNorm(nn.Cell):
