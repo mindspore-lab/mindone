@@ -1,8 +1,8 @@
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export TOKENIZERS_PARALLELISM=true
 
 # msrun --master_port=8200 --worker_num=4 --local_worker_num=4 --log_dir=logs_t5_cache  \
-mpirun --allow-run-as-root -n 4 --output-filename log_output --merge-stderr-to-stdout \
+mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-stdout \
     python scripts/infer_t5.py\
     --dtype=fp32 \
     --batch_size=4 \
