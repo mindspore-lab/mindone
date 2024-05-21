@@ -174,6 +174,9 @@ def main(args):
 
         for param in vae.get_parameters():  # freeze vae
             param.requires_grad = False
+        if args.enable_tiling:
+            vae.enable_tiling()
+            vae.tile_overlap_factor = args.tile_overlap_factor
 
     # latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     latent_size = args.image_size // 8

@@ -209,6 +209,9 @@ def parse_train_args(parser):
     parser.add_argument(
         "--vae_micro_batch_size", type=int, default=None, help="Set to one to reduce vae encoder's memory peak"
     )
+    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument("--enable_tiling", action="store_true")
+
     return parser
 
 
