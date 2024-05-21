@@ -1,3 +1,4 @@
+# flake8: noqa
 import os
 import sys
 
@@ -11,10 +12,9 @@ sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
 
 sys.path.append("../")
+from _common import *
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2  # STDiTBlock
-
-from _common import *
 
 
 def test_stdit(ckpt_path=None, amp=None):
@@ -56,7 +56,7 @@ def _diff_res(ms_val, pt_val, eps=1e-8):
     abs_diff = np.fabs(ms_val - pt_val)
     mae = abs_diff.mean()
     max_ae = abs_diff.max()
-    
+
     rel_diff = abs_diff / (np.fabs(pt_val) + eps)
     mre = rel_diff.mean()
     max_re = rel_diff.max()
@@ -69,5 +69,5 @@ if __name__ == "__main__":
     ms_out = test_stdit("../models/OpenSora-v1-HQ-16x256x256.ckpt")
     np.save("out_ms_stdit.npy", ms_out)
 
-    pt_out = np.load('out_pt_stdit.npy')
+    pt_out = np.load("out_pt_stdit.npy")
     print(_diff_res(ms_out, pt_out))

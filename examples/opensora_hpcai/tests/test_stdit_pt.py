@@ -1,20 +1,22 @@
-'''
+# flake8: noqa
+"""
 Usage:
 cd tests
 python test_stdit_pt.py
-'''
-import os, sys
-import torch
-import numpy as np
+"""
+import os
+import sys
 
+import numpy as np
+import torch
 from _common import *
 
-
-'''
+"""
 x (torch.Tensor): latent representation of video; of shape [B, C, T, H, W]
 timestep (torch.Tensor): diffusion time steps; of shape [B]
 y (torch.Tensor): representation of prompts; of shape [B, 1, N_token, C]
-'''
+"""
+
 
 def test_stdit_pt(ckpt):
     pt_code_path = "/srv/hyx/Open-Sora/"
@@ -32,15 +34,16 @@ def test_stdit_pt(ckpt):
     print("pt total params: ", total_params)
     print("pt trainable: ", sum(p.numel() for p in net.parameters() if p.requires_grad))
 
-    #for pname, p in net.named_parameters(): 
+    # for pname, p in net.named_parameters():
     #    # if p.requires_grad:
     #    print(pname, tuple(p.shape))
-    
-    if use_mask: 
-        out = net(torch.Tensor(x).cuda(), torch.Tensor(t).cuda(), torch.Tensor(y).cuda(), mask=torch.Tensor(mask).cuda())
+
+    if use_mask:
+        out = net(
+            torch.Tensor(x).cuda(), torch.Tensor(t).cuda(), torch.Tensor(y).cuda(), mask=torch.Tensor(mask).cuda()
+        )
     else:
         out = net(torch.Tensor(x).cuda(), torch.Tensor(t).cuda(), torch.Tensor(y).cuda())
-
 
     print(out.shape)
 
@@ -48,5 +51,5 @@ def test_stdit_pt(ckpt):
 
 
 if __name__ == "__main__":
-    out = test_stdit_pt('../models/OpenSora-v1-HQ-16x256x256.pth')
+    out = test_stdit_pt("../models/OpenSora-v1-HQ-16x256x256.pth")
     np.save("out_pt_stdit.npy", out)
