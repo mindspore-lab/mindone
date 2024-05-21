@@ -47,6 +47,8 @@ from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import nn, ops
 
+from .integrations import PeftAdapterMixin
+
 if is_safetensors_available():
     from safetensors import safe_open
 
@@ -317,7 +319,7 @@ class ModuleUtilsMixin:
         return head_mask
 
 
-class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
+class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
     r"""
     Base class for all models.
 

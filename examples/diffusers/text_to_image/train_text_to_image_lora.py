@@ -14,6 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Fine-tuning script for Stable Diffusion for text2image with support for LoRA."""
 
 import argparse
 import logging
@@ -25,7 +26,7 @@ from pathlib import Path
 
 import numpy as np
 import yaml
-from datasets import load_dataset
+from datasets import disable_caching, load_dataset
 from tqdm.auto import tqdm
 from transformers import CLIPTokenizer
 
@@ -35,9 +36,18 @@ from mindspore.amp import DynamicLossScaler, LossScaler, StaticLossScaler, all_f
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
+from mindone.diffusers._peft import LoraConfig
+from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
+from mindone.diffusers._peft.utils import get_peft_model_state_dict
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import compute_snr, init_distributed_device, is_master, set_seed
-from mindone.diffusers.utils import deprecate
+from mindone.diffusers.training_utils import (
+    cast_training_params,
+    compute_snr,
+    init_distributed_device,
+    is_master,
+    set_seed,
+)
+from mindone.diffusers.utils import convert_state_dict_to_diffusers
 from mindone.transformers import CLIPTextModel
 
 logger = logging.getLogger(__name__)
@@ -48,18 +58,17 @@ DATASET_NAME_MAPPING = {
 
 
 def log_validation(pipeline, args, trackers, logging_dir, epoch):
-    logger.info("Running validation... ")
+    logger.info(
+        f"Running validation... \n Generating {args.num_validation_images} images with prompt:"
+        f" {args.validation_prompt}."
+    )
     pipeline.unet.set_train(False)
 
-    if args.seed is None:
-        generator = None
-    else:
-        generator = np.random.Generator(np.random.PCG64(seed=args.seed))
-
+    # run inference
+    generator = np.random.Generator(np.random.PCG64(seed=args.seed))
     images = []
-    for i in range(len(args.validation_prompts)):
-        image = pipeline(args.validation_prompts[i], num_inference_steps=20, generator=generator)[0][0]
-        images.append(image)
+    for _ in range(args.num_validation_images):
+        images.append(pipeline(args.validation_prompt, num_inference_steps=30, generator=generator)[0][0])
 
     if is_master(args):
         validation_logging_dir = os.path.join(logging_dir, "validation", f"epoch{epoch}")
@@ -76,14 +85,15 @@ def log_validation(pipeline, args, trackers, logging_dir, epoch):
 
     logger.info("Validation done.")
 
-    return images
+
+def unwrap_model(model):
+    for name, param in model.parameters_and_names():
+        param.name = name
+    return model
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
-    parser.add_argument(
-        "--input_perturbation", type=float, default=0, help="The scale of input perturbation. Recommended 0.1."
-    )
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
@@ -140,6 +150,24 @@ def parse_args():
         help="The column of the dataset containing a caption or a list of captions.",
     )
     parser.add_argument(
+        "--validation_prompt", type=str, default=None, help="A prompt that is sampled during training for inference."
+    )
+    parser.add_argument(
+        "--num_validation_images",
+        type=int,
+        default=4,
+        help="Number of images that should be generated during validation with `validation_prompt`.",
+    )
+    parser.add_argument(
+        "--validation_epochs",
+        type=int,
+        default=1,
+        help=(
+            "Run fine-tuning validation every X epochs. The validation process consists of running the prompt"
+            " `args.validation_prompt` multiple times: `args.num_validation_images`."
+        ),
+    )
+    parser.add_argument(
         "--max_train_samples",
         type=int,
         default=None,
@@ -149,16 +177,9 @@ def parse_args():
         ),
     )
     parser.add_argument(
-        "--validation_prompts",
-        type=str,
-        default=None,
-        nargs="+",
-        help=("A set of prompts evaluated every `--validation_epochs` and logged to `--report_to`."),
-    )
-    parser.add_argument(
         "--output_dir",
         type=str,
-        default="sd-model-finetuned",
+        default="sd-model-finetuned-lora",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
     parser.add_argument(
@@ -252,17 +273,6 @@ def parse_args():
         help=(
             "Whether or not to allow TF32 on Ampere GPUs. Can be used to speed up training. For more information, see"
             " https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices"
-        ),
-    )
-    parser.add_argument("--use_ema", action="store_true", help="Whether to use EMA model.")
-    parser.add_argument(
-        "--non_ema_revision",
-        type=str,
-        default=None,
-        required=False,
-        help=(
-            "Revision of pretrained non-ema model identifier. Must be a branch, tag or git identifier of the local or"
-            " remote repository specified with --pretrained_model_name_or_path."
         ),
     )
     parser.add_argument(
@@ -359,10 +369,10 @@ def parse_args():
     )
     parser.add_argument("--noise_offset", type=float, default=0, help="The scale of noise offset.")
     parser.add_argument(
-        "--validation_epochs",
+        "--lora_rank",
         type=int,
-        default=5,
-        help="Run validation every X epochs.",
+        default=4,
+        help=("The dimension of the LoRA update matrices."),
     )
 
     args = parser.parse_args()
@@ -371,30 +381,13 @@ def parse_args():
     if args.dataset_name is None and args.train_data_dir is None:
         raise ValueError("Need either a dataset name or a training folder.")
 
-    # default to using the same revision for the non-ema model if not specified
-    if args.non_ema_revision is None:
-        args.non_ema_revision = args.revision
-    else:
-        deprecate(
-            "non_ema_revision!=None",
-            "0.15.0",
-            message=(
-                "Downloading 'non_ema' weights from revision branches of the Hub is deprecated. Please make sure to"
-                " use `--variant=non_ema` instead."
-            ),
-        )
-
     # Limitations for NOW.
     def error_template(feature, flag):
         return f"{feature} is not yet supported, please do not set --{flag}"
 
     assert args.gradient_accumulation_steps == 1, error_template("Gradient Accumulation", "gradient_accumulation_steps")
-    assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
     assert args.allow_tf32 is False, error_template("TF32 Data Type", "allow_tf32")
     assert args.use_8bit_adam is False, error_template("AdamW8bit", "use_8bit_adam")
-    assert args.enable_xformers_memory_efficient_attention is False, error_template(
-        "Memory Efficient Attention from 'xformers'", "enable_xformers_memory_efficient_attention"
-    )
     if args.push_to_hub is True:
         raise ValueError(
             "You cannot use --push_to_hub due to a security risk of uploading your data to huggingface-hub. "
@@ -439,25 +432,25 @@ def main():
         args.pretrained_model_name_or_path, subfolder="tokenizer", revision=args.revision
     )
     text_encoder = CLIPTextModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision, variant=args.variant
+        args.pretrained_model_name_or_path, subfolder="text_encoder", revision=args.revision
     )
     vae = AutoencoderKL.from_pretrained(
         args.pretrained_model_name_or_path, subfolder="vae", revision=args.revision, variant=args.variant
     )
     unet = UNet2DConditionModel.from_pretrained(
-        args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision
+        args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
     # set sample_size of unet
     unet.register_to_config(sample_size=args.resolution // (2 ** (len(vae.config.block_out_channels) - 1)))
 
-    # Freeze vae and text_encoder and set unet to trainable
+    # freeze parameters of models to save more memory
     def freeze_params(m: nn.Cell):
         for p in m.get_parameters():
             p.requires_grad = False
 
+    freeze_params(unet)
     freeze_params(vae)
     freeze_params(text_encoder)
-    unet.set_train(True)
 
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to
     # half-precision as these weights are only used for inference, keeping weights in full precision is not required.
@@ -467,19 +460,42 @@ def main():
     elif args.mixed_precision == "bf16":
         weight_dtype = ms.bfloat16
 
-    # Move text_encode and vae to gpu and cast to weight_dtype
-    text_encoder.to(dtype=weight_dtype)
-    vae.to(dtype=weight_dtype)
+    unet_lora_config = LoraConfig(
+        r=args.lora_rank,
+        lora_alpha=args.lora_rank,
+        init_lora_weights="gaussian",
+        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+    )
 
-    # TODO: support EMA, xformers_memory_efficient_attention, TF32, AdamW8bit
+    # Move unet, vae and text_encoder to device and cast to weight_dtype
+    unet.to(dtype=weight_dtype)
+    vae.to(dtype=weight_dtype)
+    text_encoder.to(dtype=weight_dtype)
+
+    # Add adapter and make sure the trainable params are in float32.
+    unet.add_adapter(unet_lora_config)
+    if args.mixed_precision == "fp16":
+        # only upcast trainable parameters (LoRA) into fp32
+        cast_training_params(unet, dtype=ms.float32)
+
+    # Print trainable parameters statistics
+    all_params = sum(p.numel() for p in unet.get_parameters())
+    trainable_params = sum(p.numel() for p in unet.trainable_params())
+    logger.info(
+        f"{unet.__class__.__name__:<30s} ==> Trainable params: {trainable_params:<10,d} || "
+        f"All params: {all_params:<16,d} || Trainable ratio: {trainable_params / all_params:.8%}"
+    )
+
+    if args.enable_xformers_memory_efficient_attention:
+        unet.enable_xformers_memory_efficient_attention()
 
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
 
+    # TODO: support TF32, AdamW8bit
+
     # Get the datasets: you can either provide your own training and evaluation files (see below)
     # or specify a Dataset from the hub (the dataset will be downloaded automatically from the datasets Hub).
-    from datasets import disable_caching
-
     if args.cache_dir is None:
         disable_caching()
 
@@ -616,16 +632,16 @@ def main():
         args.learning_rate = (
             args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
         )
-
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
         args.learning_rate,
         num_warmup_steps=args.lr_warmup_steps * args.gradient_accumulation_steps,
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
     )
-
+    # Initialize the optimizer
+    lora_layers = list(filter(lambda p: p.requires_grad, unet.get_parameters()))
     optimizer = nn.AdamWeightDecay(
-        unet.trainable_params(),
+        lora_layers,
         learning_rate=lr_scheduler,
         beta1=args.adam_beta1,
         beta2=args.adam_beta2,
@@ -634,7 +650,14 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    unet.to_float(weight_dtype)
+    # TODO: How to set amp to adapter_layers?
+    for _, module in unet.cells_and_names():
+        if isinstance(module, BaseTunerLayer):
+            for layer_name in module.adapter_layer_names:
+                module_dict = getattr(module, layer_name)
+                for key, layer in module_dict.items():
+                    if key in module.active_adapters and isinstance(layer, nn.Cell):
+                        layer.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -665,6 +688,7 @@ def main():
         scaler=StaticLossScaler(65536),
         noise_scheduler=noise_scheduler,
         args=args,
+        weight_dtype=weight_dtype,
     ).set_train()
 
     if args.enable_mindspore_data_sink:
@@ -672,6 +696,7 @@ def main():
     else:
         sink_process = None
 
+    # create pipeline
     pipeline = StableDiffusionPipeline.from_pretrained(
         args.pretrained_model_name_or_path,
         vae=vae,
@@ -719,17 +744,16 @@ def main():
                 logger.info(f"Resuming from checkpoint {path}")
             # TODO: load optimizer & grad scaler etc. like accelerator.load_state
             input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
-            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file))
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file), strict_load=True)
             global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
             first_epoch = global_step // num_update_steps_per_epoch
-
     else:
         initial_global_step = 0
 
     # run inference
-    if args.validation_prompts is not None:
+    if args.validation_prompt is not None:
         log_validation(pipeline, args, trackers, logging_dir, first_epoch)
 
     progress_bar = tqdm(
@@ -785,6 +809,14 @@ def main():
                     os.makedirs(save_path, exist_ok=True)
                     output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
                     ms.save_checkpoint(unet, output_model_file)
+
+                    unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+                    StableDiffusionPipeline.save_lora_weights(
+                        save_directory=save_path,
+                        unet_lora_layers=unet_lora_state_dict,
+                        safe_serialization=True,
+                    )
+
                     logger.info(f"Saved state to {save_path}")
 
             logs = {"step_loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}
@@ -793,15 +825,22 @@ def main():
             if global_step >= args.max_train_steps:
                 break
 
-        if args.validation_prompts is not None and (epoch + 1) % args.validation_epochs == 0:
+        if args.validation_prompt is not None and (epoch + 1) % args.validation_epochs == 0:
             log_validation(pipeline, args, trackers, logging_dir, epoch + 1)
 
-    # Serialize pipeline.
+    # Save the lora layers
     if is_master(args):
-        pipeline.save_pretrained(args.output_dir)
+        unet = unet.to(ms.float32)
+        unwrapped_unet = unwrap_model(unet)
+        unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unwrapped_unet))
+        StableDiffusionPipeline.save_lora_weights(
+            save_directory=args.output_dir,
+            unet_lora_layers=unet_lora_state_dict,
+            safe_serialization=True,
+        )
 
-    # Run a final round of inference.
-    if args.validation_prompts is not None:
+    # Final inference
+    if args.validation_prompt is not None:
         log_validation(pipeline, args, trackers, logging_dir, args.num_train_epochs)
     for tracker_name, tracker in trackers.items():
         if tracker_name == "tensorboard":
@@ -818,6 +857,7 @@ class TrainStep(nn.Cell):
         scaler: LossScaler,
         noise_scheduler,
         args,
+        weight_dtype,
     ):
         super().__init__()
         self.unet = unet.set_grad()
@@ -851,11 +891,11 @@ class TrainStep(nn.Cell):
         self.args = ArgsJitWrapper(**vars(args))
         self.vae = vae
         self.vae_scaling_factor = self.vae.config.scaling_factor
-        self.weight_dtype = self.vae.dtype
         self.text_encoder = text_encoder
         self.noise_scheduler = noise_scheduler
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
         self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
+        self.weight_dtype = weight_dtype
 
         self.forward_and_backward = ops.value_and_grad(self.forward, None, weights=self.weights, has_aux=True)
 
@@ -870,11 +910,7 @@ class TrainStep(nn.Cell):
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
             noise_offset = self.args.noise_offset * ops.randn((latents.shape[0], latents.shape[1], 1, 1))
             noise += noise_offset.to(noise.dtype)
-        if self.args.input_perturbation:
-            noise_perturbation = self.args.input_perturbation * ops.randn_like(noise, dtype=noise.dtype)
-            new_noise = noise + noise_perturbation.to(noise.dtype)
-        else:
-            new_noise = None  # graph need this placeholder
+
         bsz = latents.shape[0]
         # Sample a random timestep for each image
         timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
@@ -882,10 +918,7 @@ class TrainStep(nn.Cell):
 
         # Add noise to the latents according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        if self.args.input_perturbation:
-            noisy_latents = self.noise_scheduler.add_noise(latents, new_noise, timesteps)
-        else:
-            noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
+        noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
         # TODO: method of scheduler should not change the dtype of input.
         #  Remove the casting after cuiyushi confirm that.
         noisy_latents = noisy_latents.to(latents.dtype)

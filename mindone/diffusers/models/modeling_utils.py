@@ -161,7 +161,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         """
         Whether gradient checkpointing is activated for this model or not.
         """
-        return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for m in self.cells())
+        return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for _, m in self.cells_and_names())
 
     def enable_gradient_checkpointing(self) -> None:
         """
@@ -248,7 +248,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             model_to_save.save_config(save_directory)
 
         # Save the model
-        state_dict = model_to_save.parameters_dict()
+        state_dict = {k: v for k, v in model_to_save.parameters_and_names()}
 
         weights_name = SAFETENSORS_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
         weights_name = _add_variant(weights_name, variant)
@@ -489,7 +489,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     ):
         state_dict = _convert_state_dict(model, state_dict)
         # Retrieve missing & unexpected_keys
-        model_state_dict = model.parameters_dict()
+        model_state_dict = {k: v for k, v in model.parameters_and_names()}
         loaded_keys = list(state_dict.keys())
 
         expected_keys = list(model_state_dict.keys())
