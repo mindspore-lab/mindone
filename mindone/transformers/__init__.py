@@ -6,5 +6,6 @@ from .models import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
     T5EncoderModel,
+    T5ForConditionalGeneration,
     T5Model,
 )
