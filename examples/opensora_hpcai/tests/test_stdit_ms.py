@@ -10,71 +10,11 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
 
-sys.path.append("./")
+sys.path.append("../")
 from opensora.models.layers.blocks import Attention, LayerNorm
 from opensora.models.stdit.stdit import STDiT_XL_2  # STDiTBlock
 
-use_mask = False
-print("use mask: ", use_mask)
-
-# data config
-hidden_size = 1152
-
-text_emb_dim = 4096
-max_tokens = 120
-
-num_frames = 16
-image_size = 256
-
-vae_t_compress = 1
-vae_s_compress = 8
-vae_out_channels = 4
-
-text_emb_dim = 4096
-max_tokens = 120
-
-input_size = (num_frames // vae_t_compress, image_size // vae_s_compress, image_size // vae_s_compress)
-B, C, T, H, W = 2, vae_out_channels, input_size[0], input_size[1], input_size[2]
-
-npz = "tests/stdit_inp_rand.npz"
-
-if npz is not None and os.path.exists(npz):
-    d = np.load(npz)
-    x, y = d["x"], d["y"]
-    mask = d["mask"]
-    mask = np.repeat(mask, x.shape[0] // mask.shape[0], axis=0)
-
-    t = np.ones(B).astype(np.float32) * 999
-else:
-    x = np.random.normal(size=(B, C, T, H, W)).astype(np.float32)
-    # t = np.random.randint(low=0, high=1000, size=B).astype(np.float32)
-    t = np.ones(B).astype(np.float32) * 999
-
-    # condition, text,
-    y = np.random.normal(size=(B, 1, max_tokens, text_emb_dim)).astype(np.float32)
-    y_lens = np.random.randint(low=4, high=max_tokens, size=[B])
-
-    # mask (B, max_tokens)
-    mask = np.zeros(shape=[B, max_tokens]).astype(np.int8)  # TODO: use bool?
-    for i in range(B):
-        mask[i, : y_lens[i]] = np.ones(y_lens[i]).astype(np.int8)
-
-    print("input x, y: ", x.shape, y.shape)
-    print("mask: ", mask.shape)
-
-    np.savez(npz, x=x, y=y, mask=mask)
-    print("inputs saved in", npz)
-
-if not use_mask:
-    mask = None
-
-# model config
-model_extra_args = dict(
-    input_size=input_size,
-    in_channels=vae_out_channels,
-    caption_channels=text_emb_dim,
-    model_max_length=max_tokens,
-)
+from _common import *
 
 
 def test_stdit(ckpt_path=None, amp=None):
@@ -112,16 +52,22 @@ def test_stdit(ckpt_path=None, amp=None):
     return out.asnumpy()
 
 
-def _diff_res(ms_val, pt_val):
+def _diff_res(ms_val, pt_val, eps=1e-8):
     abs_diff = np.fabs(ms_val - pt_val)
     mae = abs_diff.mean()
     max_ae = abs_diff.max()
-    return mae, max_ae
+    
+    rel_diff = abs_diff / (np.fabs(pt_val) + eps)
+    mre = rel_diff.mean()
+    max_re = rel_diff.max()
+
+    return dict(mae=mae, max_ae=max_ae, mre=mre, max_re=max_re)
 
 
 if __name__ == "__main__":
-    ms.set_context(mode=1)
-    # out_fp32 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt")
-    out_o2 = test_stdit("models/OpenSora-v1-HQ-16x256x256.ckpt", amp="O2")
+    ms.set_context(mode=0)
+    ms_out = test_stdit("../models/OpenSora-v1-HQ-16x256x256.ckpt")
+    np.save("out_ms_stdit.npy", ms_out)
 
-    # print(_diff_res(out_o2, out_fp32))
+    pt_out = np.load('out_pt_stdit.npy')
+    print(_diff_res(ms_out, pt_out))
