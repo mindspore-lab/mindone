@@ -12,12 +12,14 @@ import numpy as np
 from omegaconf import OmegaConf
 from opensora.data.loader import create_dataloader
 from opensora.models.ae.lpips import LPIPS
+from opensora.models.ae.modules import TimeDownsample2x, TimeUpsample2x
 from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
 from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore import nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -86,8 +88,17 @@ def main(args):
     if args.dtype != "fp32":
         amp_level = "O2"
         dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        model = auto_mixed_precision(model, amp_level, dtype)
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        model = auto_mixed_precision(model, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Set mixed precision to O2 with dtype={args.dtype}")
+        if dtype == ms.bfloat16:
+            aclnn = os.environ.get("MS_ENABLE_ACLNN", None)
+            op_run = os.environ.get("GRAPH_OP_RUN", None)
+            if aclnn and op_run:
+                pass
+            else:
+                logger.warning("Using BF16 but KBK (kernel by kernel mode) is not enabled!")
+
     else:
         amp_level = "O0"
     if args.enable_tiling:
