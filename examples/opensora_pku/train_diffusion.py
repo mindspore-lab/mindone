@@ -115,7 +115,7 @@ def init_env(
     if global_bf16:
         print("Using global bf16")
         ms.set_context(
-            ascend_config={"precision_mode": "allow_mixed_precision_bf16"}
+            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
         )  # reset ascend precison mode globally
 
     return rank_id, device_num
