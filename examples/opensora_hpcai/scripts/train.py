@@ -299,12 +299,14 @@ def main(args):
             max_rowsize=args.max_rowsize,
         )
     elif args.model_version == "v1.1":
+        from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
         from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
 
         from mindone.data import create_dataloader
 
         mask_gen = MaskGenerator(args.mask_ratios)
+        buckets = Bucket(args.bucket_config) if args.bucket_config is not None else None
 
         dataset = VideoDatasetRefactored(
             csv_path=args.csv_path,
@@ -315,12 +317,13 @@ def main(args):
             sample_n_frames=args.num_frames,
             sample_stride=args.frame_stride,
             frames_mask_generator=mask_gen,
+            buckets=buckets,
             output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
         )
 
         dataloader = create_dataloader(
             dataset,
-            batch_size=args.batch_size,
+            batch_size=args.batch_size if buckets is None else 0,  # Turn off batching if using buckets
             transforms=dataset.train_transforms(
                 target_size=(img_h, img_w), tokenizer=None  # Tokenizer isn't supported yet
             ),
@@ -334,6 +337,12 @@ def main(args):
             # Sort output columns to match DiffusionWithLoss input
             project_columns=["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"],
         )
+
+        if buckets is not None:
+            hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(buckets)
+            dataloader = dataloader.bucket_batch_by_length(
+                ["video"], bucket_boundaries, bucket_batch_sizes, element_length_function=hash_func, drop_remainder=True
+            )
 
     dataset_size = dataloader.get_dataset_size()
 

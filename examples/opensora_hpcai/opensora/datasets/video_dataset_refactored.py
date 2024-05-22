@@ -11,6 +11,8 @@ import numpy as np
 from mindspore.dataset.transforms import Compose
 from mindspore.dataset.vision import CenterCrop, Inter, Normalize, Resize
 
+from .bucket import Bucket
+
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
 from mindone.data import BaseDataset
@@ -32,6 +34,22 @@ def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BI
     )
 
 
+class BucketResizeCrop:
+    def __init__(self, buckets: Bucket):
+        self._transforms = {}  # is this reasonable? There are 350+ buckets
+        for name, lengths in buckets.ar_criteria.items():
+            self._transforms[name] = {}
+            for length, ars in lengths.items():
+                self._transforms[name][str(length)] = {}
+                for ar, hw in ars.items():
+                    self._transforms[name][str(length)][ar] = Compose(
+                        [Resize(min(hw), interpolation=Inter.BILINEAR), CenterCrop(hw)]
+                    )
+
+    def __call__(self, x, bucket_id):
+        return self._transforms[bucket_id[0]][bucket_id[1]][bucket_id[2]](x)
+
+
 class VideoDatasetRefactored(BaseDataset):
     def __init__(
         self,
@@ -44,6 +62,7 @@ class VideoDatasetRefactored(BaseDataset):
         sample_n_frames: int = 16,
         sample_stride: int = 4,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
+        buckets: Optional[Bucket] = None,
         *,
         output_columns: List[str],
     ):
@@ -56,8 +75,12 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
+        self._buckets = buckets
 
         self.output_columns = output_columns
+        if self._buckets is not None:  # pass bucket id information to transformations
+            assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
+            self.output_columns += ["bucket_id"]
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -95,6 +118,8 @@ class VideoDatasetRefactored(BaseDataset):
 
     def _get_item(self, idx: int) -> Tuple[Any, ...]:
         data = self._data[idx].copy()
+        num_frames = self._frames
+
         if self._text_emb_folder:
             with np.load(data["text_emb"]) as td:
                 data.update({"caption": td["text_emb"], "mask": td["mask"]})
@@ -111,7 +136,7 @@ class VideoDatasetRefactored(BaseDataset):
                 raise ValueError(f"Video is too short: {data['video']}")
 
             start_pos = random.randint(0, len(latent_mean) - self._min_length)
-            batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, self._frames, dtype=int)
+            batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
@@ -119,17 +144,31 @@ class VideoDatasetRefactored(BaseDataset):
 
         else:
             with VideoReader(data["video"]) as reader:
-                if len(reader) < self._min_length:
+                min_length = self._min_length
+                if self._buckets:
+                    data["bucket_id"] = self._buckets.get_bucket_id(
+                        T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride, seed=42
+                    )
+                    if data["bucket_id"] is None:
+                        raise ValueError(
+                            f"Couldn't assign a bucket to {data['video']}"
+                            f" (T={len(reader)}, H={reader.shape[1]}, W={reader.shape[0]})."
+                        )
+
+                    num_frames, *_ = self._buckets.get_thw(data["bucket_id"])
+                    min_length = (num_frames - 1) * self._stride + 1
+
+                if len(reader) < min_length:
                     raise ValueError(f"Video is too short: {data['video']}")
 
-                start_pos = random.randint(0, len(reader) - self._min_length)
-                data["video"] = reader.fetch_frames(num=self._frames, start_pos=start_pos, step=self._stride)
+                start_pos = random.randint(0, len(reader) - min_length)
+                data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
                 data["fps"] = np.array(reader.fps, dtype=np.float32)
 
-        data["num_frames"] = np.array(self._frames, dtype=np.float32)
+        data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
-            data["frames_mask"] = self._fmask_gen(self._frames)
+            data["frames_mask"] = self._fmask_gen(num_frames)
 
         return tuple(data[c] for c in self.output_columns)
 
@@ -140,7 +179,7 @@ class VideoDatasetRefactored(BaseDataset):
                 self._prev_ok_sample = sample
                 self._require_update_prev = False
         except Exception as e:
-            _logger.warning(f"Failed to fetch sample #{idx}, the video will be replaced. {e}")
+            _logger.warning(f"Failed to fetch sample #{idx}, the video will be replaced. Error: {e}")
             sample = self._prev_ok_sample
             self._require_update_prev = True
 
@@ -155,7 +194,28 @@ class VideoDatasetRefactored(BaseDataset):
         transforms = []
         vae_downsample_rate = self._vae_downsample_rate
 
-        if not self._vae_latent_folder:
+        if self._buckets is not None:
+            vae_downsample_rate = 1
+            transforms.extend(
+                [
+                    {
+                        "operations": BucketResizeCrop(self._buckets),
+                        "input_columns": ["video", "bucket_id"],
+                        "output_columns": ["video"],  # drop `bucket_id` column
+                    },
+                    {
+                        "operations": [
+                            lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
+                            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                            lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
+                        ],
+                        "input_columns": ["video"],
+                    },
+                ]
+            )
+
+        elif not self._vae_latent_folder:
+            vae_downsample_rate = 1
             transforms.append(
                 {
                     "operations": [
@@ -168,7 +228,6 @@ class VideoDatasetRefactored(BaseDataset):
                     "input_columns": ["video"],
                 }
             )
-            vae_downsample_rate = 1
 
         transforms.append(
             {
