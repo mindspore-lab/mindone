@@ -1,7 +1,3 @@
-"""
-STDiT training script
-"""
-import datetime
 import logging
 import os
 import sys
@@ -143,9 +139,6 @@ def set_all_reduce_fusion(
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    args.output_path = os.path.join(args.output_path, time_str)
-
     # 1. init
     rank_id, device_num = init_env(
         args.mode,
