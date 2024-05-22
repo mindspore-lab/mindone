@@ -97,9 +97,35 @@ Most base, utility and mixin class are available.
 - [ ] StableDiffusionPipeline
 
 ### Model
+
+#### AutoEncoders
+
 - [x] AutoencoderKL
-- [x] Transformer2DModel
+- [x] AsymmetricAutoencoderKL
+- [x] AutoencoderKLTemporalDecoder
+- [x] ConsistencyDecoderVAE
+- [x] AutoEncoderTiny
+
+#### UNets
+
+- [ ] UNet1DModel
+- [x] UNet2DModel
 - [x] UNet2DConditionModel
+- [x] UNet3DConditionModel
+- [x] I2VGenXLUNet
+- [x] Kandinsky3UNet
+- [x] UNetSpatioTemporalConditionModel
+- [x] UNetMotionModel
+- [ ] StableCascadeUNet
+- [x] UViT2DModel
+
+#### Transformers
+
+- [x] Transformer2DModel
+- [x] TransformerTemporalModel
+- [x] T5FilmDecoder
+- [x] PriorTransformer
+- [x] DualTransformer2DModel
 
 ### Scheduler
 - [x] DDIMScheduler

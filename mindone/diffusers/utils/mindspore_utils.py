@@ -57,3 +57,49 @@ def randn_tensor(
         latents = randn(shape, generator=generator, dtype=dtype)
 
     return latents
+
+
+def ms_conv_transpose2d(input, weight, bias=None, stride=1, padding=0, output_padding=0, groups=1, dilation=1):
+    # Equivalence of torch.nn.functional.conv_transpose2d
+    assert output_padding == 0, "Only support output_padding == 0 so far."
+
+    if isinstance(stride, int):
+        stride = (stride, stride)
+    if isinstance(dilation, int):
+        dilation = (dilation, dilation)
+    if isinstance(padding, int):
+        padding = (padding, padding, padding, padding)
+    elif len(padding) == 2:
+        padding = (
+            padding[0],
+            padding[0],
+            padding[1],
+            padding[1],
+        )
+
+    # InferShape manually
+    # Format adapted from https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html#torch.nn.ConvTranspose2d
+    batch_size, in_channels, iH, iW = input.shape
+    _, out_channels_divide_groups, kH, kW = weight.shape
+
+    out_channels = out_channels_divide_groups * groups
+    outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
+    outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
+
+    op_conv_transpose2d = ops.Conv2DTranspose(
+        out_channel=out_channels,
+        kernel_size=(kH, kW),
+        pad_mode="pad",
+        pad=padding,
+        stride=stride,
+        dilation=dilation,
+        group=groups,
+    )
+    outputs = op_conv_transpose2d(input, weight.to(input.dtype), (batch_size, out_channels, outH, outW))
+
+    if bias is not None:
+        assert isinstance(bias, ms.Tensor) and bias.ndim == 1
+        bias = bias.reshape(1, -1, 1, 1)
+        outputs += bias
+
+    return outputs

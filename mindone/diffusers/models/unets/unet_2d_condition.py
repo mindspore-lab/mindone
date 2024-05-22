@@ -22,7 +22,18 @@ from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
 from ...utils import BaseOutput, logging
 from ..activations import get_activation
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
-from ..embeddings import TimestepEmbedding, Timesteps
+from ..embeddings import (
+    GaussianFourierProjection,
+    GLIGENTextBoundingboxProjection,
+    ImageHintTimeEmbedding,
+    ImageProjection,
+    ImageTimeEmbedding,
+    TextImageProjection,
+    TextImageTimeEmbedding,
+    TextTimeEmbedding,
+    TimestepEmbedding,
+    Timesteps,
+)
 from ..modeling_utils import ModelMixin
 from ..normalization import GroupNorm
 from .unet_2d_blocks import get_down_block, get_mid_block, get_up_block
@@ -535,7 +546,13 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         time_embedding_dim: int,
     ) -> Tuple[int, int]:
         if time_embedding_type == "fourier":
-            raise NotImplementedError("GaussianFourierProjection is not implemented")
+            time_embed_dim = time_embedding_dim or block_out_channels[0] * 2
+            if time_embed_dim % 2 != 0:
+                raise ValueError(f"`time_embed_dim` should be divisible by 2, but is {time_embed_dim}.")
+            self.time_proj = GaussianFourierProjection(
+                time_embed_dim // 2, set_W_to_weight=False, log=False, flip_sin_to_cos=flip_sin_to_cos
+            )
+            timestep_input_dim = time_embed_dim
         elif time_embedding_type == "positional":
             time_embed_dim = time_embedding_dim or block_out_channels[0] * 4
 
@@ -545,6 +562,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             raise ValueError(
                 f"{time_embedding_type} does not exist. Please make sure to use one of `fourier` or `positional`."
             )
+
         return time_embed_dim, timestep_input_dim
 
     def _set_encoder_hid_proj(
@@ -566,9 +584,20 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         if encoder_hid_dim_type == "text_proj":
             self.encoder_hid_proj = nn.Dense(encoder_hid_dim, cross_attention_dim)
         elif encoder_hid_dim_type == "text_image_proj":
-            raise NotImplementedError("TextImageProjection is not implemented")
+            # image_embed_dim DOESN'T have to be `cross_attention_dim`. To not clutter the __init__ too much
+            # they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use
+            # case when `addition_embed_type == "text_image_proj"` (Kadinsky 2.1)`
+            self.encoder_hid_proj = TextImageProjection(
+                text_embed_dim=encoder_hid_dim,
+                image_embed_dim=cross_attention_dim,
+                cross_attention_dim=cross_attention_dim,
+            )
         elif encoder_hid_dim_type == "image_proj":
-            raise NotImplementedError("ImageProjection is not implemented")
+            # Kandinsky 2.2
+            self.encoder_hid_proj = ImageProjection(
+                image_embed_dim=encoder_hid_dim,
+                cross_attention_dim=cross_attention_dim,
+            )
         elif encoder_hid_dim_type is not None:
             raise ValueError(
                 f"encoder_hid_dim_type: {encoder_hid_dim_type} must be None, 'text_proj' or 'text_image_proj'."
@@ -626,22 +655,45 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         time_embed_dim: int,
     ):
         if addition_embed_type == "text":
-            raise NotImplementedError("TextTimeEmbedding is not implemented")
+            if encoder_hid_dim is not None:
+                text_time_embedding_from_dim = encoder_hid_dim
+            else:
+                text_time_embedding_from_dim = cross_attention_dim
+
+            self.add_embedding = TextTimeEmbedding(
+                text_time_embedding_from_dim, time_embed_dim, num_heads=addition_embed_type_num_heads
+            )
         elif addition_embed_type == "text_image":
-            raise NotImplementedError("TextImageTimeEmbedding is not implemented")
+            # text_embed_dim and image_embed_dim DON'T have to be `cross_attention_dim`. To not clutter the __init__ too much
+            # they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use
+            # case when `addition_embed_type == "text_image"` (Kadinsky 2.1)`
+            self.add_embedding = TextImageTimeEmbedding(
+                text_embed_dim=cross_attention_dim, image_embed_dim=cross_attention_dim, time_embed_dim=time_embed_dim
+            )
         elif addition_embed_type == "text_time":
             self.add_time_proj = Timesteps(addition_time_embed_dim, flip_sin_to_cos, freq_shift)
             self.add_embedding = TimestepEmbedding(projection_class_embeddings_input_dim, time_embed_dim)
         elif addition_embed_type == "image":
-            raise NotImplementedError("ImageTimeEmbedding is not implemented")
+            # Kandinsky 2.2
+            self.add_embedding = ImageTimeEmbedding(image_embed_dim=encoder_hid_dim, time_embed_dim=time_embed_dim)
         elif addition_embed_type == "image_hint":
-            raise NotImplementedError("ImageHintTimeEmbedding is not implemented")
+            # Kandinsky 2.2 ControlNet
+            self.add_embedding = ImageHintTimeEmbedding(image_embed_dim=encoder_hid_dim, time_embed_dim=time_embed_dim)
         elif addition_embed_type is not None:
             raise ValueError(f"addition_embed_type: {addition_embed_type} must be None, 'text' or 'text_image'.")
 
     def _set_pos_net_if_use_gligen(self, attention_type: str, cross_attention_dim: int):
         if attention_type in ["gated", "gated-text-image"]:
-            raise NotImplementedError("GLIGENTextBoundingboxProjection is not implemented")
+            positive_len = 768
+            if isinstance(cross_attention_dim, int):
+                positive_len = cross_attention_dim
+            elif isinstance(cross_attention_dim, tuple) or isinstance(cross_attention_dim, list):
+                positive_len = cross_attention_dim[0]
+
+            feature_type = "text-only" if attention_type == "gated" else "text-image"
+            self.position_net = GLIGENTextBoundingboxProjection(
+                positive_len=positive_len, out_dim=cross_attention_dim, feature_type=feature_type
+            )
 
     @property
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
@@ -890,7 +942,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
                 A tuple of tensors that if specified are added to the residuals of down unet blocks.
             mid_block_additional_residual: (`ms.Tensor`, *optional*):
                 A tensor that if specified is added to the residual of the middle unet block.
-            down_intrablock_additional_residuals (`tuple` of `torch.Tensor`, *optional*):
+            down_intrablock_additional_residuals (`tuple` of `ms.Tensor`, *optional*):
                 additional residuals to be added within UNet down blocks, for example from T2I-Adapter side model(s)
             encoder_attention_mask (`ms.Tensor`):
                 A cross-attention mask of shape `(batch, sequence_length)` is applied to `encoder_hidden_states`. If
@@ -1020,7 +1072,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
                 # For t2i-adapter CrossAttnDownBlock2D
                 additional_residuals = {}
                 if is_adapter and len(down_intrablock_additional_residuals) > 0:
-                    additional_residuals["additional_residuals"] = down_intrablock_additional_residuals.pop(0)
+                    additional_residuals["additional_residuals"] = down_intrablock_additional_residuals.pop(
+                        0
+                    )  # FIXME: pop maybe not supported in GRAPH
 
                 sample, res_samples = downsample_block(
                     hidden_states=sample,
