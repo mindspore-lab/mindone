@@ -15,23 +15,43 @@
 """ MindSpore T5 model."""
 
 import copy
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from transformers.models.t5.configuration_t5 import T5Config
-from transformers.utils import logging
+from transformers.utils import DUMMY_INPUTS, DUMMY_MASK, logging
 
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import Parameter, Tensor, ops
 
-from ...activations_ms import ACT2FN
-from ...modeling_ms_utils import MSPreTrainedModel
+from ...activations import ACT2FN
+from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
+from ...modeling_outputs import (
+    BaseModelOutput,
+    BaseModelOutputWithPastAndCrossAttentions,
+    Seq2SeqLMOutput,
+    Seq2SeqModelOutput,
+)
+from ...modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "T5Config"
 _CHECKPOINT_FOR_DOC = "google-t5/t5-small"
+
+####################################################
+# This dict contains ids and associated url
+# for the pretrained weights provided with the models
+####################################################
+T5_PRETRAINED_MODEL_ARCHIVE_LIST = [
+    "google-t5/t5-small",
+    "google-t5/t5-base",
+    "google-t5/t5-large",
+    "google-t5/t5-3b",
+    "google-t5/t5-11b",
+    # See all T5 models at https://huggingface.co/models?filter=t5
+]
 
 
 class T5LayerNorm(nn.Cell):
@@ -40,7 +60,7 @@ class T5LayerNorm(nn.Cell):
         Construct a layernorm module in the T5 style. No bias and no subtraction of mean.
         """
         super().__init__()
-        self.weight = Parameter(Tensor(np.ones((hidden_size,)), ms.float32))
+        self.weight = Parameter(Tensor(np.ones((hidden_size,)), ms.float32), name="weight")
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -57,20 +77,6 @@ class T5LayerNorm(nn.Cell):
             hidden_states = hidden_states.to(self.weight.dtype)
 
         return self.weight * hidden_states
-
-
-try:
-    from apex.normalization import FusedRMSNorm
-
-    T5LayerNorm = FusedRMSNorm  # noqa
-
-    logger.info("Discovered apex.normalization.FusedRMSNorm - will use it instead of T5LayerNorm")
-except ImportError:
-    # using the normal T5LayerNorm
-    pass
-except Exception:
-    logger.warning("discovered apex but it failed to load, falling back to T5LayerNorm")
-    pass
 
 
 class T5DenseActDense(nn.Cell):
@@ -163,90 +169,22 @@ class T5Attention(nn.Cell):
 
         if self.has_relative_attention_bias:
             self.relative_attention_bias = nn.Embedding(self.relative_attention_num_buckets, self.n_heads)
-        self.pruned_heads = []
+        self.pruned_heads = set()
         self.gradient_checkpointing = False
-
-    def find_pruneable_heads_and_indices(
-        heads: List[int], n_heads: int, head_size: int, already_pruned_heads: List[int]
-    ):
-        """
-        Finds the heads and their indices taking `already_pruned_heads` into account.
-
-        Args:
-            heads (`List[int]`): List of the indices of heads to prune.
-            n_heads (`int`): The number of heads in the model.
-            head_size (`int`): The size of each head.
-            already_pruned_heads (`Set[int]`): A set of already pruned heads.
-
-        Returns:
-            `Tuple[Set[int], Tensor]`: A tuple with the indices of heads to prune taking `already_pruned_heads`
-            into account and the indices of rows/columns to keep in the layer weight.
-        """
-        mask = ops.ones((n_heads, head_size))
-        head_list = []
-        for i in heads:
-            if i not in already_pruned_heads:
-                head_list.append(i)
-        for head in head_list:
-            # Compute how many pruned heads are before the head and move the index accordingly
-            head = head - sum(1 if h < head else 0 for h in already_pruned_heads)
-            mask[head] = 0
-        mask = mask.view(-1).equal(1)
-        index: ms.int64 = ops.arange(len(mask))[mask].long()
-        return head_list, index
-
-    def prune_linear_layer(layer: nn.Dense, index: ms.int64, dim: int = 0) -> nn.Dense:
-        """
-        Prune a linear layer to keep only entries in index.
-
-        Used to remove heads.
-
-        Args:
-            layer (`nn.Dense`): The layer to prune.
-            index (`Tensor`): The indices to keep in the layer.
-            dim (`int`, *optional*, defaults to 0): The dimension on which to keep the indices.
-
-        Returns:
-            `nn.Dense`: The pruned layer as a new layer with `requires_grad=True`.
-        """
-        index = index
-        W = layer.weight.index_select(dim, index).copy()
-        if layer.bias is not None:
-            if dim == 1:
-                b = layer.bias.copy()
-            else:
-                b = layer.bias[index].copy()
-        new_size = list(layer.weight.size())
-        new_size[dim] = len(index)
-        new_layer = nn.Dense(new_size[1], new_size[0], has_bias=layer.bias is not None)
-        new_layer.weight.requires_grad = False
-        new_layer.weight.copy_(W.contiguous())
-        new_layer.weight.requires_grad = True
-        if layer.bias is not None:
-            new_layer.bias.requires_grad = False
-            # new_layer.bias.copy_(b)
-            new_layer.bias = b.copy()
-            new_layer.bias.requires_grad = True
-        return new_layer
 
     def prune_heads(self, heads):
         if len(heads) == 0:
             return
-        heads, index = self.find_pruneable_heads_and_indices(
-            heads, self.n_heads, self.key_value_proj_dim, self.pruned_heads
-        )
+        heads, index = find_pruneable_heads_and_indices(heads, self.n_heads, self.key_value_proj_dim, self.pruned_heads)
         # Prune linear layers
-        self.q = self.prune_linear_layer(self.q, index)
-        self.k = self.prune_linear_layer(self.k, index)
-        self.v = self.prune_linear_layer(self.v, index)
-        self.o = self.prune_linear_layer(self.o, index, dim=1)
+        self.q = prune_linear_layer(self.q, index)
+        self.k = prune_linear_layer(self.k, index)
+        self.v = prune_linear_layer(self.v, index)
+        self.o = prune_linear_layer(self.o, index, dim=1)
         # Update hyper params
         self.n_heads = self.n_heads - len(heads)
         self.inner_dim = self.key_value_proj_dim * self.n_heads
-        # self.pruned_heads = self.pruned_heads.union(heads)
-        for i in heads:
-            if i not in self.pruned_heads:
-                self.pruned_heads.append(i)
+        self.pruned_heads = self.pruned_heads.union(heads)
 
     @staticmethod
     def _relative_position_bucket(relative_position, bidirectional=True, num_buckets=32, max_distance=128):
@@ -277,6 +215,7 @@ class T5Attention(nn.Cell):
             relative_position = ops.abs(relative_position)
         else:
             relative_position = -ops.minimum(relative_position, ops.zeros_like(relative_position))
+        # now relative_position is in the range [0, inf)
 
         # half of the buckets are for exact increments in positions
         max_exact = num_buckets // 2
@@ -333,7 +272,7 @@ class T5Attention(nn.Cell):
         # Input is (batch_size, seq_length, dim)
         # Mask is (batch_size, key_length) (non-causal) or (batch_size, key_length, key_length)
         # past_key_value[0] is (batch_size, n_heads, q_len - 1, dim_per_head)
-        batch_size, seq_length = hidden_states.shape[0], hidden_states.shape[1]
+        batch_size, seq_length = hidden_states.shape[:2]
 
         real_seq_length = seq_length
 
@@ -415,7 +354,7 @@ class T5Attention(nn.Cell):
 
         if self.pruned_heads:
             mask = ops.ones(position_bias.shape[1])
-            mask[self.pruned_heads] = 0
+            mask[list(self.pruned_heads)] = 0
             position_bias_masked = position_bias[:, mask.bool()]
         else:
             position_bias_masked = position_bias
@@ -432,9 +371,7 @@ class T5Attention(nn.Cell):
         if layer_head_mask is not None:
             attn_weights = attn_weights * layer_head_mask
 
-        attn_output = unshape(
-            ops.matmul(attn_weights.astype(value_states.dtype), value_states)
-        )  # (batch_size, seq_length, dim)
+        attn_output = unshape(ops.matmul(attn_weights, value_states))  # (batch_size, seq_length, dim)
         attn_output = self.o(attn_output)
 
         present_key_value_state = (key_states, value_states) if (self.is_decoder and use_cache) else None
@@ -517,12 +454,12 @@ class T5Block(nn.Cell):
     def __init__(self, config, has_relative_attention_bias=False):
         super().__init__()
         self.is_decoder = config.is_decoder
-        self.layer = nn.CellList()
-        self.layer.append(T5LayerSelfAttention(config, has_relative_attention_bias=has_relative_attention_bias))
+        layer = []
+        layer.append(T5LayerSelfAttention(config, has_relative_attention_bias=has_relative_attention_bias))
         if self.is_decoder:
-            self.layer.append(T5LayerCrossAttention(config))
-
-        self.layer.append(T5LayerFF(config))
+            layer.append(T5LayerCrossAttention(config))
+        layer.append(T5LayerFF(config))
+        self.layer = nn.CellList(layer)
 
     def construct(
         self,
@@ -537,7 +474,7 @@ class T5Block(nn.Cell):
         past_key_value=None,
         use_cache=False,
         output_attentions=False,
-        return_dict=True,
+        return_dict: Optional[bool] = False,
     ):
         if past_key_value is not None:
             # if not self.is_decoder:
@@ -572,8 +509,8 @@ class T5Block(nn.Cell):
         if hidden_states.dtype == ms.float16:
             clamp_value = ops.where(
                 ops.isinf(hidden_states).any(),
-                Tensor(64504),
-                Tensor(65504),
+                Tensor([64504]),  # torch.finfo(torch.float16).max - 1000
+                Tensor([65504]),  # torch.finfo(torch.float16).max is 65504
             )
             hidden_states = ops.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -603,8 +540,8 @@ class T5Block(nn.Cell):
             if hidden_states.dtype == ms.float16:
                 clamp_value = ops.where(
                     ops.isinf(hidden_states).any(),
-                    Tensor(64504),
-                    Tensor(65504),
+                    Tensor([64504]),  # torch.finfo(torch.float16).max - 1000
+                    Tensor([65504]),  # torch.finfo(torch.float16).max is 65504
                 )
                 hidden_states = ops.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -622,8 +559,8 @@ class T5Block(nn.Cell):
         if hidden_states.dtype == ms.float16:
             clamp_value = ops.where(
                 ops.isinf(hidden_states).any(),
-                Tensor(64504),
-                Tensor(65504),
+                Tensor([64504]),
+                Tensor([65504]),
             )
             hidden_states = ops.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -671,12 +608,23 @@ class T5PreTrainedModel(MSPreTrainedModel):
     _no_split_modules = ["T5Block"]
     _keep_in_fp32_modules = ["wo"]
 
+    @property
+    def dummy_inputs(self):
+        input_ids = ms.tensor(DUMMY_INPUTS)
+        input_mask = ms.tensor(DUMMY_MASK)
+        dummy_inputs = {
+            "decoder_input_ids": input_ids,
+            "input_ids": input_ids,
+            "decoder_attention_mask": input_mask,
+        }
+        return dummy_inputs
+
     def _init_weights(self, module):
         """Initialize the weights"""
         pass
 
     def _shift_right(self, input_ids):
-        decoder_start_token_id = self.config.decoder_start_token_id
+        decoder_start_token_id = self.config.decoder_start_token_id  # TODO: graph mode
         pad_token_id = self.config.pad_token_id
 
         if decoder_start_token_id is None:
@@ -694,7 +642,7 @@ class T5PreTrainedModel(MSPreTrainedModel):
             raise ValueError("self.model.config.pad_token_id has to be defined.")
         # replace possible -100 values in labels by `pad_token_id`
         pad_token_id = Tensor(pad_token_id, shifted_input_ids.dtype)
-        shifted_input_ids.masked_fill(shifted_input_ids == -100, pad_token_id)
+        shifted_input_ids = shifted_input_ids.masked_fill(shifted_input_ids == -100, pad_token_id)
 
         return shifted_input_ids
 
@@ -719,6 +667,9 @@ class T5Stack(T5PreTrainedModel):
         self.device_map = None
         self.gradient_checkpointing = False
 
+        self.use_cache = self.config.use_cache
+        self.output_attentions = self.config.output_attentions
+        self.output_hidden_states = self.config.output_hidden_states
         self.num_layers = self.config.num_layers
 
     def get_input_embeddings(self):
@@ -740,11 +691,11 @@ class T5Stack(T5PreTrainedModel):
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_dict=None,
+        return_dict: Optional[bool] = False,
     ):
-        # Model parallel
-        use_cache = True
-        return_dict = True
+        use_cache = use_cache if use_cache is not None else self.use_cache
+        output_attentions = output_attentions if output_attentions is not None else self.output_attentions
+        output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
 
         if input_ids is not None and inputs_embeds is not None:
             err_msg_prefix = "decoder_" if self.is_decoder else ""
@@ -770,12 +721,20 @@ class T5Stack(T5PreTrainedModel):
         # required mask seq length can be calculated via length of past
         mask_seq_length = past_key_values[0][0].shape[2] + seq_length if past_key_values is not None else seq_length
 
+        if use_cache is True:
+            if not self.is_decoder:
+                raise ValueError(f"`use_cache` can only be set to `True` if {self} is used as a decoder")
+
         # initialize past_key_values with `None` if past does not exist
         if past_key_values is None:
             past_key_values = [None] * len(self.block)
 
         if attention_mask is None:
             attention_mask = ops.ones((batch_size, mask_seq_length))
+
+        # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
+        # ourselves in which case we just need to make it broadcastable to all heads.
+        extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape, inputs_embeds.dtype)
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
@@ -790,14 +749,11 @@ class T5Stack(T5PreTrainedModel):
 
         if self.gradient_checkpointing and self.training:
             if use_cache:
-                logger.warning_once(
-                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
+                raise ValueError(
+                    "`use_cache=True` is incompatible with gradient checkpointing. Please set `use_cache=False`."
                 )
-                use_cache = False
 
         # Prepare head mask if needed
-        # head_mask = self.get_head_mask(head_mask, self.config.num_layers)
-        # cross_attn_head_mask = self.get_head_mask(cross_attn_head_mask, self.config.num_layers)
         head_mask = self.get_head_mask(head_mask, self.num_layers)
         cross_attn_head_mask = self.get_head_mask(cross_attn_head_mask, self.num_layers)
         present_key_value_states = () if use_cache else None
@@ -809,12 +765,6 @@ class T5Stack(T5PreTrainedModel):
 
         hidden_states = self.dropout(inputs_embeds)
 
-        # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
-        # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask = self.get_extended_attention_mask(
-            attention_mask, input_shape, self.is_decoder, dtype=hidden_states.dtype
-        )
-
         for i, (layer_module, past_key_value) in enumerate(zip(self.block, past_key_values)):
             layer_head_mask = head_mask[i]
             cross_attn_layer_head_mask = cross_attn_head_mask[i]
@@ -823,20 +773,7 @@ class T5Stack(T5PreTrainedModel):
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
-                layer_outputs = self._gradient_checkpointing_func(
-                    layer_module.construct,
-                    hidden_states,
-                    extended_attention_mask,
-                    position_bias,
-                    encoder_hidden_states,
-                    encoder_extended_attention_mask,
-                    encoder_decoder_position_bias,
-                    layer_head_mask,
-                    cross_attn_layer_head_mask,
-                    None,  # past_key_value is always None with gradient checkpointing
-                    use_cache,
-                    output_attentions,
-                )
+                raise NotImplementedError("Gradient checkpointing is not yet supported.")
             else:
                 layer_outputs = layer_module(
                     hidden_states,
@@ -894,7 +831,13 @@ class T5Stack(T5PreTrainedModel):
                 ]
                 if v is not None
             )
-        return hidden_states, present_key_value_states, all_hidden_states, all_attentions, all_cross_attentions
+        return BaseModelOutputWithPastAndCrossAttentions(
+            last_hidden_state=hidden_states,
+            past_key_values=present_key_value_states,
+            hidden_states=all_hidden_states,
+            attentions=all_attentions,
+            cross_attentions=all_cross_attentions,
+        )
 
 
 class T5Model(T5PreTrainedModel):
@@ -925,6 +868,8 @@ class T5Model(T5PreTrainedModel):
         # Model parallel
         self.model_parallel = False
         self.device_map = None
+
+        self.use_cache = self.config.use_cache
 
     def get_input_embeddings(self):
         return self.shared
@@ -969,34 +914,35 @@ class T5Model(T5PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ):
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple[ms.Tensor], Seq2SeqModelOutput]:
         r"""
         Returns:
 
         Example:
 
         ```python
+        >>> from mindspore import Tensor
         >>> from transformers import AutoTokenizer
-        >>> from mindone.transformers.models import T5Model
+        >>> from mindone.transformers import T5Model
 
         >>> tokenizer = AutoTokenizer.from_pretrained("google-t5/t5-small")
         >>> model = T5Model.from_pretrained("google-t5/t5-small")
 
         >>> input_ids = tokenizer(
-        ...     "Studies have been shown that owning a dog is good for you", return_tensors="pt"
+        ...     "Studies have been shown that owning a dog is good for you", return_tensors="np"
         ... ).input_ids  # Batch size 1
-        >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="pt").input_ids  # Batch size 1
+        >>> decoder_input_ids = tokenizer("Studies show that", return_tensors="np").input_ids  # Batch size 1
 
         >>> # preprocess: Prepend decoder_input_ids with start token which is pad token for T5Model.
         >>> # This is not needed for T5ForConditionalGeneration as it does this internally using labels arg.
-        >>> decoder_input_ids = model._shift_right(decoder_input_ids)
+        >>> decoder_input_ids = model._shift_right(Tensor(decoder_input_ids))
 
         >>> # forward pass
-        >>> outputs = model(input_ids=input_ids, decoder_input_ids=decoder_input_ids)
+        >>> outputs = model(input_ids=Tensor(input_ids), decoder_input_ids=Tensor(decoder_input_ids))
         >>> last_hidden_states = outputs[0]
-        >>> encoder_outputs = outputs[1]
         ```"""
+        use_cache = use_cache if use_cache is not None else self.use_cache
 
         # Encode if needed (training, first prediction pass)
         if encoder_outputs is None:
@@ -1009,12 +955,11 @@ class T5Model(T5PreTrainedModel):
                 output_hidden_states=output_hidden_states,
                 return_dict=return_dict,
             )
-        # elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
-        elif return_dict:
-            encoder_outputs = (
-                encoder_outputs[0],
-                encoder_outputs[1] if len(encoder_outputs) > 1 else None,
-                encoder_outputs[2] if len(encoder_outputs) > 2 else None,
+        elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
+            encoder_outputs = BaseModelOutput(
+                last_hidden_state=encoder_outputs[0],
+                hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
+                attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
             )
 
         hidden_states = encoder_outputs[0]
@@ -1035,7 +980,197 @@ class T5Model(T5PreTrainedModel):
             return_dict=return_dict,
         )
 
-        return decoder_outputs[0], encoder_outputs[0]
+        if not return_dict:
+            return decoder_outputs + encoder_outputs
+
+        return Seq2SeqModelOutput(
+            last_hidden_state=decoder_outputs.last_hidden_state,
+            past_key_values=decoder_outputs.past_key_values,
+            decoder_hidden_states=decoder_outputs.hidden_states,
+            decoder_attentions=decoder_outputs.attentions,
+            cross_attentions=decoder_outputs.cross_attentions,
+            encoder_last_hidden_state=encoder_outputs.last_hidden_state,
+            encoder_hidden_states=encoder_outputs.hidden_states,
+            encoder_attentions=encoder_outputs.attentions,
+        )
+
+
+class T5ForConditionalGeneration(T5PreTrainedModel):
+    _keys_to_ignore_on_load_unexpected = [
+        "decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight",
+    ]
+    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight", "lm_head.weight"]
+
+    def __init__(self, config: T5Config):
+        super().__init__(config)
+        self.model_dim = config.d_model
+
+        self.shared = nn.Embedding(config.vocab_size, config.d_model)
+
+        encoder_config = copy.deepcopy(config)
+        encoder_config.is_decoder = False
+        encoder_config.use_cache = False
+        encoder_config.is_encoder_decoder = False
+        self.encoder = T5Stack(encoder_config, self.shared)
+
+        decoder_config = copy.deepcopy(config)
+        decoder_config.is_decoder = True
+        decoder_config.is_encoder_decoder = False
+        decoder_config.num_layers = config.num_decoder_layers
+        self.decoder = T5Stack(decoder_config, self.shared)
+
+        self.lm_head = nn.Dense(config.d_model, config.vocab_size, has_bias=False)
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+        # Model parallel
+        self.model_parallel = False
+        self.device_map = None
+
+        self.use_cache = self.config.use_cache
+
+    def get_input_embeddings(self):
+        return self.shared
+
+    def set_input_embeddings(self, new_embeddings):
+        self.shared = new_embeddings
+        self.encoder.set_input_embeddings(new_embeddings)
+        self.decoder.set_input_embeddings(new_embeddings)
+
+    def _tie_weights(self):
+        if self.config.tie_word_embeddings:
+            self._tie_or_clone_weights(self.encoder.embed_tokens, self.shared)
+            self._tie_or_clone_weights(self.decoder.embed_tokens, self.shared)
+
+    def set_output_embeddings(self, new_embeddings):
+        self.lm_head = new_embeddings
+
+    def get_output_embeddings(self):
+        return self.lm_head
+
+    def get_encoder(self):
+        return self.encoder
+
+    def get_decoder(self):
+        return self.decoder
+
+    def construct(
+        self,
+        input_ids: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        decoder_input_ids: Optional[Tensor] = None,
+        decoder_attention_mask: Optional[bool] = None,
+        head_mask: Optional[Tensor] = None,
+        decoder_head_mask: Optional[Tensor] = None,
+        cross_attn_head_mask: Optional[Tensor] = None,
+        encoder_outputs: Optional[Tuple[Tuple[Tensor]]] = None,
+        past_key_values: Optional[Tuple[Tuple[Tensor]]] = None,
+        inputs_embeds: Optional[Tensor] = None,
+        decoder_inputs_embeds: Optional[Tensor] = None,
+        labels: Optional[Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple[ms.Tensor], Seq2SeqLMOutput]:
+        r"""
+        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+            Labels for computing the sequence classification/regression loss. Indices should be in `[-100, 0, ...,
+            config.vocab_size - 1]`. All labels set to `-100` are ignored (masked), the loss is only computed for
+            labels in `[0, ..., config.vocab_size]`
+
+        Returns:
+
+        Examples:
+
+        ```python
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import T5ForConditionalGeneration
+
+        >>> tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
+        >>> model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
+
+        >>> input_ids = tokenizer("The <extra_id_0> walks in <extra_id_1> park", return_tensors="np").input_ids
+        >>> labels = tokenizer("<extra_id_0> cute dog <extra_id_1> the <extra_id_2>", return_tensors="np").input_ids
+        >>> outputs = model(input_ids=Tensor(input_ids), labels=Tensor(labels))
+        >>> loss = outputs[0]
+        >>> logits = outputs[1]
+        ```"""
+        use_cache = use_cache if use_cache is not None else self.use_cache
+
+        # Encode if needed (training, first prediction pass)
+        if encoder_outputs is None:
+            # Convert encoder inputs in embeddings if needed
+            encoder_outputs = self.encoder(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                inputs_embeds=inputs_embeds,
+                head_mask=head_mask,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+        elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
+            encoder_outputs = BaseModelOutput(
+                last_hidden_state=encoder_outputs[0],
+                hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
+                attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
+            )
+
+        hidden_states = encoder_outputs[0]
+
+        if labels is not None and decoder_input_ids is None and decoder_inputs_embeds is None:
+            # get decoder inputs from shifting lm labels to the right
+            decoder_input_ids = self._shift_right(labels)
+
+        # Decode
+        decoder_outputs = self.decoder(
+            input_ids=decoder_input_ids,
+            attention_mask=decoder_attention_mask,
+            inputs_embeds=decoder_inputs_embeds,
+            past_key_values=past_key_values,
+            encoder_hidden_states=hidden_states,
+            encoder_attention_mask=attention_mask,
+            head_mask=decoder_head_mask,
+            cross_attn_head_mask=cross_attn_head_mask,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        sequence_output = decoder_outputs[0]
+
+        if self.config.tie_word_embeddings:
+            # Rescale output before projecting on vocab
+            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
+            sequence_output = sequence_output * (self.model_dim**-0.5)
+
+        lm_logits = self.lm_head(sequence_output)
+
+        loss = None
+        if labels is not None:
+            loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
+            loss = loss_fct(lm_logits.view(-1, lm_logits.shape[-1]), labels.view(-1))
+            # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
+
+        if not return_dict:
+            output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
+            return ((loss,) + output) if loss is not None else output
+
+        return Seq2SeqLMOutput(
+            loss=loss,
+            logits=lm_logits,
+            past_key_values=decoder_outputs.past_key_values,
+            decoder_hidden_states=decoder_outputs.hidden_states,
+            decoder_attentions=decoder_outputs.attentions,
+            cross_attentions=decoder_outputs.cross_attentions,
+            encoder_last_hidden_state=encoder_outputs.last_hidden_state,
+            encoder_hidden_states=encoder_outputs.hidden_states,
+            encoder_attentions=encoder_outputs.attentions,
+        )
 
 
 class T5EncoderModel(T5PreTrainedModel):
@@ -1088,24 +1223,25 @@ class T5EncoderModel(T5PreTrainedModel):
         inputs_embeds: Optional[Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ):
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple[ms.Tensor], BaseModelOutput]:
         r"""
         Returns:
 
         Example:
 
         ```python
+        >>> from mindspore import Tensor
         >>> from transformers import AutoTokenizer
-        >>> from mindone.transformers.models import T5EncoderModel
+        >>> from mindone.transformers import T5EncoderModel
 
         >>> tokenizer = AutoTokenizer.from_pretrained("DeepFloyd/t5-v1_1-xxl", revision="refs/pr/3")
         >>> model = T5EncoderModel.from_pretrained("DeepFloyd/t5-v1_1-xxl", revision="refs/pr/3")
         >>> input_ids = tokenizer(
         ...     "Studies have been shown that owning a dog is good for you", return_tensors="pt"
         ... ).input_ids  # Batch size 1
-        >>> outputs = model(input_ids=input_ids)
-        >>> encoder_outputs = outputs
+        >>> outputs = model(input_ids=Tensor(input_ids))
+        >>> last_hidden_states = outputs[0]
         ```"""
 
         encoder_outputs = self.encoder(
@@ -1118,160 +1254,4 @@ class T5EncoderModel(T5PreTrainedModel):
             return_dict=return_dict,
         )
 
-        return encoder_outputs[0]
-
-
-class T5ForConditionalGeneration(T5PreTrainedModel):
-    _keys_to_ignore_on_load_unexpected = [
-        "decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight",
-    ]
-    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight", "lm_head.weight"]
-
-    def __init__(self, config: T5Config):
-        super().__init__(config)
-        self.model_dim = config.d_model
-
-        self.shared = nn.Embedding(config.vocab_size, config.d_model)
-
-        encoder_config = copy.deepcopy(config)
-        encoder_config.is_decoder = False
-        encoder_config.use_cache = False
-        encoder_config.is_encoder_decoder = False
-        self.encoder = T5Stack(encoder_config, self.shared)
-
-        decoder_config = copy.deepcopy(config)
-        decoder_config.is_decoder = True
-        decoder_config.is_encoder_decoder = False
-        decoder_config.num_layers = config.num_decoder_layers
-        self.decoder = T5Stack(decoder_config, self.shared)
-
-        self.lm_head = nn.Dense(config.d_model, config.vocab_size, has_bias=False)
-
-        # Initialize weights and apply final processing
-        self.post_init()
-
-        # Model parallel
-        self.model_parallel = False
-        self.device_map = None
-
-    def get_input_embeddings(self):
-        return self.shared
-
-    def set_input_embeddings(self, new_embeddings):
-        self.shared = new_embeddings
-        self.encoder.set_input_embeddings(new_embeddings)
-        self.decoder.set_input_embeddings(new_embeddings)
-
-    def _tie_weights(self):
-        if self.config.tie_word_embeddings:
-            self._tie_or_clone_weights(self.encoder.embed_tokens, self.shared)
-            self._tie_or_clone_weights(self.decoder.embed_tokens, self.shared)
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def get_encoder(self):
-        return self.encoder
-
-    def get_decoder(self):
-        return self.decoder
-
-    def construct(
-        self,
-        input_ids: Optional[Tensor] = None,
-        attention_mask: Optional[Tensor] = None,
-        decoder_input_ids: Optional[Tensor] = None,
-        decoder_attention_mask: Optional[bool] = None,
-        head_mask: Optional[Tensor] = None,
-        decoder_head_mask: Optional[Tensor] = None,
-        cross_attn_head_mask: Optional[Tensor] = None,
-        encoder_outputs: Optional[Tuple[Tuple[Tensor]]] = None,
-        past_key_values: Optional[Tuple[Tuple[Tensor]]] = None,
-        inputs_embeds: Optional[Tensor] = None,
-        decoder_inputs_embeds: Optional[Tensor] = None,
-        labels: Optional[Tensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ):
-        r"""
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
-            Labels for computing the sequence classification/regression loss. Indices should be in `[-100, 0, ...,
-            config.vocab_size - 1]`. All labels set to `-100` are ignored (masked), the loss is only computed for
-            labels in `[0, ..., config.vocab_size]`
-
-        Returns:
-
-        Examples:
-
-        ```python
-        >>> from transformers import AutoTokenizer
-        >>> from mindone.transformers.models import T5ForConditionalGeneration
-
-        >>> tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-large")
-        >>> model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
-
-        >>> input_ids = tokenizer("The <extra_id_0> walks in <extra_id_1> park", return_tensors="pt").input_ids
-        >>> labels = tokenizer("<extra_id_0> cute dog <extra_id_1> the <extra_id_2>", return_tensors="pt").input_ids
-        >>> outputs = model(input_ids=input_ids, labels=labels)
-        >>> logits = outputs[0]
-        >>> encoder_outputs = outputs[1]
-        ```"""
-        use_cache = use_cache if use_cache is not None else self.config.use_cache
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        # Encode if needed (training, first prediction pass)
-        if encoder_outputs is None:
-            # Convert encoder inputs in embeddings if needed
-            encoder_outputs = self.encoder(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                inputs_embeds=inputs_embeds,
-                head_mask=head_mask,
-                output_attentions=output_attentions,
-                output_hidden_states=output_hidden_states,
-                return_dict=return_dict,
-            )
-        elif return_dict:
-            encoder_outputs = (
-                encoder_outputs[0],
-                encoder_outputs[1] if len(encoder_outputs) > 1 else None,
-                encoder_outputs[2] if len(encoder_outputs) > 2 else None,
-            )
-
-        hidden_states = encoder_outputs[0]
-
-        if labels is not None and decoder_input_ids is None and decoder_inputs_embeds is None:
-            # get decoder inputs from shifting lm labels to the right
-            decoder_input_ids = self._shift_right(labels)
-
-        # Decode
-        decoder_outputs = self.decoder(
-            input_ids=decoder_input_ids,
-            attention_mask=decoder_attention_mask,
-            inputs_embeds=decoder_inputs_embeds,
-            past_key_values=past_key_values,
-            encoder_hidden_states=hidden_states,
-            encoder_attention_mask=attention_mask,
-            head_mask=decoder_head_mask,
-            cross_attn_head_mask=cross_attn_head_mask,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
-
-        sequence_output = decoder_outputs[0]
-
-        if self.config.tie_word_embeddings:
-            # Rescale output before projecting on vocab
-            # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
-            sequence_output = sequence_output * (self.model_dim**-0.5)
-
-        lm_logits = self.lm_head(sequence_output)
-
-        return lm_logits, encoder_outputs[0]
+        return encoder_outputs

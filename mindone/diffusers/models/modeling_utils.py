@@ -1,6 +1,6 @@
 # coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team.
-# Copyright (c) 2024, NVIDIA CORPORATION.  All rights reserved.
+# Copyright 2024 The HuggingFace Inc. team.
+# Copyright (c) 2022, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -43,6 +43,37 @@ from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populat
 logger = logging.get_logger(__name__)
 
 
+def _get_pt2ms_mappings(m):
+    mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
+    for name, cell in m.cells_and_names():
+        if isinstance(cell, nn.Conv1d):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
+        elif isinstance(cell, nn.Embedding):
+            mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
+        elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+            mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
+            mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
+            if isinstance(cell, (nn.BatchNorm2d,)):
+                mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
+                mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
+                mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+    return mappings
+
+
+def _convert_state_dict(m, state_dict_pt):
+    if not state_dict_pt:
+        return state_dict_pt
+    pt2ms_mappings = _get_pt2ms_mappings(m)
+    state_dict_ms = {}
+    while state_dict_pt:
+        name_pt, data_pt = state_dict_pt.popitem()
+        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        data_ms = data_mapping(data_pt)
+        if name_ms is not None:
+            state_dict_ms[name_ms] = data_ms
+    return state_dict_ms
+
+
 def get_parameter_dtype(module: nn.Cell) -> ms.Type:
     params = tuple(module.get_parameters())
     if len(params) > 0:
@@ -81,42 +112,19 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
             )
 
 
-def _get_pt2ms_mappings(m):
-    mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
-    for name, cell in m.cells_and_names():
-        if isinstance(cell, nn.Conv1d):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
-        elif isinstance(cell, nn.Embedding):
-            mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
-        elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
-            mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
-            mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
-            if isinstance(cell, (nn.BatchNorm2d,)):
-                mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
-                mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
-                mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-    return mappings
-
-
-def _convert_state_dict(m, state_dict_pt):
-    mappings = _get_pt2ms_mappings(m)
-    state_dict_ms = {}
-    for name_pt, data_pt in state_dict_pt.items():
-        name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-        data_ms = data_mapping(data_pt)
-        if name_ms is not None:
-            state_dict_ms[name_ms] = data_ms
-    return state_dict_ms
-
-
 def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> List[str]:
+    # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
+    #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
+    # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
-    param_not_load, ckpt_not_load = ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
-    if param_not_load:
-        error_msgs.append(f"{param_not_load} in network is not loaded!")
-    if ckpt_not_load:
-        error_msgs.append(f"{ckpt_not_load} in checkpoint is not loaded!")
-
+    # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
+    for k, v in state_dict.items():
+        if k in local_state:
+            v.set_dtype(local_state[k].dtype)
+        else:
+            pass  # unexpect key keeps origin dtype
+    ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
     return error_msgs
 
 
@@ -363,6 +371,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             revision (`str`, *optional*, defaults to `"main"`):
                 The specific model version to use. It can be a branch name, a tag name, a commit id, or any identifier
                 allowed by Git.
+            from_flax (`bool`, *optional*, defaults to `False`):
+                Load the model weights from a Flax checkpoint save file.
             subfolder (`str`, *optional*, defaults to `""`):
                 The subfolder location of a model file within a larger model repository on the Hub or locally.
             mirror (`str`, *optional*):
@@ -406,6 +416,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         cache_dir = kwargs.pop("cache_dir", None)
         ignore_mismatched_sizes = kwargs.pop("ignore_mismatched_sizes", False)
         force_download = kwargs.pop("force_download", False)
+        from_flax = kwargs.pop("from_flax", False)
         resume_download = kwargs.pop("resume_download", False)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
@@ -450,11 +461,33 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         # load model
         model_file = None
-        if use_safetensors:
-            try:
+        if from_flax:
+            raise NotImplementedError("loading flax checkpoint in mindspore model is not yet supported.")
+        else:
+            if use_safetensors:
+                try:
+                    model_file = _get_model_file(
+                        pretrained_model_name_or_path,
+                        weights_name=_add_variant(SAFETENSORS_WEIGHTS_NAME, variant),
+                        cache_dir=cache_dir,
+                        force_download=force_download,
+                        resume_download=resume_download,
+                        proxies=proxies,
+                        local_files_only=local_files_only,
+                        token=token,
+                        revision=revision,
+                        subfolder=subfolder,
+                        user_agent=user_agent,
+                        commit_hash=commit_hash,
+                    )
+                except IOError as e:
+                    if not allow_pickle:
+                        raise e
+                    pass
+            if model_file is None:
                 model_file = _get_model_file(
                     pretrained_model_name_or_path,
-                    weights_name=_add_variant(SAFETENSORS_WEIGHTS_NAME, variant),
+                    weights_name=_add_variant(WEIGHTS_NAME, variant),
                     cache_dir=cache_dir,
                     force_download=force_download,
                     resume_download=resume_download,
@@ -466,45 +499,26 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     user_agent=user_agent,
                     commit_hash=commit_hash,
                 )
-            except IOError as e:
-                if not allow_pickle:
-                    raise e
-                pass
-        if model_file is None:
-            model_file = _get_model_file(
+
+            model = cls.from_config(config, **unused_kwargs)
+
+            state_dict = load_state_dict(model_file, variant=variant)
+            model._convert_deprecated_attention_blocks(state_dict)
+
+            model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
+                model,
+                state_dict,
+                model_file,
                 pretrained_model_name_or_path,
-                weights_name=_add_variant(WEIGHTS_NAME, variant),
-                cache_dir=cache_dir,
-                force_download=force_download,
-                resume_download=resume_download,
-                proxies=proxies,
-                local_files_only=local_files_only,
-                token=token,
-                revision=revision,
-                subfolder=subfolder,
-                user_agent=user_agent,
-                commit_hash=commit_hash,
+                ignore_mismatched_sizes=ignore_mismatched_sizes,
             )
 
-        model = cls.from_config(config, **unused_kwargs)
-
-        state_dict = load_state_dict(model_file, variant=variant)
-        model._convert_deprecated_attention_blocks(state_dict)
-
-        model, missing_keys, unexpected_keys, mismatched_keys, error_msgs = cls._load_pretrained_model(
-            model,
-            state_dict,
-            model_file,
-            pretrained_model_name_or_path,
-            ignore_mismatched_sizes=ignore_mismatched_sizes,
-        )
-
-        loading_info = {
-            "missing_keys": missing_keys,
-            "unexpected_keys": unexpected_keys,
-            "mismatched_keys": mismatched_keys,
-            "error_msgs": error_msgs,
-        }
+            loading_info = {
+                "missing_keys": missing_keys,
+                "unexpected_keys": unexpected_keys,
+                "mismatched_keys": mismatched_keys,
+                "error_msgs": error_msgs,
+            }
 
         if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
             raise ValueError(

@@ -1,5 +1,7 @@
-from .modeling_ms_clip import (
+from .modeling_clip import (
+    CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
     CLIPModel,
+    CLIPPreTrainedModel,
     CLIPTextModel,
     CLIPTextModelWithProjection,
     CLIPVisionModel,
