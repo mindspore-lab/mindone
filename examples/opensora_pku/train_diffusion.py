@@ -53,6 +53,7 @@ def init_env(
     parallel_mode: str = "data",
     enable_dvm: bool = False,
     mempool_block_size: str = "9GB",
+    global_bf16: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -115,6 +116,11 @@ def init_env(
     if enable_dvm:
         print("enable dvm")
         ms.set_context(enable_graph_kernel=True)
+    if global_bf16:
+        print("Using global bf16")
+        ms.set_context(
+            ascend_config={"precision_mode": "allow_mixed_precision_bf16"}
+        )  # reset ascend precison mode globally
 
     return rank_id, device_num
 
@@ -150,6 +156,7 @@ def main(args):
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
         mempool_block_size=args.mempool_block_size,
+        global_bf16=args.global_bf16,
     )
     set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -210,12 +217,15 @@ def main(args):
         model_dtype = ms.float32
     else:
         model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        latte_model = auto_mixed_precision(
-            latte_model,
-            amp_level=args.amp_level,
-            dtype=model_dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
-        )
+        if not args.global_bf16:
+            latte_model = auto_mixed_precision(
+                latte_model,
+                amp_level=args.amp_level,
+                dtype=model_dtype,
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
+            )
+        else:
+            logger.info("Using global bf16 for latte t2v model.")
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
@@ -350,8 +360,10 @@ def main(args):
         clip_norm=args.max_grad_norm,
         ema=ema,
     )
-
-    model = Model(net_with_grads)
+    if not args.global_bf16:
+        model = Model(net_with_grads)
+    else:
+        model = Model(net_with_grads, amp_level="O0")
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()

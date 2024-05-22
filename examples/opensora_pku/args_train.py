@@ -211,6 +211,9 @@ def parse_train_args(parser):
     )
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--enable_tiling", action="store_true")
+    parser.add_argument(
+        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
+    )
 
     return parser
 
