@@ -218,7 +218,8 @@ def main(args):
                 custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
             )
         else:
-            logger.info("Using global bf16 for latte t2v model.")
+            logger.info("Using global bf16 for latte t2v model. Force model dtype to ms.bfloat16")
+            model_dtype = ms.bfloat16
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
