@@ -357,20 +357,40 @@ def main(args):
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
-    if rank_id == 0:
+    if args.parallel_mode == "optim":
+        cb_rank_id = None
+        ckpt_save_dir = os.path.join(ckpt_dir, f"rank_{rank_id}")
+        output_dir = os.path.join(args.output_path, "log", f"rank_{rank_id}")
+        if args.ckpt_max_keep != 1:
+            logger.warning("For semi-auto parallel training, the `ckpt_max_keep` is force to be 1.")
+        ckpt_max_keep = 1
+        integrated_save = False
+        save_training_resume = False  # TODO: support training resume
+    else:
+        cb_rank_id = rank_id
+        ckpt_save_dir = ckpt_dir
+        output_dir = None
+        ckpt_max_keep = args.ckpt_max_keep
+        integrated_save = True
+        save_training_resume = True
+
+    if rank_id == 0 or args.parallel_mode == "optim":
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss.network,
-            rank_id=rank_id,
-            ckpt_save_dir=ckpt_dir,
+            rank_id=cb_rank_id,
+            ckpt_save_dir=ckpt_save_dir,
+            output_dir=output_dir,
             ema=ema,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=args.ckpt_max_keep,
+            ckpt_max_keep=ckpt_max_keep,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name=args.model_version.replace("/", "-"),
             record_lr=False,
+            integrated_save=integrated_save,
+            save_training_resume=save_training_resume,
         )
         callback.append(save_cb)
         if args.profile:

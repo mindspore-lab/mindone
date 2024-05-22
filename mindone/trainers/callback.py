@@ -10,7 +10,7 @@ from .checkpoint import CheckpointManager
 from .recorder import PerfRecorder
 
 _logger = logging.getLogger(__name__)
-_logger.setLevel(logging.INFO)
+
 __all__ = ["OverflowMonitor", "EvalSaveCallback", "ProfilerCallback"]
 
 
@@ -47,6 +47,8 @@ class EvalSaveCallback(Callback):
         model_name="sd",
         save_trainable_only: bool = False,
         param_save_filter: List[str] = None,
+        integrated_save=False,
+        save_training_resume=True,
     ):
         """
         Args:
@@ -82,6 +84,7 @@ class EvalSaveCallback(Callback):
                 ckpt_save_dir,
                 ckpt_save_policy,
                 k=ckpt_max_keep,
+                integrated_save=integrated_save,
             )
             if self.start_epoch == 0:
                 if self.record_lr:
@@ -111,6 +114,7 @@ class EvalSaveCallback(Callback):
         self.use_lora = use_lora
 
         self.use_step_unit = use_step_unit
+        self.save_training_resume = save_training_resume
 
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
@@ -139,16 +143,17 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
-                # TODO: resume training for step.
-                ms.save_checkpoint(
-                    cb_params.train_network,
-                    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={
-                        "epoch_num": cur_epoch,
-                        "cur_step": cur_step,
-                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                    },
-                )
+                if self.save_training_resume:
+                    # TODO: resume training for step.
+                    ms.save_checkpoint(
+                        cb_params.train_network,
+                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                        append_dict={
+                            "epoch_num": cur_epoch,
+                            "cur_step": cur_step,
+                            "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                        },
+                    )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
@@ -219,14 +224,15 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
-                ms.save_checkpoint(
-                    cb_params.train_network,
-                    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={
-                        "epoch_num": cur_epoch,
-                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                    },
-                )
+                if self.save_training_resume:
+                    ms.save_checkpoint(
+                        cb_params.train_network,
+                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                        append_dict={
+                            "epoch_num": cur_epoch,
+                            "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                        },
+                    )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
