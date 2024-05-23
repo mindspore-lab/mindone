@@ -12,12 +12,12 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 ## 📰 News & States
 
-| Official News from HPC-AI Tech                                                                                                                                                                                                                                                                                                | MindSpore Support                     |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------|
-| **[2024.04.25]** 🤗 HPC-AI Tech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces.                                                                                                                                                                          | N.A.                                  |
-| **[2024.04.25]** 🔥 HPC-AI Tech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Image/Video-to-Video inference        |
-| **[2024.03.18]** HPC-AI Tech released **Open-Sora 1.0**, a fully open-source project for video generation.                                                                                                                                                                                                                    | ✅ VAE + STDiT training and inference  |
-| **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                  | ✅ Parallel training on Ascend devices |
+| Official News from HPC-AI Tech                                                                                                                                                                                                                                                                                                | MindSpore Support                              |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------|
+| **[2024.04.25]** 🤗 HPC-AI Tech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces.                                                                                                                                                                          | N.A.                                           |
+| **[2024.04.25]** 🔥 HPC-AI Tech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](/docs/report_02.md) | Image/Video-to-Video, Infinite time generation |
+| **[2024.03.18]** HPC-AI Tech released **Open-Sora 1.0**, a fully open-source project for video generation.                                                                                                                                                                                                                    | ✅ VAE + STDiT training and inference           |
+| **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                  | ✅ Parallel training on Ascend devices          |
 
 
 
@@ -39,7 +39,7 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 
 ## 🔆 Features
 
-- 📍 **Open-Sora 1.0** with the following features
+- 📍 **Open-Sora 1.1** with the following features
     - ✅ Improved ST-DiT architecture includes rope positional encoding, qk norm, longer text length, etc.
     - ✅ Support image and video conditioning and video editing, and thus support animating images, connecting videos, etc.
 
@@ -254,9 +254,55 @@ video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
 
-> [!IMPORTANT]
-> OpenSora v1.1 also requires the `length` field, which represents the number of frames,
-> in the CSV file (i.e. `video, length, caption`).
+⚠️ OpenSora v1.1 also requires the `length` field, which represents the number of frames, 
+in the CSV file (i.e. `video, length, caption`).
+
+<details>
+<summary>Example script to add `length` information to your CSV</summary>
+
+```python
+import csv
+import os
+from concurrent.futures import ThreadPoolExecutor
+
+from jsonargparse import ArgumentParser
+from jsonargparse.typing import Path_fc, Path_fr, path_type
+from tqdm import tqdm
+
+from mindone.data.video_reader import VideoReader
+
+Path_dr = path_type("dr")  # path to a directory that exists and is readable
+
+
+def convert(csv_path: Path_fr, dataset_path: Path_dr, out_path: Path_fc = "./videos.csv", num_workers: int = 10):
+    def read_data(info: dict):
+        video_path, caption = info["video"], info["caption"]
+        with VideoReader(os.path.join(str(dataset_path), video_path)) as reader:
+            return {"video": video_path, "length": len(reader), "caption": caption}
+
+    with open(csv_path, "r") as csv_file:
+        video_list = list(csv.DictReader(csv_file))
+    with ThreadPoolExecutor(max_workers=num_workers) as executor:
+        data = list(tqdm(executor.map(read_data, video_list), total=len(video_list)))
+
+    fieldnames = ["video", "length", "caption"]
+    with open(out_path, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+        writer.writeheader()
+
+        for item in data:
+            writer.writerow(item)
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_function_arguments(convert)
+    cfg = parser.parse_args()
+    convert(**cfg.as_dict())
+```
+
+</details>
 
 ### Cache Text Embeddings
 
