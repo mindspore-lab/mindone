@@ -364,6 +364,9 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 Note that training on 300 frames at 512x512 resolution is achieved by optimization+data parallelism with t5 cached embeddings.
 
+#### Tips for performance optimization
+To speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
+
 
 ## Evaluation
 
