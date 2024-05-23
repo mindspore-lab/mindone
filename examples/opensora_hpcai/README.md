@@ -348,8 +348,11 @@ For more usage, please check `python scripts/train.py -h`.
 You may also see the example shell scripts in `scripts/run` for quick reference.
 
 
+## Evaluation
 
-#### Performance
+### Open-Sora 1.0
+
+#### Training Performance
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
@@ -364,13 +367,44 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 Note that training on 300 frames at 512x512 resolution is achieved by optimization+data parallelism with t5 cached embeddings.
 
-#### Tips for performance optimization
-To speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
+** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
+
+#### Loss Curves
+
+<details>
+<summary>Training loss curves </summary>
+
+16x256x256 Pretraining Loss Curve:
+![train_loss_256x256x16](https://github.com/SamitHuang/mindone/assets/8156835/c85ce7ce-a59c-4a5f-af40-a82a568ebd95)
+
+16x256x256 HQ Training Loss Curve:
+![train_loss_512x512x16](https://github.com/SamitHuang/mindone/assets/8156835/1926b12f-050d-47d2-bcec-fd08eef9f75b)
+
+16x512x512 HQ Training Loss Curve:
+![train_loss_512x512x64](https://github.com/SamitHuang/mindone/assets/8156835/d9287f36-888f-4ad6-92d9-5659eff0b306)
+
+</details>
 
 
-## Evaluation
+#### Text-to-Video Generation after Finetuning
 
-Please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md)
+Here are some generation results after finetuning STDiT on a subset of WebVid dataset in 512x512x64 resolution.
+
+https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609
+
+Prompt: The girl received flowers as a gift. a gift for my birthday. the guy gave a girl flowers
+
+https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0
+
+Prompt: Cloudy moscow kremlin time lapse
+
+https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c
+
+Prompt: A baker turns freshly baked loaves of sourdough bread
+
+#### Quality Evaluation
+For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
+
 
 ## Contribution
 
