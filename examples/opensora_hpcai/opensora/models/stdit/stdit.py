@@ -276,7 +276,6 @@ class STDiT(nn.Cell):
         self.sp_rank = None
 
         if use_recompute:
-            # TODO: ms flash attention don't need recompute
             if num_recompute_blocks is None:
                 num_recompute_blocks = len(self.blocks)
             print("Num recomputed stdit blocks: {}".format(num_recompute_blocks))
@@ -284,10 +283,6 @@ class STDiT(nn.Cell):
                 # recompute the first N blocks
                 if i < num_recompute_blocks:
                     self.recompute(block)
-                # self.recompute(block.mlp)
-                # self.recompute(block.attn)
-                # self.recompute(block.cross_attn)
-                # self.recompute(block.attn_temp)
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -351,8 +346,6 @@ class STDiT(nn.Cell):
 
         x = self.unpatchify(x)  # [B, C_out, T, H, W]
 
-        # cast to float32 for better accuracy
-        # x = x.astype(ms.float32)
         return x
 
     # @ms.jit
