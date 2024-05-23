@@ -119,13 +119,13 @@ class BasicTransformerBlock_(nn.Cell):
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
         if self.use_ada_layer_norm:
-            self.norm1 = AdaLayerNorm(dim, num_embeds_ada_norm)
-            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
+            self.norm1_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
+            self.norm1_ada.norm = LayerNorm(dim, elementwise_affine=False)
         elif self.use_ada_layer_norm_zero:
-            self.norm1 = AdaLayerNormZero(dim, num_embeds_ada_norm)
-            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
+            self.norm1_ada_zero = AdaLayerNormZero(dim, num_embeds_ada_norm)
+            self.norm1_ada_zero.norm = LayerNorm(dim, elementwise_affine=False)
         else:
-            self.norm1 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+            self.norm1_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
         self.attn1 = MultiHeadAttention(
             query_dim=dim,
@@ -170,18 +170,18 @@ class BasicTransformerBlock_(nn.Cell):
 
         gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
         if self.use_ada_layer_norm:
-            norm_hidden_states = self.norm1(hidden_states, timestep)
+            norm_hidden_states = self.norm1_ada(hidden_states, timestep)
         elif self.use_ada_layer_norm_zero:
-            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1_ada_zero(
                 hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
             )
         elif self.use_layer_norm:
-            norm_hidden_states = self.norm1(hidden_states)
+            norm_hidden_states = self.norm1_ln(hidden_states)
         elif self.use_ada_layer_norm_single:
             shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
                 self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
             ).chunk(6, axis=1)
-            norm_hidden_states = self.norm1(hidden_states)
+            norm_hidden_states = self.norm1_ln(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
             # norm_hidden_states = norm_hidden_states.squeeze(1)  # error message
         else:
@@ -343,13 +343,13 @@ class BasicTransformerBlock(nn.Cell):
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
         if self.use_ada_layer_norm:
-            self.norm1 = AdaLayerNorm(dim, num_embeds_ada_norm)
-            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
+            self.norm1_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
+            self.norm1_ada.norm = LayerNorm(dim, elementwise_affine=False)
         elif self.use_ada_layer_norm_zero:
-            self.norm1 = AdaLayerNormZero(dim, num_embeds_ada_norm)
-            self.norm1.norm = LayerNorm(dim, elementwise_affine=False)
+            self.norm1_ada_zero = AdaLayerNormZero(dim, num_embeds_ada_norm)
+            self.norm1_ada_zero.norm = LayerNorm(dim, elementwise_affine=False)
         else:
-            self.norm1 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+            self.norm1_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
         self.attn1 = MultiHeadAttention(
             query_dim=dim,
@@ -368,10 +368,10 @@ class BasicTransformerBlock(nn.Cell):
             # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
             # the second cross attention block.
             if self.use_ada_layer_norm:
-                self.norm2 = AdaLayerNorm(dim, num_embeds_ada_norm)
-                self.norm2.norm = LayerNorm(dim, elementwise_affine=False)
+                self.norm2_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
+                self.norm2_ada.norm = LayerNorm(dim, elementwise_affine=False)
             else:
-                self.norm2 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+                self.norm2_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
 
             self.attn2 = MultiHeadAttention(
                 query_dim=dim,
@@ -425,18 +425,18 @@ class BasicTransformerBlock(nn.Cell):
         batch_size = hidden_states.shape[0]
         gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
         if self.use_ada_layer_norm:
-            norm_hidden_states = self.norm1(hidden_states, timestep)
+            norm_hidden_states = self.norm1_ada(hidden_states, timestep)
         elif self.use_ada_layer_norm_zero:
-            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1_ada_zero(
                 hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
             )
         elif self.use_layer_norm:
-            norm_hidden_states = self.norm1(hidden_states)
+            norm_hidden_states = self.norm1_ln(hidden_states)
         elif self.use_ada_layer_norm_single:
             shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
                 self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
             ).chunk(6, axis=1)
-            norm_hidden_states = self.norm1(hidden_states)
+            norm_hidden_states = self.norm1_ln(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
             # norm_hidden_states = norm_hidden_states.squeeze(1)  # error message
         else:
@@ -477,9 +477,9 @@ class BasicTransformerBlock(nn.Cell):
         # 3. Cross-Attention
         if self.attn2 is not None:
             if self.use_ada_layer_norm:
-                norm_hidden_states = self.norm2(hidden_states, timestep)
+                norm_hidden_states = self.norm2_ada(hidden_states, timestep)
             elif self.use_ada_layer_norm_zero or self.use_layer_norm:
-                norm_hidden_states = self.norm2(hidden_states)
+                norm_hidden_states = self.norm2_ln(hidden_states)
             elif self.use_ada_layer_norm_single:
                 # For PixArt norm2 isn't applied here:
                 # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L70C1-L76C103
@@ -1022,6 +1022,89 @@ class Latte(ModelMixin, ConfigMixin):
             b.add_flags(output_no_recompute=True)
 
 
+class LatteT2VBlock(nn.Cell):
+    def __init__(self, block_id, temp_pos_embed, spatial_block, temp_block):
+        super().__init__()
+        self.spatial_block = spatial_block
+        self.temp_block = temp_block
+        self.is_first_block = block_id == 0
+        self.temp_pos_embed = temp_pos_embed
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        class_labels: Optional[ms.Tensor] = None,
+        cross_attention_kwargs: Dict[str, Any] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states_spatial: Optional[ms.Tensor] = None,
+        timestep_spatial: Optional[ms.Tensor] = None,
+        timestep_temp: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        use_image_num: int = 0,
+        input_batch_size: int = 0,
+        frame: int = 0,
+        enable_temporal_attentions: bool = True,
+    ):
+        hidden_states = self.spatial_block(
+            hidden_states,
+            attention_mask,
+            encoder_hidden_states_spatial,
+            encoder_attention_mask,
+            timestep_spatial,
+            cross_attention_kwargs,
+            class_labels,
+        )
+
+        if enable_temporal_attentions:
+            # b c f h w, f = 16 + 4
+            # (b f) t d -> (b t) f d
+            hidden_states = hidden_states.view(input_batch_size, frame + use_image_num, -1, hidden_states.shape[-1])
+            hidden_states = hidden_states.permute(0, 2, 1, 3).view(-1, frame + use_image_num, hidden_states.shape[-1])
+
+            if use_image_num != 0 and self.training:
+                hidden_states_video = hidden_states[:, :frame, ...]
+                hidden_states_image = hidden_states[:, frame:, ...]
+                if self.is_first_block:
+                    hidden_states_video = hidden_states_video + self.temp_pos_embed
+
+                hidden_states_video = self.temp_block(
+                    hidden_states_video,
+                    None,  # attention_mask
+                    None,  # encoder_hidden_states
+                    None,  # encoder_attention_mask
+                    timestep_temp,
+                    cross_attention_kwargs,
+                    class_labels,
+                )
+
+                hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
+                # (b t) f d -> (b f) t d
+                hidden_states = hidden_states.view(input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1])
+                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+                    input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                )
+
+            else:
+                if self.is_first_block:
+                    hidden_states = hidden_states + self.temp_pos_embed
+
+                hidden_states = self.temp_block(
+                    hidden_states,
+                    None,  # attention_mask
+                    None,  # encoder_hidden_states
+                    None,  # encoder_attention_mask
+                    timestep_temp,
+                    cross_attention_kwargs,
+                    class_labels,
+                )
+                # (b t) f d -> (b f) t d
+                hidden_states = hidden_states.view(input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1])
+                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+                    input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                )
+        return hidden_states
+
+
 class LatteT2V(ModelMixin, ConfigMixin):
     _supports_gradient_checkpointing = True
 
@@ -1173,54 +1256,50 @@ class LatteT2V(ModelMixin, ConfigMixin):
             )
 
         # 3. Define transformers blocks, spatial attention
-        self.transformer_blocks = nn.CellList(
-            [
-                BasicTransformerBlock(
-                    inner_dim,
-                    num_attention_heads,
-                    attention_head_dim,
-                    dropout=dropout,
-                    cross_attention_dim=cross_attention_dim,
-                    activation_fn=activation_fn,
-                    num_embeds_ada_norm=num_embeds_ada_norm,
-                    attention_bias=attention_bias,
-                    only_cross_attention=only_cross_attention,
-                    double_self_attention=double_self_attention,
-                    upcast_attention=upcast_attention,
-                    norm_type=norm_type,
-                    norm_elementwise_affine=norm_elementwise_affine,
-                    norm_eps=norm_eps,
-                    attention_type=attention_type,
-                    enable_flash_attention=enable_flash_attention,
-                )
-                for d in range(num_layers)
-            ]
-        )
+        self.transformer_blocks = [
+            BasicTransformerBlock(
+                inner_dim,
+                num_attention_heads,
+                attention_head_dim,
+                dropout=dropout,
+                cross_attention_dim=cross_attention_dim,
+                activation_fn=activation_fn,
+                num_embeds_ada_norm=num_embeds_ada_norm,
+                attention_bias=attention_bias,
+                only_cross_attention=only_cross_attention,
+                double_self_attention=double_self_attention,
+                upcast_attention=upcast_attention,
+                norm_type=norm_type,
+                norm_elementwise_affine=norm_elementwise_affine,
+                norm_eps=norm_eps,
+                attention_type=attention_type,
+                enable_flash_attention=enable_flash_attention,
+            )
+            for d in range(num_layers)
+        ]
 
         # Define temporal transformers blocks
-        self.temporal_transformer_blocks = nn.CellList(
-            [
-                BasicTransformerBlock_(  # one attention
-                    inner_dim,
-                    num_attention_heads,  # num_attention_heads
-                    attention_head_dim,  # attention_head_dim 72
-                    dropout=dropout,
-                    cross_attention_dim=None,
-                    activation_fn=activation_fn,
-                    num_embeds_ada_norm=num_embeds_ada_norm,
-                    attention_bias=attention_bias,
-                    only_cross_attention=only_cross_attention,
-                    double_self_attention=False,
-                    upcast_attention=upcast_attention,
-                    norm_type=norm_type,
-                    norm_elementwise_affine=norm_elementwise_affine,
-                    norm_eps=norm_eps,
-                    attention_type=attention_type,
-                    enable_flash_attention=enable_flash_attention,
-                )
-                for d in range(num_layers)
-            ]
-        )
+        self.temporal_transformer_blocks = [
+            BasicTransformerBlock_(  # one attention
+                inner_dim,
+                num_attention_heads,  # num_attention_heads
+                attention_head_dim,  # attention_head_dim 72
+                dropout=dropout,
+                cross_attention_dim=None,
+                activation_fn=activation_fn,
+                num_embeds_ada_norm=num_embeds_ada_norm,
+                attention_bias=attention_bias,
+                only_cross_attention=only_cross_attention,
+                double_self_attention=False,
+                upcast_attention=upcast_attention,
+                norm_type=norm_type,
+                norm_elementwise_affine=norm_elementwise_affine,
+                norm_eps=norm_eps,
+                attention_type=attention_type,
+                enable_flash_attention=enable_flash_attention,
+            )
+            for d in range(num_layers)
+        ]
 
         # 4. Define output layers
         self.out_channels = in_channels if out_channels is None else out_channels
@@ -1268,11 +1347,15 @@ class LatteT2V(ModelMixin, ConfigMixin):
 
         self.temp_pos_embed = ms.Tensor(temp_pos_embed).float().unsqueeze(0)
 
-        if self.use_recompute:
-            for block in self.transformer_blocks:
-                self.recompute(block)
+        self.blocks = nn.CellList(
+            [
+                LatteT2VBlock(d, self.temp_pos_embed, self.transformer_blocks[d], self.temporal_transformer_blocks[d])
+                for d in range(num_layers)
+            ]
+        )
 
-            for block in self.temporal_transformer_blocks:
+        if self.use_recompute:
+            for block in self.blocks:
                 self.recompute(block)
 
     def construct(
@@ -1421,70 +1504,21 @@ class LatteT2V(ModelMixin, ConfigMixin):
         # b d -> (b p) d
         timestep_temp = timestep.repeat_interleave(num_patches, dim=0)
 
-        for i, (spatial_block, temp_block) in enumerate(zip(self.transformer_blocks, self.temporal_transformer_blocks)):
-            hidden_states = spatial_block(
+        for block in self.blocks:
+            hidden_states = block(
                 hidden_states,
+                class_labels,
+                cross_attention_kwargs,
                 attention_mask,
                 encoder_hidden_states_spatial,
-                encoder_attention_mask,
                 timestep_spatial,
-                cross_attention_kwargs,
-                class_labels,
+                timestep_temp,
+                encoder_attention_mask,
+                use_image_num,
+                input_batch_size,
+                frame,
+                enable_temporal_attentions,
             )
-
-            if enable_temporal_attentions:
-                # b c f h w, f = 16 + 4
-                # (b f) t d -> (b t) f d
-                hidden_states = hidden_states.view(input_batch_size, frame + use_image_num, -1, hidden_states.shape[-1])
-                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                    -1, frame + use_image_num, hidden_states.shape[-1]
-                )
-
-                if use_image_num != 0 and self.training:
-                    hidden_states_video = hidden_states[:, :frame, ...]
-                    hidden_states_image = hidden_states[:, frame:, ...]
-                    if i == 0:
-                        hidden_states_video = hidden_states_video + self.temp_pos_embed
-
-                    hidden_states_video = temp_block(
-                        hidden_states_video,
-                        None,  # attention_mask
-                        None,  # encoder_hidden_states
-                        None,  # encoder_attention_mask
-                        timestep_temp,
-                        cross_attention_kwargs,
-                        class_labels,
-                    )
-
-                    hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
-                    # (b t) f d -> (b f) t d
-                    hidden_states = hidden_states.view(
-                        input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
-                    )
-                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
-                    )
-
-                else:
-                    if i == 0:
-                        hidden_states = hidden_states + self.temp_pos_embed
-
-                    hidden_states = temp_block(
-                        hidden_states,
-                        None,  # attention_mask
-                        None,  # encoder_hidden_states
-                        None,  # encoder_attention_mask
-                        timestep_temp,
-                        cross_attention_kwargs,
-                        class_labels,
-                    )
-                    # (b t) f d -> (b f) t d
-                    hidden_states = hidden_states.view(
-                        input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
-                    )
-                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
-                    )
 
         # if self.is_input_patches:
         if self.norm_type != "ada_norm_single":
@@ -1573,7 +1607,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
 
     def recompute(self, b):
         if not b._has_config_recompute:
-            b.recompute()
+            b.recompute(parallel_optimizer_comm_recompute=True)
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])
         else:
