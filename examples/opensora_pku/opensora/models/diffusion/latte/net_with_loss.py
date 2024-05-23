@@ -117,13 +117,13 @@ class DiffusionWithLoss(nn.Cell):
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
             x = x.permute(0, 2, 1, 3, 4)  # (b, c, f, h, w)
             if self.use_image_num == 0:
-                z = ops.stop_gradient(self.vae_encode(x))  # (b, c, f, h, w)
+                z = self.vae_encode(x)  # (b, c, f, h, w)
             else:
                 videos, images = x[:, :, : -self.use_image_num], x[:, :, -self.use_image_num :]
-                videos = ops.stop_gradient(self.vae_encode(videos))  # (b, c, f, h, w)
+                videos = self.vae_encode(videos)  # (b, c, f, h, w)
                 # (b, c, f, h, w) -> (b, f, c, h, w) -> (b*f, c, h, w) -> (b*f, c, 1, h, w)
                 images = images.permute(0, 2, 1, 3, 4).reshape(-1, C, H, W).unsqueeze(2)
-                images = ops.stop_gradient(self.vae_encode(images))  # (b*f, c, 1, h, w)
+                images = self.vae_encode(images)  # (b*f, c, 1, h, w)
                 # (b*f, c, 1, h, w) -> (b*f, c, h, w) -> (b, f, c, h, w) -> (b, c, f, h, w)
                 _, c, _, h, w = images.shape
                 images = images.squeeze(2).reshape(B, self.use_image_num, c, h, w).permute(0, 2, 1, 3, 4)
@@ -152,7 +152,7 @@ class DiffusionWithLoss(nn.Cell):
         # 1. get image/video latents z using vae
         x = x.to(self.dtype)
         if not self.video_emb_cached:
-            x = self.get_latents(x)
+            x = ops.stop_gradient(self.get_latents(x))
         else:
             # (b f c h w) -> (b c f h w)
             x = ops.transpose(x, (0, 2, 1, 3, 4))
