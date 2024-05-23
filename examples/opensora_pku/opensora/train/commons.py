@@ -24,6 +24,8 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    mempool_block_size: str = "9GB",
+    global_bf16: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -36,6 +38,7 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    ms.set_context(mempool_block_size=mempool_block_size)
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
@@ -56,7 +59,7 @@ def init_env(
             init()
             device_num = get_group_size()
             rank_id = get_rank()
-        else:
+        elif parallel_mode == "data":
             init()
             device_num = get_group_size()
             rank_id = get_rank()
@@ -85,7 +88,11 @@ def init_env(
     if enable_dvm:
         print("enable dvm")
         ms.set_context(enable_graph_kernel=True)
-
+    if global_bf16:
+        print("Using global bf16")
+        ms.set_context(
+            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
+        )  # reset ascend precison mode globally
     return rank_id, device_num
 
 
@@ -114,11 +121,20 @@ def parse_train_args(parser):
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
-        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+        "--parallel_mode",
+        default="data",
+        type=str,
+        choices=["data", "optim", "semi"],
+        help="parallel mode: data, optim",
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
-
+    parser.add_argument(
+        "--mempool_block_size",
+        type=str,
+        default="9GB",
+        help="Set the size of the memory pool block in PyNative mode for devices. ",
+    )
     #################################################################################
     #                                   Optimizers                                  #
     #################################################################################
@@ -204,7 +220,9 @@ def parse_train_args(parser):
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
-
+    parser.add_argument(
+        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
+    )
     #################################################################################
     #                                 Model Optimization                            #
     #################################################################################

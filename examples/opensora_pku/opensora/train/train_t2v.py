@@ -1,7 +1,3 @@
-"""
-STDiT training script
-"""
-import datetime
 import logging
 import os
 import sys
@@ -17,6 +13,7 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.diffusion.diffusion import create_diffusion_T as create_diffusion
 from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
@@ -59,9 +56,6 @@ def set_all_reduce_fusion(
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    args.output_path = os.path.join(args.output_dir, time_str)
-
     # 1. init
     rank_id, device_num = init_env(
         args.mode,
@@ -71,6 +65,8 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
+        mempool_block_size=args.mempool_block_size,
+        global_bf16=args.global_bf16,
     )
     set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:
@@ -83,8 +79,10 @@ def main(args):
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
     vae.set_train(False)
 
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-    logger.info("Use amp level O2 for causal 3D VAE.")
+    vae_dtype = ms.bfloat16
+    custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+    logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
 
@@ -137,12 +135,16 @@ def main(args):
         model_dtype = get_precision(args.precision)
     else:
         model_dtype = get_precision(args.precision)
-        latte_model = auto_mixed_precision(
-            latte_model,
-            amp_level=args.amp_level,
-            dtype=model_dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
-        )
+        if not args.global_bf16:
+            latte_model = auto_mixed_precision(
+                latte_model,
+                amp_level=args.amp_level,
+                dtype=model_dtype,
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
+            )
+        else:
+            logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
+            model_dtype = ms.bfloat16
     # load checkpoint
     if len(args.pretrained) > 0:
         logger.info(f"Loading ckpt {args.pretrained}...")
@@ -291,26 +293,49 @@ def main(args):
         ema=ema,
     )
 
-    model = Model(net_with_grads)
+    if not args.global_bf16:
+        model = Model(net_with_grads)
+    else:
+        model = Model(net_with_grads, amp_level="O0")
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
-    if rank_id == 0:
+    if args.parallel_mode == "optim":
+        cb_rank_id = None
+        ckpt_save_dir = os.path.join(ckpt_dir, f"rank_{rank_id}")
+        output_dir = os.path.join(args.output_path, "log", f"rank_{rank_id}")
+        if args.ckpt_max_keep != 1:
+            logger.warning("For semi-auto parallel training, the `ckpt_max_keep` is force to be 1.")
+        ckpt_max_keep = 1
+        integrated_save = False
+        save_training_resume = False  # TODO: support training resume
+    else:
+        cb_rank_id = rank_id
+        ckpt_save_dir = ckpt_dir
+        output_dir = None
+        ckpt_max_keep = args.ckpt_max_keep
+        integrated_save = True
+        save_training_resume = True
+
+    if rank_id == 0 or args.parallel_mode == "optim":
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss.network,
-            rank_id=rank_id,
-            ckpt_save_dir=ckpt_dir,
+            rank_id=cb_rank_id,
+            ckpt_save_dir=ckpt_save_dir,
+            output_dir=output_dir,
             ema=ema,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=args.ckpt_max_keep,
+            ckpt_max_keep=ckpt_max_keep,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name=args.model.replace("/", "-"),
             record_lr=False,
+            integrated_save=integrated_save,
+            save_training_resume=save_training_resume,
         )
         callback.append(save_cb)
         if args.profile:
@@ -426,6 +451,9 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--caption_column", default="cap", type=str, help="name of column for captions saved in csv file"
     )
+    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
+    parser.add_argument("--enable_tiling", action="store_true")
+
     return parser
 
 
