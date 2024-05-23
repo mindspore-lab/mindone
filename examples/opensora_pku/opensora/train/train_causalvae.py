@@ -11,7 +11,7 @@ import yaml
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import Model
+from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
 sys.path.append(".")
@@ -78,7 +78,7 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        custom_fp32_cells = [] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
         ae = auto_mixed_precision(ae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         if use_discriminator:
