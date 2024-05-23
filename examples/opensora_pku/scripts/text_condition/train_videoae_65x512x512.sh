@@ -25,4 +25,5 @@ python opensora/train/train_t2v.py \
     --pretrained path/to/ckpt/from/last/stage \
     --model_max_length 300 \
     --use_image_num 16 \
-    --use_img_from_vid
+    --use_img_from_vid \
+    --enable_tiling \
