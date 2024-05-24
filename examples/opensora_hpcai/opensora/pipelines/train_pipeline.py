@@ -45,6 +45,7 @@ class DiffusionWithLoss(nn.Cell):
         cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
+        micro_batch_size: int = None,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -62,6 +63,7 @@ class DiffusionWithLoss(nn.Cell):
 
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
+        self.micro_batch_size = micro_batch_size
 
         if self.text_emb_cached:
             self.text_encoder = None
@@ -129,7 +131,15 @@ class DiffusionWithLoss(nn.Cell):
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
             x = ops.reshape(x, (-1, C, H, W))
 
-            z = ops.stop_gradient(self.vae_encode(x))
+            if self.micro_batch_size is not None:
+                # split into smaller frames to reduce memory cost
+                x = ops.split(x, (B * F) // self.micro_batch_size, axis=0)
+                z_clips = []
+                for clip in x:
+                    z_clips.append(ops.stop_gradient(self.vae_encode(clip)))
+                z = ops.cat(z_clips, axis=0)
+            else:
+                z = ops.stop_gradient(self.vae_encode(x))
 
             # (b*f c h w) -> (b f c h w)
             z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
@@ -185,8 +195,6 @@ class DiffusionWithLoss(nn.Cell):
         # make sure all inputs are fp32 for accuracy
         model_output = model_output.to(ms.float32)
         model_var_values = model_var_values.to(ms.float32)
-        x = x.to(ms.float32)
-        x_t = x_t.to(ms.float32)
 
         true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
         # p_mean_variance(model=lambda *_: frozen_out, x_t, t, clip_denoised=False) begin
@@ -214,7 +222,7 @@ class DiffusionWithLoss(nn.Cell):
     def compute_loss(self, x, text_embed, mask):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
-        x_t = self.diffusion.q_sample(x, t, noise=noise)
+        x_t = self.diffusion.q_sample(x.to(ms.float32), t, noise=noise)
 
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)

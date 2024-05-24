@@ -74,7 +74,7 @@ class Attention(nn.Cell):
         # (b h n_q n_k)
         attn = ops.softmax(sim, axis=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
-        out = ops.matmul(attn, v)
+        out = ops.matmul(attn.to(v.dtype), v)
 
         out = ops.reshape(out, (b, h, -1, d))
         # (b h n d) -> (b n h d)
@@ -252,8 +252,8 @@ class SelfAttention(nn.Cell):
         x: (b n c)
         mask: (b n), 1 - valid, 0 - padded
         """
-        x_dtype = x.dtype
         B, N, C = x.shape
+        x_dtype = x.dtype
 
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
@@ -307,9 +307,8 @@ class LayerNorm(nn.Cell):
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        oridtype = x.dtype
-        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
-        return x.to(oridtype)
+        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        return x
 
 
 class GELU(nn.GELU):

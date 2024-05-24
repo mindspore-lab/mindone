@@ -7,6 +7,7 @@ import sys
 
 import numpy as np
 import yaml
+from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import ops
@@ -16,7 +17,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.utils.model_utils import _check_cfgs_in_parser, str2bool
 
 from mindone.utils.logger import set_logger
@@ -55,13 +56,12 @@ def main(args):
         SD_CONFIG,
         4,
         ckpt_path=args.vae_checkpoint,
-        use_fp16=args.use_fp16,
     )
     vae = vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
 
-    def vae_decode(x):
+    def vae_decode(x, micro_batch_size=None, scale_factor=1.0):
         """
         Args:
             x: (b c h w), denoised latent
@@ -70,32 +70,61 @@ def main(args):
         """
         b, c, h, w = x.shape
 
-        y = vae.decode(x / args.sd_scale_factor)
-        y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-
-        # (b 3 H W) -> (b H W 3)
-        y = ops.transpose(y, (0, 2, 3, 1))
+        if micro_batch_size is None:
+            y = vae.decode(x / scale_factor)
+            y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+            # (b 3 H W) -> (b H W 3)
+            y = ops.transpose(y, (0, 2, 3, 1))
+            y = y.asnumpy()
+        else:
+            bs = micro_batch_size
+            y_out = []
+            for i in tqdm(range(0, x.shape[0], bs)):
+                x_bs = x[i : min(i + bs, x.shape[0])]
+                y_bs = vae.decode(x_bs / scale_factor).asnumpy()
+                y_out.append(y_bs)
+            y = np.concatenate(y_out)
+            y = np.clip((y + 1.0) / 2.0, a_min=0.0, a_max=1.0)
+            y = np.transpose(y, (0, 2, 3, 1))
 
         return y
 
-    def vae_decode_video(x):
+    def vae_decode_from_diffusion_output(x):
         out = []
         for x_sample in x:
             # c t h w -> t c h w
             x_sample = x_sample.permute(1, 0, 2, 3)
-            out.append(vae_decode(x_sample))
+            out.append(vae_decode(x_sample, scale_factor=args.sd_scale_factor))
         out = ops.stack(out, axis=0)
 
         return out
 
     latent_paths = sorted(glob.glob(os.path.join(args.latent_folder, "*.npy")))
-    for lpath in latent_paths:
-        z = np.load(lpath)
-        z = ms.Tensor(z)
+    npz_format = False
+    if len(latent_paths) == 0:
+        latent_paths = sorted(glob.glob(os.path.join(args.latent_folder, "*.npz")))
+        npz_format = True
 
-        logger.info(f"Decoding latent of shape {z.shape} from {lpath}")
-        vid = vae_decode_video(z)
-        vid = vid.asnumpy()
+    logger.info(f"Num samples: {len(latent_paths)}")
+    for lpath in latent_paths:
+        if npz_format:
+            data = np.load(lpath)
+            z = data["latent_mean"]
+            # sample_from_distribution = 'latent_std' in data.keys()
+            sample_from_distribution = False
+            if sample_from_distribution:
+                latent_std = data["latent_std"]
+                z = z + latent_std * np.random.standard_normal(z.shape).astype(np.float32)
+            z = ms.Tensor(z)
+            logger.info(f"Decoding latent of shape {z.shape} from {lpath}")
+            # NOTE: here we assue we directly decode from vae encoding output, not scale is applied before.
+            vid = vae_decode(z, micro_batch_size=8, scale_factor=1.0)
+            vid = np.expand_dims(vid, axis=0)
+        else:
+            z = np.load(lpath)
+            z = ms.Tensor(z)
+            logger.info(f"Decoding latent of shape {z.shape} from {lpath}")
+            vid = vae_decode_from_diffusion_output(z)
 
         assert vid.shape[0] == 1
         fn = os.path.basename(lpath)[:-4]

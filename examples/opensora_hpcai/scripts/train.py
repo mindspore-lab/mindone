@@ -23,21 +23,23 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.datasets.t2v_dataset import create_dataloader
 from opensora.models.stdit.stdit import STDiT_XL_2
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss
 from opensora.schedulers.iddpm import create_diffusion
-from opensora.utils.model_utils import WHITELIST_OPS
+from opensora.utils.amp import auto_mixed_precision
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
+
+# from opensora.utils.model_utils import WHITELIST_OPS
+
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -53,6 +55,7 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    global_bf16: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -73,7 +76,6 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            # ascend_config={"precision_mode": "must_keep_origin_dtype"},  # TODO: tune
         )
         if parallel_mode == "optim":
             print("use optim parallel")
@@ -111,7 +113,11 @@ def init_env(
 
     if enable_dvm:
         print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
+        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+
+    if global_bf16:
+        ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
     return rank_id, device_num
 
@@ -147,6 +153,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
+        global_bf16=args.global_bf16,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -168,6 +175,7 @@ def main(args):
         patchify_conv3d_replace="conv2d",  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
+        num_recompute_blocks=args.num_recompute_blocks,
     )
     logger.info(f"STDiT input size: {input_size}")
     latte_model = STDiT_XL_2(**model_extra_args)
@@ -175,9 +183,13 @@ def main(args):
     # mixed precision
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
-        latte_model = auto_mixed_precision(
-            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
-        )
+        if not args.global_bf16:
+            latte_model = auto_mixed_precision(
+                latte_model,
+                amp_level=args.amp_level,
+                dtype=dtype_map[args.dtype],
+                # custom_fp32_cells=WHITELIST_OPS
+            )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
@@ -195,13 +207,21 @@ def main(args):
             SD_CONFIG,
             VAE_Z_CH,
             ckpt_path=args.vae_checkpoint,
-            use_fp16=False,
         )
         vae = vae.set_train(False)
         for param in vae.get_parameters():
             param.requires_grad = False
+            if args.vae_param_dtype in ["fp16", "bf16"]:
+                # filter out norm
+                if "norm" not in param.name:
+                    param.set_dtype(dtype_map[args.vae_param_dtype])
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+            vae = auto_mixed_precision(
+                vae,
+                amp_level=args.vae_amp_level,
+                dtype=dtype_map[args.vae_dtype],
+                custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
+            )
     else:
         vae = None
 
@@ -218,6 +238,7 @@ def main(args):
         cond_stage_trainable=False,
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
+        micro_batch_size=args.vae_micro_batch_size,
     )
 
     # 3. create dataset
@@ -368,7 +389,11 @@ def main(args):
         ema=ema,
     )
 
-    model = Model(net_with_grads)
+    if args.global_bf16:
+        model = Model(net_with_grads, amp_level="O0")
+    else:
+        model = Model(net_with_grads)
+
     # callbacks
     callback = [TimeMonitor(args.log_interval)]
     ofm_cb = OverflowMonitor()
@@ -392,7 +417,7 @@ def main(args):
         )
         callback.append(save_cb)
         if args.profile:
-            callback.append(ProfilerCallback())
+            callback.append(ProfilerCallbackEpoch(2, 3, "./profile_data"))
 
     # 5. log and save config
     if rank_id == 0:

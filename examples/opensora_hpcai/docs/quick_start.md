@@ -4,20 +4,20 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
 - [x] STDiT implementation and inference
     - [x] refactor Masked MultiHeadCrossAttention without xformers
     - [ ] more efficient masking and attention computation for text tokens with dynamic length.
-- [ ] Text-to-video generation pipeline (to be refactored)
+- [x] Text-to-video generation pipeline (to be refactored)
     - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
     - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
-    - [ ] Mixed precision optimization (BF16) on Ascend
+    - [x] Mixed precision optimization (BF16) on Ascend
     - [x] Flash attention optimization on Ascend
-- [ ] Image/Video-to-video generation pipeline (to be refactored)
+- [x] Image/Video-to-video generation pipeline (to be refactored)
     - [x] Video generation in FP32 precision on Ascend 910*.
-    - [ ] Mixed precision optimization (FP16 and BF16) on Ascend.
+    - [x] Mixed precision optimization (FP16 and BF16) on Ascend.
 - [ ] Training
     - [x] Text embedding-cached STDiT training on GPUs and Ascends
         - [x] small dataset
         - [x] train with long frames, up to **512x512x300**
     - [ ] Training with online T5-embedding
-    - [ ] Train in BF16 precision
+    - [x] Train in BF16 precision
     - [ ] Zero2 and sequence-parallel training
 
 
@@ -164,13 +164,15 @@ Please change `csv_path` to your video-caption annotation file accordingly.
 ```
 python scripts/infer_vae.py\
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
-    --output_dir ../videocomposer/datasets/webvid5_vae_256x256 \
+    --output_path ../videocomposer/datasets/webvid5_vae_256x256 \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \    # or sd-vae-ft-mse.ckpt
     --video_folder ../videocomposer/datasets/webvid5  \
     --image_size 256 \
 ```
 
 After running, the vae latents saved as npz file for each video will be in `output_dir`.
+
+For parallel inference, please refer to `scripts/run/run_infer_vae_parallel.sh`
 
 
 ### 3. Train STDiT

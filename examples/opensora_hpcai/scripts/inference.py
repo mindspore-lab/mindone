@@ -10,6 +10,8 @@ import numpy as np
 import yaml
 
 import mindspore as ms
+from mindspore import nn
+from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
@@ -18,12 +20,12 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.models.stdit import STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
+from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
 
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
@@ -32,23 +34,90 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
-def init_env(mode, device_target, enable_dvm=False, debug: bool = False):
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    enable_dvm: bool = False,
+    debug: bool = False,
+):
+    """
+    Initialize MindSpore environment.
+
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
     if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
 
-    ms.set_context(
-        mode=mode,
-        device_target=device_target,
-        pynative_synchronize=debug,
-    )
+    if distributed:
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+        init()
+        device_num = get_group_size()
+        rank_id = get_rank()
+        logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+        ms.reset_auto_parallel_context()
+
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            gradients_mean=True,
+            device_num=device_num,
+        )
+    else:
+        device_num = 1
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            pynative_synchronize=debug,
+        )
+
     if enable_dvm:
-        ms.set_context(enable_graph_kernel=True)
+        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+
+    return rank_id, device_num
+
+
+# split captions or t5-embedding according to rank_num and rank_id
+def data_parallel_split(x, device_id, device_num):
+    n = len(x)
+    shard_size = n // device_num
+    if device_id is None:
+        device_id = 0
+    base_data_idx = device_id * shard_size
+
+    if device_num in [None, 1]:
+        shard = x
+    if device_id == device_num - 1:
+        shard = x[device_id * shard_size :]
+    else:
+        shard = x[device_id * shard_size : (device_id + 1) * shard_size]
+
+    return shard, base_data_idx
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"{args.output_path}/{time_str}"
+    if args.append_timestr:
+        time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        save_dir = f"{args.output_path}/{time_str}"
+    else:
+        save_dir = f"{args.output_path}"
+
     os.makedirs(save_dir, exist_ok=True)
     if args.save_latent:
         latent_dir = os.path.join(args.output_path, "denoised_latents")
@@ -56,10 +125,16 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    init_env(args.mode, args.device_target, args.enable_dvm, args.debug)
-    set_random_seed(args.seed)
+    rank_id, device_num = init_env(
+        args.mode,
+        args.seed,
+        args.use_parallel,
+        device_target=args.device_target,
+        enable_dvm=args.enable_dvm,
+        debug=args.debug,
+    )
 
-    # get captions from cfg or prompt_path
+    # 1.1 get captions from cfg or prompt_path
     if args.prompt_path is not None:
         if args.prompt_path.endswith(".csv"):
             captions = read_captions_from_csv(args.prompt_path)
@@ -67,6 +142,10 @@ def main(args):
             captions = read_captions_from_txt(args.prompt_path)
     else:
         captions = args.captions
+
+    # split for data parallel
+    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)
+    print(f"Num captions for rank {rank_id}: {len(captions)}")
 
     # 2. model initiate and weight loading
     # 2.1 latte
@@ -118,11 +197,15 @@ def main(args):
             SD_CONFIG,
             VAE_Z_CH,
             ckpt_path=args.vae_checkpoint,
-            use_fp16=False,
         )
         vae = vae.set_train(False)
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+            vae = auto_mixed_precision(
+                vae,
+                amp_level=args.amp_level,
+                dtype=dtype_map[args.vae_dtype],
+                custom_fp32_cells=[nn.GroupNorm],
+            )
     else:
         vae = None
 
@@ -136,6 +219,7 @@ def main(args):
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
     else:
+        assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
@@ -228,7 +312,7 @@ def main(args):
         if x_samples is not None:
             x_samples = x_samples.asnumpy()
         for j in range(ns):
-            global_idx = i + j
+            global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
                 prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
@@ -329,6 +413,7 @@ def parse_args():
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
@@ -372,6 +457,12 @@ def parse_args():
         type=str,
         default="samples",
         help="output dir to save the generated videos",
+    )
+    parser.add_argument(
+        "--append_timestr",
+        type=str2bool,
+        default=True,
+        help="If true, an subfolder named with timestamp under output_path will be created to save the sampling results",
     )
     parser.add_argument(
         "--save_format",
