@@ -6,6 +6,7 @@ python opensora/train/train_t2v.py \
     --ae_path LanguageBind/Open-Sora-Plan-v1.0.0 \
     --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
     --video_folder /remote-home1/dataset/data_split_tt \
+    --text_embed_folder /path/to/text-embed-folder \
     --sample_rate 1 \
     --num_frames 65 \
     --max_image_size 256 \
@@ -20,7 +21,7 @@ python opensora/train/train_t2v.py \
     --lr_warmup_steps=0 \
     --precision="fp16" \
     --checkpointing_steps=500 \
-    --output_dir="t2v-f17-256-img4-videovae488-fp16-ckpt-xformers-bs4-lr2e-5-t5" \
+    --output_dir="t2v-f65-256-img4-videovae488-bf16-ckpt-xformers-bs4-lr2e-5-t5" \
     --pretrained path/to/ckpt/from/last/stage \
     --model_max_length 300 \
     --use_image_num 4 \

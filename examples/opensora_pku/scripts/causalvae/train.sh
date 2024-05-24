@@ -1,3 +1,5 @@
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
 python opensora/train/train_causalvae.py \
     --exp_name "exp_name" \
     --batch_size 1 \
@@ -10,4 +12,4 @@ python opensora/train/train_causalvae.py \
     --resolution 256 \
     --sample_rate 1 \
     --num_parallel_workers 8 \
-    --load_from_checkpoint ./results/pretrained_488/
+    --load_from_checkpoint pretrained/causal_vae_488_init.ckpt

@@ -206,6 +206,10 @@ def warn_deprecated_model_variant(pretrained_model_name_or_path, token, variant,
 
 def _unwrap_model(model):
     """Unwraps a model."""
+    from mindone.diffusers._peft import PeftModel
+
+    if isinstance(model, PeftModel):
+        model = model.base_model.model
     return model
 
 

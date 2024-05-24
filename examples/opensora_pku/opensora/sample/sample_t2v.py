@@ -22,13 +22,14 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.ae import ae_stride_config, getae_model_config, getae_wrapper
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.utils.utils import _check_cfgs_in_parser
+from opensora.utils.utils import _check_cfgs_in_parser, get_precision
 from pipeline_videogen import VideoGenPipeline
 
-from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler
+from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -134,7 +135,7 @@ def parse_args():
 
     parser.add_argument("--guidance_scale", type=float, default=7.5, help="the scale for classifier-free guidance")
 
-    parser.add_argument("--sample_method", type=str, default="DDPM")
+    parser.add_argument("--sample_method", type=str, default="PNDM")
     parser.add_argument("--num_sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--fps", type=int, default=24)
     parser.add_argument(
@@ -147,22 +148,15 @@ def parse_args():
     parser.add_argument(
         "--force_images", default=False, type=str2bool, help="Whether to generate images given text prompts"
     )
+    parser.add_argument("--enable_tiling", action="store_true", help="whether to use vae tiling to save memory")
     parser.add_argument(
-        "--enable_tiling", default=False, type=str2bool, help="whether to use vae tiling to save memory"
-    )
-    parser.add_argument(
-        "--image_size",
-        type=int,
-        default=256,
-        help="image size in [256, 512]",
+        "--enable_time_chunk",
+        type=str2bool,
+        default=False,
+        help="Whether to enable vae decoding to process temporal frames as small, overlapped chunks. Defaults to False.",
     )
 
     parser.add_argument("--batch_size", default=1, type=int, help="batch size for dataloader")
-    parser.add_argument("--token_max_length", type=int, default=120, help="the max length for the tokens")
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
-    )
-
     # MS new args
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
@@ -181,11 +175,25 @@ def parse_args():
         help="whether to enable flash attention. Default is False",
     )
     parser.add_argument(
-        "--dtype",
+        "--precision",
         default="fp16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--vae_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for vae. Default is `bf16`, which corresponds to ms.bfloat16",
+    )
+    parser.add_argument(
+        "--text_encoder_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
     )
     parser.add_argument(
         "--amp_level", type=str, default="O2", help="Set the amp level for the transformer model. Defaults to O2."
@@ -195,12 +203,6 @@ def parse_args():
         default=None,
         type=str,
         help="If specified, set the precision mode for Ascend configurations.",
-    )
-    parser.add_argument(
-        "--use_recompute",
-        default=False,
-        type=str2bool,
-        help="whether use recompute.",
     )
     parser.add_argument(
         "--num_videos_per_prompt", type=int, default=1, help="the number of images to be generated for each prompt"
@@ -214,12 +216,6 @@ def parse_args():
         "--decode_latents",
         action="store_true",
         help="whether to load the existing latents saved in npy files and run vae decoding",
-    )
-    parser.add_argument(
-        "--input_latents_dir",
-        type=str,
-        default="",
-        help="the directory where the latents in npy files are saved in. Only works when decode_latents is True.",
     )
     default_args = parser.parse_args()
     abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
@@ -251,66 +247,34 @@ if __name__ == "__main__":
         enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
     )
-    if args.precision_mode == "allow_fp32_to_fp16":
-        logger.warning(f"T5 model may produce wrong results under {args.precision_mode} precision mode!")
-    # 2. model initiate and weight loading
-    # 2.1 latte
-    logger.info(f"Latte-{args.version} init")
-    transformer_model = LatteT2V.from_pretrained_2d(
-        args.model_path,
-        subfolder=args.version,
-        enable_flash_attention=args.enable_flash_attention,
-        use_recompute=args.use_recompute,
-    )
-    ckpt_paths = glob.glob(os.path.join(args.model_path, args.version, "*.ckpt"))
-    assert len(ckpt_paths) > 0, f"No ckpt found under {os.path.join(args.model_path, args.version)}"
-    if len(ckpt_paths) > 1:
-        logger.warning(f"Multiple ckpts found under {os.path.join(args.model_path, args.version)}")
-    ckpt = ckpt_paths[0]
-    logger.info(f"Loading ckpt {ckpt} into LatteT2V")
-    transformer_model.load_from_checkpoint(ckpt)
-    transformer_model.force_images = args.force_images
-    # mixed precision
-    if args.dtype == "fp32":
-        model_dtype = ms.float32
-    else:
-        model_dtype = {"fp16": ms.float16, "bf16": ms.bfloat16}[args.dtype]
-        transformer_model = auto_mixed_precision(
-            transformer_model,
-            amp_level=args.amp_level,
-            dtype=model_dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
-        )
 
-    video_length, image_size = transformer_model.config.video_length, int(args.version.split("x")[1])
+    # 2. vae model initiate and weight loading
+    image_size = int(args.version.split("x")[1])
     latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
+    logger.info("vae init")
+    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
+    if args.enable_tiling:
+        vae.vae.enable_tiling()
+        vae.vae.tile_overlap_factor = args.tile_overlap_factor
+    # use amp level O2 for causal 3D VAE with bfloat16 or float16
+    vae_dtype = get_precision(args.vae_precision)
+    custom_fp32_cells = [TimeDownsample2x, TimeUpsample2x] if vae_dtype == ms.bfloat16 else [nn.GroupNorm]
+    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
+    vae.set_train(False)
+    for param in vae.get_parameters():  # freeze vae
+        param.requires_grad = False
+    vae.latent_size = latent_size
+
+    # 3. handle input text prompts
     if args.force_images:
         video_length = 1
         ext = "jpg"
     else:
-        ext = "gif" if not args.save_latents else "npy"  # save video as gif or save denoised latents as npy files.
+        ext = (
+            "gif" if not (args.save_latents or args.decode_latents) else "npy"
+        )  # save video as gif or save denoised latents as npy files.
 
-    transformer_model = transformer_model.set_train(False)
-    for param in transformer_model.get_parameters():  # freeze transformer_model
-        param.requires_grad = False
-
-    # 2.2 vae
-    logger.info("vae init")
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
-    if args.enable_tiling:
-        raise NotImplementedError
-        # vae.vae.enable_tiling()
-        # vae.vae.tile_overlap_factor = args.tile_overlap_factor
-    vae.set_train(False)
-
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=ms.float16)
-    logger.info("Use amp level O2 for causal 3D VAE.")
-
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
-    vae.latent_size = (latent_size, latent_size)
-
-    # parse the caption input
     if not isinstance(args.text_prompt, list):
         args.text_prompt = [args.text_prompt]
     # if input is a text file, where each line is a caption, load it into a list
@@ -357,40 +321,79 @@ if __name__ == "__main__":
 
     if args.decode_latents:
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
-            file_paths = data["path"]
+            file_paths = data["file_path"]
             loaded_latents = []
             for i_sample in range(args.batch_size):
-                save_fp = os.path.join(args.input_latent_dir, file_paths[i_sample])
+                save_fp = os.path.join(save_dir, file_paths[i_sample])
                 assert os.path.exists(
                     save_fp
-                ), f"{save_fp} does not exist! Please check the `input_latents_dir` or check if you run `--save_latents` ahead."
+                ), f"{save_fp} does not exist! Please check the npy files under {save_dir} or check if you run `--save_latents` ahead."
                 loaded_latents.append(np.load(save_fp))
-            loaded_latents = np.stack(loaded_latents)
-            decode_data = vae.decode(ms.Tensor(loaded_latents) / args.sd_scale_factor)
+            loaded_latents = (
+                np.stack(loaded_latents) if loaded_latents[0].ndim == 4 else np.concatenate(loaded_latents, axis=0)
+            )
+            decode_data = (
+                vae.decode(ms.Tensor(loaded_latents)).permute(0, 1, 3, 4, 2).to(ms.float32)
+            )  # (b t c h w) -> (b t h w c)
             decode_data = ms.ops.clip_by_value(
                 (decode_data + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0
             ).asnumpy()
             for i_sample in range(args.batch_size):
                 save_fp = os.path.join(save_dir, file_paths[i_sample]).replace(".npy", ".gif")
-                save_video_data = decode_data[i_sample : i_sample + 1].transpose(
-                    0, 2, 3, 4, 1
-                )  # (b c t h w) -> (b t h w c)
-                save_videos(save_video_data, save_fp, loop=0, fps=args.fps)
+                save_video_data = decode_data[i_sample : i_sample + 1]
+                save_videos(save_video_data, save_fp, loop=0, fps=args.fps)  # (b t h w c)
         sys.exit()
+
+    # 4. latte model initiate and weight loading
+    logger.info(f"Latte-{args.version} init")
+    transformer_model = LatteT2V.from_pretrained(
+        args.model_path,
+        subfolder=args.version,
+        enable_flash_attention=args.enable_flash_attention,
+    )
+    transformer_model.force_images = args.force_images
+    # mixed precision
+    dtype = get_precision(args.precision)
+    if args.precision in ["fp16", "bf16"]:
+        amp_level = "O2"
+        transformer_model = auto_mixed_precision(
+            transformer_model,
+            amp_level=args.amp_level,
+            dtype=dtype,
+            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+        )
+        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+    elif args.precision == "fp32":
+        amp_level = "O0"
+    else:
+        raise ValueError(f"Unsupported precision {args.precision}")
+
+    transformer_model = transformer_model.set_train(False)
+    for param in transformer_model.get_parameters():  # freeze transformer_model
+        param.requires_grad = False
+    video_length = transformer_model.config.video_length
 
     logger.info("T5 init")
     text_encoder = T5Embedder(
         dir_or_name=args.text_encoder_name,
         cache_dir="./",
-        model_max_length=args.token_max_length,
     )
     tokenizer = text_encoder.tokenizer
+    # mixed precision
+    text_encoder_dtype = get_precision(args.text_encoder_precision)
+    text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
+    text_encoder.dtype = text_encoder_dtype
+    logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
 
     # 3. build inference pipeline
     if args.sample_method == "DDIM":
         scheduler = DDIMScheduler()
     elif args.sample_method == "DDPM":
         scheduler = DDPMScheduler()
+    elif args.sample_method == "PNDM":
+        scheduler = PNDMScheduler()
+    elif args.sample_method == "EulerDiscrete":
+        scheduler = EulerDiscreteScheduler()
     else:
         raise ValueError(f"Not supported sampling method {args.sample_method}")
 
@@ -401,7 +404,7 @@ if __name__ == "__main__":
         tokenizer=tokenizer,
         scheduler=scheduler,
         transformer=transformer_model,
-        vae_scale_factor=args.sd_scale_factor,
+        enable_time_chunk=args.enable_time_chunk,
     )
 
     # 4. print key info
@@ -416,7 +419,7 @@ if __name__ == "__main__":
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use model dtype: {model_dtype}",
+            f"Use model dtype: {dtype}",
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
@@ -430,17 +433,21 @@ if __name__ == "__main__":
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         prompt = [x for x in data["caption"]]
         file_paths = data["file_path"]
-        videos = pipeline(
-            prompt,
-            video_length=video_length,
-            height=image_size,
-            width=image_size,
-            num_inference_steps=args.num_sampling_steps,
-            guidance_scale=args.guidance_scale,
-            enable_temporal_attentions=not args.force_images,
-            mask_feature=False,
-            output_type="latents" if args.save_latents else "pil",
-        ).video.asnumpy()
+        videos = (
+            pipeline(
+                prompt,
+                video_length=video_length,
+                height=image_size,
+                width=image_size,
+                num_inference_steps=args.num_sampling_steps,
+                guidance_scale=args.guidance_scale,
+                enable_temporal_attentions=not args.force_images,
+                mask_feature=False,
+                output_type="latents" if args.save_latents else "pil",
+            )
+            .video.to(ms.float32)
+            .asnumpy()
+        )
         for i_sample in range(args.batch_size):
             file_path = os.path.join(save_dir, file_paths[i_sample])
             assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
@@ -448,11 +455,11 @@ if __name__ == "__main__":
                 np.save(file_path, videos[i_sample : i_sample + 1])
             else:
                 if args.force_images:
-                    image = videos[i_sample, :, 0].permute(1, 2, 0)  # (b c t h w)  ->(c, h, w) -> (h, w, c)
+                    image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
                     image = (image * 255).round().clip(0, 255).astype(np.uint8)
                     Image.from_numpy(image).save(file_path)
                 else:
-                    videos = videos[i_sample : i_sample + 1].transpose(0, 2, 3, 4, 1)  # (b c t h w) -> (b t h w c)
+                    save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
                     save_videos(save_video_data, file_path, loop=0, fps=args.fps)
     end_time = time.time()
     time_cost = end_time - start_time
@@ -465,6 +472,6 @@ if __name__ == "__main__":
         os.remove(temp_dataset_csv)
 
     if args.decode_latents:
-        npy_files = glob.glob(os.path.join(args.input_latent_dir, "*.npy"))
+        npy_files = glob.glob(os.path.join(save_dir, "*.npy"))
         for fp in npy_files:
             os.remove(fp)

@@ -161,7 +161,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         """
         Whether gradient checkpointing is activated for this model or not.
         """
-        return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for m in self.cells())
+        return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for _, m in self.cells_and_names())
 
     def enable_gradient_checkpointing(self) -> None:
         """
@@ -181,13 +181,57 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             self.apply(partial(self._set_gradient_checkpointing, value=False))
 
     def set_use_memory_efficient_attention_xformers(self, valid: bool, attention_op: Optional[Callable] = None) -> None:
-        raise NotImplementedError
+        # Recursively walk through all the children.
+        # Any children which exposes the set_use_memory_efficient_attention_xformers method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "set_use_memory_efficient_attention_xformers"):
+                module.set_use_memory_efficient_attention_xformers(valid, attention_op)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        for module in self.cells():
+            if isinstance(module, nn.Cell):
+                fn_recursive_set_mem_eff(module)
 
     def enable_xformers_memory_efficient_attention(self, attention_op: Optional[Callable] = None) -> None:
-        raise NotImplementedError
+        r"""
+        Enable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).
+
+        When this option is enabled, you should observe lower GPU memory usage and a potential speed up during
+        inference. Speed up during training is not guaranteed.
+
+        <Tip warning={true}>
+
+        ⚠️ When memory efficient attention and sliced attention are both enabled, memory efficient attention takes
+        precedent.
+
+        </Tip>
+
+        Parameters:
+            attention_op (`Callable`, *optional*):
+                Not supported for now.
+
+        Examples:
+
+        ```py
+        >>> import mindspore as ms
+        >>> from mindone.diffusers import UNet2DConditionModel
+
+        >>> model = UNet2DConditionModel.from_pretrained(
+        ...     "stabilityai/stable-diffusion-2-1", subfolder="unet", mindspore_dtype=ms.float16
+        ... )
+        >>> model.enable_xformers_memory_efficient_attention()
+        ```
+        """
+        self.set_use_memory_efficient_attention_xformers(True, attention_op)
 
     def disable_xformers_memory_efficient_attention(self) -> None:
-        raise NotImplementedError
+        r"""
+        Disable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).
+        """
+        self.set_use_memory_efficient_attention_xformers(False)
 
     def save_pretrained(
         self,
@@ -248,7 +292,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             model_to_save.save_config(save_directory)
 
         # Save the model
-        state_dict = model_to_save.parameters_dict()
+        state_dict = {k: v for k, v in model_to_save.parameters_and_names()}
 
         weights_name = SAFETENSORS_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
         weights_name = _add_variant(weights_name, variant)
@@ -489,7 +533,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     ):
         state_dict = _convert_state_dict(model, state_dict)
         # Retrieve missing & unexpected_keys
-        model_state_dict = model.parameters_dict()
+        model_state_dict = {k: v for k, v in model.parameters_and_names()}
         loaded_keys = list(state_dict.keys())
 
         expected_keys = list(model_state_dict.keys())

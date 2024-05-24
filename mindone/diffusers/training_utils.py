@@ -1,11 +1,16 @@
 import random
+from typing import Dict, List, Union
 
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import nn, ops
 from mindspore.common.api import _function_forbid_reuse
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
+
+from mindone.diffusers._peft import set_peft_model_state_dict
+
+from .utils import convert_state_dict_to_diffusers, convert_state_dict_to_peft
 
 
 def set_seed(seed=42, rank=0):
@@ -59,6 +64,33 @@ def compute_snr(noise_scheduler, timesteps):
     # Compute SNR.
     snr = (alpha / sigma) ** 2
     return snr
+
+
+def cast_training_params(model: Union[nn.Cell, List[nn.Cell]], dtype=ms.float32):
+    if not isinstance(model, list):
+        model = [model]
+    for m in model:
+        for param in m.get_parameters():
+            # only upcast trainable parameters into fp32
+            if param.requires_grad:
+                param.set_dtype(dtype)
+
+
+def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], prefix: str, text_encoder: nn.Cell):
+    """
+    Sets the `lora_state_dict` into `text_encoder` coming from `transformers`.
+
+    Args:
+        lora_state_dict: The state dictionary to be set.
+        prefix: String identifier to retrieve the portion of the state dict that belongs to `text_encoder`.
+        text_encoder: Where the `lora_state_dict` is to be set.
+    """
+
+    text_encoder_state_dict = {
+        f'{k.replace(prefix, "")}': v for k, v in lora_state_dict.items() if k.startswith(prefix)
+    }
+    text_encoder_state_dict = convert_state_dict_to_peft(convert_state_dict_to_diffusers(text_encoder_state_dict))
+    set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
 
 
 @_function_forbid_reuse

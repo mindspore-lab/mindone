@@ -23,6 +23,7 @@ import random
 import shutil
 from pathlib import Path
 
+import datasets
 import numpy as np
 import yaml
 from datasets import load_dataset
@@ -392,9 +393,6 @@ def parse_args():
     assert args.use_ema is False, error_template("Exponential Moving Average", "use_ema")
     assert args.allow_tf32 is False, error_template("TF32 Data Type", "allow_tf32")
     assert args.use_8bit_adam is False, error_template("AdamW8bit", "use_8bit_adam")
-    assert args.enable_xformers_memory_efficient_attention is False, error_template(
-        "Memory Efficient Attention from 'xformers'", "enable_xformers_memory_efficient_attention"
-    )
     if args.push_to_hub is True:
         raise ValueError(
             "You cannot use --push_to_hub due to a security risk of uploading your data to huggingface-hub. "
@@ -418,6 +416,7 @@ def main():
         datefmt="%m/%d/%Y %H:%M:%S",
         level=logging.INFO,
     )
+    datasets.utils.logging.get_logger().propagate = False
 
     # If passed along, set the training seed now.
     if args.seed is not None:
@@ -471,7 +470,10 @@ def main():
     text_encoder.to(dtype=weight_dtype)
     vae.to(dtype=weight_dtype)
 
-    # TODO: support EMA, xformers_memory_efficient_attention, TF32, AdamW8bit
+    # TODO: support EMA, TF32, AdamW8bit
+
+    if args.enable_xformers_memory_efficient_attention:
+        unet.enable_xformers_memory_efficient_attention()
 
     if args.gradient_checkpointing:
         unet.enable_gradient_checkpointing()
@@ -706,7 +708,7 @@ def main():
             # Get the most recent checkpoint
             dirs = os.listdir(args.output_dir)
             dirs = [d for d in dirs if d.startswith("checkpoint")]
-            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1].split(".")[0]))
+            dirs = sorted(dirs, key=lambda x: int(x.split("-")[1]))
             path = dirs[-1] if len(dirs) > 0 else None
 
         if path is None:
@@ -717,9 +719,10 @@ def main():
         else:
             if is_master(args):
                 logger.info(f"Resuming from checkpoint {path}")
-            state_dict = ms.load_checkpoint(os.path.join(args.output_dir, path))
-            ms.load_param_into_net(unet, state_dict)
-            global_step = int(path.split("-")[1].split(".")[0])
+            # TODO: load optimizer & grad scaler etc. like accelerator.load_state
+            input_model_file = os.path.join(args.output_dir, path, "pytorch_model.ckpt")
+            ms.load_param_into_net(unet, ms.load_checkpoint(input_model_file))
+            global_step = int(path.split("-")[1])
 
             initial_global_step = global_step
             first_epoch = global_step // num_update_steps_per_epoch
@@ -739,12 +742,13 @@ def main():
         disable=not is_master(args),
     )
 
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.set_train(True)
         for step, batch in (
             ((_, None) for _ in range(len(train_dataloader)))  # dummy iterator
             if args.enable_mindspore_data_sink
-            else enumerate(train_dataloader.create_tuple_iterator())
+            else enumerate(train_dataloader_iter)
         ):
             if args.enable_mindspore_data_sink:
                 loss = sink_process()
@@ -763,7 +767,7 @@ def main():
                     if args.checkpoints_total_limit is not None:
                         checkpoints = os.listdir(args.output_dir)
                         checkpoints = [d for d in checkpoints if d.startswith("checkpoint")]
-                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1].split(".")[0]))
+                        checkpoints = sorted(checkpoints, key=lambda x: int(x.split("-")[1]))
 
                         # before we save the new checkpoint, we need to have at _most_ `checkpoints_total_limit - 1` checkpoints
                         if len(checkpoints) >= args.checkpoints_total_limit:
@@ -780,7 +784,10 @@ def main():
                                 shutil.rmtree(removing_checkpoint)
 
                     save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
-                    ms.save_checkpoint(unet, save_path)
+                    # TODO: save optimizer & grad scaler etc. like accelerator.save_state
+                    os.makedirs(save_path, exist_ok=True)
+                    output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
+                    ms.save_checkpoint(unet, output_model_file)
                     logger.info(f"Saved state to {save_path}")
 
             logs = {"step_loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}

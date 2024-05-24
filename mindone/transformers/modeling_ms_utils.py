@@ -47,6 +47,8 @@ from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import nn, ops
 
+from .integrations import PeftAdapterMixin
+
 if is_safetensors_available():
     from safetensors import safe_open
 
@@ -273,9 +275,7 @@ class ModuleUtilsMixin:
         # Since we are adding it to the raw scores before the softmax, this is
         # effectively the same as removing these entirely.
         extended_attention_mask = extended_attention_mask.to(dtype)  # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * Tensor(
-            np.finfo(mstype.dtype_to_nptype(self.dtype)).min
-        )
+        extended_attention_mask = (1.0 - extended_attention_mask) * Tensor(np.finfo(mstype.dtype_to_nptype(dtype)).min)
         return extended_attention_mask
 
     def get_head_mask(
@@ -317,7 +317,7 @@ class ModuleUtilsMixin:
         return head_mask
 
 
-class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
+class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
     r"""
     Base class for all models.
 
@@ -1089,7 +1089,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin):
                     mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
                 elif isinstance(cell, nn.Embedding):
                     if "shared" in name:
-                        if "decoder" in loaded_keys:
+                        str_loaded_keys = "".join(loaded_keys)
+                        if "decoder" in str_loaded_keys:
                             mappings[f"{name}.weight"] = (
                                 "decoder.embed_tokens.embedding_table",
                                 lambda x: x,
