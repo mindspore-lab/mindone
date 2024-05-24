@@ -263,8 +263,12 @@ def main(args):
     # resume ckpt
     ckpt_dir = os.path.join(args.output_dir, "ckpt")
     start_epoch = 0
-    if args.resume:
-        resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
+    if args.resume_from_checkpoint:
+        resume_ckpt = (
+            os.path.join(ckpt_dir, "train_resume.ckpt")
+            if isinstance(args.resume_from_checkpoint, bool)
+            else args.resume_from_checkpoint
+        )
 
         start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
             latte_model, optimizer, resume_ckpt
