@@ -353,9 +353,9 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 256x256     |   1.8     |
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   65 + 4    | 256x256     |   4.5     |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   17 + 4    | 512x512     |           |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 512x512     |           |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512     |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   17 + 4    | 512x512     |   3.6     |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 512x512     |   7.5     |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512     |   16.5    |
 
 
 ## 👍 Acknowledgement
