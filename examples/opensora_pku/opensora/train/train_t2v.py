@@ -237,7 +237,7 @@ def main(args):
         name=args.lr_scheduler,
         lr=args.start_learning_rate,
         end_lr=args.end_learning_rate,
-        warmup_steps=args.warmup_steps,
+        warmup_steps=args.lr_warmup_steps,
         decay_steps=args.lr_decay_steps,
         num_epochs=args.epochs,
     )
