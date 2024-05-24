@@ -68,7 +68,7 @@ def main(args):
         mempool_block_size=args.mempool_block_size,
         global_bf16=args.global_bf16,
     )
-    set_logger(output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:
         raise NotImplementedError
 
@@ -260,7 +260,7 @@ def main(args):
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
-    ckpt_dir = os.path.join(args.output_path, "ckpt")
+    ckpt_dir = os.path.join(args.output_dir, "ckpt")
     start_epoch = 0
     if args.resume:
         resume_ckpt = os.path.join(ckpt_dir, "train_resume.ckpt") if isinstance(args.resume, bool) else args.resume
@@ -305,7 +305,7 @@ def main(args):
     if args.parallel_mode == "optim":
         cb_rank_id = None
         ckpt_save_dir = os.path.join(ckpt_dir, f"rank_{rank_id}")
-        output_dir = os.path.join(args.output_path, "log", f"rank_{rank_id}")
+        output_dir = os.path.join(args.output_dir, "log", f"rank_{rank_id}")
         if args.ckpt_max_keep != 1:
             logger.warning("For semi-auto parallel training, the `ckpt_max_keep` is force to be 1.")
         ckpt_max_keep = 1
@@ -384,7 +384,7 @@ def main(args):
 
         logger.info("Start training...")
 
-        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
+        with open(os.path.join(args.output_dir, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
@@ -451,8 +451,6 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--caption_column", default="cap", type=str, help="name of column for captions saved in csv file"
     )
-    parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
-    parser.add_argument("--enable_tiling", action="store_true")
 
     return parser
 

@@ -13,9 +13,9 @@ use_image_num=4
 num_frames=17
 model_dtype="fp16"
 enable_flash_attention="True"
-batch_size = 4
+batch_size=4
 lr="2e-05"
-output_dir = t2v-f$num_frames-$image_size-videovae488-model_dtype-FA$enable_flash_attention-bs$batch_size-t5
+output_dir=t2v-f$num_frames-$image_size-videovae488-model_dtype-FA$enable_flash_attention-bs$batch_size-t5
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir opensora/train/train_t2v.py \
     --model LatteT2V-XL/122 \
