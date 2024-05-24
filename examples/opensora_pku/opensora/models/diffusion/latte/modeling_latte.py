@@ -506,7 +506,7 @@ class BasicTransformerBlock(nn.Cell):
             norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
 
         if self.use_ada_layer_norm_single:
-            norm_hidden_states = self.norm2(hidden_states)
+            norm_hidden_states = self.norm2_ln(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
 
         ff_output = self.ff(norm_hidden_states, scale=lora_scale)
