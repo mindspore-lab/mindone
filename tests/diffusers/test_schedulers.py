@@ -10,7 +10,7 @@ import torch
 import mindspore as ms
 import mindspore.nn as nn
 
-from mindone.diffusers.schedulers.scheduling_utils import SchedulerMixin
+from mindone.diffusers.schedulers.scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
 
 STEP_THR_FP16 = 1e-2
 STEP_THR_FP32 = 1e-4
@@ -85,8 +85,12 @@ def randn_tensor(
 
 
 def grab_all_schedulers():
+    karras_schedulers = {scheduler.name for scheduler in KarrasDiffusionSchedulers}
     maybe_schedulers = inspect.getmembers(sys.modules["mindone.diffusers.schedulers"], inspect.isclass)
-    schedulers = filter(lambda x: issubclass(x[1], SchedulerMixin) and x[0] != "SchedulerMixin", maybe_schedulers)
+    schedulers = filter(
+        lambda x: issubclass(x[1], SchedulerMixin) and x[0] in karras_schedulers and x[0] != "SchedulerMixin",
+        maybe_schedulers,
+    )
     return schedulers
 
 

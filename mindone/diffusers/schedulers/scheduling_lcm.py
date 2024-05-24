@@ -14,6 +14,7 @@
 
 # DISCLAIMER: This code is strongly influenced by https://github.com/pesser/pytorch_diffusion
 # and https://github.com/hojonathanho/diffusion
+
 import math
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
@@ -24,14 +25,15 @@ import mindspore as ms
 from mindspore import ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
-from ..utils import BaseOutput
+from ..utils import BaseOutput, logging
 from ..utils.mindspore_utils import randn_tensor
-from .scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
+from .scheduling_utils import SchedulerMixin
+
+logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 @dataclass
-# Copied from diffusers.schedulers.scheduling_ddpm.DDPMSchedulerOutput with DDPM->DDIM
-class DDIMSchedulerOutput(BaseOutput):
+class LCMSchedulerOutput(BaseOutput):
     """
     Output class for the scheduler's `step` function output.
 
@@ -45,7 +47,7 @@ class DDIMSchedulerOutput(BaseOutput):
     """
 
     prev_sample: ms.Tensor
-    pred_original_sample: Optional[ms.Tensor] = None
+    denoised: Optional[ms.Tensor] = None
 
 
 # Copied from diffusers.schedulers.scheduling_ddpm.betas_for_alpha_bar
@@ -83,7 +85,7 @@ def betas_for_alpha_bar(
             return math.exp(t * -12.0)
 
     else:
-        raise ValueError(f"Unsupported alpha_tranform_type: {alpha_transform_type}")
+        raise ValueError(f"Unsupported alpha_transform_type: {alpha_transform_type}")
 
     betas = []
     for i in range(num_diffusion_timesteps):
@@ -93,7 +95,8 @@ def betas_for_alpha_bar(
     return ms.tensor(betas, dtype=ms.float32)
 
 
-def rescale_zero_terminal_snr(betas):
+# Copied from diffusers.schedulers.scheduling_ddim.rescale_zero_terminal_snr
+def rescale_zero_terminal_snr(betas: ms.Tensor) -> ms.Tensor:
     """
     Rescales betas to have zero terminal SNR Based on https://arxiv.org/pdf/2305.08891.pdf (Algorithm 1)
 
@@ -129,13 +132,15 @@ def rescale_zero_terminal_snr(betas):
     return betas
 
 
-class DDIMScheduler(SchedulerMixin, ConfigMixin):
+class LCMScheduler(SchedulerMixin, ConfigMixin):
     """
-    `DDIMScheduler` extends the denoising procedure introduced in denoising diffusion probabilistic models (DDPMs) with
+    `LCMScheduler` extends the denoising procedure introduced in denoising diffusion probabilistic models (DDPMs) with
     non-Markovian guidance.
 
-    This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. Check the superclass documentation for the generic
-    methods the library implements for all schedulers such as loading and saving.
+    This model inherits from [`SchedulerMixin`] and [`ConfigMixin`]. [`~ConfigMixin`] takes care of storing all config
+    attributes that are passed in the scheduler's `__init__` function, such as `num_train_timesteps`. They can be
+    accessed via `scheduler.config.num_train_timesteps`. [`SchedulerMixin`] provides general loading and saving
+    functionality via the [`SchedulerMixin.save_pretrained`] and [`~SchedulerMixin.from_pretrained`] functions.
 
     Args:
         num_train_timesteps (`int`, defaults to 1000):
@@ -149,6 +154,9 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
             `linear`, `scaled_linear`, or `squaredcos_cap_v2`.
         trained_betas (`np.ndarray`, *optional*):
             Pass an array of betas directly to the constructor to bypass `beta_start` and `beta_end`.
+        original_inference_steps (`int`, *optional*, defaults to 50):
+            The default number of inference steps used to generate a linearly-spaced timestep schedule, from which we
+            will ultimately take `num_inference_steps` evenly spaced timesteps to form the final timestep schedule.
         clip_sample (`bool`, defaults to `True`):
             Clip the predicted sample for numerical stability.
         clip_sample_range (`float`, defaults to 1.0):
@@ -173,32 +181,37 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         timestep_spacing (`str`, defaults to `"leading"`):
             The way the timesteps should be scaled. Refer to Table 2 of the [Common Diffusion Noise Schedules and
             Sample Steps are Flawed](https://huggingface.co/papers/2305.08891) for more information.
+        timestep_scaling (`float`, defaults to 10.0):
+            The factor the timesteps will be multiplied by when calculating the consistency model boundary conditions
+            `c_skip` and `c_out`. Increasing this will decrease the approximation error (although the approximation
+            error at the default of `10.0` is already pretty small).
         rescale_betas_zero_snr (`bool`, defaults to `False`):
             Whether to rescale the betas to have zero terminal SNR. This enables the model to generate very bright and
             dark samples instead of limiting it to samples with medium brightness. Loosely related to
             [`--offset_noise`](https://github.com/huggingface/diffusers/blob/74fd735eb073eb1d774b1ab4154a0876eb82f055/examples/dreambooth/train_dreambooth.py#L506).
     """
 
-    _compatibles = [e.name for e in KarrasDiffusionSchedulers]
     order = 1
 
     @register_to_config
     def __init__(
         self,
         num_train_timesteps: int = 1000,
-        beta_start: float = 0.0001,
-        beta_end: float = 0.02,
-        beta_schedule: str = "linear",
+        beta_start: float = 0.00085,
+        beta_end: float = 0.012,
+        beta_schedule: str = "scaled_linear",
         trained_betas: Optional[Union[np.ndarray, List[float]]] = None,
-        clip_sample: bool = True,
+        original_inference_steps: int = 50,
+        clip_sample: bool = False,
+        clip_sample_range: float = 1.0,
         set_alpha_to_one: bool = True,
         steps_offset: int = 0,
         prediction_type: str = "epsilon",
         thresholding: bool = False,
         dynamic_thresholding_ratio: float = 0.995,
-        clip_sample_range: float = 1.0,
         sample_max_value: float = 1.0,
         timestep_spacing: str = "leading",
+        timestep_scaling: float = 10.0,
         rescale_betas_zero_snr: bool = False,
     ):
         if trained_betas is not None:
@@ -234,7 +247,58 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
         # setable values
         self.num_inference_steps = None
-        self.timesteps = ms.Tensor(np.arange(0, num_train_timesteps)[::-1].copy().astype(np.int64))
+        self.timesteps = ms.tensor(np.arange(0, num_train_timesteps)[::-1].copy().astype(np.int64))
+        self.custom_timesteps = False
+
+        self._step_index = None
+        self._begin_index = None
+
+    # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler.index_for_timestep
+    def index_for_timestep(self, timestep, schedule_timesteps=None):
+        if schedule_timesteps is None:
+            schedule_timesteps = self.timesteps
+
+        if (schedule_timesteps == timestep).sum() > 1:
+            pos = 1
+        else:
+            pos = 0
+
+        # The sigma index that is taken for the **very** first `step`
+        # is always the second index (or the last index if there is only 1)
+        # This way we can ensure we don't accidentally skip a sigma in
+        # case we start in the middle of the denoising schedule (e.g. for image-to-image)
+        indices = (schedule_timesteps == timestep).nonzero()
+
+        return int(indices[pos])
+
+    # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._init_step_index
+    def _init_step_index(self, timestep):
+        if self.begin_index is None:
+            self._step_index = self.index_for_timestep(timestep)
+        else:
+            self._step_index = self._begin_index
+
+    @property
+    def step_index(self):
+        return self._step_index
+
+    @property
+    def begin_index(self):
+        """
+        The index for the first timestep. It should be set from pipeline with `set_begin_index` method.
+        """
+        return self._begin_index
+
+    # Copied from diffusers.schedulers.scheduling_dpmsolver_multistep.DPMSolverMultistepScheduler.set_begin_index
+    def set_begin_index(self, begin_index: int = 0):
+        """
+        Sets the begin index for the scheduler. This function should be run from pipeline before the inference.
+
+        Args:
+            begin_index (`int`):
+                The begin index for the scheduler.
+        """
+        self._begin_index = begin_index
 
     def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         """
@@ -246,22 +310,11 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 The input sample.
             timestep (`int`, *optional*):
                 The current timestep in the diffusion chain.
-
         Returns:
             `ms.Tensor`:
                 A scaled input sample.
         """
         return sample
-
-    def _get_variance(self, timestep, prev_timestep):
-        alpha_prod_t = self.alphas_cumprod[timestep]
-        alpha_prod_t_prev = self.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.final_alpha_cumprod
-        beta_prod_t = 1 - alpha_prod_t
-        beta_prod_t_prev = 1 - alpha_prod_t_prev
-
-        variance = (beta_prod_t_prev / beta_prod_t) * (1 - alpha_prod_t / alpha_prod_t_prev)
-
-        return variance
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler._threshold_sample
     def _threshold_sample(self, sample: ms.Tensor) -> ms.Tensor:
@@ -297,62 +350,163 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
         return sample
 
-    def set_timesteps(self, num_inference_steps: int):
+    def set_timesteps(
+        self,
+        num_inference_steps: Optional[int] = None,
+        original_inference_steps: Optional[int] = None,
+        timesteps: Optional[List[int]] = None,
+        strength: int = 1.0,
+    ):
         """
         Sets the discrete timesteps used for the diffusion chain (to be run before inference).
 
         Args:
-            num_inference_steps (`int`):
-                The number of diffusion steps used when generating samples with a pre-trained model.
+            num_inference_steps (`int`, *optional*):
+                The number of diffusion steps used when generating samples with a pre-trained model. If used,
+                `timesteps` must be `None`.
+            original_inference_steps (`int`, *optional*):
+                The original number of inference steps, which will be used to generate a linearly-spaced timestep
+                schedule (which is different from the standard `diffusers` implementation). We will then take
+                `num_inference_steps` timesteps from this schedule, evenly spaced in terms of indices, and use that as
+                our final timestep schedule. If not set, this will default to the `original_inference_steps` attribute.
+            timesteps (`List[int]`, *optional*):
+                Custom timesteps used to support arbitrary spacing between timesteps. If `None`, then the default
+                timestep spacing strategy of equal spacing between timesteps on the training/distillation timestep
+                schedule is used. If `timesteps` is passed, `num_inference_steps` must be `None`.
         """
+        # 0. Check inputs
+        if num_inference_steps is None and timesteps is None:
+            raise ValueError("Must pass exactly one of `num_inference_steps` or `custom_timesteps`.")
 
-        if num_inference_steps > self.config.num_train_timesteps:
+        if num_inference_steps is not None and timesteps is not None:
+            raise ValueError("Can only pass one of `num_inference_steps` or `custom_timesteps`.")
+
+        # 1. Calculate the LCM original training/distillation timestep schedule.
+        original_steps = (
+            original_inference_steps if original_inference_steps is not None else self.config.original_inference_steps
+        )
+
+        if original_steps > self.config.num_train_timesteps:
             raise ValueError(
-                f"`num_inference_steps`: {num_inference_steps} cannot be larger than `self.config.train_timesteps`:"
+                f"`original_steps`: {original_steps} cannot be larger than `self.config.train_timesteps`:"
                 f" {self.config.num_train_timesteps} as the unet model trained with this scheduler can only handle"
                 f" maximal {self.config.num_train_timesteps} timesteps."
             )
 
-        self.num_inference_steps = num_inference_steps
+        # LCM Timesteps Setting
+        # The skipping step parameter k from the paper.
+        k = self.config.num_train_timesteps // original_steps
+        # LCM Training/Distillation Steps Schedule
+        # Currently, only a linearly-spaced schedule is supported (same as in the LCM distillation scripts).
+        lcm_origin_timesteps = np.asarray(list(range(1, int(original_steps * strength) + 1))) * k - 1
 
-        # "linspace", "leading", "trailing" corresponds to annotation of Table 2. of https://arxiv.org/abs/2305.08891
-        if self.config.timestep_spacing == "linspace":
-            timesteps = (
-                np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps)
-                .round()[::-1]
-                .copy()
-                .astype(np.int64)
-            )
-        elif self.config.timestep_spacing == "leading":
-            step_ratio = self.config.num_train_timesteps // self.num_inference_steps
-            # creates integer timesteps by multiplying by ratio
-            # casting to int to avoid issues when num_inference_step is power of 3
-            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.int64)
-            timesteps += self.config.steps_offset
-        elif self.config.timestep_spacing == "trailing":
-            step_ratio = self.config.num_train_timesteps / self.num_inference_steps
-            # creates integer timesteps by multiplying by ratio
-            # casting to int to avoid issues when num_inference_step is power of 3
-            timesteps = np.round(np.arange(self.config.num_train_timesteps, 0, -step_ratio)).astype(np.int64)
-            timesteps -= 1
+        # 2. Calculate the LCM inference timestep schedule.
+        if timesteps is not None:
+            # 2.1 Handle custom timestep schedules.
+            train_timesteps = set(lcm_origin_timesteps)
+            non_train_timesteps = []
+            for i in range(1, len(timesteps)):
+                if timesteps[i] >= timesteps[i - 1]:
+                    raise ValueError("`custom_timesteps` must be in descending order.")
+
+                if timesteps[i] not in train_timesteps:
+                    non_train_timesteps.append(timesteps[i])
+
+            if timesteps[0] >= self.config.num_train_timesteps:
+                raise ValueError(
+                    f"`timesteps` must start before `self.config.train_timesteps`:"
+                    f" {self.config.num_train_timesteps}."
+                )
+
+            # Raise warning if timestep schedule does not start with self.config.num_train_timesteps - 1
+            if strength == 1.0 and timesteps[0] != self.config.num_train_timesteps - 1:
+                logger.warning(
+                    f"The first timestep on the custom timestep schedule is {timesteps[0]}, not"
+                    f" `self.config.num_train_timesteps - 1`: {self.config.num_train_timesteps - 1}. You may get"
+                    f" unexpected results when using this timestep schedule."
+                )
+
+            # Raise warning if custom timestep schedule contains timesteps not on original timestep schedule
+            if non_train_timesteps:
+                logger.warning(
+                    f"The custom timestep schedule contains the following timesteps which are not on the original"
+                    f" training/distillation timestep schedule: {non_train_timesteps}. You may get unexpected results"
+                    f" when using this timestep schedule."
+                )
+
+            # Raise warning if custom timestep schedule is longer than original_steps
+            if len(timesteps) > original_steps:
+                logger.warning(
+                    f"The number of timesteps in the custom timestep schedule is {len(timesteps)}, which exceeds the"
+                    f" the length of the timestep schedule used for training: {original_steps}. You may get some"
+                    f" unexpected results when using this timestep schedule."
+                )
+
+            timesteps = np.array(timesteps, dtype=np.int64)
+            self.num_inference_steps = len(timesteps)
+            self.custom_timesteps = True
+
+            # Apply strength (e.g. for img2img pipelines) (see StableDiffusionImg2ImgPipeline.get_timesteps)
+            init_timestep = min(int(self.num_inference_steps * strength), self.num_inference_steps)
+            t_start = max(self.num_inference_steps - init_timestep, 0)
+            timesteps = timesteps[t_start * self.order :]
+            # TODO: also reset self.num_inference_steps?
         else:
-            raise ValueError(
-                f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'leading' or 'trailing'."
-            )
+            # 2.2 Create the "standard" LCM inference timestep schedule.
+            if num_inference_steps > self.config.num_train_timesteps:
+                raise ValueError(
+                    f"`num_inference_steps`: {num_inference_steps} cannot be larger than `self.config.train_timesteps`:"
+                    f" {self.config.num_train_timesteps} as the unet model trained with this scheduler can only handle"
+                    f" maximal {self.config.num_train_timesteps} timesteps."
+                )
 
-        self.timesteps = ms.Tensor(timesteps)
+            skipping_step = len(lcm_origin_timesteps) // num_inference_steps
+
+            if skipping_step < 1:
+                raise ValueError(
+                    f"The combination of `original_steps x strength`: {original_steps} x {strength} is smaller than "
+                    f"`num_inference_steps`: {num_inference_steps}. "
+                    f"Make sure to either reduce `num_inference_steps` to a value smaller than {int(original_steps * strength)} or "
+                    f"increase `strength` to a value higher than {float(num_inference_steps / original_steps)}."
+                )
+
+            self.num_inference_steps = num_inference_steps
+
+            if num_inference_steps > original_steps:
+                raise ValueError(
+                    f"`num_inference_steps`: {num_inference_steps} cannot be larger than `original_inference_steps`:"
+                    f" {original_steps} because the final timestep schedule will be a subset of the"
+                    f" `original_inference_steps`-sized initial timestep schedule."
+                )
+
+            # LCM Inference Steps Schedule
+            lcm_origin_timesteps = lcm_origin_timesteps[::-1].copy()
+            # Select (approximately) evenly spaced indices from lcm_origin_timesteps.
+            inference_indices = np.linspace(0, len(lcm_origin_timesteps), num=num_inference_steps, endpoint=False)
+            inference_indices = np.floor(inference_indices).astype(np.int64)
+            timesteps = lcm_origin_timesteps[inference_indices]
+
+        self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
+
+        self._step_index = None
+        self._begin_index = None
+
+    def get_scalings_for_boundary_condition_discrete(self, timestep):
+        self.sigma_data = 0.5  # Default: 0.5
+        scaled_timestep = timestep * self.config.timestep_scaling
+
+        c_skip = self.sigma_data**2 / (scaled_timestep**2 + self.sigma_data**2)
+        c_out = scaled_timestep / (scaled_timestep**2 + self.sigma_data**2) ** 0.5
+        return c_skip, c_out
 
     def step(
         self,
         model_output: ms.Tensor,
         timestep: int,
         sample: ms.Tensor,
-        eta: float = 0.0,
-        use_clipped_model_output: bool = False,
-        generator=None,
-        variance_noise: Optional[ms.Tensor] = None,
+        generator: Optional[np.random.Generator] = None,
         return_dict: bool = False,
-    ) -> Union[DDIMSchedulerOutput, Tuple]:
+    ) -> Union[LCMSchedulerOutput, Tuple]:
         """
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
         process from the learned model outputs (most often the predicted noise).
@@ -364,118 +518,85 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 The current discrete timestep in the diffusion chain.
             sample (`ms.Tensor`):
                 A current instance of a sample created by the diffusion process.
-            eta (`float`):
-                The weight of noise for added noise in diffusion step.
-            use_clipped_model_output (`bool`, defaults to `False`):
-                If `True`, computes "corrected" `model_output` from the clipped predicted original sample. Necessary
-                because predicted original sample is clipped to [-1, 1] when `self.config.clip_sample` is `True`. If no
-                clipping has happened, "corrected" `model_output` would coincide with the one provided as input and
-                `use_clipped_model_output` has no effect.
             generator (`np.random.Generator`, *optional*):
                 A random number generator.
-            variance_noise (`ms.Tensor`):
-                Alternative to generating noise with `generator` by directly providing the noise for the variance
-                itself. Useful for methods such as [`CycleDiffusion`].
             return_dict (`bool`, *optional*, defaults to `False`):
-                Whether or not to return a [`~schedulers.scheduling_ddim.DDIMSchedulerOutput`] or `tuple`.
-
+                Whether or not to return a [`~schedulers.scheduling_lcm.LCMSchedulerOutput`] or `tuple`.
         Returns:
-            [`~schedulers.scheduling_utils.DDIMSchedulerOutput`] or `tuple`:
-                If return_dict is `True`, [`~schedulers.scheduling_ddim.DDIMSchedulerOutput`] is returned, otherwise a
+            [`~schedulers.scheduling_utils.LCMSchedulerOutput`] or `tuple`:
+                If return_dict is `True`, [`~schedulers.scheduling_lcm.LCMSchedulerOutput`] is returned, otherwise a
                 tuple is returned where the first element is the sample tensor.
-
         """
         if self.num_inference_steps is None:
             raise ValueError(
                 "Number of inference steps is 'None', you need to run 'set_timesteps' after creating the scheduler"
             )
 
-        # See formulas (12) and (16) of DDIM paper https://arxiv.org/pdf/2010.02502.pdf
-        # Ideally, read DDIM paper in-detail understanding
+        if self.step_index is None:
+            self._init_step_index(timestep)
 
-        # Notation (<variable name> -> <name in paper>
-        # - pred_noise_t -> e_theta(x_t, t)
-        # - pred_original_sample -> f_theta(x_t, t) or x_0
-        # - std_dev_t -> sigma_t
-        # - eta -> η
-        # - pred_sample_direction -> "direction pointing to x_t"
-        # - pred_prev_sample -> "x_t-1"
-
+        # 1. get previous step value
         dtype = sample.dtype
-        # 1. get previous step value (=t-1)
-        prev_timestep = timestep - self.config.num_train_timesteps // self.num_inference_steps
+        prev_step_index = self.step_index + 1
+        if prev_step_index < len(self.timesteps):
+            prev_timestep = self.timesteps[prev_step_index]
+        else:
+            prev_timestep = timestep
 
         # 2. compute alphas, betas
         alpha_prod_t = self.alphas_cumprod[timestep]
         alpha_prod_t_prev = self.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.final_alpha_cumprod
 
         beta_prod_t = 1 - alpha_prod_t
+        beta_prod_t_prev = 1 - alpha_prod_t_prev
 
-        # 3. compute predicted original sample from predicted noise also called
-        # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
-        if self.config.prediction_type == "epsilon":
-            pred_original_sample = (
-                (sample - (beta_prod_t ** (0.5)).to(dtype) * model_output) / alpha_prod_t ** (0.5)
+        # 3. Get scalings for boundary conditions
+        c_skip, c_out = self.get_scalings_for_boundary_condition_discrete(timestep)
+
+        # 4. Compute the predicted original sample x_0 based on the model parameterization
+        if self.config.prediction_type == "epsilon":  # noise-prediction
+            predicted_original_sample = (
+                (sample - beta_prod_t.sqrt().to(dtype) * model_output) / alpha_prod_t.sqrt()
             ).to(dtype)
-            pred_epsilon = model_output
-        elif self.config.prediction_type == "sample":
-            pred_original_sample = model_output
-            pred_epsilon = (
-                (sample - (alpha_prod_t ** (0.5)).to(dtype) * pred_original_sample) / beta_prod_t ** (0.5)
-            ).to(dtype)
-        elif self.config.prediction_type == "v_prediction":
-            pred_original_sample = (alpha_prod_t**0.5).to(dtype) * sample - (beta_prod_t**0.5).to(
-                dtype
-            ) * model_output
-            pred_epsilon = (alpha_prod_t**0.5).to(dtype) * model_output + (beta_prod_t**0.5).to(dtype) * sample
+        elif self.config.prediction_type == "sample":  # x-prediction
+            predicted_original_sample = model_output
+        elif self.config.prediction_type == "v_prediction":  # v-prediction
+            predicted_original_sample = (
+                alpha_prod_t.sqrt().to(dtype) * sample - beta_prod_t.sqrt().to(dtype) * model_output
+            )
         else:
             raise ValueError(
-                f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample`, or"
-                " `v_prediction`"
+                f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample` or"
+                " `v_prediction` for `LCMScheduler`."
             )
 
-        # 4. Clip or threshold "predicted x_0"
+        # 5. Clip or threshold "predicted x_0"
         if self.config.thresholding:
-            pred_original_sample = self._threshold_sample(pred_original_sample)
+            predicted_original_sample = self._threshold_sample(predicted_original_sample)
         elif self.config.clip_sample:
-            pred_original_sample = pred_original_sample.clamp(
+            predicted_original_sample = predicted_original_sample.clamp(
                 -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
-        # 5. compute variance: "sigma_t(η)" -> see formula (16)
-        # σ_t = sqrt((1 − α_t−1)/(1 − α_t)) * sqrt(1 − α_t/α_t−1)
-        variance = self._get_variance(timestep, prev_timestep)
-        std_dev_t = (eta * variance ** (0.5)).to(dtype=prev_timestep.dtype)
+        # 6. Denoise model output using boundary conditions
+        denoised = (c_out * predicted_original_sample + c_skip * sample).to(dtype)
 
-        if use_clipped_model_output:
-            # the pred_epsilon is always re-derived from the clipped x_0 in Glide
-            pred_epsilon = (
-                (sample - (alpha_prod_t ** (0.5)).to(dtype) * pred_original_sample) / beta_prod_t ** (0.5)
-            ).to(dtype)
+        # 7. Sample and inject noise z ~ N(0, I) for MultiStep Inference
+        # Noise is not used on the final timestep of the timestep schedule.
+        # This also means that noise is not used for one-step sampling.
+        if self.step_index != self.num_inference_steps - 1:
+            noise = randn_tensor(model_output.shape, generator=generator, dtype=denoised.dtype)
+            prev_sample = alpha_prod_t_prev.sqrt().to(dtype) * denoised + beta_prod_t_prev.sqrt().to(dtype) * noise
+        else:
+            prev_sample = denoised
 
-        # 6. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
-        pred_sample_direction = ((1 - alpha_prod_t_prev - std_dev_t**2) ** (0.5)).to(dtype) * pred_epsilon
-
-        # 7. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
-        prev_sample = (alpha_prod_t_prev ** (0.5)).to(dtype) * pred_original_sample + pred_sample_direction
-
-        if eta > 0:
-            if variance_noise is not None and generator is not None:
-                raise ValueError(
-                    "Cannot pass both generator and variance_noise. Please make sure that either `generator` or"
-                    " `variance_noise` stays `None`."
-                )
-
-            if variance_noise is None:
-                variance_noise = randn_tensor(model_output.shape, generator=generator, dtype=dtype)
-            variance = std_dev_t * variance_noise
-
-            prev_sample = prev_sample + variance
+        # upon completion increase step index by one
+        self._step_index += 1
 
         if not return_dict:
-            return (prev_sample,)
+            return (prev_sample, denoised)
 
-        return DDIMSchedulerOutput(prev_sample=prev_sample, pred_original_sample=pred_original_sample)
+        return LCMSchedulerOutput(prev_sample=prev_sample, denoised=denoised)
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler.add_noise
     def add_noise(
@@ -509,8 +630,8 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler.get_velocity
     def get_velocity(self, sample: ms.Tensor, noise: ms.Tensor, timesteps: ms.Tensor) -> ms.Tensor:
-        # Make sure alphas_cumprod and timestep have same device and dtype as sample
         broadcast_shape = sample.shape
+        # Make sure alphas_cumprod and timestep have same device and dtype as sample
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
@@ -532,3 +653,19 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
     def __len__(self):
         return self.config.num_train_timesteps
+
+    # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler.previous_timestep
+    def previous_timestep(self, timestep):
+        if self.custom_timesteps:
+            index = (self.timesteps == timestep).nonzero(as_tuple=True)[0][0]
+            if index == self.timesteps.shape[0] - 1:
+                prev_t = ms.tensor(-1)
+            else:
+                prev_t = self.timesteps[index + 1]
+        else:
+            num_inference_steps = (
+                self.num_inference_steps if self.num_inference_steps else self.config.num_train_timesteps
+            )
+            prev_t = timestep - self.config.num_train_timesteps // num_inference_steps
+
+        return prev_t
