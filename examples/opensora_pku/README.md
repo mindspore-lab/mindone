@@ -72,8 +72,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
-> To use flash attention, it's recommended to use mindspore 2.3rc2 (release soon).
+2. Install MindSpore 2.3 master according to the [official instruction](https://www.mindspore.cn/install) and use
 
 
 3. Install requirements
@@ -180,7 +179,7 @@ Some reconstruction results are listed below (left: source video clip, right: re
 
 ### Open-Sora-Plan v1.0.0 Command Line Inference
 
-You can run text-to-video inference using the script `scripts/text_condition/sample_video.sh`.
+You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/sample_video.sh`.
 ```bash
 python opensora/sample/sample_t2v.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.0.0 \
@@ -199,6 +198,18 @@ You can change the `version` to `17x256x256` or `65x256x256` to change the numbe
 > In case of OOM error, there are two options:
 > 1. Pass `--enable_time_chunk True` to allow vae decoding temporal frames as small, overlapped chunks. This can reduce the memory usage, which sacrificies a bit of temporal consistency.
 > 2. Seperate the inference into two stages. In stage 1, please run inference with `--save_latents`. This will save some `.npy` files in the output directory. Then in stage 2, please run the same inference script with `--decode_latents`. The generated videos will be saved in the output directory.
+
+If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` to the above command.
+
+```bash
+# 8 NPUs
+msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_log"  \
+    python opensora/sample/sample_t2v.py \
+    --use_parallel True \
+    ... # pass other arguments
+```
+
+The command above will run a 8-card inference and save the log files into "output_log". In case of `Failed to register the compute graph node` error, please edit the `master_port` to a different port number in the range 1024 to 65535, and run the script again.
 
 
 ## Training
@@ -261,38 +272,59 @@ python opensora/sample/sample_text_embed.py \
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`. Please change `data_file_path` to your video-caption annotation file accordingly.
 
-### Standalone Training
+#### Notes about MindSpore 2.3
+
+Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
+
+To enable kbk mode on ms2.3, we use the following two environmental variables:
+```
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+
+```
+By default, we have enabled kbk mode in all of our training scripts already.
+
+To improve training performance, you may append `--enable_dvm=True` to the training command.
+
+#### Parallel Training
 
 Before launching the first-stage training, please make sure the pretrained checkpoint is stored as `pretrained/t2v.ckpt`, and `--text_embed_folder` in the following shell scripts are set to the text embedding folder that you generated ahead.
 
 ```bash
-# start 17x256x256 pretraining
+# start 17x256x256 pretraining, 8 NPUs
 bash scripts/text_condition/train_videoae_17x256x256.sh
 ```
-After the first-stage training, please revise `scripts/text_condition/train_videoae_65x256x256.sh`, and change `--pretrained` to the checkpoint path from the last stage. Then run:
+After the first-stage training, there will be multiple checkpoint shards saved in the `output_dir/ckpt`. Please run the following command to combine the multiple checkpoint shards into a full one:
+```
+python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt_full
+```
+Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt_full/rank_0/full_0.ckpt`.
+> If you want to run inference with this full checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt output_dir/ckpt_full/rank_0/full_0.ckpt` to the end of the inference command.
+
+Then please revise `scripts/text_condition/train_videoae_65x256x256.sh`, and change `--pretrained` to the full checkpoint path from the `17x256x256` stage. Then run:
 
 ```bash
+# start 65x256x256 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_65x256x256.sh
 ```
-Simiarly, please revise the `--pretrained` checkpoint path and start the third-stage training with:
+Simiarly, please revise the `--pretrained` to the full checkpoint path from the `65x256x256` stage, and then start the third-stage training with:
 
 ```bash
-# start 65x512x512 finetuning
+# start 65x512x512 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_65x512x512.sh
 ```
 
+#### Performance
 
-### Multi-Device Training
+We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-For parallel training, please use `msrun` and pass `--use_parallel=True`.
-
-```bash
-# 8 NPUs, 64x512x512
-msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_log"  \
-    python opensora/train/train_t2v.py  \
-    --use_parallel True \
-    ... # pass other arguments
-```
+| Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
+|:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 256x256     |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   65 + 4    | 256x256     |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   17 + 4    | 512x512     |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 512x512     |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512  |           |
 
 
 ## 👍 Acknowledgement
