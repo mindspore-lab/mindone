@@ -1,4 +1,4 @@
-"""Merge the checkpoint from sequence parallel training
+"""Merge the checkpoint from parallel training
 """
 import argparse
 import os

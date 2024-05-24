@@ -1568,7 +1568,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         return model
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_path, subfolder=None, **kwargs):
+    def from_pretrained(cls, pretrained_model_path, subfolder=None, checkpoint_path=None, **kwargs):
         if subfolder is not None:
             pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
 
@@ -1579,13 +1579,17 @@ class LatteT2V(ModelMixin, ConfigMixin):
             config = json.load(f)
 
         model = cls.from_config(config, **kwargs)
-
-        ckpt_paths = glob.glob(os.path.join(pretrained_model_path, "*.ckpt"))
-        assert len(ckpt_paths) == 1, f"Expect to find one checkpoint file under {pretrained_model_path}"
-        f", but found {len(ckpt_paths)} files that end with `.ckpt`"
-        ckpt = ckpt_paths[0]
+        if checkpoint_path is None or len(checkpoint_path) == 0:
+            # search for ckpt under pretrained_model_path
+            ckpt_paths = glob.glob(os.path.join(pretrained_model_path, "*.ckpt"))
+            assert len(ckpt_paths) == 1, f"Expect to find one checkpoint file under {pretrained_model_path}"
+            f", but found {len(ckpt_paths)} files that end with `.ckpt`"
+            ckpt = ckpt_paths[0]
+        else:
+            ckpt = checkpoint_path
         logger.info(f"Restored from ckpt {ckpt}")
         model.load_from_checkpoint(ckpt)
+
         return model
 
     def construct_with_cfg(self, x, timestep, class_labels=None, cfg_scale=7.0, attention_mask=None):

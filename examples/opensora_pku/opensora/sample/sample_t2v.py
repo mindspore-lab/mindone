@@ -123,6 +123,13 @@ def parse_args():
     )
     parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.0.0")
     parser.add_argument(
+        "--pretrained_ckpt",
+        type=str,
+        default=None,
+        help="If not provided, will search for ckpt file under `model_path`"
+        "If provided, will use this pretrained ckpt path.",
+    )
+    parser.add_argument(
         "--version",
         type=str,
         default="17x256x256",
@@ -349,6 +356,7 @@ if __name__ == "__main__":
     transformer_model = LatteT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
+        checkpoint_path=args.pretrained_ckpt,
         enable_flash_attention=args.enable_flash_attention,
     )
     transformer_model.force_images = args.force_images
