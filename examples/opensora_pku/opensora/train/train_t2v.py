@@ -57,6 +57,7 @@ def set_all_reduce_fusion(
 
 def main(args):
     # 1. init
+    save_src_strategy = args.use_parallel and args.parallel_mode != "data"
     rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
@@ -67,6 +68,7 @@ def main(args):
         enable_dvm=args.enable_dvm,
         mempool_block_size=args.mempool_block_size,
         global_bf16=args.global_bf16,
+        strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
     )
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:

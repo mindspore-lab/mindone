@@ -26,6 +26,7 @@ def init_env(
     enable_dvm: bool = False,
     mempool_block_size: str = "9GB",
     global_bf16: bool = False,
+    strategy_ckpt_save_file: str = "",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -55,6 +56,10 @@ def init_env(
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
                 enable_parallel_optimizer=True,
+                strategy_ckpt_config={
+                    "save_file": strategy_ckpt_save_file,
+                    "only_trainable_params": False,
+                },
             )
             init()
             device_num = get_group_size()
