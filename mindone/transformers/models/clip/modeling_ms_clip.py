@@ -98,7 +98,6 @@ def _create_4d_causal_attention_mask(
         mask_cond = ops.arange(mask.shape[-1])
         mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), ms.Tensor(0).to(dtype))
 
-
         mask = mask.to(dtype)
 
         if past_key_values_length > 0:
