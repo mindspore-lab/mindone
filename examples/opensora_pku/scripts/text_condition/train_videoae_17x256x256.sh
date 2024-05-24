@@ -1,4 +1,23 @@
-python opensora/train/train_t2v.py \
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+export MS_ENABLE_NUMA=0
+export MS_MEMORY_STATISTIC=1
+
+# enable kbk
+export MS_ENABLE_ACLNN=1
+export GRAPH_OP_RUN=1
+export GLOG_v=2
+
+# hyper-parameters
+image_size=256
+use_image_num=4
+num_frames=17
+model_dtype="fp16"
+enable_flash_attention="True"
+batch_size = 4
+lr="2e-05"
+output_dir = t2v-f$num_frames-$image_size-videovae488-model_dtype-FA$enable_flash_attention-bs$batch_size-t5
+
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir opensora/train/train_t2v.py \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
@@ -8,21 +27,23 @@ python opensora/train/train_t2v.py \
     --video_folder /remote-home1/dataset/data_split_tt \
     --text_embed_folder /path/to/text-embed-folder \
     --sample_rate 1 \
-    --num_frames 17 \
-    --max_image_size 256 \
+    --num_frames $num_frames \
+    --max_image_size $image_size \
     --use_recompute True \
-    --enable_flash_attention True \
-    --batch_size=4 \
+    --enable_flash_attention $enable_flash_attention \
+    --batch_size=$batch_size \
     --num_parallel_workers 10 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
-    --start_learning_rate=2e-05 \
+    --start_learning_rate=$lr \
     --lr_scheduler="constant" \
     --lr_warmup_steps=0 \
-    --precision="fp16" \
+    --precision=$model_dtype \
     --checkpointing_steps=500 \
-    --output_dir="t2v-f17-256-img4-videovae488-fp16-ckpt-xformers-bs4-lr2e-5-t5" \
+    --output_dir=$output_dir \
     --pretrained pretrained/t2v.ckpt \
     --model_max_length 300 \
-    --use_image_num 4 \
-    --use_img_from_vid
+    --use_image_num $use_image_num \
+    --use_img_from_vid \
+    --use_parallel True \
+    --parallel_mode "optim" \
