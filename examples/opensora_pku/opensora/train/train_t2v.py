@@ -211,6 +211,7 @@ def main(args):
         max_rowsize=args.max_rowsize,
     )
     dataset_size = dataset.get_dataset_size()
+    assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
 
     # 4. build training utils: lr, optim, callbacks, trainer
     if args.max_train_steps is not None and args.max_train_steps > 0:
