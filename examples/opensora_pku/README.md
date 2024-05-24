@@ -287,6 +287,36 @@ By default, we have enabled kbk mode in all of our training scripts already.
 To improve training performance, you may append `--enable_dvm=True` to the training command.
 Furthermore, you may accelerate the data loading speed by setting `--dataset_sink_mode=True` to the training command. Please be aware that when data sink mode is on, there will not be per-step printing messages. We recommend to use data sink mode after all hyper-parameters tuning is done.
 
+#### Example of Training Scripts
+Here we choose an example of training scripts (`train_videoae_17x256x256.sh`) and explain the meanings of some experimental arguments.
+
+There some hyper-parameters that may vary between different experiments:
+```shell
+image_size=256  # the image size of frames, same to image height and image width
+use_image_num=4  # to include n number of images in an input sample
+num_frames=17  # to sample m frames from a single video. The total number of images： num_frames + use_image_num = 17+4
+model_dtype="fp16" # the data type used for mixed precision of the diffusion transformer model. Default amp level is O1.
+enable_flash_attention="True" # whether to use MindSpore Flash Attention
+batch_size=4 # training batch size
+lr="2e-05" # learning rate. Default learning schedule is constant
+```
+
+Here is the major command of the parallel-training script:
+```shell
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
+      --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
+      --video_folder /remote-home1/dataset/data_split_tt \
+      --text_embed_folder /path/to/text-embed-folder \
+      --pretrained pretrained/t2v.ckpt \
+```
+We use `msrun` to launch the parallel training tasks. For single-node multi-device training, `worker_num` and `local_worker_num` should be the same to the number of training devices.  `master_port` specifies the scheduler binding port number.
+
+There are some arguments related to the training dataset path:
+- `data_path`: the json (or csv) file to the dataset. The dataset file should contain two columns, video path and the caption. In `train_t2v.py`, the two columns names are passed by `--video_column` and `--caption_column`, which by default are "path" and "caption". **If you are using a different column name, please revise it accordingly**.
+- `video_folder`: the folder where are the videos are stored. By default it is "". If your json file uses an absolute path as the video path, you don't need to pass `--video_folder`. Actually, if the json file's video path value is `path1`, and the `video_folder` value is `folder1`. The aboslute video path will be `folder1/path1`.
+- `text_embed_folder`: the folder to the extracted text embeddings cache. In general, we recommend to use text embedding cache because it is more efficient. However, you can still delete this argument (use the default value `None`) if you want to train with T5 text encoder running on-the-fly.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training.
+
 #### Parallel Training
 
 Before launching the first-stage training, please make sure the pretrained checkpoint is stored as `pretrained/t2v.ckpt`, and `--text_embed_folder` in the following shell scripts are set to the text embedding folder that you generated ahead.
@@ -321,11 +351,11 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 256x256     |           |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   65 + 4    | 256x256     |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 256x256     |   1.8     |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   65 + 4    | 256x256     |   4.5     |
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   17 + 4    | 512x512     |           |
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 512x512     |           |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512  |           |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512     |           |
 
 
 ## 👍 Acknowledgement
