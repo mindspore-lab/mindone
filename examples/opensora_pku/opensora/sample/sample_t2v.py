@@ -106,7 +106,7 @@ def init_env(
 
     if enable_dvm:
         print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
     return rank_id, device_num

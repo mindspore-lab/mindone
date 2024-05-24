@@ -87,7 +87,7 @@ def init_env(
 
     if enable_dvm:
         print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
     if global_bf16:
         print("Using global bf16")
         ms.set_context(
@@ -170,7 +170,7 @@ def parse_train_args(parser):
     #                                Learning Rate                                  #
     #################################################################################
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
-    parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
+    parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument("--lr_warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
@@ -213,7 +213,7 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--amp_level",
-        default="O2",
+        default="O1",
         type=str,
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",

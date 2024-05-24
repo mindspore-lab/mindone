@@ -72,7 +72,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master according to the [official instruction](https://www.mindspore.cn/install) and use
+2. Install MindSpore 2.3 master according to the [official instruction](https://www.mindspore.cn/install) and use C18 CANN which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
 
 
 3. Install requirements
@@ -272,7 +272,7 @@ python opensora/sample/sample_text_embed.py \
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`. Please change `data_file_path` to your video-caption annotation file accordingly.
 
-#### Notes about MindSpore 2.3
+#### Notes about MindSpore Features
 
 Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
 
@@ -285,6 +285,7 @@ export GRAPH_OP_RUN=1
 By default, we have enabled kbk mode in all of our training scripts already.
 
 To improve training performance, you may append `--enable_dvm=True` to the training command.
+Furthermore, you may accelerate the data loading speed by setting `--dataset_sink_mode=True` to the training command. Please be aware that when data sink mode is on, there will not be per-step printing messages. We recommend to use data sink mode after all hyper-parameters tuning is done.
 
 #### Parallel Training
 
