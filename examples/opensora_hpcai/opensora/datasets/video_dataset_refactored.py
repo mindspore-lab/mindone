@@ -39,6 +39,7 @@ class VideoDatasetRefactored(BaseDataset):
         video_folder: str,
         text_emb_folder: Optional[str] = None,
         vae_latent_folder: Optional[str] = None,
+        vae_downsample_rate: int = 8,
         vae_scale_factor: float = 0.18215,
         sample_n_frames: int = 16,
         sample_stride: int = 4,
@@ -53,6 +54,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._filter_videos()
         self._text_emb_folder = text_emb_folder
         self._vae_latent_folder = vae_latent_folder
+        self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
 
@@ -125,20 +127,8 @@ class VideoDatasetRefactored(BaseDataset):
     def train_transforms(
         self, target_size: Tuple[int, int], tokenizer: Optional[Callable[[str], np.ndarray]] = None
     ) -> List[dict]:
-        transforms = [
-            {
-                "operations": [
-                    lambda video: (
-                        video,  # FIXME: a better solution?
-                        np.array(target_size[0], dtype=np.float32),
-                        np.array(target_size[1], dtype=np.float32),
-                        np.array(target_size[0] / target_size[1], dtype=np.float32),
-                    )
-                ],
-                "input_columns": ["video"],
-                "output_columns": ["video", "height", "width", "ar"],
-            }
-        ]
+        transforms = []
+        vae_downsample_rate = self._vae_downsample_rate
 
         if not self._vae_latent_folder:
             transforms.append(
@@ -153,6 +143,22 @@ class VideoDatasetRefactored(BaseDataset):
                     "input_columns": ["video"],
                 }
             )
+            vae_downsample_rate = 1
+
+        transforms.append(
+            {
+                "operations": [
+                    lambda video: (
+                        video,  # need to return the video itself to preserve the column
+                        np.array(video.shape[-2] * vae_downsample_rate, dtype=np.float32),
+                        np.array(video.shape[-1] * vae_downsample_rate, dtype=np.float32),
+                        np.array(video.shape[-2] / video.shape[-1], dtype=np.float32),
+                    )
+                ],
+                "input_columns": ["video"],
+                "output_columns": ["video", "height", "width", "ar"],
+            }
+        )
 
         if "caption" in self.output_columns and not self._text_emb_folder:
             if tokenizer is None:
