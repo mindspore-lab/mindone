@@ -27,6 +27,9 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 ### OpenSora 1.1 Demo
 
+<details>
+<summary>Demo</summary>
+
 #### Text-to-Video
 
 | 16x256x720                                                                                                                                                                                                                                                                                                                                                                      | 16x640x360                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -51,22 +54,27 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 | Start Frame                                                                                                            | End Frame                                                                                                              | Caption                       | Output                                                                                                                 |
 |------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|-------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| <img width="300" src="https://github.com/mindspore-lab/mindone/assets/16683750/77416ccc-ab7e-4c1e-be2a-e50777f2e0f1"/> | <img width="300" src="https://github.com/mindspore-lab/mindone/assets/16683750/1f32eb12-b2e7-4066-89f0-48516cbd9581"/> | A breathtaking sunrise scene. | <img width="300" src="https://github.com/mindspore-lab/mindone/assets/16683750/faf10f9b-4472-4fb7-a505-440deb40b14b"/> |
+| <img width="400" src="https://github.com/mindspore-lab/mindone/assets/16683750/77416ccc-ab7e-4c1e-be2a-e50777f2e0f1"/> | <img width="400" src="https://github.com/mindspore-lab/mindone/assets/16683750/1f32eb12-b2e7-4066-89f0-48516cbd9581"/> | A breathtaking sunrise scene. | <img width="400" src="https://github.com/mindspore-lab/mindone/assets/16683750/faf10f9b-4472-4fb7-a505-440deb40b14b"/> |
 
 #### Video Editing
 
 | Input                                                                                                                                                           | Output                                                                                                                 |
 |-----------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/16683750/0863676c-345b-4b91-82f4-c8c835e2b562"/><br/>a snowy forest</p> | <img width="300" src="https://github.com/mindspore-lab/mindone/assets/16683750/9086e7a6-5844-4804-877d-c0df481999c4"/> |
+| <p align="center"><img width="400" src="https://github.com/mindspore-lab/mindone/assets/16683750/0863676c-345b-4b91-82f4-c8c835e2b562"/><br/>a snowy forest</p> | <img width="400" src="https://github.com/mindspore-lab/mindone/assets/16683750/9086e7a6-5844-4804-877d-c0df481999c4"/> |
 
 #### Text-to-Image
 
 | Caption                                                                                                           | Output                                                                                                                                       |
 |-------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| Bright scene, aerial view,ancient city, fantasy, gorgeous light, mirror reflection, high detail, wide angle lens. | <img width="500" src="https://github.com/mindspore-lab/mindone/assets/16683750/a3ad7ada-6a2e-4071-9503-c4851547973e"/>                       |
-| A small cactus with a happy face in the Sahara desert.                                                            | <p align="center"><img width="300" src="https://github.com/mindspore-lab/mindone/assets/16683750/46a1e8b1-abb5-46b7-9fb5-813c35e1b29e"/></p> |
+| Bright scene, aerial view,ancient city, fantasy, gorgeous light, mirror reflection, high detail, wide angle lens. | <img width="400" src="https://github.com/mindspore-lab/mindone/assets/16683750/a3ad7ada-6a2e-4071-9503-c4851547973e"/>                       |
+| A small cactus with a happy face in the Sahara desert.                                                            | <p align="center"><img width="250" src="https://github.com/mindspore-lab/mindone/assets/16683750/46a1e8b1-abb5-46b7-9fb5-813c35e1b29e"/></p> |
+
+</details>
 
 ### OpenSora 1.0 Demo
+
+<details>
+<summary>Demo</summary>
 
 | **2s 512×512**                                                                                                                                                                 | **2s 512×512**                                                                                                                                                              | **2s 512×512**                                                                                                                                                      |
 |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -76,6 +84,8 @@ The following videos are generated based on MindSpore and Ascend 910*.
 | A bustling city street at night, filled with the glow of car headlights and the ambient light of streetlights. [...]                                                           | The vibrant beauty of a sunflower field. The sunflowers are arranged in neat rows, creating a sense of order and symmetry. [...]                                            | A serene underwater scene featuring a sea turtle swimming through a coral reef. The turtle, with its greenish-brown shell [...]                                     |
 
 Videos are downsampled to `.gif` for display. Click for original videos. Prompts are trimmed for display, see [here](assets/texts/t2v_samples.txt) for full prompts.
+
+</details>
 
 
 ## 🔆 Features
