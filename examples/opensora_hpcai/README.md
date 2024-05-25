@@ -254,7 +254,7 @@ video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
 
-⚠️ OpenSora v1.1 also requires the `length` field, which represents the number of frames, 
+⚠️ OpenSora v1.1 also requires the `length` field, which represents the number of frames,
 in the CSV file (i.e. `video, length, caption`).
 
 <details>

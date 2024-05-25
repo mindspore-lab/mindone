@@ -190,7 +190,7 @@ def main(args):
             {
                 "space_scale": args.space_scale,  # 0.5 for 256x256. 1. for 512
                 "time_scale": args.time_scale,
-                "num_recompute_blocks": args.num_recompute_blocks
+                "num_recompute_blocks": args.num_recompute_blocks,
             }
         )
         logger.info(f"STDiT input size: {input_size}")
