@@ -178,7 +178,13 @@ class InferPipeline:
         else:
             # TODO: update for v1.1
             latents = self.sampling_func(
-                self.model, z.shape, z, clip_denoised=False, model_kwargs=model_kwargs, progress=True
+                self.model,
+                z.shape,
+                z,
+                clip_denoised=False,
+                model_kwargs=model_kwargs,
+                progress=True,
+                frames_mask=frames_mask,
             )
 
         if self.vae is not None:

@@ -119,7 +119,7 @@ def main(args):
 
     # model initiate and weight loading
     ckpt_path = args.t5_model_dir
-    text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", ckpt_path)
+    text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", ckpt_path, model_max_length=args.model_max_length)
     text_encoder.set_train(False)
     for param in text_encoder.get_parameters():  # freeze latte_model
         param.requires_grad = False
@@ -237,6 +237,7 @@ def parse_args():
     )
     parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
     parser.add_argument("--t5_model_dir", default="models/t5-v1_1-xxl", type=str, help="the T5 cache folder path")
+    parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")

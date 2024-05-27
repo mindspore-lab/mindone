@@ -62,11 +62,12 @@ class VideoReader:
             ValueError: If the requested number of frames exceeds the video length.
             RuntimeError: If the requested number of frames cannot be fetched.
         """
-        if num * step > len(self):
-            raise ValueError(f"Number of frames to fetch ({num * step}) must be less than video length ({len(self)}).")
+        min_len = (num - 1) * step + 1
+        if len(self) < min_len:
+            raise ValueError(f"Number of frames to fetch ({min_len}) must be less than video length ({len(self)}).")
 
         if start_pos:
-            start_pos = min(start_pos, len(self) - num * step)
+            start_pos = min(start_pos, len(self) - min_len)
             self._cap.set(cv2.CAP_PROP_POS_FRAMES, start_pos)
 
         frames = []

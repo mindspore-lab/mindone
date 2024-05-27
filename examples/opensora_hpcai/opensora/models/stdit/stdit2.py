@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Optional, Tuple
 
 import numpy as np
@@ -337,6 +338,7 @@ class STDiT2(nn.Cell):
         width: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
+        **kwargs,
     ):
         """
         Forward pass of STDiT.
@@ -377,7 +379,8 @@ class STDiT2(nn.Cell):
         S = H * W
         scale = rs / self.input_sq_size
         base_size = round(S**0.5)
-        pos_emb = self.pos_embed(x, H, W, scale=scale, base_size=base_size)
+        # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
+        pos_emb = ops.stop_gradient(self.pos_embed(x, H, W, scale=scale, base_size=base_size))
 
         # embedding
         if self.patchify_conv3d_replace is None:
@@ -521,14 +524,9 @@ class STDiT2(nn.Cell):
             print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
             sd = load_checkpoint(ckpt_path)
-            # filter 'network.' prefix
-            rm_prefix = ["network."]
-            all_pnames = list(sd.keys())
-            for pname in all_pnames:
-                for pre in rm_prefix:
-                    if pname.startswith(pre):
-                        new_pname = pname.replace(pre, "")
-                        sd[new_pname] = sd.pop(pname)
+
+            regex = re.compile(r"^network\.|\._backbone")
+            sd = {regex.sub("", k): v for k, v in sd.items()}
 
             # load conv3d weight from pretrained conv2d or dense layer
             if self.patchify_conv3d_replace == "linear":
@@ -539,6 +537,16 @@ class STDiT2(nn.Cell):
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                     assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+
+            # Loading PixArt weights (T5's sequence length is 120 vs. 200 in STDiT2).
+            if self.y_embedder.y_embedding.shape != sd["y_embedder.y_embedding"].shape:
+                print("WARNING: T5's sequence length doesn't match STDiT2. Padding with default values.")
+                param = sd["y_embedder.y_embedding"].value()
+                sd["y_embedder.y_embedding"] = Parameter(
+                    ops.concat((param, self.y_embedder.y_embedding.value()[param.shape[0] :]), axis=0),
+                    name=self.y_embedder.y_embedding.name,
+                    requires_grad=self.y_embedder.y_embedding.requires_grad,
+                )
 
             m, u = load_param_into_net(self, sd)
             print("net param not load: ", m, len(m))
