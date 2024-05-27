@@ -2,14 +2,15 @@ import csv
 import logging
 import os
 import time
+import imageio
 
 import albumentations
 import albumentations as A
 import cv2
 import numpy as np
+import mindspore as ms
 from decord import VideoReader
 
-import mindspore as ms
 
 logger = logging.getLogger()
 
@@ -40,7 +41,7 @@ class MinCropAndResize():
             ])
         out = trans(image=image)['image']
 
-        return out
+        return {'image': out}
 
 
 def create_video_transforms(h, w, interpolation="bicubic", name='center'):
@@ -65,7 +66,7 @@ def create_video_transforms(h, w, interpolation="bicubic", name='center'):
     elif name == 'crop_resize':
         pixel_transforms = A.Compose(
             [
-                MinCropResize(h, w, interpolation=mapping[interpolation]),
+                MinCropAndResize(h, w, interpolation=mapping[interpolation]),
             ],
         )
 
@@ -210,6 +211,20 @@ def create_dataloader(
         return dl, None
 
 
+def check_sanity(x, save_fp="./tmp.gif"):
+    # reverse normalization and visulaize the transformed video
+    # (f, c, h, w) -> (f, h, w, c)
+    if len(x.shape) == 3:
+        x = np.expand_dims(x, axis=0)
+    x = np.transpose(x, (0, 2, 3, 1))
+
+    x = (x + 1.0) / 2.0  # -1,1 -> 0,1
+    x = (x * 255).astype(np.uint8)
+
+    imageio.mimsave(save_fp, x, duration=1 / 8.0, loop=1)
+
+
+
 if __name__ == "__main__":
     return_frame_data = True
     video_folder = "../videocomposer/datasets/webvid5"
@@ -218,15 +233,16 @@ if __name__ == "__main__":
         video_folder=video_folder,
         video_column="video",
         caption_column="caption",
-        sample_size=512,
+        sample_size=(512, 1024),
         return_frame_data=return_frame_data,
         sample_stride=1,
-        micro_batch_size=64,
+        micro_batch_size=32,
+        transform_name='crop_resize',
     )
     dl, ds = create_dataloader(
         ds_config,
         batch_size=1,
-        max_rowsize=512,
+        max_rowsize=256,
         return_dataset=True,
     )
 
@@ -250,6 +266,7 @@ if __name__ == "__main__":
             all_frames = np.concatenate(all_frames, axis=0)
             frame_data = [all_frames]
         print(frame_data[0].shape)
+        check_sanity(frame_data[0][:64])
 
     cost = time.time() - start
     print(f"Time cost: {cost:.3f}")
