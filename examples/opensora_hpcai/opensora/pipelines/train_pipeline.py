@@ -263,7 +263,18 @@ class DiffusionWithLoss(nn.Cell):
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         text_embed = ops.expand_dims(text_embed, axis=1)
-        model_output = self.apply_model(x_t, t, text_embed, mask, frames_mask, num_frames, height, width, ar, fps)
+        model_output = self.apply_model(
+            x_t,
+            t,
+            text_embed,
+            mask,
+            frames_mask=frames_mask,
+            num_frames=num_frames,
+            height=height,
+            width=width,
+            ar=ar,
+            fps=fps,
+        )
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
