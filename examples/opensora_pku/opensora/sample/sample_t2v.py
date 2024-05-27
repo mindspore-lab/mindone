@@ -133,7 +133,7 @@ def parse_args():
         "--version",
         type=str,
         default="17x256x256",
-        help="Model version in ['17x256x256', '65x256x256', '65x512x512'] ",
+        help="Model version in ['17x256x256', '17x512x512', '65x256x256', '65x512x512'] ",
     )
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
 
