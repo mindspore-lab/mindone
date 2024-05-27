@@ -327,9 +327,9 @@ bash scripts/text_condition/train_videoae_17x256x256.sh
 ```
 After the first-stage training, there will be multiple checkpoint shards saved in the `output_dir/ckpt`. Please run the following command to combine the multiple checkpoint shards into a full one:
 ```
-python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt_full
+python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt --strategy_ckpt output_dir/src_strategy.ckpt
 ```
-Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt_full/rank_0/full_0.ckpt`.
+Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0/full_0.ckpt`.
 > If you want to run inference with this full checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt output_dir/ckpt_full/rank_0/full_0.ckpt` to the end of the inference command.
 
 Then please revise `scripts/text_condition/train_videoae_65x256x256.sh`, and change `--pretrained` to the full checkpoint path from the `17x256x256` stage. Then run:
