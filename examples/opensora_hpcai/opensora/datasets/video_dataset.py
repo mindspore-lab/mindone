@@ -4,6 +4,7 @@ import os
 import time
 
 import albumentations
+import albumentations as A
 import cv2
 import numpy as np
 from decord import VideoReader
@@ -13,20 +14,60 @@ import mindspore as ms
 logger = logging.getLogger()
 
 
-def create_video_transforms(h, w, interpolation="bicubic"):
+class MinCropAndResize(): 
+    '''
+    (tar_h, tar_w) as a cropping box center at the image center point, 
+    you can resize it while keeping its AR until it touches one side of the image boundary.
+    Then crop it and resize to (tar_h, tar_w)
+    '''
+    def __init__(self, tar_h, tar_w, interpolation="bicubic"):
+        self.th = tar_h
+        self.tw = tar_w
+        self.interpolation = interpolation
+
+    def __call__(self, image):
+        h, w, c = image.shape
+        if (self.tw / self.th) > (w / h):  
+            scale = w / self.tw
+        else:
+            scale = h / self.th
+        crop_h = int(scale * self.th)
+        crop_w = int(scale * self.tw)
+
+        trans = A.Compose([
+            A.CenterCrop(crop_h, crop_w),
+            A.Resize(self.th, self.tw, interpolation=self.interpolation)
+            ])
+        out = trans(image=image)['image']
+
+        return out
+
+
+def create_video_transforms(h, w, interpolation="bicubic", name='center'):
     """
     h, w : target resize height, weight
+    if h < w: (512, 1024)
+        if ch < cw: (512, 768)
+            cannot crop, unless crop and resize
+            
     """
     # expect rgb image in range 0-255, shape (h w c)
     from albumentations import CenterCrop, SmallestMaxSize
 
     mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
-    pixel_transforms = albumentations.Compose(
-        [
-            SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
-            CenterCrop(h, w),
-        ],
-    )
+    if name == 'center':
+        pixel_transforms = A.Compose(
+            [
+                SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
+                CenterCrop(h, w),
+            ],
+        )
+    elif name == 'crop_resize':
+        pixel_transforms = A.Compose(
+            [
+                MinCropResize(h, w, interpolation=mapping[interpolation]),
+            ],
+        )
 
     return pixel_transforms
 
@@ -42,6 +83,7 @@ class VideoDataset:
         sample_stride=1,
         return_frame_data=False,
         micro_batch_size=None,
+        transform_name='center',
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -67,6 +109,7 @@ class VideoDataset:
             sample_size[0],
             sample_size[1],
             interpolation="bicubic",
+            name=transform_name,
         )
 
     def __len__(self):
