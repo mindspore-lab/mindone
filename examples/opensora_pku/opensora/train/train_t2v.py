@@ -74,40 +74,45 @@ def main(args):
     if args.use_deepspeed:
         raise NotImplementedError
 
-    logger.info("vae init")
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
-    if args.enable_tiling:
-        vae.vae.enable_tiling()
-        vae.vae.tile_overlap_factor = args.tile_overlap_factor
-    vae.set_train(False)
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    if train_with_vae_latent:
+        logger.info("Train with vae latent cache.")
+        vae = None
+    else:
+        logger.info("vae init")
+        vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
+        if args.enable_tiling:
+            vae.vae.enable_tiling()
+            vae.vae.tile_overlap_factor = args.tile_overlap_factor
+        vae.set_train(False)
 
-    vae_dtype = ms.bfloat16
-    custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
-    vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-    logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
+        vae_dtype = ms.bfloat16
+        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
+        for param in vae.get_parameters():  # freeze vae
+            param.requires_grad = False
 
-    ae_stride_t, ae_stride_h, ae_stride_w = ae_stride_config[args.ae]
-    args.ae_stride_t, args.ae_stride_h, args.ae_stride_w = ae_stride_t, ae_stride_h, ae_stride_w
-    args.ae_stride = args.ae_stride_h
-    patch_size = args.model[-3:]
-    patch_size_t, patch_size_h, patch_size_w = int(patch_size[0]), int(patch_size[1]), int(patch_size[2])
-    args.patch_size = patch_size_h
-    args.patch_size_t, args.patch_size_h, args.patch_size_w = patch_size_t, patch_size_h, patch_size_w
-    assert (
-        ae_stride_h == ae_stride_w
-    ), f"Support only ae_stride_h == ae_stride_w now, but found ae_stride_h ({ae_stride_h}), ae_stride_w ({ae_stride_w})"
-    assert (
-        patch_size_h == patch_size_w
-    ), f"Support only patch_size_h == patch_size_w now, but found patch_size_h ({patch_size_h}), patch_size_w ({patch_size_w})"
-    assert (
-        args.max_image_size % ae_stride_h == 0
-    ), f"Image size must be divisible by ae_stride_h, but found max_image_size ({args.max_image_size}), "
-    " ae_stride_h ({ae_stride_h})."
+        ae_stride_t, ae_stride_h, ae_stride_w = ae_stride_config[args.ae]
+        args.ae_stride_t, args.ae_stride_h, args.ae_stride_w = ae_stride_t, ae_stride_h, ae_stride_w
+        args.ae_stride = args.ae_stride_h
+        patch_size = args.model[-3:]
+        patch_size_t, patch_size_h, patch_size_w = int(patch_size[0]), int(patch_size[1]), int(patch_size[2])
+        args.patch_size = patch_size_h
+        args.patch_size_t, args.patch_size_h, args.patch_size_w = patch_size_t, patch_size_h, patch_size_w
+        assert (
+            ae_stride_h == ae_stride_w
+        ), f"Support only ae_stride_h == ae_stride_w now, but found ae_stride_h ({ae_stride_h}), ae_stride_w ({ae_stride_w})"
+        assert (
+            patch_size_h == patch_size_w
+        ), f"Support only patch_size_h == patch_size_w now, but found patch_size_h ({patch_size_h}), patch_size_w ({patch_size_w})"
+        assert (
+            args.max_image_size % ae_stride_h == 0
+        ), f"Image size must be divisible by ae_stride_h, but found max_image_size ({args.max_image_size}), "
+        " ae_stride_h ({ae_stride_h})."
 
-    latent_size = (args.max_image_size // ae_stride_h, args.max_image_size // ae_stride_w)
-    vae.latent_size = latent_size
+        latent_size = (args.max_image_size // ae_stride_h, args.max_image_size // ae_stride_w)
+        vae.latent_size = latent_size
 
     logger.info(f"Init Latte T2V model: {args.model}")
     ae_time_stride = 4
@@ -144,6 +149,7 @@ def main(args):
                 dtype=model_dtype,
                 custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
             )
+            logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
         else:
             logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16
@@ -163,6 +169,11 @@ def main(args):
             cache_dir="./",
             model_max_length=args.model_max_length,
         )
+        # mixed precision
+        text_encoder_dtype = get_precision(args.text_encoder_precision)
+        text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
+        text_encoder.dtype = text_encoder_dtype
+        logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
         tokenizer = text_encoder.tokenizer
     else:
         text_encoder = None
@@ -190,8 +201,8 @@ def main(args):
         video_folder=args.video_folder,
         text_emb_folder=args.text_embed_folder,
         return_text_emb=use_text_embed,
-        vae_latent_folder=None,
-        return_vae_latent=False,
+        vae_latent_folder=args.vae_latent_folder,
+        return_vae_latent=train_with_vae_latent,
         vae_scale_factor=args.sd_scale_factor,
         sample_size=args.max_image_size,
         sample_stride=args.sample_rate,
@@ -199,7 +210,7 @@ def main(args):
         tokenizer=tokenizer,
         video_column=args.video_column,
         caption_column=args.caption_column,
-        disable_flip=False,  # use random flip
+        disable_flip=not args.enable_flip,
         use_image_num=args.use_image_num,
         token_max_length=args.model_max_length,
     )
@@ -367,12 +378,14 @@ def main(args):
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use model dtype: {model_dtype}",
-                f"AMP level: {args.amp_level}",
+                f"AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
                 f"Number of frames: {args.num_frames}",
                 f"Use image num: {args.use_image_num}",
+                f"Optimizer: {args.optim}",
+                f"Optimizer epsilon: {args.optim_eps}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
@@ -381,6 +394,7 @@ def main(args):
                 f"Grad clipping: {args.clip_grad}",
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
+                f"EMA decay: {args.ema_decay}",
                 f"Enable flash attention: {args.enable_flash_attention}",
                 f"Use recompute: {args.use_recompute}",
                 f"Dataset sink: {args.dataset_sink_mode}",
@@ -412,6 +426,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--text_embed_folder", type=str, default=None, help="the folder path to the t5 text embeddings and masks"
     )
+    parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
     parser.add_argument("--model", type=str, default="DiT-XL/122")
     parser.add_argument("--num_classes", type=int, default=1000)
     parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
@@ -431,7 +446,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--model_max_length", type=int, default=120)
 
-    parser.add_argument("--enable_tracker", action="store_true")
+    # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
     parser.add_argument("--use_img_from_vid", action="store_true")
     parser.add_argument("--use_deepspeed", action="store_true")
@@ -458,7 +473,11 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--caption_column", default="cap", type=str, help="name of column for captions saved in csv file"
     )
-
+    parser.add_argument(
+        "--enable_flip",
+        action="store_true",
+        help="enable random flip video (disable it to avoid motion direction and text mismatch)",
+    )
     return parser
 
 
