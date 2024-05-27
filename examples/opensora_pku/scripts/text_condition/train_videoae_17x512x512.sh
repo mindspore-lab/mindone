@@ -43,6 +43,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --checkpointing_steps=500 \
     --output_dir=$output_dir \
     --model_max_length 300 \
+    --clip_grad True \
     --use_image_num $use_image_num \
     --use_img_from_vid \
     --use_parallel True \
