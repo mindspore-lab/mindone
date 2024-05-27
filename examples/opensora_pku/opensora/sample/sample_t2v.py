@@ -49,6 +49,7 @@ def init_env(
     parallel_mode: str = "data",
     enable_dvm: bool = False,
     precision_mode: str = None,
+    global_bf16: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -109,6 +110,11 @@ def init_env(
         ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
+    if global_bf16:
+        print("Using global bf16")
+        ms.set_context(
+            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
+        )  # reset ascend precison mode globally
     return rank_id, device_num
 
 
@@ -189,6 +195,9 @@ def parse_args():
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
+        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
+    )
+    parser.add_argument(
         "--vae_precision",
         default="bf16",
         type=str,
@@ -253,6 +262,7 @@ if __name__ == "__main__":
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
+        global_bf16=args.global_bf16,
     )
 
     # 2. vae model initiate and weight loading
@@ -363,14 +373,18 @@ if __name__ == "__main__":
     # mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        transformer_model = auto_mixed_precision(
-            transformer_model,
-            amp_level=args.amp_level,
-            dtype=dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
-        )
-        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+        if not args.global_bf16:
+            amp_level = args.amp_level
+            transformer_model = auto_mixed_precision(
+                transformer_model,
+                amp_level=args.amp_level,
+                dtype=dtype,
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+            )
+            logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+        else:
+            logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {dtype} to ms.bfloat16")
+            dtype = ms.bfloat16
     elif args.precision == "fp32":
         amp_level = "O0"
     else:
