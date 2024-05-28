@@ -81,13 +81,10 @@ def main(args):
     else:
         logger.info("vae init")
         vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
-        if not args.global_bf16:
-            vae_dtype = ms.bfloat16
-            custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
-            vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-            logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
-        else:
-            logger.info("Using global bf16 for causal 3D VAE. ")
+        vae_dtype = ms.bfloat16
+        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
 
         vae.set_train(False)
         for param in vae.get_parameters():  # freeze vae
@@ -172,14 +169,12 @@ def main(args):
             cache_dir="./",
             model_max_length=args.model_max_length,
         )
-        if not args.global_bf16:
-            # mixed precision
-            text_encoder_dtype = ms.bfloat16  # using bf16 for text encoder and vae
-            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-            text_encoder.dtype = text_encoder_dtype
-            logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
-        else:
-            logger.info("Using global bf16 for text encoder T5. ")
+        # mixed precision
+        text_encoder_dtype = ms.bfloat16  # using bf16 for text encoder and vae
+        text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
+        text_encoder.dtype = text_encoder_dtype
+        logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+
         tokenizer = text_encoder.tokenizer
     else:
         text_encoder = None
