@@ -81,17 +81,20 @@ def main(args):
     else:
         logger.info("vae init")
         vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
+        if not args.global_bf16:
+            vae_dtype = ms.bfloat16
+            custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+            vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
+            logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
+        else:
+            logger.info("Using global bf16 for causal 3D VAE. ")
+
+        vae.set_train(False)
+        for param in vae.get_parameters():  # freeze vae
+            param.requires_grad = False
         if args.enable_tiling:
             vae.vae.enable_tiling()
             vae.vae.tile_overlap_factor = args.tile_overlap_factor
-        vae.set_train(False)
-
-        vae_dtype = ms.bfloat16
-        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
-        vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
-        for param in vae.get_parameters():  # freeze vae
-            param.requires_grad = False
 
         ae_stride_t, ae_stride_h, ae_stride_w = ae_stride_config[args.ae]
         args.ae_stride_t, args.ae_stride_h, args.ae_stride_w = ae_stride_t, ae_stride_h, ae_stride_w
@@ -169,11 +172,14 @@ def main(args):
             cache_dir="./",
             model_max_length=args.model_max_length,
         )
-        # mixed precision
-        text_encoder_dtype = get_precision(args.text_encoder_precision)
-        text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
-        text_encoder.dtype = text_encoder_dtype
-        logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+        if not args.global_bf16:
+            # mixed precision
+            text_encoder_dtype = ms.bfloat16  # using bf16 for text encoder and vae
+            text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
+            text_encoder.dtype = text_encoder_dtype
+            logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
+        else:
+            logger.info("Using global bf16 for text encoder T5. ")
         tokenizer = text_encoder.tokenizer
     else:
         text_encoder = None
@@ -185,7 +191,6 @@ def main(args):
         latte_model,
         diffusion,
         vae=vae,
-        scale_factor=args.sd_scale_factor,
         condition="text",
         text_encoder=text_encoder,
         cond_stage_trainable=False,
@@ -196,6 +201,7 @@ def main(args):
     )
 
     # 3. create dataset
+    assert args.dataset == "t2v", "Support t2v dataset only."
     ds_config = dict(
         data_file_path=args.data_path,
         video_folder=args.video_folder,

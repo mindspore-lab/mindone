@@ -23,7 +23,6 @@ class DiffusionWithLoss(nn.Cell):
         model (nn.Cell): A noise prediction model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         diffusion: (object): A class for Gaussian Diffusion.
-        scale_factor (float): scale_factor for vae.
         condition (str): The type of conditions of model in [None, 'text', 'class'].
             If it is None, model is a un-conditional video generator.
             If it is 'text', model accepts text embeddings (B, T, N) as conditions, and generates videos.
@@ -39,7 +38,6 @@ class DiffusionWithLoss(nn.Cell):
         network: nn.Cell,
         diffusion: SpacedDiffusion,
         vae: nn.Cell = None,
-        scale_factor: float = 0.18215,
         condition: str = "class",
         text_encoder: nn.Cell = None,
         cond_stage_trainable: bool = False,
@@ -60,7 +58,6 @@ class DiffusionWithLoss(nn.Cell):
         self.text_encoder = text_encoder
         self.dtype = dtype
 
-        self.scale_factor = scale_factor
         self.cond_stage_trainable = cond_stage_trainable
 
         self.text_emb_cached = text_emb_cached
@@ -94,8 +91,7 @@ class DiffusionWithLoss(nn.Cell):
 
     def vae_encode(self, x):
         image_latents = self.vae.encode(x)
-        image_latents = image_latents * self.scale_factor
-        return image_latents.astype(ms.float16)
+        return image_latents
 
     def vae_decode(self, x):
         """
@@ -105,7 +101,7 @@ class DiffusionWithLoss(nn.Cell):
             y: (b H W 3), batch of images, normalized to [0, 1]
         """
         # b, c, f, h, w = x.shape
-        y = self.vae.decode(x / self.scale_factor)
+        y = self.vae.decode(x)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
         return y  # b c f h w

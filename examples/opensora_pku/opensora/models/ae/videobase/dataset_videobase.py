@@ -49,12 +49,12 @@ class VideoDataset:
         dynamic_sample=False,
         output_columns=["video", "path"],
     ):
-        logger.info(f"loading annotations from {data_file_path} ...")
-
         if data_file_path is not None:
+            logger.info(f"loading videos from data file {data_file_path} ...")
             self.parse_data_file(data_file_path)
             self.read_from_data_file = True
         else:
+            logger.info(f"loading videos from video folder {data_folder} ...")
             self.dataset = get_video_path_list(data_folder)
             self.read_from_data_file = False
 
