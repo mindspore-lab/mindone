@@ -106,8 +106,7 @@ Most base, utility and mixin class are available.
 - [ ] DPMSolverSDEScheduler
 
 ### Loader
-- [ ] LoRA
-- [ ] FromSingleFileMixin
+- All Supported
 
 ## Limitations
 
