@@ -51,7 +51,6 @@ class VideoDatasetRefactored(BaseDataset):
         self._frames = sample_n_frames
         self._stride = sample_stride
         self._min_length = (self._frames - 1) * self._stride + 1
-        self._filter_videos()
         self._text_emb_folder = text_emb_folder
         self._vae_latent_folder = vae_latent_folder
         self._vae_downsample_rate = vae_downsample_rate
@@ -59,6 +58,10 @@ class VideoDatasetRefactored(BaseDataset):
         self._fmask_gen = frames_mask_generator
 
         self.output_columns = output_columns
+
+        # prepare replacement data in case the loading of a sample fails
+        self._prev_ok_sample = self._get_replacement()
+        self._require_update_prev = False
 
     @staticmethod
     def _read_data(
@@ -68,39 +71,45 @@ class VideoDatasetRefactored(BaseDataset):
             try:
                 data = []
                 for item in csv.DictReader(csv_file):
-                    sample = {**item, "video": os.path.join(data_dir, item["video"]), "length": int(item["length"])}
+                    sample = {**item, "video": os.path.join(data_dir, item["video"])}
                     if text_emb_folder:
                         sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
                     if vae_latent_folder:
                         sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
             except KeyError as e:
-                _logger.error("CSV file requires `video` (file paths) and `length` (frame count) columns.")
+                _logger.error("CSV file requires `video` (file paths) column.")
                 raise e
 
         return data
 
-    def _filter_videos(self):
-        old_len = len(self._data)
-        self._data = [item for item in self._data if item["length"] >= self._min_length]
-        if len(self._data) < old_len:
-            _logger.info(
-                f"Filtered out {old_len - len(self._data)} videos as they don't match the minimum length"
-                f" requirement: {self._min_length} frames ((num frames - 1) x stride + 1)"
-            )
+    def _get_replacement(self, max_attempts: int = 100):
+        attempts = min(max_attempts, len(self))
+        for idx in range(attempts):
+            try:
+                return self._get_item(idx)
+            except Exception as e:
+                _logger.debug(f"Failed to load a replacement sample: {e}")
 
-    def __getitem__(self, idx: int) -> Tuple[Any, ...]:
+        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts.")
+
+    def _get_item(self, idx: int) -> Tuple[Any, ...]:
         data = self._data[idx].copy()
         if self._text_emb_folder:
             with np.load(data["text_emb"]) as td:
                 data.update({"caption": td["text_emb"], "mask": td["mask"]})
 
         if self._vae_latent_folder:
-            with VideoReader(data["video"]) as reader:
-                data["fps"] = np.array(reader.fps, dtype=np.float32)
+            if "fps" not in data:  # cache FPS for further iterations
+                with VideoReader(data["video"]) as reader:
+                    data["fps"] = self._data[idx]["fps"] = reader.fps
+            data["fps"] = np.array(data["fps"], dtype=np.float32)
 
             with np.load(data["vae_latent"]) as vae_latent_data:
                 latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
+            if len(latent_mean) < self._min_length:
+                raise ValueError(f"Video is too short: {data['video']}")
+
             start_pos = random.randint(0, len(latent_mean) - self._min_length)
             batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, self._frames, dtype=int)
 
@@ -110,6 +119,9 @@ class VideoDatasetRefactored(BaseDataset):
 
         else:
             with VideoReader(data["video"]) as reader:
+                if len(reader) < self._min_length:
+                    raise ValueError(f"Video is too short: {data['video']}")
+
                 start_pos = random.randint(0, len(reader) - self._min_length)
                 data["video"] = reader.fetch_frames(num=self._frames, start_pos=start_pos, step=self._stride)
                 data["fps"] = np.array(reader.fps, dtype=np.float32)
@@ -120,6 +132,19 @@ class VideoDatasetRefactored(BaseDataset):
             data["frames_mask"] = self._fmask_gen(self._frames)
 
         return tuple(data[c] for c in self.output_columns)
+
+    def __getitem__(self, idx: int) -> Tuple[Any, ...]:
+        try:
+            sample = self._get_item(idx)
+            if self._require_update_prev:
+                self._prev_ok_sample = sample
+                self._require_update_prev = False
+        except Exception as e:
+            _logger.warning(f"Failed to fetch sample #{idx}, the video will be replaced. {e}")
+            sample = self._prev_ok_sample
+            self._require_update_prev = True
+
+        return sample
 
     def __len__(self):
         return len(self._data)

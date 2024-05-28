@@ -305,55 +305,6 @@ video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
 
-⚠️ OpenSora v1.1 also requires the `length` field, which represents the number of frames,
-in the CSV file (i.e. `video, length, caption`).
-
-<details>
-<summary>Example script to add `length` information to your CSV</summary>
-
-```python
-import csv
-import os
-from concurrent.futures import ThreadPoolExecutor
-
-from jsonargparse import ArgumentParser
-from jsonargparse.typing import Path_fc, Path_fr, path_type
-from tqdm import tqdm
-
-from mindone.data.video_reader import VideoReader
-
-Path_dr = path_type("dr")  # path to a directory that exists and is readable
-
-
-def convert(csv_path: Path_fr, dataset_path: Path_dr, out_path: Path_fc = "./videos.csv", num_workers: int = 10):
-    def read_data(info: dict):
-        video_path, caption = info["video"], info["caption"]
-        with VideoReader(os.path.join(str(dataset_path), video_path)) as reader:
-            return {"video": video_path, "length": len(reader), "caption": caption}
-
-    with open(csv_path, "r") as csv_file:
-        video_list = list(csv.DictReader(csv_file))
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        data = list(tqdm(executor.map(read_data, video_list), total=len(video_list)))
-
-    fieldnames = ["video", "length", "caption"]
-    with open(out_path, "w", newline="") as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        writer.writeheader()
-
-        for item in data:
-            writer.writerow(item)
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_function_arguments(convert)
-    cfg = parser.parse_args()
-    convert(**cfg.as_dict())
-```
-
-</details>
 
 ### Cache Text Embeddings
 
