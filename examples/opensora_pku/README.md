@@ -15,6 +15,8 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 | **[2024.03.08]** PKU support the training code of text condition with 16 frames of 512x512. |   ✅ CausalVAE+LatteT2V+T5 training (`16x512x512`)|
 | **[2024.03.07]** PKU support training with 128 frames (when sample rate = 3, which is about 13 seconds) of 256x256, or 64 frames (which is about 6 seconds) of 512x512. | class-conditioned training is under-development.|
 
+[PKU Open-Sora-Plan](https://github.com/PKU-YuanGroup/Open-Sora-Plan) is under rapid development, and currently we have aligned our implementation with its code version on [20240409](https://github.com/PKU-YuanGroup/Open-Sora-Plan/commit/c3cd4da606dba07ead6e6e733661a03b8126c92c).  
+
 ## 🎥 Demo
 
 The following videos are generated based on MindSpore and Ascend 910*.
@@ -38,11 +40,11 @@ Videos are saved to `.gif` for display. See the text prompts in `examples/prompt
     - ✅ T5 TextEncoder model inference.
     - ✅ Text-to-video generation in 256x256 or 512x512 resolution and up to 65 frames.
     - ✅ Three-stage training: i) 17x256x256 pretraining, ii) 65x256x256 finetuning, and iii) 65x512x512 finetuning.
-    - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, etc..
+    - ✅ Acceleration methods: flash attention, recompute (graident checkpointing), mixed precision, data parallelism, optimizer-parallel, etc..
 
 
 ### TODO
-* [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
+* [ ] Sequence-parallel training **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 * [ ] Evaluation of various metrics.
 
@@ -189,7 +191,7 @@ python opensora/sample/sample_t2v.py \
     --version 65x512x512 \
     --save_img_path "./sample_videos/prompt_list_0" \
     --fps 24 \
-    --guidance_scale 7.5 \
+    --guidance_scale 4.5 \
     --num_sampling_steps 250 \
     --enable_tiling
 ```
@@ -199,7 +201,7 @@ You can change the `version` to `17x256x256` or `65x256x256` to change the numbe
 > 1. Pass `--enable_time_chunk True` to allow vae decoding temporal frames as small, overlapped chunks. This can reduce the memory usage, which sacrificies a bit of temporal consistency.
 > 2. Seperate the inference into two stages. In stage 1, please run inference with `--save_latents`. This will save some `.npy` files in the output directory. Then in stage 2, please run the same inference script with `--decode_latents`. The generated videos will be saved in the output directory.
 
-If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` to the above command.
+If you want to run a multi-device inference, e.g., 8 cards, please use `msrun` and pass `--use_parallel=True` as the example below:
 
 ```bash
 # 8 NPUs
@@ -209,7 +211,14 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
     ... # pass other arguments
 ```
 
-The command above will run a 8-card inference and save the log files into "output_log". In case of `Failed to register the compute graph node` error, please edit the `master_port` to a different port number in the range 1024 to 65535, and run the script again.
+The command above will run a 8-card inference and save the log files into "output_log". `--master_port` specifies the Scheduler binding port number. `--worker_num` and `--local_worker_num` should be the same to the number of running devices, e.g., 8.
+
+In case of the following error:
+```bash
+RuntimtError: Failed to register the compute graph node: 0. Reason: Repeated registration node: 0
+```
+
+Please edit the `master_port` to a different port number in the range 1024 to 65535, and run the script again.
 
 
 ## Training
@@ -308,6 +317,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
       --video_folder /remote-home1/dataset/data_split_tt \
       --text_embed_folder /path/to/text-embed-folder \
       --pretrained pretrained/t2v.ckpt \
+    ... # pass other arguments
 ```
 We use `msrun` to launch the parallel training tasks. For single-node multi-device training, `worker_num` and `local_worker_num` should be the same to the number of training devices.  `master_port` specifies the scheduler binding port number.
 
@@ -355,7 +365,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   65 + 4    | 256x256     |   4.5     |
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   17 + 4    | 512x512     |   3.6     |
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 512x512     |   7.5     |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512     |   15.5    |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 2  |  8   |   65 + 16   | 512x512     |   16.8    |
 
 
 ## 👍 Acknowledgement
