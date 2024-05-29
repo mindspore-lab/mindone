@@ -111,8 +111,11 @@ class VideoDatasetRefactored(BaseDataset):
                 data.update({"caption": td["text_emb"], "mask": td["mask"]})
 
         if self._vae_latent_folder:
-            with VideoReader(data["video"]) as reader:
-                data["fps"] = np.array(reader.fps, dtype=np.float32)
+            if "fps" not in data:  # cache FPS for further iterations
+                with VideoReader(data["video"]) as reader:
+                    data["fps"] = self._data[idx]["fps"] = reader.fps
+            data["fps"] = np.array(data["fps"], dtype=np.float32)
+
             # pick a resolution randomly 
             vae_latent_path = data["vae_latent"]
             if self.num_latent_resolution > 1:
