@@ -84,8 +84,10 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
 def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
-        if isinstance(cell, nn.Conv1d):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
+        if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
+                ops.expand_dims(x, axis=-2), name=x.name
+            )
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):

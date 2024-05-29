@@ -97,9 +97,20 @@ Most base, utility and mixin class are available.
 - [ ] StableDiffusionPipeline
 
 ### Model
+
+#### AutoEncoders
+
 - [x] AutoencoderKL
-- [x] Transformer2DModel
+
+#### UNets
+
+- [x] UNet1DModel
 - [x] UNet2DConditionModel
+- [x] StableCascadeUNet
+
+#### Transformers
+
+- [x] Transformer2DModel
 
 ### Scheduler
 - [x] DDIMScheduler/DDPMScheduler/...(30)
