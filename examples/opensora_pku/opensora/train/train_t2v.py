@@ -69,6 +69,7 @@ def main(args):
         mempool_block_size=args.mempool_block_size,
         global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
+        optimizer_weight_shard_size=args.optimizer_weight_shard_size,
     )
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:

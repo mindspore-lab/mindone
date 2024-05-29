@@ -27,6 +27,7 @@ def init_env(
     mempool_block_size: str = "9GB",
     global_bf16: bool = False,
     strategy_ckpt_save_file: str = "",
+    optimizer_weight_shard_size: int = 8,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -55,6 +56,7 @@ def init_env(
             print("use optim parallel")
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                parallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
                 enable_parallel_optimizer=True,
                 strategy_ckpt_config={
                     "save_file": strategy_ckpt_save_file,
@@ -139,6 +141,12 @@ def parse_train_args(parser):
         type=str,
         default="9GB",
         help="Set the size of the memory pool block in PyNative mode for devices. ",
+    )
+    parser.add_argument(
+        "--optimizer_weight_shard_size",
+        type=int,
+        default=8,
+        help="Set the size of the communication domain split by the optimizer weight. ",
     )
     #################################################################################
     #                                   Optimizers                                  #
