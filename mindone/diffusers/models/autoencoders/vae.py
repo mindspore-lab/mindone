@@ -21,6 +21,7 @@ from mindspore import nn, ops
 
 from ...utils import BaseOutput
 from ..activations import SiLU
+from ..attention_processor import SpatialNorm
 from ..normalization import GroupNorm
 from ..unets.unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
 
@@ -259,7 +260,7 @@ class Decoder(nn.Cell):
 
         # out
         if norm_type == "spatial":
-            raise NotImplementedError("SpatialNorm is not implemented.")
+            self.conv_norm_out = SpatialNorm(block_out_channels[0], temb_channels)
         else:
             self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
         self.conv_act = SiLU()

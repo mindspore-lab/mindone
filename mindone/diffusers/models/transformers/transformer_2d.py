@@ -15,13 +15,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput, deprecate, logging
 from ..attention import BasicTransformerBlock
+from ..embeddings import ImagePositionalEmbeddings, PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm
+from ..normalization import AdaLayerNormSingle, GroupNorm, LayerNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -160,9 +161,35 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
             else:
                 self.proj_in = conv_cls(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True)
         elif self.is_input_vectorized:
-            raise NotImplementedError("ImagePositionalEmbeddings is not implemented")
+            assert sample_size is not None, "Transformer2DModel over discrete input must provide sample_size"
+            assert num_vector_embeds is not None, "Transformer2DModel over discrete input must provide num_embed"
+
+            self.height = sample_size
+            self.width = sample_size
+            self.num_vector_embeds = num_vector_embeds
+            self.num_latent_pixels = self.height * self.width
+
+            self.latent_image_embedding = ImagePositionalEmbeddings(
+                num_embed=num_vector_embeds, embed_dim=inner_dim, height=self.height, width=self.width
+            )
         elif self.is_input_patches:
-            raise NotImplementedError("PatchEmbed is not implemented")
+            assert sample_size is not None, "Transformer2DModel over patched input must provide sample_size"
+
+            self.height = sample_size
+            self.width = sample_size
+
+            self.patch_size = patch_size
+            interpolation_scale = (
+                interpolation_scale if interpolation_scale is not None else max(self.config.sample_size // 64, 1)
+            )
+            self.pos_embed = PatchEmbed(
+                height=sample_size,
+                width=sample_size,
+                patch_size=patch_size,
+                in_channels=in_channels,
+                embed_dim=inner_dim,
+                interpolation_scale=interpolation_scale,
+            )
 
         # 3. Define transformers blocks
         self.transformer_blocks = nn.CellList(
@@ -196,16 +223,30 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
                 self.proj_out = linear_cls(inner_dim, in_channels)
             else:
                 self.proj_out = conv_cls(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
+        elif self.is_input_vectorized:
+            self.norm_out = LayerNorm(inner_dim)
+            self.out = nn.Dense(inner_dim, self.num_vector_embeds - 1)
+        elif self.is_input_patches and norm_type != "ada_norm_single":
+            self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
+            self.proj_out_1 = nn.Dense(inner_dim, 2 * inner_dim)
+            self.proj_out_2 = nn.Dense(inner_dim, patch_size * patch_size * self.out_channels)
+        elif self.is_input_patches and norm_type == "ada_norm_single":
+            self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
+            self.scale_shift_table = ms.Parameter(ops.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
+            self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * self.out_channels)
 
         # 5. PixArt-Alpha blocks.
         self.adaln_single = None
         self.use_additional_conditions = False
         if norm_type == "ada_norm_single":
-            raise NotImplementedError("AdaLayerNormSingle is not implemented")
+            self.use_additional_conditions = self.config.sample_size == 128
+            # TODO(Sayak, PVP) clean this, for now we use sample size to determine whether to use
+            # additional conditions until we find better name
+            self.adaln_single = AdaLayerNormSingle(inner_dim, use_additional_conditions=self.use_additional_conditions)
 
         self.caption_projection = None
         if caption_channels is not None:
-            raise NotImplementedError("PixArtAlphaTextProjection is not implemented")
+            self.caption_projection = PixArtAlphaTextProjection(in_features=caption_channels, hidden_size=inner_dim)
 
         self._gradient_checkpointing = False
 
@@ -297,6 +338,9 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
         # 1. Input
+        # define variables outside to fool ai compiler
+        embedded_timestep, batch, inner_dim, height, width, residual = (None,) * 6
+
         if self.is_input_continuous:
             batch, _, height, width = hidden_states.shape
             residual = hidden_states
@@ -311,7 +355,26 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
                 hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch, height * width, inner_dim)
                 hidden_states = self.proj_in(hidden_states)
 
+        elif self.is_input_vectorized:
+            hidden_states = self.latent_image_embedding(hidden_states)
+        elif self.is_input_patches:
+            height, width = hidden_states.shape[-2] // self.patch_size, hidden_states.shape[-1] // self.patch_size
+            hidden_states = self.pos_embed(hidden_states)
+
+            if self.adaln_single is not None:
+                if self.use_additional_conditions and added_cond_kwargs is None:
+                    raise ValueError(
+                        "`added_cond_kwargs` cannot be None when using additional conditions for `adaln_single`."
+                    )
+                timestep, embedded_timestep = self.adaln_single(
+                    timestep, added_cond_kwargs, batch_size=hidden_states.shape[0], hidden_dtype=hidden_states.dtype
+                )
+
         # 2. Blocks
+        if self.caption_projection is not None:
+            encoder_hidden_states = self.caption_projection(encoder_hidden_states)
+            encoder_hidden_states = encoder_hidden_states.view(hidden_states.shape[0], -1, hidden_states.shape[-1])
+
         for block in self.transformer_blocks:
             hidden_states = block(
                 hidden_states,
@@ -324,6 +387,7 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
             )
 
         # 3. Output
+        output = None
         if self.is_input_continuous:
             if not self.use_linear_projection:
                 hidden_states = hidden_states.reshape(batch, height, width, inner_dim).permute(0, 3, 1, 2)
@@ -333,6 +397,41 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
                 hidden_states = hidden_states.reshape(batch, height, width, inner_dim).permute(0, 3, 1, 2)
 
             output = hidden_states + residual
+        elif self.is_input_vectorized:
+            hidden_states = self.norm_out(hidden_states)
+            logits = self.out(hidden_states)
+            # (batch, self.num_vector_embeds - 1, self.num_latent_pixels)
+            logits = logits.permute(0, 2, 1)
+
+            # log(p(x_0))
+            # ops.log_softmax doesn't support double precision. why assume float output
+            output = ops.log_softmax(logits.float(), axis=1).to(hidden_states.dtype)
+
+        if self.is_input_patches:
+            if self.config["norm_type"] != "ada_norm_single":
+                conditioning = self.transformer_blocks[0].norm1.emb(
+                    timestep, class_labels, hidden_dtype=hidden_states.dtype
+                )
+                shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
+                hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
+                hidden_states = self.proj_out_2(hidden_states)
+            elif self.config["norm_type"] == "ada_norm_single":
+                shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+                hidden_states = self.norm_out(hidden_states)
+                # Modulation
+                hidden_states = hidden_states * (1 + scale) + shift
+                hidden_states = self.proj_out(hidden_states)
+                if hidden_states.shape[1] == 1:
+                    hidden_states = hidden_states.squeeze(1)
+
+            # unpatchify
+            if self.adaln_single is None:
+                height = width = int(hidden_states.shape[1] ** 0.5)
+            hidden_states = hidden_states.reshape(
+                -1, height, width, self.patch_size, self.patch_size, self.out_channels
+            )
+            hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+            output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
 
         if not return_dict:
             return (output,)
