@@ -148,7 +148,7 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=model_dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU] if model_dtype == ms.float16 else [],
             )
             logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
         else:
