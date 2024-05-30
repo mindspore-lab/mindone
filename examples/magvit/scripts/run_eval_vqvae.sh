@@ -7,6 +7,8 @@ python eval_vqvae.py \
     --output_path vqvae_eval \
     --size 128 \
     --crop_size 128 \
+    --num_frames 17 \
     --mode 0 \
+    --dtype bf16 \
     --ckpt_path outputs/vae_celeba_train/ckpt/vae_kl_f8-e22.ckpt \
     --eval_loss True \

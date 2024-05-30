@@ -39,7 +39,7 @@ class VQVAE3D(nn.Cell):
         embedding_dim = config.vqvae.embedding_dim
         in_dim = config.vqvae.channels
         h_dim = config.vqvae.filters
-        m_dim = config.vqvae.middle_channles
+        m_dim = config.vqvae.middle_channels
         beta = config.vqvae.commitment_cost
         temporal_downsample = config.vqvae.temporal_downsample
         time_downsample_factor = 2 ** (sum(temporal_downsample) - 1)
@@ -92,7 +92,9 @@ class VQVAE3D(nn.Cell):
             )
             logger.info("Using Lookup Free Quantization.")
         else:
-            self.quantizer = VQ(self.codebook_size, embedding_dim, beta)
+            self.quantizer = VQ(
+                self.codebook_size, embedding_dim, beta, dtype=dtype
+            ).to_float(dtype)
             logger.info("Using basic Vector Quantization.")
 
         if save_img_embedding_map:

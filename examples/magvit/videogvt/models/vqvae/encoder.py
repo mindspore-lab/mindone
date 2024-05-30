@@ -6,6 +6,8 @@ from videogvt.models.vqvae.model_utils import (
     ResnetBlock3D,
     CausalConv3d,
     GroupNormExtend,
+    SpatialDownsample2x,
+    TimeDownsample2x,
     nonlinearity,
     _get_selected_flags,
 )
@@ -31,8 +33,8 @@ class Encoder3D(nn.Cell):
 
         self.config = config
 
-        self.in_channels = 3
-        self.out_channels = 18
+        self.in_channels = self.config.vqvae.channels  # 3
+        self.out_channels = self.config.vqvae.middle_channels  # 18
         self.init_dim = self.config.vqvae.filters  # 128
         self.input_conv_kernel_size = (3, 3, 3)  # (7, 7, 7)
         self.output_conv_kernel_size = (1, 1, 1)
@@ -46,7 +48,7 @@ class Encoder3D(nn.Cell):
                 len(self.channel_multipliers) - 1, self.temporal_downsample, False
             )
         self.embedding_dim = self.config.vqvae.embedding_dim
-        self.conv_downsample = self.config.vqvae.conv_downsample
+        self.downsample = self.config.vqvae.get("downsample", "time+spatial")
         self.custom_conv_padding = self.config.vqvae.get("custom_conv_padding")
         self.norm_type = self.config.vqvae.norm_type
         self.num_remat_block = self.config.vqvae.get("num_enc_remat_blocks", 0)
@@ -80,16 +82,27 @@ class Encoder3D(nn.Cell):
                 self.residual_stack.append(ResnetBlock3D(filters, filters, dtype=dtype))
 
             if self.temporal_downsample[i]:
-                self.residual_stack.append(
-                    CausalConv3d(
-                        filters,
-                        filters,
-                        kernel_size=(3, 3, 3),
-                        stride=t_stride,
-                        padding=1,
-                        dtype=dtype,
+                if self.downsample == "conv":
+                    self.residual_stack.append(
+                        CausalConv3d(
+                            filters,
+                            filters,
+                            kernel_size=(3, 3, 3),
+                            stride=t_stride,
+                            padding=1,
+                            dtype=dtype,
+                        )
                     )
-                )
+                elif self.downsample == "time+spatial":
+                    if t_stride[0] > 1:
+                        self.residual_stack.append(
+                            TimeDownsample2x(filters, filters, dtype=dtype)
+                        )
+                    self.residual_stack.append(
+                        SpatialDownsample2x(filters, filters, dtype=dtype)
+                    )
+                else:
+                    raise NotImplementedError(f"Unknown downsampler: {self.downsample}")
 
     def construct(self, x):
         # x = self.conv_in(x)

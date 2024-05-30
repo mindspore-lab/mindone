@@ -36,17 +36,16 @@ def get_config(config_str="MAGVIT-V2"):
     config.vqvae.video_contains_first_frame = True
     config.vqvae.separate_first_frame_encoding = True
     config.vqvae.channels = 3
-    config.vqvae.middle_channles = 18
+    config.vqvae.middle_channels = 18
     config.vqvae.codebook_size = 1024
     config.vqvae.filters = 128
-    config.vqvae.upsample = "nearest+conv" # nearest+conv, deconv
+    config.vqvae.downsample = "time+spatial"
+    config.vqvae.upsample = "time+spatial" # nearest+conv, deconv, time+spatial
     config.vqvae.num_enc_res_blocks = 4
     config.vqvae.num_dec_res_blocks = 4
     config.vqvae.channel_multipliers = (1, 2, 2, 4, 4)
     config.vqvae.temporal_downsample = (True, True, True, False, False)
     config.vqvae.embedding_dim = 256
-    config.vqvae.conv_downsample = False
-    config.vqvae.deconv_upsample = False
 
     config.discriminator = ml_collections.ConfigDict()
     config.discriminator.filters = config.vqvae.get_oneway_ref("filters")
@@ -58,6 +57,8 @@ def get_config(config_str="MAGVIT-V2"):
     config.discriminator.num_remat_blocks = config.vqvae.get_ref("num_enc_remat_blocks")
 
     # Loss
+    config.lr_configs.perceptual_weight = 0.1
+    config.lr_configs.recons_weight = 5.0
     config.lr_configs.disc_weight = 0.1
     config.lr_configs.disc_start = 1
 

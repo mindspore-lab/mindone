@@ -239,44 +239,6 @@ class Upsample3D(nn.Cell):
         return x
 
 
-class Downsample(nn.Cell):
-    def __init__(
-        self,
-        in_channels: int,
-        with_conv: bool,
-        include_t_dim: bool = True,
-        factor: int = 2,
-        dtype=ms.float32,
-    ):
-        super().__init__()
-        self.dtype = dtype
-        self.with_conv = with_conv
-        self.include_t_dim = include_t_dim
-        self.factor = factor
-        if self.with_conv:
-            # no asymmetric padding in torch conv, must do it ourselves
-            self.conv = nn.Conv2d(
-                in_channels,
-                in_channels,
-                kernel_size=3,
-                stride=2,
-                pad_mode="valid",
-                padding=0,
-                has_bias=True,
-            ).to_float(self.dtype)
-
-    def construct(self, x):
-        if self.with_conv:
-            pad = ((0, 0), (0, 0), (0, 1), (0, 1))
-            x = nn.Pad(paddings=pad)(x)
-            x = self.conv(x)
-        else:
-            t_factor = self.factor if self.include_t_dim else 1
-            shape = (t_factor, self.factor, self.factor)
-            x = ops.AvgPool3D(kernel_size=shape, strides=shape)(x)
-        return x
-
-
 class SpatialDownsample2x(nn.Cell):
     def __init__(
         self,
@@ -292,25 +254,30 @@ class SpatialDownsample2x(nn.Cell):
         self.chan_in = chan_in
         self.chan_out = chan_out
         self.kernel_size = kernel_size
-        # TODO: no need to use CausalConv3d, can reshape to spatial (bt, c, h, w) and use conv 2d
-        self.conv = CausalConv3d(
+
+        self.conv = nn.Conv2d(
             self.chan_in,
             self.chan_out,
-            (1,) + self.kernel_size,
-            stride=(1,) + stride,
+            self.kernel_size,
+            stride=stride,
             padding=0,
-        )
-
-        # no asymmetric padding, must do it ourselves
-        # order (width_pad, width_pad, height_pad, height_pad, time_pad, 0)
-        # self.padding = (0,1,0,1,0,0) # not compatible for ms2.2
-        self.pad = ops.Pad(paddings=((0, 0), (0, 0), (0, 0), (0, 1), (0, 1)))
+            has_bias=True,
+        ).to_float(dtype)
 
     def construct(self, x):
         # x shape: (b c t h w)
-        # x = ops.pad(x, self.padding, mode="constant", value=0)
-        x = self.pad(x)
+
+        b, c, t, h, w = x.shape
+
+        x = ops.permute(x, (0, 2, 1, 3, 4))
+        x = x.reshape(b * t, c, h, w)
+
         x = self.conv(x)
+
+        _, c, h, w = x.shape
+        x = x.reshape(b, t, c, h, w)
+        x = ops.permute(x, (0, 2, 1, 3, 4))
+
         return x
 
 
@@ -327,82 +294,90 @@ class SpatialUpsample2x(nn.Cell):
         self.chan_in = chan_in
         self.chan_out = chan_out
         self.kernel_size = kernel_size
-        self.conv = CausalConv3d(
+        self.conv = nn.Conv2d(
             self.chan_in,
             self.chan_out,
-            (1,) + self.kernel_size,
-            stride=(1,) + stride,
+            self.kernel_size,
+            stride=stride,
             padding=1,
-        )
+            pad_mode="pad",
+            has_bias=True,
+            dtype=dtype,
+        ).to_float(dtype)
 
     def construct(self, x):
         b, c, t, h, w = x.shape
 
         # x = rearrange(x, "b c t h w -> b (c t) h w")
-        x = ops.reshape(x, (b, c * t, h, w))
+        x = ops.permute(x, (0, 2, 1, 3, 4))
+        x = ops.reshape(x, (-1, c, h, w))
 
         hw_in = x.shape[-2:]
         scale_factor = 2
         hw_out = tuple(scale_factor * s_ for s_ in hw_in)
         x = ops.ResizeNearestNeighbor(hw_out)(x)
 
-        # x = ops.interpolate(x, scale_factor=(2.,2.), mode="nearest") # 4D not supported
-        # x = rearrange(x, "b (c t) h w -> b c t h w", t=t)
-        x = ops.reshape(x, (b, c, t, h * scale_factor, w * scale_factor))
-
         x = self.conv(x)
+
+        x = ops.reshape(x, (b, t, c, hw_out[0], hw_out[1]))
+        x = ops.permute(x, (0, 2, 1, 3, 4))
+
         return x
 
 
 class TimeDownsample2x(nn.Cell):
     def __init__(
         self,
+        chan_in,
+        chan_out,
         kernel_size: int = 3,
-        replace_avgpool3d: bool = True,  # FIXME: currently, ms+910b does not support nn.AvgPool3d
+        dtype=ms.float32,
     ):
         super().__init__()
+        self.chan_in = chan_in
+        self.chan_out = chan_out
         self.kernel_size = kernel_size
-        self.replace_avgpool3d = replace_avgpool3d
-        if not replace_avgpool3d:
-            self.conv = nn.AvgPool3d((kernel_size, 1, 1), stride=(2, 1, 1))
-        else:
-            self.conv = nn.AvgPool2d((kernel_size, 1), stride=(2, 1))
-        # print('D--: replace avgpool3d', replace_avgpool3d)
-        self.time_pad = self.kernel_size - 1
+        self.conv = CausalConv3d(chan_in, chan_out, kernel_size, stride=2).to_float(
+            dtype
+        )
 
     def construct(self, x):
-        first_frame = x[:, :, :1, :, :]
-        first_frame_pad = ops.repeat_interleave(first_frame, self.time_pad, axis=2)
-        x = ops.concat((first_frame_pad, x), axis=2)
-
-        if not self.replace_avgpool3d:
-            return self.conv(x)
-        else:
-            # FIXME: only work when h, w stride is 1
-            b, c, t, h, w = x.shape
-            x = ops.reshape(x, (b, c, t, h * w))
-            x = self.conv(x)
-            x = ops.reshape(x, (b, c, -1, h, w))
-            return x
+        x = self.conv(x)
+        return x
 
 
 class TimeUpsample2x(nn.Cell):
-    def __init__(self, exclude_first_frame=True):
+    def __init__(
+        self,
+        chan_in,
+        chan_out,
+        kernel_size: int = 3,
+        dtype=ms.float32,
+    ):
         super().__init__()
-        self.exclude_first_frame = exclude_first_frame
+        self.chan_in = chan_in
+        self.chan_out = chan_out
+        self.kernel_size = kernel_size
+        self.conv = CausalConv3d(
+            chan_in, chan_out, kernel_size, stride=1, dtype=dtype
+        ).to_float(dtype)
 
     def construct(self, x):
-        if x.shape[2] > 1:
-            if self.exclude_first_frame:
-                x, x_ = x[:, :, :1], x[:, :, 1:]
-                # FIXME: ms2.2.10 cannot support trilinear on 910b
-                x_ = ops.interpolate(x_, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
-                x = ops.concat([x, x_], axis=2)
-            else:
-                x = ops.interpolate(x, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
+        x = ops.permute(x, (0, 1, 3, 4, 2))
+
+        b, c, h, w, t = x.shape
+
+        x = x.reshape(b, c, -1, t)
+
+        in_shape = x.shape[-2:]
+        out_shape = (in_shape[0], in_shape[1] * 2)
+        x = ops.ResizeNearestNeighbor(out_shape)(x)
+
+        x = x.reshape(b, c, h, w, -1)
+        x = ops.permute(x, (0, 1, 4, 2, 3))
+        x = self.conv(x)
 
         return x
-
 
 class ResnetBlock3D(nn.Cell):
     def __init__(
@@ -453,17 +428,3 @@ class ResnetBlock3D(nn.Cell):
             else:
                 x = self.nin_shortcut(x)
         return x + h
-
-
-if __name__ == "__main__":
-    # random data
-    x = np.random.random_sample((3, 40, 40, 200))
-    x = ms.Tensor(x, ms.float32)
-    # test Residual Layer
-    res = ResidualLayer(40, 40, 20)
-    res_out = res(x)
-    print("Res Layer out shape:", res_out.shape)
-    # test res stack
-    res_stack = ResidualStack(40, 40, 20, 3)
-    res_stack_out = res_stack(x)
-    print("Res Stack out shape:", res_stack_out.shape)

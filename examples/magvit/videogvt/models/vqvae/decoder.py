@@ -5,6 +5,8 @@ import numpy as np
 from videogvt.models.vqvae.model_utils import (
     ResnetBlock3D,
     Upsample3D,
+    SpatialUpsample2x,
+    TimeUpsample2x,
     CausalConv3d,
     GroupNormExtend,
     nonlinearity,
@@ -20,8 +22,8 @@ class Decoder3D(nn.Cell):
 
         self.config = config
 
-        self.in_channels = 18
-        self.out_channels = 3
+        self.in_channels = config.vqvae.middle_channels  # 18
+        self.out_channels = config.vqvae.channels  # 3
         self.input_conv_kernel_size = (3, 3, 3)  # (7, 7, 7)
 
         self.mode = mode
@@ -98,6 +100,14 @@ class Decoder3D(nn.Cell):
                             nn.Conv3d(
                                 filters, filters, kernel_size=(3, 3, 3), dtype=dtype
                             )
+                        )
+                    elif self.upsample == "time+spatial":
+                        if t_stride > 1:
+                            self.residual_stack.append(
+                                TimeUpsample2x(filters, filters, dtype=dtype)
+                            )
+                        self.residual_stack.append(
+                            SpatialUpsample2x(filters, filters, dtype=dtype)
                         )
                     else:
                         raise NotImplementedError(f"Unknown upsampler: {self.upsample}")

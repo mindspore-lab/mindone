@@ -149,7 +149,6 @@ class LFQ(nn.Cell):
         return self.codebook.dtype
 
     def indices_to_codes(self, indices, project_out=True):
-
         if not self.keep_num_codebooks_dim:
             # indices = rearrange(indices, '... -> ... 1')
             indices = indices.unsqueeze(-1)
@@ -307,4 +306,11 @@ class LFQ(nn.Cell):
             return (x, indices, aux_loss)
 
         else:
-            return (x, indices, aux_loss, per_sample_entropy, codebook_entropy, commit_loss)
+            return (
+                x,
+                indices,
+                aux_loss,
+                per_sample_entropy,
+                codebook_entropy,
+                commit_loss,
+            )
