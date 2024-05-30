@@ -6,7 +6,7 @@ image_size: [240, 426]
 num_frames: 16
 frame_interval: 3
 fps: 24
-enable_flash_attention: False
+enable_flash_attention: True
 model_max_length: 200
 dtype: "fp32"
 batch_size: 1
