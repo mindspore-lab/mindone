@@ -192,7 +192,14 @@ def main(args):
         for ref in references:
             if ref is not None:
                 for k in range(len(ref)):
-                    ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy().swapaxes(0, 1)
+                    try:
+                        ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy().swapaxes(0, 1)
+                    except RuntimeError as e:
+                        logger.error(
+                            f"Failed to embed reference video {args.reference_path[i : i + args.batch_size][k]}."
+                            f" Try reducing `vae_micro_batch_size`."
+                        )
+                        raise e
 
         latents, videos = None, []
         for loop_i in range(args.loop):

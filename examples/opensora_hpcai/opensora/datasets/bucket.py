@@ -114,16 +114,10 @@ def bucket_split_function(buckets: Bucket):
     for name, lengths in buckets.ar_criteria.items():
         for length, ars in lengths.items():
             if buckets.bucket_bs[name][length] is not None:
-                if length not in hashed_buckets:
-                    hashed_buckets[length] = {}
-                for ar, hw in ars.items():
-                    h, w = hw
-                    if h in hashed_buckets[length]:
-                        hashed_buckets[length][h][w] = cnt
-                    else:
-                        hashed_buckets[length][h] = {w: cnt}
-                    cnt += 1
+                for ar, (h, w) in ars.items():
+                    hashed_buckets.setdefault(length, {}).setdefault(h, {})[w] = cnt
                     batch_sizes.append(buckets.bucket_bs[name][length])
+                    cnt += 1
 
     def _bucket_split_function(video: np.ndarray) -> int:
         # video: F C H W

@@ -78,9 +78,9 @@ class VideoDatasetRefactored(BaseDataset):
         self._buckets = buckets
 
         self.output_columns = output_columns
-        if self._buckets is not None:  # pass bucket id information to transformations
+        if self._buckets is not None:
             assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
-            self.output_columns += ["bucket_id"]
+            self.output_columns += ["bucket_id"]  # pass bucket id information to transformations
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -106,15 +106,17 @@ class VideoDatasetRefactored(BaseDataset):
 
         return data
 
-    def _get_replacement(self, max_attempts: int = 100):
+    def _get_replacement(self, max_attempts: int = 100) -> Tuple[Any, ...]:
         attempts = min(max_attempts, len(self))
+        error = None
         for idx in range(attempts):
             try:
                 return self._get_item(idx)
             except Exception as e:
+                error = e
                 _logger.debug(f"Failed to load a replacement sample: {e}")
 
-        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts.")
+        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {error}")
 
     def _get_item(self, idx: int) -> Tuple[Any, ...]:
         data = self._data[idx].copy()

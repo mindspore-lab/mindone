@@ -482,7 +482,7 @@ class PatchEmbed(nn.Cell):
 
     def __init__(
         self,
-        image_size: Optional[int] = 224,
+        image_size: Union[int, Tuple[int, int], None] = 224,
         patch_size: int = 2,
         in_chans: int = 3,
         embed_dim: int = 96,
@@ -490,14 +490,12 @@ class PatchEmbed(nn.Cell):
     ) -> None:
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
+        self.image_size = self.patches_resolution = self.num_patches = None
         if image_size is not None:
-            self.image_size: Optional[Tuple] = (image_size, image_size) if isinstance(image_size, int) else image_size
-            self.patches_resolution: Optional[Tuple] = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
-            self.num_patches: Optional[int] = self.patches_resolution[0] * self.patches_resolution[1]
-        else:
-            self.image_size: Optional[Tuple] = None
-            self.patches_resolution: Optional[Tuple] = None
-            self.num_patches: Optional[int] = None
+            self.image_size: Tuple = (image_size, image_size) if isinstance(image_size, int) else image_size
+            self.patches_resolution = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
+            self.num_patches = self.patches_resolution[0] * self.patches_resolution[1]
+
         self.embed_dim = embed_dim
         self.proj = nn.Conv2d(
             in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="same", has_bias=bias

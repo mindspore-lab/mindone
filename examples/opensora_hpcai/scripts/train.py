@@ -202,7 +202,7 @@ def main(args):
                 "qk_norm": True,
             }
         )
-        logger.info(f"STDiT2 input size: {input_size}")
+        logger.info(f"STDiT2 input size: {input_size if args.bucket_config is None else 'Variable'}")
         latte_model = STDiT2_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
@@ -514,9 +514,9 @@ def main(args):
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Use model dtype: {args.dtype}",
                 f"Learning rate: {args.start_learning_rate}",
-                f"Batch size: {args.batch_size}",
-                f"Image size: {(img_h, img_w)}",
-                f"Frames: {args.num_frames}",
+                f"Batch size: {args.batch_size if args.bucket_config is None else 'Variable'}",
+                f"Image size: {(img_h, img_w) if args.bucket_config is None else 'Variable'}",
+                f"Frames: {args.num_frames if args.bucket_config is None else 'Variable'}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",

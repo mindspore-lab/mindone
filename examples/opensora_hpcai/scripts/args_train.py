@@ -40,8 +40,8 @@ def parse_train_args(parser):
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
-    parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
-    parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
+    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
