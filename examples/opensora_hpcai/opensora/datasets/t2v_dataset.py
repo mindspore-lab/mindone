@@ -297,7 +297,8 @@ class TextVideoDataset:
             if self.is_image:
                 pixel_values = pixel_values[0]
 
-            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+            pixel_values = np.divide(pixel_values, 127.5, dtype=np.float32)
+            pixel_values = np.subtract(pixel_values, 1.0, dtype=np.float32)
         else:
             # pixel_values is the vae encoder's output sample * scale_factor
             pass
