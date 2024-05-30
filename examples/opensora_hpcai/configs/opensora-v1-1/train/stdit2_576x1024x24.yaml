@@ -1,17 +1,17 @@
 # model
 model_version: v1.1
-pretrained_model_path: "models/opensora_v1.1_stage3.ckpt"
+pretrained_model_path: "models/opensora_v1.1_stage2.ckpt"
 model_max_length: 200
 
 enable_flash_attention: True
 use_recompute: True
 
 # data
-image_size: [ 1024, 1024 ]
-num_frames: 16
+image_size: [ 576, 1024 ]
+num_frames: 24
 frame_stride: 3
 
-num_parallel_workers: 16
+num_parallel_workers: 12
 max_rowsize: 256
 
 # precision
@@ -35,7 +35,7 @@ optim_eps: 1.e-8
 weight_decay: 0.
 
 epochs: 12000
-ckpt_save_interval: 100
+ckpt_save_interval: 50
 
 mask_ratios:
   mask_no: 0.75

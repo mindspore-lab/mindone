@@ -74,6 +74,10 @@ class VideoDatasetRefactored(BaseDataset):
                 _logger.info("Multi-resolution latents detected: {}".format(self.num_latent_resolution))
 >>>>>>> support multi-resolution training with vae cached
 
+		# prepare replacement data in case the loading of a sample fails
+        self._prev_ok_sample = self._get_replacement()
+        self._require_update_prev = False
+
     @staticmethod
     def _read_data(
         data_dir: str, csv_path: str, text_emb_folder: Optional[str] = None, vae_latent_folder: Optional[str] = None
