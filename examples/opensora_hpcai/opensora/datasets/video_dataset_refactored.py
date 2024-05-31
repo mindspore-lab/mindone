@@ -9,9 +9,10 @@ from typing import Any, Callable, List, Optional, Tuple
 import numpy as np
 
 from mindspore.dataset.transforms import Compose
-from mindspore.dataset.vision import CenterCrop, Inter, Normalize, Resize
+from mindspore.dataset.vision import CenterCrop, Inter, Normalize
 
 from .bucket import Bucket
+from .transforms import BucketResizeCrop, Resize
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
@@ -24,7 +25,7 @@ _logger = logging.getLogger(__name__)
 def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BILINEAR):
     return Compose(
         [
-            Resize(min(target_size), interpolation=interpolation),
+            Resize(target_size, interpolation=interpolation),
             CenterCrop(target_size),
             lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
             Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -32,22 +33,6 @@ def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BI
             lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
         ]
     )
-
-
-class BucketResizeCrop:
-    def __init__(self, buckets: Bucket):
-        self._transforms = {}  # is this reasonable? There are 350+ buckets
-        for name, lengths in buckets.ar_criteria.items():
-            self._transforms[name] = {}
-            for length, ars in lengths.items():
-                self._transforms[name][str(length)] = {}
-                for ar, hw in ars.items():
-                    self._transforms[name][str(length)][ar] = Compose(
-                        [Resize(min(hw), interpolation=Inter.BILINEAR), CenterCrop(hw)]
-                    )
-
-    def __call__(self, x, bucket_id):
-        return self._transforms[bucket_id[0]][bucket_id[1]][bucket_id[2]](x)
 
 
 class VideoDatasetRefactored(BaseDataset):
@@ -221,7 +206,7 @@ class VideoDatasetRefactored(BaseDataset):
             transforms.append(
                 {
                     "operations": [
-                        Resize(min(target_size), interpolation=Inter.BILINEAR),
+                        Resize(target_size, interpolation=Inter.BILINEAR),
                         CenterCrop(target_size),
                         lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
                         Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
