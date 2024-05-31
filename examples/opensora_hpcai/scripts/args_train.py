@@ -59,6 +59,7 @@ def parse_train_args(parser):
     parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
     parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
     parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
+    parser.add_argument("--patchify", type=str, default="conv2d", choices=['conv3d', 'conv2d', 'linear'], help="patchify_conv3d_replace, conv2d - equivalent conv2d to replace conv3d patchify, linear - equivalent linear layer to replace conv3d patchify  ")
     # ms
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
