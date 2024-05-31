@@ -75,6 +75,7 @@ class VideoDatasetRefactored(BaseDataset):
 >>>>>>> support multi-resolution training with vae cached
 
 		# prepare replacement data in case the loading of a sample fails
+
         self._prev_ok_sample = self._get_replacement()
         self._require_update_prev = False
 
