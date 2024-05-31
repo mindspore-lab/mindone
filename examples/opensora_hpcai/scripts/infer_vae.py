@@ -161,14 +161,14 @@ def main(args):
                 latent_mean=mean.astype(np.float32),
                 latent_std=std.astype(np.float32),
                 fps=fps,
-                ori_size,
+                ori_size=ori_size,
             )
         else:
             np.savez(
                 npz_fp,
                 latent_mean=video_latent_mean.astype(np.float32),
                 fps=fps,
-                ori_size,
+                ori_size=ori_size,
             )
         return npz_fp
 
