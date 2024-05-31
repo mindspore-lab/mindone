@@ -12,12 +12,12 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 ## 📰 News & States
 
-| Official News from HPC-AI Tech                                                                                                                                                                                                                                                                                                                                                | MindSpore Support                              |
-|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------|
-| **[2024.04.25]** 🤗 HPC-AI Tech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces.                                                                                                                                                                                                                          | N.A.                                           |
-| **[2024.04.25]** 🔥 HPC-AI Tech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_02.md) | Image/Video-to-Video, Infinite time generation |
-| **[2024.03.18]** HPC-AI Tech released **Open-Sora 1.0**, a fully open-source project for video generation.                                                                                                                                                                                                                                                                    | ✅ VAE + STDiT training and inference           |
-| **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                                                                  | ✅ Parallel training on Ascend devices          |
+| Official News from HPC-AI Tech                                                                                                                                                                                                                                                                                                                                                | MindSpore Support                                                                              |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| **[2024.04.25]** 🤗 HPC-AI Tech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces.                                                                                                                                                                                                                          | N.A.                                                                                           |
+| **[2024.04.25]** 🔥 HPC-AI Tech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_02.md) | Image/Video-to-Video; Infinite time generation; Variable resolutions, aspect ratios, durations |
+| **[2024.03.18]** HPC-AI Tech released **Open-Sora 1.0**, a fully open-source project for video generation.                                                                                                                                                                                                                                                                    | ✅ VAE + STDiT training and inference                                                           |
+| **[2024.03.04]** HPC-AI Tech Open-Sora provides training with 46% cost reduction [[blog]](https://hpc-ai.com/blog/open-sora)                                                                                                                                                                                                                                                  | ✅ Parallel training on Ascend devices                                                          |
 
 
 
@@ -93,6 +93,7 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 - 📍 **Open-Sora 1.1** with the following features
     - ✅ Improved ST-DiT architecture includes rope positional encoding, qk norm, longer text length, etc.
     - ✅ Support image and video conditioning and video editing, and thus support animating images, connecting videos, etc.
+    - ✅ Support training with any resolution, aspect ratio, and duration.
 
 - 📍 **Open-Sora 1.0** with the following features
     - ✅ Text-to-video generation in 256x256 or 512x512 resolution and up to 64 frames.
@@ -111,9 +112,6 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 </details>
 
 ### TODO
-* [ ] Support OpenSora 1.1 **[WIP]**
-    - [x] Support image and video conditioning.
-    - [ ] Support variable aspect ratios, resolutions, and durations.
 * [ ] Optimizer-parallel and sequence-parallel training **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 

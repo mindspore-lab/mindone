@@ -194,8 +194,45 @@ For detailed usage, please check `python scripts/train.py -h`
 > [!WARNING]
 > OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.
 
-Note that the training precision is under continuous optimization.
+> [!NOTE]
+> Training precision is under continuous optimization.
 
+
+### 4. Multi-resolution Training with Buckets
+
+OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
+To enable this feature, add the desired bucket configuration to the `yaml` config file
+(see [train_stage1.yaml](../configs/opensora-v1-1/train/train_stage1.yaml) for an example).
+
+The bucket configuration is a two-level dictionary formatted as `resolution: { num_frames: [ keep_prob, batch_size ] }`,
+where:
+
+- `resolution` specifies the resolution of a particular bucket.
+- `num_frames` is the number of frames in the bucket.
+- `keep_prob` is the probability of a video being placed into the bucket.
+- `batch_size` refers to the batch size for the bucket.
+
+The available resolutions and aspect ratios are predefined and can be found
+in [aspect.py](../opensora/datasets/aspect.py).
+The `keep_prob` parameter determines the likelihood of a video being placed into a particular bucket.
+A bucket is selected based on the video resolution, beginning with the highest resolution that does not exceed the
+video's own resolution.
+
+The selection process considers only the maximum possible number of frames for each bucket,
+meaning that the buckets are selected based on resolution alone.
+
+> [!TIP]
+> If you want longer videos to go into smaller resolution buckets, you can set the `keep_prob` to `0.0`,
+> as shown in the example below:
+> ``yaml
+> bucket_config:
+>     # Structure: resolution: { num_frames: [ keep_prob, batch_size ] }
+>     # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
+>     "240p": {16: [1.0, 16], 32: [1.0, 8], 64: [1.0, 4], 128: [1.0, 2]}
+>     "480p": {16: [1.0, 4], 32: [0.0, 0]}
+>     "720p": {16: [0.5, 2]}
+> ``
+> With this configuration, videos with a length of 32 or more frames will be assigned to the `240p` bucket.
 
 #### Notes about MindSpore 2.3
 
