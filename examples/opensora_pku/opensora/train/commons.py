@@ -24,6 +24,10 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    mempool_block_size: str = "9GB",
+    global_bf16: bool = False,
+    strategy_ckpt_save_file: str = "",
+    optimizer_weight_shard_size: int = 8,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -36,6 +40,7 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    ms.set_context(mempool_block_size=mempool_block_size)
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
@@ -51,12 +56,17 @@ def init_env(
             print("use optim parallel")
             ms.set_auto_parallel_context(
                 parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                parallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
                 enable_parallel_optimizer=True,
+                strategy_ckpt_config={
+                    "save_file": strategy_ckpt_save_file,
+                    "only_trainable_params": False,
+                },
             )
             init()
             device_num = get_group_size()
             rank_id = get_rank()
-        else:
+        elif parallel_mode == "data":
             init()
             device_num = get_group_size()
             rank_id = get_rank()
@@ -84,8 +94,12 @@ def init_env(
 
     if enable_dvm:
         print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
-
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    if global_bf16:
+        print("Using global bf16")
+        ms.set_context(
+            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
+        )  # reset ascend precison mode globally
     return rank_id, device_num
 
 
@@ -114,11 +128,26 @@ def parse_train_args(parser):
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
-        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+        "--parallel_mode",
+        default="data",
+        type=str,
+        choices=["data", "optim", "semi"],
+        help="parallel mode: data, optim",
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
-
+    parser.add_argument(
+        "--mempool_block_size",
+        type=str,
+        default="9GB",
+        help="Set the size of the memory pool block in PyNative mode for devices. ",
+    )
+    parser.add_argument(
+        "--optimizer_weight_shard_size",
+        type=int,
+        default=8,
+        help="Set the size of the communication domain split by the optimizer weight. ",
+    )
     #################################################################################
     #                                   Optimizers                                  #
     #################################################################################
@@ -131,7 +160,7 @@ def parse_train_args(parser):
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument(
-        "--optim_eps", type=float, default=1e-6, help="Specify the eps parameter for the AdamW optimizer."
+        "--optim_eps", type=float, default=1e-8, help="Specify the eps parameter for the AdamW optimizer."
     )
     parser.add_argument(
         "--group_strategy",
@@ -154,7 +183,7 @@ def parse_train_args(parser):
     #                                Learning Rate                                  #
     #################################################################################
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
-    parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
+    parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument("--lr_warmup_steps", default=1000, type=int, help="warmup steps")
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
@@ -197,14 +226,16 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--amp_level",
-        default="O2",
+        default="O1",
         type=str,
         help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
             O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
-
+    parser.add_argument(
+        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
+    )
     #################################################################################
     #                                 Model Optimization                            #
     #################################################################################

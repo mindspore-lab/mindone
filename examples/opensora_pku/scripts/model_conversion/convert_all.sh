@@ -1,5 +1,5 @@
-python tools/model_converion/convert_t5.py \
-  -s DeepFloyd/t5-v1_1-xxl/pytorch_model-00001-of-00002.bin models/t5-v1_1-xxl/pytorch_model-00002-of-00002.bin \
+python tools/model_conversion/convert_t5.py \
+  -s DeepFloyd/t5-v1_1-xxl/pytorch_model-00001-of-00002.bin DeepFloyd/t5-v1_1-xxl/pytorch_model-00002-of-00002.bin \
   -t DeepFloyd/t5-v1_1-xxl/t5-v1_1-xxl.ckpt \
 
 python tools/model_conversion/convert_vae.py \

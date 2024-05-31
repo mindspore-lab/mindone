@@ -11,7 +11,7 @@ import yaml
 from omegaconf import OmegaConf
 
 import mindspore as ms
-from mindspore import Model
+from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
 
 sys.path.append(".")
@@ -78,7 +78,7 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        custom_fp32_cells = [] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
         ae = auto_mixed_precision(ae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         if use_discriminator:
@@ -107,6 +107,8 @@ def main(args):
 
     # 4. build dataset
     ds_config = dict(
+        data_file_path=args.data_file_path,
+        video_column=args.video_column,
         data_folder=args.video_path,
         size=args.resolution,
         crop_size=args.resolution,
@@ -382,6 +384,17 @@ def parse_causalvae_train_args(parser):
 
     parser.add_argument(
         "--video_path", default="/remote-home1/dataset/data_split_tt", help="The path where the video data is stored."
+    )
+    parser.add_argument(
+        "--data_file_path",
+        default=None,
+        help="The data file path where the video paths are recorded. Now support json and csv file"
+        "If not provided, will search all videos under `video_path` in a non-recursive manner.",
+    )
+    parser.add_argument(
+        "--video_column",
+        default="video",
+        help="The column of video file path in `data_file_path`. Defaults to `video`.",
     )
 
     parser.add_argument("--video_num_frames", default=17, type=int, help="The number of frames per video.")
