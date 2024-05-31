@@ -236,7 +236,15 @@ def main(args):
                 logger.info(captions[i + j][loop_i])
 
             # infer
-            samples, latents = pipeline(inputs, frames_mask=frames_mask, additional_kwargs=model_args)
+            samples, latents = pipeline(
+                inputs,
+                frames_mask=frames_mask,
+                additional_kwargs=model_args,
+                pre_patchify=args.pre_patchify,
+                patch_size=latte_model.patch_size,
+                max_image_size=args.max_image_size,
+                embed_dim=latte_model.hidden_size,
+            )
             samples, latents = samples.asnumpy(), latents.asnumpy()
             videos.append(samples[:, args.condition_frame_length if loop_i > 0 else 0 :])
 

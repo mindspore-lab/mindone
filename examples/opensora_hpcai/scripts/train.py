@@ -316,7 +316,16 @@ def main(args):
             sample_stride=args.frame_stride,
             frames_mask_generator=mask_gen,
             output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
+            pre_patchify=args.pre_patchify,
+            patch_size=latte_model.patch_size,
+            embed_dim=latte_model.hidden_size,
+            max_target_size=args.max_image_size,
+            input_sq_size=latte_model.input_sq_size,
         )
+
+        project_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
+        if args.pre_patchify:
+            project_columns.extend(["pos_emb", "latent_mask"])
 
         dataloader = create_dataloader(
             dataset,
@@ -332,7 +341,7 @@ def main(args):
             max_rowsize=args.max_rowsize,
             debug=args.debug,
             # Sort output columns to match DiffusionWithLoss input
-            project_columns=["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"],
+            project_columns=project_columns,
         )
 
     dataset_size = dataloader.get_dataset_size()

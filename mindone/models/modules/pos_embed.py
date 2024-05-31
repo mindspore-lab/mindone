@@ -15,7 +15,9 @@ __all__ = [
 ]
 
 
-def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -> np.ndarray:
+def get_2d_sincos_pos_embed(
+    embed_dim: int, nh: int, nw: Optional[int] = None, scale: float = 1.0, base_size: Optional[int] = None
+) -> np.ndarray:
     """Generate 2D sinusoidal positional embedding based on the given height and width
     referred from https://github.com/facebookresearch/mae
 
@@ -25,8 +27,12 @@ def get_2d_sincos_pos_embed(embed_dim: int, nh: int, nw: Optional[int] = None) -
         nw: image width. If it is not given, then `nw` is equal to `nh`. Default: None
     """
     nw = nh if nw is None else nw
-    grid_h = np.arange(nh, dtype=np.float32)
-    grid_w = np.arange(nw, dtype=np.float32)
+    if base_size is None:
+        grid_h = np.arange(nh, dtype=np.float32) / scale
+        grid_w = np.arange(nw, dtype=np.float32) / scale
+    else:
+        grid_h = np.arange(nh, dtype=np.float32) / (nh / base_size) / scale
+        grid_w = np.arange(nw, dtype=np.float32) / (nw / base_size) / scale
     grid = np.meshgrid(grid_w, grid_h)  # here w goes first
     grid = np.stack(grid, axis=0)
 

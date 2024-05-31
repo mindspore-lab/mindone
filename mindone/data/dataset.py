@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List, Optional, Sequence, Tuple
 
 
 class BaseDataset(ABC):
@@ -11,6 +11,7 @@ class BaseDataset(ABC):
     """
 
     output_columns: List[str]
+    pad_info: Optional[Dict[str, Tuple[Sequence[int], int]]]
 
     @abstractmethod
     def __getitem__(self, idx):

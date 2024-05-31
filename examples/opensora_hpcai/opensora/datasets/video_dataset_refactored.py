@@ -15,6 +15,7 @@ from mindspore.dataset.vision import CenterCrop, Inter, Normalize, Resize
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
 from mindone.data import BaseDataset
 from mindone.data.video_reader import VideoReader
+from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 _logger = logging.getLogger(__name__)
 
@@ -44,9 +45,18 @@ class VideoDatasetRefactored(BaseDataset):
         sample_n_frames: int = 16,
         sample_stride: int = 4,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
+        pre_patchify: bool = False,
+        patch_size: Tuple[int, int, int] = (1, 2, 2),
+        embed_dim: int = 1152,
+        max_target_size: int = 512,
+        input_sq_size: int = 512,
         *,
         output_columns: List[str],
     ):
+        if pre_patchify:
+            if not vae_latent_folder:
+                raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
+
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder)
         self._frames = sample_n_frames
         self._stride = sample_stride
@@ -56,8 +66,23 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
+        self._pre_patchify = pre_patchify
 
         self.output_columns = output_columns
+
+        if self._pre_patchify:
+            self._patch_size = patch_size
+            assert self._patch_size[0] == 1
+            self._embed_dim = embed_dim
+            self._input_sq_size = input_sq_size
+
+            max_length = int(max_target_size**2 // np.prod(self._patch_size[1:]) // self._vae_downsample_rate**2)
+            C = 4
+            self.pad_info = {
+                "video": ([self._frames, max_length, C * np.prod(self._patch_size).item()], 0),
+                "pos_emb": ([max_length, self._embed_dim], 0),
+                "latent_mask": ([max_length], 0),
+            }
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -146,6 +171,33 @@ class VideoDatasetRefactored(BaseDataset):
 
         return sample
 
+    def _get_dynamic_size(self, h: int, w: int) -> Tuple[int, int]:
+        if h % self._patch_size[1] != 0:
+            h += self._patch_size[1] - h % self._patch_size[1]
+        if w % self._patch_size[2] != 0:
+            w += self._patch_size[2] - w % self._patch_size[2]
+        h = h // self._patch_size[1]
+        w = w // self._patch_size[2]
+        return h, w
+
+    def _patchify(self, latent: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        f, c, h, w = latent.shape
+
+        rs = (h * w * self._vae_downsample_rate**2) ** 0.5
+        ph, pw = self._get_dynamic_size(h, w)
+        scale = rs / self._input_sq_size
+        base_size = round((ph * pw) ** 0.5)
+
+        nh, nw = h // self._patch_size[1], w // self._patch_size[2]
+
+        latent = np.reshape(latent, (f, c, nh, self._patch_size[1], nw, self._patch_size[2]))
+        latent = np.transpose(latent, (0, 2, 4, 1, 3, 5))  # f, nh, nw, c, patch, patch
+        latent = np.reshape(latent, (f, nh * nw, -1))  # f, nh * nw, c * patch * patch
+
+        pos = get_2d_sincos_pos_embed(self._embed_dim, nh, nw, scale=scale, base_size=base_size).astype(np.float32)
+        mask = np.ones(latent.shape[0], dtype=np.uint8)
+        return latent, pos, mask
+
     def __len__(self):
         return len(self._data)
 
@@ -184,6 +236,15 @@ class VideoDatasetRefactored(BaseDataset):
                 "output_columns": ["video", "height", "width", "ar"],
             }
         )
+
+        if self._pre_patchify:
+            transforms.append(
+                {
+                    "operations": [self._patchify],
+                    "input_columns": ["video"],
+                    "output_columns": ["video", "pos_emb", "latent_mask"],
+                }
+            )
 
         if "caption" in self.output_columns and not self._text_emb_folder:
             if tokenizer is None:

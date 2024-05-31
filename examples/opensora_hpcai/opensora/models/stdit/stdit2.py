@@ -105,6 +105,7 @@ class STDiT2Block(nn.Cell):
         t0_tmp: Optional[Tensor] = None,
         T: Optional[int] = None,
         S: Optional[int] = None,
+        latent_mask: Optional[Tensor] = None,
     ):
         B, N, C = x.shape
 
@@ -133,7 +134,7 @@ class STDiT2Block(nn.Cell):
 
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
-        x_s = self.attn(x_s)
+        x_s = self.attn(x_s, mask=latent_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
         if frames_mask is not None:
@@ -152,7 +153,7 @@ class STDiT2Block(nn.Cell):
 
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
-        x_t = self.attn_temp(x_t)
+        x_t = self.attn_temp(x_t, mask=latent_mask)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
         if frames_mask is not None:
@@ -338,6 +339,8 @@ class STDiT2(nn.Cell):
         width: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
+        pos_emb: Optional[Tensor] = None,
+        latent_mask: Optional[Tensor] = None,
         **kwargs,
     ):
         """
@@ -352,13 +355,10 @@ class STDiT2(nn.Cell):
             x (torch.Tensor): output latent representation; of shape [B, C, T, H, W]
         """
         B = x.shape[0]
-        x = x.to(self.dtype)
-        timestep = timestep.to(self.dtype)
-        y = y.to(self.dtype)
 
         # === process data info ===
         # 1. get dynamic size
-        hw = ops.cat([height[:, None], width[:, None]], axis=1)
+        hw = ops.stack([height, width], axis=1)
         rs = (height[0] * width[0]) ** 0.5
         csize = self.csize_embedder(hw, B)
 
@@ -380,7 +380,9 @@ class STDiT2(nn.Cell):
         scale = rs / self.input_sq_size
         base_size = round(S**0.5)
         # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
-        pos_emb = ops.stop_gradient(self.pos_embed(x, H, W, scale=scale, base_size=base_size))
+
+        if pos_emb is None:
+            pos_emb = ops.stop_gradient(self.pos_embed(x, H, W, scale=scale, base_size=base_size))
 
         # embedding
         if self.patchify_conv3d_replace is None:
@@ -394,7 +396,7 @@ class STDiT2(nn.Cell):
             x = x.reshape((_b, -1, self.hidden_size))
 
         x = x.reshape(B, T, S, x.shape[-1])  # B (T S) C -> B T S C
-        x = x + pos_emb
+        x = x + pos_emb.to(x.dtype)
         x = x.reshape(B, T * S, x.shape[-1])  # B T S C -> B (T S) C
 
         # prepare adaIN
@@ -419,7 +421,7 @@ class STDiT2(nn.Cell):
 
         # blocks
         for block in self.blocks:
-            x = block(x, y, t_spc_mlp, t_tmp_mlp, mask, frames_mask, t0_spc_mlp, t0_tmp_mlp, T, S)
+            x = block(x, y, t_spc_mlp, t_tmp_mlp, mask, frames_mask, t0_spc_mlp, t0_tmp_mlp, T, S, latent_mask)
 
         # x.shape: [B, N, C]
         # final process

@@ -1,7 +1,11 @@
-from typing import Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
+
+import numpy as np
 
 import mindspore as ms
 from mindspore import Tensor, ops
+
+from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..schedulers.iddpm import create_diffusion
 
@@ -140,11 +144,103 @@ class InferPipeline:
 
         return text_emb
 
+    def _patchify(self, x: Tensor, p: Tuple[int, int, int]) -> Tensor:
+        # N, C, F, H, W -> N, F, T, D
+        assert p[0] == 1
+        n, c, f, h, w = x.shape
+        nh, nw = h // p[1], w // p[2]
+        x = ops.reshape(x, (n, c, f, nh, p[1], nw, p[2]))
+        x = ops.transpose(x, (0, 2, 3, 5, 1, 4, 6))
+        x = ops.reshape(x, (n, f, nh * nw, c * p[1] * p[2]))
+        return x
+
+    def _unpatchify(self, x: Tensor, nh: int, nw: int, p: Tuple[int, int, int], c: int) -> Tensor:
+        # N, F, T, D -> N, C, F, H, W
+        assert p[0] == 1
+        n, f, _, _ = x.shape
+        x = ops.reshape(x, (n, f, nh, nw, c, p[1], p[2]))
+        x = ops.transpose(x, (0, 4, 1, 2, 5, 3, 6))
+        x = ops.reshape(x, (n, c, f, nh * p[1], nw * p[2]))
+        return x
+
+    def _pad_latent(self, x: Tensor, p: Tuple[int, int, int], max_size: int, max_length: int) -> Tensor:
+        # N, C, F, H, W -> N, C, F, max_size, max_size
+        n, c, f, _, _ = x.shape
+        nh, nw = max_size // p[1], max_size // p[2]
+
+        x_fill = self._patchify(x, p)
+        if x_fill.shape[2] > max_length:
+            return x
+        x = ops.zeros((n, f, max_length, c * p * p), dtype=x.dtype)
+        x[:, :, : x_fill.shape[2]] = x_fill
+        x = self._unpatchify(x, nh, nw, p, c)
+        return x
+
+    def _unpad_latent(self, x: Tensor, valid_t: int, h: int, w: int, p: Tuple[int, int, int]) -> Tensor:
+        # N, C, F, max_size, max_size -> N, C, F, H, W
+        _, c, _, _ = x.shape
+        nh, nw = h // p[1], w // p[2]
+        x = self._patchify(x, p)
+        x = x[:, :, :valid_t]
+        x = self._unpatchify(x, nh, nw, p, c)
+        return x
+
+    def _get_dynamic_size(self, h: int, w: int, p: Tuple[int, int, int]) -> Tuple[int, int]:
+        if h % p[1] != 0:
+            h += p[1] - h % p[1]
+        if w % p[2] != 0:
+            w += p[2] - w % p[2]
+
+        h = h // p[1]
+        w = w // p[2]
+        return h, w
+
+    def _create_pos_embed(
+        self,
+        h: int,
+        w: int,
+        p: Tuple[int, int, int],
+        max_length: int,
+        embed_dim: int,
+        vae_downsample_rate: int = 8,
+        input_sq_size: int = 512,
+    ) -> Tuple[Tensor, int]:
+        rs = (h * w * vae_downsample_rate**2) ** 0.5
+        ph, pw = self._get_dynamic_size(h, w, p)
+        scale = rs / input_sq_size
+        base_size = round((ph * pw) ** 0.5)
+
+        # 1, T, D
+        nh, nw = h // p[1], w // p[2]
+        pos_embed_fill = get_2d_sincos_pos_embed(embed_dim, nh, nw, scale=scale, base_size=base_size)
+
+        if pos_embed_fill.shape[0] > max_length:
+            pos_embed = pos_embed_fill
+        else:
+            pos_embed = np.zeros((max_length, embed_dim), dtype=np.float32)
+            pos_embed[: pos_embed_fill.shape[0]] = pos_embed_fill
+
+        pos_embed = pos_embed[None, ...]
+        pos_embed = Tensor(pos_embed, dtype=ms.float32)
+        return pos_embed, pos_embed_fill.shape[0]
+
+    def _create_mask(self, valid_t: int, max_length: int, n: int) -> Tensor:
+        # 1, T
+        if valid_t > max_length:
+            mask = np.ones((valid_t,), dtype=np.bool_)
+        else:
+            mask = np.zeros((max_length,), dtype=np.bool_)
+            mask[:valid_t] = True
+        mask = np.tile(mask[None, ...], (n, 1))
+        mask = Tensor(mask, dtype=ms.uint8)
+        return mask
+
     def __call__(
         self,
         inputs: dict,
         frames_mask: Optional[Tensor] = None,
         additional_kwargs: Optional[dict] = None,
+        **kwargs: Any,
     ) -> Tuple[Union[Tensor, None], Tensor]:
         """
         args:
@@ -154,6 +250,21 @@ class InferPipeline:
             images (b H W 3)
         """
         z, y = self.data_prepare(inputs)
+        # b c t h w
+        n, _, _, h, w = z.shape
+
+        pre_patchify = kwargs.get("pre_patchify", False)
+        if pre_patchify:
+            p = kwargs.get("patch_size", (1, 2, 2))
+            max_image_size = kwargs.get("max_image_size", 512)
+            embed_dim = kwargs.get("embed_dim", 1152)
+            vae_downsample_rate = kwargs.get("vae_downsample_rate", 8)
+
+            max_length = max_image_size**2 // np.prod(p[1:]) // vae_downsample_rate**2
+
+            z = self._pad_latent(z, p, max_image_size // vae_downsample_rate, max_length)
+            pos_emb, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim)
+            latent_mask = self._create_mask(valid_t, max_length, n)
 
         mask = inputs.get("mask", None)
         model_kwargs = dict(y=y)
@@ -162,6 +273,10 @@ class InferPipeline:
 
         if additional_kwargs is not None:
             model_kwargs.update(additional_kwargs)
+
+        if pre_patchify:
+            model_kwargs["pos_emb"] = pos_emb
+            model_kwargs["latent_mask"] = latent_mask
 
         if self.use_cfg:
             model_kwargs.update({"cfg_scale": self.guidance_rescale, "cfg_channel": self.guidance_channels})
@@ -186,6 +301,9 @@ class InferPipeline:
                 progress=True,
                 frames_mask=frames_mask,
             )
+
+        if pre_patchify:
+            latents = self._unpad_latent(latents, valid_t, h, w, p)
 
         if self.vae is not None:
             if latents.dim() == 4:

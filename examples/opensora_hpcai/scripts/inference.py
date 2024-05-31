@@ -476,6 +476,8 @@ def parse_args():
         help="if False, skip vae decode to save memory (you can use infer_vae_decode.py to decode the saved denoised latent later.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Training with patchified latent.")
+    parser.add_argument("--max_image_size", default=256, type=int, help="Max image size for pathified latent training.")
     default_args = parser.parse_args()
 
     __dir__ = os.path.dirname(os.path.abspath(__file__))

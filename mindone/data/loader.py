@@ -94,6 +94,12 @@ def create_dataloader(
 
     if project_columns:
         dataloader = dataloader.project(project_columns)
-    dataloader = dataloader.batch(batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch)
+
+    if dataset.pad_info is not None:
+        dataloader = dataloader.padded_batch(
+            batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch, pad_info=dataset.pad_info
+        )
+    else:
+        dataloader = dataloader.batch(batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch)
 
     return dataloader
