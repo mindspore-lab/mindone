@@ -138,17 +138,23 @@ class VideoDataset:
 
         video_reader = VideoReader(video_path)
         video_length = len(video_reader)
+        meta_info = ()
+        fps = video_reader.get_avg_fps()
         # print("D--: video_length ", video_length)
 
         bs = micro_batch_size
         for i in range(0, video_length, bs):
             frame_indice = list(range(i, min(i + bs, video_length), sample_stride))
             pixel_values = video_reader.get_batch(frame_indice).asnumpy()  # shape: (f, h, w, c)
+            ori_size = pixel_values.shape[-3:-1]
             if do_transform:
                 pixel_values = self.apply_transform(pixel_values)
-                pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+                
+                # efficient implement
+                pixel_values = np.divide(pixel_values, 127.5, dtype=np.float32)
+                pixel_values = np.subtract(pixel_values, 1.0, dtype=np.float32) 
 
-            yield pixel_values
+            yield pixel_values, fps, ori_size
 
     def __getitem__(self, idx):
         row = self.dataset[idx]
@@ -158,13 +164,16 @@ class VideoDataset:
 
         if self.return_frame_data:
             all_frames = []
-            for pixel_values in self.get_video_frames_in_batch(
+            fps, ori_size = None, None
+            for pixel_values, fps, ori_size in self.get_video_frames_in_batch(
                 os.path.join(self.video_folder, video_path), self.micro_batch_size, self.sample_stride
             ):
                 all_frames.append(pixel_values)
+                fps = fps
+                ori_size = ori_size
             all_frames = np.concatenate(all_frames, axis=0)
 
-            return video_path, caption, all_frames
+            return video_path, caption, all_frames, fps, ori_size
         else:
             return video_path, caption
 
@@ -184,7 +193,7 @@ def create_dataloader(
     if ds_name == "video":
         dataset = VideoDataset(**ds_config)
         if ds_config["return_frame_data"]:
-            column_names = ["video_path", "caption", "frame_data"]
+            column_names = ["video_path", "caption", "frame_data", "fps", "ori_size"]
         else:
             column_names = ["video_path", "caption"]
     else:
@@ -256,6 +265,10 @@ if __name__ == "__main__":
         print(vp[0], cap[0])
         if return_frame_data:
             frame_data = data["frame_data"]
+            fps = np.array(data['fps'], dtype=np.float32)
+            ori_size = np.array(data['ori_size'], dtype=np.int32)
+            print('fps: ', fps)
+            print('ori size: ', ori_size)
         else:
             all_frames = []
             num_videos = data["video_path"].shape[0]

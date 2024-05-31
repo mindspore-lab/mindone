@@ -147,7 +147,7 @@ def main(args):
 
     logger.info("Start VAE embedding...")
 
-    def save_output(video_name, mean, std=None):
+    def save_output(video_name, mean, std=None, fps=None, ori_size=None):
         fn = Path(str(video_name)).with_suffix(".npz")
         npz_fp = os.path.join(output_folder, fn)
         if not os.path.exists(os.path.dirname(npz_fp)):
@@ -160,11 +160,15 @@ def main(args):
                 npz_fp,
                 latent_mean=mean.astype(np.float32),
                 latent_std=std.astype(np.float32),
+                fps=fps,
+                ori_size,
             )
         else:
             np.savez(
                 npz_fp,
                 latent_mean=video_latent_mean.astype(np.float32),
+                fps=fps,
+                ori_size,
             )
         return npz_fp
 
@@ -186,6 +190,8 @@ def main(args):
             if args.dl_return_all_frames:
                 frame_data = data["frame_data"]
                 num_videos = frame_data.shape[0]
+                fps = data["fps"][0]
+                ori_size = data['ori_size'][0]
                 assert args.batch_size == 1, "batch size > 1 is not supported due to dynamic frame numbers among videos"
                 for i in range(num_videos):
                     video_path = data["video_path"][i]
@@ -212,7 +218,7 @@ def main(args):
                     if args.save_distribution:
                         video_latent_std = np.concatenate(video_latent_std, axis=0)
 
-                    save_output(video_path, video_latent_mean, video_latent_std)
+                    save_output(video_path, video_latent_mean, video_latent_std, fps, ori_size)
             else:
                 num_videos = data["video_path"].shape[0]
                 for i in range(num_videos):
@@ -227,20 +233,22 @@ def main(args):
 
                     video_latent_mean = []
                     video_latent_std = []
-
-                    for x_bs in ds.get_video_frames_in_batch(
+                    fps, ori_size = None, None
+                    for x_bs, fps, ori_size  in ds.get_video_frames_in_batch(
                         abs_video_path, micro_batch_size=args.vae_micro_batch_size, sample_stride=args.frame_stride
                     ):
                         mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
                         video_latent_mean.append(mean.asnumpy())
                         if args.save_distribution:
                             video_latent_std.append(std.asnumpy())
+                        fps = fps
+                        ori_size = ori_size
 
                     video_latent_mean = np.concatenate(video_latent_mean, axis=0)
                     if args.save_distribution:
                         video_latent_std = np.concatenate(video_latent_std, axis=0)
 
-                    save_output(video_path, video_latent_mean, video_latent_std)
+                    save_output(video_path, video_latent_mean, video_latent_std, fps, ori_size)
 
             end_time = time.time()
             logger.info(f"Time cost: {end_time-start_time:0.3f}s")

@@ -115,19 +115,25 @@ class VideoDatasetRefactored(BaseDataset):
                 data.update({"caption": td["text_emb"], "mask": td["mask"]})
 
         if self._vae_latent_folder:
-            if "fps" not in data:  # cache FPS for further iterations
-                with VideoReader(data["video"]) as reader:
-                    data["fps"] = self._data[idx]["fps"] = reader.fps
-            data["fps"] = np.array(data["fps"], dtype=np.float32)
-
-            # pick a resolution randomly 
+            # pick a resolution randomly if there are multi-resolution latents in vae folder
             vae_latent_path = data["vae_latent"]
             if self.num_latent_resolution > 1:
                 ridx = random.randint(0, self.num_latent_resolution-1)
                 vae_latent_path = vae_latent_path.replace(self._vae_latent_folder, self.latent_resolution_prefix[ridx])
             # print("D--: vae latent npz: ", vae_latent_path)
-            with np.load(vae_latent_path) as vae_latent_data:
-                latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
+
+            vae_latent_data = np.load(vae_latent_path)
+            
+            # get fps from csv, or cached latents, or from original video in order
+            if "fps" in data:  # cache FPS for further iterations
+                data["fps"] = np.array(data["fps"], dtype=np.float32)
+            elif 'fps' in vae_latent_data:
+                data["fps"] = np.array(vae_latent_data['fps'], dtype=np.float32)
+            else:
+                with VideoReader(data["video"]) as reader:
+                    data["fps"] = self._data[idx]["fps"] = reader.fps
+
+            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
             if len(latent_mean) < self._min_length:
                 raise ValueError(f"Video is too short: {data['video']}")
 
@@ -137,7 +143,6 @@ class VideoDatasetRefactored(BaseDataset):
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)
-
         else:
             with VideoReader(data["video"]) as reader:
                 if len(reader) < self._min_length:
