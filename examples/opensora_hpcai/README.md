@@ -323,13 +323,16 @@ After running, the text embeddings saved as npz file for each caption will be in
 If the storage budget is sufficient, you may also cache the video embedding by
 
 ```bash
-python scripts/infer_vae.py\
+python scripts/infer_vae.py \
     --csv_path /path/to/video_caption.csv  \
     --video_folder /path/to/video_folder  \
     --output_path /path/to/video_embed_folder  \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \
     --image_size 512 \
 ```
+> for parallel running, please refer to `scripts/run/run_infer_vae_parallel.sh`
+
+For more usage, please check `python scripts/infer_vae.py -h`
 
 After running, the vae latents saved as npz file for each video will be in `output_path`.
 
@@ -364,6 +367,15 @@ Finally, the training data should be like follows.
 │       ├── vid001.npz
 │       ├── vid002.npz
 │       └── ...
+
+'''
+
+Each npz file contains data for the following keys:
+- `latent_mean` mean of vae latent distribution
+- `latent_std`: std of vae latent distribution
+- `fps`: video fps
+- `ori_size`: original size (h, w) of the video
+
 ```
 
 </details>
