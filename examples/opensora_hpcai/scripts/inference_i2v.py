@@ -73,11 +73,12 @@ def main(args):
     )
     if args.image_size == 512 and args.space_scale == 0.5:
         logger.warning("space_ratio should be 1 for 512x512 resolution")
+    patchify_conv3d_replace = "linear" if args.pre_patchify else "conv2d"
     model_extra_args = dict(
         input_size=input_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
-        patchify_conv3d_replace="conv2d",  # for Ascend
+        patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         input_sq_size=512,
         qk_norm=True,

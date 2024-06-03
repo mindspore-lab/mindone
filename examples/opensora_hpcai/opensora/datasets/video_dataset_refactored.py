@@ -76,7 +76,9 @@ class VideoDatasetRefactored(BaseDataset):
             self._embed_dim = embed_dim
             self._input_sq_size = input_sq_size
 
-            max_length = int(max_target_size**2 // np.prod(self._patch_size[1:]) // self._vae_downsample_rate**2)
+            max_length = (
+                max_target_size**2 // self._patch_size[1] // self._patch_size[2] // self._vae_downsample_rate**2
+            )
             C = 4
             self.pad_info = {
                 "video": ([self._frames, max_length, C * np.prod(self._patch_size).item()], 0),

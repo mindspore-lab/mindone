@@ -177,11 +177,12 @@ def main(args):
         img_h // VAE_S_COMPRESS,
         img_w // VAE_S_COMPRESS,
     )
+    patchify_conv3d_replace = "linear" if args.pre_patchify else "conv2d"
     model_extra_args = dict(
         input_size=input_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
-        patchify_conv3d_replace="conv2d",  # for Ascend
+        patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )

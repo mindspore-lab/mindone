@@ -171,14 +171,14 @@ class InferPipeline:
         x_fill = self._patchify(x, p)
         if x_fill.shape[2] > max_length:
             return x
-        x = ops.zeros((n, f, max_length, c * p * p), dtype=x.dtype)
+        x = ops.zeros((n, f, max_length, c * p[1] * p[2]), dtype=x.dtype)
         x[:, :, : x_fill.shape[2]] = x_fill
         x = self._unpatchify(x, nh, nw, p, c)
         return x
 
     def _unpad_latent(self, x: Tensor, valid_t: int, h: int, w: int, p: Tuple[int, int, int]) -> Tensor:
         # N, C, F, max_size, max_size -> N, C, F, H, W
-        _, c, _, _ = x.shape
+        _, c, _, _, _ = x.shape
         nh, nw = h // p[1], w // p[2]
         x = self._patchify(x, p)
         x = x[:, :, :valid_t]
@@ -260,7 +260,7 @@ class InferPipeline:
             embed_dim = kwargs.get("embed_dim", 1152)
             vae_downsample_rate = kwargs.get("vae_downsample_rate", 8)
 
-            max_length = max_image_size**2 // np.prod(p[1:]) // vae_downsample_rate**2
+            max_length = max_image_size**2 // p[1] // p[2] // vae_downsample_rate**2
 
             z = self._pad_latent(z, p, max_image_size // vae_downsample_rate, max_length)
             pos_emb, valid_t = self._create_pos_embed(h, w, p, max_length, embed_dim)

@@ -134,6 +134,8 @@ class STDiT2Block(nn.Cell):
 
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
+        if latent_mask is not None:
+            latent_mask = ops.repeat_interleave(latent_mask, T, axis=0)
         x_s = self.attn(x_s, mask=latent_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
@@ -153,7 +155,7 @@ class STDiT2Block(nn.Cell):
 
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
-        x_t = self.attn_temp(x_t, mask=latent_mask)
+        x_t = self.attn_temp(x_t)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
         if frames_mask is not None:
@@ -233,22 +235,17 @@ class STDiT2(nn.Cell):
         self.input_sq_size = input_sq_size
         self.pos_embed = PositionEmbedding2D(hidden_size)
 
-        # conv3d replacement. FIXME: after CANN+MS support bf16 and fp32, remove redundancy
         self.patchify_conv3d_replace = patchify_conv3d_replace
         if patchify_conv3d_replace is None:
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         elif patchify_conv3d_replace == "linear":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
-            assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with linear layer")
-            self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = LinearPatchEmbed(None, patch_size[1], in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
-            # assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with conv2d layer")
-            self.x_embedder = PatchEmbed(
-                (input_size[1], input_size[2]), patch_size[1], in_channels, hidden_size, bias=True
-            )
+            self.x_embedder = PatchEmbed(None, patch_size[1], in_channels, hidden_size, bias=True)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size))
