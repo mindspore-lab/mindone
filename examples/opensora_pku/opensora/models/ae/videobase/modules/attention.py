@@ -167,7 +167,7 @@ class AttnBlock3DFix(nn.Cell):
         h_ = self.bmm(v, w_)  # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
 
         # h_: (b*t c hw) -> (b t c h w) -> (b c t h w)
-        h_ = ops.reshape(h_, (b, t, c, h, w))
+        h_ = ops.reshape(h_, (b, c, t, h, w))
         h_ = h_.permute(0, 2, 1, 3, 4)
 
         h_ = self.proj_out(h_)
