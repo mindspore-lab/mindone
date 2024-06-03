@@ -13,6 +13,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
+from inference import init_env
 from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
@@ -25,8 +26,6 @@ from opensora.utils.util import apply_mask_strategy, process_mask_strategies, pr
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
-
-from .inference import init_env
 
 logger = logging.getLogger(__name__)
 

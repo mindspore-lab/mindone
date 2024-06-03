@@ -209,7 +209,7 @@ class InferPipelineFiTLike(InferPipeline):
         embed_dim: int = 1152,
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
-        input_sq_size: 512,
+        input_sq_size: int = 512,
         **kwargs
     ):
         super().__init__(*args, **kwargs)

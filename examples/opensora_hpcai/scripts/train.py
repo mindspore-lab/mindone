@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
-from opensora.pipelines import DiffusionWithLoss
+from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
 
@@ -256,18 +256,24 @@ def main(args):
     # 2.3 ldm with loss
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = DiffusionWithLoss(
-        latte_model,
-        diffusion,
-        vae=vae,
+    pipeline_kwargs = dict(
         scale_factor=args.sd_scale_factor,
-        condition="text",
-        text_encoder=None,
         cond_stage_trainable=False,
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
         micro_batch_size=args.vae_micro_batch_size,
     )
+    if args.pre_patchify:
+        additional_pipeline_kwargs = dict(
+            patch_size=latte_model.patch_size,
+            max_image_size=args.max_image_size,
+            vae_downsample_rate=8.0,
+            in_channels=latte_model.in_channels,
+        )
+        pipeline_kwargs.update(additional_pipeline_kwargs)
+
+    pipeline_ = DiffusionWithLossFiTLike if args.pre_patchify else DiffusionWithLoss
+    latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
     # 3. create dataset
     dataloader = None
