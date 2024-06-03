@@ -328,6 +328,7 @@ def main(args):
             embed_dim=latte_model.hidden_size,
             max_target_size=args.max_image_size,
             input_sq_size=latte_model.input_sq_size,
+            in_channels=latte_model.in_channels,
         )
 
         project_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]

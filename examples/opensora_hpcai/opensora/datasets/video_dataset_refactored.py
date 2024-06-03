@@ -50,6 +50,7 @@ class VideoDatasetRefactored(BaseDataset):
         embed_dim: int = 1152,
         max_target_size: int = 512,
         input_sq_size: int = 512,
+        in_channels: int = 4,
         *,
         output_columns: List[str],
     ):
@@ -79,9 +80,8 @@ class VideoDatasetRefactored(BaseDataset):
             max_length = (
                 max_target_size**2 // self._patch_size[1] // self._patch_size[2] // self._vae_downsample_rate**2
             )
-            C = 4
             self.pad_info = {
-                "video": ([self._frames, max_length, C * np.prod(self._patch_size).item()], 0),
+                "video": ([self._frames, max_length, in_channels * np.prod(self._patch_size).item()], 0),
                 "pos_emb": ([max_length, self._embed_dim], 0),
                 "latent_mask": ([max_length], 0),
             }
@@ -197,7 +197,7 @@ class VideoDatasetRefactored(BaseDataset):
         latent = np.reshape(latent, (f, nh * nw, -1))  # f, nh * nw, c * patch * patch
 
         pos = get_2d_sincos_pos_embed(self._embed_dim, nh, nw, scale=scale, base_size=base_size).astype(np.float32)
-        mask = np.ones(latent.shape[0], dtype=np.uint8)
+        mask = np.ones(latent.shape[1], dtype=np.uint8)
         return latent, pos, mask
 
     def __len__(self):
