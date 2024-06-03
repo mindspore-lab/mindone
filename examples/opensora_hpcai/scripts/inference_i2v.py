@@ -260,14 +260,14 @@ def main(args):
         for j in range(ns):
             global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
-                prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
+                prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
             else:
                 fn = prompt_prefix[global_idx]
                 save_fp = f"{save_dir}/{fn}.{args.save_format}"
             # save videos
             if videos is not None:
-                save_videos(vidoes[j : j + 1], save_fp, fps=args.fps / args.frame_interval)
+                save_videos(videos[j : j + 1], save_fp, fps=args.fps / args.frame_interval)
                 logger.info(f"Video saved in {save_fp}")
 
 
