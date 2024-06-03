@@ -232,7 +232,8 @@ meaning that the buckets are selected based on resolution alone.
 >     "480p": {16: [1.0, 4], 32: [0.0, 0]}
 >     "720p": {16: [0.5, 2]}
 > ```
-> With this configuration, videos with a length of 32 or more frames will be assigned to the `240p` bucket.
+> With this configuration, videos with a length of 32 or more frames will be assigned to the `240p` bucket instead
+> of `480p`.
 
 #### Notes about MindSpore 2.3
 
