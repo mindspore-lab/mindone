@@ -49,7 +49,7 @@ mask_ratios:
   mask_image_head_tail: 0.05
 
 bucket_config:
-  # Structure: resolution: { num_frames: [ keep_prob, batch_size ] }
+  # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
   # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
   "144p": { 1: [ 0.5, 48 ], 16: [ 1.0, 6 ], 32: [ 1.0, 3 ], 96: [ 1.0, 1 ] }
   "256": { 1: [ 0.5, 24 ], 16: [ 0.5, 3 ], 48: [ 0.5, 1 ], 64: [ 0.0, 0 ] }

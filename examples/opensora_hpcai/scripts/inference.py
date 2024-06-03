@@ -394,10 +394,10 @@ def parse_args():
         help="Number of frames generated in a previous loop to use as a conditioning for the next loop.",
     )
     parser.add_argument(
-        "--mask_strategy", type=str, nargs="+", help="Masking strategy for Image/Video-to-Video generation task."
+        "--mask_strategy", type=str, nargs="*", help="Masking strategy for Image/Video-to-Video generation task."
     )
     parser.add_argument(
-        "--reference_path", type=str, nargs="+", help="References for Image/Video-to-Video generation task."
+        "--reference_path", type=str, nargs="*", help="References for Image/Video-to-Video generation task."
     )
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")

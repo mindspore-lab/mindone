@@ -145,7 +145,7 @@ The output video's length will be `loop * (num_frames - condition_frame_length) 
 
 To generate a video with conditioning on images and videos, execute the following command:
 ```shell
-python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 ## Training
@@ -226,11 +226,11 @@ meaning that the buckets are selected based on resolution alone.
 > as shown in the example below:
 > ```yaml
 > bucket_config:
->     # Structure: resolution: { num_frames: [ keep_prob, batch_size ] }
->     # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
->     "240p": {16: [1.0, 16], 32: [1.0, 8], 64: [1.0, 4], 128: [1.0, 2]}
->     "480p": {16: [1.0, 4], 32: [0.0, 0]}
->     "720p": {16: [0.5, 2]}
+>   # Structure: resolution: { num_frames: [ keep_prob, batch_size ] }
+>   # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
+>   "240p": {16: [1.0, 16], 32: [1.0, 8], 64: [1.0, 4], 128: [1.0, 2]}
+>   "480p": {16: [1.0, 4], 32: [0.0, 0]}
+>   "720p": {16: [0.5, 2]}
 > ```
 > With this configuration, videos with a length of 32 or more frames will be assigned to the `240p` bucket instead
 > of `480p`.

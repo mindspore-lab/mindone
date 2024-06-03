@@ -153,7 +153,7 @@ def main(args):
     model_args["fps"] = Tensor([args.fps] * args.batch_size, dtype=ms.float32)
 
     # 3.2 reference
-    if args.reference_path is not None:
+    if args.reference_path is not None and not (len(args.reference_path) == 1 and args.reference_path[0] == ""):
         assert len(args.reference_path) == len(
             captions
         ), f"Reference path mismatch: {len(args.reference_path)} != {len(captions)}"
