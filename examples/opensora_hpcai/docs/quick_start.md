@@ -224,6 +224,7 @@ meaning that the buckets are selected based on resolution alone.
 > [!TIP]
 > If you want longer videos to go into smaller resolution buckets, you can set the `keep_prob` to `0.0`,
 > as shown in the example below:
+
 ``yaml
 bucket_config:
     # Structure: resolution: { num_frames: [ keep_prob, batch_size ] }
@@ -232,6 +233,7 @@ bucket_config:
     "480p": {16: [1.0, 4], 32: [0.0, 0]}
     "720p": {16: [0.5, 2]}
 ``
+
 > With this configuration, videos with a length of 32 or more frames will be assigned to the `240p` bucket.
 
 #### Notes about MindSpore 2.3
