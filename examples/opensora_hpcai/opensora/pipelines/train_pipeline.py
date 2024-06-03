@@ -282,7 +282,7 @@ class DiffusionWithLoss(nn.Cell):
         model_output, model_var_values = ops.split(model_output, C, axis=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)
+        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t, frames_mask)
 
         loss = mean_flat((noise - model_output) ** 2, frames_mask) + vb
         loss = loss.mean()
