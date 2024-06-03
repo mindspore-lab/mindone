@@ -1,6 +1,7 @@
 import copy
 import csv
 import glob
+import json
 import logging
 import os
 import random
@@ -34,7 +35,7 @@ def get_video_path_list(folder):
 class VideoDataset:
     def __init__(
         self,
-        csv_path=None,
+        data_file_path=None,
         data_folder=None,
         size=384,
         crop_size=256,
@@ -48,15 +49,14 @@ class VideoDataset:
         dynamic_sample=False,
         output_columns=["video", "path"],
     ):
-        logger.info(f"loading annotations from {csv_path} ...")
-
-        if csv_path is not None:
-            with open(csv_path, "r") as csvfile:
-                self.dataset = list(csv.DictReader(csvfile))
-            self.read_from_csv = True
+        if data_file_path is not None:
+            logger.info(f"loading videos from data file {data_file_path} ...")
+            self.parse_data_file(data_file_path)
+            self.read_from_data_file = True
         else:
+            logger.info(f"loading videos from video folder {data_folder} ...")
             self.dataset = get_video_path_list(data_folder)
-            self.read_from_csv = False
+            self.read_from_data_file = False
 
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
@@ -85,6 +85,16 @@ class VideoDataset:
         self.prev_ok_sample = self.get_replace_data(max_attempts)
         self.require_update_prev = False
 
+    def parse_data_file(self, data_file_path):
+        if data_file_path.endswith(".csv"):
+            with open(data_file_path, "r") as csvfile:
+                self.dataset = list(csv.DictReader(csvfile))
+        elif data_file_path.endswith(".json"):
+            with open(data_file_path, "r") as f:
+                self.dataset = json.load(f)
+        else:
+            raise ValueError("Only support json and csv file now!")
+
     def get_replace_data(self, max_attempts=100):
         replace_data = None
         attempts = min(max_attempts, self.length)
@@ -102,9 +112,9 @@ class VideoDataset:
 
     def get_batch(self, idx):
         # get video raw pixels (batch of frame) and its caption
-        if self.read_from_csv:
+        if self.read_from_data_file:
             video_dict = self.dataset[idx]
-            video_fn = video_dict[list(video_dict.keys())[0]]
+            video_fn = video_dict[self.video_column]
             video_path = os.path.join(self.data_folder, video_fn)
         else:
             video_path = self.dataset[idx]

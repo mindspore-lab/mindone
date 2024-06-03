@@ -22,7 +22,9 @@ class CheckpointManager:
 
     """
 
-    def __init__(self, ckpt_save_dir, ckpt_save_policy="top_k", k=10, prefer_low_perf=False, del_past=True):
+    def __init__(
+        self, ckpt_save_dir, ckpt_save_policy="top_k", k=10, prefer_low_perf=False, del_past=True, integrated_save=False
+    ):
         self.ckpt_save_dir = ckpt_save_dir
         self._ckpt_filelist = []
         self.ckpt_save_policy = ckpt_save_policy
@@ -31,6 +33,7 @@ class CheckpointManager:
         self.ckpt_queue = []
         self.del_past = del_past
         self.prefer_low_perf = prefer_low_perf
+        self.integrated_save = integrated_save
 
     def get_ckpt_queue(self):
         """Get all the related checkpoint files managed here."""
@@ -63,17 +66,28 @@ class CheckpointManager:
             # save if the perf is better than the minimum in the heap
             if to_del[1] != ckpt_name:
                 ms.save_checkpoint(
-                    network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
+                    network,
+                    os.path.join(self.ckpt_save_dir, ckpt_name),
+                    integrated_save=self.integrated_save,
+                    append_dict=append_dict,
                 )
                 # del minimum
                 self.remove_ckpt_file(os.path.join(self.ckpt_save_dir, to_del[1]))
         else:
-            ms.save_checkpoint(network, os.path.join(self.ckpt_save_dir, ckpt_name), append_dict=append_dict)
+            ms.save_checkpoint(
+                network,
+                os.path.join(self.ckpt_save_dir, ckpt_name),
+                integrated_save=self.integrated_save,
+                append_dict=append_dict,
+            )
 
     def save_latest_k(self, network, ckpt_name, append_dict):
         """Save latest K checkpoint."""
         ms.save_checkpoint(
-            network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
+            network,
+            os.path.join(self.ckpt_save_dir, ckpt_name),
+            integrated_save=self.integrated_save,
+            append_dict=append_dict,
         )
 
         _logger.info(f"Checkpoint saved in {os.path.join(self.ckpt_save_dir, ckpt_name)}")
@@ -87,7 +101,10 @@ class CheckpointManager:
         """Save checkpoint according to different save strategy."""
         if self.ckpt_save_policy is None:
             ms.save_checkpoint(
-                network, os.path.join(self.ckpt_save_dir, ckpt_name), integrated_save=False, append_dict=append_dict
+                network,
+                os.path.join(self.ckpt_save_dir, ckpt_name),
+                integrated_save=self.integrated_save,
+                append_dict=append_dict,
             )
         elif self.ckpt_save_policy == "top_k":
             if perf is None:

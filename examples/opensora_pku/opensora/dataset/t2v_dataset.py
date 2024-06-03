@@ -351,7 +351,16 @@ class TextVideoDataset:
         return pixel_values, text_data, mask.astype(np.uint8)
 
     def get_token_ids_mask(self, caption):
-        text = self.text_preprocessing(caption)
+        if isinstance(caption, np.ndarray):
+            assert (
+                len(caption.shape) == 2 or len(caption.shape) == 1
+            ), f"incorrect text array shape. Expect to have 1 or 2 dims but got {len(caption.shape)}"
+            caption = [str(x) for x in caption]
+        elif isinstance(caption, str):
+            caption = [caption]
+        else:
+            raise ValueError(f"Expect to have text prompts as a string or string array, but got {type(caption)}")
+        text = [self.text_preprocessing(x) for x in caption]
         text_tokens_and_mask = self.tokenizer(
             text,
             max_length=self.token_max_length,

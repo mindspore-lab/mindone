@@ -237,9 +237,9 @@ class STDiT2(nn.Cell):
             self.x_embedder = PatchEmbed3D(patch_size, in_channels, hidden_size)
         elif patchify_conv3d_replace == "linear":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
-            assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with linear layer")
-            self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+            # STDiT2 expects variable input size, no need to pass it to LinearPatchEmbed
+            self.x_embedder = LinearPatchEmbed(None, in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             print("Replace conv3d patchify with conv2d layer")
@@ -525,11 +525,14 @@ class STDiT2(nn.Cell):
             regex = re.compile(r"^network\.|\._backbone")
             sd = {regex.sub("", k): v for k, v in sd.items()}
 
+            key_3d = "x_embedder.proj.weight"
             # load conv3d weight from pretrained conv2d or dense layer
             if self.patchify_conv3d_replace == "linear":
-                raise ValueError("Not supported for loading linear layer with conv3d weight")
+                if len(sd[key_3d].shape) == 5:
+                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                    assert conv3d_weight.shape[-3] == 1
+                    sd[key_3d] = Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
             elif self.patchify_conv3d_replace == "conv2d":
-                key_3d = "x_embedder.proj.weight"
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                     assert conv3d_weight.shape[-3] == 1
