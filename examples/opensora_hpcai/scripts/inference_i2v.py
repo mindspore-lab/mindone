@@ -13,11 +13,10 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from inference import init_env
 from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
-from opensora.pipelines import InferPipeline
+from opensora.pipelines import InferPipeline, InferPipelineFiTLike
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import WHITELIST_OPS
@@ -26,6 +25,8 @@ from opensora.utils.util import apply_mask_strategy, process_mask_strategies, pr
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
+
+from .inference import init_env
 
 logger = logging.getLogger(__name__)
 
@@ -132,18 +133,27 @@ def main(args):
     logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
 
     # 3. build inference pipeline
-    pipeline = InferPipeline(
-        latte_model,
-        vae,
-        text_encoder=text_encoder,
+    pipeline_kwargs = dict(
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
         ddim_sampling=False,  # TODO: add ddim support
-        condition="text",
         micro_batch_size=args.vae_micro_batch_size,
     )
+    if args.pre_patchify:
+        additional_pipeline_kwargs = dict(
+            patch_size=latte_model.patch_size,
+            max_image_size=args.max_image_size,
+            embed_dim=latte_model.hidden_size,
+            vae_downsample_rate=8.0,
+            in_channels=latte_model.in_channels,
+            input_sq_size=latte_model.input_sq_size,
+        )
+        pipeline_kwargs.update(additional_pipeline_kwargs)
+
+    pipeline_ = InferPipelineFiTLike if args.pre_patchify else InferPipeline
+    pipeline = pipeline_(latte_model, vae, text_encoder=text_encoder, **pipeline_kwargs)
 
     # 3.1. support for multi-resolution
     model_args = dict()
@@ -237,15 +247,7 @@ def main(args):
                 logger.info(captions[i + j][loop_i])
 
             # infer
-            samples, latents = pipeline(
-                inputs,
-                frames_mask=frames_mask,
-                additional_kwargs=model_args,
-                pre_patchify=args.pre_patchify,
-                patch_size=latte_model.patch_size,
-                max_image_size=args.max_image_size,
-                embed_dim=latte_model.hidden_size,
-            )
+            samples, latents = pipeline(inputs, frames_mask=frames_mask, additional_kwargs=model_args)
             samples, latents = samples.asnumpy(), latents.asnumpy()
             videos.append(samples[:, args.condition_frame_length if loop_i > 0 else 0 :])
 
