@@ -1,0 +1,54 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.8", "3.9"]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/ci.txt
+        pip install "Pillow==9.1.1"
+        # MindSpore must be installed following the instruction from official web, but not from pypi.
+        # That's why we exclude mindspore from requirements.txt. Does this work?
+        pip install "mindspore>=2.0"
+    - name: Lint with pre-commit
+      uses: pre-commit/action@v3.0.0
+    - name: Test with pytest (UT)
+      run: |
+        pytest tests/ut
+    - name: Test with pytest (ST)
+      run: |
+        pytest tests/st
+    # todo: test diffusers/schedulers
+    - name: Test Diffusers
+      run: |
+        pip install "torch==2.2.1"
+        pip install "diffusers==0.27.0"
+        pip install "OmegaConf"
+        export PYTHONPATH=$(pwd):$PYTHONPATH
+        pytest tests/diffusers/test_schedulers_graph.py
+        pytest tests/diffusers/test_schedulers.py

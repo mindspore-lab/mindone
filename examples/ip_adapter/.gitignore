@@ -1,0 +1,10 @@
+# specific to ip-adapter folder
+*.png
+*.jpg
+*.json
+*.safetensors
+*.bin
+*.npy
+checkpoints/
+runs/
+outputs/

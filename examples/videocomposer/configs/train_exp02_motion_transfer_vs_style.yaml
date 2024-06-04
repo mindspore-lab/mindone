@@ -1,0 +1,18 @@
+TASK_TYPE: SINGLE_TASK
+ENABLE: true
+DATASET: webvid10m
+video_compositions: ['text', 'mask', 'depthmap', 'sketch', 'single_sketch', 'motion', 'image', 'local_image']
+conditions_for_train: ['text', 'image', 'local_image', 'motion']  # PyTorch + Ascend setting
+vit_image_size: 224
+network_name: UNetSD_temporal
+resume: true
+seed: 182
+mvs_visual: False
+chunk_size: 16
+log_dir: 'outputs'
+#resume_checkpoint: "" # uncomment it and comment the below line if want to train from scratch
+resume_checkpoint: "model_weights/non_ema_228000-7f157ec2.ckpt"
+
+# accelerate or memory reduction
+dataset_sink_mode: True
+use_recompute: False  # use_recompute being True scarifices speed for more memory. Set it to True if OOM
