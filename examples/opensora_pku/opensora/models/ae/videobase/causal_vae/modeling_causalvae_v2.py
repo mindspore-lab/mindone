@@ -4,24 +4,24 @@ from typing import Tuple
 import mindspore as ms
 from mindspore import nn, ops
 
-# from ..nn.Cells.attention import AttnBlock3D
-from ..nn.Cells.conv import CausalConv3d, Conv2d
-from ..nn.Cells.normalize import Normalize
-from ..nn.Cells.ops import nonlinearity
+from ..modeling_videobase import VideoBaseAE
+from ..modules.conv import CausalConv3d, Conv2d
+from ..modules.ops import nonlinearity
+from ..utils.model_utils import resolve_str_to_obj
 
 get_obj_from_str = eval
 
 logger = logging.getLogger(__name__)
 
 
-class CausalVAEModel_V2(nn.Cell):
+class CausalVAEModel_V2(VideoBaseAE):
     """
     The default vales are set to be the same as those used in OpenSora v1.1
     """
 
     def __init__(
         self,
-        lr: float = 1e-5,
+        lr: float = 1e-5,  # ignore
         hidden_size: int = 128,
         z_channels: int = 4,
         hidden_size_mult: Tuple[int] = (1, 2, 4, 4),
@@ -31,53 +31,53 @@ class CausalVAEModel_V2(nn.Cell):
         double_z: bool = True,
         embed_dim: int = 4,
         num_res_blocks: int = 2,
-        loss_type: str = "opensora.models.ae.videobase.losses.LPIPSWithDiscriminator",
-        loss_params: dict = {
+        loss_type: str = "opensora.models.ae.videobase.losses.LPIPSWithDiscriminator",  # ignore
+        loss_params: dict = {  # ignore
             "kl_weight": 0.000001,
             "logvar_init": 0.0,
             "disc_start": 2001,
             "disc_weight": 0.5,
         },
         q_conv: str = "CausalConv3d",
-        encoder_conv_in: nn.Cell = "CausalConv3d",
-        encoder_conv_out: nn.Cell = "CausalConv3d",
-        encoder_attention: nn.Cell = "AttnBlock3D",
-        encoder_resnet_blocks: Tuple[nn.Cell] = (
+        encoder_conv_in: str = "CausalConv3d",
+        encoder_conv_out: str = "CausalConv3d",
+        encoder_attention: str = "AttnBlock3D",
+        encoder_resnet_blocks: Tuple[str] = (
             "ResnetBlock3D",
             "ResnetBlock3D",
             "ResnetBlock3D",
             "ResnetBlock3D",
         ),
-        encoder_spatial_downsample: Tuple[nn.Cell] = (
+        encoder_spatial_downsample: Tuple[str] = (
             "SpatialDownsample2x",
             "SpatialDownsample2x",
             "SpatialDownsample2x",
             "",
         ),
-        encoder_temporal_downsample: Tuple[nn.Cell] = (
+        encoder_temporal_downsample: Tuple[str] = (
             "",
             "TimeDownsample2x",
             "TimeDownsample2x",
             "",
         ),
-        encoder_mid_resnet: nn.Cell = "ResnetBlock3D",
-        decoder_conv_in: nn.Cell = "CausalConv3d",
-        decoder_conv_out: nn.Cell = "CausalConv3d",
-        decoder_attention: nn.Cell = "AttnBlock3D",
-        decoder_resnet_blocks: Tuple[nn.Cell] = (
+        encoder_mid_resnet: str = "ResnetBlock3D",
+        decoder_conv_in: str = "CausalConv3d",
+        decoder_conv_out: str = "CausalConv3d",
+        decoder_attention: str = "AttnBlock3D",
+        decoder_resnet_blocks: Tuple[str] = (
             "ResnetBlock3D",
             "ResnetBlock3D",
             "ResnetBlock3D",
             "ResnetBlock3D",
         ),
-        decoder_spatial_upsample: Tuple[nn.Cell] = (
+        decoder_spatial_upsample: Tuple[str] = (
             "",
             "SpatialUpsample2x",
             "SpatialUpsample2x",
             "SpatialUpsample2x",
         ),
-        decoder_temporal_upsample: Tuple[nn.Cell] = ("", "", "TimeUpsample2x", "TimeUpsample2x"),
-        decoder_mid_resnet: nn.Cell = "ResnetBlock3D",
+        decoder_temporal_upsample: Tuple[str] = ("", "", "TimeUpsample2x", "TimeUpsample2x"),
+        decoder_mid_resnet: str = "ResnetBlock3D",
         ckpt_path=None,
         ignore_keys=[],
         monitor=None,
@@ -91,28 +91,44 @@ class CausalVAEModel_V2(nn.Cell):
             z_channels=z_channels,
             hidden_size=hidden_size,
             hidden_size_mult=hidden_size_mult,
+            attn_resolutions=attn_resolutions,
+            conv_in=encoder_conv_in,
+            conv_out=encoder_conv_out,
+            attention=encoder_attention,
+            resnet_blocks=encoder_resnet_blocks,
+            spatial_downsample=encoder_spatial_downsample,
+            temporal_downsample=encoder_temporal_downsample,
+            mid_resnet=encoder_mid_resnet,
             dropout=dropout,
+            resolution=resolution,
+            num_res_blocks=num_res_blocks,
+            double_z=double_z,
             dtype=self.dtype,
             upcast_sigmoid=upcast_sigmoid,
         )
+
         self.decoder = Decoder(
             z_channels=z_channels,
             hidden_size=hidden_size,
             hidden_size_mult=hidden_size_mult,
+            attn_resolutions=attn_resolutions,
+            conv_in=decoder_conv_in,
+            conv_out=decoder_conv_out,
+            attention=decoder_attention,
+            resnet_blocks=decoder_resnet_blocks,
+            spatial_upsample=decoder_spatial_upsample,
+            temporal_upsample=decoder_temporal_upsample,
+            mid_resnet=decoder_mid_resnet,
             dropout=dropout,
+            resolution=resolution,
+            num_res_blocks=num_res_blocks,
             dtype=self.dtype,
             upcast_sigmoid=upcast_sigmoid,
         )
-        self.quant_conv = CausalConv3d(
-            2 * z_channels,
-            2 * embed_dim,
-            1,
-        )
-        self.post_quant_conv = CausalConv3d(
-            embed_dim,
-            z_channels,
-            1,
-        )
+        quant_conv_cls = resolve_str_to_obj(q_conv)
+        self.quant_conv = quant_conv_cls(2 * z_channels, 2 * embed_dim, 1)
+        self.post_quant_conv = quant_conv_cls(embed_dim, z_channels, 1)
+
         self.embed_dim = embed_dim
 
         if monitor is not None:
@@ -121,6 +137,7 @@ class CausalVAEModel_V2(nn.Cell):
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
         self.split = ops.Split(axis=1, output_num=2)
+        self.concat = ops.Concat(axis=1)
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
 
@@ -129,7 +146,8 @@ class CausalVAEModel_V2(nn.Cell):
         self.tile_sample_min_size = 256
         self.tile_sample_min_size_t = 65
         self.tile_latent_min_size = int(self.tile_sample_min_size / (2 ** (len(hidden_size_mult) - 1)))
-        # self.tile_latent_min_size_t = int((self.tile_sample_min_size_t-1) / (2 ** self.time_compress)) + 1
+        t_down_ratio = [i for i in encoder_temporal_downsample if len(i) > 0]
+        self.tile_latent_min_size_t = int((self.tile_sample_min_size_t - 1) / (2 ** len(t_down_ratio))) + 1
         self.tile_overlap_factor = 0.25
         self.use_tiling = False
 
@@ -221,8 +239,12 @@ class CausalVAEModel_V2(nn.Cell):
         return z
 
     def encode(self, x):
-        if self.use_tiling and (x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size):
-            posterior_mean, posterior_logvar = self.tiled_encode2d(x)
+        if self.use_tiling and (
+            x.shape[-1] > self.tile_sample_min_size
+            or x.shape[-2] > self.tile_sample_min_size
+            or x.shape[-3] > self.tile_sample_min_size_t
+        ):
+            posterior_mean, posterior_logvar = self.tiled_encode(x)
         else:
             # embedding, get latent representation z
             posterior_mean, posterior_logvar = self._encode(x)
@@ -268,9 +290,37 @@ class CausalVAEModel_V2(nn.Cell):
         mean, logvar = self.split(moments)
         return mean, logvar
 
+    def tiled_encode(self, x):
+        t = x.shape[2]
+        t_chunk_idx = [i for i in range(0, t, self.tile_sample_min_size_t - 1)]
+        if len(t_chunk_idx) == 1 and t_chunk_idx[0] == 0:
+            t_chunk_start_end = [[0, t]]
+        else:
+            t_chunk_start_end = [[t_chunk_idx[i], t_chunk_idx[i + 1] + 1] for i in range(len(t_chunk_idx) - 1)]
+            if t_chunk_start_end[-1][-1] > t:
+                t_chunk_start_end[-1][-1] = t
+            elif t_chunk_start_end[-1][-1] < t:
+                last_start_end = [t_chunk_idx[-1], t]
+                t_chunk_start_end.append(last_start_end)
+        moments = []
+        for idx, (start, end) in enumerate(t_chunk_start_end):
+            chunk_x = x[:, :, start:end]
+            if idx != 0:
+                moment = self.concat(self.tiled_encode2d(chunk_x))[:, :, 1:]
+            else:
+                moment = self.concat(self.tiled_encode2d(chunk_x))
+            moments.append(moment)
+        moments = ops.cat(moments, axis=2)
+        mean, logvar = self.split(moments)
+        return mean, logvar
+
     def decode(self, z):
-        if self.use_tiling and (z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size):
-            return self.tiled_decode2d(z)
+        if self.use_tiling and (
+            z.shape[-1] > self.tile_latent_min_size
+            or z.shape[-2] > self.tile_latent_min_size
+            or z.shape[-3] > self.tile_latent_min_size_t
+        ):
+            return self.tiled_decode(z)
         z = self.post_quant_conv(z)
         dec = self.decoder(z)
         return dec
@@ -313,6 +363,29 @@ class CausalVAEModel_V2(nn.Cell):
         dec = ops.cat(result_rows, axis=3)
         return dec
 
+    def tiled_decode(self, x):
+        t = x.shape[2]
+        t_chunk_idx = [i for i in range(0, t, self.tile_latent_min_size_t - 1)]
+        if len(t_chunk_idx) == 1 and t_chunk_idx[0] == 0:
+            t_chunk_start_end = [[0, t]]
+        else:
+            t_chunk_start_end = [[t_chunk_idx[i], t_chunk_idx[i + 1] + 1] for i in range(len(t_chunk_idx) - 1)]
+            if t_chunk_start_end[-1][-1] > t:
+                t_chunk_start_end[-1][-1] = t
+            elif t_chunk_start_end[-1][-1] < t:
+                last_start_end = [t_chunk_idx[-1], t]
+                t_chunk_start_end.append(last_start_end)
+        dec_ = []
+        for idx, (start, end) in enumerate(t_chunk_start_end):
+            chunk_x = x[:, :, start:end]
+            if idx != 0:
+                dec = self.tiled_decode2d(chunk_x)[:, :, 1:]
+            else:
+                dec = self.tiled_decode2d(chunk_x)
+            dec_.append(dec)
+        dec_ = ops.cat(dec_, axis=2)
+        return dec_
+
     def construct(self, input):
         # overall pass, mostly for training
         posterior_mean, posterior_logvar = self._encode(input)
@@ -343,6 +416,9 @@ class CausalVAEModel_V2(nn.Cell):
                 x / blend_extent
             )
         return b
+
+    def validation_step(self, batch_idx):
+        raise NotImplementedError
 
 
 class Encoder(nn.Cell):
@@ -491,8 +567,8 @@ class Encoder(nn.Cell):
         self.mid.update_parameters_name(prefix=self.param_prefix + "mid.")
 
         # end
-        # self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
-        self.norm_out = Normalize(block_in, extend=True)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
+        # self.norm_out = Normalize(block_in, extend=True)
 
         assert conv_out == "CausalConv3d", "Only CausalConv3d is supported for conv_out"
         self.conv_out = get_obj_from_str(conv_out)(
@@ -644,8 +720,8 @@ class Decoder(nn.Cell):
                 self.up.append(up)
 
         # end
-        # self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
-        self.norm_out = Normalize(block_in, extend=True)
+        self.norm_out = nn.GroupNorm(num_groups=32, num_channels=block_in, eps=1e-6, affine=True)
+        # self.norm_out = Normalize(block_in, extend=True)
 
         assert conv_out == "CausalConv3d", "Only CausalConv3d is supported for conv_out in Decoder currently"
         self.conv_out = CausalConv3d(block_in, 3, kernel_size=3, padding=1)
