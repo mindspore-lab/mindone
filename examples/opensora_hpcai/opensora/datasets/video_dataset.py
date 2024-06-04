@@ -2,6 +2,7 @@ import csv
 import logging
 import os
 import time
+from typing import Dict
 
 import albumentations
 import cv2
@@ -11,6 +12,35 @@ from decord import VideoReader
 import mindspore as ms
 
 logger = logging.getLogger()
+
+
+class _ResizeByMaxValue:
+    def __init__(
+        self, max_size: int = 256, vae_scale: int = 8, patch_size: int = 2, interpolation: str = "bicubic"
+    ) -> None:
+        self.max_size = max_size
+        self.scale = vae_scale * patch_size
+        self.interpolation = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}[interpolation]
+
+    def __call__(self, image: np.ndarray) -> Dict[str, np.ndarray]:
+        h, w, _ = image.shape
+        image_area = w * h
+        max_area = self.max_size * self.max_size
+        if image_area > max_area:
+            ratio = max_area / image_area
+            new_w = w * np.sqrt(ratio)
+            new_h = h * np.sqrt(ratio)
+        else:
+            new_w = w
+            new_h = h
+
+        round_w, round_h = (np.round(np.array([new_w, new_h]) / self.scale) * self.scale).astype(int).tolist()
+        if round_w * round_h > max_area:
+            round_w, round_h = (np.floor(np.array([new_w, new_h]) / self.scale) * self.scale).astype(int).tolist()
+
+        round_w, round_h = max(round_w, self.scale), max(round_h, self.scale)
+        image = cv2.resize(image, (round_w, round_h), interpolation=self.interpolation)
+        return dict(image=image)
 
 
 def create_video_transforms(h, w, interpolation="bicubic"):
@@ -42,6 +72,7 @@ class VideoDataset:
         sample_stride=1,
         return_frame_data=False,
         micro_batch_size=None,
+        resize_by_max_value=False,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -57,17 +88,22 @@ class VideoDataset:
         self.sample_stride = sample_stride
         self.micro_batch_size = micro_batch_size
 
-        if isinstance(sample_size, (int, float)):
-            sample_size = (sample_size, sample_size)
-        elif isinstance(sample_size, (tuple, list)):
-            if len(sample_size) == 1:
-                sample_size = list(sample_size) * 2
-
-        self.pixel_transforms = create_video_transforms(
-            sample_size[0],
-            sample_size[1],
-            interpolation="bicubic",
-        )
+        if resize_by_max_value:
+            if isinstance(sample_size, (tuple, list)):
+                if len(sample_size) != 1:
+                    raise ValueError(f"`sample_size` must be length 1 list, but get `{sample_size}`.")
+            self.pixel_transforms = _ResizeByMaxValue(max_size=sample_size[0], interpolation="bicubic")
+        else:
+            if isinstance(sample_size, (int, float)):
+                sample_size = (sample_size, sample_size)
+            elif isinstance(sample_size, (tuple, list)):
+                if len(sample_size) == 1:
+                    sample_size = list(sample_size) * 2
+            self.pixel_transforms = create_video_transforms(
+                sample_size[0],
+                sample_size[1],
+                interpolation="bicubic",
+            )
 
     def __len__(self):
         return self.length

@@ -116,7 +116,7 @@ class VideoDatasetRefactored(BaseDataset):
             try:
                 return self._get_item(idx)
             except Exception as e:
-                _logger.debug(f"Failed to load a replacement sample: {e}")
+                _logger.warning(f"Failed to load a replacement sample: {e}")
 
         raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts.")
 
