@@ -11,11 +11,12 @@ export GLOG_v=2
 image_size=512
 use_image_num=4
 num_frames=17
-model_dtype="fp16"
+model_dtype="bf16"
+amp_level="O2"
 enable_flash_attention="True"
 batch_size=4
 lr="2e-05"
-output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-FA$enable_flash_attention-bs$batch_size-t5
+output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-$amp_level-FA$enable_flash_attention-bs$batch_size-t5
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
       --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
@@ -40,6 +41,8 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --lr_scheduler="constant" \
     --lr_warmup_steps=0 \
     --precision=$model_dtype \
+    --amp_level=$amp_level \
+    --optim_eps 1e-6 \
     --checkpointing_steps=500 \
     --output_dir=$output_dir \
     --model_max_length 300 \
