@@ -223,7 +223,7 @@ if __name__ == "__main__":
         class_labels = [1, 13, 100]
         n = len(class_labels)
         y = Tensor(class_labels)
-        y_null = ops.ones_like(y) * args.num_classes
+        y_null = ops.ones_like_ext(y) * args.num_classes
     elif args.condition == "text":
         # tokenizer
         pass

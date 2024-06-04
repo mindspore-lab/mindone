@@ -22,7 +22,7 @@ def _extract_into_tensor(a, t, x_shape):
     :return: a tensor of shape [batch_size, 1, ...] where the shape has K dims.
     """
     b = t.shape[0]
-    out = ops.GatherD()(a, -1, t)
+    out = ops.extend.gather(a, -1, t)
     return out.reshape(b, *((1,) * (len(x_shape) - 1)))
 
 
@@ -175,7 +175,9 @@ def approx_standard_normal_cdf(x):
     A fast approximation of the cumulative distribution function of the
     standard normal.
     """
-    return 0.5 * (1.0 + ops.tanh(Tensor(np.sqrt(2.0 / np.pi)) * (x + 0.044715 * ops.pow(x, 3))))
+    x = Tensor(np.sqrt(2.0 / np.pi)) * (x + 0.044715 * ops.pow(x, 3))
+    x = x.to(ms.float32)
+    return 0.5 * (1.0 + ops.tanh(x))
 
 
 def continuous_gaussian_log_likelihood(x, *, means, log_scales):
@@ -189,7 +191,7 @@ def continuous_gaussian_log_likelihood(x, *, means, log_scales):
     centered_x = x - means
     inv_stdv = ops.exp(-log_scales)
     normalized_x = centered_x * inv_stdv
-    log_probs = ms.nn.probability.Normal(ops.zeros_like(x), ops.ones_like(x)).log_prob(normalized_x)
+    log_probs = ms.nn.probability.Normal(ops.zeros_like(x), ops.ones_like_ext(x)).log_prob(normalized_x)
     return log_probs
 
 

@@ -415,7 +415,7 @@ class MMDiT(nn.Cell):
             # pad and concat if use t5 emb
             _, _, d_clip = clip_emb.shape
             _, _, d_t5 = t5_emb.shape
-            clip_emb = ops.pad(clip_emb, (0, d_t5 - d_clip), mode="constant", value=0)
+            clip_emb = ops.pad_ext(clip_emb, (0, d_t5 - d_clip), mode="constant", value=0)
             text_emb = ops.cat([clip_emb, t5_emb], axis=1)  # L = 77+77 = 154
 
         c = self.text_embedding_projection(text_emb)  # (N, L, D)
