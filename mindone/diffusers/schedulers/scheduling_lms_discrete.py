@@ -289,7 +289,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         if self.config.use_karras_sigmas:
             sigmas = self._convert_to_karras(in_sigmas=sigmas)
-            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).astype(np.float32)
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
 
