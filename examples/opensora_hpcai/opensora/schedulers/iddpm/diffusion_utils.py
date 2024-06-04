@@ -5,6 +5,7 @@
 
 import enum
 import math
+from typing import Optional
 
 import numpy as np
 
@@ -110,11 +111,19 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     return np.array(betas)
 
 
-def mean_flat(tensor):
+def mean_flat(tensor: Tensor, frames_mask: Optional[Tensor] = None) -> Tensor:
     """
     Take the mean over all non-batch dimensions.
     """
-    return tensor.mean(axis=list(range(1, len(tensor.shape))))
+    if frames_mask is None:
+        return tensor.mean(axis=list(range(1, len(tensor.shape))))
+    else:
+        assert tensor.dim() == 5
+        assert tensor.shape[2] == frames_mask.shape[1]
+        tensor = tensor.swapaxes(1, 2).reshape(tensor.shape[0], tensor.shape[2], -1)  # b c t h w -> b t (c h w)
+        denom = frames_mask.sum(axis=1) * tensor.shape[-1]
+        loss = (tensor * frames_mask.unsqueeze(2)).sum(axis=(1, 2)) / denom
+        return loss
 
 
 class ModelMeanType(enum.Enum):

@@ -10,6 +10,7 @@ def create_dataloader(
     dataset: BaseDataset,
     batch_size: int,
     transforms: Optional[Union[List[dict], dict]] = None,
+    project_columns: Optional[List[str]] = None,
     shuffle: bool = False,
     num_workers: int = 4,
     num_workers_dataset: int = 4,
@@ -36,6 +37,8 @@ def create_dataloader(
                         "input_columns": [List of columns to apply transforms to],  # Optional
                         "output_columns": [List of output columns]                  # Optional, only used if different from the `input columns`
                     }
+        project_columns: Optional list of output columns names from transformations.
+                         These names can be used for column selection or sorting in a specific order.
         shuffle: Whether to randomly sample data. Default is False.
         num_workers: The number of workers used for data transformations. Default is 4.
         num_workers_dataset: The number of workers used for reading data from the dataset. Default is 4.
@@ -89,6 +92,8 @@ def create_dataloader(
                 max_rowsize=max_rowsize,
             )
 
+    if project_columns:
+        dataloader = dataloader.project(project_columns)
     dataloader = dataloader.batch(batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch)
 
     return dataloader

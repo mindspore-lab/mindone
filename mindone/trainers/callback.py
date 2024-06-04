@@ -47,6 +47,8 @@ class EvalSaveCallback(Callback):
         model_name="sd",
         save_trainable_only: bool = False,
         param_save_filter: List[str] = None,
+        integrated_save=False,
+        save_training_resume=True,
     ):
         """
         Args:
@@ -82,6 +84,7 @@ class EvalSaveCallback(Callback):
                 ckpt_save_dir,
                 ckpt_save_policy,
                 k=ckpt_max_keep,
+                integrated_save=integrated_save,
             )
             if self.start_epoch == 0:
                 if self.record_lr:
@@ -111,6 +114,7 @@ class EvalSaveCallback(Callback):
         self.use_lora = use_lora
 
         self.use_step_unit = use_step_unit
+        self.save_training_resume = save_training_resume
 
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
@@ -139,16 +143,17 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
-                # TODO: resume training for step.
-                ms.save_checkpoint(
-                    cb_params.train_network,
-                    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={
-                        "epoch_num": cur_epoch,
-                        "cur_step": cur_step,
-                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                    },
-                )
+                if self.save_training_resume:
+                    # TODO: resume training for step.
+                    ms.save_checkpoint(
+                        cb_params.train_network,
+                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                        append_dict={
+                            "epoch_num": cur_epoch,
+                            "cur_step": cur_step,
+                            "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                        },
+                    )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
@@ -219,14 +224,15 @@ class EvalSaveCallback(Callback):
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 self.ckpt_manager.save(self.net_to_save, None, ckpt_name=ckpt_name, append_dict=append_dict)
 
-                ms.save_checkpoint(
-                    cb_params.train_network,
-                    os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                    append_dict={
-                        "epoch_num": cur_epoch,
-                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                    },
-                )
+                if self.save_training_resume:
+                    ms.save_checkpoint(
+                        cb_params.train_network,
+                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
+                        append_dict={
+                            "epoch_num": cur_epoch,
+                            "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                        },
+                    )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
@@ -287,3 +293,24 @@ class ProfilerCallback(ms.Callback):
             _logger.info(f"finish analyzing profiler in step range [{self.start_step}, {self.end_step}]")
             if self.exit_after_analyze:
                 run_context.request_stop()
+
+
+class ProfilerCallbackEpoch(ms.Callback):
+    def __init__(self, start_epoch, stop_epoch, output_dir="./profiler_data"):
+        super().__init__()
+        self.start_epoch = start_epoch
+        self.stop_epoch = stop_epoch
+        self.profiler = ms.Profiler(start_profile=False, output_path=output_dir)
+
+    def on_train_epoch_begin(self, run_context):
+        cb_params = run_context.original_args()
+        epoch_num = cb_params.cur_epoch_num
+        if epoch_num == self.start_epoch:
+            self.profiler.start()
+
+    def on_train_epoch_end(self, run_context):
+        cb_params = run_context.original_args()
+        epoch_num = cb_params.cur_epoch_num
+        if epoch_num == self.stop_epoch:
+            self.profiler.stop()
+            self.profiler.analyse()

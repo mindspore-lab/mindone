@@ -19,7 +19,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
@@ -29,6 +29,8 @@ from huggingface_hub.utils import OfflineModeIsEnabled, validate_hf_hub_args
 from packaging import version
 from requests.exceptions import HTTPError
 from tqdm.auto import tqdm
+
+from mindspore import nn
 
 from .. import __version__
 from ..configuration_utils import ConfigMixin
@@ -1043,3 +1045,58 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
     def set_progress_bar_config(self, **kwargs):
         self._progress_bar_config = kwargs
+
+    def enable_xformers_memory_efficient_attention(self, attention_op: Optional[Callable] = None):
+        r"""
+        Enable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/). When this
+        option is enabled, you should observe lower GPU memory usage and a potential speed up during inference. Speed
+        up during training is not guaranteed.
+
+        <Tip warning={true}>
+
+        ⚠️ When memory efficient attention and sliced attention are both enabled, memory efficient attention takes
+        precedent.
+
+        </Tip>
+
+        Parameters:
+            attention_op (`Callable`, *optional*):
+                Not supported for now.
+
+        Examples:
+
+        ```py
+        >>> import mindspore as ms
+        >>> from mindone.diffusers import DiffusionPipeline
+
+        >>> pipe = DiffusionPipeline.from_pretrained("stabilityai/stable-diffusion-2-1", mindspore_dtype=ms.float16)
+        >>> pipe.enable_xformers_memory_efficient_attention()
+        >>> # Workaround for not accepting attention shape using VAE for Flash Attention
+        >>> pipe.vae.enable_xformers_memory_efficient_attention(attention_op=None)
+        ```
+        """
+        self.set_use_memory_efficient_attention_xformers(True, attention_op)
+
+    def disable_xformers_memory_efficient_attention(self):
+        r"""
+        Disable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).
+        """
+        self.set_use_memory_efficient_attention_xformers(False)
+
+    def set_use_memory_efficient_attention_xformers(self, valid: bool, attention_op: Optional[Callable] = None) -> None:
+        # Recursively walk through all the children.
+        # Any children which exposes the set_use_memory_efficient_attention_xformers method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "set_use_memory_efficient_attention_xformers"):
+                module.set_use_memory_efficient_attention_xformers(valid, attention_op)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            fn_recursive_set_mem_eff(module)

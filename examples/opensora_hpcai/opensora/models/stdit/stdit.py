@@ -1,4 +1,5 @@
 import os
+import re
 
 import numpy as np
 from mindcv.models.layers import DropPath
@@ -183,6 +184,7 @@ class STDiT(nn.Cell):
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
         use_recompute=False,
+        num_recompute_blocks=None,
         patchify_conv3d_replace=None,
     ):
         super().__init__()
@@ -275,8 +277,13 @@ class STDiT(nn.Cell):
         self.sp_rank = None
 
         if use_recompute:
-            for block in self.blocks:
-                self.recompute(block)
+            if num_recompute_blocks is None:
+                num_recompute_blocks = len(self.blocks)
+            print("Num recomputed stdit blocks: {}".format(num_recompute_blocks))
+            for i, block in enumerate(self.blocks):
+                # recompute the first N blocks
+                if i < num_recompute_blocks:
+                    self.recompute(block)
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -286,7 +293,7 @@ class STDiT(nn.Cell):
         else:
             b.add_flags(output_no_recompute=True)
 
-    def construct(self, x, timestep, y, mask=None):
+    def construct(self, x, timestep, y, mask=None, **kwargs):
         """
         Args:
             x (ms.Tensor): latent representation of video; of shape [B, C, T, H, W]
@@ -297,10 +304,6 @@ class STDiT(nn.Cell):
         Returns:
             x (ms.Tensor): output latent representation; of shape [B, C, T, H, W]
         """
-
-        # x = x.to(self.dtype)
-        # timestep = timestep.to(self.dtype)
-        # y = y.to(self.dtype)
 
         # embedding
         if self.patchify_conv3d_replace is None:
@@ -344,11 +347,10 @@ class STDiT(nn.Cell):
 
         x = self.unpatchify(x)  # [B, C_out, T, H, W]
 
-        # cast to float32 for better accuracy
-        x = x.astype(ms.float32)
         return x
 
-    def construct_with_cfg(self, x, t, y, mask=None, cfg_scale=4.0):
+    # @ms.jit
+    def construct_with_cfg(self, x, t, y, mask=None, cfg_scale=4.0, cfg_channel=None, **kwargs):
         """
         Forward pass of DiT, but also batches the unconditional forward pass for classifier-free guidance.
         """
@@ -356,9 +358,12 @@ class STDiT(nn.Cell):
         half = x[: len(x) // 2]
         combined = ops.cat([half, half], axis=0)
 
-        model_out = self.construct(combined, t, y=y, mask=mask)
+        # model_out = self.construct(combined, t, y=y, mask=mask)
+        model_out = self(combined, t, y=y, mask=mask)
+        if cfg_channel is None:
+            cfg_channel = self.in_channels
         # torch only takes the first 3 dimension for eps. but for z=4, out z=8, the first 4 dims are for eps, the rest 4 dim are for variance.
-        eps, rest = model_out[:, : self.in_channels], model_out[:, self.in_channels :]
+        eps, rest = model_out[:, :cfg_channel], model_out[:, cfg_channel:]
         cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
         half_eps = uncond_eps + cfg_scale * (cond_eps - uncond_eps)
         eps = ops.cat([half_eps, half_eps], axis=0)
@@ -463,29 +468,21 @@ class STDiT(nn.Cell):
             print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
             sd = ms.load_checkpoint(ckpt_path)
-            # filter 'network.' prefix
-            rm_prefix = ["network."]
-            all_pnames = list(sd.keys())
-            for pname in all_pnames:
-                for pre in rm_prefix:
-                    if pname.startswith(pre):
-                        new_pname = pname.replace(pre, "")
-                        sd[new_pname] = sd.pop(pname)
+
+            regex = re.compile(r"^network\.|\._backbone")
+            sd = {regex.sub("", k): v for k, v in sd.items()}
 
             # load conv3d weight from pretrained conv2d or dense layer
             key_3d = "x_embedder.proj.weight"
             if self.patchify_conv3d_replace == "linear":
-                raise ValueError("Not supported for loading linear layer with conv3d weight")
-                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                assert conv3d_weight.shape[-3] == 1
-                cout, cin, kt, kh, kw = conv3d_weight.shape
-                linear_weight = conv3d_weight.reshape(cout, -1)
-                sd[key_3d] = ms.Parameter(linear_weight, name=key_3d)
+                if len(sd[key_3d].shape) == 5:
+                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                    assert conv3d_weight.shape[-3] == 1
+                    sd[key_3d] = ms.Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
             elif self.patchify_conv3d_replace == "conv2d":
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                     assert conv3d_weight.shape[-3] == 1
-                    cout, cin, kt, kh, kw = conv3d_weight.shape
                     sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
             m, u = ms.load_param_into_net(self, sd)

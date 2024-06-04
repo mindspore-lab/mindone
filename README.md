@@ -4,6 +4,11 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 
 ONE is short for "ONE for all" and "Optimal generators with No Exception" (credits to GPT-4).
 ## News
+- 2023.05.23
+    1. Two OpenSora models are supported!
+        - [hpcai-OpenSora](examples/opensora_hpcai) based on VAE+STDiT
+        - [PKU-OpenSora](examples/opensora_pku) based on CausalVAE3D+Latte_T2V
+    2. [diffusers](mindone/diffusers) is now runnable with MindSpore (experimental)
 - 2024.03.22
     1. New diffusion transformer models released!
         - [DiT](examples/dit) for image generation

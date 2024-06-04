@@ -34,10 +34,10 @@ class DDPMSchedulerOutput(BaseOutput):
     Output class for the scheduler's `step` function output.
 
     Args:
-        prev_sample (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)` for images):
+        prev_sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` for images):
             Computed sample `(x_{t-1})` of previous timestep. `prev_sample` should be used as next model input in the
             denoising loop.
-        pred_original_sample (`torch.FloatTensor` of shape `(batch_size, num_channels, height, width)` for images):
+        pred_original_sample (`ms.Tensor` of shape `(batch_size, num_channels, height, width)` for images):
             The predicted denoised sample `(x_{0})` based on the model output from the current timestep.
             `pred_original_sample` can be used to preview progress or for guidance.
     """
@@ -447,11 +447,15 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # 2. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (15) from https://arxiv.org/pdf/2006.11239.pdf
         if self.config.prediction_type == "epsilon":
-            pred_original_sample = ((sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)).to(dtype)
+            pred_original_sample = (
+                (sample - (beta_prod_t ** (0.5) * model_output).to(dtype)) / alpha_prod_t ** (0.5)
+            ).to(dtype)
         elif self.config.prediction_type == "sample":
             pred_original_sample = model_output
         elif self.config.prediction_type == "v_prediction":
-            pred_original_sample = ((alpha_prod_t**0.5) * sample - (beta_prod_t**0.5) * model_output).to(dtype)
+            pred_original_sample = (alpha_prod_t**0.5).to(dtype) * sample - (beta_prod_t**0.5).to(
+                dtype
+            ) * model_output
         else:
             raise ValueError(
                 f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample` or"

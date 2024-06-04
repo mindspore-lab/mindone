@@ -74,7 +74,7 @@ class Attention(nn.Cell):
         # (b h n_q n_k)
         attn = ops.softmax(sim, axis=-1).astype(v.dtype)
         attn = self.attn_drop(attn)
-        out = ops.matmul(attn, v)
+        out = ops.matmul(attn.to(v.dtype), v)
 
         out = ops.reshape(out, (b, h, -1, d))
         # (b h n d) -> (b n h d)
@@ -139,6 +139,7 @@ class MultiHeadCrossAttention(nn.Cell):
         Return:
             (B, N, C)
         """
+        x_dtype = x.dtype
         B, N, C = x.shape
 
         # cond: (1, B*N_tokens, C) -> (B, N_tokens, C)
@@ -184,10 +185,7 @@ class MultiHeadCrossAttention(nn.Cell):
         x = ops.reshape(x, (B, N, -1))
 
         # 4. output projection
-        x = self.proj(x)
-        x = self.proj_drop(x)
-
-        return x
+        return self.proj_drop(self.proj(x)).to(x_dtype)
 
 
 class SelfAttention(nn.Cell):
@@ -252,8 +250,8 @@ class SelfAttention(nn.Cell):
         x: (b n c)
         mask: (b n), 1 - valid, 0 - padded
         """
-        x_dtype = x.dtype
         B, N, C = x.shape
+        x_dtype = x.dtype
 
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
@@ -307,9 +305,8 @@ class LayerNorm(nn.Cell):
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        oridtype = x.dtype
-        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
-        return x.to(oridtype)
+        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        return x
 
 
 class GELU(nn.GELU):
@@ -558,9 +555,8 @@ class LinearPatchEmbed(nn.Cell):
                 self.image_size[1],
             ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         ph, pw = h // self.patch_size[0], w // self.patch_size[1]
-        x = x.reshape((b, c, self.patch_size[0], ph, self.patch_size[1], pw))  # (B, C, P, Ph, P, Pw)
-        # x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
-        x = x.transpose((0, 3, 5, 2, 4, 1))  # (B, Ph, Pw, P, P, C)
+        x = x.reshape((b, c, ph, self.patch_size[0], pw, self.patch_size[1]))
+        x = x.transpose((0, 2, 4, 1, 3, 5))  # (B, Ph, Pw, C, P, P)
         x = x.reshape((b, ph * pw, self.patch_size[0] * self.patch_size[1] * c))  # (B, Ph*Pw, P*P*C)
 
         x = self.proj(x)  # B Ph*Pw C_out
@@ -749,11 +745,14 @@ class PositionEmbedding2D(nn.Cell):
         if base_size is not None:
             grid_h *= base_size / h
             grid_w *= base_size / w
-        grid_h, grid_w = ops.meshgrid(
-            grid_w,
-            grid_h,
-            indexing="ij",
-        )  # here w goes first
+
+        orig_dtype = grid_h.dtype
+        if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
+            grid_h = grid_h.astype(ms.float32)
+            grid_w = grid_w.astype(ms.float32)
+        grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
+        grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
+
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
         emb_h = self._get_sin_cos_emb(grid_h)

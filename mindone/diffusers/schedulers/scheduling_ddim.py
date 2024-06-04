@@ -401,28 +401,33 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
         # - pred_sample_direction -> "direction pointing to x_t"
         # - pred_prev_sample -> "x_t-1"
 
+        dtype = sample.dtype
         # 1. get previous step value (=t-1)
         prev_timestep = timestep - self.config.num_train_timesteps // self.num_inference_steps
 
         # 2. compute alphas, betas
-        alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
-        final_alpha_cumprod = self.final_alpha_cumprod.to(dtype=sample.dtype)
-        alpha_prod_t = alphas_cumprod[timestep]
-        alpha_prod_t_prev = alphas_cumprod[prev_timestep] if prev_timestep >= 0 else final_alpha_cumprod
+        alpha_prod_t = self.alphas_cumprod[timestep]
+        alpha_prod_t_prev = self.alphas_cumprod[prev_timestep] if prev_timestep >= 0 else self.final_alpha_cumprod
 
         beta_prod_t = 1 - alpha_prod_t
 
         # 3. compute predicted original sample from predicted noise also called
         # "predicted x_0" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
         if self.config.prediction_type == "epsilon":
-            pred_original_sample = (sample - beta_prod_t ** (0.5) * model_output) / alpha_prod_t ** (0.5)
+            pred_original_sample = (
+                (sample - (beta_prod_t ** (0.5)).to(dtype) * model_output) / alpha_prod_t ** (0.5)
+            ).to(dtype)
             pred_epsilon = model_output
         elif self.config.prediction_type == "sample":
             pred_original_sample = model_output
-            pred_epsilon = (sample - alpha_prod_t ** (0.5) * pred_original_sample) / beta_prod_t ** (0.5)
+            pred_epsilon = (
+                (sample - (alpha_prod_t ** (0.5)).to(dtype) * pred_original_sample) / beta_prod_t ** (0.5)
+            ).to(dtype)
         elif self.config.prediction_type == "v_prediction":
-            pred_original_sample = (alpha_prod_t**0.5) * sample - (beta_prod_t**0.5) * model_output
-            pred_epsilon = (alpha_prod_t**0.5) * model_output + (beta_prod_t**0.5) * sample
+            pred_original_sample = (alpha_prod_t**0.5).to(dtype) * sample - (beta_prod_t**0.5).to(
+                dtype
+            ) * model_output
+            pred_epsilon = (alpha_prod_t**0.5).to(dtype) * model_output + (beta_prod_t**0.5).to(dtype) * sample
         else:
             raise ValueError(
                 f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample`, or"
@@ -444,13 +449,15 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
 
         if use_clipped_model_output:
             # the pred_epsilon is always re-derived from the clipped x_0 in Glide
-            pred_epsilon = (sample - alpha_prod_t ** (0.5) * pred_original_sample) / beta_prod_t ** (0.5)
+            pred_epsilon = (
+                (sample - (alpha_prod_t ** (0.5)).to(dtype) * pred_original_sample) / beta_prod_t ** (0.5)
+            ).to(dtype)
 
         # 6. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
-        pred_sample_direction = (1 - alpha_prod_t_prev - std_dev_t**2) ** (0.5) * pred_epsilon
+        pred_sample_direction = ((1 - alpha_prod_t_prev - std_dev_t**2) ** (0.5)).to(dtype) * pred_epsilon
 
         # 7. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
-        prev_sample = alpha_prod_t_prev ** (0.5) * pred_original_sample + pred_sample_direction
+        prev_sample = (alpha_prod_t_prev ** (0.5)).to(dtype) * pred_original_sample + pred_sample_direction
 
         if eta > 0:
             if variance_noise is not None and generator is not None:
@@ -460,7 +467,7 @@ class DDIMScheduler(SchedulerMixin, ConfigMixin):
                 )
 
             if variance_noise is None:
-                variance_noise = randn_tensor(model_output.shape, generator=generator, dtype=model_output.dtype)
+                variance_noise = randn_tensor(model_output.shape, generator=generator, dtype=dtype)
             variance = std_dev_t * variance_noise
 
             prev_sample = prev_sample + variance

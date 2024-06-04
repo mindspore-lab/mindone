@@ -224,7 +224,7 @@ class TextVideoDataset:
         else:
             vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
             vae_latent_data = np.load(vae_latent_path)
-            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
+            latent_mean = vae_latent_data["latent_mean"]
             video_length = len(latent_mean)
             if not self.is_image:
                 clip_length = min(video_length, (self.sample_n_frames - 1) * self.sample_stride + 1)
@@ -233,8 +233,14 @@ class TextVideoDataset:
             else:
                 batch_index = [random.randint(0, video_length - 1)]
             latent_mean = latent_mean[batch_index]
-            latent_std = latent_std[batch_index]
-            vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
+
+            sample_from_distribution = "latent_std" in vae_latent_data.keys()
+            if sample_from_distribution:
+                latent_std = vae_latent_data["latent_std"]
+                latent_std = latent_std[batch_index]
+                vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
+            else:
+                vae_latent = latent_mean
             vae_latent = vae_latent * self.vae_scale_factor
             vae_latent = vae_latent.astype(np.float32)
 
@@ -291,7 +297,8 @@ class TextVideoDataset:
             if self.is_image:
                 pixel_values = pixel_values[0]
 
-            pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
+            pixel_values = np.divide(pixel_values, 127.5, dtype=np.float32)
+            pixel_values = np.subtract(pixel_values, 1.0, dtype=np.float32)
         else:
             # pixel_values is the vae encoder's output sample * scale_factor
             pass

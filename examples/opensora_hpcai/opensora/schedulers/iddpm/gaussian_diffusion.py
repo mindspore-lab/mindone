@@ -517,6 +517,7 @@ class GaussianDiffusion:
         model_kwargs=None,
         progress=False,
         eta=0.0,
+        frames_mask: Optional[Tensor] = None,  # TODO: integrate support
     ):
         """
         Generate samples from the model using DDIM.

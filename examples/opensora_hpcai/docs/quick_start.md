@@ -4,20 +4,21 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
 - [x] STDiT implementation and inference
     - [x] refactor Masked MultiHeadCrossAttention without xformers
     - [ ] more efficient masking and attention computation for text tokens with dynamic length.
-- [ ] Text-to-video generation pipeline (to be refactored)
+- [x] Text-to-video generation pipeline (to be refactored)
     - [x] video generation in FP32/FP16 precision on GPUs: 256x256x16, 512x512x16
     - [x] video generation in FP32/FP16 precision on Ascends: 256x256x16, 512x512x16
-    - [ ] Mixed precision optimization (BF16) on Ascend
+    - [x] Mixed precision optimization (BF16) on Ascend
     - [x] Flash attention optimization on Ascend
-- [ ] Image/Video-to-video generation pipeline (to be refactored)
+- [x] Image/Video-to-Video generation pipeline (to be refactored)
     - [x] Video generation in FP32 precision on Ascend 910*.
-    - [ ] Mixed precision optimization (FP16 and BF16) on Ascend.
+    - [x] Mixed precision optimization (FP16 and BF16) on Ascend.
 - [ ] Training
     - [x] Text embedding-cached STDiT training on GPUs and Ascends
         - [x] small dataset
         - [x] train with long frames, up to **512x512x300**
+    - [x] Masked frames training pipeline
     - [ ] Training with online T5-embedding
-    - [ ] Train in BF16 precision
+    - [x] Train in BF16 precision
     - [ ] Zero2 and sequence-parallel training
 
 
@@ -110,7 +111,7 @@ while other frames are assigned a timestep _t_. An example is shown below:
 <p align="center"><img alt="mask strategy" src="https://github.com/mindspore-lab/mindone/assets/16683750/0cf5b478-288f-4f53-906d-26fb7b93182c" width="750"/></p>
 
 To generate videos conditioned on images and videos, you will need to specify the following parameters in the
-[config file](../configs/opensora-v1-1/sample.yaml):
+[config file](../configs/opensora-v1-1/inference/sample.yaml):
 
 ```yaml
 loop: 2
@@ -144,7 +145,7 @@ The output video's length will be `loop * (num_frames - condition_frame_length) 
 
 To generate a video with conditioning on images and videos, execute the following command:
 ```shell
-python scripts/inference_i2v.py --config configs/opensora-v1-1/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 ## Training
@@ -164,13 +165,15 @@ Please change `csv_path` to your video-caption annotation file accordingly.
 ```
 python scripts/infer_vae.py\
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
-    --output_dir ../videocomposer/datasets/webvid5_vae_256x256 \
+    --output_path ../videocomposer/datasets/webvid5_vae_256x256 \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \    # or sd-vae-ft-mse.ckpt
     --video_folder ../videocomposer/datasets/webvid5  \
     --image_size 256 \
 ```
 
 After running, the vae latents saved as npz file for each video will be in `output_dir`.
+
+For parallel inference, please refer to `scripts/run/run_infer_vae_parallel.sh`
 
 
 ### 3. Train STDiT
@@ -188,6 +191,9 @@ Please change `csv_path`,`video_folder`, `embed_folder` according to your data l
 
 For detailed usage, please check `python scripts/train.py -h`
 
+> [!WARNING]
+> OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.
+
 Note that the training precision is under continuous optimization.
 
 
@@ -199,7 +205,6 @@ To enable kbk mode on ms2.3, please set
 ```
 export MS_ENABLE_ACLNN=1
 export GRAPH_OP_RUN=1
-
 ```
 
 To improve training performance, you may append `--enable_dvm=True` to the training command.

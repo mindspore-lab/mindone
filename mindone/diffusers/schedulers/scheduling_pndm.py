@@ -220,8 +220,6 @@ class PNDMScheduler(SchedulerMixin, ConfigMixin):
 
         timesteps = np.concatenate([self.prk_timesteps, self.plms_timesteps]).astype(np.int64)
         self.timesteps = ms.Tensor(timesteps)
-        self.prk_timesteps = ms.Tensor(self.prk_timesteps)
-        self.plms_timesteps = ms.Tensor(self.plms_timesteps)
 
         self.ets = []
         self.counter = 0

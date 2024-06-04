@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor
+from mindspore import Tensor, nn
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
@@ -16,13 +16,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from inference import init_env
 from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-from opensora.models.vae.autoencoder import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
+from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import WHITELIST_OPS
 from opensora.utils.util import apply_mask_strategy, process_mask_strategies, process_prompts
 
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
@@ -31,8 +31,12 @@ logger = logging.getLogger(__name__)
 
 
 def main(args):
-    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-    save_dir = f"{args.output_path}/{time_str}"
+    if args.append_timestr:
+        time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        save_dir = f"{args.output_path}/{time_str}"
+    else:
+        save_dir = f"{args.output_path}"
+
     os.makedirs(save_dir, exist_ok=True)
     if args.save_latent:
         latent_dir = os.path.join(args.output_path, "denoised_latents")
@@ -40,7 +44,8 @@ def main(args):
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
-    init_env(args.mode, args.device_target, args.enable_dvm, args.debug)
+    # TODO: add distributed support
+    init_env(args.mode, args.seed, device_target=args.device_target, enable_dvm=args.enable_dvm, debug=args.debug)
     set_random_seed(args.seed)
 
     # get captions from cfg or prompt_path
@@ -99,11 +104,12 @@ def main(args):
             SD_CONFIG,
             VAE_Z_CH,
             ckpt_path=args.vae_checkpoint,
-            use_fp16=False,
         )
         vae = vae.set_train(False)
         if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype])
+            vae = auto_mixed_precision(
+                vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype], custom_fp32_cells=[nn.GroupNorm]
+            )
     else:
         vae = None
 

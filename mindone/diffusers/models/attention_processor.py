@@ -11,13 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import mindspore as ms
 from mindspore import nn, ops
 
+from ..image_processor import IPAdapterMaskProcessor
 from ..utils import logging
-from .normalization import GroupNorm, LayerNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -98,6 +98,8 @@ class Attention(nn.Cell):
         processor: Optional["AttnProcessor"] = None,
         out_dim: int = None,
     ):
+        from .normalization import GroupNorm, LayerNorm
+
         super().__init__()
         self.inner_dim = out_dim if out_dim is not None else dim_head * heads
         self.query_dim = query_dim
@@ -139,7 +141,7 @@ class Attention(nn.Cell):
             self.group_norm = None
 
         if spatial_norm_dim is not None:
-            raise NotImplementedError("SpatialNorm is not implemented.")
+            self.spatial_norm = SpatialNorm(f_channels=query_dim, zq_channels=spatial_norm_dim)
         else:
             self.spatial_norm = None
 
@@ -193,6 +195,131 @@ class Attention(nn.Cell):
         if processor is None:
             processor = AttnProcessor()
         self.processor = processor
+
+    def set_use_memory_efficient_attention_xformers(
+        self, use_memory_efficient_attention_xformers: bool, attention_op: Optional[Callable] = None
+    ) -> None:
+        r"""
+        Set whether to use memory efficient attention from `xformers` or not.
+
+        Args:
+            use_memory_efficient_attention_xformers (`bool`):
+                Whether to use memory efficient attention from `xformers` or not.
+            attention_op (`Callable`, *optional*):
+                Not supported for now.
+        """
+        if use_memory_efficient_attention_xformers:
+            if not hasattr(ops.operations.nn_ops, "FlashAttentionScore"):
+                raise ModuleNotFoundError(
+                    f"Memory efficient attention on mindspore uses flash attention under the hoods. "
+                    f"The implementation of flash attention is `FlashAttentionScore`, "
+                    f"which should be available in `mindspore.ops.operations.nn_ops`. "
+                    f"However, we cannot find it in current environment(mindspore version: {ms.__version__})."
+                )
+            elif ms.get_context("device_target") != "Ascend":
+                raise ValueError(
+                    f"Memory efficient attention is only available for Ascend, "
+                    f"but got current device: {ms.get_context('device_target')}"
+                )
+            else:
+                try:
+                    # Make sure we can run the memory efficient attention
+                    flash_attn = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BSH")
+                    _ = flash_attn(
+                        ops.randn(1, 16, 64, dtype=ms.float16),
+                        ops.randn(1, 16, 64, dtype=ms.float16),
+                        ops.randn(1, 16, 64, dtype=ms.float16),
+                    )
+                except Exception as e:
+                    raise e
+
+            # The following lines is a patch for flash attn, which calculates implicit padding on head_dim.
+            # TODO: Remove it if flash attention has better supports.
+            import bisect
+
+            self.flash_attn_valid_head_dims = [64, 80, 96, 120, 128, 256]
+            self.head_dim = self.inner_dim // self.heads
+            if self.head_dim in self.flash_attn_valid_head_dims:
+                self.head_dim_padding = 0
+            else:
+                minimum_larger_index = bisect.bisect_right(self.flash_attn_valid_head_dims, self.head_dim)
+                if minimum_larger_index >= len(self.flash_attn_valid_head_dims):
+                    self.head_dim_padding = -1  # head_dim is bigger than the largest one, we cannot do padding
+                else:
+                    self.head_dim_padding = self.flash_attn_valid_head_dims[minimum_larger_index] - self.head_dim
+
+            if self.head_dim_padding == 0:
+                logger.info(
+                    f"The head dimension of '{self.to_q.weight.name[:-12]}' is {self.head_dim}. "
+                    f"Successfully set to use the flash attention."
+                )
+                processor = XFormersAttnProcessor(attention_op=attention_op)
+            elif self.head_dim_padding > 0:
+                logger.warning(
+                    f"Flash attention requires that the head dimension must be one of "
+                    f"{self.flash_attn_valid_head_dims}, but got {self.head_dim} in '{self.to_q.weight.name[:-12]}'. "
+                    f"We will implicitly pad the head dimension to {self.head_dim + self.head_dim_padding}."
+                )
+                processor = XFormersAttnProcessor(attention_op=attention_op)
+            else:
+                logger.warning(
+                    f"Flash attention requires that the head dimension must be one of "
+                    f"{self.flash_attn_valid_head_dims}, but got {self.head_dim} in '{self.to_q.weight.name[:-12]}'. "
+                    f"Fallback to the vanilla implementation of attention."
+                )
+                processor = AttnProcessor()
+
+            # # The following lines is a patch for flash attn, which fallbacks to vanilla attn if head_dim is invalid.
+            # # TODO: Remove it if flash attention has better supports.
+            # self.flash_attn_valid_head_dims = [64, 80, 96, 120, 128, 256]
+            # self.head_dim = self.inner_dim // self.heads
+            # self.head_dim_padding = 0
+            # if self.head_dim in self.flash_attn_valid_head_dims:
+            #     logger.info(
+            #         f"The head dimension of '{self.to_q.weight.name[:-12]}' is {self.head_dim}. "
+            #         f"Successfully set to use the flash attention."
+            #     )
+            #     processor = XFormersAttnProcessor(attention_op=attention_op)
+            # else:
+            #     logger.warning(
+            #         f"Flash attention requires that the head dimension must be one of "
+            #         f"{self.flash_attn_valid_head_dims}, but got {self.head_dim} in '{self.to_q.weight.name[:-12]}'. "
+            #         f"Fallback to the vanilla implementation of attention."
+            #     )
+            #     processor = AttnProcessor()
+        else:
+            # set attention processor
+            # We use the AttnProcessor2_0 by default when torch 2.x is used which uses
+            # torch.nn.functional.scaled_dot_product_attention for native Flash/memory_efficient_attention
+            # but only if it has the default `scale` argument. TODO remove scale_qk check when we move to torch 2.1
+            processor = AttnProcessor()
+
+        self.set_processor(processor)
+
+    def set_processor(self, processor: "AttnProcessor") -> None:
+        r"""
+        Set the attention processor to use.
+
+        Args:
+            processor (`AttnProcessor`):
+                The attention processor to use.
+        """
+        # if current processor is in `self._modules` and if passed `processor` is not, we need to
+        # pop `processor` from `self._modules`
+        if hasattr(self, "processor") and isinstance(self.processor, nn.Cell) and not isinstance(processor, nn.Cell):
+            logger.info(f"You are removing possibly trained weights of {self.processor} with {processor}")
+            self._cells.pop("processor")
+
+        self.processor = processor
+
+    def get_processor(self) -> "AttentionProcessor":
+        r"""
+        Get the attention processor in use.
+
+        Returns:
+            "AttentionProcessor": The attention processor in use.
+        """
+        return self.processor
 
     def construct(
         self,
@@ -480,6 +607,483 @@ class AttnProcessor:
         return hidden_states
 
 
-CROSS_ATTENTION_PROCESSORS = (AttnProcessor,)
+class CustomDiffusionAttnProcessor(nn.Cell):
+    r"""
+    Processor for implementing attention for the Custom Diffusion method.
 
-AttentionProcessor = Union[AttnProcessor,]  # noqa: E231
+    Args:
+        train_kv (`bool`, defaults to `True`):
+            Whether to newly train the key and value matrices corresponding to the text features.
+        train_q_out (`bool`, defaults to `True`):
+            Whether to newly train query matrices corresponding to the latent image features.
+        hidden_size (`int`, *optional*, defaults to `None`):
+            The hidden size of the attention layer.
+        cross_attention_dim (`int`, *optional*, defaults to `None`):
+            The number of channels in the `encoder_hidden_states`.
+        out_bias (`bool`, defaults to `True`):
+            Whether to include the bias parameter in `train_q_out`.
+        dropout (`float`, *optional*, defaults to 0.0):
+            The dropout probability to use.
+    """
+
+    def __init__(
+        self,
+        train_kv: bool = True,
+        train_q_out: bool = True,
+        hidden_size: Optional[int] = None,
+        cross_attention_dim: Optional[int] = None,
+        out_bias: bool = True,
+        dropout: float = 0.0,
+    ):
+        super().__init__()
+        self.train_kv = train_kv
+        self.train_q_out = train_q_out
+
+        self.hidden_size = hidden_size
+        self.cross_attention_dim = cross_attention_dim
+
+        # `_custom_diffusion` id for easy serialization and loading.
+        if self.train_kv:
+            self.to_k_custom_diffusion = nn.Dense(cross_attention_dim or hidden_size, hidden_size, has_bias=False)
+            self.to_v_custom_diffusion = nn.Dense(cross_attention_dim or hidden_size, hidden_size, has_bias=False)
+        if self.train_q_out:
+            self.to_q_custom_diffusion = nn.Dense(hidden_size, hidden_size, has_bias=False)
+            self.to_out_custom_diffusion = []
+            self.to_out_custom_diffusion.append(nn.Dense(hidden_size, hidden_size, bias=out_bias))
+            self.to_out_custom_diffusion.append(nn.Dropout(p=dropout))
+            self.to_out_custom_diffusion = nn.CellList(self.to_out_custom_diffusion)
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        batch_size, sequence_length, _ = hidden_states.shape
+        attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+        if self.train_q_out:
+            query = self.to_q_custom_diffusion(hidden_states).to(attn.to_q.weight.dtype)
+        else:
+            query = attn.to_q(hidden_states.to(attn.to_q.weight.dtype))
+
+        if encoder_hidden_states is None:
+            crossattn = False
+            encoder_hidden_states = hidden_states
+        else:
+            crossattn = True
+            if attn.norm_cross:
+                encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+
+        if self.train_kv:
+            key = self.to_k_custom_diffusion(encoder_hidden_states.to(self.to_k_custom_diffusion.weight.dtype))
+            value = self.to_v_custom_diffusion(encoder_hidden_states.to(self.to_v_custom_diffusion.weight.dtype))
+            key = key.to(attn.to_q.weight.dtype)
+            value = value.to(attn.to_q.weight.dtype)
+        else:
+            key = attn.to_k(encoder_hidden_states)
+            value = attn.to_v(encoder_hidden_states)
+
+        if crossattn:
+            detach = ops.ones_like(key)
+            detach[:, :1, :] = detach[:, :1, :] * 0.0
+            key = detach * key + (1 - detach) * key.detach()
+            value = detach * value + (1 - detach) * value.detach()
+
+        query = attn.head_to_batch_dim(query)
+        key = attn.head_to_batch_dim(key)
+        value = attn.head_to_batch_dim(value)
+
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+
+        if self.train_q_out:
+            # linear proj
+            hidden_states = self.to_out_custom_diffusion[0](hidden_states)
+            # dropout
+            hidden_states = self.to_out_custom_diffusion[1](hidden_states)
+        else:
+            # linear proj
+            hidden_states = attn.to_out[0](hidden_states)
+            # dropout
+            hidden_states = attn.to_out[1](hidden_states)
+
+        return hidden_states
+
+
+@ms.jit_class
+class AttnAddedKVProcessor:
+    r"""
+    Processor for performing attention-related computations with extra learnable key and value matrices for the text
+    encoder.
+    """
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        *args,
+        **kwargs,
+    ) -> ms.Tensor:
+        residual = hidden_states
+
+        hidden_states = hidden_states.view(hidden_states.shape[0], hidden_states.shape[1], -1).swapaxes(1, 2)
+        batch_size, sequence_length, _ = hidden_states.shape
+
+        attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+        elif attn.norm_cross:
+            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+
+        hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
+
+        query = attn.to_q(hidden_states)
+        query = attn.head_to_batch_dim(query)
+
+        encoder_hidden_states_key_proj = attn.add_k_proj(encoder_hidden_states)
+        encoder_hidden_states_value_proj = attn.add_v_proj(encoder_hidden_states)
+        encoder_hidden_states_key_proj = attn.head_to_batch_dim(encoder_hidden_states_key_proj)
+        encoder_hidden_states_value_proj = attn.head_to_batch_dim(encoder_hidden_states_value_proj)
+
+        if not attn.only_cross_attention:
+            key = attn.to_k(hidden_states)
+            value = attn.to_v(hidden_states)
+            key = attn.head_to_batch_dim(key)
+            value = attn.head_to_batch_dim(value)
+            key = ops.cat([encoder_hidden_states_key_proj, key], axis=1)
+            value = ops.cat([encoder_hidden_states_value_proj, value], axis=1)
+        else:
+            key = encoder_hidden_states_key_proj
+            value = encoder_hidden_states_value_proj
+
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        hidden_states = hidden_states.swapaxes(-1, -2).reshape(residual.shape)
+        hidden_states = hidden_states + residual
+
+        return hidden_states
+
+
+@ms.jit_class
+class XFormersAttnProcessor:
+    r"""
+    Processor for implementing memory efficient attention using xFormers-like interface.
+
+    Args:
+        attention_op (`Callable`, *optional*, defaults to `None`):
+            The base
+            [operator](https://facebookresearch.github.io/xformers/components/ops.html#xformers.ops.AttentionOpBase) to
+            use as the attention operator. It is recommended to set to `None`, and allow xFormers to choose the best
+            operator.
+    """
+
+    def __init__(self, attention_op: Optional[Callable] = None):
+        assert attention_op is None, (
+            "Memory efficient attention on mindspore uses flash attention under the hoods. "
+            "There is no other implementation for now. Please do not set `attention_op`."
+        )
+        self.attention_op = attention_op
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        temb: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        residual = hidden_states
+
+        if attn.spatial_norm is not None:
+            hidden_states = attn.spatial_norm(hidden_states, temb)
+
+        input_ndim = hidden_states.ndim
+
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
+
+        batch_size, key_tokens, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+
+        attention_mask = attn.prepare_attention_mask(attention_mask, key_tokens, batch_size)
+        if attention_mask is not None:
+            # expand our mask's singleton query_tokens dimension:
+            #   [batch*heads,            1, key_tokens] ->
+            #   [batch*heads, query_tokens, key_tokens]
+            # so that it can be added as a bias onto the attention scores that xformers computes:
+            #   [batch*heads, query_tokens, key_tokens]
+            # we do this explicitly because xformers doesn't broadcast the singleton dimension for us.
+            _, query_tokens, _ = hidden_states.shape
+            attention_mask = attention_mask.tile((1, query_tokens, 1))
+
+        if attn.group_norm is not None:
+            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+        elif attn.norm_cross:
+            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        query = attn.head_to_batch_dim(query)
+        key = attn.head_to_batch_dim(key)
+        value = attn.head_to_batch_dim(value)
+
+        # Memory efficient attention on mindspore uses flash attention under the hoods.
+        # Flash attention implementation is called `FlashAttentionScore`
+        # which is an experimental api with the following limitations:
+        # 1. Sequence length of query must be divisible by 16 and in range of [1, 32768].
+        # 2. Head dimensions must be one of [64, 80, 96, 120, 128, 256].
+        # 3. The input dtype must be float16 or bfloat16.
+        # Sequence length of query must be checked in runtime.
+        _, query_tokens, _ = query.shape
+        assert query_tokens % 16 == 0, f"Sequence length of query must be divisible by 16, but got {query_tokens=}."
+        # Head dimension is checked in Attention.set_use_memory_efficient_attention_xformers. We maybe pad on head_dim.
+        if attn.head_dim_padding > 0:
+            query_padded = ops.pad(query, (0, attn.head_dim_padding), mode="constant", value=0.0)
+            key_padded = ops.pad(key, (0, attn.head_dim_padding), mode="constant", value=0.0)
+            value_padded = ops.pad(value, (0, attn.head_dim_padding), mode="constant", value=0.0)
+        else:
+            query_padded, key_padded, value_padded = query, key, value
+        flash_attn = ops.operations.nn_ops.FlashAttentionScore(1, scale_value=attn.scale)
+        hidden_states_padded = flash_attn(query_padded, key_padded, value_padded, None, None, None, attention_mask)[3]
+        # If we did padding before calculate attention, undo it!
+        if attn.head_dim_padding > 0:
+            hidden_states = hidden_states_padded[..., : attn.head_dim]
+        else:
+            hidden_states = hidden_states_padded
+
+        hidden_states = hidden_states.to(query.dtype)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        if attn.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / attn.rescale_output_factor
+
+        return hidden_states
+
+
+class SpatialNorm(nn.Cell):
+    """
+    Spatially conditioned normalization as defined in https://arxiv.org/abs/2209.09002.
+
+    Args:
+        f_channels (`int`):
+            The number of channels for input to group normalization layer, and output of the spatial norm layer.
+        zq_channels (`int`):
+            The number of channels for the quantized vector as described in the paper.
+    """
+
+    def __init__(
+        self,
+        f_channels: int,
+        zq_channels: int,
+    ):
+        super().__init__()
+        from .normalization import GroupNorm
+
+        self.norm_layer = GroupNorm(num_channels=f_channels, num_groups=32, eps=1e-6, affine=True)
+        self.conv_y = nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
+        self.conv_b = nn.Conv2d(zq_channels, f_channels, kernel_size=1, stride=1, padding=0, has_bias=True)
+
+    def construct(self, f: ms.Tensor, zq: ms.Tensor) -> ms.Tensor:
+        f_size = f.shape[-2:]
+        zq = ops.interpolate(zq, size=f_size, mode="nearest")
+        norm_f = self.norm_layer(f)
+        new_f = norm_f * self.conv_y(zq) + self.conv_b(zq)
+        return new_f
+
+
+class IPAdapterAttnProcessor(nn.Cell):
+    r"""
+    Attention processor for Multiple IP-Adapater.
+
+    Args:
+        hidden_size (`int`):
+            The hidden size of the attention layer.
+        cross_attention_dim (`int`):
+            The number of channels in the `encoder_hidden_states`.
+        num_tokens (`int`, `Tuple[int]` or `List[int]`, defaults to `(4,)`):
+            The context length of the image features.
+        scale (`float` or List[`float`], defaults to 1.0):
+            the weight scale of image prompt.
+    """
+
+    def __init__(self, hidden_size, cross_attention_dim=None, num_tokens=(4,), scale=1.0):
+        super().__init__()
+
+        self.hidden_size = hidden_size
+        self.cross_attention_dim = cross_attention_dim
+
+        if not isinstance(num_tokens, (tuple, list)):
+            num_tokens = [num_tokens]
+        self.num_tokens = num_tokens
+
+        if not isinstance(scale, list):
+            scale = [scale] * len(num_tokens)
+        if len(scale) != len(num_tokens):
+            raise ValueError("`scale` should be a list of integers with the same length as `num_tokens`.")
+        self.scale = scale
+
+        self.to_k_ip = nn.CellList(
+            [nn.Dense(cross_attention_dim, hidden_size, has_bias=False) for _ in range(len(num_tokens))]
+        )
+        self.to_v_ip = nn.CellList(
+            [nn.Dense(cross_attention_dim, hidden_size, has_bias=False) for _ in range(len(num_tokens))]
+        )
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        temb: Optional[ms.Tensor] = None,
+        scale: float = 1.0,
+        ip_adapter_masks: Optional[ms.Tensor] = None,
+    ):
+        residual = hidden_states
+
+        # separate ip_hidden_states from encoder_hidden_states
+        if encoder_hidden_states is not None:
+            if isinstance(encoder_hidden_states, tuple):
+                encoder_hidden_states, ip_hidden_states = encoder_hidden_states
+            else:
+                end_pos = encoder_hidden_states.shape[1] - self.num_tokens[0]
+                encoder_hidden_states, ip_hidden_states = (
+                    encoder_hidden_states[:, :end_pos, :],
+                    [encoder_hidden_states[:, end_pos:, :]],
+                )
+
+        if attn.spatial_norm is not None:
+            hidden_states = attn.spatial_norm(hidden_states, temb)
+
+        input_ndim = hidden_states.ndim
+
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+        attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+
+        if attn.group_norm is not None:
+            hidden_states = attn.group_norm(hidden_states.swapaxes(1, 2)).swapaxes(1, 2)
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+        elif attn.norm_cross:
+            encoder_hidden_states = attn.norm_encoder_hidden_states(encoder_hidden_states)
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        query = attn.head_to_batch_dim(query)
+        key = attn.head_to_batch_dim(key)
+        value = attn.head_to_batch_dim(value)
+
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+
+        if ip_adapter_masks is not None:
+            if not isinstance(ip_adapter_masks, ms.Tensor) or ip_adapter_masks.ndim != 4:
+                raise ValueError(
+                    " ip_adapter_mask should be a tensor with shape [num_ip_adapter, 1, height, width]."
+                    " Please use `IPAdapterMaskProcessor` to preprocess your mask"
+                )
+            if len(ip_adapter_masks) != len(self.scale):
+                raise ValueError(
+                    f"Number of ip_adapter_masks ({len(ip_adapter_masks)}) must match number of IP-Adapters ({len(self.scale)})"
+                )
+        else:
+            ip_adapter_masks = [None] * len(self.scale)
+
+        # for ip-adapter
+        for current_ip_hidden_states, scale, to_k_ip, to_v_ip, mask in zip(
+            ip_hidden_states, self.scale, self.to_k_ip, self.to_v_ip, ip_adapter_masks
+        ):
+            ip_key = to_k_ip(current_ip_hidden_states)
+            ip_value = to_v_ip(current_ip_hidden_states)
+
+            ip_key = attn.head_to_batch_dim(ip_key)
+            ip_value = attn.head_to_batch_dim(ip_value)
+
+            ip_attention_probs = attn.get_attention_scores(query, ip_key, None)
+            current_ip_hidden_states = ops.bmm(ip_attention_probs, ip_value)
+            current_ip_hidden_states = attn.batch_to_head_dim(current_ip_hidden_states)
+
+            if mask is not None:
+                mask_downsample = IPAdapterMaskProcessor.downsample(
+                    mask, batch_size, current_ip_hidden_states.shape[1], current_ip_hidden_states.shape[2]
+                )
+
+                mask_downsample = mask_downsample.to(dtype=query.dtype)
+
+                current_ip_hidden_states = current_ip_hidden_states * mask_downsample
+
+            hidden_states = hidden_states + scale * current_ip_hidden_states
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        if attn.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / attn.rescale_output_factor
+
+        return hidden_states
+
+
+ADDED_KV_ATTENTION_PROCESSORS = (AttnAddedKVProcessor,)
+
+CROSS_ATTENTION_PROCESSORS = (
+    AttnProcessor,
+    IPAdapterAttnProcessor,
+    XFormersAttnProcessor,
+)
+
+AttentionProcessor = Union[
+    AttnProcessor,
+    XFormersAttnProcessor,
+    AttnAddedKVProcessor,
+    CustomDiffusionAttnProcessor,
+]

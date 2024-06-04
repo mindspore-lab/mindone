@@ -49,6 +49,7 @@ def init_env(
     parallel_mode: str = "data",
     enable_dvm: bool = False,
     precision_mode: str = None,
+    global_bf16: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -106,9 +107,14 @@ def init_env(
 
     if enable_dvm:
         print("enable dvm")
-        ms.set_context(enable_graph_kernel=True)
+        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
+    if global_bf16:
+        print("Using global bf16")
+        ms.set_context(
+            ascend_config={"precision_mode": "allow_mix_precision_bf16"}
+        )  # reset ascend precison mode globally
     return rank_id, device_num
 
 
@@ -123,10 +129,17 @@ def parse_args():
     )
     parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.0.0")
     parser.add_argument(
+        "--pretrained_ckpt",
+        type=str,
+        default=None,
+        help="If not provided, will search for ckpt file under `model_path`"
+        "If provided, will use this pretrained ckpt path.",
+    )
+    parser.add_argument(
         "--version",
         type=str,
         default="17x256x256",
-        help="Model version in ['17x256x256', '65x256x256', '65x512x512'] ",
+        help="Model version in ['17x256x256', '17x512x512', '65x256x256', '65x512x512'] ",
     )
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
 
@@ -180,6 +193,9 @@ def parse_args():
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
     )
     parser.add_argument(
         "--vae_precision",
@@ -246,6 +262,7 @@ if __name__ == "__main__":
         parallel_mode=args.parallel_mode,
         enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
+        global_bf16=args.global_bf16,
     )
 
     # 2. vae model initiate and weight loading
@@ -349,20 +366,25 @@ if __name__ == "__main__":
     transformer_model = LatteT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
+        checkpoint_path=args.pretrained_ckpt,
         enable_flash_attention=args.enable_flash_attention,
     )
     transformer_model.force_images = args.force_images
     # mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        transformer_model = auto_mixed_precision(
-            transformer_model,
-            amp_level=args.amp_level,
-            dtype=dtype,
-            custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
-        )
-        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+        if not args.global_bf16:
+            amp_level = args.amp_level
+            transformer_model = auto_mixed_precision(
+                transformer_model,
+                amp_level=args.amp_level,
+                dtype=dtype,
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+            )
+            logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+        else:
+            logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {dtype} to ms.bfloat16")
+            dtype = ms.bfloat16
     elif args.precision == "fp32":
         amp_level = "O0"
     else:
