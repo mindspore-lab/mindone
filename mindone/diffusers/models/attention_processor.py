@@ -725,8 +725,6 @@ class AttnAddedKVProcessor:
         hidden_states: ms.Tensor,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
-        *args,
-        **kwargs,
     ) -> ms.Tensor:
         residual = hidden_states
 
