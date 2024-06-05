@@ -2,6 +2,8 @@
 Credit: OpenSora HPC-AI Tech
 https://github.com/hpcaitech/Open-Sora/blob/ea41df3d6cc5f389b6824572854d97fa9f7779c3/opensora/datasets/bucket.py
 """
+from random import random
+
 import numpy as np
 
 from .aspect import ASPECT_RATIOS, get_closest_ratio
@@ -48,7 +50,7 @@ class Bucket:
         self.num_bucket = num_bucket
         print(f"Number of buckets: {num_bucket}")
 
-    def get_bucket_id(self, T, H, W, frame_interval=1, seed=None):
+    def get_bucket_id(self, T, H, W, frame_interval=1):
         resolution = H * W
         approx = 0.8
 
@@ -60,8 +62,7 @@ class Bucket:
             # if sample is an image
             if T == 1:
                 if 1 in t_criteria:
-                    rng = np.random.default_rng(seed + self.bucket_id[hw_id][1])
-                    if rng.random() < t_criteria[1]:
+                    if random() < t_criteria[1]:
                         fail = False
                         t_id = 1
                         break
@@ -78,8 +79,7 @@ class Bucket:
                 continue
 
             # leave the loop if prob is high enough
-            rng = np.random.default_rng(seed + self.bucket_id[hw_id][t_id])
-            if prob == 1 or rng.random() < prob:
+            if prob == 1 or random() < prob:
                 fail = False
                 break
         if fail:

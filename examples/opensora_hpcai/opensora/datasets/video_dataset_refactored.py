@@ -134,7 +134,7 @@ class VideoDatasetRefactored(BaseDataset):
                 min_length = self._min_length
                 if self._buckets:
                     data["bucket_id"] = self._buckets.get_bucket_id(
-                        T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride, seed=42
+                        T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride
                     )
                     if data["bucket_id"] is None:
                         raise ValueError(
