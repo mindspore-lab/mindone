@@ -19,15 +19,15 @@ lr="2e-05"
 output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-FA$enable_flash_attention-bs$batch_size-t5
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
-      --data_path /remote-home1/dataset/sharegpt4v_path_cap_64x512x512.json \
-      --video_folder /remote-home1/dataset/data_split_tt \
-      --text_embed_folder /path/to/text-embed-folder \
-      --pretrained path/to/ckpt/from/last/stage \
+      --data_path /home_host/ddd/workpace/datasets/sharegpt4v_path_cap_64x512x512-vid16.json \
+      --video_folder /home_host/ddd/workpace/datasets/vid16/videos \
+      --text_embed_folder /home_host/ddd/workpace/datasets/t5-len=300 \
+      --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/LatteT2V-65x512x512.ckpt \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.0.0 \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.1.0 \
     --sample_rate 1 \
     --num_frames $num_frames \
     --max_image_size $image_size \
