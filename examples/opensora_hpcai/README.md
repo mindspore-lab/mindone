@@ -91,7 +91,7 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 ## 🔆 Features
 
 - 📍 **Open-Sora 1.1** with the following features
-    - ✅ Improved ST-DiT architecture includes rope positional encoding, qk norm, longer text length, etc.
+    - ✅ Improved ST-DiT architecture includes Rotary Position Embedding (RoPE), QK Normalization, longer text length, etc.
     - ✅ Support image and video conditioning and video editing, and thus support animating images, connecting videos, etc.
     - ✅ Support training with any resolution, aspect ratio, and duration.
 
@@ -243,22 +243,22 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 
 ### Open-Sora 1.1 Command Line Inference
 
-#### Image/Video-to-Video Generation
+#### Image/Video-to-Video Generation (supports text guidance)
 
 ```shell
-python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
-In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`, and `reference_path`.
-See [here](docs/quick_start.md#imagevideo-to-video) for more details.
+In the `sample_iv2v.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`,
+and `reference_path`. See [here](docs/quick_start.md#imagevideo-to-video) for more details.
 
 #### Text-to-Video Generation
 
-To generate a video from text, you can either set `--reference_path` to an empty string `''`
-or omit the `reference_path` parameter in `sample.yaml`.
+To generate a video from text, you can use `sample_t2v.yaml` or set `--reference_path` to an empty string `''`
+when using `sample_iv2v.yaml`.
 
 ```shell
-python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt --reference_path ''
+python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample_t2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 ### Open-Sora 1.0 Command Line Inference

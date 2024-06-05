@@ -65,8 +65,9 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 ### Text-to-Video
 
 To generate video conditioning on captions:
-```
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
+```shell
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml     # for OpenSora v1
+python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample_t2v.yaml # for OpenSora v1.1
 ```
 > By default, FP32 is used to ensure the best precision. Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
 
@@ -102,7 +103,7 @@ Here are some generation results in 256x256 resolution.
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
 
-### Image/Video-to-Video
+### Image/Video-to-Video (OpenSora v1.1 only)
 
 Conditioning on images and videos in OpenSora is based on a frame masking strategy.
 Specifically, conditioning frames are unmasked and assigned a timestep of 0,
@@ -111,7 +112,7 @@ while other frames are assigned a timestep _t_. An example is shown below:
 <p align="center"><img alt="mask strategy" src="https://github.com/mindspore-lab/mindone/assets/16683750/0cf5b478-288f-4f53-906d-26fb7b93182c" width="750"/></p>
 
 To generate videos conditioned on images and videos, you will need to specify the following parameters in the
-[config file](../configs/opensora-v1-1/inference/sample.yaml):
+[config file](../configs/opensora-v1-1/inference/sample_iv2v.yaml):
 
 ```yaml
 loop: 2
@@ -145,7 +146,7 @@ The output video's length will be `loop * (num_frames - condition_frame_length) 
 
 To generate a video with conditioning on images and videos, execute the following command:
 ```shell
-python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 ## Training
@@ -198,7 +199,7 @@ For detailed usage, please check `python scripts/train.py -h`
 > Training precision is under continuous optimization.
 
 
-### 4. Multi-resolution Training with Buckets
+### 4. Multi-resolution Training with Buckets (OpenSora v1.1 only)
 
 OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
 To enable this feature, add the desired bucket configuration to the `yaml` config file
