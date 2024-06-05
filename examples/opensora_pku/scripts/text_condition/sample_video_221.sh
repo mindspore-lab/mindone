@@ -5,13 +5,12 @@ python opensora/sample/sample_t2v.py \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --text_prompt examples/prompt_list_0.txt \
     --ae CausalVAEModel_4x8x8 \
-    --version 65x512x512 \
-    --num_frames 1 \
+    --version 221x512x512 \
+    --num_frames 221 \
     --height 512 \
     --width 512 \
-    --save_img_path "./sample_images/prompt_list_0" \
+    --save_img_path "./sample_videos/prompt_list_0" \
     --fps 24 \
     --guidance_scale 4.5 \
-    --num_sampling_steps 50 \
-    --force_images \
+    --num_sampling_steps 150 \
     --enable_tiling
