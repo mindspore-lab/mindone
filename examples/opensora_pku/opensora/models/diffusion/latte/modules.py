@@ -465,7 +465,6 @@ class MultiHeadAttention(nn.Cell):
         batch_size, key_length, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
         )
-        query_length = hidden_states.shape[1]
         if attention_mask is not None:
             out_dim = 4 if self.enable_flash_attention else 3
             attention_mask = self.prepare_attention_mask(
@@ -474,8 +473,6 @@ class MultiHeadAttention(nn.Cell):
             # scaled_dot_product_attention expects attention_mask shape to be
             # (batch, heads, source_length, target_length)
             # attention_mask = attention_mask.view(batch_size, self.heads, -1, attention_mask.shape[-1])
-            if attention_mask.shape[-2] == 1:
-                attention_mask = attention_mask.repeat_interleave(query_length, -2)
 
         if self.group_norm is not None:
             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
