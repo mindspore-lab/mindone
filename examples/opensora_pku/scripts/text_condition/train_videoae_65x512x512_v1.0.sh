@@ -11,7 +11,8 @@ export GLOG_v=2
 image_size=512
 use_image_num=4
 num_frames=65
-model_dtype="fp16"
+model_dtype="bf16"
+amp_level="O2"
 enable_flash_attention="True"
 batch_size=2
 lr="2e-05"
@@ -40,6 +41,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --lr_scheduler="constant" \
     --lr_warmup_steps=0 \
     --precision=$model_dtype \
+    --amp_level=$amp_level \
     --checkpointing_steps=500 \
     --output_dir=$output_dir \
     --model_max_length 300 \
