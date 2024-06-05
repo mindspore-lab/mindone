@@ -45,8 +45,8 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt`
 
     For `sd-vae-ft-ema`, run:
-    ```
-    python tools/.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    ```shell
+    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT:
