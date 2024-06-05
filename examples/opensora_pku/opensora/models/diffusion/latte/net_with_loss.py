@@ -75,18 +75,20 @@ class DiffusionWithLoss(nn.Cell):
 
         self.use_image_num = use_image_num
 
-    def get_condition_embeddings(self, text_tokens, mask):
+    def get_condition_embeddings(self, text_tokens, encoder_attention_mask):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
         if self.use_image_num > 0:
             # use for loop to avoid OOM?
             B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
             text_tokens = text_tokens.reshape(B * frame, L)
-            mask = mask.reshape(B * frame, L) if mask is not None else None  # mask (B, T+num_images)
+            encoder_attention_mask = (
+                encoder_attention_mask.reshape(B * frame, L) if encoder_attention_mask is not None else None
+            )  # mask (B, T+num_images)
         if self.cond_stage_trainable:
-            text_emb = self.text_encoder(text_tokens, mask)
+            text_emb = self.text_encoder(text_tokens, encoder_attention_mask)
         else:
-            text_emb = ops.stop_gradient(self.text_encoder(text_tokens, mask))
+            text_emb = ops.stop_gradient(self.text_encoder(text_tokens, encoder_attention_mask))
         return text_emb
 
     def vae_encode(self, x):
@@ -128,7 +130,13 @@ class DiffusionWithLoss(nn.Cell):
             raise ValueError("Incorrect Dimensions of x")
         return z
 
-    def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, mask: ms.Tensor = None):
+    def construct(
+        self,
+        x: ms.Tensor,
+        text_tokens: ms.Tensor,
+        encoder_attention_mask: ms.Tensor = None,
+        attention_mask: ms.Tensor = None,
+    ):
         """
         Video diffusion model forward and loss computation for training
 
@@ -155,11 +163,11 @@ class DiffusionWithLoss(nn.Cell):
 
         # 2. get conditions
         if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens, mask)
+            text_embed = self.get_condition_embeddings(text_tokens, encoder_attention_mask)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
 
-        loss = self.compute_loss(x, text_embed, mask)
+        loss = self.compute_loss(x, text_embed, encoder_attention_mask, attention_mask)
 
         return loss
 
@@ -199,7 +207,7 @@ class DiffusionWithLoss(nn.Cell):
 
         return vb
 
-    def compute_loss(self, x, text_embed, mask):
+    def compute_loss(self, x, text_embed, encoder_attention_mask, attention_mask=None):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
@@ -208,7 +216,12 @@ class DiffusionWithLoss(nn.Cell):
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         # text_embed = ops.expand_dims(text_embed, axis=1)
         model_output = self.apply_model(
-            x_t, t, encoder_hidden_states=text_embed, encoder_attention_mask=mask, use_image_num=self.use_image_num
+            x_t,
+            t,
+            encoder_hidden_states=text_embed,
+            attention_mask=attention_mask,
+            encoder_attention_mask=encoder_attention_mask,
+            use_image_num=self.use_image_num,
         )
 
         # (b c t h w),
