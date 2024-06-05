@@ -441,6 +441,9 @@ class MultiHeadAttention(nn.Cell):
         if input_ndim == 4:
             batch_size, channel, height, width = hidden_states.shape
             hidden_states = hidden_states.view(batch_size, channel, height * width).transpose(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
+
         if self.compress_kv_factor is not None:
             batch_size = hidden_states.shape[0]
             if len(last_shape) == 2:
@@ -459,14 +462,20 @@ class MultiHeadAttention(nn.Cell):
 
             encoder_hidden_states = self.norm(encoder_hidden_states)
 
-        batch_size, sequence_length, _ = (
+        batch_size, key_length, _ = (
             hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
         )
+        query_length = hidden_states.shape[1]
         if attention_mask is not None:
-            attention_mask = self.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            out_dim = 4 if self.enable_flash_attention else 3
+            attention_mask = self.prepare_attention_mask(
+                attention_mask, key_length, batch_size, out_dim=out_dim
+            )  # make attention mask a correct shape
             # scaled_dot_product_attention expects attention_mask shape to be
             # (batch, heads, source_length, target_length)
-            attention_mask = attention_mask.view(batch_size, self.heads, -1, attention_mask.shape[-1])
+            # attention_mask = attention_mask.view(batch_size, self.heads, -1, attention_mask.shape[-1])
+            if attention_mask.shape[-2] == 1:
+                attention_mask = attention_mask.repeat_interleave(query_length, -2)
 
         if self.group_norm is not None:
             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
@@ -491,17 +500,19 @@ class MultiHeadAttention(nn.Cell):
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
             mask = 1 - mask
+        if self.use_rope:
+            self.apply_rope(q, k, v, position_q, position_k)
 
         if self.enable_flash_attention:
             # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is not None and mask.dim() == 3:
-                # (b, 1, k_n) - > (b, q_n, k_n), manual broadcast
+            if mask is not None:
+                assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
+                # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
                 if mask.shape[-2] == 1:
                     mask = mask.repeat(q_n, axis=-2)
-                mask = ops.expand_dims(mask, axis=1)  # (q_b, 1, q_n, k_n)
             out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -511,8 +522,13 @@ class MultiHeadAttention(nn.Cell):
             q = self._rearange_in(q, h)
             k = self._rearange_in(k, h)
             v = self._rearange_in(v, h)
-            if mask is not None and mask.shape[0] != q.shape[0]:
-                mask = mask.repeat(h, axis=0)
+            if mask is not None:
+                assert (
+                    mask.dim() == 3
+                ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
+                assert (
+                    mask.shape[0] == q.shape[0]
+                ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
 
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)

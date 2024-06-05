@@ -7,8 +7,8 @@ python tools/model_conversion/convert_vae.py \
   --target LanguageBind/Open-Sora-Plan-v1.1.0/vae/causalvae_488.ckpt \
 
 python tools/model_conversion/convert_latte.py \
-  --src LanguageBind/Open-Sora-Plan-v1.1.0/513x512x512/diffusion_pytorch_model.safetensors \
-  --target LanguageBind/Open-Sora-Plan-v1.1.0/513x512x512/LatteT2V-513x512x512.ckpt
+  --src LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/diffusion_pytorch_model.safetensors \
+  --target LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/LatteT2V-65x512x512.ckpt
 
 python tools/model_conversion/convert_latte.py \
   --src LanguageBind/Open-Sora-Plan-v1.1.0/221x512x512/diffusion_pytorch_model.safetensors \

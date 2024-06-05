@@ -47,7 +47,7 @@ def get_2d_sincos_pos_embed_from_grid(embed_dim, grid):
 
 
 def get_1d_sincos_pos_embed(embed_dim, length, interpolation_scale=1.0, base_size=16):
-    pos = ops.arange(0, length).unsqueeze(1) / interpolation_scale
+    pos = np.arange(0, length)[:, None, ...] / interpolation_scale
     pos_embed = get_1d_sincos_pos_embed_from_grid(embed_dim, pos)
     return pos_embed
 
