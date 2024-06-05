@@ -367,7 +367,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         attention_mask = self.vae_to_diff_mask(attention_mask, use_image_num)
         dtype = attention_mask.dtype
         attention_mask_compress = ops.max_pool2d(
-            attention_mask.float(), kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor
+            attention_mask, kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor
         )
         attention_mask_compress = attention_mask_compress.to(dtype)
 

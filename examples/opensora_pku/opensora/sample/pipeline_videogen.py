@@ -704,16 +704,14 @@ class VideoGenPipeline(DiffusionPipeline):
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 current_timestep = current_timestep.repeat_interleave(latent_model_input.shape[0], 0)
-                if prompt_embeds.ndim == 3:
-                    prompt_embeds = prompt_embeds.unsqueeze(1)  # b l d -> b 1 l d
                 # predict noise model_output
                 noise_pred = self.transformer(
-                    latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep=current_timestep,
+                    latent_model_input,  # (b c t h w)
+                    encoder_hidden_states=prompt_embeds,  # (b n c)
+                    timestep=current_timestep,  # (b)
                     added_cond_kwargs=added_cond_kwargs,
                     enable_temporal_attentions=enable_temporal_attentions,
-                    encoder_attention_mask=prompt_embeds_mask,
+                    encoder_attention_mask=prompt_embeds_mask,  # (b n)
                 )
 
                 # perform guidance

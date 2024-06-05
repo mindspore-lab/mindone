@@ -539,7 +539,7 @@ class MultiHeadAttention(nn.Cell):
             hidden_states = hidden_states + residual
 
         hidden_states = hidden_states / self.rescale_output_factor
-        return
+        return hidden_states
 
 
 class CaptionProjection(nn.Cell):
@@ -813,7 +813,7 @@ class ImagePositionalEmbeddings(nn.Cell):
         self.height_emb = nn.Embedding(self.height, embed_dim)
         self.width_emb = nn.Embedding(self.width, embed_dim)
 
-    def forward(self, index):
+    def construct(self, index):
         emb = self.emb(index)
 
         height_emb = self.height_emb(ops.arange(self.height).view(1, self.height))
