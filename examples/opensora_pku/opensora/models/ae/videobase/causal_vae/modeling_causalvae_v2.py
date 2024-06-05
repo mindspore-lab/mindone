@@ -1,4 +1,7 @@
+import glob
+import json
 import logging
+import os
 from typing import Tuple
 
 import mindspore as ms
@@ -8,8 +11,6 @@ from ..modeling_videobase import VideoBaseAE
 from ..modules.conv import CausalConv3d, Conv2d
 from ..modules.ops import nonlinearity
 from ..utils.model_utils import resolve_str_to_obj
-
-get_obj_from_str = eval
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class CausalVAEModel_V2(VideoBaseAE):
         upcast_sigmoid=False,
     ):
         super().__init__()
-        self.dtype = ms.float16 if use_fp16 else ms.float32
+        dtype = ms.float16 if use_fp16 else ms.float32
 
         self.encoder = Encoder(
             z_channels=z_channels,
@@ -103,7 +104,7 @@ class CausalVAEModel_V2(VideoBaseAE):
             resolution=resolution,
             num_res_blocks=num_res_blocks,
             double_z=double_z,
-            dtype=self.dtype,
+            dtype=dtype,
             upcast_sigmoid=upcast_sigmoid,
         )
 
@@ -122,7 +123,7 @@ class CausalVAEModel_V2(VideoBaseAE):
             dropout=dropout,
             resolution=resolution,
             num_res_blocks=num_res_blocks,
-            dtype=self.dtype,
+            dtype=dtype,
             upcast_sigmoid=upcast_sigmoid,
         )
         quant_conv_cls = resolve_str_to_obj(q_conv)
@@ -209,7 +210,7 @@ class CausalVAEModel_V2(VideoBaseAE):
             if len(u) > 0:
                 logger.info("checkpoint param not loaded: ", u)
 
-    def init_from_ckpt(self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder."]):
+    def init_from_ckpt(self, path, ignore_keys=list()):
         # TODO: support auto download pretrained checkpoints
         sd = ms.load_checkpoint(path)
         keys = list(sd.keys())
@@ -221,6 +222,32 @@ class CausalVAEModel_V2(VideoBaseAE):
 
         ms.load_param_into_net(self, sd, strict_load=False)
         logger.info(f"Restored from {path}")
+
+    @classmethod  # rewrite class method to load
+    def from_pretrained(
+        cls, pretrained_model_path, subfolder=None, checkpoint_path=None, ignore_keys=["loss."], **kwargs
+    ):
+        if subfolder is not None:
+            pretrained_model_path = os.path.join(pretrained_model_path, subfolder)
+
+        config_file = os.path.join(pretrained_model_path, "config.json")
+        if not os.path.isfile(config_file):
+            raise RuntimeError(f"{config_file} does not exist")
+        with open(config_file, "r") as f:
+            config = json.load(f)
+
+        model = cls.from_config(config, **kwargs)
+        if checkpoint_path is None or len(checkpoint_path) == 0:
+            # search for ckpt under pretrained_model_path
+            ckpt_paths = glob.glob(os.path.join(pretrained_model_path, "*.ckpt"))
+            assert len(ckpt_paths) == 1, f"Expect to find one checkpoint file under {pretrained_model_path}"
+            f", but found {len(ckpt_paths)} files that end with `.ckpt`"
+            ckpt = ckpt_paths[0]
+        else:
+            ckpt = checkpoint_path
+        model.init_from_ckpt(ckpt, ignore_keys=ignore_keys)
+
+        return model
 
     def _encode(self, x):
         # return latent distribution, N(mean, logvar)
@@ -509,7 +536,7 @@ class Encoder(nn.Cell):
             block_out = hidden_size * hidden_size_mult[i_level]  # output channels
             for i_block in range(self.num_res_blocks):
                 block.append(
-                    get_obj_from_str(resnet_blocks[i_level])(
+                    resolve_str_to_obj(resnet_blocks[i_level])(
                         in_channels=block_in,
                         out_channels=block_out,
                         dropout=dropout,
@@ -519,7 +546,7 @@ class Encoder(nn.Cell):
                 )
                 block_in = block_out
                 if curr_res in attn_resolutions:
-                    attn.append(get_obj_from_str(attention)(block_in, dtype=self.dtype))
+                    attn.append(resolve_str_to_obj(attention)(block_in, dtype=self.dtype))
 
             down = nn.Cell()
             down.block = block
@@ -527,8 +554,7 @@ class Encoder(nn.Cell):
 
             # do spatial downsample according to config
             if spatial_downsample[i_level]:
-                print("D: spatial downsample")
-                down.downsample = get_obj_from_str(spatial_downsample[i_level])(block_in, block_in, dtype=self.dtype)
+                down.downsample = resolve_str_to_obj(spatial_downsample[i_level])(block_in, block_in, dtype=self.dtype)
                 curr_res = curr_res // 2
                 self.downsample_flag[i_level] = 1
             else:
@@ -538,7 +564,7 @@ class Encoder(nn.Cell):
             # do temporal downsample according to config
             if temporal_downsample[i_level]:
                 # TODO: add dtype support?
-                down.time_downsample = get_obj_from_str(temporal_downsample[i_level])(block_in, block_in)
+                down.time_downsample = resolve_str_to_obj(temporal_downsample[i_level])(block_in, block_in)
                 self.time_downsample_flag[i_level] = 1
             else:
                 # TODO: still need it for 910b in new MS version?
@@ -549,15 +575,15 @@ class Encoder(nn.Cell):
 
         # middle
         self.mid = nn.Cell()
-        self.mid.block_1 = get_obj_from_str(mid_resnet)(
+        self.mid.block_1 = resolve_str_to_obj(mid_resnet)(
             in_channels=block_in,
             out_channels=block_in,
             dropout=dropout,
             dtype=self.dtype,
             upcast_sigmoid=upcast_sigmoid,
         )
-        self.mid.attn_1 = get_obj_from_str(attention)(block_in, dtype=self.dtype)
-        self.mid.block_2 = get_obj_from_str(mid_resnet)(
+        self.mid.attn_1 = resolve_str_to_obj(attention)(block_in, dtype=self.dtype)
+        self.mid.block_2 = resolve_str_to_obj(mid_resnet)(
             in_channels=block_in,
             out_channels=block_in,
             dropout=dropout,
@@ -571,7 +597,7 @@ class Encoder(nn.Cell):
         # self.norm_out = Normalize(block_in, extend=True)
 
         assert conv_out == "CausalConv3d", "Only CausalConv3d is supported for conv_out"
-        self.conv_out = get_obj_from_str(conv_out)(
+        self.conv_out = resolve_str_to_obj(conv_out)(
             block_in,
             2 * z_channels if double_z else z_channels,
             kernel_size=3,
@@ -665,11 +691,11 @@ class Decoder(nn.Cell):
 
         # 2. middle
         self.mid = nn.Cell()
-        self.mid.block_1 = get_obj_from_str(mid_resnet)(
+        self.mid.block_1 = resolve_str_to_obj(mid_resnet)(
             in_channels=block_in, out_channels=block_in, dropout=dropout, dtype=self.dtype
         )
-        self.mid.attn_1 = get_obj_from_str(attention)(block_in, dtype=self.dtype)
-        self.mid.block_2 = get_obj_from_str(mid_resnet)(
+        self.mid.attn_1 = resolve_str_to_obj(attention)(block_in, dtype=self.dtype)
+        self.mid.block_2 = resolve_str_to_obj(mid_resnet)(
             in_channels=block_in, out_channels=block_in, dropout=dropout, dtype=self.dtype
         )
         self.mid.update_parameters_name(prefix=self.param_prefix + "mid.")
@@ -685,7 +711,7 @@ class Decoder(nn.Cell):
             block_out = hidden_size * hidden_size_mult[i_level]
             for i_block in range(self.num_res_blocks + 1):
                 block.append(
-                    get_obj_from_str(resnet_blocks[i_level])(
+                    resolve_str_to_obj(resnet_blocks[i_level])(
                         in_channels=block_in,
                         out_channels=block_out,
                         dropout=dropout,
@@ -694,13 +720,13 @@ class Decoder(nn.Cell):
                 )
                 block_in = block_out
                 if curr_res in attn_resolutions:
-                    attn.append(get_obj_from_str(attention)(block_in, dtype=self.dtype))
+                    attn.append(resolve_str_to_obj(attention)(block_in, dtype=self.dtype))
             up = nn.Cell()
             up.block = block
             up.attn = attn
             # do spatial upsample x2 except for the first block
             if spatial_upsample[i_level]:
-                up.upsample = get_obj_from_str(spatial_upsample[i_level])(block_in, block_in, dtype=self.dtype)
+                up.upsample = resolve_str_to_obj(spatial_upsample[i_level])(block_in, block_in, dtype=self.dtype)
                 curr_res = curr_res * 2
                 self.upsample_flag[i_level] = 1
             else:
@@ -708,7 +734,7 @@ class Decoder(nn.Cell):
             # do temporal upsample x2 in the bottom tc blocks
             if temporal_upsample[i_level]:
                 # TODO: support dtype?
-                up.time_upsample = get_obj_from_str(temporal_upsample[i_level])(block_in, block_in)
+                up.time_upsample = resolve_str_to_obj(temporal_upsample[i_level])(block_in, block_in)
                 self.time_upsample_flag[i_level] = 1
             else:
                 up.time_upsample = nn.Identity()

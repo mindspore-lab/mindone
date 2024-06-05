@@ -17,9 +17,11 @@ from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
-from opensora.models.ae import getae_model_config, getae_wrapper
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
+from opensora.models.ae import getae_wrapper
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
+
+# from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
+from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
@@ -66,7 +68,8 @@ def main(args):
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
     kwarg = {}
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ckpt, **kwarg)
+    # vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ckpt, **kwarg)
+    vae = getae_wrapper(args.ae)(args.ckpt, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
@@ -77,7 +80,7 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
     elif args.precision == "fp32":

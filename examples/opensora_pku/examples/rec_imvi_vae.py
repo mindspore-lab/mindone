@@ -32,6 +32,7 @@ from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.models.ae import getae_wrapper
+from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 
 # from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.utils.dataset_utils import create_video_transforms
@@ -156,7 +157,7 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [nn.AvgPool2d, nn.Upsample]
+        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
     elif args.precision == "fp32":

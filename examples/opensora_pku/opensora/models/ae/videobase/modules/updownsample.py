@@ -62,10 +62,10 @@ class Downsample(nn.Cell):
         x = self.rearrange_in(x)
 
         if self.with_conv:
-            # pad = ((0, 0), (0, 0), (0, 0), (0, 1), (0, 1))
-            # x = nn.Pad(paddings=pad)(x)
-            pad = (0, 1, 0, 1)  # (pad_left, pad_right, pad_top, pad_bottom)
-            x = ops.pad(x, pad, mode="constant", value=0)
+            pad = ((0, 0), (0, 0), (0, 1), (0, 1))
+            x = nn.Pad(paddings=pad)(x)
+            # pad = (0, 1, 0, 1)  # (pad_left, pad_right, pad_top, pad_bottom)
+            # x = ops.pad(x, pad, mode="constant", value=0)
             x = self.conv(x)
         else:
             x = ops.AvgPool(kernel_size=2, stride=2)(x)
@@ -264,13 +264,20 @@ class TimeUpsampleRes2x(nn.Cell):
         super().__init__()
         self.conv = CausalConv3d(in_channels, out_channels, kernel_size, padding=1)
         self.mix_factor = ms.Parameter(ms.Tensor([mix_factor]), requires_grad=True)
+        self.intepolate = TrilinearInterpolate()
 
     def construct(self, x):
         alpha = ops.sigmoid(self.mix_factor)
         if x.shape[2] > 1:
             x, x_ = x[:, :, :1], x[:, :, 1:]
+            ori_dtype = x.dtype
             # FIXME: ms2.2.10 cannot support trilinear on 910b
-            x_ = ops.interpolate(x_, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
+            x_ = self.intepolate(x_).to(ori_dtype)
             x = ops.concat([x, x_], axis=2)
 
         return alpha * x + (1 - alpha) * self.conv(x)
+
+
+class TrilinearInterpolate(nn.Cell):
+    def construct(self, x):
+        return ops.interpolate(x, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
