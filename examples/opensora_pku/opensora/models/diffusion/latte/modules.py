@@ -330,8 +330,10 @@ class MultiHeadAttention(nn.Cell):
             return attention_mask
 
         current_length: int = attention_mask.shape[-1]
-        if current_length != target_length:
-            attention_mask = ops.pad(attention_mask, (0, target_length), value=0.0)
+        assert (
+            current_length == target_length
+        ), "The attention mask length should be identical to encoder hidden states length"
+        f", but got {current_length} and {current_length}"
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:
