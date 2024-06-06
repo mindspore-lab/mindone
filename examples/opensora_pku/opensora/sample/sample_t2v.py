@@ -379,7 +379,7 @@ if __name__ == "__main__":
                 transformer_model,
                 amp_level=args.amp_level,
                 dtype=dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU] if dtype == ms.float16 else [],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU] if dtype == ms.float16 else [nn.MaxPool2d],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:

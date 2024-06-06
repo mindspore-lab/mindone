@@ -75,8 +75,11 @@ def main(args):
     if args.use_deepspeed:
         raise NotImplementedError
 
-    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
     if train_with_vae_latent:
+        assert os.path.exists(
+            args.vae_latent_folder
+        ), f"The provided vae latent folder {args.vae_latent_folder} is not existent!"
         logger.info("Train with vae latent cache.")
         vae = None
     else:
@@ -153,7 +156,9 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=model_dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU] if model_dtype == ms.float16 else [],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
+                if model_dtype == ms.float16
+                else [nn.MaxPool2d],
             )
             logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
         else:
@@ -167,7 +172,7 @@ def main(args):
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
-    use_text_embed = args.text_embed_folder is not None and os.path.exists(args.text_embed_folder)
+    use_text_embed = args.text_embed_folder is not None and len(args.text_embed_folder) > 0
     if not use_text_embed:
         logger.info("T5 init")
         text_encoder = T5Embedder(
@@ -183,6 +188,9 @@ def main(args):
 
         tokenizer = text_encoder.tokenizer
     else:
+        assert os.path.exists(
+            args.text_embed_folder
+        ), f"The provided text_embed_folder {args.text_embed_folder} is not existent!"
         text_encoder = None
         tokenizer = None
 

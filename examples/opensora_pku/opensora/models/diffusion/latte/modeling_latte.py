@@ -273,6 +273,11 @@ class LatteT2V(ModelMixin, ConfigMixin):
             for block in self.blocks:
                 self.recompute(block)
 
+        self.maxpool2d = nn.MaxPool2d(
+            kernel_size=(self.patch_size, self.patch_size), stride=(self.patch_size, self.patch_size)
+        )
+        self.compress_maxpool2d = nn.MaxPool2d(kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor)
+
     def make_position(self, b, t, use_image_num, h, w):
         pos_hw = self.position_getter_2d(b * (t + use_image_num), h, w)  # fake_b = b*(t+use_image_num)
         pos_t = self.position_getter_1d(b * h * w, t)  # fake_b = b*h*w
@@ -294,12 +299,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         dtype = attention_mask.dtype
         # b, t+use_image_num, h, w, assume t as channel
         # this version do not use 3d patch embedding
-        # FIXME: max_pool2d bf16 leads to error in training; max_pool2d fp32 leads to error in infer
-        attention_mask = ops.max_pool2d(
-            attention_mask.to(ms.float16),
-            kernel_size=(self.patch_size, self.patch_size),
-            stride=(self.patch_size, self.patch_size),
-        )
+        attention_mask = self.maxpool2d(attention_mask)
         attention_mask = attention_mask.bool().to(dtype)
         return attention_mask
 
@@ -369,9 +369,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
             attention_mask = ops.ones((input_batch_size, frame + use_image_num, h, w), dtype=hidden_states.dtype)
         attention_mask = self.vae_to_diff_mask(attention_mask, use_image_num)
         dtype = attention_mask.dtype
-        attention_mask_compress = ops.max_pool2d(
-            attention_mask.to(ms.float16), kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor
-        )
+        attention_mask_compress = self.compress_maxpool2d(attention_mask)
         attention_mask_compress = attention_mask_compress.to(dtype)
 
         attention_mask = self.make_attn_mask(attention_mask, frame, hidden_states.dtype)
@@ -454,7 +452,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 hidden_states,
                 class_labels,
                 cross_attention_kwargs,
-                attention_mask_compress if i >= self.num_layers // 2 else attention_mask,
+                attention_mask_compress if i >= self.num_layers // 2 else attention_mask,  # (b*t 1 h*w)
                 encoder_hidden_states_spatial,
                 timestep_spatial,
                 timestep_temp,

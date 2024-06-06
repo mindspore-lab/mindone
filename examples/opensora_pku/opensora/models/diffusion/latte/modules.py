@@ -188,7 +188,6 @@ class MultiHeadAttention(nn.Cell):
         self.scale_qk = scale_qk
         self.scale = dim_head**-0.5 if self.scale_qk else 1.0
         self.added_kv_proj_dim = added_kv_proj_dim
-        self.only_cross_attention = only_cross_attention
 
         if self.added_kv_proj_dim is None and self.only_cross_attention:
             raise ValueError(

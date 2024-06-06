@@ -21,7 +21,7 @@ output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dty
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
       --data_path /home_host/ddd/workspace/datasets/sharegpt4v_path_cap_64x512x512-vid16.json \
       --video_folder /home_host/ddd/workspace/datasets/vid16/videos \
-      --text_embed_folder /home_host/ddd/workspace/datasets/t5-len=300 \
+      --text_embed_folder /home_host/ddd/workspace/datasets/vid16/t5-len=300 \
       --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/LatteT2V-65x512x512.ckpt \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
