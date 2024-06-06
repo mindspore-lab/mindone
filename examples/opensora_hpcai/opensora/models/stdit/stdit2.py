@@ -105,7 +105,9 @@ class STDiT2Block(nn.Cell):
         t0_tmp: Optional[Tensor] = None,
         T: Optional[int] = None,
         S: Optional[int] = None,
-        latent_mask: Optional[Tensor] = None,
+        spatial_mask: Optional[Tensor] = None,
+        temporal_pos: Optional[Tensor] = None,
+        temporal_mask: Optional[Tensor] = None,
     ):
         B, N, C = x.shape
 
@@ -134,9 +136,9 @@ class STDiT2Block(nn.Cell):
 
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
-        if latent_mask is not None:
-            latent_mask = ops.repeat_interleave(latent_mask, T, axis=0)
-        x_s = self.attn(x_s, mask=latent_mask)
+        if spatial_mask is not None:
+            spatial_mask = ops.repeat_interleave(spatial_mask, T, axis=0)  # B S -> (B T) S
+        x_s = self.attn(x_s, mask=spatial_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
         if frames_mask is not None:
@@ -155,7 +157,9 @@ class STDiT2Block(nn.Cell):
 
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
-        x_t = self.attn_temp(x_t)
+        if temporal_mask is not None:
+            temporal_mask = ops.repeat_interleave(temporal_mask, S, axis=0)  # B T -> (B S) T
+        x_t = self.attn_temp(x_t, mask=temporal_mask, freqs_cis=temporal_pos)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
         if frames_mask is not None:
@@ -336,8 +340,10 @@ class STDiT2(nn.Cell):
         width: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
-        pos_emb: Optional[Tensor] = None,
-        latent_mask: Optional[Tensor] = None,
+        spatial_pos: Optional[Tensor] = None,
+        spatial_mask: Optional[Tensor] = None,
+        temporal_pos: Optional[Tensor] = None,
+        temporal_mask: Optional[Tensor] = None,
         **kwargs,
     ):
         """
@@ -378,8 +384,10 @@ class STDiT2(nn.Cell):
         base_size = round(S**0.5)
         # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
-        if pos_emb is None:
+        if spatial_pos is None:
             pos_emb = ops.stop_gradient(self.pos_embed(x, H, W, scale=scale, base_size=base_size))
+        else:
+            pos_emb = spatial_pos
 
         # embedding
         if self.patchify_conv3d_replace is None:
@@ -418,7 +426,21 @@ class STDiT2(nn.Cell):
 
         # blocks
         for block in self.blocks:
-            x = block(x, y, t_spc_mlp, t_tmp_mlp, mask, frames_mask, t0_spc_mlp, t0_tmp_mlp, T, S, latent_mask)
+            x = block(
+                x,
+                y,
+                t_spc_mlp,
+                t_tmp_mlp,
+                mask=mask,
+                frames_mask=frames_mask,
+                t0=t0_spc_mlp,
+                t0_tmp=t0_tmp_mlp,
+                T=T,
+                S=S,
+                spatial_mask=spatial_mask,
+                temporal_pos=temporal_pos,
+                temporal_mask=temporal_mask,
+            )
 
         # x.shape: [B, N, C]
         # final process

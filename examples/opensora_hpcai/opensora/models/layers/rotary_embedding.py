@@ -11,6 +11,7 @@ except ImportError:
 
 import numpy as np
 
+import mindspore as ms
 from mindspore import Parameter, Tensor, dtype, nn, ops
 
 
@@ -147,3 +148,26 @@ class RotaryEmbedding(nn.Cell):
     def construct(self, t: Tensor, seq_len=None, offset=0) -> Tensor:
         freqs = t.astype(self.freqs.dtype)[..., None] * self.freqs
         return freqs.repeat(2, axis=-1)  # ... n -> ... (n r), r = 2
+
+
+def rope_1d(x: Tensor, freqs_cis: Tensor) -> Tensor:
+    dtype = x.dtype
+    x = x.to(ms.float32)
+    x = ops.transpose(x, (0, 2, 1, 3))  # b h n d
+    freqs_cis = freqs_cis[:, None, ...]  # b(1) 1 n d
+    sin_matrix = ops.sin(freqs_cis)
+    cos_matrix = ops.cos(freqs_cis)
+    cos_part = ops.mul(x, cos_matrix)
+    sin_part = ops.mul(rotate_half(x), sin_matrix)
+
+    x = cos_part + sin_part
+    x = ops.transpose(x, (0, 2, 1, 3))  # b n h d
+    return x.to(dtype)
+
+
+def precompute_freqs_cis(seq_len: int, dim: int, theta: float = 10000.0) -> np.ndarray:
+    positional_ids = np.arange(seq_len, dtype=np.float32)
+    indices = 1.0 / np.power(theta, 2 * np.arange(dim // 2, dtype=np.float32) / dim)
+    embeddings = np.outer(positional_ids, indices)
+    embeddings = np.repeat(embeddings, 2, axis=-1)
+    return embeddings

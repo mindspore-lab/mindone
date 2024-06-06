@@ -17,6 +17,8 @@ from mindone.data import BaseDataset
 from mindone.data.video_reader import VideoReader
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
+from ..models.layers.rotary_embedding import precompute_freqs_cis
+
 _logger = logging.getLogger(__name__)
 
 
@@ -40,7 +42,7 @@ class VideoDatasetRefactored(BaseDataset):
         video_folder: str,
         text_emb_folder: Optional[str] = None,
         vae_latent_folder: Optional[str] = None,
-        vae_downsample_rate: int = 8,
+        vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
         sample_n_frames: int = 16,
         sample_stride: int = 4,
@@ -48,7 +50,9 @@ class VideoDatasetRefactored(BaseDataset):
         pre_patchify: bool = False,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         embed_dim: int = 1152,
+        num_heads: int = 16,
         max_target_size: int = 512,
+        max_num_frames: int = 16,
         input_sq_size: int = 512,
         in_channels: int = 4,
         *,
@@ -75,15 +79,17 @@ class VideoDatasetRefactored(BaseDataset):
             self._patch_size = patch_size
             assert self._patch_size[0] == 1
             self._embed_dim = embed_dim
+            self._num_heads = num_heads
             self._input_sq_size = input_sq_size
 
-            max_length = (
-                max_target_size**2 // self._patch_size[1] // self._patch_size[2] // self._vae_downsample_rate**2
-            )
+            max_size = int(max_target_size / self._vae_downsample_rate)
+            max_length = max_size**2 // np.prod(self._patch_size[1:]).item()
             self.pad_info = {
-                "video": ([self._frames, max_length, in_channels * np.prod(self._patch_size).item()], 0),
-                "pos_emb": ([max_length, self._embed_dim], 0),
-                "latent_mask": ([max_length], 0),
+                "video": ([max_num_frames, max_length, in_channels * np.prod(self._patch_size).item()], 0),
+                "spatial_pos": ([max_length, self._embed_dim], 0),
+                "spatial_mask": ([max_length], 0),
+                "temporal_pos": ([max_num_frames, self._embed_dim // self._num_heads], 0),
+                "temporal_mask": ([max_num_frames], 0),
             }
 
         # prepare replacement data in case the loading of a sample fails
@@ -196,9 +202,15 @@ class VideoDatasetRefactored(BaseDataset):
         latent = np.transpose(latent, (0, 2, 4, 1, 3, 5))  # f, nh, nw, c, patch, patch
         latent = np.reshape(latent, (f, nh * nw, -1))  # f, nh * nw, c * patch * patch
 
-        pos = get_2d_sincos_pos_embed(self._embed_dim, nh, nw, scale=scale, base_size=base_size).astype(np.float32)
-        mask = np.ones(latent.shape[1], dtype=np.uint8)
-        return latent, pos, mask
+        spatial_pos = get_2d_sincos_pos_embed(self._embed_dim, nh, nw, scale=scale, base_size=base_size).astype(
+            np.float32
+        )
+
+        temporal_pos = precompute_freqs_cis(f, self._embed_dim // self._num_heads).astype(np.float32)
+
+        spatial_mask = np.ones(spatial_pos.shape[0], dtype=np.uint8)
+        temporal_mask = np.ones(temporal_pos.shape[0], dtype=np.uint8)
+        return latent, spatial_pos, spatial_mask, temporal_pos, temporal_mask
 
     def __len__(self):
         return len(self._data)
@@ -244,7 +256,7 @@ class VideoDatasetRefactored(BaseDataset):
                 {
                     "operations": [self._patchify],
                     "input_columns": ["video"],
-                    "output_columns": ["video", "pos_emb", "latent_mask"],
+                    "output_columns": ["video", "spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"],
                 }
             )
 

@@ -144,7 +144,9 @@ def main(args):
         additional_pipeline_kwargs = dict(
             patch_size=latte_model.patch_size,
             max_image_size=args.max_image_size,
+            max_num_frames=args.max_num_frames,
             embed_dim=latte_model.hidden_size,
+            num_heads=latte_model.num_heads,
             vae_downsample_rate=8.0,
             in_channels=latte_model.in_channels,
             input_sq_size=latte_model.input_sq_size,
