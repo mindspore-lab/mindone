@@ -294,8 +294,11 @@ class LatteT2V(ModelMixin, ConfigMixin):
         dtype = attention_mask.dtype
         # b, t+use_image_num, h, w, assume t as channel
         # this version do not use 3d patch embedding
+        # FIXME: max_pool2d bf16 leads to error in training; max_pool2d fp32 leads to error in infer
         attention_mask = ops.max_pool2d(
-            attention_mask, kernel_size=(self.patch_size, self.patch_size), stride=(self.patch_size, self.patch_size)
+            attention_mask.to(ms.float16),
+            kernel_size=(self.patch_size, self.patch_size),
+            stride=(self.patch_size, self.patch_size),
         )
         attention_mask = attention_mask.bool().to(dtype)
         return attention_mask
@@ -367,7 +370,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         attention_mask = self.vae_to_diff_mask(attention_mask, use_image_num)
         dtype = attention_mask.dtype
         attention_mask_compress = ops.max_pool2d(
-            attention_mask, kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor
+            attention_mask.to(ms.float16), kernel_size=self.compress_kv_factor, stride=self.compress_kv_factor
         )
         attention_mask_compress = attention_mask_compress.to(dtype)
 

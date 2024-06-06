@@ -14,7 +14,7 @@ sys.path.append("./")
 from mindcv.optim.adamw import AdamW
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
+from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.diffusion import create_diffusion_T as create_diffusion
 from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
@@ -83,7 +83,7 @@ def main(args):
         logger.info("vae init")
         vae = getae_wrapper(args.ae)(args.ae_path, subfolder="vae")
         vae_dtype = ms.bfloat16
-        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
 
