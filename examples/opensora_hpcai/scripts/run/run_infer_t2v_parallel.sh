@@ -1,11 +1,14 @@
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3
+unset RANK_TABLE_FILE
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8
+
+# enable kbk: set values below to 1, memory efficient
+# export MS_ENABLE_ACLNN=0
+# export GRAPH_OP_RUN=0
 
 # msrun --master_port=8200 --worker_num=4 --local_worker_num=4 --log_dir=logs_t5_cache  \
-mpirun --allow-run-as-root -n 4 --output-filename log_output --merge-stderr-to-stdout \
-    python scripts/inference.py\
+mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-stdout \
+    python scripts/inference.py \
     --config configs/opensora/inference/stdit_512x512x64.yaml \
-    --ckpt_path outputs/stdit_vaeO2Fp16_ditBf16_rc-4_512x512x64/2024-05-09T01-45-32/ckpt/STDiT-e200.ckpt \
-    --prompt_path datasets/sora_overfitting_dataset_0410/vcg_200.csv \
+    --ckpt_path /path/to/STDiT-e[NUM].ckpt \
+    --prompt_path /path/to/prompt.csv \
     --use_parallel=True \
-    --append_timestr=False \
-    --output_path samples/para_t2v \
