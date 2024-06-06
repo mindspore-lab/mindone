@@ -32,4 +32,3 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
   --num_parallel_workers=8 \
   --enable_flash_attention=True \
   --output_path=$output_dir \
-

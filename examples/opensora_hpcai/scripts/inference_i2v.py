@@ -13,7 +13,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from inference import init_env, data_parallel_split
+from inference import data_parallel_split, init_env
 from opensora.models.stdit import STDiT2_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
@@ -165,7 +165,6 @@ def main(args):
     model_args["fps"] = Tensor([args.fps] * args.batch_size, dtype=ms.float32)
 
     # 3.2 reference
-    print('D--: ', args.reference_path)
     if args.reference_path is not None:
         assert not args.use_parallel, "parallel inference is not supported for I2V"
         assert len(args.reference_path) == len(
@@ -259,12 +258,8 @@ def main(args):
         # save result
         for j in range(ns):
             global_idx = base_data_idx + i + j
-            if args.text_embed_folder is None:
-                prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
-                save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
-            else:
-                fn = prompt_prefix[global_idx]
-                save_fp = f"{save_dir}/{fn}.{args.save_format}"
+            prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
+            save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
             # save videos
             if videos is not None:
                 save_videos(videos[j : j + 1], save_fp, fps=args.fps / args.frame_interval)

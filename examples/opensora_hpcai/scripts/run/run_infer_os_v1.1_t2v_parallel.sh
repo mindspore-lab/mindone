@@ -13,4 +13,3 @@ mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-s
         --use_parallel=True \
 
         # --dtype bf16 \
-

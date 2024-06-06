@@ -2,25 +2,26 @@ import csv
 import logging
 import os
 import time
-import imageio
 
 import albumentations
 import albumentations as A
 import cv2
+import imageio
 import numpy as np
-import mindspore as ms
 from decord import VideoReader
 
+import mindspore as ms
 
 logger = logging.getLogger()
 
 
-class MinCropAndResize(): 
-    '''
-    (tar_h, tar_w) as a cropping box center at the image center point, 
+class MinCropAndResize:
+    """
+    (tar_h, tar_w) as a cropping box center at the image center point,
     you can resize it while keeping its AR until it touches one side of the image boundary.
     Then crop it and resize to (tar_h, tar_w)
-    '''
+    """
+
     def __init__(self, tar_h, tar_w, interpolation="bicubic"):
         self.th = tar_h
         self.tw = tar_w
@@ -28,42 +29,39 @@ class MinCropAndResize():
 
     def __call__(self, image):
         h, w, c = image.shape
-        if (self.tw / self.th) > (w / h):  
+        if (self.tw / self.th) > (w / h):
             scale = w / self.tw
         else:
             scale = h / self.th
         crop_h = int(scale * self.th)
         crop_w = int(scale * self.tw)
 
-        trans = A.Compose([
-            A.CenterCrop(crop_h, crop_w),
-            A.Resize(self.th, self.tw, interpolation=self.interpolation)
-            ])
-        out = trans(image=image)['image']
+        trans = A.Compose([A.CenterCrop(crop_h, crop_w), A.Resize(self.th, self.tw, interpolation=self.interpolation)])
+        out = trans(image=image)["image"]
 
-        return {'image': out}
+        return {"image": out}
 
 
-def create_video_transforms(h, w, interpolation="bicubic", name='center'):
+def create_video_transforms(h, w, interpolation="bicubic", name="center"):
     """
     h, w : target resize height, weight
     if h < w: (512, 1024)
         if ch < cw: (512, 768)
             cannot crop, unless crop and resize
-            
+
     """
     # expect rgb image in range 0-255, shape (h w c)
     from albumentations import CenterCrop, SmallestMaxSize
 
     mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
-    if name == 'center':
+    if name == "center":
         pixel_transforms = A.Compose(
             [
                 SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
                 CenterCrop(h, w),
             ],
         )
-    elif name == 'crop_resize':
+    elif name == "crop_resize":
         pixel_transforms = A.Compose(
             [
                 MinCropAndResize(h, w, interpolation=mapping[interpolation]),
@@ -84,7 +82,7 @@ class VideoDataset:
         sample_stride=1,
         return_frame_data=False,
         micro_batch_size=None,
-        transform_name='center',
+        transform_name="center",
     ):
         logger.info(f"loading annotations from {csv_path} ...")
         with open(csv_path, "r") as csvfile:
@@ -138,7 +136,6 @@ class VideoDataset:
 
         video_reader = VideoReader(video_path)
         video_length = len(video_reader)
-        meta_info = ()
         fps = video_reader.get_avg_fps()
         # print("D--: video_length ", video_length)
 
@@ -149,10 +146,10 @@ class VideoDataset:
             ori_size = pixel_values.shape[-3:-1]
             if do_transform:
                 pixel_values = self.apply_transform(pixel_values)
-                
+
                 # efficient implement
                 pixel_values = np.divide(pixel_values, 127.5, dtype=np.float32)
-                pixel_values = np.subtract(pixel_values, 1.0, dtype=np.float32) 
+                pixel_values = np.subtract(pixel_values, 1.0, dtype=np.float32)
 
             yield pixel_values, fps, ori_size
 
@@ -233,7 +230,6 @@ def check_sanity(x, save_fp="./tmp.gif"):
     imageio.mimsave(save_fp, x, duration=1 / 8.0, loop=1)
 
 
-
 if __name__ == "__main__":
     return_frame_data = True
     video_folder = "../videocomposer/datasets/webvid5"
@@ -246,7 +242,7 @@ if __name__ == "__main__":
         return_frame_data=return_frame_data,
         sample_stride=1,
         micro_batch_size=32,
-        transform_name='crop_resize',
+        transform_name="crop_resize",
     )
     dl, ds = create_dataloader(
         ds_config,
@@ -265,10 +261,10 @@ if __name__ == "__main__":
         print(vp[0], cap[0])
         if return_frame_data:
             frame_data = data["frame_data"]
-            fps = np.array(data['fps'], dtype=np.float32)
-            ori_size = np.array(data['ori_size'], dtype=np.int32)
-            print('fps: ', fps)
-            print('ori size: ', ori_size)
+            fps = np.array(data["fps"], dtype=np.float32)
+            ori_size = np.array(data["ori_size"], dtype=np.int32)
+            print("fps: ", fps)
+            print("ori size: ", ori_size)
         else:
             all_frames = []
             num_videos = data["video_path"].shape[0]

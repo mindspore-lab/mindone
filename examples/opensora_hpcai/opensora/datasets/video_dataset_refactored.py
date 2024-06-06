@@ -1,9 +1,9 @@
 import csv
+import glob
 import logging
 import os
 import random
 import sys
-import glob
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Tuple
 
@@ -74,7 +74,7 @@ class VideoDatasetRefactored(BaseDataset):
                 _logger.info("Multi-resolution latents detected: {}".format(self.num_latent_resolution))
 >>>>>>> support multi-resolution training with vae cached
 
-		# prepare replacement data in case the loading of a sample fails
+        # prepare replacement data in case the loading of a sample fails
 
         self._prev_ok_sample = self._get_replacement()
         self._require_update_prev = False
@@ -119,17 +119,17 @@ class VideoDatasetRefactored(BaseDataset):
             # pick a resolution randomly if there are multi-resolution latents in vae folder
             vae_latent_path = data["vae_latent"]
             if self.num_latent_resolution > 1:
-                ridx = random.randint(0, self.num_latent_resolution-1)
+                ridx = random.randint(0, self.num_latent_resolution - 1)
                 vae_latent_path = vae_latent_path.replace(self._vae_latent_folder, self.latent_resolution_prefix[ridx])
             # print("D--: vae latent npz: ", vae_latent_path)
 
             vae_latent_data = np.load(vae_latent_path)
-            
+
             # get fps from csv, or cached latents, or from original video in order
             if "fps" in data:  # cache FPS for further iterations
                 data["fps"] = np.array(data["fps"], dtype=np.float32)
-            elif 'fps' in vae_latent_data:
-                data["fps"] = np.array(vae_latent_data['fps'], dtype=np.float32)
+            elif "fps" in vae_latent_data:
+                data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
                 with VideoReader(data["video"]) as reader:
                     data["fps"] = self._data[idx]["fps"] = reader.fps

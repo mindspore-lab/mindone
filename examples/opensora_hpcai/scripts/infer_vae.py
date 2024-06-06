@@ -191,7 +191,7 @@ def main(args):
                 frame_data = data["frame_data"]
                 num_videos = frame_data.shape[0]
                 fps = data["fps"][0]
-                ori_size = data['ori_size'][0]
+                ori_size = data["ori_size"][0]
                 assert args.batch_size == 1, "batch size > 1 is not supported due to dynamic frame numbers among videos"
                 for i in range(num_videos):
                     video_path = data["video_path"][i]
@@ -234,7 +234,7 @@ def main(args):
                     video_latent_mean = []
                     video_latent_std = []
                     fps, ori_size = None, None
-                    for x_bs, fps, ori_size  in ds.get_video_frames_in_batch(
+                    for x_bs, fps, ori_size in ds.get_video_frames_in_batch(
                         abs_video_path, micro_batch_size=args.vae_micro_batch_size, sample_stride=args.frame_stride
                     ):
                         mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
@@ -333,7 +333,13 @@ def parse_args():
         help="If specified, set the precision mode for Ascend configurations.",
     )
     parser.add_argument("--frame_stride", default=1, type=int, help="frame sampling stride")
-    parser.add_argument("--transform_name", default='center', type=str, help="center or crop_resize, if center, resize by the short side to h then center crop. If crop_resize, center crop maximally according to the AR of target image size then resize, suitable for where target h != target w.")
+    parser.add_argument(
+        "--transform_name",
+        default="center",
+        type=str,
+        help="center or crop_resize, if center, resize by the short side to h \
+                then center crop. If crop_resize, center crop maximally according to the AR of target image size then resize, suitable for where target h != target w.",
+    )
     parser.add_argument(
         "--vae_micro_batch_size",
         type=int,
