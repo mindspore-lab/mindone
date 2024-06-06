@@ -7,7 +7,8 @@ python scripts/infer_vae.py \
     --video_folder datasets/sora_overfitting_dataset_0410 \
     --output_path datasets/sora_overfitting_dataset_0410_vae_512x512 \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \
-    --image_size 512 \
+    --image_size 576 1024 \
+    --transform_name crop_resize \
     --vae_micro_batch_size 64 \
     --dl_return_all_frames=True \
     --use_parallel=True \

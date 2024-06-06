@@ -338,7 +338,8 @@ def parse_args():
         default="center",
         type=str,
         help="center or crop_resize, if center, resize by the short side to h \
-                then center crop. If crop_resize, center crop maximally according to the AR of target image size then resize, suitable for where target h != target w.",
+                then center crop. If crop_resize, center crop maximally according to \
+                the AR of target image size then resize, suitable for where target h != target w.",
     )
     parser.add_argument(
         "--vae_micro_batch_size",
