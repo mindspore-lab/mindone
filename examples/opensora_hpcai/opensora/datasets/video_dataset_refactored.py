@@ -52,7 +52,6 @@ class VideoDatasetRefactored(BaseDataset):
         embed_dim: int = 1152,
         num_heads: int = 16,
         max_target_size: int = 512,
-        max_num_frames: int = 16,
         input_sq_size: int = 512,
         in_channels: int = 4,
         *,
@@ -85,11 +84,11 @@ class VideoDatasetRefactored(BaseDataset):
             max_size = int(max_target_size / self._vae_downsample_rate)
             max_length = max_size**2 // np.prod(self._patch_size[1:]).item()
             self.pad_info = {
-                "video": ([max_num_frames, max_length, in_channels * np.prod(self._patch_size).item()], 0),
+                "video": ([self._frames, max_length, in_channels * np.prod(self._patch_size).item()], 0),
                 "spatial_pos": ([max_length, self._embed_dim], 0),
                 "spatial_mask": ([max_length], 0),
-                "temporal_pos": ([max_num_frames, self._embed_dim // self._num_heads], 0),
-                "temporal_mask": ([max_num_frames], 0),
+                "temporal_pos": ([self._frames, self._embed_dim // self._num_heads], 0),
+                "temporal_mask": ([self._frames], 0),
             }
 
         # prepare replacement data in case the loading of a sample fails

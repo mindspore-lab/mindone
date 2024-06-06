@@ -1,0 +1,26 @@
+ckpt_path: "models/opensora_v1.1_stage3.ckpt"
+t5_model_dir: "models/t5-v1_1-xxl/"
+vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
+
+image_size: [256, 512]
+num_frames: 16
+frame_interval: 3
+fps: 24
+enable_flash_attention: True
+model_max_length: 200
+dtype: "bf16"
+batch_size: 1
+
+max_image_size: 512
+max_num_frames: 16  # refers to the `num_frames` in training
+
+# sampling
+sampling_steps: 100
+guidance_scale: 7.0
+guidance_channels: 4
+seed: 42
+ddim_sampling: False
+
+captions:
+- "A snowy forest landscape with a dirt road running through it. The road is flanked by trees covered in snow, and the ground is also covered in snow. The sun is shining, creating a bright and serene atmosphere. The road appears to be empty, and there are no people or animals visible in the video. The style of the video is a natural landscape shot, with a focus on the beauty of the snowy forest and the peacefulness of the road."
+- "The video captures the majestic beauty of a waterfall cascading down a cliff into a serene lake. The waterfall, with its powerful flow, is the central focus of the video."

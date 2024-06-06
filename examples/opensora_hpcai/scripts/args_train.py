@@ -114,9 +114,6 @@ def parse_train_args(parser):
     parser.add_argument(
         "--max_image_size", default=512, type=int, help="Max image size for patchified latent training."
     )
-    parser.add_argument(
-        "--max_num_frames", default=16, type=int, help="Max number of frames for patchified latent training."
-    )
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
