@@ -250,12 +250,16 @@ class InferPipelineFiTLike(InferPipeline):
 
     def _pad_latent(self, x: Tensor) -> Tensor:
         # N, C, F, H, W -> N, C, max_num_frames, max_size, max_size
-        n, _, f, h, w = x.shape
-        nh, nw = max(self.max_size, h) // self.p[1], max(self.max_size, w) // self.p[2]
+        n, c, f, h, w = x.shape
+        nh, nw = self.max_size // self.p[1], self.max_size // self.p[2]
 
         x_fill = self._patchify(x)
         if x_fill.shape[1] > self.max_num_frames and x_fill.shape[2] > self.max_length:
             return x
+        elif x_fill.shape[1] <= self.max_num_frames and x_fill.shape[2] > self.max_length:
+            x_ = ops.zeros((n, c, self.max_num_frames, h, w), dtype=x.dtype)
+            x_[:, :, : x.shape[2]] = x
+            return x_
 
         x = ops.zeros(
             (n, max(f, self.max_num_frames), max(x_fill.shape[2], self.max_length), x_fill.shape[3]), dtype=x.dtype
