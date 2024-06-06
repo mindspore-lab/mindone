@@ -22,7 +22,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
       --data_path /home_host/ddd/workspace/datasets/sharegpt4v_path_cap_64x512x512-vid16.json \
       --video_folder /home_host/ddd/workspace/datasets/vid16/videos \
       --text_embed_folder /home_host/ddd/workspace/datasets/vid16/t5-len=300 \
-      --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/LatteT2V-65x512x512.ckpt \
+      --pretrained LanguageBind/Open-Sora-Plan-v1.0.0/tv2.ckpt \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
