@@ -146,6 +146,13 @@ class VideoDatasetRefactored(BaseDataset):
             start_pos = random.randint(0, len(latent_mean) - self._min_length)
             batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, self._frames, dtype=int)
 
+            if self._pre_patchify:
+                # randomly drop last few frames, mimic the effect of varying time duration.
+                ind = np.clip(
+                    np.round((len(batch_index) + 1) * (1 - np.random.exponential(scale=0.15))), 1, len(batch_index)
+                )
+                batch_index = batch_index[: int(ind)]
+
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             data["video"] = (vae_latent * self._vae_scale_factor).astype(np.float32)

@@ -206,7 +206,7 @@ class DiffusionWithLoss(nn.Cell):
         x_t: Tensor,
         t: Tensor,
         frames_mask: Optional[Tensor] = None,
-        latent_mask: Optional[Tensor] = None,
+        patch_mask: Optional[Tensor] = None,
     ):
         # make sure all inputs are fp32 for accuracy
         model_output = model_output.to(ms.float32)
@@ -224,11 +224,11 @@ class DiffusionWithLoss(nn.Cell):
         # assert model_mean.shape == model_log_variance.shape == pred_xstart.shape == x_t.shape
         # p_mean_variance end
         kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
-        kl = mean_flat(kl, frames_mask=frames_mask, latent_mask=latent_mask) / ms.numpy.log(2.0)  # TODO:
+        kl = mean_flat(kl, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)  # TODO:
 
         # NOTE: make sure it's computed in fp32 since this func contains many exp.
         decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
-        decoder_nll = mean_flat(decoder_nll, frames_mask=frames_mask, latent_mask=latent_mask) / ms.numpy.log(2.0)
+        decoder_nll = mean_flat(decoder_nll, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)
 
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
         vb = ops.where(t == 0, decoder_nll.to(kl.dtype), kl)
@@ -317,8 +317,10 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         width: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
-        pos_emb: Optional[Tensor] = None,
-        latent_mask: Optional[Tensor] = None,
+        spatial_pos: Optional[Tensor] = None,
+        spatial_mask: Optional[Tensor] = None,
+        temporal_pos: Optional[Tensor] = None,
+        temporal_mask: Optional[Tensor] = None,
     ):
         """
         Video diffusion model forward and loss computation for training
@@ -343,7 +345,19 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
         loss = self.compute_loss(
-            x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar, pos_emb, latent_mask
+            x,
+            text_embed,
+            mask,
+            frames_mask,
+            num_frames,
+            height,
+            width,
+            fps,
+            ar,
+            spatial_pos,
+            spatial_mask,
+            temporal_pos,
+            temporal_mask,
         )
 
         return loss
@@ -359,8 +373,10 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         width: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
-        pos_emb: Optional[Tensor] = None,
-        latent_mask: Optional[Tensor] = None,
+        spatial_pos: Optional[Tensor] = None,
+        spatial_mask: Optional[Tensor] = None,
+        temporal_pos: Optional[Tensor] = None,
+        temporal_mask: Optional[Tensor] = None,
     ):
         D = x.shape[3]
         # convert x to 5-dim first for q_sample, prevent potential bug
@@ -388,8 +404,10 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
             width=width,
             ar=ar,
             fps=fps,
-            pos_emb=pos_emb,
-            latent_mask=latent_mask,
+            spatial_pos=spatial_pos,
+            spatial_mask=spatial_mask,
+            temporal_pos=temporal_pos,
+            temporal_mask=temporal_mask,
         )
 
         # (b c t h w),
@@ -398,7 +416,8 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         model_output, model_var_values = ops.split(model_output, C, axis=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        latent_mask = self.unpatchify(ops.tile(latent_mask[:, None, :, None], (1, F, 1, D)))  # b c t h w
+        patch_mask = temporal_mask[:, :, None, None] * spatial_mask[:, None, :, None]
+        patch_mask = self.unpatchify(ops.tile(patch_mask, (1, 1, 1, D)))  # b c t h w
         vb = self._cal_vb(
             ops.stop_gradient(model_output),
             model_var_values,
@@ -406,10 +425,10 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
             x_t,
             t,
             frames_mask=frames_mask,
-            latent_mask=latent_mask,
+            patch_mask=patch_mask,
         )
 
-        loss = mean_flat((noise - model_output) ** 2, frames_mask=frames_mask, latent_mask=latent_mask) + vb
+        loss = mean_flat((noise - model_output) ** 2, frames_mask=frames_mask, patch_mask=patch_mask) + vb
         loss = loss.mean()
         return loss
 
