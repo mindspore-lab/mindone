@@ -19,7 +19,7 @@ guidance_channels: 3
 seed: 42
 ddim_sampling: False
 
-loop: 2
+loop: 1
 condition_frame_length: 4
 
 captions:
