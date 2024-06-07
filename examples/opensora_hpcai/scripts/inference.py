@@ -336,7 +336,7 @@ def main(args):
                         ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy().swapaxes(0, 1)
                     except RuntimeError as e:
                         logger.error(
-                            f"Failed to embed reference video {args.reference_path[i: i + args.batch_size][k]}."
+                            f"Failed to embed reference video {args.reference_path[i : i + args.batch_size][k]}."
                             f" Try reducing `vae_micro_batch_size`."
                         )
                         raise e

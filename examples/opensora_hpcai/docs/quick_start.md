@@ -64,12 +64,16 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
 ### Text-to-Video
 
-To generate video conditioning on captions:
+#### OpenSora v1
 ```shell
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml   # for OpenSora v1
-python scripts/inference.py --config configs/opensora-v1-1/inference/sample.yaml        # for OpenSora v1.1
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
 ```
-> By default, FP32 is used to ensure the best precision. Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
+#### OpenSora v1.1
+```shell
+python scripts/inference.py --config configs/opensora-v1-1/inference/sample.yaml
+```
+> By default, FP32 is used to ensure the best precision.
+> Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
 
 - To run on GPU, append
 `--device_target GPU`
