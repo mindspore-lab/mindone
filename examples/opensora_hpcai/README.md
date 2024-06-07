@@ -250,6 +250,7 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 ```shell
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
+> for parallel inference, please use `mpirun` or `msrun`, and append `--use_parallel=True` to the inference script referring to `scripts/run/run_infer_os_v1.1_t2v_parallel.sh`
 
 In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`,
 and `reference_path`. See [here](docs/quick_start.md#imagevideo-to-video) for more details.
@@ -268,8 +269,9 @@ python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16
 # Sample 64x512x512 videos
 python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora-v1.ckpt --prompt_path /path/to/prompt.txt
 ```
+> For parallel inference, please use `mpirun` or `msrun`, and append `--use_parallel=True` to the inference script referring to `scripts/run/run_infer_t2v_parallel.sh`
 
-We also provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
+We also provide a three-stage sampling script `run_sole_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
 
 For more usage on the inference script, please run `python scripts/inference.py -h`
 
