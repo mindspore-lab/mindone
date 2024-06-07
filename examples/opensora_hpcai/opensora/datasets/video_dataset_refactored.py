@@ -60,10 +60,6 @@ class VideoDatasetRefactored(BaseDataset):
 
         self.output_columns = output_columns
 
-        # prepare replacement data in case the loading of a sample fails
-        self._prev_ok_sample = self._get_replacement()
-        self._require_update_prev = False
-
         # check vae latent folder
         if self._vae_latent_folder is not None:
             self.num_latent_resolution = 1
