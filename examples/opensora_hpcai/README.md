@@ -467,6 +467,57 @@ Note that training on 300 frames at 512x512 resolution is achieved by optimizati
 
 ** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 
+
+## Training and Inference Using the FiT-Like Pipeline
+
+We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an alternative solution for handling multi-resolution videos, in contrast to the bucketing strategy.
+
+### FiT-Like Training
+
+To begin, we need to prepare the VAE (Variational Autoencoder) latents from multi-resolution videos. For instance, if you intend to train at a resolution of up to 648x648 pixels, please run
+
+```bash
+python script/infer_vae.py \
+    --csv_path /path/to/video_caption.csv  \
+    --video_folder /path/to/video_folder  \
+    --output_path /path/to/video_embed_folder  \
+    --vae_checkpoint models/sd-vae-ft-ema.ckpt \
+    --image_size 648 \
+    --resize_by_max_value True \
+    --vae-micro-batch-size 1
+    --mode 1
+```
+
+The extracted VAE latent will be saved in the video embedding folder.
+
+Then, to launch a distributed training with eight NPU cards, please run
+
+```bash
+msrun --worker_num=8 --local_worker_num=8  \
+    scripts/train.py --config configs/opensora-v1-1/train/train_stage1_fit.yaml \
+    --csv_path /path/to/video_caption.csv \
+    --video_folder /path/to/video_folder \
+    --text_embed_folder /path/to/text_embed_folder \
+    --vae_latent_folder /path/to/video_embed_folder \
+    --use_parallel True \
+    --max_image_size 648 \
+```
+
+
+### FiT-Like Inference
+
+To sample a video with a resolution of 576x720 using the trained checkpoint. You can run
+
+```bash
+python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample_fit.yaml \
+    --ckpt_path /path/to/your/opensora-v1-1.ckpt \
+    --prompt_path /path/to/prompt.txt \
+    --image_size 576 720 \
+    --max_image_size 648 \
+```
+
+Make sure that the `max_image_size` parameter remains consistent between your training and inference commands.
+
 #### Loss Curves
 
 <details>

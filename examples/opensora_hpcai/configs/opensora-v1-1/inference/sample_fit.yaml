@@ -10,6 +10,7 @@ enable_flash_attention: True
 model_max_length: 200
 dtype: "bf16"
 batch_size: 1
+pre_patchify: True
 
 max_image_size: 512
 max_num_frames: 16  # refers to the `num_frames` in training
