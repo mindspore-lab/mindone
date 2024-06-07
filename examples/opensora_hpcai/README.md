@@ -245,14 +245,14 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 
 ### Open-Sora 1.1 Command Line Inference
 
-#### Image/Video-to-Video Generation
+#### Image/Video-to-Video Generation (supports text guidance)
 
 ```shell
-python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
-In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`, and `reference_path`.
-See [here](docs/quick_start.md#imagevideo-to-video) for more details.
+In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`,
+and `reference_path`. See [here](docs/quick_start.md#imagevideo-to-video) for more details.
 
 ### Open-Sora 1.0 Command Line Inference
 
