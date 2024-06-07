@@ -19,3 +19,4 @@ sentencepiece
 transformers>=4.39.3
 pyav
 huggingface_hub>=0.22.2
+environs

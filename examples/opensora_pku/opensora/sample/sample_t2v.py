@@ -26,7 +26,7 @@ from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDowns
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.utils.utils import _check_cfgs_in_parser, get_precision
+from opensora.utils.utils import _check_cfgs_in_parser, get_precision, parse_env
 from pipeline_videogen import VideoGenPipeline
 
 from mindone.diffusers.schedulers import DDIMScheduler, DDPMScheduler, EulerDiscreteScheduler, PNDMScheduler
@@ -174,6 +174,7 @@ def parse_args():
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--kernel_engine", default="kbk", help="Set the kernel engine type, such as kbk and ge.")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
@@ -249,6 +250,7 @@ def parse_args():
 if __name__ == "__main__":
     # 1. init env
     args = parse_args()
+    parse_env(args.kernel_engine)
     save_dir = args.save_img_path
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)

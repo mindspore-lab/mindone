@@ -1,10 +1,5 @@
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export MS_ENABLE_NUMA=0
-export MS_MEMORY_STATISTIC=1
-
-# enable kbk
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 export GLOG_v=2
 
 # hyper-parameters
@@ -12,6 +7,7 @@ image_size=256
 use_image_num=4
 num_frames=17
 model_dtype="fp16"
+amp_level="O1"
 enable_flash_attention="True"
 batch_size=4
 lr="2e-05"
@@ -40,6 +36,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --lr_scheduler="constant" \
     --lr_warmup_steps=0 \
     --precision=$model_dtype \
+    --amp_level=$amp_level \
     --checkpointing_steps=500 \
     --output_dir=$output_dir \
     --model_max_length 300 \

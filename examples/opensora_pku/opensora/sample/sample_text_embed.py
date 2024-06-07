@@ -18,7 +18,7 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.text_encoder.t5 import T5Embedder
-from opensora.utils.utils import get_precision
+from opensora.utils.utils import get_precision, parse_env
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
@@ -252,6 +252,7 @@ def parse_args():
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--kernel_engine", default="kbk", help="Set the kernel engine type, such as kbk and ge.")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
@@ -309,4 +310,5 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+    parse_env(args.kernel_engine)
     main(args)
