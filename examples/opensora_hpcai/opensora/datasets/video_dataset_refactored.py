@@ -130,7 +130,7 @@ class VideoDatasetRefactored(BaseDataset):
                 data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
                 with VideoReader(data["video"]) as reader:
-                    data["fps"] = self._data[idx]["fps"] = reader.fps
+                    data["fps"] = self._data[idx]["fps"] = np.array(reader.fps, dtype=np.float32)
 
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
             if len(latent_mean) < self._min_length:

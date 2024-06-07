@@ -3,7 +3,6 @@ import logging
 import os
 import time
 
-import albumentations
 import albumentations as A
 import cv2
 import imageio
@@ -17,7 +16,7 @@ logger = logging.getLogger()
 
 class MinCropAndResize:
     """
-    (tar_h, tar_w) as a cropping box center at the image center point,
+    (tar_h, tar_w) as a cropping box centered at the image center point,
     you can resize it while keeping its AR until it touches one side of the image boundary.
     Then crop it and resize to (tar_h, tar_w)
     """
