@@ -72,7 +72,6 @@ class VideoDatasetRefactored(BaseDataset):
                 self.num_latent_resolution = len(resolution_indicators)
                 self.latent_resolution_prefix = resolution_indicators
                 _logger.info("Multi-resolution latents detected: {}".format(self.num_latent_resolution))
->>>>>>> support multi-resolution training with vae cached
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()

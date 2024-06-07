@@ -376,6 +376,22 @@ Each npz file contains data for the following keys:
 - `fps`: video fps
 - `ori_size`: original size (h, w) of the video
 
+After caching VAE, you can use them for STDiT training by parsing `--vae_latent_folder=/path/to/video_embed_folder` to the training script `python train.py`.
+
+#### Cache VAE for multi-resolutions (for OpenSora 1.1)
+
+If there are multiple folders named in `latent_{h}x{w}` format under the `--vae_latent_folder` folder (which is parsed to train.py), one of resolutions will selected randomly during training. For example:
+
+```
+video_embed_folder
+   ├── latent_576x1024
+   │   ├── vid001.npz
+   │   ├── vid002.npz
+   │   └── ...
+   └── latent_1024x576
+       ├── vid001.npz
+       ├── vid002.npz
+       └── ...
 ```
 
 </details>
