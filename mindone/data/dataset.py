@@ -8,6 +8,9 @@ class BaseDataset(ABC):
 
     Required attributes:
         output_columns: A list of column names that a dataset is expected to output.
+        pad_info: When it is not None, that dataloader will call `padded_batch` instead of `pad` in the final step, and
+            `pad_info` will be passed as an argument in `padded_batch` method. For detail usage, please check
+            https://www.mindspore.cn/docs/en/master/api_python/dataset/dataset_method/batch/mindspore.dataset.Dataset.padded_batch.html
     """
 
     output_columns: List[str]
