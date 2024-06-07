@@ -1,10 +1,5 @@
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export MS_ENABLE_NUMA=0
-export MS_MEMORY_STATISTIC=1
-
-# enable kbk
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 export GLOG_v=2
 
 # hyper-parameters

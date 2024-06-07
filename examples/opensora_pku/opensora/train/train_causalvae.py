@@ -22,7 +22,7 @@ from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDowns
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
-from opensora.utils.utils import get_precision
+from opensora.utils.utils import get_precision, parse_env
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
 from mindone.trainers.checkpoint import CheckpointManager, resume_train_network
@@ -36,6 +36,9 @@ from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
 logger = logging.getLogger(__name__)
+
+os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
+os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
 
 
 def main(args):
@@ -416,4 +419,5 @@ def parse_causalvae_train_args(parser):
 
 if __name__ == "__main__":
     args = parse_args(additional_parse_args=parse_causalvae_train_args)
+    parse_env(args.kernel_engine)
     main(args)

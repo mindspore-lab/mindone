@@ -34,7 +34,7 @@ sys.path.append(".")
 from opensora.models.ae import getae_model_config, getae_wrapper
 from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
 from opensora.utils.dataset_utils import create_video_transforms
-from opensora.utils.utils import get_precision
+from opensora.utils.utils import get_precision, parse_env
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +213,7 @@ if __name__ == "__main__":
     parser.add_argument("--enable_time_chunk", action="store_true")
     # ms related
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--kernel_engine", default="kbk", help="Set the kernel engine type, such as kbk and ge.")
     parser.add_argument(
         "--precision",
         default="bf16",
@@ -237,4 +238,5 @@ if __name__ == "__main__":
         help="whether to use grid to show original and reconstructed data",
     )
     args = parser.parse_args()
+    parse_env(args.kernel_engine)
     main(args)

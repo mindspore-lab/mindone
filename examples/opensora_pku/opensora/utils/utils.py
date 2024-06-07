@@ -1,7 +1,10 @@
 import argparse
 import html
+import logging
 import re
 import urllib.parse as ul
+
+from environs import Env
 
 import mindspore as ms
 
@@ -14,6 +17,9 @@ try:
     import ftfy
 except ImportError:
     is_ftfy_available = False
+
+
+_logger = logging.getLogger(__name__)
 
 
 def get_experiment_dir(root_dir, args):
@@ -41,6 +47,19 @@ def get_precision(mixed_precision):
     else:
         dtype = ms.float32
     return dtype
+
+
+def parse_env(kernel_engine="kbk"):
+    env = Env()
+    if kernel_engine == "kbk":
+        env.read_env(".env.kbk")
+        _logger.info("Using KBK as kernel engine")
+    elif kernel_engine == "ge":
+        env.read_env(".env.ge")
+        _logger.info("Using GE as kernel engine")
+    else:
+        raise NotImplementedError(f"Not supported kernel engine {kernel_engine}. " "Now only supports kbk and ge.")
+    return env
 
 
 #################################################################################
