@@ -10,7 +10,7 @@ import numpy as np
 import yaml
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import Tensor, nn
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -18,13 +18,14 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from opensora.models.stdit import STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import InferPipeline
 from opensora.utils.amp import auto_mixed_precision
-from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
+from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
+from opensora.utils.util import apply_mask_strategy, process_mask_strategies, process_prompts
 
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
@@ -143,39 +144,61 @@ def main(args):
     else:
         captions = args.captions
 
-    # split for data parallel
-    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)
-    print(f"Num captions for rank {rank_id}: {len(captions)}")
+    captions = process_prompts(captions, args.loop)  # in v1.1 each loop can have a different caption
+    captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
+    if args.use_parallel:
+        print(f"Num captions for rank {rank_id}: {len(captions)}")
 
     # 2. model initiate and weight loading
     # 2.1 latte
-    logger.info("STDiT init")
-
     VAE_T_COMPRESS = 1
     VAE_S_COMPRESS = 8
     VAE_Z_CH = SD_CONFIG["z_channels"]
-
-    if isinstance(args.image_size, list):
-        if len(args.image_size) > 2 or args.image_size[0] != args.image_size[1]:
-            raise ValueError(f"OpenSora-v1 support square images only, but got {args.image_size}")
-        args.image_size = args.image_size[0]
+    img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
 
     input_size = (
         args.num_frames // VAE_T_COMPRESS,
-        args.image_size // VAE_S_COMPRESS,
-        args.image_size // VAE_S_COMPRESS,
+        img_h // VAE_S_COMPRESS,
+        img_w // VAE_S_COMPRESS,
     )
-    if args.image_size == 512 and args.space_scale == 0.5:
-        logger.warning("space_ratio should be 1 for 512x512 resolution")
     model_extra_args = dict(
         input_size=input_size,
         in_channels=VAE_Z_CH,
-        space_scale=args.space_scale,  # 0.5 for 256x256. 1. for 512
-        time_scale=args.time_scale,
+        model_max_length=args.model_max_length,
         patchify_conv3d_replace="conv2d",  # for Ascend
         enable_flashattn=args.enable_flash_attention,
     )
-    latte_model = STDiT_XL_2(**model_extra_args)
+
+    if args.model_version == "v1":
+        model_name = "STDiT"
+        if img_h != img_w:
+            raise ValueError(f"OpenSora v1 support square images only, but got {args.image_size}")
+
+        if args.loop > 1:
+            args.loop = 1
+            logger.warning("OpenSora v1 doesn't support iterative video generation. Setting loop to 1.")
+
+        if args.image_size == 512 and args.space_scale != 1:
+            logger.warning("space_ratio should be 1 for 512x512 resolution")
+
+        model_extra_args.update(
+            {
+                "space_scale": args.space_scale,  # 0.5 for 256x256. 1. for 512
+                "time_scale": args.time_scale,
+            }
+        )
+
+        logger.info(f"{model_name} init")
+        latte_model = STDiT_XL_2(**model_extra_args)
+
+    elif args.model_version == "v1.1":
+        model_name = "STDiT2"
+        model_extra_args.update({"input_sq_size": 512, "qk_norm": True})
+        logger.info(f"{model_name} init")
+        latte_model = STDiT2_XL_2(**model_extra_args)
+    else:
+        raise ValueError(f"Unknown model version: {args.model_version}")
+
     latte_model = latte_model.set_train(False)
 
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
@@ -184,42 +207,44 @@ def main(args):
             latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
         )
 
-    if len(args.ckpt_path) > 0:
-        logger.info(f"Loading ckpt {args.ckpt_path} into STDiT")
+    if args.ckpt_path:
+        logger.info(f"Loading ckpt {args.ckpt_path} into {model_name}")
         latte_model.load_from_checkpoint(args.ckpt_path)
     else:
-        logger.warning("STDiT uses random initialization!")
+        logger.warning(f"{model_name} uses random initialization!")
 
     # 2.2 vae
-    if args.use_vae_decode:
+    if args.use_vae_decode or args.reference_path is not None:
         logger.info("vae init")
-        vae = AutoencoderKL(
-            SD_CONFIG,
-            VAE_Z_CH,
-            ckpt_path=args.vae_checkpoint,
-        )
+        vae = AutoencoderKL(SD_CONFIG, VAE_Z_CH, ckpt_path=args.vae_checkpoint)
         vae = vae.set_train(False)
         if args.vae_dtype in ["fp16", "bf16"]:
             vae = auto_mixed_precision(
-                vae,
-                amp_level=args.amp_level,
-                dtype=dtype_map[args.vae_dtype],
-                custom_fp32_cells=[nn.GroupNorm],
+                vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype], custom_fp32_cells=[nn.GroupNorm]
             )
     else:
         vae = None
 
     # 2.3 text encoder
     if args.text_embed_folder is None:
-        text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", args.t5_model_dir)
+        text_encoder, tokenizer = get_text_encoder_and_tokenizer(
+            "t5", args.t5_model_dir, model_max_length=args.model_max_length
+        )
         num_prompts = len(captions)
-        text_tokens, mask = text_encoder.get_text_tokens_and_mask(captions, return_tensor=True)
-        mask = mask.to(ms.uint8)
+        text_tokens, mask = zip(
+            *[text_encoder.get_text_tokens_and_mask(caption, return_tensor=False) for caption in captions]
+        )
+        text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
         if args.dtype in ["fp16", "bf16"]:
             text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=dtype_map[args.dtype])
+        logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
+
     else:
         assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
+        if args.model_version == "v1.1":
+            logger.warning("For embedded captions, only one prompt per video is supported at this moment.")
+
         embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
@@ -232,14 +257,16 @@ def main(args):
         text_tokens = np.concatenate(text_tokens)
         mask = np.concatenate(mask)
         text_emb = np.concatenate(text_emb)
+        logger.info(f"Num tokens: {mask.sum(1)}")
 
         num_prompts = text_emb.shape[0]
         text_tokens = ms.Tensor(text_tokens)
         mask = ms.Tensor(mask, dtype=ms.uint8)
         text_emb = ms.Tensor(text_emb, dtype=ms.float32)
         text_encoder = None
-    assert num_prompts > 0, "No captions provided"
-    logger.info(f"Num tokens: {mask.asnumpy().sum(1)}")
+
+    if (args.model_version == "v1" or args.reference_path is None) and num_prompts < 1:
+        raise ValueError("No text prompts provided for Text-to-Video generation.")
 
     # 3. build inference pipeline
     pipeline = InferPipeline(
@@ -249,10 +276,31 @@ def main(args):
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
-        ddim_sampling=args.ddim_sampling,
+        guidance_channels=args.guidance_channels,
+        ddim_sampling=args.ddim_sampling,  # TODO: add ddim support for OpenSora v1.1
         condition="text",
         micro_batch_size=args.vae_micro_batch_size,
     )
+
+    # 3.1. Support for multi-resolution (OpenSora v1.1 only)
+    model_args = {}
+    if args.model_version == "v1.1":
+        model_args["height"] = Tensor([img_h] * args.batch_size, dtype=ms.float32)
+        model_args["width"] = Tensor([img_w] * args.batch_size, dtype=ms.float32)
+        model_args["num_frames"] = Tensor([args.num_frames] * args.batch_size, dtype=ms.float32)
+        model_args["ar"] = Tensor([img_h / img_w] * args.batch_size, dtype=ms.float32)
+        model_args["fps"] = Tensor([args.fps] * args.batch_size, dtype=ms.float32)
+
+    # 3.2 Prepare references (OpenSora v1.1 only)
+    if args.reference_path is not None and not (len(args.reference_path) == 1 and args.reference_path[0] == ""):
+        if len(args.reference_path) != num_prompts:
+            raise ValueError(f"Reference path mismatch: {len(args.reference_path)} != {num_prompts}")
+        if len(args.reference_path) != len(args.mask_strategy):
+            raise ValueError(f"Mask strategy mismatch: {len(args.mask_strategy)} != {len(captions)}")
+    else:
+        args.reference_path = [None] * len(captions)
+        args.mask_strategy = [None] * len(captions)
+    frames_mask_strategies = process_mask_strategies(args.mask_strategy)
 
     # 4. print key info
     key_info = "Key Settings:\n" + "=" * 50 + "\n"
@@ -273,48 +321,95 @@ def main(args):
     for i in range(0, num_prompts, args.batch_size):
         if text_emb is None:
             batch_prompts = captions[i : i + args.batch_size]
-            ns = args.batch_size if i + args.batch_size <= len(captions) else len(captions) - i
+            ns = len(batch_prompts)
         else:
-            ns = args.batch_size if i + args.batch_size <= text_emb.shape[0] else text_emb.shape[0] - i
+            ns = min(args.batch_size, text_emb.shape[0] - i)
 
-        # prepare inputs
-        inputs = {}
-        # b c t h w
-        z = np.random.randn(*([ns, VAE_Z_CH] + list(input_size)))  # for ensure generate the same noise
-        z = ms.Tensor(z, dtype=ms.float32)
-        inputs["noise"] = z
-        inputs["scale"] = args.guidance_scale
-        if text_emb is None:
-            inputs["text_tokens"] = text_tokens[i : i + ns]
-            inputs["text_emb"] = None
-            inputs["mask"] = mask[i : i + ns]
-        else:
-            inputs["text_tokens"] = None
-            inputs["text_emb"] = text_emb[i : i + ns]
-            inputs["mask"] = mask[i : i + ns]
+        frames_mask_strategy = frames_mask_strategies[i : i + args.batch_size]
 
-        logger.info("Sampling for")
-        for j in range(ns):
+        references = get_references(args.reference_path[i : i + args.batch_size], (img_h, img_w))
+        # embed references into latent space
+        for ref in references:
+            if ref is not None:
+                for k in range(len(ref)):
+                    try:
+                        ref[k] = pipeline.vae_encode(Tensor(ref[k])).asnumpy().swapaxes(0, 1)
+                    except RuntimeError as e:
+                        logger.error(
+                            f"Failed to embed reference video {args.reference_path[i: i + args.batch_size][k]}."
+                            f" Try reducing `vae_micro_batch_size`."
+                        )
+                        raise e
+
+        frames_mask, latents, videos = None, [], []
+        for loop_i in range(args.loop):
+            if loop_i > 0:
+                for j in range(len(references)):  # iterate over batch of references
+                    if references[j] is None:
+                        references[j] = [latents[-1][j]]
+                    else:
+                        references[j].append(latents[-1][j])
+                    new_strategy = [
+                        loop_i,
+                        len(references[j]) - 1,
+                        -args.condition_frame_length,
+                        0,
+                        args.condition_frame_length,
+                        0.0,
+                    ]
+                    if frames_mask_strategy[j] is None:
+                        frames_mask_strategy[j] = [new_strategy]
+                    else:
+                        frames_mask_strategy[j].append(new_strategy)
+
+            # prepare inputs
+            inputs = {}
+            # b c t h w
+            z = np.random.randn(*([ns, VAE_Z_CH] + list(input_size))).astype(np.float32)
+
+            if args.model_version == "v1.1":
+                z, frames_mask = apply_mask_strategy(z, references, frames_mask_strategy, loop_i)
+                frames_mask = Tensor(frames_mask, dtype=ms.float32)
+
+            z = ms.Tensor(z, dtype=ms.float32)
+            inputs["noise"] = z
+            inputs["scale"] = args.guidance_scale
             if text_emb is None:
-                logger.info(captions[i + j])
+                inputs["text_tokens"] = text_tokens[i : i + ns, loop_i]
+                inputs["text_emb"] = None
+                inputs["mask"] = mask[i : i + ns, loop_i]
             else:
-                logger.info(prompt_prefix[i + j])
+                inputs["text_tokens"] = None
+                inputs["text_emb"] = text_emb[i : i + ns]
+                inputs["mask"] = mask[i : i + ns]
 
-        # infer
-        start_time = time.time()
-        x_samples, latents = pipeline(inputs)
-        batch_time = time.time() - start_time
-        logger.info(
-            f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps*ns/batch_time:.2f} step/s"
-        )
+            logger.info("Sampling captions:")
+            for j in range(ns):
+                if text_emb is None:
+                    logger.info(captions[i + j][loop_i])
+                else:
+                    logger.info(prompt_prefix[i + j])
+
+            # infer
+            start_time = time.time()
+            samples, latent = pipeline(inputs, frames_mask=frames_mask, additional_kwargs=model_args)
+            latents.append(latent.asnumpy()[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
+            if samples is not None:
+                videos.append(samples.asnumpy()[:, args.condition_frame_length if loop_i > 0 else 0 :])
+            batch_time = time.time() - start_time
+            logger.info(
+                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"
+            )
+
+        latents = np.concatenate(latents, axis=2)
+        if videos:
+            videos = np.concatenate(videos, axis=1)
 
         # save result
-        if x_samples is not None:
-            x_samples = x_samples.asnumpy()
         for j in range(ns):
             global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
-                prompt = "-".join((batch_prompts[j].replace("/", "").split(" ")[:10]))
+                prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
             else:
@@ -323,13 +418,13 @@ def main(args):
                 latent_save_fp = f"{latent_dir}/{fn}.npy"
 
             # save videos
-            if x_samples is not None:
-                save_videos(x_samples[j : j + 1], save_fp, fps=args.fps)
+            if len(videos):
+                save_videos(videos[j], save_fp, fps=args.fps / args.frame_interval)
                 logger.info(f"Video saved in {save_fp}")
 
             # save decoded latents
             if args.save_latent:
-                np.save(latent_save_fp, latents[j : j + 1].asnumpy())
+                np.save(latent_save_fp, latents[j : j + 1])
                 logger.info(f"Denoised latents saved in {latent_save_fp}")
 
 
@@ -341,6 +436,9 @@ def parse_args():
         default="",
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
+    )
+    parser.add_argument(
+        "--model_version", default="v1", type=str, choices=["v1", "v1.1"], help="OpenSora model version."
     )
     parser.add_argument("--image_size", type=int, default=256, nargs="+", help="image size in [256, 512]")
     parser.add_argument("--num_frames", type=int, default=16, help="number of frames")
@@ -383,6 +481,7 @@ def parse_args():
     )
     parser.add_argument(
         "--frame_interval",
+        default=1,
         type=int,
         help="Frames sampling frequency. Final video FPS will be equal to FPS / frame_interval.",
     )
@@ -394,10 +493,10 @@ def parse_args():
         help="Number of frames generated in a previous loop to use as a conditioning for the next loop.",
     )
     parser.add_argument(
-        "--mask_strategy", type=str, nargs="+", help="Masking strategy for Image/Video-to-Video generation task."
+        "--mask_strategy", type=str, nargs="*", help="Masking strategy for Image/Video-to-Video generation task."
     )
     parser.add_argument(
-        "--reference_path", type=str, nargs="+", help="References for Image/Video-to-Video generation task."
+        "--reference_path", type=str, nargs="*", help="References for Image/Video-to-Video generation task."
     )
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -473,7 +572,8 @@ def parse_args():
         "--use_vae_decode",
         type=str2bool,
         default=True,
-        help="if False, skip vae decode to save memory (you can use infer_vae_decode.py to decode the saved denoised latent later.",
+        help="[For T2V models only] If False, skip vae decode to save memory"
+        " (you can use infer_vae_decode.py to decode the saved denoised latent later.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     default_args = parser.parse_args()

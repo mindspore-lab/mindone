@@ -196,12 +196,7 @@ def main(args):
         logger.info(f"STDiT input size: {input_size}")
         latte_model = STDiT_XL_2(**model_extra_args)
     elif args.model_version == "v1.1":
-        model_extra_args.update(
-            {
-                "input_sq_size": 512,
-                "qk_norm": True,
-            }
-        )
+        model_extra_args.update({"input_sq_size": 512, "qk_norm": True})
         logger.info(f"STDiT2 input size: {input_size}")
         latte_model = STDiT2_XL_2(**model_extra_args)
     else:
