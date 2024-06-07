@@ -283,15 +283,9 @@ After running, the text embeddings saved as npz file for each caption will be in
 
 #### Notes about MindSpore Features
 
-Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
+Training on MS2.3 allows much better performance with its new features (such as kbk and dvm).
 
-To enable kbk mode on ms2.3, we use the following two environmental variables:
-```
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
-
-```
-By default, we have enabled kbk mode in all of our training scripts already.
+By default, we have enabled kbk mode in all of our training and inference scripts already. See `--kernel_engine` in the training and inference scripts for more information.
 
 To improve training performance, you may append `--enable_dvm=True` to the training command.
 Furthermore, you may accelerate the data loading speed by setting `--dataset_sink_mode=True` to the training command. Please be aware that when data sink mode is on, there will not be per-step printing messages. We recommend to use data sink mode after all hyper-parameters tuning is done.
@@ -304,7 +298,8 @@ There some hyper-parameters that may vary between different experiments:
 image_size=256  # the image size of frames, same to image height and image width
 use_image_num=4  # to include n number of images in an input sample
 num_frames=17  # to sample m frames from a single video. The total number of images： num_frames + use_image_num = 17+4
-model_dtype="fp16" # the data type used for mixed precision of the diffusion transformer model. Default amp level is O1.
+model_dtype="fp16" # the data type used for mixed precision of the diffusion transformer model.
+amp_level="O1" # Default amp level is O1 for fp16. One can use bf16 with amp_level O2 as well.
 enable_flash_attention="True" # whether to use MindSpore Flash Attention
 batch_size=4 # training batch size
 lr="2e-05" # learning rate. Default learning schedule is constant
@@ -359,7 +354,7 @@ bash scripts/text_condition/train_videoae_65x512x512.sh
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
+| Model           | Context        | LatteT2V Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   17 + 4    | 256x256     |   1.8     |
 | LatteT2V-XL/122 | D910\*x1-MS2.3 | FP16      | 4  |  8   |   65 + 4    | 256x256     |   4.5     |
