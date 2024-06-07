@@ -228,6 +228,13 @@ def main(args):
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
+    if input_size[1] % latte_model.patch_size[1] != 0 or input_size[2] % latte_model.patch_size[2] != 0:
+        height_ = latte_model.patch_size[1] * VAE_S_COMPRESS
+        width_ = latte_model.patch_size[2] * VAE_S_COMPRESS
+        raise ValueError(
+            f"Image height ({img_h}) and width ({img_w}) must be divisible by {height_} and {width_} respectively."
+        )
+
     # 2.2 vae
     # TODO: use mindone/models/autoencoders in future
     logger.info("vae init")

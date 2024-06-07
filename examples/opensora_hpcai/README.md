@@ -474,7 +474,7 @@ We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an 
 
 ### FiT-Like Training
 
-To begin, we need to prepare the VAE (Variational Autoencoder) latents from multi-resolution videos. For instance, if you intend to train at a resolution of up to 648x648 pixels, please run
+To begin, we need to prepare the VAE (Variational Autoencoder) latents from multi-resolution videos. For instance, if you intend to train at a resolution of up to 656x656 pixels, please run
 
 ```bash
 python script/infer_vae.py \
@@ -482,7 +482,7 @@ python script/infer_vae.py \
     --video_folder /path/to/video_folder  \
     --output_path /path/to/video_embed_folder  \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \
-    --image_size 648 \
+    --image_size 656 \
     --resize_by_max_value True \
     --vae-micro-batch-size 1
     --mode 1
@@ -500,7 +500,7 @@ msrun --worker_num=8 --local_worker_num=8  \
     --text_embed_folder /path/to/text_embed_folder \
     --vae_latent_folder /path/to/video_embed_folder \
     --use_parallel True \
-    --max_image_size 648 \
+    --max_image_size 656 \
 ```
 
 
@@ -513,7 +513,7 @@ python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample_
     --ckpt_path /path/to/your/opensora-v1-1.ckpt \
     --prompt_path /path/to/prompt.txt \
     --image_size 576 720 \
-    --max_image_size 648 \
+    --max_image_size 656 \
 ```
 
 Make sure that the `max_image_size` parameter remains consistent between your training and inference commands.
