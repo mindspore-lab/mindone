@@ -64,12 +64,16 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
 ### Text-to-Video
 
-To generate video conditioning on captions:
+#### OpenSora v1
 ```shell
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml     # for OpenSora v1
-python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample_t2v.yaml # for OpenSora v1.1
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
 ```
-> By default, FP32 is used to ensure the best precision. Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
+#### OpenSora v1.1
+```shell
+python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml
+```
+> By default, FP32 is used to ensure the best precision.
+> Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
 
 - To run on GPU, append
 `--device_target GPU`
@@ -146,7 +150,7 @@ The output video's length will be `loop * (num_frames - condition_frame_length) 
 
 To generate a video with conditioning on images and videos, execute the following command:
 ```shell
-python scripts/inference_v1.1.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 ## Training
