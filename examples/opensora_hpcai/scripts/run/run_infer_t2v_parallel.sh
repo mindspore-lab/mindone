@@ -1,9 +1,9 @@
 unset RANK_TABLE_FILE
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8
 
-# enable kbk: set values below to 1, memory efficient
-# export MS_ENABLE_ACLNN=0
-# export GRAPH_OP_RUN=0
+# enable kbk, memory efficient
+# export MS_ENABLE_ACLNN=1
+# export GRAPH_OP_RUN=1
 
 # msrun --master_port=8200 --worker_num=4 --local_worker_num=4 --log_dir=logs_t5_cache  \
 mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-stdout \
