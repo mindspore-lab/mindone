@@ -159,9 +159,7 @@ def main(args):
             model_dtype = ms.bfloat16
     # load checkpoint
     if args.pretrained is not None and len(args.pretrained) > 0:
-        assert os.path.exists(
-            args.pretrained
-        ), f"The provided pretrained ckpt path {args.args.pretrained} is not existent!"
+        assert os.path.exists(args.pretrained), f"The provided pretrained ckpt path {args.pretrained} is not existent!"
         logger.info(f"Loading ckpt {args.pretrained}...")
         latte_model.load_from_checkpoint(args.pretrained)
     else:
