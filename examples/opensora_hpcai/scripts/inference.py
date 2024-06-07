@@ -139,10 +139,14 @@ def main(args):
     if args.prompt_path is not None:
         if args.prompt_path.endswith(".csv"):
             captions = read_captions_from_csv(args.prompt_path)
-        elif args.prompt_path.endswith(".txt"):
+        else:  # treat any other file as a plain text
             captions = read_captions_from_txt(args.prompt_path)
     else:
         captions = args.captions
+
+    if args.model_version == "v1" and args.loop > 1:
+        args.loop = 1
+        logger.warning("OpenSora v1 doesn't support iterative video generation. Setting loop to 1.")
 
     captions = process_prompts(captions, args.loop)  # in v1.1 each loop can have a different caption
     captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)  # split for data parallel
@@ -173,10 +177,6 @@ def main(args):
         model_name = "STDiT"
         if img_h != img_w:
             raise ValueError(f"OpenSora v1 support square images only, but got {args.image_size}")
-
-        if args.loop > 1:
-            args.loop = 1
-            logger.warning("OpenSora v1 doesn't support iterative video generation. Setting loop to 1.")
 
         if args.image_size == 512 and args.space_scale != 1:
             logger.warning("space_ratio should be 1 for 512x512 resolution")
