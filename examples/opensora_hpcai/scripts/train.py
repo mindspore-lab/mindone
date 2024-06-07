@@ -171,6 +171,8 @@ def main(args):
     img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
     if args.model_version == "v1":
         assert img_h == img_w, "OpenSora v1 support square images only."
+    if args.pre_patchify:
+        img_h, img_w = args.max_image_size, args.max_image_size
 
     input_size = (
         args.num_frames // VAE_T_COMPRESS,
