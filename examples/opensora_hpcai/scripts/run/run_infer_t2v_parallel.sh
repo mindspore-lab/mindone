@@ -1,5 +1,5 @@
 unset RANK_TABLE_FILE
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 
 # enable kbk, memory efficient
 # export MS_ENABLE_ACLNN=1
