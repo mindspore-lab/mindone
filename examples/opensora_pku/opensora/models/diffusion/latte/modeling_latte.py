@@ -832,9 +832,9 @@ class Latte(ModelMixin, ConfigMixin):
             # assume that mask is expressed as:
             #   (1 = keep,      0 = discard)
             # convert mask into a bias that can be added to attention scores:
-            #       (keep = +0,     discard = -10000.0)
+            #       (keep = +0,     discard = -ms.numpy.inf)
             attention_mask = attention_mask.unsqueeze(1)  # (b, 1, key_len)
-            attention_mask = ops.zeros(attention_mask.shape).masked_fill(~attention_mask, -10000.0)
+            attention_mask = ops.zeros(attention_mask.shape).masked_fill(~attention_mask, -ms.numpy.inf)
 
         # # Retrieve lora scale.
         # lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
