@@ -260,10 +260,10 @@ You can run text-to-video inference via the script `scripts/inference.py` as fol
 
 ```bash
 # Sample 16x256x256 videos
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-16x256x256.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-HQ-16x256x256.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 16x512x512 videos
-python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-HQ-16x512x512.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 64x512x512 videos
 python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora-v1.ckpt --prompt_path /path/to/prompt.txt
