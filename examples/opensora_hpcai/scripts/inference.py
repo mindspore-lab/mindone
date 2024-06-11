@@ -169,7 +169,7 @@ def main(args):
         input_size=input_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
-        patchify_conv3d_replace="conv2d",  # for Ascend
+        patchify_conv3d_replace=args.patchify,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
     )
 
@@ -209,6 +209,7 @@ def main(args):
 
     if args.ckpt_path:
         logger.info(f"Loading ckpt {args.ckpt_path} into {model_name}")
+        assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
         latte_model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"{model_name} uses random initialization!")
@@ -504,6 +505,13 @@ def parse_args():
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
+    parser.add_argument(
+        "--patchify",
+        type=str,
+        default="conv2d",
+        choices=["conv3d", "conv2d", "linear"],
+        help="patchify_conv3d_replace, conv2d - equivalent conv2d to replace conv3d patchify, linear - equivalent linear layer to replace conv3d patchify  ",
+    )
     parser.add_argument(
         "--enable_flash_attention",
         default=False,
