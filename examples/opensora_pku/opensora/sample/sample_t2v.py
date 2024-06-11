@@ -442,6 +442,7 @@ if __name__ == "__main__":
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
             f"Use model dtype: {dtype}",
+            f"Use FA: {args.enable_flash_attention}",
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
