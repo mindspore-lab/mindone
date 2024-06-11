@@ -832,9 +832,9 @@ class Latte(ModelMixin, ConfigMixin):
             # assume that mask is expressed as:
             #   (1 = keep,      0 = discard)
             # convert mask into a bias that can be added to attention scores:
-            #       (keep = +0,     discard = -ms.numpy.inf)
+            #       (keep = +0,     discard = -10000.0)
             attention_mask = attention_mask.unsqueeze(1)  # (b, 1, key_len)
-            attention_mask = ops.zeros(attention_mask.shape).masked_fill(~attention_mask, -ms.numpy.inf)
+            attention_mask = ops.zeros(attention_mask.shape).masked_fill(~attention_mask, -10000.0)
 
         # # Retrieve lora scale.
         # lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
@@ -1427,24 +1427,27 @@ class LatteT2V(ModelMixin, ConfigMixin):
             # assume that mask is expressed as:
             #   (1 = keep,      0 = discard)
             # convert mask into a bias that can be added to attention scores:
-            #       (keep = +0,     discard = -ms.numpy.inf)
+            #       (keep = +0,     discard = -10000.0)
             attention_mask = attention_mask.unsqueeze(1)
-            attention_mask = ops.zeros(attention_mask.shape).masked_fill(~attention_mask, -ms.numpy.inf)
+            # do not fill in -10000.0 until entering MHA
+            # attention_mask = ops.zeros(attention_mask.shape).masked_fill(~attention_mask, -10000.0)
             attention_mask = attention_mask.to(self.dtype)
         # 1 + 4, 1 -> video condition, 4 -> image condition
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:  # ndim == 2 means no image joint
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
-            encoder_attention_mask = ops.zeros(encoder_attention_mask.shape).masked_fill(
-                ~encoder_attention_mask, -ms.numpy.inf
-            )
+            # do not fill in -10000.0 until entering MHA
+            # encoder_attention_mask = ops.zeros(encoder_attention_mask.shape).masked_fill(
+            #     ~encoder_attention_mask, -10000.0
+            # )
             # b 1 l -> (b f) 1 l
             encoder_attention_mask = encoder_attention_mask.repeat_interleave(frame, dim=0)
             encoder_attention_mask = encoder_attention_mask.to(self.dtype)
         elif encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:  # ndim == 3 means image joint
-            encoder_attention_mask = ops.zeros(encoder_attention_mask.shape).masked_fill(
-                ~encoder_attention_mask, -ms.numpy.inf
-            )
+            # do not fill in -10000.0 until entering MHA
+            # encoder_attention_mask = ops.zeros(encoder_attention_mask.shape).masked_fill(
+            #     ~encoder_attention_mask, -10000.0
+            # )
             encoder_attention_mask_video = encoder_attention_mask[:, :1, ...]
             encoder_attention_mask_video = encoder_attention_mask_video.repeat_interleave(frame, dim=1)
             encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...]
