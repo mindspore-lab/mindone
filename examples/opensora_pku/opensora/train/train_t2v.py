@@ -492,6 +492,12 @@ def parse_t2v_train_args(parser):
         action="store_true",
         help="enable random flip video (disable it to avoid motion direction and text mismatch)",
     )
+    parser.add_argument(
+        "--use_adamzero2",
+        type=bool,
+        default=False,
+        help="whether to use adam zero2 optimizer.",
+    )
     return parser
 
 

@@ -225,6 +225,12 @@ def parse_embedding_cache_args(parser):
         default=1,
         help="The number of data items (videos) saved every time calling mindrecord writer.",
     )
+    parser.add_argument(
+        "--use_adamzero2",
+        type=bool,
+        default=False,
+        help="whether to use adam zero2 optimizer.",
+    )
     return parser
 
 
