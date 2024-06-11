@@ -250,6 +250,7 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 ```shell
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
+> for parallel inference, please use `mpirun` or `msrun`, and append `--use_parallel=True` to the inference script referring to `scripts/run/run_infer_os_v1.1_t2v_parallel.sh`
 
 In the `sample.yaml`, provide such information as `loop`, `condition_frame_length`, `captions`, `mask_strategy`,
 and `reference_path`. See [here](docs/quick_start.md#imagevideo-to-video) for more details.
@@ -260,16 +261,17 @@ You can run text-to-video inference via the script `scripts/inference.py` as fol
 
 ```bash
 # Sample 16x256x256 videos
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-16x256x256.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml --ckpt_path models/OpenSora-v1-HQ-16x256x256.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 16x512x512 videos
-python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-16x512x512.ckpt --prompt_path /path/to/prompt.txt
+python scripts/inference.py --config configs/opensora/inference/stdit_512x512x16.yaml --ckpt_path models/OpenSora-v1-HQ-16x512x512.ckpt --prompt_path /path/to/prompt.txt
 
 # Sample 64x512x512 videos
 python scripts/inference.py --config configs/opensora/inference/stdit_512x512x64.yaml --ckpt_path /path/to/your/opensora-v1.ckpt --prompt_path /path/to/prompt.txt
 ```
+> For parallel inference, please use `mpirun` or `msrun`, and append `--use_parallel=True` to the inference script referring to `scripts/run/run_infer_t2v_parallel.sh`
 
-We also provide a three-stage sampling script `run_sample_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
+We also provide a three-stage sampling script `run_sole_3stages.sh` to reduce memory limitation, which decomposes the whole pipeline into text embedding, text-to-video latent sampling, and vae decoding.
 
 For more usage on the inference script, please run `python scripts/inference.py -h`
 
@@ -323,13 +325,16 @@ After running, the text embeddings saved as npz file for each caption will be in
 If the storage budget is sufficient, you may also cache the video embedding by
 
 ```bash
-python scripts/infer_vae.py\
+python scripts/infer_vae.py \
     --csv_path /path/to/video_caption.csv  \
     --video_folder /path/to/video_folder  \
     --output_path /path/to/video_embed_folder  \
     --vae_checkpoint models/sd-vae-ft-ema.ckpt \
     --image_size 512 \
 ```
+> for parallel running, please refer to `scripts/run/run_infer_vae_parallel.sh`
+
+For more usage, please check `python scripts/infer_vae.py -h`
 
 After running, the vae latents saved as npz file for each video will be in `output_path`.
 
@@ -364,6 +369,31 @@ Finally, the training data should be like follows.
 │       ├── vid001.npz
 │       ├── vid002.npz
 │       └── ...
+
+'''
+
+Each npz file contains data for the following keys:
+- `latent_mean` mean of vae latent distribution
+- `latent_std`: std of vae latent distribution
+- `fps`: video fps
+- `ori_size`: original size (h, w) of the video
+
+After caching VAE, you can use them for STDiT training by parsing `--vae_latent_folder=/path/to/video_embed_folder` to the training script `python train.py`.
+
+#### Cache VAE for multi-resolutions (for OpenSora 1.1)
+
+If there are multiple folders named in `latent_{h}x{w}` format under the `--vae_latent_folder` folder (which is parsed to train.py), one of resolutions will selected randomly during training. For example:
+
+```
+video_embed_folder
+   ├── latent_576x1024
+   │   ├── vid001.npz
+   │   ├── vid002.npz
+   │   └── ...
+   └── latent_1024x576
+       ├── vid001.npz
+       ├── vid002.npz
+       └── ...
 ```
 
 </details>

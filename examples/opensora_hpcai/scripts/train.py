@@ -179,7 +179,7 @@ def main(args):
         img_h // VAE_S_COMPRESS,
         img_w // VAE_S_COMPRESS,
     )
-    patchify_conv3d_replace = "linear" if args.pre_patchify else "conv2d"
+    patchify_conv3d_replace = "linear" if args.pre_patchify else args.patchify
     model_extra_args = dict(
         input_size=input_size,
         in_channels=VAE_Z_CH,
