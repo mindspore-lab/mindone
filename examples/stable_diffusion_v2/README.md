@@ -582,6 +582,10 @@ Coming soon
 
 Coming soon
 
+### FAQ
+
+plaese refer to [Frequently Asked Questions](docs/en/faq.md)
+
 ## What's New
 - 2024.01.10
   - Add Textual Inversion fine-tuning
