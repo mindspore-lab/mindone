@@ -7,6 +7,7 @@ import yaml
 import mindspore as ms
 from mindspore import Model, nn
 from mindspore.train.callback import TimeMonitor
+from mindspore.communication.management import GlobalComm
 
 mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
 sys.path.insert(0, mindone_lib_path)
@@ -27,6 +28,7 @@ from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
+from mindone.trainers.adamw_zero2 import AdamWeightDecayZeRO2
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -264,15 +266,23 @@ def main(args):
     )
 
     # build optimizer
-    optimizer = create_optimizer(
-        latent_diffusion_with_loss.trainable_params(),
-        name=args.optim,
-        betas=args.betas,
+    optimizer = AdamWeightDecayZeRO2(
+        params=latent_diffusion_with_loss.trainable_params(),
+        learning_rate=lr,
         eps=args.optim_eps,
-        group_strategy=args.group_strategy,
-        weight_decay=args.weight_decay,
-        lr=lr,
+        use_parallel=True,
+        opt_parallel_group=GlobalComm.WORLD_COMM_GROUP,
+        cpu_offload=False,
     )
+    # optimizer = create_optimizer(
+    #     latent_diffusion_with_loss.trainable_params(),
+    #     name=args.optim,
+    #     betas=args.betas,
+    #     eps=args.optim_eps,
+    #     group_strategy=args.group_strategy,
+    #     weight_decay=args.weight_decay,
+    #     lr=lr,
+    # )
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
