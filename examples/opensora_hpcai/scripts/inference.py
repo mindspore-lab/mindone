@@ -209,6 +209,7 @@ def main(args):
 
     if args.ckpt_path:
         logger.info(f"Loading ckpt {args.ckpt_path} into {model_name}")
+        assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
         latte_model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"{model_name} uses random initialization!")
