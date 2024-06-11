@@ -266,23 +266,25 @@ def main(args):
     )
 
     # build optimizer
-    optimizer = AdamWeightDecayZeRO2(
-        params=latent_diffusion_with_loss.trainable_params(),
-        learning_rate=lr,
-        eps=args.optim_eps,
-        use_parallel=True,
-        opt_parallel_group=GlobalComm.WORLD_COMM_GROUP,
-        cpu_offload=False,
-    )
-    # optimizer = create_optimizer(
-    #     latent_diffusion_with_loss.trainable_params(),
-    #     name=args.optim,
-    #     betas=args.betas,
-    #     eps=args.optim_eps,
-    #     group_strategy=args.group_strategy,
-    #     weight_decay=args.weight_decay,
-    #     lr=lr,
-    # )
+    if args.use_adamzero2:
+        optimizer = AdamWeightDecayZeRO2(
+            params=latent_diffusion_with_loss.trainable_params(),
+            learning_rate=lr,
+            eps=args.optim_eps,
+            use_parallel=True,
+            opt_parallel_group=GlobalComm.WORLD_COMM_GROUP,
+            cpu_offload=False,
+        )
+    else:
+        optimizer = create_optimizer(
+            latent_diffusion_with_loss.trainable_params(),
+            name=args.optim,
+            betas=args.betas,
+            eps=args.optim_eps,
+            group_strategy=args.group_strategy,
+            weight_decay=args.weight_decay,
+            lr=lr,
+        )
 
     loss_scaler = create_loss_scaler(args)
     # resume ckpt
