@@ -189,7 +189,7 @@ def parse_args():
     )
     parser.add_argument(
         "--precision",
-        default="fp16",
+        default="bf16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
@@ -379,7 +379,7 @@ if __name__ == "__main__":
                 transformer_model,
                 amp_level=args.amp_level,
                 dtype=dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU] if args.precision == "fp16" else [],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:
