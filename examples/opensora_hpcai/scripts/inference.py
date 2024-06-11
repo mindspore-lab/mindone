@@ -170,9 +170,11 @@ def main(args):
         input_size=input_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
-        patchify_conv3d_replace=patchify_conv3d_replace,
+        patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
     )
+    if args.pre_patchify and args.model_version != "v1.1":
+        raise ValueError("`pre_patchify=True` can only be used in model version 1.1.")
 
     if args.model_version == "v1":
         model_name = "STDiT"
@@ -275,7 +277,7 @@ def main(args):
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
-        ddim_sampling=args.ddim_sampling,  # TODO: add ddim support
+        ddim_sampling=args.ddim_sampling,  # TODO: add ddim support for OpenSora v1.1
         micro_batch_size=args.vae_micro_batch_size,
     )
     if args.pre_patchify:
