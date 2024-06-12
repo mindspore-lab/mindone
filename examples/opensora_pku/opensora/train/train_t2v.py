@@ -11,7 +11,7 @@ from mindspore.train.callback import TimeMonitor
 mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
-from mindcv.optim.adamw import AdamW
+# from mindcv.optim.adamw import AdamW
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
@@ -27,6 +27,7 @@ from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, Profile
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
+from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -165,7 +166,8 @@ def main(args):
             logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16
     # load checkpoint
-    if len(args.pretrained) > 0:
+    if args.pretrained is not None and len(args.pretrained) > 0:
+        assert os.path.exists(args.pretrained), f"Provided checkpoint file {args.pretrained} does not exist!"
         logger.info(f"Loading ckpt {args.pretrained}...")
         latte_model.load_from_checkpoint(args.pretrained)
     else:
@@ -278,13 +280,14 @@ def main(args):
 
     # build optimizer
     assert args.optim.lower() == "adamw", f"Not support optimizer {args.optim}!"
-    optimizer = AdamW(
+    optimizer = create_optimizer(
         latent_diffusion_with_loss.trainable_params(),
-        learning_rate=lr,
-        beta1=args.betas[0],
-        beta2=args.betas[1],
+        name=args.optim,
+        betas=args.betas,
         eps=args.optim_eps,
+        group_strategy=args.group_strategy,
         weight_decay=args.weight_decay,
+        lr=lr,
     )
 
     loss_scaler = create_loss_scaler(args)
