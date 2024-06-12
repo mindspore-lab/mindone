@@ -503,11 +503,6 @@ class PatchEmbed(nn.Cell):
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
-        if self.image_size is not None:
-            assert (h, w) == (
-                self.image_size[0],
-                self.image_size[1],
-            ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         x = self.proj(x)
         x = ops.reshape(x, (b, self.embed_dim, -1))
         x = ops.transpose(x, (0, 2, 1))  # B Ph*Pw C
@@ -534,22 +529,11 @@ class LinearPatchEmbed(nn.Cell):
     ) -> None:
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
-        self.image_size = self.patches_resolution = self.num_patches = None
-        if image_size is not None:
-            self.image_size: Tuple = (image_size, image_size) if isinstance(image_size, int) else image_size
-            self.patches_resolution = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
-            self.num_patches = self.patches_resolution[0] * self.patches_resolution[1]
-
         self.embed_dim = embed_dim
         self.proj = nn.Dense(patch_size * patch_size * in_chans, embed_dim, has_bias=bias)
 
     def construct(self, x: Tensor) -> Tensor:
         b, c, h, w = x.shape
-        if self.image_size is not None:
-            assert (h, w) == (
-                self.image_size[0],
-                self.image_size[1],
-            ), f"Input height and width ({h},{w}) doesn't match model ({self.image_size[0]},{self.image_size[1]})."
         ph, pw = h // self.patch_size[0], w // self.patch_size[1]
         x = x.reshape((b, c, ph, self.patch_size[0], pw, self.patch_size[1]))
         x = x.transpose((0, 2, 4, 1, 3, 5))  # (B, Ph, Pw, C, P, P)
