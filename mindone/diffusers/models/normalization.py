@@ -260,7 +260,7 @@ class LayerNorm(nn.Cell):
     eps: float
     elementwise_affine: bool
 
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32, bias=True):
+    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, bias=True, dtype=ms.float32):
         super().__init__()
         if isinstance(normalized_shape, numbers.Integral):
             normalized_shape = (normalized_shape,)
@@ -270,9 +270,9 @@ class LayerNorm(nn.Cell):
         _weight = np.ones(normalized_shape, dtype=ms.dtype_to_nptype(dtype))
         _bias = np.zeros(normalized_shape, dtype=ms.dtype_to_nptype(dtype))
         if self.elementwise_affine:
-            self.weight = Parameter(ms.Tensor.from_numpy(_weight))
+            self.weight = Parameter(ms.Tensor.from_numpy(_weight), name="weight")
             if bias:
-                self.bias = Parameter(ms.Tensor.from_numpy(_bias))
+                self.bias = Parameter(ms.Tensor.from_numpy(_bias), name="bias")
             else:
                 self.bias = ms.Tensor.from_numpy(_bias)
         else:
@@ -350,8 +350,8 @@ class GroupNorm(nn.Cell):
         weight = initializer("ones", num_channels, dtype=dtype)
         bias = initializer("zeros", num_channels, dtype=dtype)
         if self.affine:
-            self.weight = Parameter(weight)
-            self.bias = Parameter(bias)
+            self.weight = Parameter(weight, name="weight")
+            self.bias = Parameter(bias, name="bias")
         else:
             self.weight = None
             self.bias = None
@@ -415,7 +415,6 @@ def _group_norm(x, num_groups, weight, bias, eps):
     x = x.reshape(x_shape)
 
     if weight is not None and bias is not None:
-        weight, bias = weight.to(x.dtype), bias.to(x.dtype)
         expanded_shape = (1, -1) + (1,) * len(x_shape[2:])
         x = x * weight.reshape(expanded_shape) + bias.reshape(expanded_shape)
 
