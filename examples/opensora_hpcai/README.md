@@ -440,12 +440,14 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir=$output_d
     --use_parallel True
 ```
 
-> [!TIP]
-> OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
-> This can be enabled in one of two ways:
-> 1. Provide variable sized VAE embeddings with the `--vae_latent_folder` option.
-> 2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be
-     found in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-only).
+#### Multi-Resolution Training
+
+OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
+This can be enabled in one of two ways:
+
+1. Provide variable sized VAE embeddings with the `--vae_latent_folder` option.
+2. Use `bucket_config` for training with videos in their original format. More on the bucket configuration can be found
+   in [Multi-resolution Training with Buckets](./docs/quick_start.md#4-multi-resolution-training-with-buckets-opensora-v11-only).
 
 
 ### Open-Sora 1.0 Training
