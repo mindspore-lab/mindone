@@ -188,6 +188,10 @@ def main(args):
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
+
+    if args.pre_patchify and args.model_version != "v1.1":
+        raise ValueError("`pre_patchify=True` can only be used in model version 1.1.")
+
     if args.model_version == "v1":
         model_extra_args.update(
             {
