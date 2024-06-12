@@ -14,15 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
+import gc
+import json
 import os
+import re
 import warnings
-from typing import Callable, Optional, Tuple, Union
+from contextlib import contextmanager, nullcontext
+from typing import Callable, Dict, Optional, Tuple, Union
 
-import numpy as np
 from transformers.configuration_utils import PretrainedConfig
+from transformers.dynamic_module_utils import custom_object_save
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
+    ADAPTER_SAFE_WEIGHTS_NAME,
+    ADAPTER_WEIGHTS_NAME,
     CONFIG_NAME,
+    DUMMY_INPUTS,
     FLAX_WEIGHTS_NAME,
     SAFE_WEIGHTS_INDEX_NAME,
     SAFE_WEIGHTS_NAME,
@@ -40,21 +47,63 @@ from transformers.utils import (
     is_safetensors_available,
     logging,
 )
-from transformers.utils.hub import get_checkpoint_shard_files
+from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 import mindspore as ms
-from mindspore import Tensor
-from mindspore import dtype as mstype
-from mindspore import nn, ops
+from mindspore import Tensor, nn, ops
 
 from .integrations import PeftAdapterMixin
+from .modeling_attn_mask_utils import dtype_to_min
 
 if is_safetensors_available():
     from safetensors import safe_open
 
     from mindone.safetensors.mindspore import load_file as safe_load_file
+    from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
+
+_init_weights = True
+
+
+def _get_pt2ms_mappings(m):
+    mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
+    for name, cell in m.cells_and_names():
+        if isinstance(cell, nn.Conv1d):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
+        elif isinstance(cell, nn.Embedding):
+            mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
+        elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
+            mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
+            mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
+            if isinstance(cell, (nn.BatchNorm2d,)):
+                mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
+                mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
+                mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+    return mappings
+
+
+def _convert_state_dict(m, state_dict_pt):
+    if not state_dict_pt:
+        return state_dict_pt
+    pt2ms_mappings = _get_pt2ms_mappings(m)
+    state_dict_ms = {}
+    while state_dict_pt:
+        name_pt, data_pt = state_dict_pt.popitem()
+        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        data_ms = data_mapping(data_pt)
+        if name_ms is not None:
+            state_dict_ms[name_ms] = data_ms
+    return state_dict_ms
+
+
+@contextmanager
+def silence_mindspore_logger():
+    ms_logger = ms.log._get_logger()
+    ms_level = ms_logger.level
+    ms_logger.setLevel("ERROR")
+    yield
+    ms_logger.setLevel(ms_level)
 
 
 def get_parameter_dtype(parameter: Union[nn.Cell, "ModuleUtilsMixin"]):
@@ -69,6 +118,104 @@ def get_parameter_dtype(parameter: Union[nn.Cell, "ModuleUtilsMixin"]):
 
     # if no floating dtype was found return whatever the first dtype is
     return last_dtype
+
+
+def get_state_dict_dtype(state_dict):
+    """
+    Returns the first found floating dtype in `state_dict` if there is one, otherwise returns the first dtype.
+    """
+    for t in state_dict.values():
+        if t.is_floating_point():
+            return t.dtype
+
+    # if no floating dtype was found return whatever the first dtype is
+    return next(state_dict.values()).dtype
+
+
+def dtype_byte_size(dtype):
+    """
+    Returns the size (in bytes) occupied by one parameter of type `dtype`.
+
+    Example:
+
+    ```py
+    >>> dtype_byte_size(ms.float32)
+    4
+    ```
+    """
+    if dtype == ms.bool_:
+        return 1 / 8
+    bit_search = re.search(r"[^\d](\d+)$", str(dtype))
+    if bit_search is None:
+        raise ValueError(f"`dtype` is not a valid dtype: {dtype}.")
+    bit_size = int(bit_search.groups()[0])
+    return bit_size // 8
+
+
+def shard_checkpoint(
+    state_dict: Dict[str, ms.Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
+):
+    """
+    Splits a model state dictionary in sub-checkpoints so that the final size of each sub-checkpoint does not exceed a
+    given size.
+
+    The sub-checkpoints are determined by iterating through the `state_dict` in the order of its keys, so there is no
+    optimization made to make each sub-checkpoint as close as possible to the maximum size passed. For example, if the
+    limit is 10GB and we have weights of sizes [6GB, 6GB, 2GB, 6GB, 2GB, 2GB] they will get sharded as [6GB], [6+2GB],
+    [6+2+2GB] and not [6+2+2GB], [6+2GB], [6GB].
+
+    <Tip warning={true}>
+
+    If one of the model's weight is bigger than `max_shard_size`, it will end up in its own sub-checkpoint which will
+    have a size greater than `max_shard_size`.
+
+    </Tip>
+
+    Args:
+        state_dict (`Dict[str, torch.Tensor]`): The state dictionary of a model to save.
+        max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
+            The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
+            (like `"5MB"`).
+        weights_name (`str`, *optional*, defaults to `"pytorch_model.bin"`):
+            The name of the model save file.
+    """
+    max_shard_size = convert_file_size_to_int(max_shard_size)
+
+    sharded_state_dicts = [{}]
+    last_block_size = 0
+    total_size = 0
+
+    for key, weight in state_dict.items():
+        weight_size = weight.numel() * dtype_byte_size(weight.dtype)
+
+        # If this weight is going to tip up over the maximal size, we split, but only if we have put at least one
+        # weight in the current shard.
+        if last_block_size + weight_size > max_shard_size and len(sharded_state_dicts[-1]) > 0:
+            sharded_state_dicts.append({})
+            last_block_size = 0
+
+        sharded_state_dicts[-1][key] = weight
+        last_block_size += weight_size
+        total_size += weight_size
+
+    # If we only have one shard, we return it
+    if len(sharded_state_dicts) == 1:
+        return {weights_name: sharded_state_dicts[0]}, None
+
+    # Otherwise, let's build the index
+    weight_map = {}
+    shards = {}
+    for idx, shard in enumerate(sharded_state_dicts):
+        shard_file = weights_name.replace(".bin", f"-{idx+1:05d}-of-{len(sharded_state_dicts):05d}.bin")
+        shard_file = shard_file.replace(".safetensors", f"-{idx + 1:05d}-of-{len(sharded_state_dicts):05d}.safetensors")
+        shards[shard_file] = shard
+        for key in shard.keys():
+            weight_map[key] = shard_file
+
+    # Add the metadata
+    metadata = {"total_size": total_size}
+    index = {"metadata": metadata, "weight_map": weight_map}
+    return shards, index
 
 
 def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
@@ -110,6 +257,43 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
             )
 
 
+def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
+    # add prefix to the name of parameters
+    if len(start_prefix) > 0:
+        for name, param in model_to_load.parameters_and_names():
+            if param.name != name:
+                logger.error(
+                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
+                    f"There are several possible reasons for this misalignment:\n"
+                    f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
+                    f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
+                    f"If you encounter this error, please report it to the developer."
+                )
+            param.name = start_prefix + name
+
+    # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
+    #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
+    # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
+    error_msgs = []
+    # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
+    for k, v in state_dict.items():
+        if k in local_state:
+            v.set_dtype(local_state[k].dtype)
+        else:
+            pass  # unexpect key keeps origin dtype
+    cm = silence_mindspore_logger() if is_sharded else nullcontext()
+    with cm:
+        ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+
+    # remove prefix from the name of parameters
+    if len(start_prefix) > 0:
+        for name, param in model_to_load.parameters_and_names():
+            param.name = name
+
+    return error_msgs
+
+
 def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
     if variant is not None:
         splits = weights_name.split(".")
@@ -146,40 +330,6 @@ class ModuleUtilsMixin:
         """
         return get_parameter_dtype(self)
 
-    def num_parameters(self, only_trainable: bool = False, exclude_embeddings: bool = False) -> int:
-        """
-        Get number of (optionally, trainable or non-embeddings) parameters in the module.
-
-        Args:
-            only_trainable (`bool`, *optional*, defaults to `False`):
-                Whether or not to return only the number of trainable parameters
-
-            exclude_embeddings (`bool`, *optional*, defaults to `False`):
-                Whether or not to return only the number of non-embeddings parameters
-
-        Returns:
-            `int`: The number of parameters.
-        """
-
-        if exclude_embeddings:
-            embedding_param_names = [
-                f"{name}.weight"
-                for name, module_type in self.cells_and_names()
-                if isinstance(module_type, nn.Embedding)
-            ]
-            total_parameters = [
-                parameter for name, parameter in self.cells_and_names() if name not in embedding_param_names
-            ]
-        else:
-            total_parameters = list(self.get_parameters())
-
-        total_numel = []
-        for param in total_parameters:
-            if param.requires_grad or not only_trainable:
-                total_numel.append(param.numel())
-
-        return sum(total_numel)
-
     def invert_attention_mask(self, encoder_attention_mask: Tensor) -> Tensor:
         """
         Invert an attention mask (e.g., switches 0. and 1.).
@@ -193,10 +343,8 @@ class ModuleUtilsMixin:
         encoder_extended_attention_mask = None
         if encoder_attention_mask.dim() == 3:
             encoder_extended_attention_mask = encoder_attention_mask[:, None, :, :]
-
         if encoder_attention_mask.dim() == 2:
             encoder_extended_attention_mask = encoder_attention_mask[:, None, None, :]
-
         # T5 has a mask that can compare sequence ids, we can simulate this here with this transposition
         # Cf. https://github.com/tensorflow/mesh/blob/8d2465e9bc93129b913b5ccc6a59aa97abd96ec6/mesh_tensorflow
         # /transformer/transformer_layers.py#L270
@@ -204,9 +352,7 @@ class ModuleUtilsMixin:
         # encoder_extended_attention_mask.transpose(-1, -2))
         if encoder_extended_attention_mask is not None:
             encoder_extended_attention_mask = encoder_extended_attention_mask.to(dtype=self.dtype)  # fp16 compatibility
-            encoder_extended_attention_mask = (1.0 - encoder_extended_attention_mask) * Tensor(
-                np.finfo(mstype.dtype_to_nptype(self.dtype)).min
-            )
+            encoder_extended_attention_mask = (1.0 - encoder_extended_attention_mask) * dtype_to_min(self.dtype)
 
         return encoder_extended_attention_mask
 
@@ -228,12 +374,11 @@ class ModuleUtilsMixin:
             )
 
         # extended_attention_mask = causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
-        # extended_attention_mask = ops.mul(causal_mask[:, None, :, :], attention_mask[:, None, None, :])
         extended_attention_mask = ops.mul(causal_mask.unsqueeze(1), attention_mask.unsqueeze(1).unsqueeze(1))
         return extended_attention_mask
 
     def get_extended_attention_mask(
-        self, attention_mask: Tensor, input_shape: Tuple[int], decoder_type, dtype: ms.float32 = None
+        self, attention_mask: Tensor, input_shape: Tuple[int], dtype: ms.float32 = None
     ) -> Tensor:
         """
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
@@ -258,7 +403,7 @@ class ModuleUtilsMixin:
             # Provided a padding mask of dimensions [batch_size, seq_length]
             # - if the model is a decoder, apply a causal mask in addition to the padding mask
             # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
-            if decoder_type:
+            if self.is_decoder:
                 extended_attention_mask = ModuleUtilsMixin.create_extended_attention_mask_for_decoder(
                     input_shape, attention_mask
                 )
@@ -274,8 +419,8 @@ class ModuleUtilsMixin:
         # positions we want to attend and the dtype's smallest value for masked positions.
         # Since we are adding it to the raw scores before the softmax, this is
         # effectively the same as removing these entirely.
-        extended_attention_mask = extended_attention_mask.to(dtype)  # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * Tensor(np.finfo(mstype.dtype_to_nptype(dtype)).min)
+        extended_attention_mask = extended_attention_mask.to(dtype=dtype)  # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * dtype_to_min(dtype)
         return extended_attention_mask
 
     def get_head_mask(
@@ -309,12 +454,46 @@ class ModuleUtilsMixin:
         """-> [num_hidden_layers x batch x num_heads x seq_length x seq_length]"""
         if head_mask.dim() == 1:
             head_mask = head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-            head_mask = head_mask.broadcast_to(num_hidden_layers, -1, -1, -1, -1)
+            head_mask = head_mask.tile((num_hidden_layers, 1, 1, 1, 1))
         elif head_mask.dim() == 2:
             head_mask = head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)  # We can specify head_mask for each layer
         assert head_mask.dim() == 5, f"head_mask.dim != 5, instead {head_mask.dim()}"
-        head_mask = Tensor(head_mask, self.dtype)  # switch to float if need + fp16 compatibility
+        head_mask = head_mask.to(dtype=self.dtype)  # switch to float if need + fp16 compatibility
         return head_mask
+
+    def num_parameters(self, only_trainable: bool = False, exclude_embeddings: bool = False) -> int:
+        """
+        Get number of (optionally, trainable or non-embeddings) parameters in the module.
+
+        Args:
+            only_trainable (`bool`, *optional*, defaults to `False`):
+                Whether or not to return only the number of trainable parameters
+
+            exclude_embeddings (`bool`, *optional*, defaults to `False`):
+                Whether or not to return only the number of non-embeddings parameters
+
+        Returns:
+            `int`: The number of parameters.
+        """
+
+        if exclude_embeddings:
+            embedding_param_names = [
+                f"{name}.weight"
+                for name, module_type in self.cells_and_names()
+                if isinstance(module_type, nn.Embedding)
+            ]
+            total_parameters = [
+                parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
+            ]
+        else:
+            total_parameters = list(self.get_parameters())
+
+        total_numel = []
+        for param in total_parameters:
+            if param.requires_grad or not only_trainable:
+                total_numel.append(param.numel())
+
+        return sum(total_numel)
 
 
 class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
@@ -344,9 +523,12 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         - **main_input_name** (`str`) -- The name of the principal input to the model (often `input_ids` for NLP
           models, `pixel_values` for vision models and `input_values` for speech models).
     """
+
     config_class = None
     base_model_prefix = ""
     main_input_name = "input_ids"
+    model_tags = None
+
     _auto_class = None
     _no_split_modules = None
     _skip_keys_device_placement = None
@@ -362,9 +544,27 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
     # a list of `state_dict` keys to ignore when saving the model (useful for keys that aren't
     # trained, but which are either deterministic or tied variables)
     _keys_to_ignore_on_save = None
+    # a list of `state_dict` keys that are potentially tied to another key in the state_dict.
+    _tied_weights_keys = None
 
     is_parallelizable = False
     supports_gradient_checkpointing = False
+
+    # Flash Attention 2 support
+    _supports_flash_attn_2 = False
+
+    # SDPA support
+    _supports_sdpa = False
+
+    # Has support for a `Cache` instance as `past_key_values`
+    _supports_cache_class = False
+
+    @property
+    def dummy_inputs(self) -> Dict[str, ms.Tensor]:
+        """
+        `Dict[str, torch.Tensor]`: Dummy inputs to do a forward pass in the network.
+        """
+        return {"input_ids": ms.tensor(DUMMY_INPUTS)}
 
     @property
     def framework(self) -> str:
@@ -386,13 +586,48 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         self.name_or_path = config.name_or_path
         self.warnings_issued = {}
         self.generation_config = None
+        # Overwrite the class attribute to make it an instance attribute, so models like
+        # `InstructBlipForConditionalGeneration` can dynamically update it without modifying the class attribute
+        # when a different component (e.g. language_model) is used.
+        self._keep_in_fp32_modules = copy.copy(self.__class__._keep_in_fp32_modules)
 
     def post_init(self):
         """
         A method executed at the end of each Transformer model initialization, to execute code that needs the model's
         modules properly initialized (such as weight initialization).
         """
+        self.init_weights()
+
+    def _init_weights(self, module):
+        """
+        Initialize the weights. This method should be overridden by derived class and is
+        the only initialization method that will be called when loading a checkpoint
+        using `from_pretrained`. Any attempt to initialize outside of this function
+        will be useless as the torch.nn.init function are all replaced with skip.
+        """
         pass
+
+    def _initialize_weights(self, module):
+        """
+        Initialize the weights if they are not already initialized.
+        """
+        if getattr(module, "_is_hf_initialized", False):
+            return
+        self._init_weights(module)
+        module._is_hf_initialized = True
+
+    def init_weights(self):
+        """
+        If needed prunes and maybe initializes weights. If using a custom `PreTrainedModel`, you need to implement any
+        initialization logic in `_init_weights`.
+        """
+        if _init_weights:
+            # Initialize weights
+            self.apply(self._initialize_weights)
+
+        # MindSpore patch. Refresh name of parameters.
+        for name, param in self.parameters_and_names():
+            param.name = name
 
     def save_pretrained(
         self,
@@ -408,7 +643,198 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         save_peft_format: bool = True,
         **kwargs,
     ):
-        logger.warning(f"{self.__class__.__name__}.save_pretrained is not implemented.")
+        """
+        Save a model and its configuration file to a directory, so that it can be re-loaded using the
+        [`~PreTrainedModel.from_pretrained`] class method.
+
+        Arguments:
+            save_directory (`str` or `os.PathLike`):
+                Directory to which to save. Will be created if it doesn't exist.
+            is_main_process (`bool`, *optional*, defaults to `True`):
+                Whether the process calling this is the main process or not. Useful when in distributed training like
+                TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
+                the main process to avoid race conditions.
+            state_dict (nested dictionary of `torch.Tensor`):
+                The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
+                save parts of the model or if special precautions need to be taken when recovering the state dictionary
+                of a model (like when using model parallelism).
+            save_function (`Callable`):
+                The function to use to save the state dictionary. Useful on distributed training like TPUs when one
+                need to replace `torch.save` by another method.
+            push_to_hub (`bool`, *optional*, defaults to `False`):
+                Whether or not to push your model to the Hugging Face model hub after saving it. You can specify the
+                repository you want to push to with `repo_id` (will default to the name of `save_directory` in your
+                namespace).
+            max_shard_size (`int` or `str`, *optional*, defaults to `"5GB"`):
+                The maximum size for a checkpoint before being sharded. Checkpoints shard will then be each of size
+                lower than this size. If expressed as a string, needs to be digits followed by a unit (like `"5MB"`).
+                We default it to 5GB in order for models to be able to run easily on free-tier google colab instances
+                without CPU OOM issues.
+
+                <Tip warning={true}>
+
+                If a single weight of the model is bigger than `max_shard_size`, it will be in its own checkpoint shard
+                which will be bigger than `max_shard_size`.
+
+                </Tip>
+
+            safe_serialization (`bool`, *optional*, defaults to `True`):
+                Whether to save the model using `safetensors` or the traditional PyTorch way (that uses `pickle`).
+            variant (`str`, *optional*):
+                If specified, weights are saved in the format pytorch_model.<variant>.bin.
+            token (`str` or `bool`, *optional*):
+                The token to use as HTTP bearer authorization for remote files. If `True`, or not specified, will use
+                the token generated when running `huggingface-cli login` (stored in `~/.huggingface`).
+            save_peft_format (`bool`, *optional*, defaults to `True`):
+                For backward compatibility with PEFT library, in case adapter weights are attached to the model, all
+                keys of the state dict of adapters needs to be pre-pended with `base_model.model`. Advanced users can
+                disable this behaviours by setting `save_peft_format` to `False`.
+            kwargs (`Dict[str, Any]`, *optional*):
+                Additional key word arguments passed along to the [`~utils.PushToHubMixin.push_to_hub`] method.
+        """
+        use_auth_token = kwargs.pop("use_auth_token", None)
+
+        if use_auth_token is not None:
+            warnings.warn(
+                "The `use_auth_token` argument is deprecated and will be removed in v5 of Transformers. Please use `token` instead.",
+                FutureWarning,
+            )
+            if token is not None:
+                raise ValueError(
+                    "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
+                )
+            token = use_auth_token
+
+        if token is not None:
+            kwargs["token"] = token
+
+        _hf_peft_config_loaded = getattr(self, "_hf_peft_config_loaded", False)
+
+        if "save_config" in kwargs:
+            warnings.warn(
+                "`save_config` is deprecated and will be removed in v5 of Transformers. Use `is_main_process` instead."
+            )
+            is_main_process = kwargs.pop("save_config")
+        if safe_serialization and not is_safetensors_available():
+            raise ImportError("`safe_serialization` requires the `safetensors library: `pip install safetensors`.")
+
+        if os.path.isfile(save_directory):
+            logger.error(f"Provided path ({save_directory}) should be a directory, not a file")
+            return
+
+        os.makedirs(save_directory, exist_ok=True)
+
+        # Only save the model itself if we are using distributed training
+        model_to_save = self  # we don't unwrap_model(self) in mindspore
+
+        # save the string version of dtype to the config, e.g. convert torch.float32 => "float32"
+        # we currently don't use this setting automatically, but may start to use with v5
+        dtype = get_parameter_dtype(model_to_save)
+        model_to_save.config.torch_dtype = repr(dtype).split(".")[1]
+
+        # Attach architecture to the config
+        model_to_save.config.architectures = [model_to_save.__class__.__name__]
+
+        # If we have a custom model, we copy the file defining it in the folder and set the attributes so it can be
+        # loaded from the Hub.
+        if self._auto_class is not None:
+            custom_object_save(self, save_directory, config=self.config)
+
+        # Save the config
+        if is_main_process:
+            if not _hf_peft_config_loaded:
+                model_to_save.config.save_pretrained(save_directory)
+
+            if _hf_peft_config_loaded:
+                logger.info(
+                    "Detected adapters on the model, saving the model in the PEFT format, only adapter weights will be saved."
+                )
+                state_dict = model_to_save.get_adapter_state_dict()
+
+                if save_peft_format:
+                    logger.info(
+                        "To match the expected format of the PEFT library, all keys of the state dict of adapters will be pre-pended with `base_model.model`."
+                    )
+                    peft_state_dict = {}
+                    for key, value in state_dict.items():
+                        peft_state_dict[f"base_model.model.{key}"] = value
+                    state_dict = peft_state_dict
+
+                active_adapter = self.active_adapters()
+
+                if len(active_adapter) > 1:
+                    raise ValueError(
+                        "Multiple active adapters detected, saving multiple active adapters is not supported yet. You can save adapters separately one by one "
+                        "by iteratively calling `model.set_adapter(adapter_name)` then `model.save_pretrained(...)`"
+                    )
+                active_adapter = active_adapter[0]
+
+                current_peft_config = self.peft_config[active_adapter]
+                current_peft_config.save_pretrained(save_directory)
+
+        # Save the model
+        if state_dict is None:
+            state_dict = {k: v for k, v in model_to_save.parameters_and_names()}
+
+        # Handle the case where some state_dict keys shouldn't be saved
+        if self._keys_to_ignore_on_save is not None:
+            for ignore_key in self._keys_to_ignore_on_save:
+                if ignore_key in state_dict.keys():
+                    del state_dict[ignore_key]
+
+        # Shard the model if it is too big.
+        if not _hf_peft_config_loaded:
+            weights_name = SAFE_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
+            weights_name = _add_variant(weights_name, variant)
+        else:
+            weights_name = ADAPTER_SAFE_WEIGHTS_NAME if safe_serialization else ADAPTER_WEIGHTS_NAME
+
+        shards, index = shard_checkpoint(state_dict, max_shard_size=max_shard_size, weights_name=weights_name)
+
+        # Clean the folder from a previous save
+        for filename in os.listdir(save_directory):
+            full_filename = os.path.join(save_directory, filename)
+            # If we have a shard file that is not going to be replaced, we delete it, but only from the main process
+            # in distributed settings to avoid race conditions.
+            weights_no_suffix = weights_name.replace(".bin", "").replace(".safetensors", "")
+
+            # make sure that file to be deleted matches format of sharded file, e.g. pytorch_model-00001-of-00005
+            filename_no_suffix = filename.replace(".bin", "").replace(".safetensors", "")
+            reg = re.compile(r"(.*?)-\d{5}-of-\d{5}")
+
+            if (
+                filename.startswith(weights_no_suffix)
+                and os.path.isfile(full_filename)
+                and filename not in shards.keys()
+                and is_main_process
+                and reg.fullmatch(filename_no_suffix) is not None
+            ):
+                os.remove(full_filename)
+
+        # Save the model
+        for shard_file, shard in shards.items():
+            if safe_serialization:
+                # At some point we will need to deal better with save_function (used for TPU and other distributed
+                # joyfulness), but for now this enough.
+                safe_save_file(shard, os.path.join(save_directory, shard_file), metadata={"format": "np"})
+            else:
+                save_function(shard, os.path.join(save_directory, shard_file))
+
+        if index is None:
+            path_to_weights = os.path.join(save_directory, weights_name)
+            logger.info(f"Model weights saved in {path_to_weights}")
+        else:
+            save_index_file = SAFE_WEIGHTS_INDEX_NAME if safe_serialization else WEIGHTS_INDEX_NAME
+            save_index_file = os.path.join(save_directory, _add_variant(save_index_file, variant))
+            # Save the index as well
+            with open(save_index_file, "w", encoding="utf-8") as f:
+                content = json.dumps(index, indent=2, sort_keys=True) + "\n"
+                f.write(content)
+            logger.info(
+                f"The model is bigger than the maximum size per checkpoint ({max_shard_size}) and is going to be "
+                f"split in {len(shards)} checkpoint shards. You can find where each parameters has been saved in the "
+                f"index located at {save_index_file}."
+            )
 
     @classmethod
     def from_pretrained(
@@ -521,22 +947,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 Mirror source to accelerate downloads in China. If you are from China and have an accessibility
                 problem, you can set this option to resolve it. Note that we do not guarantee the timeliness or safety.
                 Please refer to the mirror site for more information.
-            _fast_init(`bool`, *optional*, defaults to `True`):
-                Whether or not to disable fast initialization.
-
-                <Tip warning={true}>
-
-                One should only disable *_fast_init* to ensure backwards compatibility with `transformers.__version__ <
-                4.6.0` for seeded model initialization. This argument will be removed at the next major version. See
-                [pull request 11471](https://github.com/huggingface/transformers/pull/11471) for more information.
-
-                </Tip>
-
-            > Parameters for big model inference
-
-            low_cpu_mem_usage(`bool`, *optional*):
-                Tries to not use more than 1x model size in CPU memory (including peak memory) while loading the model.
-                This is an experimental feature and a subject to change at any moment.
             mindspore_dtype (`str` or `mindspore.Type`, *optional*):
                 Override the default `mindspore.Type` and load the model under a specific `dtype`. The different options
                 are:
@@ -559,31 +969,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
                 </Tip>
 
-            device_map (`str` or `Dict[str, Union[int, str, torch.device]]` or `int` or `torch.device`, *optional*):
-                A map that specifies where each submodule should go. It doesn't need to be refined to each
-                parameter/buffer name, once a given module name is inside, every submodule of it will be sent to the
-                same device. If we only pass the device (*e.g.*, `"cpu"`, `"cuda:1"`, `"mps"`, or a GPU ordinal rank
-                like `1`) on which the model will be allocated, the device map will map the entire model to this
-                device. Passing `device_map = 0` means put the whole model on GPU 0.
-
-                To have Accelerate compute the most optimized `device_map` automatically, set `device_map="auto"`. For
-                more information about each option see [designing a device
-                map](https://hf.co/docs/accelerate/main/en/usage_guides/big_modeling#designing-a-device-map).
-            max_memory (`Dict`, *optional*):
-                A dictionary device identifier to maximum memory. Will default to the maximum memory available for each
-                GPU and the available CPU RAM if unset.
-            offload_folder (`str` or `os.PathLike`, *optional*):
-                If the `device_map` contains any value `"disk"`, the folder where we will offload weights.
-            offload_state_dict (`bool`, *optional*):
-                If `True`, will temporarily offload the CPU state dict to the hard drive to avoid getting out of CPU
-                RAM if the weight of the CPU state dict + the biggest shard of the checkpoint does not fit. Defaults to
-                `True` when there is some disk offload.
-            quantization_config (`Union[QuantizationConfigMixin,Dict]`, *optional*):
-                A dictionary of configuration parameters or a QuantizationConfigMixin object for quantization (e.g
-                bitsandbytes, gptq). There may be other quantization-related kwargs, including `load_in_4bit` and
-                `load_in_8bit`, which are parsed by QuantizationConfigParser. Supported only for bitsandbytes
-                quantizations and not preferred. consider inserting all such arguments into quantization_config
-                instead.
             subfolder (`str`, *optional*, defaults to `""`):
                 In case the relevant files are located inside a subfolder of the model repo on huggingface.co, you can
                 specify the folder name here.
@@ -661,8 +1046,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         from_pipeline = kwargs.pop("_from_pipeline", None)
         from_auto_class = kwargs.pop("_from_auto", False)
         mindspore_dtype = kwargs.pop("mindspore_dtype", None)
-        offload_folder = kwargs.pop("offload_folder", None)
-        offload_state_dict = kwargs.pop("offload_state_dict", False)
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
@@ -752,6 +1135,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         sharded_metadata = None
         # Load model
         loading_info = None
+
+        # Keep in fp32 modules
+        keep_in_fp32_modules = None
+        use_keep_in_fp32_modules = False
 
         if pretrained_model_name_or_path is not None:
             pretrained_model_name_or_path = str(pretrained_model_name_or_path)
@@ -970,7 +1357,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
         # We'll need to download and cache each checkpoint shard if the checkpoint is sharded.
         if is_sharded:
-            # rsolved_archive_file becomes a list of files that point to the different checkpoint shards in this case.
+            # resolved_archive_file becomes a list of files that point to the different checkpoint shards in this case.
             resolved_archive_file, sharded_metadata = get_checkpoint_shard_files(
                 pretrained_model_name_or_path,
                 resolved_archive_file,
@@ -1015,43 +1402,83 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 # Time to load the checkpoint
                 state_dict = load_state_dict(resolved_archive_file)
 
+            # set dtype to instantiate the model under:
+            # 1. If mindspore_dtype is not None, we use that dtype
+            # 2. If mindspore_dtype is "auto", we auto-detect dtype from the loaded state_dict, by checking its first
+            #    weights entry that is of a floating type - we assume all floating dtype weights are of the same dtype
+            # we also may have config.torch_dtype available, but we won't rely on it till v5
+
+            if mindspore_dtype is not None:
+                if isinstance(mindspore_dtype, str):
+                    if mindspore_dtype == "auto":
+                        if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
+                            mindspore_dtype = config.torch_dtype
+                            logger.info(f"Will use dtype={mindspore_dtype} as defined in model's config object")
+                        else:
+                            if is_sharded and "dtype" in sharded_metadata:
+                                mindspore_dtype = sharded_metadata["dtype"]
+                            elif not is_sharded:
+                                mindspore_dtype = get_state_dict_dtype(state_dict)
+                            else:
+                                one_state_dict = load_state_dict(resolved_archive_file[0])
+                                mindspore_dtype = get_state_dict_dtype(one_state_dict)
+                                del one_state_dict  # free CPU memory
+                            logger.info(
+                                f"Since the `torch_dtype` attribute can't be found in model's config object, "
+                                f"will use dtype={mindspore_dtype} as derived from model's weights"
+                            )
+                    else:
+                        raise ValueError(
+                            f'`mindspore_dtype` can be either `ms.Type` or `"auto"`, but received {mindspore_dtype}'
+                        )
+                # TODO: We cannot set default mindspore dtype!
+
+            # Check if `_keep_in_fp32_modules` is not None
+            use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
+
             if is_sharded:
                 loaded_state_dict_keys = sharded_metadata["all_checkpoint_keys"]
-                for sharded_file in resolved_archive_file:
-                    if state_dict is None:
-                        state_dict = safe_load_file(sharded_file)
-                    else:
-                        state_dict.update(safe_load_file(sharded_file))
             else:
                 loaded_state_dict_keys = list(state_dict.keys())
 
         config.name_or_path = pretrained_model_name_or_path
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in from_pretrained.
         model = cls(config, *model_args, **model_kwargs)
-
-        # todo: load state_dict into model
-        (
-            model,
-            missing_keys,
-            unexpected_keys,
-            mismatched_keys,
-            offload_index,
-            error_msgs,
-        ) = cls._load_pretrained_model(
-            model,
-            state_dict,
-            loaded_state_dict_keys,  # XXX: rename?
-            resolved_archive_file,
-            pretrained_model_name_or_path,
-            ignore_mismatched_sizes=ignore_mismatched_sizes,
-            sharded_metadata=sharded_metadata,
-            offload_folder=offload_folder,
-            offload_state_dict=offload_state_dict,
-            dtype=mindspore_dtype,
-        )
-
+        # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
+
+        # make sure we use the model's config since the __init__ call might have copied it
+        config = model.config
+
+        # Check first if we are `from_pt`
+        if use_keep_in_fp32_modules:
+            keep_in_fp32_modules = model._keep_in_fp32_modules
+        else:
+            keep_in_fp32_modules = []
+
+        if from_tf:
+            raise NotImplementedError("loading tf checkpoint in mindspore model is not yet supported.")
+        elif from_flax:
+            raise NotImplementedError("loading flax checkpoint in mindspore model is not yet supported.")
+        elif from_pt:
+            (
+                model,
+                missing_keys,
+                unexpected_keys,
+                mismatched_keys,
+                error_msgs,
+            ) = cls._load_pretrained_model(
+                model,
+                state_dict,
+                loaded_state_dict_keys,  # XXX: rename?
+                resolved_archive_file,
+                pretrained_model_name_or_path,
+                ignore_mismatched_sizes=ignore_mismatched_sizes,
+                sharded_metadata=sharded_metadata,
+                dtype=mindspore_dtype,
+                keep_in_fp32_modules=keep_in_fp32_modules,
+            )
 
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
@@ -1078,51 +1505,199 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         pretrained_model_name_or_path,
         ignore_mismatched_sizes=False,
         sharded_metadata=None,
-        offload_folder=None,
-        offload_state_dict=None,
         dtype=None,
+        keep_in_fp32_modules=None,
     ):
-        def get_pt2ms_mappings(m):
-            mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
-            for name, cell in m.cells_and_names():
-                if isinstance(cell, nn.Conv1d):
-                    mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
-                elif isinstance(cell, nn.Embedding):
-                    if "shared" in name:
-                        str_loaded_keys = "".join(loaded_keys)
-                        if "decoder" in str_loaded_keys:
-                            mappings[f"{name}.weight"] = (
-                                "decoder.embed_tokens.embedding_table",
-                                lambda x: x,
-                            )
+        loaded_keys = [_get_pt2ms_mappings(model).get(k, (k, None))[0] for k in loaded_keys]
+        # Retrieve missing & unexpected_keys
+        model_state_dict = {k: v for k, v in model.parameters_and_names()}
+        expected_keys = list(model_state_dict.keys())
+        prefix = model.base_model_prefix
+        original_loaded_keys = loaded_keys
+
+        if len(prefix) > 0:
+            has_prefix_module = any(s.startswith(prefix) for s in loaded_keys)
+            expects_prefix_module = any(s.startswith(prefix) for s in expected_keys)
+        else:
+            has_prefix_module = False
+            expects_prefix_module = False
+
+        # key re-naming operations are never done on the keys
+        # that are loaded, but always on the keys of the newly initialized model
+        remove_prefix_from_model = not has_prefix_module and expects_prefix_module
+        add_prefix_to_model = has_prefix_module and not expects_prefix_module
+
+        if remove_prefix_from_model:
+            _prefix = f"{prefix}."
+            expected_keys_not_prefixed = [s for s in expected_keys if not s.startswith(_prefix)]
+            expected_keys = [s[len(_prefix) :] if s.startswith(_prefix) else s for s in expected_keys]
+        elif add_prefix_to_model:
+            expected_keys = [".".join([prefix, s]) for s in expected_keys]
+
+        missing_keys = sorted(set(expected_keys) - set(loaded_keys))
+        unexpected_keys = set(loaded_keys) - set(expected_keys)
+
+        # Some models may have keys that are not in the state by design, removing them before needlessly warning
+        # the user.
+        if cls._keys_to_ignore_on_load_missing is not None:
+            for pat in cls._keys_to_ignore_on_load_missing:
+                missing_keys = [k for k in missing_keys if re.search(pat, k) is None]
+
+        if cls._keys_to_ignore_on_load_unexpected is not None:
+            for pat in cls._keys_to_ignore_on_load_unexpected:
+                unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
+
+        # Set some modules to fp32 if any
+        if keep_in_fp32_modules is not None:
+            for name, param in model.parameters_and_names():
+                if any(module_to_keep_in_fp32 in name.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules):
+                    param.set_dtype(ms.float32)
+
+        # Make sure we are able to load base models as well as derived models (with heads)
+        start_prefix = ""
+        model_to_load = model
+        if len(cls.base_model_prefix) > 0 and not hasattr(model, cls.base_model_prefix) and has_prefix_module:
+            start_prefix = cls.base_model_prefix + "."
+        if len(cls.base_model_prefix) > 0 and hasattr(model, cls.base_model_prefix) and not has_prefix_module:
+            model_to_load = getattr(model, cls.base_model_prefix)
+            base_model_expected_keys = list(k for k, v in model_to_load.parameters_and_names())
+            if any(key in expected_keys_not_prefixed and key not in base_model_expected_keys for key in loaded_keys):
+                raise ValueError(
+                    "The state dictionary of the model you are trying to load is corrupted. Are you sure it was "
+                    "properly saved?"
+                )
+
+        def _find_mismatched_keys(
+            state_dict,
+            model_state_dict,
+            loaded_keys,
+            add_prefix_to_model,
+            remove_prefix_from_model,
+            ignore_mismatched_sizes,
+        ):
+            mismatched_keys = []
+            if ignore_mismatched_sizes:
+                for checkpoint_key in loaded_keys:
+                    # If the checkpoint is sharded, we may not have the key here.
+                    if checkpoint_key not in state_dict:
+                        continue
+                    model_key = checkpoint_key
+                    if remove_prefix_from_model:
+                        # The model key starts with `prefix` but `checkpoint_key` doesn't so we add it.
+                        model_key = f"{prefix}.{checkpoint_key}"
+                    elif add_prefix_to_model:
+                        # The model key doesn't start with `prefix` but `checkpoint_key` does so we remove it.
+                        model_key = ".".join(checkpoint_key.split(".")[1:])
+
+                    if (
+                        model_key in model_state_dict
+                        and state_dict[checkpoint_key].shape != model_state_dict[model_key].shape
+                    ):
+                        if (
+                            state_dict[checkpoint_key].shape[-1] == 1
+                            and state_dict[checkpoint_key].numel() * 2 == model_state_dict[model_key].numel()
+                        ):
+                            # This skips size mismatches for 4-bit weights. Two 4-bit values share an 8-bit container, causing size differences.
+                            # Without matching with module type or paramter type it seems like a practical way to detect valid 4bit weights.
+                            pass
                         else:
-                            mappings[f"{name}.weight"] = (
-                                "encoder.embed_tokens.embedding_table",
-                                lambda x: x,
+                            mismatched_keys.append(
+                                (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[model_key].shape)
                             )
-                    else:
-                        mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
-                elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
-                    mappings[f"{name}.weight"] = f"{name}.gamma", lambda x: x
-                    mappings[f"{name}.bias"] = f"{name}.beta", lambda x: x
-                    if isinstance(cell, (nn.BatchNorm2d,)):
-                        mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
-                        mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
-                        mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
-            return mappings
+                            del state_dict[checkpoint_key]
+            return mismatched_keys
 
-        def convert_state_dict(m, state_dict_pt):
-            mappings = get_pt2ms_mappings(m)
-            state_dict_ms = {}
-            for name_pt, data_pt in state_dict_pt.items():
-                name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-                data_ms = data_mapping(data_pt)
-                if name_ms is not None:
-                    state_dict_ms[name_ms] = data_ms
-            return state_dict_ms
+        if state_dict is not None:
+            # Whole checkpoint
+            state_dict = _convert_state_dict(model, state_dict)
+            mismatched_keys = _find_mismatched_keys(
+                state_dict,
+                model_state_dict,
+                original_loaded_keys,
+                add_prefix_to_model,
+                remove_prefix_from_model,
+                ignore_mismatched_sizes,
+            )
+            error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False)
+        else:
+            # Sharded checkpoint or whole but low_cpu_mem_usage==True
 
-        missing_keys, unexpected_keys = ms.load_param_into_net(
-            model, convert_state_dict(model, state_dict), strict_load=True
-        )
-        mismatched_keys, offload_index, error_msgs = [], 0, ""
-        return model, missing_keys, unexpected_keys, mismatched_keys, offload_index, error_msgs
+            # This should always be a list but, just to be sure.
+            if not isinstance(resolved_archive_file, list):
+                resolved_archive_file = [resolved_archive_file]
+
+            error_msgs = []
+            mismatched_keys = []
+
+            if len(resolved_archive_file) > 1:
+                resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
+            for shard_file in resolved_archive_file:
+                state_dict = load_state_dict(shard_file)
+                state_dict = _convert_state_dict(model, state_dict)
+
+                # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
+                # matching the weights in the model.
+                mismatched_keys += _find_mismatched_keys(
+                    state_dict,
+                    model_state_dict,
+                    original_loaded_keys,
+                    add_prefix_to_model,
+                    remove_prefix_from_model,
+                    ignore_mismatched_sizes,
+                )
+                error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
+
+                # force memory release
+                del state_dict
+                gc.collect()
+
+        if len(error_msgs) > 0:
+            error_msg = "\n\t".join(error_msgs)
+            if "size mismatch" in error_msg:
+                error_msg += (
+                    "\n\tYou may consider adding `ignore_mismatched_sizes=True` in the model `from_pretrained` method."
+                )
+            raise RuntimeError(f"Error(s) in loading state_dict for {model.__class__.__name__}:\n\t{error_msg}")
+
+        if len(unexpected_keys) > 0:
+            archs = [] if model.config.architectures is None else model.config.architectures
+            warner = logger.warning if model.__class__.__name__ in archs else logger.info
+            warner(
+                f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when"
+                f" initializing {model.__class__.__name__}: {unexpected_keys}\n- This IS expected if you are"
+                f" initializing {model.__class__.__name__} from the checkpoint of a model trained on another task or"
+                " with another architecture (e.g. initializing a BertForSequenceClassification model from a"
+                " BertForPreTraining model).\n- This IS NOT expected if you are initializing"
+                f" {model.__class__.__name__} from the checkpoint of a model that you expect to be exactly identical"
+                " (initializing a BertForSequenceClassification model from a BertForSequenceClassification model)."
+            )
+        else:
+            logger.info(f"All model checkpoint weights were used when initializing {model.__class__.__name__}.\n")
+        if len(missing_keys) > 0:
+            logger.warning(
+                f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at"
+                f" {pretrained_model_name_or_path} and are newly initialized: {missing_keys}\nYou should probably"
+                " TRAIN this model on a down-stream task to be able to use it for predictions and inference."
+            )
+        elif len(mismatched_keys) == 0:
+            logger.info(
+                f"All the weights of {model.__class__.__name__} were initialized from the model checkpoint at"
+                f" {pretrained_model_name_or_path}.\nIf your task is similar to the task the model of the checkpoint"
+                f" was trained on, you can already use {model.__class__.__name__} for predictions without further"
+                " training."
+            )
+        if len(mismatched_keys) > 0:
+            mismatched_warning = "\n".join(
+                [
+                    f"- {key}: found shape {shape1} in the checkpoint and {shape2} in the model instantiated"
+                    for key, shape1, shape2 in mismatched_keys
+                ]
+            )
+            logger.warning(
+                f"Some weights of {model.__class__.__name__} were not initialized from the model checkpoint at"
+                f" {pretrained_model_name_or_path} and are newly initialized because the shapes did not"
+                f" match:\n{mismatched_warning}\nYou should probably TRAIN this model on a down-stream task to be able"
+                " to use it for predictions and inference."
+            )
+
+        return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs

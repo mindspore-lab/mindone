@@ -13,16 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ MindSpore CLIP model."""
-from typing import List, Optional, Tuple, Union
+from dataclasses import dataclass
+from typing import Any, Optional, Tuple, Union
 
 from transformers.models.clip.configuration_clip import CLIPConfig, CLIPTextConfig, CLIPVisionConfig
-from transformers.utils import logging
+from transformers.utils import ModelOutput, logging
 
 import mindspore as ms
 from mindspore import nn, ops
 
-from ...activations_ms import ACT2FN
-from ...modeling_ms_utils import MSPreTrainedModel
+from ...activations import ACT2FN
+from ...modeling_attn_mask_utils import _create_4d_causal_attention_mask, _prepare_4d_attention_mask
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling
+from ...modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -40,90 +43,111 @@ CLIP_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 
-def _prepare_4d_attention_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):
+# contrastive loss function, adapted from
+# https://sachinruk.github.io/blog/2021-03-07-clip.html
+def contrastive_loss(logits: ms.Tensor) -> ms.Tensor:
+    return ops.cross_entropy(logits, ops.arange(len(logits)))
+
+
+def clip_loss(similarity: ms.Tensor) -> ms.Tensor:
+    caption_loss = contrastive_loss(similarity)
+    image_loss = contrastive_loss(similarity.t())
+    return (caption_loss + image_loss) / 2.0
+
+
+@dataclass
+class CLIPVisionModelOutput(ModelOutput):
     """
-    Creates a non-causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
-    `(batch_size, key_value_length)`
+    Base class for vision model's outputs that also contains image embeddings of the pooling of the last hidden states.
 
     Args:
-        mask (`torch.Tensor` or `None`):
-            A 2D attention mask of shape `(batch_size, key_value_length)`
-        dtype (`torch.dtype`):
-            The torch dtype the created mask shall have.
-        tgt_len (`int`):
-            The target length or query length the created mask shall have.
+        image_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
+            The image embeddings obtained by applying the projection layer to the pooler_output.
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            Sequence of hidden-states at the output of the last layer of the model.
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
     """
-    bsz, src_len = mask.shape
-    tgt_len = tgt_len if tgt_len is not None else src_len
 
-    expanded_mask = mask[:, None, None, :].tile((1, 1, tgt_len, 1)).to(dtype)
-
-    inverted_mask = 1.0 - expanded_mask
-
-    return inverted_mask.masked_fill(inverted_mask.to(ms.bool_), float("-inf"))
+    image_embeds: Optional[ms.Tensor] = None
+    last_hidden_state: ms.Tensor = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
 
-def _create_4d_causal_attention_mask(
-    input_shape: Union[Tuple, List],
-    dtype: ms.Type,
-    past_key_values_length: int = 0,
-    sliding_window: Optional[int] = None,
-) -> Optional[ms.Tensor]:
+@dataclass
+class CLIPTextModelOutput(ModelOutput):
     """
-    Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)`
+    Base class for text model's outputs that also contains a pooling of the last hidden states.
 
     Args:
-        input_shape (`tuple(int)` or `list(int)` or `torch.Size`):
-            The input shape should be a tuple that defines `(batch_size, query_length)`.
-        dtype (`torch.dtype`):
-            The torch dtype the created mask shall have.
-        sliding_window (`int`, *optional*):
-            If the model uses windowed attention, a sliding window should be passed.
+        text_embeds (`ms.Tensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
+            The text embeddings obtained by applying the projection layer to the pooler_output.
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            Sequence of hidden-states at the output of the last layer of the model.
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
     """
 
-    key_value_length = past_key_values_length + input_shape[-1]
-    past_key_values_length = key_value_length - input_shape[-1]
+    text_embeds: Optional[ms.Tensor] = None
+    last_hidden_state: ms.Tensor = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    attentions: Optional[Tuple[ms.Tensor, ...]] = None
 
-    def _make_causal_mask(
-        input_ids_shape: Union[Tuple, List],
-        dtype: ms.Type,
-        past_key_values_length: int = 0,
-        sliding_window: Optional[int] = None,
-    ):
-        """
-        Make causal mask used for bi-directional self-attention.
-        """
-        bsz, tgt_len = input_ids_shape
-        mask = ops.full((tgt_len, tgt_len), float("-inf"), dtype=dtype)
-        mask_cond = ops.arange(mask.shape[-1])
-        mask = mask.masked_fill(mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), ms.Tensor(0).to(dtype))
 
-        mask = mask.to(dtype)
+@dataclass
+class CLIPOutput(ModelOutput):
+    """
+    Args:
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `return_loss` is `True`):
+            Contrastive loss for image-text similarity.
+        logits_per_image:(`ms.Tensor` of shape `(image_batch_size, text_batch_size)`):
+            The scaled dot product scores between `image_embeds` and `text_embeds`. This represents the image-text
+            similarity scores.
+        logits_per_text:(`ms.Tensor` of shape `(text_batch_size, image_batch_size)`):
+            The scaled dot product scores between `text_embeds` and `image_embeds`. This represents the text-image
+            similarity scores.
+        text_embeds(`ms.Tensor` of shape `(batch_size, output_dim`):
+            The text embeddings obtained by applying the projection layer to the pooled output of [`CLIPTextModel`].
+        image_embeds(`ms.Tensor` of shape `(batch_size, output_dim`):
+            The image embeddings obtained by applying the projection layer to the pooled output of [`CLIPVisionModel`].
+        text_model_output(`BaseModelOutputWithPooling`):
+            The output of the [`CLIPTextModel`].
+        vision_model_output(`BaseModelOutputWithPooling`):
+            The output of the [`CLIPVisionModel`].
+    """
 
-        if past_key_values_length > 0:
-            mask = ops.cat([ops.zeros((tgt_len, past_key_values_length), dtype=dtype), mask], axis=-1)
+    loss: Optional[ms.Tensor] = None
+    logits_per_image: ms.Tensor = None
+    logits_per_text: ms.Tensor = None
+    text_embeds: ms.Tensor = None
+    image_embeds: ms.Tensor = None
+    text_model_output: BaseModelOutputWithPooling = None
+    vision_model_output: BaseModelOutputWithPooling = None
 
-        # add lower triangular sliding window mask if necessary
-        if sliding_window is not None:
-            diagonal = past_key_values_length - sliding_window + 1
-
-            context_mask = 1 - ops.triu(ops.ones_like(mask, dtype=ms.int32), diagonal=diagonal)
-            mask = mask.masked_fill(context_mask.bool(), float("-inf"))
-
-        return mask[None, None, :, :].tile((bsz, 1, 1, 1))
-
-    # create causal mask
-    # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
-    causal_4d_mask = None
-    if input_shape[-1] > 1 or sliding_window is not None:
-        causal_4d_mask = _make_causal_mask(
-            input_shape,
-            dtype,
-            past_key_values_length=past_key_values_length,
-            sliding_window=sliding_window,
+    def to_tuple(self) -> Tuple[Any, ...]:
+        return tuple(
+            self[k] if k not in ["text_model_output", "vision_model_output"] else getattr(self, k).to_tuple()
+            for k in self.keys()
         )
-
-    return causal_4d_mask
 
 
 class CLIPVisionEmbeddings(nn.Cell):
@@ -134,7 +158,7 @@ class CLIPVisionEmbeddings(nn.Cell):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.class_embedding = ms.Parameter(ops.randn(self.embed_dim))
+        self.class_embedding = ms.Parameter(ops.randn(self.embed_dim), name="class_embedding")
 
         self.patch_embedding = nn.Conv2d(
             in_channels=config.num_channels,
@@ -400,7 +424,8 @@ class CLIPEncoder(nn.Cell):
         causal_attention_mask: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, BaseModelOutput]:
         r"""
         Args:
             inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
@@ -427,6 +452,8 @@ class CLIPEncoder(nn.Cell):
             output_hidden_states (`bool`, *optional*):
                 Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors
                 for more detail.
+            return_dict (`bool`, *optional*):
+                Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
         """
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -439,7 +466,7 @@ class CLIPEncoder(nn.Cell):
             if output_hidden_states:
                 encoder_states = encoder_states + (hidden_states,)
             if self.gradient_checkpointing and self.training:
-                raise NotImplementedError
+                raise NotImplementedError("Gradient checkpoint is not yet supported.")
             else:
                 layer_outputs = encoder_layer(
                     hidden_states,
@@ -456,7 +483,9 @@ class CLIPEncoder(nn.Cell):
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
 
-        return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
+        if not return_dict:
+            return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class CLIPTextTransformer(nn.Cell):
@@ -480,7 +509,8 @@ class CLIPTextTransformer(nn.Cell):
         position_ids: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, BaseModelOutputWithPooling]:
         r"""
         Returns:
 
@@ -510,6 +540,7 @@ class CLIPTextTransformer(nn.Cell):
             causal_attention_mask=causal_attention_mask,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         last_hidden_state = encoder_outputs[0]
@@ -534,12 +565,21 @@ class CLIPTextTransformer(nn.Cell):
                 (input_ids.to(dtype=ms.int32) == self.eos_token_id).int().argmax(axis=-1),
             ]
 
-        return (last_hidden_state, pooled_output) + encoder_outputs[1:]
+        if not return_dict:
+            return (last_hidden_state, pooled_output) + encoder_outputs[1:]
+
+        return BaseModelOutputWithPooling(
+            last_hidden_state=last_hidden_state,
+            pooler_output=pooled_output,
+            hidden_states=encoder_outputs.hidden_states,
+            attentions=encoder_outputs.attentions,
+        )
 
 
 class CLIPTextModel(CLIPPreTrainedModel):
     config_class = CLIPTextConfig
 
+    _keys_to_ignore_on_load_unexpected = ["text_model.embeddings.position_ids"]
     _no_split_modules = ["CLIPTextEmbeddings", "CLIPEncoderLayer"]
 
     def __init__(self, config: CLIPTextConfig):
@@ -561,31 +601,34 @@ class CLIPTextModel(CLIPPreTrainedModel):
         position_ids: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, BaseModelOutputWithPooling]:
         r"""
         Returns:
 
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, CLIPTextModel
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import CLIPTextModel
 
         >>> model = CLIPTextModel.from_pretrained("openai/clip-vit-base-patch32")
         >>> tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
 
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="pt")
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
 
-        >>> outputs = model(**inputs)
-        >>> last_hidden_state = outputs.last_hidden_state
-        >>> pooled_output = outputs.pooler_output  # pooled (EOS token) states
+        >>> outputs = model(input_ids=Tensor(inputs.input_ids))
+        >>> last_hidden_state = outputs[0]
+        >>> pooled_output = outputs[1]  # pooled (EOS token) states
         ```"""
-
         return self.text_model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
 
@@ -607,7 +650,8 @@ class CLIPVisionTransformer(nn.Cell):
         pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, BaseModelOutputWithPooling]:
         r"""
         Returns:
 
@@ -625,18 +669,28 @@ class CLIPVisionTransformer(nn.Cell):
             inputs_embeds=hidden_states,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         last_hidden_state = encoder_outputs[0]
         pooled_output = last_hidden_state[:, 0, :]
         pooled_output = self.post_layernorm(pooled_output)
 
-        return (last_hidden_state, pooled_output) + encoder_outputs[1:]
+        if not return_dict:
+            return (last_hidden_state, pooled_output) + encoder_outputs[1:]
+
+        return BaseModelOutputWithPooling(
+            last_hidden_state=last_hidden_state,
+            pooler_output=pooled_output,
+            hidden_states=encoder_outputs.hidden_states,
+            attentions=encoder_outputs.attentions,
+        )
 
 
 class CLIPVisionModel(CLIPPreTrainedModel):
     config_class = CLIPVisionConfig
     main_input_name = "pixel_values"
+    _keys_to_ignore_on_load_unexpected = ["vision_model.embeddings.position_ids"]
     _no_split_modules = ["CLIPEncoderLayer"]
 
     def __init__(self, config: CLIPVisionConfig):
@@ -653,8 +707,8 @@ class CLIPVisionModel(CLIPPreTrainedModel):
         pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, BaseModelOutputWithPooling]:
         r"""
         Returns:
 
@@ -663,7 +717,9 @@ class CLIPVisionModel(CLIPPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, CLIPVisionModel
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import CLIPVisionModel
 
         >>> model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
         >>> processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
@@ -671,22 +727,24 @@ class CLIPVisionModel(CLIPPreTrainedModel):
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
 
-        >>> outputs = model(**inputs)
-        >>> last_hidden_state = outputs.last_hidden_state
-        >>> pooled_output = outputs.pooler_output  # pooled CLS states
+        >>> outputs = model(pixel_values=Tensor(inputs.pixel_values))
+        >>> last_hidden_state = outputs[0]
+        >>> pooled_output = outputs[1]  # pooled CLS states
         ```"""
 
         return self.vision_model(
             pixel_values=pixel_values,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
 
 class CLIPModel(CLIPPreTrainedModel):
     config_class = CLIPConfig
+    _keys_to_ignore_on_load_unexpected = ["text_model.embeddings.position_ids", "vision_model.embeddings.position_ids"]
     _no_split_modules = ["CLIPTextEmbeddings", "CLIPEncoderLayer"]
 
     def __init__(self, config: CLIPConfig):
@@ -719,7 +777,7 @@ class CLIPModel(CLIPPreTrainedModel):
 
         self.visual_projection = nn.Dense(self.vision_embed_dim, self.projection_dim, has_bias=False)
         self.text_projection = nn.Dense(self.text_embed_dim, self.projection_dim, has_bias=False)
-        self.logit_scale = ms.Parameter(ms.Tensor(self.logit_scale_init_value))
+        self.logit_scale = ms.Parameter(ms.Tensor(self.logit_scale_init_value), name="logit_scale")
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -731,7 +789,26 @@ class CLIPModel(CLIPPreTrainedModel):
         position_ids: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> ms.Tensor:
+        r"""
+        Returns:
+            text_features (`ms.Tensor` of shape `(batch_size, output_dim`): The text embeddings obtained by
+            applying the projection layer to the pooled output of [`CLIPTextModel`].
+
+        Examples:
+
+        ```python
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import CLIPModel
+
+        >>> model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        >>> tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
+
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
+        >>> text_features = model.get_text_features(input_ids=Tensor(inputs.input_ids))
+        ```"""
         # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -742,6 +819,7 @@ class CLIPModel(CLIPPreTrainedModel):
             position_ids=position_ids,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         pooled_output = text_outputs[1]
@@ -754,7 +832,32 @@ class CLIPModel(CLIPPreTrainedModel):
         pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> ms.Tensor:
+        r"""
+        Returns:
+            image_features (`ms.Tensor` of shape `(batch_size, output_dim`): The image embeddings obtained by
+            applying the projection layer to the pooled output of [`CLIPVisionModel`].
+
+        Examples:
+
+        ```python
+        >>> from PIL import Image
+        >>> import requests
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import CLIPModel
+
+        >>> model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        >>> processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+        >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        >>> image = Image.open(requests.get(url, stream=True).raw)
+
+        >>> inputs = processor(images=image, return_tensors="np")
+
+        >>> image_features = model.get_image_features(pixel_values=Tensor(inputs.pixel_values))
+        ```"""
         # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -763,6 +866,7 @@ class CLIPModel(CLIPPreTrainedModel):
             pixel_values=pixel_values,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         pooled_output = vision_outputs[1]  # pooled_output
@@ -776,9 +880,37 @@ class CLIPModel(CLIPPreTrainedModel):
         pixel_values: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
+        return_loss: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, CLIPOutput]:
+        r"""
+        Returns:
+
+        Examples:
+
+        ```python
+        >>> from PIL import Image
+        >>> import requests
+        >>> from mindspore import Tensor, ops
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import CLIPModel
+
+        >>> model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        >>> processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
+
+        >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
+        >>> image = Image.open(requests.get(url, stream=True).raw)
+
+        >>> inputs = processor(
+        ...     text=["a photo of a cat", "a photo of a dog"], images=image, return_tensors="np", padding=True
+        ... )
+
+        >>> outputs = model(input_ids=Tensor(inputs.input_ids), pixel_values=Tensor(inputs.pixel_values))
+        >>> logits_per_image = outputs[0]  # this is the image-text similarity score
+        >>> probs = ops.softmax(logits_per_image, axis=1)  # we can take the softmax to get the label probabilities
+        ```"""
         # Use CLIP model's config for some fields (if specified) instead of those of vision & text components.
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -787,6 +919,7 @@ class CLIPModel(CLIPPreTrainedModel):
             pixel_values=pixel_values,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         text_outputs = self.text_model(
@@ -795,6 +928,7 @@ class CLIPModel(CLIPPreTrainedModel):
             position_ids=position_ids,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
         image_embeds = vision_outputs[1]
         image_embeds = self.visual_projection(image_embeds)
@@ -811,13 +945,29 @@ class CLIPModel(CLIPPreTrainedModel):
         logits_per_text = ops.matmul(text_embeds, image_embeds.t()) * logit_scale
         logits_per_image = logits_per_text.t()
 
-        output = (logits_per_image, logits_per_text, text_embeds, image_embeds, text_outputs, vision_outputs)
-        return output
+        loss = None
+        if return_loss:
+            loss = clip_loss(logits_per_text)
+
+        if not return_dict:
+            output = (logits_per_image, logits_per_text, text_embeds, image_embeds, text_outputs, vision_outputs)
+            return ((loss,) + output) if loss is not None else output
+
+        return CLIPOutput(
+            loss=loss,
+            logits_per_image=logits_per_image,
+            logits_per_text=logits_per_text,
+            text_embeds=text_embeds,
+            image_embeds=image_embeds,
+            text_model_output=text_outputs,
+            vision_model_output=vision_outputs,
+        )
 
 
 class CLIPTextModelWithProjection(CLIPPreTrainedModel):
     config_class = CLIPTextConfig
 
+    _keys_to_ignore_on_load_unexpected = ["text_model.embeddings.position_ids"]
     _no_split_modules = ["CLIPTextEmbeddings", "CLIPEncoderLayer"]
 
     def __init__(self, config: CLIPTextConfig):
@@ -843,22 +993,25 @@ class CLIPTextModelWithProjection(CLIPPreTrainedModel):
         position_ids: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, CLIPTextModelOutput]:
         r"""
         Returns:
 
         Examples:
 
         ```python
-        >>> from transformers import AutoTokenizer, CLIPTextModelWithProjection
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoTokenizer
+        >>> from mindone.transformers import CLIPTextModelWithProjection
 
         >>> model = CLIPTextModelWithProjection.from_pretrained("openai/clip-vit-base-patch32")
         >>> tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
 
-        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="pt")
+        >>> inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
 
-        >>> outputs = model(**inputs)
-        >>> text_embeds = outputs.text_embeds
+        >>> outputs = model(input_ids=Tensor(inputs.input_ids))
+        >>> text_embeds = outputs[0]
         ```"""
 
         text_outputs = self.text_model(
@@ -867,19 +1020,29 @@ class CLIPTextModelWithProjection(CLIPPreTrainedModel):
             position_ids=position_ids,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         pooled_output = text_outputs[1]
 
         text_embeds = self.text_projection(pooled_output)
 
-        outputs = (text_embeds, text_outputs[0]) + text_outputs[2:]
-        return tuple(output for output in outputs if output is not None)
+        if not return_dict:
+            outputs = (text_embeds, text_outputs[0]) + text_outputs[2:]
+            return tuple(output for output in outputs if output is not None)
+
+        return CLIPTextModelOutput(
+            text_embeds=text_embeds,
+            last_hidden_state=text_outputs.last_hidden_state,
+            hidden_states=text_outputs.hidden_states,
+            attentions=text_outputs.attentions,
+        )
 
 
 class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
     config_class = CLIPVisionConfig
     main_input_name = "pixel_values"
+    _keys_to_ignore_on_load_unexpected = ["vision_model.embeddings.position_ids"]
 
     def __init__(self, config: CLIPVisionConfig):
         super().__init__(config)
@@ -899,7 +1062,8 @@ class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
         pixel_values: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> Tuple:
+        return_dict: Optional[bool] = False,
+    ) -> Union[Tuple, CLIPVisionModelOutput]:
         r"""
         Returns:
 
@@ -908,7 +1072,9 @@ class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
         ```python
         >>> from PIL import Image
         >>> import requests
-        >>> from transformers import AutoProcessor, CLIPVisionModelWithProjection
+        >>> from mindspore import Tensor
+        >>> from transformers import AutoProcessor
+        >>> from mindone.transformers import CLIPVisionModelWithProjection
 
         >>> model = CLIPVisionModelWithProjection.from_pretrained("openai/clip-vit-base-patch32")
         >>> processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
@@ -916,21 +1082,30 @@ class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
 
-        >>> inputs = processor(images=image, return_tensors="pt")
+        >>> inputs = processor(images=image, return_tensors="np")
 
-        >>> outputs = model(**inputs)
-        >>> image_embeds = outputs.image_embeds
+        >>> outputs = model(pixel_values=Tensor(inputs.pixel_values))
+        >>> image_embeds = outputs[0]
         ```"""
 
         vision_outputs = self.vision_model(
             pixel_values=pixel_values,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
         pooled_output = vision_outputs[1]  # pooled_output
 
         image_embeds = self.visual_projection(pooled_output)
 
-        outputs = (image_embeds, vision_outputs[0]) + vision_outputs[2:]
-        return tuple(output for output in outputs if output is not None)
+        if not return_dict:
+            outputs = (image_embeds, vision_outputs[0]) + vision_outputs[2:]
+            return tuple(output for output in outputs if output is not None)
+
+        return CLIPVisionModelOutput(
+            image_embeds=image_embeds,
+            last_hidden_state=vision_outputs.last_hidden_state,
+            hidden_states=vision_outputs.hidden_states,
+            attentions=vision_outputs.attentions,
+        )
