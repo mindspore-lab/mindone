@@ -573,7 +573,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model       | Context      | Precision | BS | NPUs | Max. Resolution | Train T. (s/step) |
 |:------------|:-------------|:----------|:--:|:----:|:---------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  1   | 16x512x512      |       2.10        |
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  4   | 16x512x512      |       2.3         |
 
 
 ### FiT-Like Inference
@@ -589,6 +589,12 @@ python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/t2v_fit
 ```
 
 Make sure that the `max_image_size` parameter remains consistent between your training and inference commands.
+
+Here are some generation results after fine-tuning STDiT on small dataset:
+
+(16x384x672):  
+(16x672x384):
+
 
 
 ## Contribution

@@ -204,6 +204,15 @@ def main(args):
 
     latte_model = latte_model.set_train(False)
 
+    if input_size[1] % latte_model.patch_size[1] != 0 or input_size[2] % latte_model.patch_size[2] != 0:
+        height_ = latte_model.patch_size[1] * VAE_S_COMPRESS
+        width_ = latte_model.patch_size[2] * VAE_S_COMPRESS
+        msg = f"Image height ({img_h}) and width ({img_w}) should be divisible by {height_} and {width_} respectively."
+        if patchify_conv3d_replace == "linear":
+            raise ValueError(msg)
+        else:
+            logger.warning(msg)
+
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
