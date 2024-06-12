@@ -306,6 +306,7 @@ video,caption
 video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
+</details>
 
 
 ### Cache Text Embeddings
@@ -592,9 +593,9 @@ Make sure that the `max_image_size` parameter remains consistent between your tr
 
 Here are some generation results after fine-tuning STDiT on small dataset:
 
-(16x384x672):  
-(16x672x384):
+[16x384x672](https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481)
 
+[16x672x384](https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53)
 
 
 ## Contribution
