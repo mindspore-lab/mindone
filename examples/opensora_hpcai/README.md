@@ -323,7 +323,11 @@ For acceleration, we pre-compute the t5 embedding before training stdit.
 python scripts/infer_t5.py \
     --csv_path /path/to/video_caption.csv \
     --output_path /path/to/text_embed_folder \
+    --model_max_length 200 # For OpenSora v1.1
 ```
+
+OpenSora v1 uses text embedding sequence length of 120 (by default).
+If you want to generate text embeddings for OpenSora v1.1, please change `model_max_length` to 200.
 
 After running, the text embeddings saved as npz file for each caption will be in `output_path`. Please change `csv_path` to your video-caption annotation file accordingly.
 

@@ -156,11 +156,15 @@ python scripts/inference.py --config configs/opensora-v1-1/inference/sample_iv2v
 ## Training
 
 ### 1. Generate T5 embeddings
-```
+```shell
 python scripts/infer_t5.py\
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
     --output_dir ../videocomposer/datasets/webvid5 \
+    --model_max_length 200 # For OpenSora v1.1
 ```
+
+OpenSora v1 uses text embedding sequence length of 120 (by default).
+If you want to generate text embeddings for OpenSora v1.1, please change `model_max_length` to 200.
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`
 
@@ -181,7 +185,7 @@ After running, the vae latents saved as npz file for each video will be in `outp
 For parallel inference, please refer to `scripts/run/run_infer_vae_parallel.sh`
 
 
-### 3. Train STDiT
+### 3. Train STDiT / STDiT2
 
 ```
 python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
