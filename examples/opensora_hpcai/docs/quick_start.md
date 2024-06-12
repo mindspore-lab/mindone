@@ -201,7 +201,8 @@ Please change `csv_path`,`video_folder`, `embed_folder` according to your data l
 For detailed usage, please check `python scripts/train.py -h`
 
 > [!WARNING]
-> OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.
+> OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.  
+> OpenSora v1.1 requires text embedding sequence length of 200.
 
 > [!NOTE]
 > Training precision is under continuous optimization.
