@@ -144,7 +144,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
                 has_bias=conv_shortcut_bias,
             )
 
-    def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor, *args, **kwargs) -> ms.Tensor:
+    def construct(self, input_tensor: ms.Tensor, temb: ms.Tensor) -> ms.Tensor:
         hidden_states = input_tensor
 
         hidden_states = self.norm1(hidden_states, temb)
