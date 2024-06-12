@@ -2,6 +2,8 @@ import logging
 import os
 from typing import Optional, Tuple
 
+from torch.distributed._spmd import parallel_mode
+
 try:
     from typing import Literal
 except ImportError:
@@ -24,6 +26,8 @@ def init_train_env(
     ascend_config: Optional[dict] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
+    strategy_ckpt_save_file: str = "",
+    optimizer_weight_shard_size: int = 8,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
 ) -> Tuple[int, int, int]:
@@ -59,20 +63,39 @@ def init_train_env(
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
     if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
+        device_id = None
         ms.set_context(mode=mode, device_target=device_target, device_id=device_id, ascend_config=ascend_config or {})
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        _logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
+        if parallel_mode == "optim":
+            print("use optim parallel")
+            ms.set_auto_parallel_context(
+                parrallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                parrallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
+                enable_parallel_optimizer=True,
+                strategy_ckpt_config={
+                    "save_file": strategy_ckpt_save_file,
+                    "only_trainable_params": False,
+                },
+            )
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+        elif parallel_mode == "data":
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+            _logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+                device_num=device_num,
+            )
+        else:
+            raise ValueError(f"Invalid parallel mode: {parallel_mode}")
+
         var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
-        var_value = [device_num, rank_id, device_num // 8, rank_id // 8]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
         _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:

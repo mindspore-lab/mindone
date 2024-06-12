@@ -231,6 +231,12 @@ def parse_embedding_cache_args(parser):
         default=False,
         help="whether to use adam zero2 optimizer.",
     )
+    parser.add_argument(
+        "--parallel_mode",
+        type=str,
+        default="optim",
+        help="parallel mode for mindrecord writer.",
+    )
     return parser
 
 

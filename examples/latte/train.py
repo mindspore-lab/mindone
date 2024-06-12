@@ -50,6 +50,7 @@ logger = logging.getLogger(__name__)
 def main(args):
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     args.output_path = os.path.join(args.output_path, time_str)
+    save_src_strategy = args.use_parallel and args.parallel_mode != "data"
 
     # 1. init
     _, rank_id, device_num = init_train_env(
@@ -59,6 +60,8 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
+        strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
+        optimizer_weight_shard_size=args.optimizer_weight_shard_size,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
@@ -182,6 +185,9 @@ def main(args):
             use_parallel=True,
             opt_parallel_group=GlobalComm.WORLD_COMM_GROUP,
             cpu_offload=False,
+            weight_decay=args.weight_decay,
+            beta1=args.betas[0],
+            beta2=args.betas[1],
         )
     else:
         optimizer = create_optimizer(
