@@ -57,8 +57,10 @@ class Attention(nn.Cell):
             sim = sim.astype(ms.float32)
         if mask is not None:
             # (b*h 1 n_k)
-            mask = mask.to(ms.bool_)
-            sim = ops.masked_fill(sim, mask, -ms.numpy.inf)  # FIXME: whether to use -inf or -10000.0 as torch repo?
+            # convert mask into a bias that can be added to attention scores:
+            #       (keep = +0,     discard = -10000.0)
+            mask = ops.zeros(mask.shape).masked_fill(mask.to(ms.bool_), -10000.0)
+            sim += mask
 
         # use fp32 for exponential inside
         attn = self.softmax(sim).astype(v.dtype)
