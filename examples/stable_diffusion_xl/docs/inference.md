@@ -100,16 +100,16 @@ The `denoiser_config` of the model in yaml config file together with the args of
 
   ```shell
   python demo/sampling_without_streamlit.py \
-    --config configs/inference/configs/inference/sd_xl_base_edm_pg2_5.yaml \
+    --config configs/inference/sd_xl_base_edm_pg2_5.yaml \
     --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
-    --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
-    --sampler EulerEDMSampler
-    --sample_step 20
-    --guider VanillaCFG # class-free-guidence
-    --guidance_scale 3.0
-    --discretization EDMDiscretization
-    --sigma_min 0.002
-    --sigma_max 80.0
+    --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
+    --sampler EulerEDMSampler \
+    --sample_step 20 \
+    --guider VanillaCFG  \
+    --guidance_scale 3.0 \
+    --discretization EDMDiscretization \
+    --sigma_min 0.002 \
+    --sigma_max 80.0 \
     --rho 7.0
   ```
 
@@ -117,16 +117,16 @@ The `denoiser_config` of the model in yaml config file together with the args of
 
   ```shell
   python demo/sampling_without_streamlit.py \
-    --config configs/inference/configs/inference/sd_xl_base_edm_pg2_5.yaml \
+    --config configs/inference/sd_xl_base_edm_pg2_5.yaml \
     --weight checkpoints/sd_xl_base_1.0_ms.ckpt \
-    --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k"
-    --sampler DPMPP2MSampler # DPM++ second-order multistep
-    --sample_step 20
-    --guider VanillaCFG # class-free-guidence
-    --guidance_scale 5.0
-    --discretization EDMDiscretization
-    --sigma_min 0.002
-    --sigma_max 80.0
+    --prompt "Astronaut in a jungle, cold color palette, muted colors, detailed, 8k" \
+    --sampler DPMPP2MSampler \
+    --sample_step 20 \
+    --guider VanillaCFG \
+    --guidance_scale 5.0 \
+    --discretization EDMDiscretization \
+    --sigma_min 0.002 \
+    --sigma_max 80.0 \
     --rho 7.0
   ```
 
@@ -134,18 +134,24 @@ The `denoiser_config` of the model in yaml config file together with the args of
 
 <div align="center">
 
-| Model Name    | Device      | MindSpore        | CANN | ImageSize | Compile Cost | Sampler  | Sample Step | Step Time | Sample Time |
-|---------------|-------------|------------------|------|-----------|--------------|----------|-------------|-----------|-------------|
-| SDXL-Base     | Ascend 910* | mindspore 2.2.10 | C15  | 1024x1024 | 302s         | EulerEDM | 40          | Testing   | 8.1s        |
-| SDXL-Refiner  | Ascend 910* | mindspore 2.2.10 | C15  | 1024x1024 | Testing      | EulerEDM | 40          | Testing   | Testing     |
-| SDXL-PipeLine | Ascend 910* | mindspore 2.2.10 | C15  | 1024x1024 | Testing      | EulerEDM | 35/5        | Testing   | Testing     |
-
+| Model Name    | Device      | MindSpore        | CANN | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
+|---------------|-------------|------------------|------|-----------|--------------|---------------|----------|-------------|-------------|
+| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
+| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
+| SDXL-Refiner  | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | Testing      | ON            | EulerEDM | 40          | Testing     |
+| SDXL-PipeLine | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | Testing      | ON            | EulerEDM | 35/5        | Testing     |
+| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | C15  | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
+| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | C15  | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
 </div>
 <br>
+
+Note: Please refer to [FAQ](./faq_cn.md) Question 6 if using Flash Attention on Ascend 910.
+
 
 ## Offline Inference
 
 See [offline_inference](./offline_inference/README.md).
+
 
 ## Invisible Watermark Detection
 

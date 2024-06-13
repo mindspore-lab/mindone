@@ -125,3 +125,45 @@
   ```
 
 </details>
+
+### 6. 在Ascend 910* 可以正常使用flash attention，但在Ascend 910使用时报错。
+<details onclose>
+
+#### 回答：
+
+#### Mindspore 2.2 之后的版本，框架内的 `FlashAttention` 只支持Ascend 910*， 不支持Ascend 910。如果需要在 Ascend 910 上使用 flash attention，可以借助基于 Mindspore 框架和昇腾 CANN 软件栈开发的 transformer 加速库 [acctransformer](https://github.com/mindspore-ai/acctransformer/tree/master/train/acctransformer/flash_attention)。具体使用方法如下：
+
+#### (1) 按照 acctransformer 的 [FlashAttention2安装指南](https://github.com/mindspore-ai/acctransformer/tree/master/train/acctransformer/flash_attention)安装whl包。
+
+  ```shell
+  git clone https://github.com/mindspore-ai/acctransformer.git
+  cd train
+  bash build.sh
+  pip install dist/acctransformer-1.0.0-py3-none-any.whl
+  ```
+
+#### (2) 把examples/stable_diffusion_xl/gm/modules/attention.py文件 Mindspore 框架内的 `FlashAttention` 改成 acctransformer 的，具体修改如下:
+
+https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/gm/modules/attention.py#L18
+https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/gm/modules/attention.py#L117
+https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl/gm/modules/attention.py#L147
+
+
+  ```diff
+  # L18
+  - from mindspore.nn.layer.flash_attention import FlashAttention
+  + from acctransformer.flash_attention.nn.layer.flash_attention import FlashAttention
+  ...
+
+  # L117
+  from diffusers import DiffusionPipeline
+  - self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
+  + self.flash_attention = FlashAttention(head_dim=dim_head)
+
+  # L147
+  - out = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(ms.uint8))
+  + out = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(ms.float16))
+
+  ```
+
+</details>
