@@ -33,7 +33,6 @@ _import_structure = {
         "DDIMPipeline",
         "DDPMPipeline",
         "DiffusionPipeline",
-        # "StableDiffusion3Img2ImgPipeline",
         "StableDiffusion3Pipeline",
         "StableDiffusionPipeline",
         "StableDiffusionXLPipeline",
@@ -88,7 +87,7 @@ if TYPE_CHECKING:
         get_polynomial_decay_schedule_with_warmup,
         get_scheduler,
     )
-    from .pipelines import (  # StableDiffusion3Img2ImgPipeline,
+    from .pipelines import (
         DDIMPipeline,
         DDPMPipeline,
         DiffusionPipeline,
