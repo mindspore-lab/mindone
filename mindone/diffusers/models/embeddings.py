@@ -19,7 +19,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import nn, ops
 
-from .activations import get_activation
+from .activations import FP32SiLU, SiLU, get_activation
 from .attention_processor import Attention
 
 
@@ -120,7 +120,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos):
 
 
 class PatchEmbed(nn.Cell):
-    """2D Image to Patch Embedding"""
+    """2D Image to Patch Embedding with support for SD3 cropping."""
 
     def __init__(
         self,
@@ -133,6 +133,8 @@ class PatchEmbed(nn.Cell):
         flatten=True,
         bias=True,
         interpolation_scale=1,
+        pos_embed_type="sincos",
+        pos_embed_max_size=None,  # For SD3 cropping
     ):
         super().__init__()
         from .normalization import LayerNorm
@@ -140,6 +142,7 @@ class PatchEmbed(nn.Cell):
         num_patches = (height // patch_size) * (width // patch_size)
         self.flatten = flatten
         self.layer_norm = layer_norm
+        self.pos_embed_max_size = pos_embed_max_size
 
         self.proj = nn.Conv2d(
             in_channels,
@@ -155,18 +158,57 @@ class PatchEmbed(nn.Cell):
             self.norm = None
 
         self.patch_size = patch_size
-        # See:
-        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L161
         self.height, self.width = height // patch_size, width // patch_size
         self.base_size = height // patch_size
         self.interpolation_scale = interpolation_scale
-        pos_embed = get_2d_sincos_pos_embed(
-            embed_dim, int(num_patches**0.5), base_size=self.base_size, interpolation_scale=self.interpolation_scale
-        )
-        self.pos_embed = ms.Tensor.from_numpy(pos_embed).float().unsqueeze(0)
+
+        # Calculate positional embeddings based on max size or default
+        if pos_embed_max_size:
+            grid_size = pos_embed_max_size
+        else:
+            grid_size = int(num_patches**0.5)
+
+        if pos_embed_type is None:
+            self.pos_embed = None
+        elif pos_embed_type == "sincos":
+            pos_embed = get_2d_sincos_pos_embed(
+                embed_dim, grid_size, base_size=self.base_size, interpolation_scale=self.interpolation_scale
+            )
+            pos_embed = ms.Tensor.from_numpy(pos_embed).float().unsqueeze(0)
+            persistent = True if pos_embed_max_size else False
+            if persistent:
+                self.pos_embed = ms.Parameter(pos_embed, name="pos_embed")
+            else:
+                self.pos_embed = pos_embed
+        else:
+            raise ValueError(f"Unsupported pos_embed_type: {pos_embed_type}")
+
+    def cropped_pos_embed(self, height, width):
+        """Crops positional embeddings for SD3 compatibility."""
+        if self.pos_embed_max_size is None:
+            raise ValueError("`pos_embed_max_size` must be set for cropping.")
+
+        height = height // self.patch_size
+        width = width // self.patch_size
+        if height > self.pos_embed_max_size:
+            raise ValueError(
+                f"Height ({height}) cannot be greater than `pos_embed_max_size`: {self.pos_embed_max_size}."
+            )
+        if width > self.pos_embed_max_size:
+            raise ValueError(f"Width ({width}) cannot be greater than `pos_embed_max_size`: {self.pos_embed_max_size}.")
+
+        top = (self.pos_embed_max_size - height) // 2
+        left = (self.pos_embed_max_size - width) // 2
+        spatial_pos_embed = self.pos_embed.reshape(1, self.pos_embed_max_size, self.pos_embed_max_size, -1)
+        spatial_pos_embed = spatial_pos_embed[:, top : top + height, left : left + width, :]
+        spatial_pos_embed = spatial_pos_embed.reshape(1, -1, spatial_pos_embed.shape[-1])
+        return spatial_pos_embed
 
     def construct(self, latent):
-        height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
+        if self.pos_embed_max_size is not None:
+            height, width = latent.shape[-2:]
+        else:
+            height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
 
         latent = self.proj(latent)
         if self.flatten:
@@ -174,22 +216,18 @@ class PatchEmbed(nn.Cell):
         if self.layer_norm:
             latent = self.norm(latent)
 
-        # Interpolate positional embeddings if needed. For PixArt-Alpha:
-        # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L162C151-L162C160
-        if self.height != height or self.width != width:
-            # pos_embed = get_2d_sincos_pos_embed(
-            #     embed_dim=self.pos_embed.shape[-1],
-            #     grid_size=(height, width),
-            #     base_size=self.base_size,
-            #     interpolation_scale=self.interpolation_scale,
-            # )
-            # pos_embed = ms.Tensor(pos_embed, dtype=latent.dtype)
-            # pos_embed = pos_embed.float().unsqueeze(0)
-            raise NotImplementedError(
-                "A MindSpore version 'get_2d_sincos_pos_embed' method is needed and not implemented so far."
-            )
+        if self.pos_embed is None:
+            return latent.to(latent.dtype)
+        # Interpolate or crop positional embeddings as needed
+        if self.pos_embed_max_size:
+            pos_embed = self.cropped_pos_embed(height, width)
         else:
-            pos_embed = self.pos_embed
+            if self.height != height or self.width != width:
+                raise NotImplementedError(
+                    "A MindSpore version 'get_2d_sincos_pos_embed' method is needed and not implemented so far."
+                )
+            else:
+                pos_embed = self.pos_embed
 
         return (latent + pos_embed).to(latent.dtype)
 
@@ -502,6 +540,25 @@ class CombinedTimestepLabelEmbeddings(nn.Cell):
         return conditioning
 
 
+class CombinedTimestepTextProjEmbeddings(nn.Cell):
+    def __init__(self, embedding_dim, pooled_projection_dim):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+        self.text_embedder = PixArtAlphaTextProjection(pooled_projection_dim, embedding_dim, act_fn="silu")
+
+    def construct(self, timestep, pooled_projection):
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=pooled_projection.dtype))  # (N, D)
+
+        pooled_projections = self.text_embedder(pooled_projection)
+
+        conditioning = timesteps_emb + pooled_projections
+
+        return conditioning
+
+
 class TextTimeEmbedding(nn.Cell):
     def __init__(self, encoder_dim: int, time_embed_dim: int, num_heads: int = 64):
         super().__init__()
@@ -798,10 +855,19 @@ class PixArtAlphaTextProjection(nn.Cell):
     Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/nets/PixArt_blocks.py
     """
 
-    def __init__(self, in_features, hidden_size, num_tokens=120):
+    def __init__(self, in_features, hidden_size, out_features=None, act_fn="gelu_tanh"):
         super().__init__()
+        if out_features is None:
+            out_features = hidden_size
         self.linear_1 = nn.Dense(in_channels=in_features, out_channels=hidden_size, has_bias=True)
-        self.act_1 = nn.GELU(approximate=True)
+        if act_fn == "gelu_tanh":
+            self.act_1 = nn.GELU(approximate=True)
+        elif act_fn == "silu":
+            self.act_1 = SiLU()
+        elif act_fn == "silu_fp32":
+            self.act_1 = FP32SiLU()
+        else:
+            raise ValueError(f"Unknown activation function: {act_fn}")
         self.linear_2 = nn.Dense(in_channels=hidden_size, out_channels=hidden_size, has_bias=True)
 
     def construct(self, caption):
