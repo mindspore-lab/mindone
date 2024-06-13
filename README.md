@@ -52,8 +52,6 @@ ONE is short for "ONE for all" and "Optimal generators with No Exception" (credi
 
 - [Stable Diffusion XL](examples/stable_diffusion_xl): New state-of-the-art SD model with double text embedders and larger UNet.
 
-- [Stable Diffusion 3](mindone/diffusers/pipelines/stable_diffusion_3): Multimodal Diffusion Transformer (MMDiT) text-to-image model that features greatly improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.
-
 - [VideoComposer](examples/videocomposer): Generate videos with prompts or reference videos via controllable video diffusion (both training and inference are supported)
 
 - [AnimateDiff](examples/animatediff): SoTA text-to-video generation models (including v1, v2, and v3) supporting motion lora fine-tuning.
