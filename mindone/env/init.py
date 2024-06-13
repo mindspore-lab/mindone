@@ -64,7 +64,11 @@ def init_train_env(
         ms.set_context(max_device_memory=max_device_memory)
     if distributed:
         device_id = None
-        ms.set_context(mode=mode, device_target=device_target, device_id=device_id, ascend_config=ascend_config or {})
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            ascend_config=ascend_config or {"precision_mode": "allow_fp32_to_fp16"}
+        )
         if parallel_mode == "optim":
             print("use optim parallel")
             ms.set_auto_parallel_context(
