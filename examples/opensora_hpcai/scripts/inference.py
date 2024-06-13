@@ -204,7 +204,10 @@ def main(args):
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
-            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
+            latte_model,
+            amp_level=args.amp_level,
+            dtype=dtype_map[args.dtype],
+            custom_fp32_cells=WHITELIST_OPS if args.dtype == "fp16" else [],
         )
 
     if args.ckpt_path:
