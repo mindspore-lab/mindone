@@ -71,8 +71,8 @@ def init_train_env(
         if parallel_mode == "optim":
             print("use optim parallel")
             ms.set_auto_parallel_context(
-                parrallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
-                parrallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                parallel_optimizer_config={"optimizer_weight_shard_size": optimizer_weight_shard_size},
                 enable_parallel_optimizer=True,
                 strategy_ckpt_config={
                     "save_file": strategy_ckpt_save_file,
