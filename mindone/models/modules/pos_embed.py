@@ -25,6 +25,9 @@ def get_2d_sincos_pos_embed(
         embed_dim: embedding dimension.
         nh: image height
         nw: image width. If it is not given, then `nw` is equal to `nh`. Default: None
+        scale: the scaling factor when generating the postional ids. Default: 1
+        base_size: if it is None, then the relative postional ids will be generated
+            instead of absolute positional ids. Default: None
     """
     nw = nh if nw is None else nw
     if base_size is None:
