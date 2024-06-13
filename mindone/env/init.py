@@ -2,8 +2,6 @@ import logging
 import os
 from typing import Optional, Tuple
 
-from torch.distributed._spmd import parallel_mode
-
 try:
     from typing import Literal
 except ImportError:
@@ -23,6 +21,7 @@ def init_train_env(
     cache_graph: bool = False,
     cache_path: str = "./cache",
     distributed: bool = False,
+    parallel_mode: str = "data",
     ascend_config: Optional[dict] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,

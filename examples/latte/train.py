@@ -58,6 +58,7 @@ def main(args):
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
+        parallel_mode=args.parallel_mode,
         max_device_memory=args.max_device_memory,
         ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
         strategy_ckpt_save_file=os.path.join(args.output_path, "src_strategy.ckpt") if save_src_strategy else "",
