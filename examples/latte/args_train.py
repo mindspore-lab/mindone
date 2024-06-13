@@ -237,6 +237,12 @@ def parse_embedding_cache_args(parser):
         default="optim",
         help="parallel mode for mindrecord writer.",
     )
+    parser.add_argument(
+        "--optimizer_weight_shard_size",
+        type=int,
+        default=-1,
+        help="shard size of optimizer weight",
+    )
     return parser
 
 
