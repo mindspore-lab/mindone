@@ -60,7 +60,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
-        strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
+        strategy_ckpt_save_file=os.path.join(args.output_path, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
