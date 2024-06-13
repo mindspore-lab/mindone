@@ -88,7 +88,7 @@ def init_env(
         )
 
     if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
+        # FIXME: the graph_kernel_flags setting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
         ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
 
     return rank_id, device_num
@@ -278,7 +278,7 @@ def main(args):
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
-        ddim_sampling=args.ddim_sampling,  # TODO: add ddim support for OpenSora v1.1
+        ddim_sampling=args.ddim_sampling,
         condition="text",
         micro_batch_size=args.vae_micro_batch_size,
     )
