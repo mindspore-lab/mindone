@@ -16,6 +16,7 @@ _import_structure = {
     "models": [
         "AutoencoderKL",
         "ModelMixin",
+        "SD3Transformer2DModel",
         "UNet2DConditionModel",
         "UNet2DModel",
     ],
@@ -32,6 +33,8 @@ _import_structure = {
         "DDIMPipeline",
         "DDPMPipeline",
         "DiffusionPipeline",
+        # "StableDiffusion3Img2ImgPipeline",
+        "StableDiffusion3Pipeline",
         "StableDiffusionPipeline",
         "StableDiffusionXLPipeline",
         "StableDiffusionXLImg2ImgPipeline",
@@ -54,6 +57,7 @@ _import_structure = {
         "EDMEulerScheduler",
         "EulerAncestralDiscreteScheduler",
         "EulerDiscreteScheduler",
+        "FlowMatchEulerDiscreteScheduler",
         "HeunDiscreteScheduler",
         "KDPM2AncestralDiscreteScheduler",
         "KDPM2DiscreteScheduler",
@@ -74,7 +78,7 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
-    from .models import AutoencoderKL, ModelMixin, UNet2DConditionModel, UNet2DModel
+    from .models import AutoencoderKL, ModelMixin, SD3Transformer2DModel, UNet2DConditionModel, UNet2DModel
     from .optimization import (
         get_constant_schedule,
         get_constant_schedule_with_warmup,
@@ -84,10 +88,11 @@ if TYPE_CHECKING:
         get_polynomial_decay_schedule_with_warmup,
         get_scheduler,
     )
-    from .pipelines import (
+    from .pipelines import (  # StableDiffusion3Img2ImgPipeline,
         DDIMPipeline,
         DDPMPipeline,
         DiffusionPipeline,
+        StableDiffusion3Pipeline,
         StableDiffusionImg2ImgPipeline,
         StableDiffusionPipeline,
         StableDiffusionXLImg2ImgPipeline,
@@ -111,6 +116,7 @@ if TYPE_CHECKING:
         EDMEulerScheduler,
         EulerAncestralDiscreteScheduler,
         EulerDiscreteScheduler,
+        FlowMatchEulerDiscreteScheduler,
         HeunDiscreteScheduler,
         IPNDMScheduler,
         KDPM2AncestralDiscreteScheduler,

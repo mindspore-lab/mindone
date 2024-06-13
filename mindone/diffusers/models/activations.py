@@ -30,6 +30,18 @@ class SiLU(nn.Cell):
         return x * sigmoid(x)
 
 
+class FP32SiLU(nn.Cell):
+    r"""
+    SiLU activation function with input upcasted to torch.float32.
+    """
+
+    def construct(self, x: ms.Tensor) -> ms.Tensor:
+        x_dtype = x.dtype
+        x = x.float() * sigmoid(x.float())
+        x = x.to(x_dtype)
+        return x
+
+
 ACTIVATION_FUNCTIONS = {
     "swish": SiLU,
     "silu": SiLU,
