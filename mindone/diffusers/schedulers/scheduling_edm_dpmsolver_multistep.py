@@ -290,11 +290,11 @@ class EDMDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
-        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims))
+        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
 
         abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
-        s = ops.quantile(abs_sample, self.config.dynamic_thresholding_ratio, axis=1)
+        s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
         s = ops.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]

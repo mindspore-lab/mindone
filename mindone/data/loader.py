@@ -8,7 +8,7 @@ from .dataset import BaseDataset
 
 def create_dataloader(
     dataset: BaseDataset,
-    batch_size: int,
+    batch_size: int = 1,
     transforms: Optional[Union[List[dict], dict]] = None,
     project_columns: Optional[List[str]] = None,
     shuffle: bool = False,
@@ -29,7 +29,7 @@ def create_dataloader(
 
     Args:
         dataset: A dataset instance, must have `output_columns` member.
-        batch_size: Number of samples per batch.
+        batch_size: Number of samples per batch. Set to 0 to disable batching. Default is 1.
         transforms: Optional transformations to apply to the dataset. It can be a list of transform dictionaries or
                     a single transform dictionary. The dictionary must have the following structure:
                     {
@@ -96,10 +96,17 @@ def create_dataloader(
         dataloader = dataloader.project(project_columns)
 
     if getattr(dataset, "pad_info", None):
-        dataloader = dataloader.padded_batch(
-            batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch, pad_info=dataset.pad_info
-        )
+        if batch_size > 0:
+            dataloader = dataloader.padded_batch(
+                batch_size,
+                drop_remainder=drop_remainder,
+                num_parallel_workers=num_workers_batch,
+                pad_info=dataset.pad_info,
+            )
     else:
-        dataloader = dataloader.batch(batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch)
+        if batch_size > 0:
+            dataloader = dataloader.batch(
+                batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch
+            )
 
     return dataloader

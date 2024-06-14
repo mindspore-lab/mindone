@@ -248,7 +248,7 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         if self.config.use_karras_sigmas:
             sigmas = self._convert_to_karras(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
-            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round()
+            timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas]).round().astype(np.float32)
 
         self.log_sigmas = ms.Tensor(log_sigmas)
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)

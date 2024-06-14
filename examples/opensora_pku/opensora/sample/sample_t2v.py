@@ -379,7 +379,7 @@ if __name__ == "__main__":
                 transformer_model,
                 amp_level=args.amp_level,
                 dtype=dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU] if args.precision == "fp16" else [],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:
@@ -442,6 +442,7 @@ if __name__ == "__main__":
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
             f"Use model dtype: {dtype}",
+            f"Use FA: {args.enable_flash_attention}",
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",

@@ -8,8 +8,8 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
-from mindone.transformers.activations_ms import ACT2FN
-from mindone.transformers.modeling_ms_utils import MSPreTrainedModel as PreTrainedModel
+from mindone.transformers.activations import ACT2FN
+from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 
 __all__ = ["T5EncoderModel"]
 logger = logging.getLogger(__name__)
@@ -600,7 +600,7 @@ class T5Stack(T5PreTrainedModel):
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape, self.is_decoder)
+        extended_attention_mask = self.get_extended_attention_mask(attention_mask, input_shape)
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]

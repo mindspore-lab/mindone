@@ -223,12 +223,12 @@ class STDiT(nn.Cell):
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with linear layer")
-            self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = LinearPatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with conv2d layer")
-            self.x_embedder = PatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))

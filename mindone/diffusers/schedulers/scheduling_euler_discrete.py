@@ -111,8 +111,8 @@ def rescale_zero_terminal_snr(betas):
     alphas_bar_sqrt = alphas_cumprod.sqrt()
 
     # Store old values.
-    alphas_bar_sqrt_0 = alphas_bar_sqrt[0].clone()
-    alphas_bar_sqrt_T = alphas_bar_sqrt[-1].clone()
+    alphas_bar_sqrt_0 = alphas_bar_sqrt[0].copy()
+    alphas_bar_sqrt_T = alphas_bar_sqrt[-1].copy()
 
     # Shift so the last timestep is zero.
     alphas_bar_sqrt -= alphas_bar_sqrt_T
@@ -225,7 +225,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if timestep_type == "continuous" and prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log() for sigma in sigmas])
+            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas])
         else:
             self.timesteps = timesteps
 
@@ -348,7 +348,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log() for sigma in sigmas])
+            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas])
         else:
             self.timesteps = ms.Tensor(timesteps.astype(np.float32))
 
