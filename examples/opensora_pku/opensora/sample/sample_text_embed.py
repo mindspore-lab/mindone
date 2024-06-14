@@ -173,8 +173,8 @@ def main(args):
 
                 np.savez(
                     npz_fp,
-                    mask=mask[i].asnumpy().astype(np.uint8),
-                    text_emb=text_emb[i].asnumpy().astype(np.float32),
+                    mask=mask[i].float().asnumpy().astype(np.uint8),
+                    text_emb=text_emb[i].float().asnumpy().astype(np.float32),
                     # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
                 )
         logger.info(f"Curretn step time cost: {time_cost:0.3f}s")
