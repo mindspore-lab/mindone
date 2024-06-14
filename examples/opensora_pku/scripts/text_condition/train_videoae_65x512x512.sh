@@ -47,6 +47,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --model_max_length 300 \
     --clip_grad True \
     --use_image_num $use_image_num \
+    --dataset_sink_mode True \
     --use_img_from_vid \
     --enable_tiling \
     --use_parallel True \
