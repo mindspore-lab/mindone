@@ -276,7 +276,7 @@ For acceleration, we pre-compute the t5 embedding before training the diffusion 
 ```bash
 python opensora/sample/sample_text_embed.py \
     --data_file_path /path/to/video_caption.json \
-    --output_dir /path/to/text_embed_folder \
+    --output_path /path/to/text_embed_folder \
 ```
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`. Please change `data_file_path` to your video-caption annotation file accordingly.
