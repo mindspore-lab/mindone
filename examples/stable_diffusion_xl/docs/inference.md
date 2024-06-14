@@ -136,12 +136,12 @@ The `denoiser_config` of the model in yaml config file together with the args of
 
 | Model Name    | Device      | MindSpore        | CANN | ImageSize | Compile Cost |Flash Attention| Sampler  | Sample Step | Sample Time |
 |---------------|-------------|------------------|------|-----------|--------------|---------------|----------|-------------|-------------|
-| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
-| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
-| SDXL-Refiner  | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | Testing      | ON            | EulerEDM | 40          | Testing     |
-| SDXL-PipeLine | Ascend 910* | mindspore 2.2.12 | C15  | 1024x1024 | Testing      | ON            | EulerEDM | 35/5        | Testing     |
-| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | C15  | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
-| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | C15  | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
+| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 182s         | ON            | EulerEDM | 40          | 6.66s       |
+| SDXL-Base     | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 182s         | ON            | DPM++2M Karras | 20    | 4.3s        |
+| SDXL-Refiner  | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | Testing      | ON            | EulerEDM | 40          | Testing     |
+| SDXL-PipeLine | Ascend 910* | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | Testing      | ON            | EulerEDM | 35/5        | Testing     |
+| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 295s         | OFF           | DPM++2M Karras | 20    | 17s         |
+| SDXL-Base     | Ascend 910  | mindspore 2.2.12 | 7.0.0 beta1  | 1024x1024 | 280s         | ON            | DPM++2M Karras | 20    | 14.5s       |
 </div>
 <br>
 

@@ -156,7 +156,6 @@ https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_x
   ...
 
   # L117
-  from diffusers import DiffusionPipeline
   - self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
   + self.flash_attention = FlashAttention(head_dim=dim_head)
 
