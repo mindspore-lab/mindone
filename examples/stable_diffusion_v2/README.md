@@ -571,7 +571,7 @@ Detailed illustrations and comparison of these schedulers can be viewed in [Diff
 
 You could infer with other existing pre-trained models derived from SD, which has undergone extensive fine-tuning processes or trained from scratch on specific datasets. Convert the weights from torch to mindsport format first and do inference with samplers.
 
-Here we provide an example of running inference on the Deliberate Model. Please refer to the instructions here, [Inference with the Deliberate Model](docs/en/Inference_with_Deliberate.md).
+Here we provide an example of running inference on the Deliberate Model. Please refer to the instructions here, [Inference with the Deliberate Model](docs/en/inference_with_deliberate.md).
 
 ### Training with v-prediction
 
