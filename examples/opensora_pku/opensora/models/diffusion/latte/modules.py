@@ -56,6 +56,10 @@ class Attention(nn.Cell):
         if self.upcast_softmax:
             sim = sim.astype(ms.float32)
         if mask is not None:
+            # (b*h 1 n_k)
+            # convert mask into a bias that can be added to attention scores:
+            #       (keep = +0,     discard = -10000.0)
+            mask = ops.zeros(mask.shape).masked_fill(mask.to(ms.bool_), -10000.0)
             sim += mask
 
         # use fp32 for exponential inside
@@ -217,13 +221,10 @@ class MultiHeadAttention(nn.Cell):
         k_b, k_n, _ = k.shape
         v_b, v_n, _ = v.shape
 
-        # # convert sequence mask to attention mask: (b, q_n) to (b, q_n, k_n)
-        # if mask is not None:
-        #     mask = self.reshape(mask, (mask.shape[0], -1))
-        #     attn_mask = ops.zeros((q_b, q_n, k_n), self.dtype)
-        #     mask = ops.expand_dims(mask, axis=1)  # (q_b, 1, k_n)
-        #     attn_mask = attn_mask.masked_fill(~mask, -ms.numpy.inf)
-        #     mask = attn_mask
+        # 2+: mask adaptation for multi-head attention
+        if mask is not None:
+            # flip mask, since ms FA treats 1 as discard, 0 as retain.
+            mask = 1 - mask
 
         if self.enable_flash_attention:
             # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
