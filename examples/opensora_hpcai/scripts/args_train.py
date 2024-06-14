@@ -117,6 +117,10 @@ def parse_train_args(parser):
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Training with patchified latent.")
+    parser.add_argument(
+        "--max_image_size", default=512, type=int, help="Max image size for patchified latent training."
+    )
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")

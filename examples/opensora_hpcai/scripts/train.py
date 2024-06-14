@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
-from opensora.pipelines import DiffusionWithLoss
+from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
 
@@ -171,20 +171,27 @@ def main(args):
     img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
     if args.model_version == "v1":
         assert img_h == img_w, "OpenSora v1 support square images only."
+    if args.pre_patchify:
+        img_h, img_w = args.max_image_size, args.max_image_size
 
     input_size = (
         args.num_frames // VAE_T_COMPRESS,
         img_h // VAE_S_COMPRESS,
         img_w // VAE_S_COMPRESS,
     )
+    patchify_conv3d_replace = "linear" if args.pre_patchify else args.patchify
     model_extra_args = dict(
         input_size=input_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
-        patchify_conv3d_replace=args.patchify,  # for Ascend
+        patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
         use_recompute=args.use_recompute,
     )
+
+    if args.pre_patchify and args.model_version != "v1.1":
+        raise ValueError("`pre_patchify=True` can only be used in model version 1.1.")
+
     if args.model_version == "v1":
         model_extra_args.update(
             {
@@ -220,6 +227,15 @@ def main(args):
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
+    if input_size[1] % latte_model.patch_size[1] != 0 or input_size[2] % latte_model.patch_size[2] != 0:
+        height_ = latte_model.patch_size[1] * VAE_S_COMPRESS
+        width_ = latte_model.patch_size[2] * VAE_S_COMPRESS
+        msg = f"Image height ({img_h}) and width ({img_w}) should be divisible by {height_} and {width_} respectively."
+        if patchify_conv3d_replace == "linear":
+            raise ValueError(msg)
+        else:
+            logger.warning(msg)
+
     # 2.2 vae
     # TODO: use mindone/models/autoencoders in future
     logger.info("vae init")
@@ -250,18 +266,24 @@ def main(args):
     # 2.3 ldm with loss
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
     diffusion = create_diffusion(timestep_respacing="")
-    latent_diffusion_with_loss = DiffusionWithLoss(
-        latte_model,
-        diffusion,
-        vae=vae,
+    pipeline_kwargs = dict(
         scale_factor=args.sd_scale_factor,
-        condition="text",
-        text_encoder=None,
         cond_stage_trainable=False,
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
         micro_batch_size=args.vae_micro_batch_size,
     )
+    if args.pre_patchify:
+        additional_pipeline_kwargs = dict(
+            patch_size=latte_model.patch_size,
+            max_image_size=args.max_image_size,
+            vae_downsample_rate=8.0,
+            in_channels=latte_model.in_channels,
+        )
+        pipeline_kwargs.update(additional_pipeline_kwargs)
+
+    pipeline_ = DiffusionWithLossFiTLike if args.pre_patchify else DiffusionWithLoss
+    latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
     # 3. create dataset
     dataloader = None
@@ -314,7 +336,18 @@ def main(args):
             frames_mask_generator=mask_gen,
             buckets=buckets,
             output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
+            pre_patchify=args.pre_patchify,
+            patch_size=latte_model.patch_size,
+            embed_dim=latte_model.hidden_size,
+            num_heads=latte_model.num_heads,
+            max_target_size=args.max_image_size,
+            input_sq_size=latte_model.input_sq_size,
+            in_channels=latte_model.in_channels,
         )
+
+        project_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
+        if args.pre_patchify:
+            project_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
 
         dataloader = create_dataloader(
             dataset,
@@ -330,7 +363,7 @@ def main(args):
             max_rowsize=args.max_rowsize,
             debug=args.debug,
             # Sort output columns to match DiffusionWithLoss input
-            project_columns=["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"],
+            project_columns=project_columns,
         )
 
         if buckets is not None:

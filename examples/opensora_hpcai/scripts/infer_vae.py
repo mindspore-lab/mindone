@@ -100,6 +100,11 @@ def main(args):
     )
     print(f"rank_id {rank_id}, device_num {device_num}")
 
+    if args.resize_by_max_value and args.batch_size != 1:
+        raise ValueError(
+            f"Batch size must be 1 when `resize_by_max_value=True`, but get `batch_size={args.batch_size}`."
+        )
+
     # build dataloader for large amount of captions
     ds_config = dict(
         csv_path=args.csv_path,
@@ -110,6 +115,7 @@ def main(args):
         video_column=args.video_column,
         caption_column=args.caption_column,
         return_frame_data=args.dl_return_all_frames,
+        resize_by_max_value=args.resize_by_max_value,
         transform_name=args.transform_name,
     )
     dataloader, ds = create_dataloader(
@@ -366,6 +372,7 @@ def parse_args():
         help="If True, allow to overwrite the existing npz file. If False, will skip vae encoding if the latent npz file is already existed",
     )
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
+    parser.add_argument("--resize_by_max_value", default=False, type=str2bool, help="resize the image by max instead.")
 
     default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))

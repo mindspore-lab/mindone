@@ -313,6 +313,7 @@ video,caption
 video_folder/part01/vid001.mp4,a cartoon character is walking through
 video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
 ```
+</details>
 
 
 ### Cache Text Embeddings
@@ -552,6 +553,69 @@ Prompt: A baker turns freshly baked loaves of sourdough bread
 
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
+
+
+## Training and Inference Using the FiT-Like Pipeline
+
+We provide support for training Open-Sora 1.1 using the FiT-Like pipeline as an alternative solution for handling multi-resolution videos, in contrast to the bucketing strategy.
+
+### FiT-Like Training
+
+To begin, we need to prepare the VAE (Variational Autoencoder) latents from multi-resolution videos. For instance, if you intend to train at a resolution of up to 512x512 pixels, please run
+
+```bash
+python script/infer_vae.py \
+    --csv_path /path/to/video_caption.csv  \
+    --video_folder /path/to/video_folder  \
+    --output_path /path/to/video_embed_folder  \
+    --vae_checkpoint models/sd-vae-ft-ema.ckpt \
+    --image_size 512 \
+    --resize_by_max_value True \
+    --vae-micro-batch-size 1
+    --mode 1
+```
+
+The extracted VAE latent will be saved in the video embedding folder.
+
+Then, to launch a distributed training with eight NPU cards, please run
+
+```bash
+msrun --worker_num=8 --local_worker_num=8  \
+    scripts/train.py --config configs/opensora-v1-1/train/train_stage1_fit.yaml \
+    --csv_path /path/to/video_caption.csv \
+    --video_folder /path/to/video_folder \
+    --text_embed_folder /path/to/text_embed_folder \
+    --vae_latent_folder /path/to/video_embed_folder \
+    --use_parallel True \
+    --max_image_size 512 \
+```
+
+We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
+
+| Model       | Context      | Precision | BS | NPUs | Max. Resolution | Train T. (s/step) |
+|:------------|:-------------|:----------|:--:|:----:|:---------------:|:-----------------:|
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  4   | 16x512x512      |       2.3         |
+
+
+### FiT-Like Inference
+
+To sample a video with a resolution of 384x672 using the trained checkpoint. You can run
+
+```bash
+python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/t2v_fit.yaml \
+    --ckpt_path /path/to/your/opensora-v1-1.ckpt \
+    --prompt_path /path/to/prompt.txt \
+    --image_size 384 672 \
+    --max_image_size 512 \
+```
+
+Make sure that the `max_image_size` parameter remains consistent between your training and inference commands.
+
+Here are some generation results after fine-tuning STDiT on small dataset:
+
+[16x384x672](https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481)
+
+[16x672x384](https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53)
 
 
 ## Contribution

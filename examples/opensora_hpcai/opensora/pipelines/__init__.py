@@ -1,2 +1,2 @@
-from .infer_pipeline import InferPipeline
-from .train_pipeline import DiffusionWithLoss
+from .infer_pipeline import InferPipeline, InferPipelineFiTLike
+from .train_pipeline import DiffusionWithLoss, DiffusionWithLossFiTLike
