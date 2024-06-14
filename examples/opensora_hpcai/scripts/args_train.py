@@ -40,8 +40,8 @@ def parse_train_args(parser):
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
-    parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
-    parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
+    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
@@ -204,6 +204,7 @@ def parse_train_args(parser):
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
     parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")
     parser.add_argument("--mask_ratios", type=dict, help="Masking ratios")
+    parser.add_argument("--bucket_config", type=dict, help="Multi-resolution bucketing configuration")
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(
         "--data_multiprocessing",
