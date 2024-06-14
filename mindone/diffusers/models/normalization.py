@@ -265,7 +265,7 @@ class LayerNorm(nn.Cell):
     eps: float
     elementwise_affine: bool
 
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32, bias=True):
+    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, bias=True, dtype=ms.float32):
         super().__init__()
         if isinstance(normalized_shape, numbers.Integral):
             normalized_shape = (normalized_shape,)
@@ -420,7 +420,6 @@ def _group_norm(x, num_groups, weight, bias, eps):
     x = x.reshape(x_shape)
 
     if weight is not None and bias is not None:
-        weight, bias = weight.to(x.dtype), bias.to(x.dtype)
         expanded_shape = (1, -1) + (1,) * len(x_shape[2:])
         x = x * weight.reshape(expanded_shape) + bias.reshape(expanded_shape)
 
