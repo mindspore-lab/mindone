@@ -29,7 +29,6 @@ class DiffusionWithLoss(nn.Cell):
             If it is 'class', model accepts class labels (B, ) as conditions, and generates videos.
         text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
             T is the number of tokens, and D is the embedding dimension.
-        cond_stage_trainable (bool): whether to train the text encoder.
         train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
     """
 
@@ -40,7 +39,6 @@ class DiffusionWithLoss(nn.Cell):
         vae: nn.Cell = None,
         condition: str = "class",
         text_encoder: nn.Cell = None,
-        cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
@@ -58,8 +56,6 @@ class DiffusionWithLoss(nn.Cell):
         self.text_encoder = text_encoder
         self.dtype = dtype
 
-        self.cond_stage_trainable = cond_stage_trainable
-
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
 
@@ -69,26 +65,18 @@ class DiffusionWithLoss(nn.Cell):
         else:
             self.text_encoder = text_encoder
 
-        if self.cond_stage_trainable and self.text_encoder:
-            self.text_encoder.set_train(True)
-            self.text_encoder.set_grad(True)
-
         self.use_image_num = use_image_num
 
     def get_condition_embeddings(self, text_tokens, encoder_attention_mask):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
-        if self.use_image_num > 0:
-            # use for loop to avoid OOM?
-            B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
-            text_tokens = text_tokens.reshape(B * frame, L)
-            encoder_attention_mask = (
-                encoder_attention_mask.reshape(B * frame, L) if encoder_attention_mask is not None else None
-            )  # mask (B, T+num_images)
-        if self.cond_stage_trainable:
-            text_emb = self.text_encoder(text_tokens, encoder_attention_mask)
-        else:
-            text_emb = ops.stop_gradient(self.text_encoder(text_tokens, encoder_attention_mask))
+        # use for loop to avoid OOM?
+        B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
+        text_emb = []
+        for i in range(frame):
+            t = self.text_encoder(text_tokens[:, i], encoder_attention_mask[:, i])
+            text_emb.append(t)
+        text_emb = ops.stack(text_emb, axis=1)
         return text_emb
 
     def vae_encode(self, x):
@@ -112,7 +100,7 @@ class DiffusionWithLoss(nn.Cell):
         if x.dim() == 5:
             B, C, F, H, W = x.shape
             if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
+                raise ValueError("Expect input shape (b 3 f h w), but get {}".format(x.shape))
             if self.use_image_num == 0:
                 z = self.vae_encode(x)  # (b, c, f, h, w)
             else:
@@ -140,8 +128,8 @@ class DiffusionWithLoss(nn.Cell):
         Video diffusion model forward and loss computation for training
 
         Args:
-            x: pixel values of video frames, resized and normalized to shape [bs, F, 3, 256, 256]
-            text_tokens: text tokens padded to fixed shape [bs, 77]
+            x: pixel values of video frames, resized and normalized to shape (b c f+num_img h w)
+            text_tokens: text tokens padded to fixed shape [bs, L]
             labels: the class labels
 
         Returns:
@@ -149,8 +137,7 @@ class DiffusionWithLoss(nn.Cell):
 
         Notes:
             - inputs should matches dataloder output order
-            - assume model input/output shape: (b c f h w)
-                unet2d input/output shape: (b c h w)
+            - assume model input/output shape: (b c f+num_img h w)
         """
         # 1. get image/video latents z using vae
         x = x.to(self.dtype)
@@ -159,9 +146,11 @@ class DiffusionWithLoss(nn.Cell):
 
         # 2. get conditions
         if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens, encoder_attention_mask)
+            text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
         else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+            text_embed = (
+                text_tokens  # dataset retunrs text embeddings instead of text tokens, shape (B, F+num_image, L, D)
+            )
 
         loss = self.compute_loss(x, text_embed, encoder_attention_mask, attention_mask)
 

@@ -201,7 +201,6 @@ def main(args):
         vae=vae,
         condition="text",
         text_encoder=text_encoder,
-        cond_stage_trainable=False,
         text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
         use_image_num=args.use_image_num,
