@@ -289,9 +289,6 @@ class LatteT2V(ModelMixin, ConfigMixin):
         attention_mask = attention_mask.reshape(b * t, h * w).unsqueeze(1)
         # assume that mask is expressed as:
         #   (1 = keep,      0 = discard)
-        # convert mask into a bias that can be added to attention scores:
-        #   (keep = +0,     discard = -10000.0)
-        attention_mask = (1 - attention_mask.to(dtype)) * -10000.0
         attention_mask = attention_mask.to(self.dtype)
         return attention_mask
 
