@@ -318,7 +318,7 @@ if __name__ == "__main__":
     ds_config = dict(
         data_file_path=temp_dataset_csv,
         tokenizer=None,  # tokenizer,
-        video_column="path",
+        file_column="path",
         caption_column="cap",
     )
     dataset = create_dataloader(
