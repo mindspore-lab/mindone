@@ -289,7 +289,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         attention_mask = attention_mask.reshape(b * t, h * w).unsqueeze(1)
         # assume that mask is expressed as:
         #   (1 = keep,      0 = discard)
-        attention_mask = attention_mask.to(self.dtype)
+        # attention_mask = attention_mask.to(self.dtype)
         return attention_mask
 
     def vae_to_diff_mask(self, attention_mask, use_image_num):
@@ -378,7 +378,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
             # b 1 l -> (b f) 1 l
             encoder_attention_mask = encoder_attention_mask.repeat_interleave(frame, dim=0)
-            encoder_attention_mask = encoder_attention_mask.to(self.dtype)
+            # encoder_attention_mask = encoder_attention_mask.to(self.dtype)
         elif encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:  # ndim == 3 means image joint
             encoder_attention_mask_video = encoder_attention_mask[:, :1, ...]
             encoder_attention_mask_video = encoder_attention_mask_video.repeat_interleave(frame, dim=1)
@@ -386,7 +386,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
             encoder_attention_mask = ops.cat([encoder_attention_mask_video, encoder_attention_mask_image], axis=1)
             # b n l -> (b n) l
             encoder_attention_mask = encoder_attention_mask.view(-1, encoder_attention_mask.shape[-1]).unsqueeze(1)
-            encoder_attention_mask = encoder_attention_mask.to(self.dtype)
+            # encoder_attention_mask = encoder_attention_mask.to(self.dtype)
 
         # # Retrieve lora scale.
         # lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
@@ -398,7 +398,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         hw = (height, width)
         num_patches = height * width
 
-        hidden_states = self.pos_embed(hidden_states.to(self.dtype))  # alrady add positional embeddings
+        hidden_states = self.pos_embed(hidden_states)  # alrady add positional embeddings
 
         if self.adaln_single is not None:
             if self.use_additional_conditions and added_cond_kwargs is None:
@@ -416,7 +416,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         # 2. Blocks
         if self.caption_projection is not None:
             batch_size = hidden_states.shape[0]
-            encoder_hidden_states = self.caption_projection(encoder_hidden_states.to(self.dtype))  # 3 120 1152
+            encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # 3 120 1152
 
             if use_image_num != 0 and self.training:
                 encoder_hidden_states_video = encoder_hidden_states[:, :1, ...]
