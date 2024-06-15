@@ -21,14 +21,12 @@ output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dty
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs opensora/train/train_t2v.py \
       --video_data "scripts/train_data/video_data.txt" \
       --image_data "scripts/train_data/image_data.txt" \
-      --text_embed_folder /path/to/text-embed-folder \
-      --pretrained pretrained/t2v.ckpt \
+      --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.0.0 \
-    --sample_rate 1 \
+    --ae_path LanguageBind/Open-Sora-Plan-v1.1.0 \
     --num_frames $num_frames \
     --max_image_size $image_size \
     --use_recompute True \
@@ -48,7 +46,6 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --clip_grad True \
     --use_image_num $use_image_num \
     --dataset_sink_mode True \
-    --use_img_from_vid \
     --enable_tiling \
     --use_parallel True \
     --parallel_mode "optim" \

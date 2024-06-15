@@ -30,6 +30,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -174,8 +175,7 @@ def main(args):
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
-    use_text_embed = args.text_embed_folder is not None and len(args.text_embed_folder) > 0
-    if not use_text_embed:
+    if not args.text_embed_cache:
         logger.info("T5 init")
         text_encoder = T5Embedder(
             dir_or_name=args.text_encoder_name,
@@ -190,9 +190,6 @@ def main(args):
 
         tokenizer = text_encoder.tokenizer
     else:
-        assert os.path.exists(
-            args.text_embed_folder
-        ), f"The provided text_embed_folder {args.text_embed_folder} is not existent!"
         text_encoder = None
         tokenizer = None
 
@@ -205,7 +202,7 @@ def main(args):
         condition="text",
         text_encoder=text_encoder,
         cond_stage_trainable=False,
-        text_emb_cached=use_text_embed,
+        text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
         use_image_num=args.use_image_num,
         dtype=model_dtype,
@@ -214,22 +211,17 @@ def main(args):
     # 3. create dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
     ds_config = dict(
-        data_file_path=args.data_path,
-        video_folder=args.video_folder,
-        text_emb_folder=args.text_embed_folder,
-        return_text_emb=use_text_embed,
-        vae_latent_folder=args.vae_latent_folder,
-        return_vae_latent=train_with_vae_latent,
-        vae_scale_factor=args.sd_scale_factor,
+        image_data=args.image_data,
+        video_data=args.video_data,
         sample_size=args.max_image_size,
-        sample_stride=args.sample_rate,
-        sample_n_frames=args.num_frames,
+        num_frames=args.num_frames,
         tokenizer=tokenizer,
-        video_column=args.video_column,
-        caption_column=args.caption_column,
+        return_text_emb=args.text_embed_cache,
         disable_flip=not args.enable_flip,
         use_image_num=args.use_image_num,
-        token_max_length=args.model_max_length,
+        use_img_from_vid=args.use_img_from_vid,
+        model_max_length=args.model_max_length,
+        filter_nonexistent=args.filter_nonexistent,
     )
     dataset = create_dataloader(
         ds_config,
@@ -440,16 +432,26 @@ def main(args):
 def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=True)
+    parser.add_argument("--image_data", type=str, required=True)
+    parser.add_argument("--video_data", type=str, required=True)
     parser.add_argument(
-        "--text_embed_folder", type=str, default=None, help="the folder path to the t5 text embeddings and masks"
+        "--filter_nonexistent",
+        type=str2bool,
+        default=True,
+        help="Whether to filter out non-existent samples in image datasets and video datasets." "Defaults to True.",
+    )
+    parser.add_argument(
+        "--text_embed_cache",
+        type=str2bool,
+        default=True,
+        help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
     parser.add_argument("--model", type=str, default="DiT-XL/122")
     parser.add_argument("--num_classes", type=int, default=1000)
     parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
     parser.add_argument("--ae_path", type=str, default="stabilityai/sd-vae-ft-mse")
-    parser.add_argument("--sample_rate", type=int, default=4)
+
     parser.add_argument("--num_frames", type=int, default=17)
     parser.add_argument("--max_image_size", type=int, default=512)
     parser.add_argument("--compress_kv", action="store_true")
@@ -489,10 +491,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    parser.add_argument("--video_column", default="path", type=str, help="name of column for videos saved in csv file")
-    parser.add_argument(
-        "--caption_column", default="cap", type=str, help="name of column for captions saved in csv file"
-    )
+
     parser.add_argument(
         "--enable_flip",
         action="store_true",

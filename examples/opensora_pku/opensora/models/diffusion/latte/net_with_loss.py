@@ -110,10 +110,9 @@ class DiffusionWithLoss(nn.Cell):
 
     def get_latents(self, x):
         if x.dim() == 5:
-            B, F, C, H, W = x.shape
+            B, C, F, H, W = x.shape
             if C != 3:
                 raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = x.permute(0, 2, 1, 3, 4)  # (b, c, f, h, w)
             if self.use_image_num == 0:
                 z = self.vae_encode(x)  # (b, c, f, h, w)
             else:
@@ -157,9 +156,6 @@ class DiffusionWithLoss(nn.Cell):
         x = x.to(self.dtype)
         if not self.video_emb_cached:
             x = ops.stop_gradient(self.get_latents(x))
-        else:
-            # (b f c h w) -> (b c f h w)
-            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
         # 2. get conditions
         if not self.text_emb_cached:
