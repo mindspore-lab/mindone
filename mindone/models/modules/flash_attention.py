@@ -54,7 +54,6 @@ class MSFlashAttention(nn.Cell):
         attention_dropout: float = 0.0,
         input_layout: str = "BNSD",
         high_precision: bool = True,
-        dtype: ms.dtype = ms.float16,
     ):
         super().__init__()
         assert FLASH_IS_AVAILABLE, "FlashAttention is not Available!"
@@ -78,7 +77,7 @@ class MSFlashAttention(nn.Cell):
                 dropout_rate=attention_dropout,
             )  # TODO: how high_precision affect the training or inference quality
         self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
-        self.dtype = dtype
+
         cand_d_list = [64, 80, 96, 120, 128, 256]
         self.d_pad = 0
         for d in cand_d_list:
@@ -93,7 +92,6 @@ class MSFlashAttention(nn.Cell):
         self.need_pad = self.d_pad != 0
 
     def _rearange_input(self, x):
-        x = x.to(self.dtype)
         if self.need_pad:
             if self.input_layout == "BNSD":
                 B, N, S, D = x.shape
@@ -123,9 +121,9 @@ class MSFlashAttention(nn.Cell):
             if mask is None:
                 mask = ops.zeros((B, S1, S2), self.fa_mask_dtype)
             out = self.flash_attention(
-                q.to(self.dtype),
-                k.to(self.dtype),
-                v.to(self.dtype),
+                q,
+                k,
+                v,
                 mask.to(self.fa_mask_dtype),
             )
             return out
