@@ -514,7 +514,7 @@ class Encoder(nn.Cell):
         elif conv_in == "CausalConv3d":
             self.conv_in = CausalConv3d(
                 3,
-                self.ch,
+                hidden_size,
                 kernel_size=3,
                 stride=1,
                 padding=1,
