@@ -97,6 +97,7 @@ class Attention(nn.Cell):
         _from_deprecated_attn_block: bool = False,
         processor: Optional["AttnProcessor"] = None,
         out_dim: int = None,
+        context_pre_only=None,
     ):
         from .normalization import GroupNorm, LayerNorm
 
@@ -113,6 +114,7 @@ class Attention(nn.Cell):
         self.dropout = dropout
         self.fused_projections = False
         self.out_dim = out_dim if out_dim is not None else query_dim
+        self.context_pre_only = context_pre_only
 
         # we make use of this private variable to know whether this class is loaded
         # with an deprecated state dict so that we can convert it on the fly
@@ -185,8 +187,13 @@ class Attention(nn.Cell):
         if self.added_kv_proj_dim is not None:
             self.add_k_proj = linear_cls(added_kv_proj_dim, self.inner_dim)
             self.add_v_proj = linear_cls(added_kv_proj_dim, self.inner_dim)
+            if self.context_pre_only is not None:
+                self.add_q_proj = nn.Dense(added_kv_proj_dim, self.inner_dim)
 
         self.to_out = nn.CellList([linear_cls(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(p=dropout)])
+
+        if self.context_pre_only is not None and not self.context_pre_only:
+            self.to_add_out = nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias)
 
         # set attention processor
         # We use the AttnProcessor2_0 by default when torch 2.x is used which uses
@@ -775,6 +782,150 @@ class AttnAddedKVProcessor:
 
 
 @ms.jit_class
+class JointAttnProcessor:
+    """Attention processor used typically in processing the SD3-like self-attention projections."""
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        residual = hidden_states
+
+        batch_size, channel, height, width = (None,) * 4
+        input_ndim = hidden_states.ndim
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        context_input_ndim = encoder_hidden_states.ndim
+        if context_input_ndim == 4:
+            batch_size, channel, height, width = encoder_hidden_states.shape
+            encoder_hidden_states = encoder_hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+
+        batch_size = encoder_hidden_states.shape[0]
+
+        # `sample` projections.
+        query = attn.to_q(hidden_states)
+        key = attn.to_k(hidden_states)
+        value = attn.to_v(hidden_states)
+
+        # `context` projections.
+        encoder_hidden_states_query_proj = attn.add_q_proj(encoder_hidden_states)
+        encoder_hidden_states_key_proj = attn.add_k_proj(encoder_hidden_states)
+        encoder_hidden_states_value_proj = attn.add_v_proj(encoder_hidden_states)
+
+        # attention
+        query = ops.cat([query, encoder_hidden_states_query_proj], axis=1)
+        key = ops.cat([key, encoder_hidden_states_key_proj], axis=1)
+        value = ops.cat([value, encoder_hidden_states_value_proj], axis=1)
+
+        query = attn.head_to_batch_dim(query)
+        key = attn.head_to_batch_dim(key)
+        value = attn.head_to_batch_dim(value)
+
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # Split the attention outputs.
+        hidden_states, encoder_hidden_states = (
+            hidden_states[:, : residual.shape[1]],
+            hidden_states[:, residual.shape[1] :],
+        )
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+        if not attn.context_pre_only:
+            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+        if context_input_ndim == 4:
+            encoder_hidden_states = encoder_hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        return hidden_states, encoder_hidden_states
+
+
+@ms.jit_class
+class FusedJointAttnProcessor:
+    """Attention processor used typically in processing the SD3-like self-attention projections."""
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        residual = hidden_states
+
+        batch_size, channel, height, width = (None,) * 4
+        input_ndim = hidden_states.ndim
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+        context_input_ndim = encoder_hidden_states.ndim
+        if context_input_ndim == 4:
+            batch_size, channel, height, width = encoder_hidden_states.shape
+            encoder_hidden_states = encoder_hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
+
+        batch_size = encoder_hidden_states.shape[0]
+
+        # `sample` projections.
+        qkv = attn.to_qkv(hidden_states)
+        split_size = qkv.shape[-1] // 3
+        query, key, value = ops.split(qkv, split_size, axis=-1)
+
+        # `context` projections.
+        encoder_qkv = attn.to_added_qkv(encoder_hidden_states)
+        split_size = encoder_qkv.shape[-1] // 3
+        (
+            encoder_hidden_states_query_proj,
+            encoder_hidden_states_key_proj,
+            encoder_hidden_states_value_proj,
+        ) = ops.split(encoder_qkv, split_size, axis=-1)
+
+        # attention
+        query = ops.cat([query, encoder_hidden_states_query_proj], axis=1)
+        key = ops.cat([key, encoder_hidden_states_key_proj], axis=1)
+        value = ops.cat([value, encoder_hidden_states_value_proj], axis=1)
+
+        query = attn.head_to_batch_dim(query)
+        key = attn.head_to_batch_dim(key)
+        value = attn.head_to_batch_dim(value)
+
+        attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        hidden_states = ops.bmm(attention_probs, value)
+        hidden_states = attn.batch_to_head_dim(hidden_states)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # Split the attention outputs.
+        hidden_states, encoder_hidden_states = (
+            hidden_states[:, : residual.shape[1]],
+            hidden_states[:, residual.shape[1] :],
+        )
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+        if not attn.context_pre_only:
+            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
+
+        if input_ndim == 4:
+            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+        if context_input_ndim == 4:
+            encoder_hidden_states = encoder_hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+
+        return hidden_states, encoder_hidden_states
+
+
+@ms.jit_class
 class XFormersAttnProcessor:
     r"""
     Processor for implementing memory efficient attention using xFormers-like interface.
@@ -1084,4 +1235,6 @@ AttentionProcessor = Union[
     XFormersAttnProcessor,
     AttnAddedKVProcessor,
     CustomDiffusionAttnProcessor,
+    JointAttnProcessor,
+    FusedJointAttnProcessor,
 ]

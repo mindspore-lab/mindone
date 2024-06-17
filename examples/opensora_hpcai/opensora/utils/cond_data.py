@@ -89,7 +89,7 @@ def get_references(
     references = []
     for paths in reference_paths:  # iterate over samples
         subref = []
-        if paths is not None:
+        if paths:  # if not None or empty string
             for ref in paths.split(";"):  # iterate over references for each loop
                 ext = os.path.splitext(ref)[-1].lower()
                 if ext.lower() in VID_EXTENSIONS:

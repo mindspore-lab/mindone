@@ -198,6 +198,7 @@ def np2ms_tensor(inp, force_fp32=True):
     ms_dtype = None
     if inp.dtype == np.float16 and force_fp32:
         ms_dtype = ms.float32
+    inp = np.array(inp)  # in case of type error
     out = ms.Tensor(inp, dtype=ms_dtype)
     return out
 

@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
-from opensora.pipelines import InferPipeline
+from opensora.pipelines import InferPipeline, InferPipelineFiTLike
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import WHITELIST_OPS, _check_cfgs_in_parser, str2bool
@@ -165,13 +165,16 @@ def main(args):
         img_h // VAE_S_COMPRESS,
         img_w // VAE_S_COMPRESS,
     )
+    patchify_conv3d_replace = "linear" if args.pre_patchify else args.patchify
     model_extra_args = dict(
         input_size=input_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
-        patchify_conv3d_replace=args.patchify,  # for Ascend
+        patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
     )
+    if args.pre_patchify and args.model_version != "v1.1":
+        raise ValueError("`pre_patchify=True` can only be used in model version 1.1.")
 
     if args.model_version == "v1":
         model_name = "STDiT"
@@ -200,6 +203,15 @@ def main(args):
         raise ValueError(f"Unknown model version: {args.model_version}")
 
     latte_model = latte_model.set_train(False)
+
+    if input_size[1] % latte_model.patch_size[1] != 0 or input_size[2] % latte_model.patch_size[2] != 0:
+        height_ = latte_model.patch_size[1] * VAE_S_COMPRESS
+        width_ = latte_model.patch_size[2] * VAE_S_COMPRESS
+        msg = f"Image height ({img_h}) and width ({img_w}) should be divisible by {height_} and {width_} respectively."
+        if patchify_conv3d_replace == "linear":
+            raise ValueError(msg)
+        else:
+            logger.warning(msg)
 
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
@@ -273,18 +285,29 @@ def main(args):
         raise ValueError("No text prompts provided for Text-to-Video generation.")
 
     # 3. build inference pipeline
-    pipeline = InferPipeline(
-        latte_model,
-        vae,
-        text_encoder=text_encoder,
+    pipeline_kwargs = dict(
         scale_factor=args.sd_scale_factor,
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
         ddim_sampling=args.ddim_sampling,
-        condition="text",
         micro_batch_size=args.vae_micro_batch_size,
     )
+    if args.pre_patchify:
+        additional_pipeline_kwargs = dict(
+            patch_size=latte_model.patch_size,
+            max_image_size=args.max_image_size,
+            max_num_frames=args.max_num_frames,
+            embed_dim=latte_model.hidden_size,
+            num_heads=latte_model.num_heads,
+            vae_downsample_rate=8.0,
+            in_channels=latte_model.in_channels,
+            input_sq_size=latte_model.input_sq_size,
+        )
+        pipeline_kwargs.update(additional_pipeline_kwargs)
+
+    pipeline_ = InferPipelineFiTLike if args.pre_patchify else InferPipeline
+    pipeline = pipeline_(latte_model, vae, text_encoder=text_encoder, **pipeline_kwargs)
 
     # 3.1. Support for multi-resolution (OpenSora v1.1 only)
     model_args = {}
@@ -587,6 +610,9 @@ def parse_args():
         " (you can use infer_vae_decode.py to decode the saved denoised latent later.",
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
+    parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Patchify the latent before inference.")
+    parser.add_argument("--max_image_size", default=512, type=int, help="Max image size for patchified latent.")
+    parser.add_argument("--max_num_frames", default=16, type=int, help="Max number of frames for patchified latent.")
     default_args = parser.parse_args()
 
     __dir__ = os.path.dirname(os.path.abspath(__file__))

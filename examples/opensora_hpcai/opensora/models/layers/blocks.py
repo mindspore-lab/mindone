@@ -11,6 +11,8 @@ from mindspore.common.initializer import initializer
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
 
+from .rotary_embedding import rope_1d
+
 
 class LlamaRMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
@@ -245,7 +247,7 @@ class SelfAttention(nn.Cell):
         self.proj = nn.Dense(dim, dim, weight_init="XavierUniform", bias_init="Zero").to_float(attn_dtype)
         self.proj_drop = nn.Dropout(p=proj_drop).to_float(attn_dtype)
 
-    def construct(self, x, mask=None):
+    def construct(self, x, mask=None, freqs_cis: Optional[Tensor] = None):
         """
         x: (b n c)
         mask: (b n), 1 - valid, 0 - padded
@@ -262,9 +264,12 @@ class SelfAttention(nn.Cell):
         v = ops.squeeze(v, axis=2)
 
         # WARNING: this may be a bug
-        if self.rotary_emb is not None:
+        if self.rotary_emb is not None and freqs_cis is None:
             q = self.rotary_emb(q)
             k = self.rotary_emb(k)
+        elif freqs_cis is not None:
+            q = rope_1d(q, freqs_cis)
+            k = rope_1d(k, freqs_cis)
         q, k = self.q_norm(q), self.k_norm(k)
 
         # mask process
@@ -480,24 +485,9 @@ class PatchEmbed(nn.Cell):
         embed_dim (int): Number of linear projection output channels. Default: 96.
     """
 
-    def __init__(
-        self,
-        image_size: Optional[int] = 224,
-        patch_size: int = 2,
-        in_chans: int = 3,
-        embed_dim: int = 96,
-        bias: bool = True,
-    ) -> None:
+    def __init__(self, patch_size: int = 2, in_chans: int = 3, embed_dim: int = 96, bias: bool = True):
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
-        if image_size is not None:
-            self.image_size: Optional[Tuple] = (image_size, image_size) if isinstance(image_size, int) else image_size
-            self.patches_resolution: Optional[Tuple] = tuple([s // p for s, p in zip(self.image_size, self.patch_size)])
-            self.num_patches: Optional[int] = self.patches_resolution[0] * self.patches_resolution[1]
-        else:
-            self.image_size: Optional[Tuple] = None
-            self.patches_resolution: Optional[Tuple] = None
-            self.num_patches: Optional[int] = None
         self.embed_dim = embed_dim
         self.proj = nn.Conv2d(
             in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="same", has_bias=bias
@@ -521,14 +511,7 @@ class LinearPatchEmbed(nn.Cell):
         embed_dim (int): Number of linear projection output channels. Default: 96.
     """
 
-    def __init__(
-        self,
-        image_size: Optional[int] = 224,
-        patch_size: int = 4,
-        in_chans: int = 3,
-        embed_dim: int = 96,
-        bias: bool = True,
-    ) -> None:
+    def __init__(self, patch_size: int = 4, in_chans: int = 3, embed_dim: int = 96, bias: bool = True):
         super().__init__()
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
         self.embed_dim = embed_dim

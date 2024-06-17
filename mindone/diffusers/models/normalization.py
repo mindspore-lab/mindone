@@ -21,7 +21,7 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common.initializer import initializer
 
-from .activations import get_activation
+from .activations import SiLU, get_activation
 from .embeddings import CombinedTimestepLabelEmbeddings, PixArtAlphaCombinedTimestepSizeEmbeddings
 
 
@@ -37,7 +37,7 @@ class AdaLayerNorm(nn.Cell):
     def __init__(self, embedding_dim: int, num_embeddings: int):
         super().__init__()
         self.emb = nn.Embedding(num_embeddings, embedding_dim)
-        self.silu = nn.SiLU()
+        self.silu = SiLU()
         self.linear = nn.Dense(embedding_dim, embedding_dim * 2)
         self.norm = LayerNorm(embedding_dim, elementwise_affine=False)
 
@@ -59,23 +59,28 @@ class AdaLayerNormZero(nn.Cell):
         num_embeddings (`int`): The size of the embeddings dictionary.
     """
 
-    def __init__(self, embedding_dim: int, num_embeddings: int):
+    def __init__(self, embedding_dim: int, num_embeddings: Optional[int] = None):
         super().__init__()
+        if num_embeddings is not None:
+            self.emb = CombinedTimestepLabelEmbeddings(num_embeddings, embedding_dim)
+        else:
+            self.emb = None
 
-        self.emb = CombinedTimestepLabelEmbeddings(num_embeddings, embedding_dim)
-
-        self.silu = nn.SiLU()
+        self.silu = SiLU()
         self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
         self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
 
     def construct(
         self,
         x: ms.Tensor,
-        timestep: ms.Tensor,
-        class_labels: ms.Tensor,
+        timestep: Optional[ms.Tensor] = None,
+        class_labels: Optional[ms.Tensor] = None,
         hidden_dtype=None,
+        emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
-        emb = self.linear(self.silu(self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)))
+        if self.emb is not None:
+            emb = self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)
+        emb = self.linear(self.silu(emb))
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, axis=1)
         x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
@@ -99,7 +104,7 @@ class AdaLayerNormSingle(nn.Cell):
             embedding_dim, size_emb_dim=embedding_dim // 3, use_additional_conditions=use_additional_conditions
         )
 
-        self.silu = nn.SiLU()
+        self.silu = SiLU()
         self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
 
     def construct(
@@ -168,7 +173,7 @@ class AdaLayerNormContinuous(nn.Cell):
         norm_type="layer_norm",
     ):
         super().__init__()
-        self.silu = nn.SiLU()
+        self.silu = SiLU()
         self.linear = nn.Dense(conditioning_embedding_dim, embedding_dim * 2, has_bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias=bias)
@@ -260,7 +265,7 @@ class LayerNorm(nn.Cell):
     eps: float
     elementwise_affine: bool
 
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32, bias=True):
+    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, bias=True, dtype=ms.float32):
         super().__init__()
         if isinstance(normalized_shape, numbers.Integral):
             normalized_shape = (normalized_shape,)
@@ -270,9 +275,9 @@ class LayerNorm(nn.Cell):
         _weight = np.ones(normalized_shape, dtype=ms.dtype_to_nptype(dtype))
         _bias = np.zeros(normalized_shape, dtype=ms.dtype_to_nptype(dtype))
         if self.elementwise_affine:
-            self.weight = Parameter(ms.Tensor.from_numpy(_weight))
+            self.weight = Parameter(ms.Tensor.from_numpy(_weight), name="weight")
             if bias:
-                self.bias = Parameter(ms.Tensor.from_numpy(_bias))
+                self.bias = Parameter(ms.Tensor.from_numpy(_bias), name="bias")
             else:
                 self.bias = ms.Tensor.from_numpy(_bias)
         else:
@@ -350,8 +355,8 @@ class GroupNorm(nn.Cell):
         weight = initializer("ones", num_channels, dtype=dtype)
         bias = initializer("zeros", num_channels, dtype=dtype)
         if self.affine:
-            self.weight = Parameter(weight)
-            self.bias = Parameter(bias)
+            self.weight = Parameter(weight, name="weight")
+            self.bias = Parameter(bias, name="bias")
         else:
             self.weight = None
             self.bias = None
@@ -415,7 +420,6 @@ def _group_norm(x, num_groups, weight, bias, eps):
     x = x.reshape(x_shape)
 
     if weight is not None and bias is not None:
-        weight, bias = weight.to(x.dtype), bias.to(x.dtype)
         expanded_shape = (1, -1) + (1,) * len(x_shape[2:])
         x = x * weight.reshape(expanded_shape) + bias.reshape(expanded_shape)
 

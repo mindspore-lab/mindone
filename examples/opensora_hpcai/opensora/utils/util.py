@@ -47,9 +47,7 @@ def process_mask_strategies(
     default_strategy = [1, 0, 0, 0, 1, 0.0]
     processed = []
     for mst in mask_strategies:  # iterate over all samples
-        if mst is None:
-            processed.append(None)
-        else:
+        if mst:
             substrategies = []
             for substrategy in mst.split(";"):  # iterate over strategies for each loop
                 substrategy = substrategy.split(",")
@@ -58,6 +56,8 @@ def process_mask_strategies(
                 substrategy = [int(s) if i < 5 else float(s) for i, s in enumerate(substrategy)]
                 substrategies.append(substrategy + default_strategy[len(substrategy) :])
             processed.append(substrategies)
+        else:  # None or empty string
+            processed.append(None)
     return processed
 
 
