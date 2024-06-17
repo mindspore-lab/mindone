@@ -45,8 +45,8 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt`
 
     For `sd-vae-ft-ema`, run:
-    ```
-    python tools/.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    ```shell
+    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
 - STDiT:
@@ -64,11 +64,16 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
 ### Text-to-Video
 
-To generate video conditioning on captions:
-```
+#### OpenSora v1
+```shell
 python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
 ```
-> By default, FP32 is used to ensure the best precision. Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
+#### OpenSora v1.1
+```shell
+python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml
+```
+> By default, FP32 is used to ensure the best precision.
+> Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
 
 - To run on GPU, append
 `--device_target GPU`
@@ -102,7 +107,7 @@ Here are some generation results in 256x256 resolution.
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
 
-### Image/Video-to-Video
+### Image/Video-to-Video (OpenSora v1.1 only)
 
 Conditioning on images and videos in OpenSora is based on a frame masking strategy.
 Specifically, conditioning frames are unmasked and assigned a timestep of 0,
@@ -111,7 +116,7 @@ while other frames are assigned a timestep _t_. An example is shown below:
 <p align="center"><img alt="mask strategy" src="https://github.com/mindspore-lab/mindone/assets/16683750/0cf5b478-288f-4f53-906d-26fb7b93182c" width="750"/></p>
 
 To generate videos conditioned on images and videos, you will need to specify the following parameters in the
-[config file](../configs/opensora-v1-1/inference/sample.yaml):
+[config file](../configs/opensora-v1-1/inference/sample_iv2v.yaml):
 
 ```yaml
 loop: 2
@@ -145,17 +150,21 @@ The output video's length will be `loop * (num_frames - condition_frame_length) 
 
 To generate a video with conditioning on images and videos, execute the following command:
 ```shell
-python scripts/inference_i2v.py --config configs/opensora-v1-1/inference/sample.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
+python scripts/inference.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
 
 ## Training
 
 ### 1. Generate T5 embeddings
-```
+```shell
 python scripts/infer_t5.py\
     --csv_path ../videocomposer/datasets/webvid5/video_caption.csv \
     --output_dir ../videocomposer/datasets/webvid5 \
+    --model_max_length 200 # For OpenSora v1.1
 ```
+
+OpenSora v1 uses text embedding sequence length of 120 (by default).
+If you want to generate text embeddings for OpenSora v1.1, please change `model_max_length` to 200.
 
 After running, the text embeddings saved as npz file for each caption will be in `output_dir`
 
@@ -176,7 +185,7 @@ After running, the vae latents saved as npz file for each video will be in `outp
 For parallel inference, please refer to `scripts/run/run_infer_vae_parallel.sh`
 
 
-### 3. Train STDiT
+### 3. Train STDiT / STDiT2
 
 ```
 python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
@@ -192,10 +201,49 @@ Please change `csv_path`,`video_folder`, `embed_folder` according to your data l
 For detailed usage, please check `python scripts/train.py -h`
 
 > [!WARNING]
-> OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.
+> OpenSora v1.1 requires the `MS_ENABLE_ACLNN` and `GRAPH_OP_RUN` environment variables to be set to `1`.  
+> OpenSora v1.1 requires text embedding sequence length of 200.
 
-Note that the training precision is under continuous optimization.
+> [!NOTE]
+> Training precision is under continuous optimization.
 
+
+### 4. Multi-resolution Training with Buckets (OpenSora v1.1 only)
+
+OpenSora v1.1 supports training with multiple resolutions, aspect ratios, and a variable number of frames.
+To enable this feature, add the desired bucket configuration to the `yaml` config file
+(see [train_stage1.yaml](../configs/opensora-v1-1/train/train_stage1.yaml) for an example).
+
+The bucket configuration is a two-level dictionary formatted as `resolution: { num_frames: [ keep_prob, batch_size ] }`,
+where:
+
+- `resolution` specifies the resolution of a particular bucket.
+- `num_frames` is the number of frames in the bucket.
+- `keep_prob` is the probability of a video being placed into the bucket.
+- `batch_size` refers to the batch size for the bucket.
+
+The available resolutions and aspect ratios are predefined and can be found
+in [aspect.py](../opensora/datasets/aspect.py).
+The `keep_prob` parameter determines the likelihood of a video being placed into a particular bucket.
+A bucket is selected based on the video resolution, beginning with the highest resolution that does not exceed the
+video's own resolution.
+
+The selection process considers only the maximum possible number of frames for each bucket,
+meaning that the buckets are selected based on resolution alone.
+
+> [!TIP]
+> If you want longer videos to go into smaller resolution buckets, you can set the `keep_prob` to `0.0`,
+> as shown in the example below:
+> ```yaml
+> bucket_config:
+>   # Structure: resolution: { num_frames: [ keep_prob, batch_size ] }
+>   # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
+>   "240p": {16: [1.0, 16], 32: [1.0, 8], 64: [1.0, 4], 128: [1.0, 2]}
+>   "480p": {16: [1.0, 4], 32: [0.0, 0]}
+>   "720p": {16: [0.5, 2]}
+> ```
+> With this configuration, videos with a length of 32 or more frames will be assigned to the `240p` bucket instead
+> of `480p`.
 
 #### Notes about MindSpore 2.3
 

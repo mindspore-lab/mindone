@@ -1,4 +1,5 @@
 import os
+from typing import Union
 
 import av
 import imageio
@@ -7,7 +8,7 @@ import numpy as np
 __all__ = ["save_videos", "create_video_from_numpy_frames"]
 
 
-def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps=30):
+def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps: Union[int, float] = 30):
     """
     Creates an MP4 video file from a series of RGB NumPy array images.
 
@@ -23,7 +24,7 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps=30):
 
     # Create the output container and video stream
     container = av.open(output_file, mode="w")
-    stream = container.add_stream("libx264", rate=fps)
+    stream = container.add_stream("libx264", rate=f"{fps:.4f}")  # BUG: OverflowError: value too large to convert to int
     stream.width = width
     stream.height = height
     stream.pix_fmt = "yuv420p"
@@ -42,7 +43,7 @@ def create_video_from_rgb_numpy_arrays(image_arrays, output_file, fps=30):
     container.close()
 
 
-def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: int = 8, fmt="gif", loop=0):
+def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int, float] = 8, fmt="gif", loop=0):
     """
     Args:
         frames: shape (f h w 3), range [0, 255], order rgb
@@ -53,7 +54,7 @@ def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: int = 8, 
         create_video_from_rgb_numpy_arrays(frames, path, fps=fps)
 
 
-def save_videos(frames: np.ndarray, path: str, fps=8, loop=0, concat=False):
+def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=0, concat=False):
     """
     Save video frames to gif or mp4 files
     Args:

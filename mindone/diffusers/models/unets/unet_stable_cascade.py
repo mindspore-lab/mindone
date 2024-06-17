@@ -356,7 +356,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin):
                         self_attn=self_attn[i],
                     )
                     down_block.append(block)
-            down_blocks.append(down_block)
+            down_blocks.append(nn.CellList(down_block))
 
             if down_blocks_repeat_mappers is not None:
                 block_repeat_mappers = []
@@ -366,7 +366,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin):
                             block_out_channels[i], block_out_channels[i], kernel_size=1, has_bias=True, pad_mode="valid"
                         )
                     )
-                down_repeat_mappers.append(block_repeat_mappers)
+                down_repeat_mappers.append(nn.CellList(block_repeat_mappers))
 
         self.down_blocks = nn.CellList(down_blocks)
         self.down_downscalers = nn.CellList(down_downscalers)
@@ -411,7 +411,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin):
                         self_attn=self_attn[i],
                     )
                     up_block.append(block)
-            up_blocks.append(up_block)
+            up_blocks.append(nn.CellList(up_block))
 
             if up_blocks_repeat_mappers is not None:
                 block_repeat_mappers = []
@@ -419,7 +419,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin):
                     block_repeat_mappers.append(
                         nn.Conv2d(block_out_channels[i], block_out_channels[i], kernel_size=1, has_bias=True)
                     )
-                up_repeat_mappers.append(block_repeat_mappers)
+                up_repeat_mappers.append(nn.CellList(block_repeat_mappers))
 
         self.up_blocks = nn.CellList(up_blocks)
         self.up_upscalers = nn.CellList(up_upscalers)

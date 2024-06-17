@@ -40,8 +40,8 @@ def parse_train_args(parser):
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
-    parser.add_argument("--text_embed_folder", default="", type=str, help="root dir for the text embeding data")
-    parser.add_argument("--vae_latent_folder", default="", type=str, help="root dir for the vae latent data")
+    parser.add_argument("--text_embed_folder", type=str, help="root dir for the text embeding data")
+    parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
         "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
@@ -59,6 +59,13 @@ def parse_train_args(parser):
     parser.add_argument("--space_scale", default=0.5, type=float, help="stdit model space scalec")
     parser.add_argument("--time_scale", default=1.0, type=float, help="stdit model time scalec")
     parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
+    parser.add_argument(
+        "--patchify",
+        type=str,
+        default="conv2d",
+        choices=["conv3d", "conv2d", "linear"],
+        help="patchify_conv3d_replace, conv2d - equivalent conv2d to replace conv3d patchify, linear - equivalent linear layer to replace conv3d patchify  ",
+    )
     # ms
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -110,6 +117,10 @@ def parse_train_args(parser):
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument("--scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Training with patchified latent.")
+    parser.add_argument(
+        "--max_image_size", default=512, type=int, help="Max image size for patchified latent training."
+    )
 
     # dataloader params
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
@@ -197,6 +208,7 @@ def parse_train_args(parser):
     parser.add_argument("--num_frames", default=16, type=int, help="the num of frames used to initiate model")
     parser.add_argument("--frame_stride", default=3, type=int, help="frame sampling stride")
     parser.add_argument("--mask_ratios", type=dict, help="Masking ratios")
+    parser.add_argument("--bucket_config", type=dict, help="Multi-resolution bucketing configuration")
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument(
         "--data_multiprocessing",

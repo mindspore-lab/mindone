@@ -111,19 +111,24 @@ def betas_for_alpha_bar(num_diffusion_timesteps, alpha_bar, max_beta=0.999):
     return np.array(betas)
 
 
-def mean_flat(tensor: Tensor, frames_mask: Optional[Tensor] = None) -> Tensor:
+def mean_flat(tensor: Tensor, frames_mask: Optional[Tensor] = None, patch_mask: Optional[Tensor] = None) -> Tensor:
     """
     Take the mean over all non-batch dimensions.
     """
-    if frames_mask is None:
+    if frames_mask is None and patch_mask is None:
         return tensor.mean(axis=list(range(1, len(tensor.shape))))
-    else:
+    elif patch_mask is None:
         assert tensor.dim() == 5
         assert tensor.shape[2] == frames_mask.shape[1]
         tensor = tensor.swapaxes(1, 2).reshape(tensor.shape[0], tensor.shape[2], -1)  # b c t h w -> b t (c h w)
         denom = frames_mask.sum(axis=1) * tensor.shape[-1]
         loss = (tensor * frames_mask.unsqueeze(2)).sum(axis=(1, 2)) / denom
         return loss
+    else:
+        mask = frames_mask[:, None, :, None, None] * patch_mask
+        tensor = tensor * mask
+        num = ops.clamp(mask.sum(axis=list(range(1, len(tensor.shape)))), min=1)
+        return tensor.sum(axis=list(range(1, len(tensor.shape)))) / num
 
 
 class ModelMeanType(enum.Enum):

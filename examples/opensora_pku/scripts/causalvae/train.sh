@@ -12,4 +12,6 @@ python opensora/train/train_causalvae.py \
     --resolution 256 \
     --sample_rate 1 \
     --num_parallel_workers 8 \
-    --load_from_checkpoint pretrained/causal_vae_488_init.ckpt
+    --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \
+    # --data_file_path path/to/sharegpt4v_path_cap_64x512x512.json \
+    # --video_column "path" \

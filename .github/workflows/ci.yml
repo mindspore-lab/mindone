@@ -46,7 +46,8 @@ jobs:
     # todo: test diffusers/schedulers
     - name: Test Diffusers
       run: |
-        pip install "torch==2.2.1"
+        pip install "numpy==1.24.4"
+        pip install "torch==2.2.1+cpu" -f https://download.pytorch.org/whl/torch_stable.html
         pip install "diffusers==0.27.0"
         pip install "OmegaConf"
         export PYTHONPATH=$(pwd):$PYTHONPATH

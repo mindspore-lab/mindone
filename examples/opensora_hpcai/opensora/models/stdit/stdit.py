@@ -223,12 +223,12 @@ class STDiT(nn.Cell):
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with linear layer")
-            self.x_embedder = LinearPatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = LinearPatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
         elif patchify_conv3d_replace == "conv2d":
             assert patch_size[0] == 1 and patch_size[1] == patch_size[2]
             assert input_size[1] == input_size[2]
             print("Replace conv3d patchify with conv2d layer")
-            self.x_embedder = PatchEmbed(input_size[1], patch_size[1], in_channels, hidden_size, bias=True)
+            self.x_embedder = PatchEmbed(patch_size[1], in_channels, hidden_size, bias=True)
 
         self.t_embedder = TimestepEmbedder(hidden_size)
         self.t_block = nn.SequentialCell(nn.SiLU(), nn.Dense(hidden_size, 6 * hidden_size, has_bias=True))
@@ -475,17 +475,14 @@ class STDiT(nn.Cell):
             # load conv3d weight from pretrained conv2d or dense layer
             key_3d = "x_embedder.proj.weight"
             if self.patchify_conv3d_replace == "linear":
-                raise ValueError("Not supported for loading linear layer with conv3d weight")
-                conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
-                assert conv3d_weight.shape[-3] == 1
-                cout, cin, kt, kh, kw = conv3d_weight.shape
-                linear_weight = conv3d_weight.reshape(cout, -1)
-                sd[key_3d] = ms.Parameter(linear_weight, name=key_3d)
+                if len(sd[key_3d].shape) == 5:
+                    conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
+                    assert conv3d_weight.shape[-3] == 1
+                    sd[key_3d] = ms.Parameter(conv3d_weight.reshape(conv3d_weight.shape[0], -1), name=key_3d)
             elif self.patchify_conv3d_replace == "conv2d":
                 if len(sd[key_3d].shape) == 5:
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                     assert conv3d_weight.shape[-3] == 1
-                    cout, cin, kt, kh, kw = conv3d_weight.shape
                     sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
 
             m, u = ms.load_param_into_net(self, sd)

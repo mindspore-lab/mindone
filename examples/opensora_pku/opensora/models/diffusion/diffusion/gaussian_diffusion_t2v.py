@@ -576,5 +576,6 @@ class GaussianDiffusion_T:
 
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        output = ops.where((t == 0), decoder_nll, kl)
+        flag = (t == 0).astype(kl.dtype)
+        output = flag * decoder_nll + (1.0 - flag) * kl
         return {"output": output, "pred_xstart": out["pred_xstart"]}
