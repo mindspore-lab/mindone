@@ -125,9 +125,7 @@ def main(args):
     logger.info(f"Init Latte T2V model: {args.model}")
     ae_time_stride = 4
     video_length = args.num_frames // ae_time_stride + 1
-    FA_dtype = (
-        get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16,
-    )  # set FA dtype in [ms.float16 and ms.bfloat16 ],
+    FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     latte_model = Latte_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae] * 2,
@@ -150,7 +148,7 @@ def main(args):
         use_rope=args.use_rope,
         model_max_length=args.model_max_length,
         FA_dtype=FA_dtype,
-        num_no_reompute=args.num_no_reompute,
+        num_no_recompute=args.num_no_recompute,
     )
 
     # mixed precision
@@ -502,10 +500,10 @@ def parse_t2v_train_args(parser):
         help="enable random flip video (disable it to avoid motion direction and text mismatch)",
     )
     parser.add_argument(
-        "--num_no_reompute",
+        "--num_no_recompute",
         type=int,
         default=0,
-        help="If use_recompute is True, `num_no_reompute` blocks will be removed from the recomputation list."
+        help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
         "This is a positive integer which can be tuned based on the memory usage.",
     )
     return parser
