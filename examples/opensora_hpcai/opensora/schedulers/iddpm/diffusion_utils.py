@@ -189,7 +189,7 @@ def approx_standard_normal_cdf(x):
     A fast approximation of the cumulative distribution function of the
     standard normal.
     """
-    return 0.5 * (1.0 + ops.tanh(ms.numpy.sqrt(2.0 / np.pi) * (x + 0.044715 * ops.pow(x, 3))))
+    return 0.5 * (1.0 + ops.tanh(ms.numpy.sqrt(2.0 / ms.numpy.pi) * (x + 0.044715 * ops.pow(x, 3))))
 
 
 def continuous_gaussian_log_likelihood(x, *, means, log_scales):
@@ -227,12 +227,10 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     log_cdf_plus = ops.log(cdf_plus.clamp(min=1e-12))
     log_one_minus_cdf_min = ops.log((1.0 - cdf_min).clamp(min=1e-12))
     cdf_delta = cdf_plus - cdf_min
-
     log_probs = ops.where(
         x < -0.999,
         log_cdf_plus,
         ops.where(x > 0.999, log_one_minus_cdf_min, ops.log(cdf_delta.clamp(min=1e-12))),
     )
-
     assert log_probs.shape == x.shape
     return log_probs

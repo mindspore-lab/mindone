@@ -231,7 +231,7 @@ class DiffusionWithLoss(nn.Cell):
         decoder_nll = mean_flat(decoder_nll, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)
 
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        vb = ops.where((t == 0), decoder_nll.to(kl.dtype), kl)
+        vb = ops.where(t == 0, decoder_nll.to(kl.dtype), kl)
 
         return vb
 

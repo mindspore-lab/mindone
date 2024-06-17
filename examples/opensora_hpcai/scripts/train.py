@@ -60,7 +60,7 @@ def init_env(
     model_version: str = "v1",
     global_bf16: bool = False,
     debug: bool = False,
-) -> Tuple[int, int, int]:
+) -> Tuple[int, int]:
     """
     Initialize MindSpore environment.
 
@@ -69,7 +69,7 @@ def init_env(
         seed: The seed value for reproducibility. Default is 42.
         distributed: Whether to enable distributed training. Default is False.
     Returns:
-        A tuple containing the device ID, rank ID and number of devices.
+        A tuple containing the rank ID and number of devices.
     """
     set_random_seed(seed)
 
