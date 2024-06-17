@@ -7,4 +7,5 @@ python examples/rec_imvi_vae.py \
     --num_frames 513 \
     --resolution 256 \
     --crop_size 256 \
-    --ae CausalVAEModel_4x8x8
+    --ae CausalVAEModel_4x8x8 \
+    --enable_tiling \

@@ -39,6 +39,7 @@ from opensora.utils.dataset_utils import create_video_transforms
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
+ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
 def init_env(args):

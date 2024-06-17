@@ -25,6 +25,7 @@ from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpola
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
+ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
 def init_env(args):
