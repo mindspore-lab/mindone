@@ -68,7 +68,6 @@ def main(args):
     set_logger(name="", output_dir=args.generated_video_dir, rank=0)
 
     kwarg = {}
-    # vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ckpt, **kwarg)
     vae = getae_wrapper(args.ae)(args.ckpt, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()

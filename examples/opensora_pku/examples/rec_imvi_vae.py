@@ -145,7 +145,6 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     kwarg = {}
-    # vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, **kwarg)
     vae = getae_wrapper(args.ae)(args.model_path, **kwarg)
     if args.enable_tiling:
         vae.vae.enable_tiling()
