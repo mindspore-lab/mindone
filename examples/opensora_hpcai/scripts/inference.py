@@ -118,12 +118,12 @@ def main(args):
         save_dir = f"{args.output_path}/{time_str}"
     else:
         save_dir = f"{args.output_path}"
-
     os.makedirs(save_dir, exist_ok=True)
-    if args.save_latent:
-        latent_dir = os.path.join(args.output_path, "denoised_latents")
-        os.makedirs(latent_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
+
+    latent_dir = os.path.join(args.output_path, "denoised_latents")
+    if args.save_latent:
+        os.makedirs(latent_dir, exist_ok=True)
 
     # 1. init env
     rank_id, device_num = init_env(
