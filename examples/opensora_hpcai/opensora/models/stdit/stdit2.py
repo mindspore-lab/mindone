@@ -204,7 +204,6 @@ class SeqParallelSTDiT2Block(nn.Cell):
         rope: Callable[..., nn.Cell] = None,
         qk_norm: bool = False,
         parallel_config: Dict[str, Any] = {},
-        **kwargs,
     ):
         super().__init__()
         self.hidden_size = hidden_size
@@ -318,6 +317,7 @@ class SeqParallelSTDiT2Block(nn.Cell):
         t0_tmp: Optional[Tensor] = None,
         T: Optional[int] = None,
         S: Optional[int] = None,
+        **kwargs,
     ):
         assert frames_mask is not None
 
