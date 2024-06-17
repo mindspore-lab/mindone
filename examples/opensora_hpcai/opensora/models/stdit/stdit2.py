@@ -204,6 +204,7 @@ class SeqParallelSTDiT2Block(nn.Cell):
         rope: Callable[..., nn.Cell] = None,
         qk_norm: bool = False,
         parallel_config: Dict[str, Any] = {},
+        **kwargs,
     ):
         super().__init__()
         self.hidden_size = hidden_size
