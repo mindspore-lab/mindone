@@ -4,31 +4,30 @@ export MS_MEMORY_STATISTIC=1
 export GLOG_v=2
 
 # hyper-parameters
-image_size=512
-use_image_num=4
-num_frames=17
-model_dtype="bf16"
-amp_level="O2"
-enable_flash_attention="True"
-batch_size=2
-lr="2e-05"
+image_size=512  # the image size of frames, same to image height and image width
+use_image_num=4  # to include n number of images in an input sample
+num_frames=17  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
+model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
+amp_level="O2" # the default auto mixed precision level for LatteT2V.
+enable_flash_attention="True" # whether to use MindSpore Flash Attention
+batch_size=2 # training batch size
+lr="2e-05" # learning rate. Default learning schedule is constant
 output_dir=t2v-f$num_frames-$image_size-img$use_image_num-videovae488-$model_dtype-FA$enable_flash_attention-bs$batch_size-t5
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir=$output_dir/parallel_logs  opensora/train/train_t2v.py \
-      --video_data "scripts/train_data/single_video_data.txt" \
-      --image_data "scripts/train_data/single_image_data.txt" \
-      --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \
+    --pretrained LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt \
     --model LatteT2V-XL/122 \
     --text_encoder_name DeepFloyd/t5-v1_1-xxl \
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
     --ae_path LanguageBind/Open-Sora-Plan-v1.1.0 \
+    --video_data "scripts/train_data/video_data.txt" \
+    --image_data "scripts/train_data/image_data.txt" \
     --num_frames $num_frames \
     --max_image_size $image_size \
-    --use_recompute True \
     --enable_flash_attention $enable_flash_attention \
     --batch_size=$batch_size \
-    --num_parallel_workers 10 \
+    --dataloader_num_workers 10 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
     --start_learning_rate=$lr \
@@ -41,7 +40,8 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --model_max_length 300 \
     --clip_grad True \
     --use_image_num $use_image_num \
-    --dataset_sink_mode True \
-    --use_parallel True \
-    --parallel_mode "data" \
-    --num_no_recompute 18 \
+      --use_recompute True \
+      --dataset_sink_mode True \
+      --use_parallel True \
+      --parallel_mode "data" \
+      --num_no_recompute 18 \

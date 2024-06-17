@@ -26,7 +26,7 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 ** Put Demo Here **
 
-Videos are saved to `.gif` for display. See the text prompts in `examples/prompt_list_65.txt` and `examples/prompt_list_22.txt`.
+Videos are saved to `.gif` for display. See the text prompts in `examples/prompt_list_65.txt` and `examples/prompt_list_221.txt`.
 
 ## 🔆 Features
 
@@ -269,21 +269,6 @@ python opensora/sample/sample_text_embed.py \
 
 After running, the text embeddings saved as npz file for each caption will be in `output_path`. Please revise `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt` accordingly.
 
-#### Notes about MindSpore Features
-
-Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
-
-To enable kbk mode on ms2.3, we use the following two environmental variables:
-```
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
-
-```
-By default, we have enabled kbk mode in all of our training scripts already.
-
-To improve training performance, you may append `--enable_dvm=True` to the training command.
-Furthermore, you may accelerate the data loading speed by setting `--dataset_sink_mode=True` to the training command. Please be aware that when data sink mode is on, there will not be per-step printing messages. We recommend to use data sink mode after all hyper-parameters tuning is done.
-
 #### Example of Training Scripts
 Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments.
 
@@ -291,9 +276,9 @@ There some hyper-parameters that may vary between different experiments:
 ```shell
 image_size=512  # the image size of frames, same to image height and image width
 use_image_num=4  # to include n number of images in an input sample
-num_frames=65  # to sample m frames from a single video. The total number of images： num_frames + use_image_num = 17+4
-model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model.
-amp_level="O2" # the default auto mixed precision
+num_frames=65  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
+model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
+amp_level="O2" # the default auto mixed precision level for LatteT2V.
 enable_flash_attention="True" # whether to use MindSpore Flash Attention
 batch_size=2 # training batch size
 lr="2e-05" # learning rate. Default learning schedule is constant

@@ -128,7 +128,7 @@ def parse_args():
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
-    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.0.0")
+    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
     parser.add_argument(
         "--pretrained_ckpt",
         type=str,

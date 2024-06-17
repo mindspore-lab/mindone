@@ -230,7 +230,7 @@ def main(args):
         shuffle=True,
         device_num=device_num,
         rank_id=rank_id,
-        num_parallel_workers=args.num_parallel_workers,
+        num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
     )
     dataset_size = dataset.get_dataset_size()

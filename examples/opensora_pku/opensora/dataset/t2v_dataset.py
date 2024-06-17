@@ -213,7 +213,7 @@ class TextVideoDataset:
             video_data = self.get_video(idx)
             if self.use_image_num != 0:
                 if self.use_img_from_vid:
-                    image_data = self.get_image_from_video(video_data)
+                    image_data = self.get_image_from_video(*video_data)
                 else:
                     image_data = self.get_image(idx)
                 video = np.concatenate([video_data[0], image_data[0]], axis=1)  # c, num_frame+num_img, h, w

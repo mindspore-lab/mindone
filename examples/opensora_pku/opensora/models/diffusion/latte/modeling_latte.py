@@ -275,7 +275,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         )
 
         if self.use_recompute:
-            num_no_recompute = self.num_no_recompute
+            num_no_recompute = self.config.num_no_recompute
             num_blocks = len(self.blocks)
             assert num_no_recompute >= 0, "Expect to have num_no_recompute as a positive integer."
             assert (
