@@ -260,7 +260,7 @@ class DiffusionWithLoss(nn.Cell):
             # FIXME: use ops.where when it works OK on semi-mode
             # x_t = ops.where(frames_mask[:, None, :, None, None], x_t, x_t0)
             flag = frames_mask[:, None, :, None, None].astype(ms.float32)
-            vb = flag * x_t + (1.0 - flag) * x_t0
+            x_t = flag * x_t + (1.0 - flag) * x_t0
 
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
