@@ -35,6 +35,7 @@ from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
+ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 

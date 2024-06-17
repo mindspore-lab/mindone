@@ -1,5 +1,3 @@
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 python examples/rec_imvi_vae.py \
     --model_path LanguageBind/Open-Sora-Plan-v1.1.0/vae \
     --video_path test.mp4 \

@@ -1,5 +1,3 @@
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 python examples/rec_video_vae.py \
     --batch_size 1 \
     --real_video_dir ../test_eval/eyes_test \

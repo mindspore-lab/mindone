@@ -36,7 +36,7 @@ from mindone.utils.params import count_params
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-
+ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 
@@ -163,7 +163,7 @@ def main(args):
                 dtype=model_dtype,
                 custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
                 if model_dtype == ms.float16
-                else [nn.MaxPool2d],
+                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
             )
             logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
         else:
