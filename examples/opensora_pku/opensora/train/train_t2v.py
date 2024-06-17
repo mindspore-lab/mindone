@@ -146,6 +146,9 @@ def main(args):
         compress_kv_factor=args.compress_kv_factor,
         use_rope=args.use_rope,
         model_max_length=args.model_max_length,
+        FA_dtype=get_precision(args.precision)
+        if get_precision(args.precision) != ms.float32
+        else ms.bfloat16,  # set FA dtype in [ms.float16 and ms.bfloat16 ]
     )
 
     # mixed precision

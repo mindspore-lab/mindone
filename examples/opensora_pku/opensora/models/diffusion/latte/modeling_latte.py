@@ -92,6 +92,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         rope_scaling_type: str = "linear",
         compress_kv_factor: int = 1,
         interpolation_scale_1d: float = None,
+        FA_dtype=ms.bfloat16,
     ):
         super().__init__()
         self.use_linear_projection = use_linear_projection
@@ -106,6 +107,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         self.compress_kv_factor = compress_kv_factor
         self.num_layers = num_layers
         self.config.hidden_size = model_max_length
+        self.FA_dtype = FA_dtype
 
         assert not (self.compress_kv_factor != 1 and use_rope), "Can not both enable compressing kv and using rope"
 
@@ -192,6 +194,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 enable_flash_attention=enable_flash_attention,
                 use_rope=use_rope,
                 rope_scaling=rope_scaling,
+                FA_dtype=self.FA_dtype,
                 compress_kv_factor=(compress_kv_factor, compress_kv_factor)
                 if d >= num_layers // 2 and compress_kv_factor != 1
                 else None,  # follow pixart-sigma, apply in second-half layers
@@ -220,6 +223,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 enable_flash_attention=enable_flash_attention,
                 use_rope=use_rope,
                 rope_scaling=rope_scaling,
+                FA_dtype=self.FA_dtype,
                 compress_kv_factor=(compress_kv_factor,)
                 if d >= num_layers // 2 and compress_kv_factor != 1
                 else None,  # follow pixart-sigma, apply in second-half layers
@@ -493,7 +497,6 @@ class LatteT2V(ModelMixin, ConfigMixin):
         output = output.view(
             input_batch_size, frame + use_image_num, output.shape[-3], output.shape[-2], output.shape[-1]
         )
-        output = output.permute(0, 2, 1, 3, 4)
         return output
 
     @classmethod

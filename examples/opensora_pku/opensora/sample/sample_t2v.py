@@ -363,15 +363,16 @@ if __name__ == "__main__":
 
     # 4. latte model initiate and weight loading
     logger.info(f"Latte-{args.version} init")
+    dtype = get_precision(args.precision)
     transformer_model = LatteT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
         checkpoint_path=args.pretrained_ckpt,
         enable_flash_attention=args.enable_flash_attention,
+        FA_dtype=dtype if dtype != ms.float32 else ms.bfloat16,  # set FA dtype in [ms.float16 and ms.bfloat16 ]
     )
     transformer_model.force_images = args.force_images
     # mixed precision
-    dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
         if not args.global_bf16:
             amp_level = args.amp_level

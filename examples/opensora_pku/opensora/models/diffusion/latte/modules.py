@@ -161,6 +161,7 @@ class MultiHeadAttention(nn.Cell):
         residual_connection: bool = False,
         _from_deprecated_attn_block: bool = False,
         dtype=ms.float32,
+        FA_dtype=ms.bfloat16,
         enable_flash_attention=False,
         use_rope: bool = False,
         rope_scaling: Optional[Dict] = None,
@@ -178,6 +179,7 @@ class MultiHeadAttention(nn.Cell):
         # You can set slice_size with `set_attention_slice`
         self.sliceable_head_dim = heads
         self.dtype = dtype
+        self.FA_dtype = FA_dtype
         self.use_rope = use_rope
         self.rope_scaling = rope_scaling
         self.compress_kv_factor = compress_kv_factor
@@ -257,7 +259,11 @@ class MultiHeadAttention(nn.Cell):
 
         if self.enable_flash_attention:
             self.flash_attention = MSFlashAttention(
-                head_dim=dim_head, head_num=heads, fix_head_dims=[72], attention_dropout=attn_drop
+                head_dim=dim_head,
+                head_num=heads,
+                fix_head_dims=[72],
+                attention_dropout=attn_drop,
+                dtype=self.FA_dtype,
             )
         else:
             self.attention = Attention(
@@ -1069,6 +1075,7 @@ class BasicTransformerBlock_(nn.Cell):
         use_rope: bool = False,
         rope_scaling: Optional[Dict] = None,
         compress_kv_factor: Optional[Tuple] = None,
+        FA_dtype=ms.bfloat16,
     ):
         super().__init__()
         self.only_cross_attention = only_cross_attention
@@ -1077,6 +1084,7 @@ class BasicTransformerBlock_(nn.Cell):
         self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
         self.use_ada_layer_norm_single = norm_type == "ada_norm_single"
         self.use_layer_norm = norm_type == "layer_norm"
+        self.FA_dtype = FA_dtype
 
         if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
             raise ValueError(
@@ -1117,6 +1125,7 @@ class BasicTransformerBlock_(nn.Cell):
             use_rope=use_rope,
             rope_scaling=rope_scaling,
             compress_kv_factor=compress_kv_factor,
+            FA_dtype=self.FA_dtype,
         )
 
         self.norm3 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
@@ -1310,6 +1319,7 @@ class BasicTransformerBlock(nn.Cell):
         use_rope: bool = False,
         rope_scaling: Optional[Dict] = None,
         compress_kv_factor: Optional[Tuple] = None,
+        FA_dtype=ms.bfloat16,
     ):
         super().__init__()
         self.only_cross_attention = only_cross_attention
@@ -1318,6 +1328,7 @@ class BasicTransformerBlock(nn.Cell):
         self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
         self.use_ada_layer_norm_single = norm_type == "ada_norm_single"
         self.use_layer_norm = norm_type == "layer_norm"
+        self.FA_dtype = FA_dtype
 
         if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
             raise ValueError(
@@ -1358,6 +1369,7 @@ class BasicTransformerBlock(nn.Cell):
             use_rope=use_rope,
             rope_scaling=rope_scaling,
             compress_kv_factor=compress_kv_factor,
+            FA_dtype=self.FA_dtype,
         )
 
         # 2. Cross-Attn
@@ -1382,6 +1394,7 @@ class BasicTransformerBlock(nn.Cell):
                 enable_flash_attention=enable_flash_attention,
                 use_rope=False,  # do not position in cross attention
                 compress_kv_factor=None,
+                FA_dtype=self.FA_dtype,
             )  # is self-attn if encoder_hidden_states is none
         else:
             self.norm2 = None
