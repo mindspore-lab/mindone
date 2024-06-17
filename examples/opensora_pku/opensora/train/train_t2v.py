@@ -202,7 +202,6 @@ def main(args):
         latte_model,
         diffusion,
         vae=vae,
-        condition="text",
         text_encoder=text_encoder,
         text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
