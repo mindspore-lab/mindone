@@ -263,7 +263,10 @@ class SeqParallelSTDiT2Block(nn.Cell):
         self.split_tmp = ops.Split(axis=1, output_num=3)
         self.expand_dim = ops.ExpandDims()
         self.expand_dim_1 = ops.ExpandDims()
-        self.mask_select = ops.Select()
+        self.mask_mul = ops.Mul()
+        self.mask_add = ops.Add()
+        self.mask_neg = ops.Neg()
+        self.mask_add_1 = ops.Add()
 
         self.t2i_modulate_add_0 = ops.Add()
         self.t2i_modulate_mult = ops.Mul()
@@ -292,8 +295,8 @@ class SeqParallelSTDiT2Block(nn.Cell):
         x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
         masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
         x_mask = self.expand_dim(x_mask, -1)  # x_mask: [B, T]
-        x_mask = self.expand_dim_1(x_mask, -1)
-        x = self.mask_select(x_mask, x, masked_x)
+        x_mask = self.expand_dim_1(x_mask, -1).to(x.dtype)
+        x = self.mask_add_1(self.mask_mul(x_mask, x), self.mask_mul(self.mask_add(1, self.mask_neg(x_mask)), masked_x))
         return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
 
     def t2i_modulate(self, x, shift, scale):
@@ -404,7 +407,10 @@ class SeqParallelSTDiT2Block(nn.Cell):
 
         self.expand_dim.shard(((self.dp, self.sp),))
         self.expand_dim_1.shard(((self.dp, self.sp, 1),))
-        self.mask_select.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
+        self.mask_mul.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
+        self.mask_add.shard(((), (self.dp, self.sp, 1, 1)))
+        self.mask_neg.shard(((self.dp, self.sp, 1, 1),))
+        self.mask_add_1.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
 
 
 class STDiT2(nn.Cell):

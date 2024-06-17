@@ -231,7 +231,10 @@ class DiffusionWithLoss(nn.Cell):
         decoder_nll = mean_flat(decoder_nll, frames_mask=frames_mask, patch_mask=patch_mask) / ms.numpy.log(2.0)
 
         # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        vb = ops.where(t == 0, decoder_nll.to(kl.dtype), kl)
+        # FIXME: use ops.where when it works OK on semi-mode
+        # vb = ops.where(t == 0, decoder_nll.to(kl.dtype), kl)
+        flag = (t == 0).astype(ms.float32)
+        vb = flag * decoder_nll + (1.0 - flag) * kl
 
         return vb
 
@@ -254,7 +257,10 @@ class DiffusionWithLoss(nn.Cell):
         if frames_mask is not None:
             t0 = ops.zeros_like(t)
             x_t0 = self.diffusion.q_sample(x, t0, noise=noise)
-            x_t = ops.where(frames_mask[:, None, :, None, None], x_t, x_t0)
+            # FIXME: use ops.where when it works OK on semi-mode
+            # x_t = ops.where(frames_mask[:, None, :, None, None], x_t, x_t0)
+            flag = frames_mask[:, None, :, None, None].astype(ms.float32)
+            vb = flag * x_t + (1.0 - flag) * x_t0
 
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)

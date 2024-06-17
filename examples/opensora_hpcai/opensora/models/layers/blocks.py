@@ -1010,7 +1010,10 @@ class SeqParallelT2IFinalLayer(nn.Cell):
 
         self.mask_expand_dim = ops.ExpandDims()
         self.mask_expand_dim_1 = ops.ExpandDims()
-        self.mask_select = ops.Select()
+        self.mask_mul = ops.Mul()
+        self.mask_add = ops.Add()
+        self.mask_neg = ops.Neg()
+        self.mask_add_1 = ops.Add()
 
         self.parallel_config = parallel_config
         self.shard()
@@ -1025,8 +1028,8 @@ class SeqParallelT2IFinalLayer(nn.Cell):
         x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
         masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
         x_mask = self.mask_expand_dim(x_mask, -1)  # x_mask: [B, T]
-        x_mask = self.mask_expand_dim_1(x_mask, -1)
-        x = self.mask_select(x_mask, x, masked_x)
+        x_mask = self.mask_expand_dim_1(x_mask, -1).to(x.dtype)
+        x = self.mask_add_1(self.mask_mul(x_mask, x), self.mask_mul(self.mask_add(1, self.mask_neg(x_mask)), masked_x))
         return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
 
     def construct(
@@ -1070,7 +1073,10 @@ class SeqParallelT2IFinalLayer(nn.Cell):
 
         self.mask_expand_dim.shard(((self.dp, self.sp),))
         self.mask_expand_dim_1.shard(((self.dp, self.sp, 1),))
-        self.mask_select.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
+        self.mask_mul.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
+        self.mask_add.shard(((), (self.dp, self.sp, 1, 1)))
+        self.mask_neg.shard(((self.dp, self.sp, 1, 1),))
+        self.mask_add_1.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
 
 
 class CaptionEmbedder(nn.Cell):
@@ -1103,9 +1109,12 @@ class CaptionEmbedder(nn.Cell):
             drop_ids = force_drop_ids == 1
 
         # manually expand dims to avoid infer-shape bug in ms2.3 daily
-        caption = ops.where(
-            drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype)
-        )
+        # FIXME: use ops.where when it works OK on semi-mode
+        # caption = ops.where(
+        #     drop_ids[:, None, None, None], self.y_embedding[None, None, :, :], caption.to(self.y_embedding.dtype)
+        # )
+        flag = drop_ids[:, None, None, None].astype(ms.float32)
+        caption = flag * self.y_embedding + (1.0 - flag) * caption.astype(self.y_embedding.dtype)
 
         return caption
 
