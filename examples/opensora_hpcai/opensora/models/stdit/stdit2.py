@@ -1,6 +1,6 @@
 import os
 import re
-from typing import Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import numpy as np
 from mindcv.models.layers import DropPath
@@ -14,13 +14,17 @@ from opensora.models.layers.blocks import (
     PatchEmbed3D,
     PositionEmbedding2D,
     SelfAttention,
+    SeqParallelMLP,
+    SeqParallelMultiHeadCrossAttention,
+    SeqParallelSelfAttention,
+    SeqParallelT2IFinalLayer,
     SizeEmbedder,
     T2IFinalLayer,
     TimestepEmbedder,
     approx_gelu,
     t2i_modulate,
 )
-from opensora.models.layers.rotary_embedding import RotaryEmbedding
+from opensora.models.layers.rotary_embedding import RotaryEmbedding, RotaryEmbeddingSP
 
 from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
@@ -37,7 +41,6 @@ class STDiT2Block(nn.Cell):
         drop_path=0.0,
         enable_flashattn=False,
         enable_layernorm_kernel=False,
-        enable_sequence_parallelism=False,
         rope=None,
         qk_norm=False,
     ):
@@ -46,11 +49,8 @@ class STDiT2Block(nn.Cell):
         self.enable_flashattn = enable_flashattn
 
         assert not enable_layernorm_kernel, "Not implemented"
-        if enable_sequence_parallelism:
-            raise NotImplementedError("Sequence parallelism is not supported yet.")
-        else:
-            self.attn_cls = SelfAttention
-            self.mha_cls = MultiHeadCrossAttention
+        self.attn_cls = SelfAttention
+        self.mha_cls = MultiHeadCrossAttention
 
         # spatial branch
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
@@ -192,6 +192,227 @@ class STDiT2Block(nn.Cell):
         return x
 
 
+class SeqParallelSTDiT2Block(nn.Cell):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_heads: int,
+        mlp_ratio: float = 4.0,
+        drop_path: float = 0.0,
+        enable_flashattn: bool = False,
+        enable_layernorm_kernel: bool = False,
+        rope: Callable[..., nn.Cell] = None,
+        qk_norm: bool = False,
+        parallel_config: Dict[str, Any] = {},
+    ):
+        super().__init__()
+        self.hidden_size = hidden_size
+        assert drop_path == 0.0, "DropPath is not supported in sequence parallel yet."
+        assert not enable_layernorm_kernel, "Not implemented"
+
+        self.attn_cls = SeqParallelSelfAttention
+        self.mha_cls = SeqParallelMultiHeadCrossAttention
+
+        # spatial branch
+        self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+
+        self.attn = self.attn_cls(
+            hidden_size,
+            num_heads=num_heads,
+            qkv_bias=True,
+            enable_flash_attention=enable_flashattn,
+            qk_norm=qk_norm,
+            parallel_config=parallel_config,
+        )
+        self.scale_shift_table = Parameter(ops.randn(1, 6, hidden_size) / hidden_size**0.5)
+
+        # cross attn
+        self.cross_attn = self.mha_cls(
+            hidden_size, num_heads, enable_flash_attention=enable_flashattn, parallel_config=parallel_config
+        )
+
+        # mlp branch
+        self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.mlp = SeqParallelMLP(
+            in_features=hidden_size,
+            hidden_features=int(hidden_size * mlp_ratio),
+            act_layer=approx_gelu,
+            drop=0,
+            parallel_config=parallel_config,
+        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+
+        # temporal branch
+        self.norm_temp = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)  # new
+        self.attn_temp = self.attn_cls(
+            hidden_size,
+            num_heads=num_heads,
+            qkv_bias=True,
+            enable_flash_attention=enable_flashattn,
+            rope=rope,
+            qk_norm=qk_norm,
+            parallel_config=parallel_config,
+        )
+        self.scale_shift_table_temporal = Parameter(ops.randn(1, 3, hidden_size) / hidden_size**0.5)  # new
+
+        self.add = ops.Add()
+        self.mult = ops.Mul()
+        self.transpose = ops.Transpose()
+        self.add_1 = ops.Add()
+        self.split = ops.Split(axis=1, output_num=6)
+        self.split_tmp = ops.Split(axis=1, output_num=3)
+        self.expand_dim = ops.ExpandDims()
+        self.expand_dim_1 = ops.ExpandDims()
+        self.mask_mul = ops.Mul()
+        self.mask_add = ops.Add()
+        self.mask_neg = ops.Neg()
+        self.mask_add_1 = ops.Add()
+
+        self.t2i_modulate_add_0 = ops.Add()
+        self.t2i_modulate_mult = ops.Mul()
+        self.t2i_modulate_add_1 = ops.Add()
+
+        self.parallel_config = parallel_config
+        self.shard()
+
+    def _rearrange_in_T(self, x, T):
+        B, TS, C = x.shape
+        S = TS // T
+        x = ops.reshape(x, (B, T, S, C))
+        x = self.transpose(x, (0, 2, 1, 3))
+        x = ops.reshape(x, (B * S, T, C))
+        return x
+
+    def _rearrange_out_T(self, x, S):
+        BS, T, C = x.shape
+        B = BS // S
+        x = ops.reshape(x, (B, S, T, C))
+        x = self.transpose(x, (0, 2, 1, 3))
+        x = ops.reshape(x, (B, T * S, C))
+        return x
+
+    def t_mask_select(self, x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
+        x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
+        masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
+        x_mask = self.expand_dim(x_mask, -1)  # x_mask: [B, T]
+        x_mask = self.expand_dim_1(x_mask, -1).to(x.dtype)
+        x = self.mask_add_1(self.mask_mul(x_mask, x), self.mask_mul(self.mask_add(1, self.mask_neg(x_mask)), masked_x))
+        return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
+
+    def t2i_modulate(self, x, shift, scale):
+        a = self.t2i_modulate_add_0(scale, 1)
+        x = self.t2i_modulate_mult(x, a)
+        x = self.t2i_modulate_add_1(x, shift)
+        return x
+
+    def construct(
+        self,
+        x: Tensor,
+        y: Tensor,
+        t: Tensor,
+        t_tmp: Tensor,
+        mask: Optional[Tensor] = None,
+        frames_mask: Optional[Tensor] = None,
+        t0: Optional[Tensor] = None,
+        t0_tmp: Optional[Tensor] = None,
+        T: Optional[int] = None,
+        S: Optional[int] = None,
+    ):
+        assert frames_mask is not None
+
+        B, _, C = x.shape
+
+        t = ops.reshape(t, (B, 6, -1))
+        t = self.add_1(t, self.scale_shift_table)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.split(t)
+
+        t_tmp = ops.reshape(t_tmp, (B, 3, -1))
+        t_tmp = self.add_1(t_tmp, self.scale_shift_table_temporal)
+        shift_tmp, scale_tmp, gate_tmp = self.split_tmp(t_tmp)
+
+        t0 = ops.reshape(t0, (B, 6, -1))
+        t0 = self.add_1(t0, self.scale_shift_table)
+        shift_msa_zero, scale_msa_zero, gate_msa_zero, shift_mlp_zero, scale_mlp_zero, gate_mlp_zero = self.split(t0)
+
+        t0_tmp = ops.reshape(t0_tmp, (B, 3, -1))
+        t0_tmp = self.add_1(t0_tmp, self.scale_shift_table_temporal)
+        shift_tmp_zero, scale_tmp_zero, gate_tmp_zero = self.split_tmp(t0_tmp)
+
+        # modulate
+        x_m = self.t2i_modulate(self.norm1(x), shift_msa, scale_msa)
+        x_m_zero = self.t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
+        x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
+
+        # spatial branch
+        x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
+        x_s = self.attn(x_s)
+        x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
+
+        x_s_zero = self.mult(x_s, gate_msa_zero)
+        x_s = self.mult(x_s, gate_msa)
+        x_s = self.t_mask_select(frames_mask, x_s, x_s_zero, T, S)
+        x = self.add(x, self.drop_path(x_s))
+
+        # modulate
+        x_m = self.t2i_modulate(self.norm_temp(x), shift_tmp, scale_tmp)
+        x_m_zero = self.t2i_modulate(self.norm_temp(x), shift_tmp_zero, scale_tmp_zero)
+        x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
+
+        # temporal branch
+        x_t = self._rearrange_in_T(x_m, T=T)
+        x_t = self.attn_temp(x_t)
+        x_t = self._rearrange_out_T(x_t, S=S)
+
+        x_t_zero = self.mult(x_t, gate_tmp_zero)
+        x_t = self.mult(x_t, gate_tmp)
+        x_t = self.t_mask_select(frames_mask, x_t, x_t_zero, T, S)
+        x = self.add(x, self.drop_path(x_t))
+
+        # cross attn
+        x = self.add(x, self.cross_attn(x, y, mask))
+
+        # modulate
+        x_m = self.t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
+        x_m_zero = self.t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
+        x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
+
+        # mlp
+        x_mlp = self.mlp(x_m)
+        x_mlp_zero = self.mult(x_mlp, gate_mlp_zero)
+        x_mlp = self.mult(x_mlp, gate_mlp)
+        x_mlp = self.t_mask_select(frames_mask, x_mlp, x_mlp_zero, T, S)
+        x = self.add(x, self.drop_path(x_mlp))
+
+        return x
+
+    def shard(self):
+        self.dp = self.parallel_config.get("data_parallel", 1)
+        self.mp = self.parallel_config.get("model_parallel", 1)
+        self.sp = self.parallel_config.get("sequence_parallel", 1)
+
+        self.add.shard(((self.dp, self.sp, 1), (self.dp, self.sp, 1)))
+        self.mult.shard(((self.dp, self.sp, 1), (self.dp, 1, 1)))
+
+        self.transpose.shard(((self.dp, 1, 1, 1),))
+        self.add_1.shard(((self.dp, 1, 1), (1, 1, 1)))
+        self.split.shard(((self.dp, 1, 1),))
+        self.split_tmp.shard(((self.dp, 1, 1),))
+
+        self.norm1.layer_norm.shard(((self.dp, self.sp, 1), (1,), (1,)))
+        self.norm2.layer_norm.shard(((self.dp, self.sp, 1), (1,), (1,)))
+        self.norm_temp.layer_norm.shard(((self.dp, self.sp, 1), (1,), (1,)))
+        self.t2i_modulate_add_0.shard(((self.dp, 1, 1), ()))
+        self.t2i_modulate_mult.shard(((self.dp, self.sp, 1), (self.dp, 1, 1)))
+        self.t2i_modulate_add_1.shard(((self.dp, self.sp, 1), (self.dp, 1, 1)))
+
+        self.expand_dim.shard(((self.dp, self.sp),))
+        self.expand_dim_1.shard(((self.dp, self.sp, 1),))
+        self.mask_mul.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
+        self.mask_add.shard(((), (self.dp, self.sp, 1, 1)))
+        self.mask_neg.shard(((self.dp, self.sp, 1, 1),))
+        self.mask_add_1.shard(((self.dp, self.sp, 1, 1), (self.dp, self.sp, 1, 1)))
+
+
 class STDiT2(nn.Cell):
     def __init__(
         self,
@@ -217,6 +438,7 @@ class STDiT2(nn.Cell):
         enable_sequence_parallelism=False,
         use_recompute=False,
         patchify_conv3d_replace=None,
+        parallel_config={},
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -262,24 +484,55 @@ class STDiT2(nn.Cell):
         )
 
         drop_path = np.linspace(0, drop_path, depth)
-        self.rope = RotaryEmbedding(dim=self.hidden_size // self.num_heads)  # new
-        self.blocks = nn.CellList(
-            [
-                STDiT2Block(
-                    self.hidden_size,
-                    self.num_heads,
-                    mlp_ratio=self.mlp_ratio,
-                    drop_path=drop_path[i],
-                    enable_flashattn=self.enable_flashattn,
-                    enable_layernorm_kernel=self.enable_layernorm_kernel,
-                    enable_sequence_parallelism=enable_sequence_parallelism,
-                    rope=self.rope.rotate_queries_or_keys,
-                    qk_norm=qk_norm,
-                )
-                for i in range(self.depth)
-            ]
-        )
-        self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size).item(), self.out_channels)
+
+        if enable_sequence_parallelism:
+            dp = parallel_config.get("data_parallel", 1)
+            mp = parallel_config.get("model_parallel", 1)
+            sp = parallel_config.get("sequence_parallel", 1)
+            rope = lambda: RotaryEmbeddingSP(dim=self.hidden_size // self.num_heads, dp=dp, mp=mp, sp=sp)
+        else:
+            rope = RotaryEmbedding(dim=self.hidden_size // self.num_heads).rotate_queries_or_keys  # new
+
+        if enable_sequence_parallelism:
+            self.blocks = nn.CellList(
+                [
+                    SeqParallelSTDiT2Block(
+                        self.hidden_size,
+                        self.num_heads,
+                        mlp_ratio=self.mlp_ratio,
+                        drop_path=drop_path[i],
+                        enable_flashattn=self.enable_flashattn,
+                        enable_layernorm_kernel=self.enable_layernorm_kernel,
+                        rope=rope,
+                        qk_norm=qk_norm,
+                        parallel_config=parallel_config,
+                    )
+                    for i in range(self.depth)
+                ]
+            )
+        else:
+            self.blocks = nn.CellList(
+                [
+                    STDiT2Block(
+                        self.hidden_size,
+                        self.num_heads,
+                        mlp_ratio=self.mlp_ratio,
+                        drop_path=drop_path[i],
+                        enable_flashattn=self.enable_flashattn,
+                        enable_layernorm_kernel=self.enable_layernorm_kernel,
+                        rope=rope,
+                        qk_norm=qk_norm,
+                    )
+                    for i in range(self.depth)
+                ]
+            )
+
+        if enable_sequence_parallelism:
+            self.final_layer = SeqParallelT2IFinalLayer(
+                hidden_size, np.prod(self.patch_size).item(), self.out_channels, parallel_config=parallel_config
+            )
+        else:
+            self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size).item(), self.out_channels)
 
         # multi_res
         assert self.hidden_size % 3 == 0, "hidden_size must be divisible by 3"
@@ -297,10 +550,6 @@ class STDiT2(nn.Cell):
                 self.freeze_not_temporal()
             elif freeze == "text":
                 self.freeze_text()
-
-        # sequence parallel related configs
-        self.enable_sequence_parallelism = enable_sequence_parallelism
-        self.sp_rank = None
 
         if use_recompute:
             for block in self.blocks:
@@ -404,7 +653,7 @@ class STDiT2(nn.Cell):
         x = x.reshape(B, T * S, x.shape[-1])  # B T S C -> B (T S) C
 
         # prepare adaIN
-        t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
+        t = self.t_embedder(timestep)  # [B, C]
         t_spc = t + data_info  # [B, C]
         t_tmp = t + fl  # [B, C]
         t_spc_mlp = self.t_block(t_spc)  # [B, 6*C]
@@ -413,14 +662,14 @@ class STDiT2(nn.Cell):
         t0_spc, t0_spc_mlp, t0_tmp_mlp = None, None, None
         if frames_mask is not None:
             t0_timestep = ops.zeros_like(timestep)
-            t0 = self.t_embedder(t0_timestep, dtype=x.dtype)
+            t0 = self.t_embedder(t0_timestep)
             t0_spc = t0 + data_info
             t0_tmp = t0 + fl
             t0_spc_mlp = self.t_block(t0_spc)
             t0_tmp_mlp = self.t_block_temp(t0_tmp)
 
         # prepare y
-        y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
+        y = self.y_embedder(y)  # [B, 1, N_token, C]
         y = y.squeeze(1).view(1, -1, x.shape[-1])
 
         # blocks
@@ -514,11 +763,10 @@ class STDiT2(nn.Cell):
         self.apply(_basic_init)
 
         # Initialize patch_embed like nn.Dense (instead of nn.Conv2d):
-        w = self.x_embedder.proj.weight
-        w_flatted = w.reshape(w.shape[0], -1)
+        w = self.x_embedder.proj.weight.init_data()
         # FIXME: incompatible in optim parallel mode
         # FIXME: impl in torch can be incorrect. can be reshape order mismatch
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w.shape, w.dtype).init_data())
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
@@ -539,7 +787,7 @@ class STDiT2(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def load_from_checkpoint(self, ckpt_path):
+    def load_from_checkpoint(self, ckpt_path, split_qkv=False):
         if not os.path.exists(ckpt_path):
             print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
@@ -560,6 +808,27 @@ class STDiT2(nn.Cell):
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                     assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+
+            # split QKV for sequence parallism
+            if split_qkv:
+                new_sd = dict()
+                for k, v in sd.items():
+                    if ".kv_linear." in k:
+                        k_linear, v_linear = v.chunk(2)
+                        new_sd[k.replace(".kv_linear.", ".k_linear.")] = Parameter(k_linear)
+                        new_sd[k.replace(".kv_linear.", ".v_linear.")] = Parameter(v_linear)
+                    elif ".qkv." in k:
+                        q_linear, k_linear, v_linear = v.chunk(3)
+                        new_sd[k.replace(".qkv.", ".q_linear.")] = Parameter(q_linear)
+                        new_sd[k.replace(".qkv.", ".k_linear.")] = Parameter(k_linear)
+                        new_sd[k.replace(".qkv.", ".v_linear.")] = Parameter(v_linear)
+                    elif ".scale_shift_table" in k and len(v.shape) == 2:
+                        new_sd[k] = Parameter(v[None, ...])
+                    elif ".scale_shift_table_temporal" in k and len(v.shape) == 2:
+                        new_sd[k] = Parameter(v[None, ...])
+                    else:
+                        new_sd[k] = v
+                sd = new_sd
 
             # Loading PixArt weights (T5's sequence length is 120 vs. 200 in STDiT2).
             if self.y_embedder.y_embedding.shape != sd["y_embedder.y_embedding"].shape:

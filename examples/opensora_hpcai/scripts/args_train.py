@@ -44,7 +44,7 @@ def parse_train_args(parser):
     parser.add_argument("--vae_latent_folder", type=str, help="root dir for the vae latent data")
     parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
     parser.add_argument(
-        "--add_datetime", default=True, type=str, help="If True, add datetime subfolder under output_path"
+        "--add_datetime", default=True, type=str2bool, help="If True, add datetime subfolder under output_path"
     )
     # model
     parser.add_argument(
@@ -73,7 +73,7 @@ def parse_train_args(parser):
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
-        "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
+        "--parallel_mode", default="data", type=str, choices=["data", "semi"], help="parallel mode: data, semi"
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
 
@@ -225,9 +225,39 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--enable_flash_attention",
-        default=None,
+        default=False,
         type=str2bool,
         help="whether to enable flash attention.",
+    )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable sequence parallelism.",
+    )
+    parser.add_argument(
+        "--data_parallel",
+        default=1,
+        type=int,
+        help="number of devices for data parallel (slicing along batch) when use sequence parallelism.",
+    )
+    parser.add_argument(
+        "--model_parallel",
+        default=1,
+        type=int,
+        help="number of devices for model parallel (slicing along heads) when use sequence parallelism.",
+    )
+    parser.add_argument(
+        "--sequence_parallel",
+        default=1,
+        type=int,
+        help="number of devices for sequence parallel (slicing along sequence length) when use sequence parallelism.",
+    )
+    parser.add_argument(
+        "--use_vae_micro_batch",
+        default=False,
+        type=str2bool,
+        help="Use VAE micro batch for encoding",
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")

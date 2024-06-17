@@ -54,9 +54,13 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     enable_dvm: bool = False,
+    data_parallel: int = 1,
+    use_sequence_parallel: bool = False,
+    outdir: str = "./output",
+    model_version: str = "v1",
     global_bf16: bool = False,
     debug: bool = False,
-) -> Tuple[int, int]:
+) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
 
@@ -81,16 +85,55 @@ def init_env(
             mode=mode,
             device_target=device_target,
         )
-        if parallel_mode == "optim":
-            print("use optim parallel")
-            ms.set_auto_parallel_context(
-                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
-                enable_parallel_optimizer=True,
-            )
+
+        if parallel_mode == "semi":
             init()
             device_num = get_group_size()
             rank_id = get_rank()
-        else:
+
+            if use_sequence_parallel:
+                if model_version == "v1":
+                    dataset_strategy = (
+                        (data_parallel, 1, 1, 1, 1),  # video or latent
+                        (data_parallel, 1, 1),  # text embed
+                        (data_parallel, 1),  # text mask
+                    )
+                elif model_version == "v1.1":
+                    dataset_strategy = (
+                        (data_parallel, 1, 1, 1, 1),  # video or latent
+                        (data_parallel, 1, 1),  # text embed
+                        (data_parallel, 1),  # text mask
+                        (data_parallel, 1),  # frame mask
+                        (data_parallel,),  # no. of frames
+                        (data_parallel,),  # height
+                        (data_parallel,),  # width
+                        (data_parallel,),  # fps
+                        (data_parallel,),  # aspect ratio
+                    )
+                else:
+                    raise ValueError(f"Unsupported model version: `{model_version}`")
+
+                ms.set_auto_parallel_context(
+                    parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                    gradients_mean=False,
+                    enable_parallel_optimizer=True,
+                    enable_alltoall=True,
+                    device_num=device_num,
+                    dataset_strategy=dataset_strategy,
+                    strategy_ckpt_config={
+                        "save_file": os.path.join(outdir, "ckpt", "src_strategy.ckpt"),
+                        "only_trainable_params": False,
+                    },
+                )
+            else:
+                ms.set_auto_parallel_context(
+                    parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                    gradients_mean=False,
+                    enable_parallel_optimizer=True,
+                    device_num=device_num,
+                )
+
+        elif parallel_mode == "data":
             init()
             device_num = get_group_size()
             rank_id = get_rank()
@@ -127,6 +170,30 @@ def init_env(
     return rank_id, device_num
 
 
+def check_sequence_parallel_condition(args, device_num):
+    if not args.use_parallel:
+        logger.warning("Sequence parallelism can only be used in paralle mode. Otherwise it takes no effect.")
+        return
+
+    total_nprocs = args.data_parallel * args.model_parallel * args.sequence_parallel
+    if total_nprocs != device_num:
+        raise ValueError(
+            "The product of data parallel, model parallel and sequence parallel must be equal to the number fo devices, "
+            f"but get `{args.data_parallel}, {args.model_parallel}, {args.sequence_parallel}` and `{device_num}` respectively."
+        )
+    if args.enable_flash_attention:
+        if args.model_parallel > 12:
+            raise ValueError(f"Model parallel ({args.model_parallel}) can not be larger than the number of heads (12)")
+
+    if args.num_frames % args.sequence_parallel != 0:
+        raise ValueError(
+            f"Number of frames `{args.num_frames}` must be divisible by the sequence parallel `{args.sequence_parallel}`."
+        )
+
+    if args.model_parallel > 1:
+        raise NotImplementedError("Model parallel is not supported yet.")
+
+
 def set_all_reduce_fusion(
     params,
     split_num: int = 7,
@@ -150,18 +217,31 @@ def main(args):
         args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
+    parallel_mode = "semi" if args.enable_sequence_parallelism else args.parallel_mode
     rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
+        parallel_mode=parallel_mode,
         enable_dvm=args.enable_dvm,
+        data_parallel=args.data_parallel,
+        use_sequence_parallel=args.enable_sequence_parallelism,
+        outdir=args.output_path,
+        model_version=args.model_version,
         global_bf16=args.global_bf16,
         debug=args.debug,
     )
-    set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(
+        log_fn="stdout.log",
+        output_dir=os.path.join(args.output_path, f"log/rank_{rank_id}"),
+        rank=rank_id,
+        log_level=eval(args.log_level),
+    )
+
+    if args.enable_sequence_parallelism:
+        check_sequence_parallel_condition(args, device_num)
 
     # 2. model initiate and weight loading
     # 2.1 stdit
@@ -186,6 +266,12 @@ def main(args):
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
+        parallel_config=dict(
+            data_parallel=args.data_parallel,
+            model_parallel=args.model_parallel,
+            sequence_parallel=args.sequence_parallel,
+        ),
         use_recompute=args.use_recompute,
     )
 
@@ -222,7 +308,7 @@ def main(args):
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
         logger.info(f"Loading ckpt {args.pretrained_model_path}...")
-        latte_model.load_from_checkpoint(args.pretrained_model_path)
+        latte_model.load_from_checkpoint(args.pretrained_model_path, split_qkv=args.enable_sequence_parallelism)
     else:
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
@@ -285,8 +371,25 @@ def main(args):
     pipeline_ = DiffusionWithLossFiTLike if args.pre_patchify else DiffusionWithLoss
     latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
+    # do not perform optimizer parallel for one-dim tensor
+    if parallel_mode == "semi":
+        for param in latent_diffusion_with_loss.get_parameters():
+            if len(param.data.shape) == 1:
+                param.parallel_optimizer = False
+
     # 3. create dataset
     dataloader = None
+    if args.enable_sequence_parallelism and args.use_parallel:
+        # given N cards and data parallel = dp, make sure that data are same for ID (0, ..., dp-1), (dp, ..., 2*dp-1), ..., (N-dp, ..., N-1)
+        data_device_num = args.data_parallel
+        data_group = rank_id // (device_num // args.data_parallel)
+        logger.info(
+            f"Creating dataloader: ID={rank_id}, group={data_group}, num_groups={args.data_parallel}, global_bs={args.batch_size * args.data_parallel}."
+        )
+    else:
+        data_device_num = device_num
+        data_group = rank_id
+
     if args.model_version == "v1":
         from opensora.datasets.t2v_dataset import create_dataloader
 
@@ -310,11 +413,12 @@ def main(args):
             ds_config,
             batch_size=args.batch_size,
             shuffle=True,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=data_device_num,
+            rank_id=data_group,
             num_parallel_workers=args.num_parallel_workers,
             max_rowsize=args.max_rowsize,
         )
+
     elif args.model_version == "v1.1":
         from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
@@ -356,8 +460,8 @@ def main(args):
                 target_size=(img_h, img_w), tokenizer=None  # Tokenizer isn't supported yet
             ),
             shuffle=True,
-            device_num=device_num,
-            rank_id=rank_id,
+            device_num=data_device_num,
+            rank_id=data_group,
             num_workers=args.num_parallel_workers,
             python_multiprocessing=args.data_multiprocessing,
             max_rowsize=args.max_rowsize,
@@ -504,14 +608,32 @@ def main(args):
     ofm_cb = OverflowMonitor()
     callback.append(ofm_cb)
 
-    if rank_id == 0:
+    if parallel_mode == "semi":
+        cb_rank_id = None
+        ckpt_save_dir = os.path.join(ckpt_dir, f"rank_{rank_id}")
+        output_dir = os.path.join(args.output_path, "log", f"rank_{rank_id}")
+        if args.ckpt_max_keep != 1:
+            logger.warning("For semi-auto parallel training, the `ckpt_max_keep` is force to be 1.")
+        ckpt_max_keep = 1
+        integrated_save = False
+        save_training_resume = False  # TODO: support training resume
+    else:
+        cb_rank_id = rank_id
+        ckpt_save_dir = ckpt_dir
+        output_dir = None
+        ckpt_max_keep = args.ckpt_max_keep
+        integrated_save = True
+        save_training_resume = True
+
+    if rank_id == 0 or parallel_mode == "semi":
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss.network,
-            rank_id=rank_id,
-            ckpt_save_dir=ckpt_dir,
+            rank_id=cb_rank_id,
+            ckpt_save_dir=ckpt_save_dir,
+            output_dir=output_dir,
             ema=ema,
             ckpt_save_policy="latest_k",
-            ckpt_max_keep=args.ckpt_max_keep,
+            ckpt_max_keep=ckpt_max_keep,
             step_mode=step_mode,
             use_step_unit=(args.ckpt_save_steps != -1),
             ckpt_save_interval=ckpt_save_interval,
@@ -519,6 +641,8 @@ def main(args):
             start_epoch=start_epoch,
             model_name="STDiT",
             record_lr=False,
+            integrated_save=integrated_save,
+            save_training_resume=save_training_resume,
         )
         callback.append(save_cb)
         if args.profile:
