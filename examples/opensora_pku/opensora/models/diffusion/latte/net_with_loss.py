@@ -203,7 +203,9 @@ class DiffusionWithLoss(nn.Cell):
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
+        assert (
+            model_output.shape == (B, C * 2, F) + x_t.shape[3:]
+        ), f"model_output shape {model_output.shape} and x_t shape {x_t.shape} mismatch!"
         model_output, model_var_values = ops.split(model_output, C, axis=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.

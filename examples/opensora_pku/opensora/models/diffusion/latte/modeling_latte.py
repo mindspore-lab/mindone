@@ -507,6 +507,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         output = output.view(
             input_batch_size, frame + use_image_num, output.shape[-3], output.shape[-2], output.shape[-1]
         )
+        output = output.permute(0, 2, 1, 3, 4)
         return output
 
     @classmethod
