@@ -125,6 +125,9 @@ def main(args):
     logger.info(f"Init Latte T2V model: {args.model}")
     ae_time_stride = 4
     video_length = args.num_frames // ae_time_stride + 1
+    FA_dtype = (
+        get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16,
+    )  # set FA dtype in [ms.float16 and ms.bfloat16 ],
     latte_model = Latte_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae] * 2,
@@ -146,9 +149,7 @@ def main(args):
         compress_kv_factor=args.compress_kv_factor,
         use_rope=args.use_rope,
         model_max_length=args.model_max_length,
-        FA_dtype=get_precision(args.precision)
-        if get_precision(args.precision) != ms.float32
-        else ms.bfloat16,  # set FA dtype in [ms.float16 and ms.bfloat16 ],
+        FA_dtype=FA_dtype,
         num_no_reompute=args.num_no_reompute,
     )
 
@@ -408,7 +409,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"EMA decay: {args.ema_decay}",
-                f"Enable flash attention: {args.enable_flash_attention}",
+                f"Enable flash attention: {args.enable_flash_attention} ({FA_dtype})",
                 f"Use recompute: {args.use_recompute}",
                 f"Dataset sink: {args.dataset_sink_mode}",
             ]
