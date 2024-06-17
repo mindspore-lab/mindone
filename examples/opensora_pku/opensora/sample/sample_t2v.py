@@ -38,6 +38,7 @@ from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
+ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
 def init_env(
