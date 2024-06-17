@@ -504,9 +504,7 @@ class MultiHeadAttention(nn.Cell):
             mask = 1 - mask
         if self.use_rope:
             self.apply_rope(q, k, v, position_q, position_k)
-        if mask is not None:
-            # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
+
         if self.enable_flash_attention:
             # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
