@@ -148,7 +148,8 @@ def main(args):
         model_max_length=args.model_max_length,
         FA_dtype=get_precision(args.precision)
         if get_precision(args.precision) != ms.float32
-        else ms.bfloat16,  # set FA dtype in [ms.float16 and ms.bfloat16 ]
+        else ms.bfloat16,  # set FA dtype in [ms.float16 and ms.bfloat16 ],
+        num_no_reompute=args.num_no_reompute,
     )
 
     # mixed precision
@@ -498,6 +499,13 @@ def parse_t2v_train_args(parser):
         "--enable_flip",
         action="store_true",
         help="enable random flip video (disable it to avoid motion direction and text mismatch)",
+    )
+    parser.add_argument(
+        "--num_no_reompute",
+        type=int,
+        default=0,
+        help="If use_recompute is True, `num_no_reompute` blocks will be removed from the recomputation list."
+        "This is a positive integer which can be tuned based on the memory usage.",
     )
     return parser
 

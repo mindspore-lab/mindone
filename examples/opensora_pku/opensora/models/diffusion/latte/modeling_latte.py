@@ -93,6 +93,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         compress_kv_factor: int = 1,
         interpolation_scale_1d: float = None,
         FA_dtype=ms.bfloat16,
+        num_no_reompute: int = 0,
     ):
         super().__init__()
         self.use_linear_projection = use_linear_projection
@@ -274,8 +275,17 @@ class LatteT2V(ModelMixin, ConfigMixin):
         )
 
         if self.use_recompute:
-            for block in self.blocks:
-                self.recompute(block)
+            num_no_reompute = self.num_no_reompute
+            num_blocks = len(self.blocks)
+            assert num_no_reompute >= 0, "Expect to have num_no_reompute as a positive integer."
+            assert (
+                num_no_reompute <= num_blocks
+            ), "Expect to have num_no_reompute as an integer no greater than the number of blocks,"
+            f"but got {num_no_reompute} and {num_blocks}."
+            logger.info(f"Excluding {num_no_reompute} blocks from the recomputation list.")
+            for bidx, block in enumerate(self.blocks):
+                if bidx < num_blocks - num_no_reompute:
+                    self.recompute(block)
 
         self.maxpool2d = nn.MaxPool2d(
             kernel_size=(self.patch_size, self.patch_size), stride=(self.patch_size, self.patch_size)

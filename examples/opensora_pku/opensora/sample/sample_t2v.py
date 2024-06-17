@@ -382,7 +382,7 @@ if __name__ == "__main__":
                 dtype=dtype,
                 custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
                 if dtype == ms.float16
-                else [nn.MaxPool2d, LayerNorm, Attention, nn.SiLU, nn.GELU],
+                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:

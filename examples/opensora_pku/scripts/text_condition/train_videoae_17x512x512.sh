@@ -44,4 +44,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --dataset_sink_mode True \
     --use_parallel True \
     --parallel_mode "data" \
-    # --enable_dvm True \
+    --num_no_recompute 18 \
