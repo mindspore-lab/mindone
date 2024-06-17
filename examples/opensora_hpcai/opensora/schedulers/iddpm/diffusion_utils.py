@@ -228,16 +228,11 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     log_one_minus_cdf_min = ops.log((1.0 - cdf_min).clamp(min=1e-12))
     cdf_delta = cdf_plus - cdf_min
 
-    # FIXME: use ops.where when it works OK on semi-mode
-    # log_probs = ops.where(
-    #     x < -0.999,
-    #     log_cdf_plus,
-    #     ops.where(x > 0.999, log_one_minus_cdf_min, ops.log(cdf_delta.clamp(min=1e-12))),
-    # )
-    flag = (x > 0.999).astype(ms.float32)
-    component = flag * log_one_minus_cdf_min + (1 - flag) * ops.log(cdf_delta.clamp(min=1e-12))
-    flag2 = (x < -0.999).astype(ms.float32)
-    log_probs = flag2 * log_cdf_plus + (1.0 - flag2) * component
+    log_probs = ops.where(
+        x < -0.999,
+        log_cdf_plus,
+        ops.where(x > 0.999, log_one_minus_cdf_min, ops.log(cdf_delta.clamp(min=1e-12))),
+    )
 
     assert log_probs.shape == x.shape
     return log_probs
