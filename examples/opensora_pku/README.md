@@ -212,7 +212,7 @@ Please edit the `master_port` to a different port number in the range 1024 to 65
 
 #### Preparation
 
-To train the causal vae model, you need to prepare a video dataset. You can download this video dataset following the instruction of [Open-Sora-Dataset](https://github.com/PKU-YuanGroup/Open-Sora-Dataset).
+To train the causal vae model, you need to prepare a video dataset. You can download this video dataset from [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main).
 
 Causal video vae can be initialized from vae 2d for better convergence. This can be done by inflating the 2d vae model checkpoint as follows:
 
