@@ -23,13 +23,8 @@ class DiffusionWithLoss(nn.Cell):
         model (nn.Cell): A noise prediction model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         diffusion: (object): A class for Gaussian Diffusion.
-        condition (str): The type of conditions of model in [None, 'text', 'class'].
-            If it is None, model is a un-conditional video generator.
-            If it is 'text', model accepts text embeddings (B, T, N) as conditions, and generates videos.
-            If it is 'class', model accepts class labels (B, ) as conditions, and generates videos.
         text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
             T is the number of tokens, and D is the embedding dimension.
-        cond_stage_trainable (bool): whether to train the text encoder.
         train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
     """
 
@@ -38,9 +33,7 @@ class DiffusionWithLoss(nn.Cell):
         network: nn.Cell,
         diffusion: SpacedDiffusion,
         vae: nn.Cell = None,
-        condition: str = "class",
         text_encoder: nn.Cell = None,
-        cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         use_image_num: int = 0,
@@ -51,14 +44,9 @@ class DiffusionWithLoss(nn.Cell):
         self.network = network.set_grad()
         self.vae = vae
         self.diffusion = diffusion
-        if condition is not None:
-            assert isinstance(condition, str)
-            condition = condition.lower()
-        self.condition = condition
+
         self.text_encoder = text_encoder
         self.dtype = dtype
-
-        self.cond_stage_trainable = cond_stage_trainable
 
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
@@ -69,24 +57,18 @@ class DiffusionWithLoss(nn.Cell):
         else:
             self.text_encoder = text_encoder
 
-        if self.cond_stage_trainable and self.text_encoder:
-            self.text_encoder.set_train(True)
-            self.text_encoder.set_grad(True)
-
         self.use_image_num = use_image_num
 
-    def get_condition_embeddings(self, text_tokens, mask):
+    def get_condition_embeddings(self, text_tokens, encoder_attention_mask):
         # text conditions inputs for cross-attention
         # optional: for some conditions, concat to latents, or add to time embedding
-        if self.use_image_num > 0:
-            # use for loop to avoid OOM?
-            B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
-            text_tokens = text_tokens.reshape(B * frame, L)
-            mask = mask.reshape(B * frame, L) if mask is not None else None  # mask (B, T+num_images)
-        if self.cond_stage_trainable:
-            text_emb = self.text_encoder(text_tokens, mask)
-        else:
-            text_emb = ops.stop_gradient(self.text_encoder(text_tokens, mask))
+        # use for loop to avoid OOM?
+        B, frame, L = text_tokens.shape  # B T+num_images L = b 1+4, L
+        text_emb = []
+        for i in range(frame):
+            t = self.text_encoder(text_tokens[:, i], encoder_attention_mask[:, i])
+            text_emb.append(t)
+        text_emb = ops.stack(text_emb, axis=1)
         return text_emb
 
     def vae_encode(self, x):
@@ -108,10 +90,9 @@ class DiffusionWithLoss(nn.Cell):
 
     def get_latents(self, x):
         if x.dim() == 5:
-            B, F, C, H, W = x.shape
+            B, C, F, H, W = x.shape
             if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = x.permute(0, 2, 1, 3, 4)  # (b, c, f, h, w)
+                raise ValueError("Expect input shape (b 3 f h w), but get {}".format(x.shape))
             if self.use_image_num == 0:
                 z = self.vae_encode(x)  # (b, c, f, h, w)
             else:
@@ -128,13 +109,19 @@ class DiffusionWithLoss(nn.Cell):
             raise ValueError("Incorrect Dimensions of x")
         return z
 
-    def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, mask: ms.Tensor = None):
+    def construct(
+        self,
+        x: ms.Tensor,
+        text_tokens: ms.Tensor,
+        encoder_attention_mask: ms.Tensor = None,
+        attention_mask: ms.Tensor = None,
+    ):
         """
         Video diffusion model forward and loss computation for training
 
         Args:
-            x: pixel values of video frames, resized and normalized to shape [bs, F, 3, 256, 256]
-            text_tokens: text tokens padded to fixed shape [bs, 77]
+            x: pixel values of video frames, resized and normalized to shape (b c f+num_img h w)
+            text_tokens: text tokens padded to fixed shape [bs, L]
             labels: the class labels
 
         Returns:
@@ -142,24 +129,20 @@ class DiffusionWithLoss(nn.Cell):
 
         Notes:
             - inputs should matches dataloder output order
-            - assume model input/output shape: (b c f h w)
-                unet2d input/output shape: (b c h w)
+            - assume model input/output shape: (b c f+num_img h w)
         """
         # 1. get image/video latents z using vae
         x = x.to(self.dtype)
         if not self.video_emb_cached:
             x = ops.stop_gradient(self.get_latents(x))
-        else:
-            # (b f c h w) -> (b c f h w)
-            x = ops.transpose(x, (0, 2, 1, 3, 4))
 
         # 2. get conditions
         if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens, mask)
+            text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
         else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+            text_embed = text_tokens
 
-        loss = self.compute_loss(x, text_embed, mask)
+        loss = self.compute_loss(x, text_embed, encoder_attention_mask, attention_mask)
 
         return loss
 
@@ -199,7 +182,7 @@ class DiffusionWithLoss(nn.Cell):
 
         return vb
 
-    def compute_loss(self, x, text_embed, mask):
+    def compute_loss(self, x, text_embed, encoder_attention_mask, attention_mask=None):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
@@ -208,12 +191,19 @@ class DiffusionWithLoss(nn.Cell):
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         # text_embed = ops.expand_dims(text_embed, axis=1)
         model_output = self.apply_model(
-            x_t, t, encoder_hidden_states=text_embed, encoder_attention_mask=mask, use_image_num=self.use_image_num
+            x_t,
+            t,
+            encoder_hidden_states=text_embed,
+            attention_mask=attention_mask,
+            encoder_attention_mask=encoder_attention_mask,
+            use_image_num=self.use_image_num,
         )
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]
-        assert model_output.shape == (B, C * 2, F) + x_t.shape[3:]
+        assert (
+            model_output.shape == (B, C * 2, F) + x_t.shape[3:]
+        ), f"model_output shape {model_output.shape} and x_t shape {x_t.shape} mismatch!"
         model_output, model_var_values = ops.split(model_output, C, axis=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.

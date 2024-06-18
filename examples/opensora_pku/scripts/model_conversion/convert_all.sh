@@ -3,17 +3,17 @@ python tools/model_conversion/convert_t5.py \
   -t DeepFloyd/t5-v1_1-xxl/t5-v1_1-xxl.ckpt \
 
 python tools/model_conversion/convert_vae.py \
-  --src LanguageBind/Open-Sora-Plan-v1.0.0/vae/diffusion_pytorch_model.safetensors \
-  --target LanguageBind/Open-Sora-Plan-v1.0.0/vae/causalvae_488.ckpt \
+  --src LanguageBind/Open-Sora-Plan-v1.1.0/vae/diffusion_pytorch_model.safetensors \
+  --target LanguageBind/Open-Sora-Plan-v1.1.0/vae/causalvae_488.ckpt \
 
 python tools/model_conversion/convert_latte.py \
-  --src LanguageBind/Open-Sora-Plan-v1.0.0/17x256x256/diffusion_pytorch_model.safetensors \
-  --target LanguageBind/Open-Sora-Plan-v1.0.0/17x256x256/LatteT2V-17x256x256.ckpt
+  --src LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/diffusion_pytorch_model.safetensors \
+  --target LanguageBind/Open-Sora-Plan-v1.1.0/65x512x512/LatteT2V-65x512x512.ckpt
 
 python tools/model_conversion/convert_latte.py \
-  --src LanguageBind/Open-Sora-Plan-v1.0.0/65x256x256/diffusion_pytorch_model.safetensors \
-  --target LanguageBind/Open-Sora-Plan-v1.0.0/65x256x256/LatteT2V-65x256x256.ckpt
+  --src LanguageBind/Open-Sora-Plan-v1.1.0/221x512x512/diffusion_pytorch_model.safetensors \
+  --target LanguageBind/Open-Sora-Plan-v1.1.0/221x512x512/LatteT2V-221x512x512.ckpt
 
-python tools/model_conversion/convert_latte.py \
-  --src LanguageBind/Open-Sora-Plan-v1.0.0/65x512x512/diffusion_pytorch_model.safetensors \
-  --target LanguageBind/Open-Sora-Plan-v1.0.0/65x512x512/LatteT2V-65x512x512.ckpt
+# python tools/model_conversion/convert_latte.py \
+#   --src LanguageBind/Open-Sora-Plan-v1.1.0/513x512x512/diffusion_pytorch_model.safetensors \
+#   --target LanguageBind/Open-Sora-Plan-v1.1.0/513x512x512/LatteT2V-513x512x512.ckpt

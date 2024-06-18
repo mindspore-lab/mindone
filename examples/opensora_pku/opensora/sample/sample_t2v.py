@@ -21,8 +21,8 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
 from opensora.dataset.text_dataset import create_dataloader
-from opensora.models.ae import ae_stride_config, getae_model_config, getae_wrapper
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
+from opensora.models.ae import ae_stride_config, getae_wrapper
+from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.latte.modeling_latte import LatteT2V, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
 from opensora.models.text_encoder.t5 import T5Embedder
@@ -38,6 +38,7 @@ from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
+ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
 def init_env(
@@ -127,7 +128,7 @@ def parse_args():
         type=str,
         help="path to load a config yaml file that describes the setting which will override the default arguments",
     )
-    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.0.0")
+    parser.add_argument("--model_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
     parser.add_argument(
         "--pretrained_ckpt",
         type=str,
@@ -138,9 +139,12 @@ def parse_args():
     parser.add_argument(
         "--version",
         type=str,
-        default="17x256x256",
-        help="Model version in ['17x256x256', '17x512x512', '65x256x256', '65x512x512'] ",
+        default="65x512x512",
+        help="Model version in ['65x512x512', '221x512x512', '513x512x512'] ",
     )
+    parser.add_argument("--num_frames", type=int, default=1)
+    parser.add_argument("--height", type=int, default=512)
+    parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
@@ -189,7 +193,7 @@ def parse_args():
     )
     parser.add_argument(
         "--precision",
-        default="fp16",
+        default="bf16",
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
@@ -266,26 +270,23 @@ if __name__ == "__main__":
     )
 
     # 2. vae model initiate and weight loading
-    image_size = int(args.version.split("x")[1])
-    latent_size = (image_size // ae_stride_config[args.ae][1], image_size // ae_stride_config[args.ae][2])
     logger.info("vae init")
-    vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.model_path, subfolder="vae")
+    vae = getae_wrapper(args.ae)(args.model_path, subfolder="vae")
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
+    vae.vae_scale_factor = ae_stride_config[args.ae]
     # use amp level O2 for causal 3D VAE with bfloat16 or float16
     vae_dtype = get_precision(args.vae_precision)
-    custom_fp32_cells = [TimeDownsample2x, TimeUpsample2x] if vae_dtype == ms.bfloat16 else [nn.GroupNorm]
+    custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
     vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
     logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
     vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
-    vae.latent_size = latent_size
 
     # 3. handle input text prompts
     if args.force_images:
-        video_length = 1
         ext = "jpg"
     else:
         ext = (
@@ -318,7 +319,7 @@ if __name__ == "__main__":
     ds_config = dict(
         data_file_path=temp_dataset_csv,
         tokenizer=None,  # tokenizer,
-        video_column="path",
+        file_column="path",
         caption_column="cap",
     )
     dataset = create_dataloader(
@@ -363,11 +364,13 @@ if __name__ == "__main__":
 
     # 4. latte model initiate and weight loading
     logger.info(f"Latte-{args.version} init")
+    FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     transformer_model = LatteT2V.from_pretrained(
         args.model_path,
         subfolder=args.version,
         checkpoint_path=args.pretrained_ckpt,
         enable_flash_attention=args.enable_flash_attention,
+        FA_dtype=FA_dtype,
     )
     transformer_model.force_images = args.force_images
     # mixed precision
@@ -379,7 +382,9 @@ if __name__ == "__main__":
                 transformer_model,
                 amp_level=args.amp_level,
                 dtype=dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU] if args.precision == "fp16" else [],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
+                if dtype == ms.float16
+                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
             )
             logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
         else:
@@ -393,7 +398,6 @@ if __name__ == "__main__":
     transformer_model = transformer_model.set_train(False)
     for param in transformer_model.get_parameters():  # freeze transformer_model
         param.requires_grad = False
-    video_length = transformer_model.config.video_length
 
     logger.info("T5 init")
     text_encoder = T5Embedder(
@@ -446,6 +450,7 @@ if __name__ == "__main__":
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",
+            f"Enable flash attention: {args.enable_flash_attention} ({FA_dtype})",
         ]
     )
     key_info += "\n" + "=" * 50
@@ -459,9 +464,9 @@ if __name__ == "__main__":
         videos = (
             pipeline(
                 prompt,
-                video_length=video_length,
-                height=image_size,
-                width=image_size,
+                num_frames=args.num_frames,
+                height=args.height,
+                width=args.width,
                 num_inference_steps=args.num_sampling_steps,
                 guidance_scale=args.guidance_scale,
                 enable_temporal_attentions=not args.force_images,

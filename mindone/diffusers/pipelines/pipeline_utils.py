@@ -30,6 +30,7 @@ from packaging import version
 from requests.exceptions import HTTPError
 from tqdm.auto import tqdm
 
+import mindspore as ms
 from mindspore import nn
 
 from .. import __version__
@@ -243,6 +244,51 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 commit_message=commit_message,
                 create_pr=create_pr,
             )
+
+    def to(self, dtype):
+        r"""
+        Performs Pipeline dtype conversion. A ms.dtype inferred from the argument of `self.to(dtype).`
+
+        <Tip>
+
+            If the pipeline already has the correct ms.dtype, then it is returned as is. Otherwise,
+            the returned pipeline is a copy of self with the desired ms.dtype.
+
+        </Tip>
+
+
+        Here are the ways to call `to`:
+
+        - `to(dtype) → DiffusionPipeline` to return a pipeline with the specified `dtype`
+
+        Arguments:
+            dtype (`torch.dtype`):
+                Returns a pipeline with the specified `dtype`
+
+        Returns:
+            [`DiffusionPipeline`]: The pipeline converted to specified `dtype` and/or `dtype`.
+        """
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+        for module in modules:
+            module.to(dtype)
+        return self
+
+    @property
+    def dtype(self) -> ms.dtype:
+        r"""
+        Returns:
+            `torch.dtype`: The torch dtype on which the pipeline is located.
+        """
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            return module.dtype
+
+        return ms.float32
 
     @classmethod
     @validate_hf_hub_args

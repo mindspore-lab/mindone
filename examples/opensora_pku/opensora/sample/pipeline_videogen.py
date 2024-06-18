@@ -14,6 +14,7 @@
 import html
 import inspect
 import logging
+import math
 import re
 import urllib.parse as ul
 from dataclasses import dataclass
@@ -508,14 +509,17 @@ class VideoGenPipeline(DiffusionPipeline):
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
     def prepare_latents(
-        self, batch_size, num_channels_latents, video_length, height, width, dtype, generator, latents=None
+        self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None
     ):
-        shape = (batch_size, num_channels_latents, video_length, self.vae.latent_size[0], self.vae.latent_size[1])
-        if isinstance(generator, list) and len(generator) != batch_size:
-            raise ValueError(
-                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-            )
+        shape = (
+            batch_size,
+            num_channels_latents,
+            (math.ceil((int(num_frames) - 1) / self.vae.vae_scale_factor[0]) + 1)
+            if int(num_frames) % 2 == 1
+            else math.ceil(int(num_frames) / self.vae.vae_scale_factor[0]),
+            math.ceil(int(height) / self.vae.vae_scale_factor[1]),
+            math.ceil(int(width) / self.vae.vae_scale_factor[2]),
+        )
 
         if latents is None:
             latents = ops.randn(shape, dtype=dtype)
@@ -534,7 +538,7 @@ class VideoGenPipeline(DiffusionPipeline):
         timesteps: List[int] = None,
         guidance_scale: float = 4.5,
         num_videos_per_prompt: Optional[int] = 1,
-        video_length: Optional[int] = None,
+        num_frames: Optional[int] = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
         eta: float = 0.0,
@@ -665,7 +669,7 @@ class VideoGenPipeline(DiffusionPipeline):
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             latent_channels,
-            video_length,
+            num_frames,
             height,
             width,
             prompt_embeds.dtype,
@@ -700,15 +704,14 @@ class VideoGenPipeline(DiffusionPipeline):
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 current_timestep = current_timestep.repeat_interleave(latent_model_input.shape[0], 0)
-
                 # predict noise model_output
                 noise_pred = self.transformer(
-                    latent_model_input,
-                    encoder_hidden_states=prompt_embeds,
-                    timestep=current_timestep,
+                    latent_model_input,  # (b c t h w)
+                    encoder_hidden_states=prompt_embeds,  # (b n c)
+                    timestep=current_timestep,  # (b)
                     added_cond_kwargs=added_cond_kwargs,
                     enable_temporal_attentions=enable_temporal_attentions,
-                    encoder_attention_mask=prompt_embeds_mask,
+                    encoder_attention_mask=prompt_embeds_mask,  # (b n)
                 )
 
                 # perform guidance
@@ -734,6 +737,7 @@ class VideoGenPipeline(DiffusionPipeline):
 
         if not output_type == "latents":
             video = self.decode_latents(latents)
+            video = video[:, :num_frames, :height, :width]
         else:
             video = latents
             return VideoPipelineOutput(video=video)
@@ -742,11 +746,8 @@ class VideoGenPipeline(DiffusionPipeline):
 
     def decode_latents_per_sample(self, latents):
         # video = self.vae.decode(latents)
-        video = self.vae.decode(latents).to(ms.float32)
-        # video = rearrange(video, 'b c t h w -> b t c h w').contiguous()
-        # video = ((video / 2.0 + 0.5).clamp(0, 1) * 255).to(dtype=ms.uint8).permute(0, 1, 3, 4, 2)
+        video = self.vae.decode(latents).to(ms.float32)  # (b t c h w)
         video = ops.clip_by_value((video / 2.0 + 0.5), clip_value_min=0.0, clip_value_max=1.0).permute(0, 1, 3, 4, 2)
-        # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
         return video  # b t h w c
 
     def decode_latents_per_sample_in_chunks(self, latents):

@@ -208,7 +208,7 @@ def parse_train_args(parser):
         type=int,
         help="epochs. If dataset_sink_mode is on, epochs is with respect to dataset sink size. Otherwise, it's w.r.t the dataset size.",
     )
-    parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
+    parser.add_argument("--dataloader_num_workers", default=12, type=int, help="num workers for dataloder")
     parser.add_argument("--max_rowsize", default=64, type=int, help="max rowsize for data loading")
 
     #################################################################################

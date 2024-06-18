@@ -11,9 +11,10 @@ from mindspore.train.callback import TimeMonitor
 mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
+# from mindcv.optim.adamw import AdamW
 from opensora.dataset.t2v_dataset import create_dataloader
-from opensora.models.ae import ae_channel_config, ae_stride_config, getae_model_config, getae_wrapper
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
+from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
+from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.models.diffusion.diffusion import create_diffusion_T as create_diffusion
 from opensora.models.diffusion.latte.modeling_latte import Latte_models, LayerNorm
 from opensora.models.diffusion.latte.modules import Attention
@@ -29,12 +30,13 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-
+ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 
@@ -75,15 +77,18 @@ def main(args):
     if args.use_deepspeed:
         raise NotImplementedError
 
-    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
     if train_with_vae_latent:
+        assert os.path.exists(
+            args.vae_latent_folder
+        ), f"The provided vae latent folder {args.vae_latent_folder} is not existent!"
         logger.info("Train with vae latent cache.")
         vae = None
     else:
         logger.info("vae init")
-        vae = getae_wrapper(args.ae)(getae_model_config(args.ae), args.ae_path, subfolder="vae")
+        vae = getae_wrapper(args.ae)(args.ae_path, subfolder="vae")
         vae_dtype = ms.bfloat16
-        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
+        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
         logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
 
@@ -114,10 +119,13 @@ def main(args):
 
         latent_size = (args.max_image_size // ae_stride_h, args.max_image_size // ae_stride_w)
         vae.latent_size = latent_size
+        args.stride_t = ae_stride_t * patch_size_t
+        args.stride = ae_stride_h * patch_size_h
 
     logger.info(f"Init Latte T2V model: {args.model}")
     ae_time_stride = 4
     video_length = args.num_frames // ae_time_stride + 1
+    FA_dtype = get_precision(args.precision) if get_precision(args.precision) != ms.float32 else ms.bfloat16
     latte_model = Latte_models[args.model](
         in_channels=ae_channel_config[args.ae],
         out_channels=ae_channel_config[args.ae] * 2,
@@ -136,6 +144,11 @@ def main(args):
         video_length=video_length,
         enable_flash_attention=args.enable_flash_attention,
         use_recompute=args.use_recompute,
+        compress_kv_factor=args.compress_kv_factor,
+        use_rope=args.use_rope,
+        model_max_length=args.model_max_length,
+        FA_dtype=FA_dtype,
+        num_no_recompute=args.num_no_recompute,
     )
 
     # mixed precision
@@ -148,22 +161,24 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=model_dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU] if model_dtype == ms.float16 else [],
+                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
+                if model_dtype == ms.float16
+                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
             )
             logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
         else:
             logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16
     # load checkpoint
-    if len(args.pretrained) > 0:
+    if args.pretrained is not None and len(args.pretrained) > 0:
+        assert os.path.exists(args.pretrained), f"Provided checkpoint file {args.pretrained} does not exist!"
         logger.info(f"Loading ckpt {args.pretrained}...")
         latte_model.load_from_checkpoint(args.pretrained)
     else:
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
-    use_text_embed = args.text_embed_folder is not None and os.path.exists(args.text_embed_folder)
-    if not use_text_embed:
+    if not args.text_embed_cache:
         logger.info("T5 init")
         text_encoder = T5Embedder(
             dir_or_name=args.text_encoder_name,
@@ -187,10 +202,8 @@ def main(args):
         latte_model,
         diffusion,
         vae=vae,
-        condition="text",
         text_encoder=text_encoder,
-        cond_stage_trainable=False,
-        text_emb_cached=use_text_embed,
+        text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
         use_image_num=args.use_image_num,
         dtype=model_dtype,
@@ -199,22 +212,17 @@ def main(args):
     # 3. create dataset
     assert args.dataset == "t2v", "Support t2v dataset only."
     ds_config = dict(
-        data_file_path=args.data_path,
-        video_folder=args.video_folder,
-        text_emb_folder=args.text_embed_folder,
-        return_text_emb=use_text_embed,
-        vae_latent_folder=args.vae_latent_folder,
-        return_vae_latent=train_with_vae_latent,
-        vae_scale_factor=args.sd_scale_factor,
+        image_data=args.image_data,
+        video_data=args.video_data,
         sample_size=args.max_image_size,
-        sample_stride=args.sample_rate,
-        sample_n_frames=args.num_frames,
+        num_frames=args.num_frames,
         tokenizer=tokenizer,
-        video_column=args.video_column,
-        caption_column=args.caption_column,
+        return_text_emb=args.text_embed_cache,
         disable_flip=not args.enable_flip,
         use_image_num=args.use_image_num,
-        token_max_length=args.model_max_length,
+        use_img_from_vid=args.use_img_from_vid,
+        model_max_length=args.model_max_length,
+        filter_nonexistent=args.filter_nonexistent,
     )
     dataset = create_dataloader(
         ds_config,
@@ -222,7 +230,7 @@ def main(args):
         shuffle=True,
         device_num=device_num,
         rank_id=rank_id,
-        num_parallel_workers=args.num_parallel_workers,
+        num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
     )
     dataset_size = dataset.get_dataset_size()
@@ -264,6 +272,7 @@ def main(args):
     )
 
     # build optimizer
+    assert args.optim.lower() == "adamw", f"Not support optimizer {args.optim}!"
     optimizer = create_optimizer(
         latent_diffusion_with_loss.trainable_params(),
         name=args.optim,
@@ -397,7 +406,7 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
                 f"EMA: {args.use_ema}",
                 f"EMA decay: {args.ema_decay}",
-                f"Enable flash attention: {args.enable_flash_attention}",
+                f"Enable flash attention: {args.enable_flash_attention} ({FA_dtype})",
                 f"Use recompute: {args.use_recompute}",
                 f"Dataset sink: {args.dataset_sink_mode}",
             ]
@@ -424,20 +433,31 @@ def main(args):
 def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, required=True)
-    parser.add_argument("--data_path", type=str, required=True)
+    parser.add_argument("--image_data", type=str, required=True)
+    parser.add_argument("--video_data", type=str, required=True)
     parser.add_argument(
-        "--text_embed_folder", type=str, default=None, help="the folder path to the t5 text embeddings and masks"
+        "--filter_nonexistent",
+        type=str2bool,
+        default=True,
+        help="Whether to filter out non-existent samples in image datasets and video datasets." "Defaults to True.",
+    )
+    parser.add_argument(
+        "--text_embed_cache",
+        type=str2bool,
+        default=True,
+        help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
     parser.add_argument("--model", type=str, default="DiT-XL/122")
     parser.add_argument("--num_classes", type=int, default=1000)
     parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
     parser.add_argument("--ae_path", type=str, default="stabilityai/sd-vae-ft-mse")
-    parser.add_argument("--sample_rate", type=int, default=4)
-    parser.add_argument("--num_frames", type=int, default=16)
-    parser.add_argument("--max_image_size", type=int, default=128)
-    parser.add_argument("--dynamic_frames", action="store_true")
+
+    parser.add_argument("--num_frames", type=int, default=17)
+    parser.add_argument("--max_image_size", type=int, default=512)
     parser.add_argument("--compress_kv", action="store_true")
+    parser.add_argument("--compress_kv_factor", type=int, default=1)
+    parser.add_argument("--use_rope", action="store_true")
     parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="math")
     parser.add_argument("--pretrained", type=str, default=None)
 
@@ -446,7 +466,8 @@ def parse_t2v_train_args(parser):
 
     parser.add_argument("--video_folder", type=str, default="")
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--model_max_length", type=int, default=120)
+    parser.add_argument("--model_max_length", type=int, default=300)
+    parser.add_argument("--multi_scale", action="store_true")
 
     # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
@@ -471,14 +492,18 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
-    parser.add_argument("--video_column", default="path", type=str, help="name of column for videos saved in csv file")
-    parser.add_argument(
-        "--caption_column", default="cap", type=str, help="name of column for captions saved in csv file"
-    )
+
     parser.add_argument(
         "--enable_flip",
         action="store_true",
         help="enable random flip video (disable it to avoid motion direction and text mismatch)",
+    )
+    parser.add_argument(
+        "--num_no_recompute",
+        type=int,
+        default=0,
+        help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
+        "This is a positive integer which can be tuned based on the memory usage.",
     )
     return parser
 

@@ -17,13 +17,14 @@ import mindspore as ms
 from mindspore import nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
+from ...loaders import FromOriginalVAEMixin
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .vae import Decoder, DecoderOutput, DiagonalGaussianDistribution, Encoder
 
 
-class AutoencoderKL(ModelMixin, ConfigMixin):
+class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
     r"""
     A VAE model with KL loss for encoding images into latents and decoding latent representations into images.
 
