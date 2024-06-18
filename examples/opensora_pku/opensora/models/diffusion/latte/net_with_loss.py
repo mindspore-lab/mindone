@@ -1,5 +1,7 @@
 import logging
 
+from opensora.acceleration.communications import prepare_parallel_data
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.models.diffusion.diffusion import SpacedDiffusion_T as SpacedDiffusion
 from opensora.models.diffusion.diffusion.diffusion_utils import (
     _extract_into_tensor,
@@ -58,6 +60,12 @@ class DiffusionWithLoss(nn.Cell):
             self.text_encoder = text_encoder
 
         self.use_image_num = use_image_num
+
+        # FIXME: bug when sp_size=2
+        # self.broadcast_t = None if not get_sequence_parallel_state() \
+        #     else ops.Broadcast(root_rank=int(hccl_info.group_id * hccl_info.world_size), group=hccl_info.group)
+        self.reduce_t = None if not get_sequence_parallel_state() else ops.AllReduce(group=hccl_info.group)
+        self.sp_size = 1 if not get_sequence_parallel_state() else hccl_info.world_size
 
     def get_condition_embeddings(self, text_tokens, encoder_attention_mask):
         # text conditions inputs for cross-attention
@@ -183,7 +191,18 @@ class DiffusionWithLoss(nn.Cell):
         return vb
 
     def compute_loss(self, x, text_embed, encoder_attention_mask, attention_mask=None):
-        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
+        use_image_num = self.use_image_num
+
+        if get_sequence_parallel_state():
+            x, text_embed, attention_mask, encoder_attention_mask, use_image_num = prepare_parallel_data(
+                x, text_embed, attention_mask, encoder_attention_mask, use_image_num
+            )
+
+        t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],), dtype=ms.int32)
+
+        if get_sequence_parallel_state():
+            t = self.reduce_t(t) // self.sp_size
+
         noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
 
@@ -196,7 +215,7 @@ class DiffusionWithLoss(nn.Cell):
             encoder_hidden_states=text_embed,
             attention_mask=attention_mask,
             encoder_attention_mask=encoder_attention_mask,
-            use_image_num=self.use_image_num,
+            use_image_num=use_image_num,
         )
 
         # (b c t h w),

@@ -20,6 +20,9 @@ import urllib.parse as ul
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
 
+from opensora.acceleration.communications import AllGather
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
+
 import mindspore as ms
 from mindspore import ops
 
@@ -121,6 +124,8 @@ class VideoGenPipeline(DiffusionPipeline):
         )
         # self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.enable_time_chunk = enable_time_chunk
+
+        self.all_gather = None if not get_sequence_parallel_state() else AllGather()
 
     # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
     def mask_text_embeddings(self, emb, mask):
@@ -669,7 +674,9 @@ class VideoGenPipeline(DiffusionPipeline):
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             latent_channels,
-            num_frames,
+            (num_frames + hccl_info.world_size - 1) // hccl_info.world_size
+            if get_sequence_parallel_state()
+            else num_frames,
             height,
             width,
             prompt_embeds.dtype,
@@ -734,6 +741,12 @@ class VideoGenPipeline(DiffusionPipeline):
                     if callback is not None and i % callback_steps == 0:
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
+
+        if get_sequence_parallel_state():
+            sp_size = hccl_info.world_size
+            latents = self.all_gather(latents)
+            latents_list = ops.chunk(latents, sp_size, 0)
+            latents = ops.concat(latents_list, axis=2)[:, :, :num_frames]
 
         if not output_type == "latents":
             video = self.decode_latents(latents)

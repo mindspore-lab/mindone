@@ -31,6 +31,7 @@ Videos are saved to `.gif` for display. See the text prompts in `examples/prompt
 ## 🔆 Features
 
 - 📍 **Open-Sora-Plan v1.1.0** with the following features
+    - ✅ Sequence parallelism
     - ✅ CausalVAE-4x8x8 inference. Supports video reconstruction.
     - ✅ T5 TextEncoder model inference.
     - ✅ Text-to-video generation in 512x512 resolution and up to 221 frames.
@@ -39,7 +40,6 @@ Videos are saved to `.gif` for display. See the text prompts in `examples/prompt
 
 
 ### TODO
-* [ ] Sequence-parallel training **[WIP]**
 * [ ] Third-stage training script **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 * [ ] Evaluation of various metrics.
@@ -313,7 +313,7 @@ Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and ch
 
 ```bash
 # start 221x512x512 finetuning, 8 NPUs
-bash scripts/text_condition/train_videoae_221x512x512.sh
+bash scripts/text_condition/train_videoae_221x512x512_sp.sh
 ```
 Simiarly, please revise the `--pretrained` to the full checkpoint path from the `221x512x512` stage, and then start the third-stage training (to be released soon).
 

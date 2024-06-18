@@ -4,6 +4,7 @@ import os
 from typing import Tuple
 
 import yaml
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, initialize_sequence_parallel_state
 
 import mindspore as ms
 from mindspore import nn
@@ -28,6 +29,7 @@ def init_env(
     global_bf16: bool = False,
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
+    sp_size: int = 1,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -100,6 +102,16 @@ def init_env(
         ms.set_context(
             ascend_config={"precision_mode": "allow_mix_precision_bf16"}
         )  # reset ascend precison mode globally
+
+    assert device_num >= sp_size and device_num % sp_size == 0, (
+        f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
+    )
+    initialize_sequence_parallel_state(sp_size)
+    if get_sequence_parallel_state():
+        assert (
+            parallel_mode == "data"
+        ), f"only support seq parallelism with parallel mode `data`, but got `{parallel_mode}`"
+
     return rank_id, device_num
 
 

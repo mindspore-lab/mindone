@@ -2,6 +2,8 @@ import logging
 import numbers
 from typing import Any, Dict, List, Optional, Tuple
 
+from opensora.acceleration.communications import AllToAll_SBH
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.models.diffusion.utils.pos_embed import (
     LinearScalingRoPE1D,
     LinearScalingRoPE2D,
@@ -166,6 +168,7 @@ class MultiHeadAttention(nn.Cell):
         use_rope: bool = False,
         rope_scaling: Optional[Dict] = None,
         compress_kv_factor: Optional[Tuple] = None,
+        layout: Optional[str] = "BSH",
     ):
         super().__init__()
         self.inner_dim = dim_head * heads
@@ -185,6 +188,7 @@ class MultiHeadAttention(nn.Cell):
         self.compress_kv_factor = compress_kv_factor
         self.only_cross_attention = only_cross_attention
         self._from_deprecated_attn_block = _from_deprecated_attn_block
+        self.layout = layout
 
         self.scale_qk = scale_qk
         self.scale = dim_head**-0.5 if self.scale_qk else 1.0
@@ -195,6 +199,19 @@ class MultiHeadAttention(nn.Cell):
                 "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None."
                 " Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."
             )
+
+        if self.layout == "SBH":
+            assert get_sequence_parallel_state()
+            self.sp_size = hccl_info.world_size
+            self.alltoall_sbh_q = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_k = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
+            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=0, gather_dim=1)
+        else:
+            self.alltoall_sbh_q = None
+            self.alltoall_sbh_k = None
+            self.alltoall_sbh_v = None
+            self.alltoall_sbh_out = None
 
         if norm_num_groups is not None:
             self.group_norm = nn.GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
@@ -258,13 +275,23 @@ class MultiHeadAttention(nn.Cell):
         )
 
         if self.enable_flash_attention:
-            self.flash_attention = MSFlashAttention(
-                head_dim=dim_head,
-                head_num=heads,
-                fix_head_dims=[72],
-                attention_dropout=attn_drop,
-                dtype=self.FA_dtype,
-            )
+            if self.layout == "SBH":
+                assert heads % hccl_info.world_size == 0
+                self.flash_attention = MSFlashAttention(
+                    head_dim=dim_head,
+                    head_num=heads // hccl_info.world_size,
+                    fix_head_dims=[72],
+                    attention_dropout=attn_drop,
+                    dtype=self.FA_dtype,
+                )
+            else:
+                self.flash_attention = MSFlashAttention(
+                    head_dim=dim_head,
+                    head_num=heads,
+                    fix_head_dims=[72],
+                    attention_dropout=attn_drop,
+                    dtype=self.FA_dtype,
+                )
         else:
             self.attention = Attention(
                 dim_head=dim_head, attn_drop=attn_drop, upcast_attention=upcast_attention, upcast_softmax=upcast_softmax
@@ -468,22 +495,27 @@ class MultiHeadAttention(nn.Cell):
 
             encoder_hidden_states = self.norm(encoder_hidden_states)
 
-        batch_size, key_length, _ = (
-            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-        )
+        if self.layout == "SBH":
+            sequence_length, batch_size, _ = (
+                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+            )
+            sequence_length *= self.sp_size
+        else:
+            batch_size, sequence_length, _ = (
+                hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+            )
+
         if attention_mask is not None:
             out_dim = 4 if self.enable_flash_attention else 3
             attention_mask = self.prepare_attention_mask(
-                attention_mask, key_length, batch_size, out_dim=out_dim
+                attention_mask, sequence_length, batch_size, out_dim=out_dim
             )  # make attention mask a correct shape
-            # scaled_dot_product_attention expects attention_mask shape to be
-            # (batch, heads, source_length, target_length)
-            # attention_mask = attention_mask.view(batch_size, self.heads, -1, attention_mask.shape[-1])
 
         if self.group_norm is not None:
             hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
 
         h = self.heads
+        head_dim = self.inner_dim // self.heads
         mask = attention_mask
 
         q = self.to_q(hidden_states)
@@ -494,47 +526,124 @@ class MultiHeadAttention(nn.Cell):
 
         k = self.to_k(encoder_hidden_states)
         v = self.to_v(encoder_hidden_states)
-        q_b, q_n, _ = q.shape  # (b n h*d)
-        k_b, k_n, _ = k.shape
-        v_b, v_n, _ = v.shape
 
-        # 2+: mask adaptation for multi-head attention
-        if mask is not None:
-            # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
-        if self.use_rope:
-            self.apply_rope(q, k, v, position_q, position_k)
+        if self.layout == "SBH":
+            q_f, q_b, _ = q.shape
+            k_f, k_b, _ = q.shape
+            v_f, v_b, _ = q.shape
 
-        if self.enable_flash_attention:
-            # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
-            q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
-            k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
-            v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+            q = q.view(-1, h, head_dim)  # [s // sp, b, h * d] -> [s // sp * b, h, d]
+            k = k.view(-1, h, head_dim)
+            v = v.view(-1, h, head_dim)
+            h_size = h * head_dim
+            h_size_sp = h_size // self.sp_size
+
+            # apply all_to_all to gather sequence and split attention heads [s // sp * b, h, d] -> [s * b, h // sp, d]
+            q = self.alltoall_sbh_q(q).view(-1, batch_size, h_size_sp)
+            k = self.alltoall_sbh_k(k).view(-1, batch_size, h_size_sp)
+            v = self.alltoall_sbh_v(v).view(-1, batch_size, h_size_sp)
+
+            # 2+: mask adaptation for multi-head attention
             if mask is not None:
-                assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
-                # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
-                if mask.shape[-2] == 1:
-                    mask = mask.repeat(q_n, axis=-2)
-            out = self.flash_attention(q, k, v, mask)
-            b, h, n, d = out.shape
-            # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
-            out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+                # flip mask, since ms FA treats 1 as discard, 0 as retain.
+                mask = 1 - mask
+            if self.use_rope:
+                self.apply_rope(q, k, v, position_q, position_k)
+
+            if self.enable_flash_attention:
+                # reshape qkv shape ((s b hn*hd) -> (b*hd n hd)) and mask dtype for FA input format
+                q = q.view(-1, q_b, h // self.sp_size, head_dim).transpose(1, 2, 0, 3).contiguous()
+                k = k.view(-1, k_b, h // self.sp_size, head_dim).transpose(1, 2, 0, 3).contiguous()
+                v = v.view(-1, v_b, h // self.sp_size, head_dim).transpose(1, 2, 0, 3).contiguous()
+
+                # (batch_size, hn, N, hd)
+                if mask is not None:
+                    assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
+                    # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
+                    if mask.shape[-2] == 1:
+                        mask = mask.repeat(q.shape[-2], axis=-2)
+
+                out = self.flash_attention(q, k, v, mask)
+                b, h_, n, d = out.shape
+                out = out.transpose(0, 2, 1, 3).view(-1, h_, d)
+                out = self.alltoall_sbh_out(out).view(-1, batch_size, h_size)
+            else:
+                q = (
+                    q.view(-1, q_b, h // self.sp_size, head_dim)
+                    .transpose(1, 2, 0, 3)
+                    .view(q_b * h // self.sp_size, -1, head_dim)
+                    .contiguous()
+                )
+                k = (
+                    k.view(-1, k_b, h // self.sp_size, head_dim)
+                    .transpose(1, 2, 0, 3)
+                    .view(k_b * h // self.sp_size, -1, head_dim)
+                    .contiguous()
+                )
+                v = (
+                    v.view(-1, v_b, h // self.sp_size, head_dim)
+                    .transpose(1, 2, 0, 3)
+                    .view(v_b * h // self.sp_size, -1, head_dim)
+                    .contiguous()
+                )
+
+                # (batch_size, -1, attention_mask.shape[-1])
+                if mask is not None:
+                    assert (
+                        mask.dim() == 3
+                    ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
+                    assert (
+                        mask.shape[0] == q.shape[0]
+                    ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
+
+                out = self.attention(q, k, v, mask)
+                _, n, d = out.shape
+                out = out.view(-1, h // self.sp_size, n, d).transpose(0, 2, 1, 3).view(-1, h // self.sp_size, d)
+                out = self.alltoall_sbh_out(out).view(-1, batch_size, h_size)
         else:
-            # (b, n, h*d) -> (b*h, n, d)
-            q = self._rearange_in(q, h)
-            k = self._rearange_in(k, h)
-            v = self._rearange_in(v, h)
-            if mask is not None:
-                assert (
-                    mask.dim() == 3
-                ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
-                assert (
-                    mask.shape[0] == q.shape[0]
-                ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
+            q_b, q_n, _ = q.shape  # (b n h*d)
+            k_b, k_n, _ = k.shape
+            v_b, v_n, _ = v.shape
 
-            out = self.attention(q, k, v, mask)
-            # (b*h, n, d) -> (b, n, h*d)
-            out = self._rearange_out(out, h)
+            # 2+: mask adaptation for multi-head attention
+            if mask is not None:
+                # flip mask, since ms FA treats 1 as discard, 0 as retain.
+                mask = 1 - mask
+            if self.use_rope:
+                self.apply_rope(q, k, v, position_q, position_k)
+
+            if self.enable_flash_attention:
+                # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
+                q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
+                k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
+                v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+                if mask is not None:
+                    assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
+                    # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
+                    if mask.shape[-2] == 1:
+                        mask = mask.repeat(q_n, axis=-2)
+
+                out = self.flash_attention(q, k, v, mask)
+                b, h, n, d = out.shape
+                # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
+                out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+            else:
+                # (b, n, h*d) -> (b*h, n, d)
+                q = self._rearange_in(q, h)
+                k = self._rearange_in(k, h)
+                v = self._rearange_in(v, h)
+                if mask is not None:
+                    assert (
+                        mask.dim() == 3
+                    ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
+                    assert (
+                        mask.shape[0] == q.shape[0]
+                    ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
+
+                out = self.attention(q, k, v, mask)
+                # (b*h, n, d) -> (b, n, h*d)
+                out = self._rearange_out(out, h)
+
         hidden_states = self.to_out(out)
 
         if input_ndim == 4:
@@ -1124,6 +1233,7 @@ class BasicTransformerBlock_(nn.Cell):
             rope_scaling=rope_scaling,
             compress_kv_factor=compress_kv_factor,
             FA_dtype=self.FA_dtype,
+            layout="SBH" if get_sequence_parallel_state() else "BSH",
         )
 
         self.norm3 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
@@ -1162,7 +1272,6 @@ class BasicTransformerBlock_(nn.Cell):
     ) -> ms.Tensor:
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Self-Attention
-        batch_size = hidden_states.shape[0]
 
         gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
         if self.use_ada_layer_norm:
@@ -1174,9 +1283,16 @@ class BasicTransformerBlock_(nn.Cell):
         elif self.use_layer_norm:
             norm_hidden_states = self.norm1_ln(hidden_states)
         elif self.use_ada_layer_norm_single:
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-            ).chunk(6, axis=1)
+            if get_sequence_parallel_state():
+                batch_size = hidden_states.shape[1]
+                shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                    self.scale_shift_table[:, None] + timestep.reshape(6, batch_size, -1)
+                ).chunk(6, axis=0)
+            else:
+                batch_size = hidden_states.shape[0]
+                shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                    self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
+                ).chunk(6, axis=1)
             norm_hidden_states = self.norm1_ln(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
             # norm_hidden_states = norm_hidden_states.squeeze(1)  # error message
@@ -1553,12 +1669,11 @@ class BasicTransformerBlock(nn.Cell):
 
 
 class LatteT2VBlock(nn.Cell):
-    def __init__(self, block_id, temp_pos_embed, spatial_block, temp_block):
+    def __init__(self, block_id, spatial_block, temp_block):
         super().__init__()
         self.spatial_block = spatial_block
         self.temp_block = temp_block
         self.is_first_block = block_id == 0
-        self.temp_pos_embed = temp_pos_embed
 
     def construct(
         self,
@@ -1577,6 +1692,9 @@ class LatteT2VBlock(nn.Cell):
         pos_hw: Optional[ms.Tensor] = None,
         pos_t: Optional[ms.Tensor] = None,
         hw: Optional[List[int]] = None,
+        num_patches: int = None,
+        temp_pos_embed: Optional[ms.Tensor] = None,
+        temp_attention_mask: Optional[ms.Tensor] = None,
     ):
         hidden_states = self.spatial_block(
             hidden_states,
@@ -1592,20 +1710,22 @@ class LatteT2VBlock(nn.Cell):
         )
 
         if enable_temporal_attentions:
-            # b c f h w, f = 16 + 4
-            # (b f) t d -> (b t) f d
-            hidden_states = hidden_states.view(input_batch_size, frame + use_image_num, -1, hidden_states.shape[-1])
-            hidden_states = hidden_states.permute(0, 2, 1, 3).view(-1, frame + use_image_num, hidden_states.shape[-1])
+            if get_sequence_parallel_state():
+                hidden_states = (
+                    hidden_states.view(input_batch_size, frame + use_image_num, num_patches, -1)
+                    .swapaxes(0, 1)
+                    .contiguous()
+                )
 
-            if use_image_num != 0 and self.training:
-                hidden_states_video = hidden_states[:, :frame, ...]
-                hidden_states_image = hidden_states[:, frame:, ...]
+                hidden_states = hidden_states.view(frame + use_image_num, input_batch_size * num_patches, -1)
+
+                hidden_states_video = hidden_states[:frame]
                 if self.is_first_block:
-                    hidden_states_video = hidden_states_video + self.temp_pos_embed
+                    hidden_states_video = hidden_states_video + temp_pos_embed
 
                 hidden_states_video = self.temp_block(
                     hidden_states_video,
-                    None,  # attention_mask
+                    temp_attention_mask if self.training else None,  # attention_mask
                     None,  # encoder_hidden_states
                     None,  # encoder_attention_mask
                     timestep_temp,
@@ -1616,32 +1736,79 @@ class LatteT2VBlock(nn.Cell):
                     (frame,),
                 )
 
-                hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
-                # (b t) f d -> (b f) t d
-                hidden_states = hidden_states.view(input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1])
-                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                    input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                if use_image_num != 0:
+                    hidden_states_image = hidden_states[frame:]
+                    hidden_states = ops.concat([hidden_states_video, hidden_states_image], axis=0)
+                else:
+                    hidden_states = hidden_states_video
+
+                # 'f (b t) d -> (b f) t d'
+                f, _, d = hidden_states.shape
+                hidden_states = (
+                    hidden_states.view(f, input_batch_size, -1, d)
+                    .transpose(1, 0, 2, 3)
+                    .view(input_batch_size * f, -1, d)
+                    .contiguous()
                 )
 
             else:
-                if self.is_first_block:
-                    hidden_states = hidden_states + self.temp_pos_embed
-
-                hidden_states = self.temp_block(
-                    hidden_states,
-                    None,  # attention_mask
-                    None,  # encoder_hidden_states
-                    None,  # encoder_attention_mask
-                    timestep_temp,
-                    cross_attention_kwargs,
-                    class_labels,
-                    pos_t,
-                    pos_t,
-                    (frame,),
-                )
-                # (b t) f d -> (b f) t d
-                hidden_states = hidden_states.view(input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1])
+                # b c f h w, f = 16 + 4
+                # (b f) t d -> (b t) f d
+                hidden_states = hidden_states.view(input_batch_size, frame + use_image_num, -1, hidden_states.shape[-1])
                 hidden_states = hidden_states.permute(0, 2, 1, 3).view(
-                    input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                    -1, frame + use_image_num, hidden_states.shape[-1]
                 )
+
+                if use_image_num != 0 and self.training:
+                    hidden_states_video = hidden_states[:, :frame, ...]
+                    hidden_states_image = hidden_states[:, frame:, ...]
+                    if self.is_first_block:
+                        hidden_states_video = hidden_states_video + temp_pos_embed
+
+                    hidden_states_video = self.temp_block(
+                        hidden_states_video,
+                        None,  # attention_mask
+                        None,  # encoder_hidden_states
+                        None,  # encoder_attention_mask
+                        timestep_temp,
+                        cross_attention_kwargs,
+                        class_labels,
+                        pos_t,
+                        pos_t,
+                        (frame,),
+                    )
+
+                    hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
+                    # (b t) f d -> (b f) t d
+                    hidden_states = hidden_states.view(
+                        input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
+                    )
+                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                    )
+
+                else:
+                    if self.is_first_block:
+                        hidden_states = hidden_states + temp_pos_embed
+
+                    hidden_states = self.temp_block(
+                        hidden_states,
+                        None,  # attention_mask
+                        None,  # encoder_hidden_states
+                        None,  # encoder_attention_mask
+                        timestep_temp,
+                        cross_attention_kwargs,
+                        class_labels,
+                        pos_t,
+                        pos_t,
+                        (frame,),
+                    )
+                    # (b t) f d -> (b f) t d
+                    hidden_states = hidden_states.view(
+                        input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
+                    )
+                    hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+                        input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                    )
+
         return hidden_states
