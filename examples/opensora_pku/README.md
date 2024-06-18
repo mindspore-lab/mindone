@@ -161,10 +161,6 @@ Please change the `--video_path` to the existing video file path and `--rec_path
 
 You can also run video reconstruction given an input video folder. See `scripts/causalvae/gen_video.sh`.
 
-Some reconstruction results are listed below (left: source video clip, right: reconstructed).
-
-** Put some demo here **
-
 ### Open-Sora-Plan v1.1.0 Command Line Inference
 
 You can run text-to-video inference on a single Ascend device using the script `scripts/text_condition/sample_video_65.sh` or `scripts/text_condition/sample_video_221.sh`.
@@ -327,8 +323,8 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | BF16      | 2  |  8   |   17 + 4    | 512x512     |       |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | BF16      | 2  |  8   |   65 + 16   | 512x512     |       |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
+| LatteT2V-XL/122 | D910\*x1-MS2.3 | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
 
 
 ## 👍 Acknowledgement
