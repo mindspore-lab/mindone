@@ -70,7 +70,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master according to the [official instruction](https://www.mindspore.cn/install) and use C18 CANN which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
+2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) and use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
 
 
 3. Install requirements
@@ -323,8 +323,8 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
-| LatteT2V-XL/122 | D910\*x1-MS2.3 | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
+| LatteT2V-XL/122 | D910\*x1-MS2.3_master(0615daily), CANN C18(0517) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
+| LatteT2V-XL/122 | D910\*x1-MS2.3_master(0615daily), CANN C18(0517) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
 
 
 ## 👍 Acknowledgement
