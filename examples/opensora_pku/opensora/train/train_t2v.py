@@ -23,7 +23,7 @@ from opensora.models.text_encoder.t5 import T5Embedder
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
 from opensora.utils.utils import get_precision
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
@@ -368,7 +368,7 @@ def main(args):
         )
         callback.append(save_cb)
         if args.profile:
-            callback.append(ProfilerCallback())
+            callback.append(ProfilerCallbackEpoch(2, 2, "./profile_data"))
 
     # 5. log and save config
     if rank_id == 0:
