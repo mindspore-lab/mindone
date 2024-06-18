@@ -140,9 +140,7 @@ class DiffusionWithLoss(nn.Cell):
         if not self.text_emb_cached:
             text_embed = ops.stop_gradient(self.get_condition_embeddings(text_tokens, encoder_attention_mask))
         else:
-            text_embed = (
-                text_tokens  # dataset retunrs text embeddings instead of text tokens, shape (B, F+num_image, L, D)
-            )
+            text_embed = text_tokens
 
         loss = self.compute_loss(x, text_embed, encoder_attention_mask, attention_mask)
 
