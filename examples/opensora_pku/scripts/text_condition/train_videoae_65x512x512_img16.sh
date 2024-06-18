@@ -45,3 +45,4 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
       --dataset_sink_mode False \
       --use_parallel True \
       --parallel_mode "data" \
+      --max_device_memory "59GB" \
