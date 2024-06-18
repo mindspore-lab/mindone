@@ -70,14 +70,29 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
 
 ### Text-to-Video
 
-#### OpenSora v1
+Videos can be generated as follows:
+
 ```shell
-python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
+python scripts/inference.py --config path/to/config.yaml
 ```
-#### OpenSora v1.1
+
+Configuration files can be found in the desired OpenSora version folder:
+
+**OpenSora v1.2**
+```shell
+python scripts/inference.py --config configs/opensora-v1-2/inference/sample_t2v.yaml
+```
+
+**OpenSora v1.1**
 ```shell
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml
 ```
+
+**OpenSora v1**
+```shell
+python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
+```
+
 > By default, FP32 is used to ensure the best precision.
 > Nan values may incur in STDiT forward pass using fp16, resulting in dark videos.
 
@@ -113,7 +128,7 @@ Here are some generation results in 256x256 resolution.
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
 
-### Image/Video-to-Video (OpenSora v1.1 only)
+### Image/Video-to-Video (OpenSora v1.1 and above)
 
 Conditioning on images and videos in OpenSora is based on a frame masking strategy.
 Specifically, conditioning frames are unmasked and assigned a timestep of 0,

@@ -21,7 +21,7 @@ sampling_steps: 100
 guidance_scale: 7.0
 guidance_channels: 4
 seed: 42
-ddim_sampling: False
+sampling: ddpm
 
 captions:
   - "In an ornate, historical hall, a massive tidal wave peaks and begins to crash. Two surfers, seizing the moment, skillfully navigate the face of the wave."

@@ -1,5 +1,10 @@
 from typing import Optional, Tuple, Union
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
+
 import numpy as np
 
 import mindspore as ms
@@ -10,8 +15,9 @@ from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 from ..models.layers.rotary_embedding import precompute_freqs_cis
 from ..models.vae.vae import VideoAutoencoderKL, VideoAutoencoderPipeline
 from ..schedulers.iddpm import create_diffusion
+from ..schedulers.rectified_flow import RFLOW
 
-__all__ = ["InferPipeline"]
+__all__ = ["InferPipeline", "InferPipelineFiTLike"]
 
 
 class InferPipeline:
@@ -23,7 +29,7 @@ class InferPipeline:
         scale_factor (float): scale_factor for vae.
         guidance_rescale (float): A higher guidance scale value for noise rescale.
         num_inference_steps: (int): The number of denoising steps.
-        ddim_sampling: (bool): whether to use DDIM sampling. If False, will use DDPM sampling.
+        sampling (str): sampling method, should be one of ['ddpm', 'ddim', 'rflow'].
     """
 
     def __init__(
@@ -35,7 +41,7 @@ class InferPipeline:
         guidance_rescale=1.0,
         guidance_channels: Optional[int] = None,
         num_inference_steps=50,
-        ddim_sampling=True,
+        sampling: Literal["ddpm", "ddim", "rflow"] = "ddpm",
         micro_batch_size=None,
     ):
         super().__init__()
@@ -54,10 +60,14 @@ class InferPipeline:
         self.text_encoder = text_encoder
         self.diffusion = create_diffusion(str(num_inference_steps))
 
-        if ddim_sampling:
+        if sampling.lower() == "ddim":
             self.sampling_func = self.diffusion.ddim_sample_loop
-        else:
+        elif sampling.lower() == "ddpm":
             self.sampling_func = self.diffusion.p_sample_loop
+        elif sampling.lower() == "rflow":
+            self.sampling_func = RFLOW(num_inference_steps, cfg_scale=guidance_rescale, use_timestep_transform=True)
+        else:
+            raise ValueError(f"Unknown sampling method {sampling}")
 
     # @ms.jit
     def vae_encode(self, x: Tensor) -> Tensor:

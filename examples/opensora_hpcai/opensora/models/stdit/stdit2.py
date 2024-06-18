@@ -1,3 +1,7 @@
+"""
+OpenSora v1.1 STDiT architecture
+"""
+
 import os
 import re
 from typing import Optional, Tuple
@@ -19,6 +23,7 @@ from opensora.models.layers.blocks import (
     TimestepEmbedder,
     approx_gelu,
     t2i_modulate,
+    t_mask_select,
 )
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
@@ -44,29 +49,29 @@ class STDiT2Block(nn.Cell):
     ):
         super().__init__()
         self.hidden_size = hidden_size
-        self.enable_flashattn = enable_flashattn
 
         assert not enable_layernorm_kernel, "Not implemented"
         if enable_sequence_parallelism:
             raise NotImplementedError("Sequence parallelism is not supported yet.")
         else:
-            self.attn_cls = SelfAttention
-            self.mha_cls = MultiHeadCrossAttention
+            attn_cls = SelfAttention
+            mha_cls = MultiHeadCrossAttention
 
         # spatial branch
         self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
-        self.attn = self.attn_cls(
+        self.attn = attn_cls(
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
             enable_flash_attention=enable_flashattn,
             qk_norm=qk_norm,
+            qk_norm_legacy=True,
         )
-        self.scale_shift_table = Parameter(ops.randn(6, hidden_size) / hidden_size**0.5)
+        self.scale_shift_table = Parameter(np.random.randn(6, hidden_size).astype(np.float32) / hidden_size**0.5)
 
         # cross attn
-        self.cross_attn = self.mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
+        self.cross_attn = mha_cls(hidden_size, num_heads, enable_flash_attention=enable_flashattn)
 
         # mlp branch
         self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
@@ -77,22 +82,18 @@ class STDiT2Block(nn.Cell):
 
         # temporal branch
         self.norm_temp = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)  # new
-        self.attn_temp = self.attn_cls(
+        self.attn_temp = attn_cls(
             hidden_size,
             num_heads=num_heads,
             qkv_bias=True,
-            enable_flash_attention=self.enable_flashattn,
+            enable_flash_attention=enable_flashattn,
             rope=rope,
             qk_norm=qk_norm,
+            qk_norm_legacy=True,
         )
-        self.scale_shift_table_temporal = Parameter(ops.randn(3, hidden_size) / hidden_size**0.5)  # new
-
-    @staticmethod
-    def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
-        x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
-        masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
-        x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
-        return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
+        self.scale_shift_table_temporal = Parameter(  # new
+            np.random.randn(3, hidden_size).astype(np.float32) / hidden_size**0.5
+        )
 
     def construct(
         self,
@@ -109,7 +110,7 @@ class STDiT2Block(nn.Cell):
         spatial_mask: Optional[Tensor] = None,
         temporal_pos: Optional[Tensor] = None,
         temporal_mask: Optional[Tensor] = None,
-    ):
+    ) -> Tensor:
         B, N, C = x.shape
 
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
@@ -133,7 +134,7 @@ class STDiT2Block(nn.Cell):
         x_m = t2i_modulate(self.norm1(x), shift_msa, scale_msa)
         if frames_mask is not None:
             x_m_zero = t2i_modulate(self.norm1(x), shift_msa_zero, scale_msa_zero)
-            x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
+            x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
@@ -145,7 +146,7 @@ class STDiT2Block(nn.Cell):
         if frames_mask is not None:
             x_s_zero = gate_msa_zero * x_s
             x_s = gate_msa * x_s
-            x_s = self.t_mask_select(frames_mask, x_s, x_s_zero, T, S)
+            x_s = t_mask_select(frames_mask, x_s, x_s_zero, T, S)
         else:
             x_s = gate_msa * x_s
         x = x + self.drop_path(x_s)
@@ -154,7 +155,7 @@ class STDiT2Block(nn.Cell):
         x_m = t2i_modulate(self.norm_temp(x), shift_tmp, scale_tmp)
         if frames_mask is not None:
             x_m_zero = t2i_modulate(self.norm_temp(x), shift_tmp_zero, scale_tmp_zero)
-            x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
+            x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
@@ -166,7 +167,7 @@ class STDiT2Block(nn.Cell):
         if frames_mask is not None:
             x_t_zero = gate_tmp_zero * x_t
             x_t = gate_tmp * x_t
-            x_t = self.t_mask_select(frames_mask, x_t, x_t_zero, T, S)
+            x_t = t_mask_select(frames_mask, x_t, x_t_zero, T, S)
         else:
             x_t = gate_tmp * x_t
         x = x + self.drop_path(x_t)
@@ -178,14 +179,14 @@ class STDiT2Block(nn.Cell):
         x_m = t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)
         if frames_mask is not None:
             x_m_zero = t2i_modulate(self.norm2(x), shift_mlp_zero, scale_mlp_zero)
-            x_m = self.t_mask_select(frames_mask, x_m, x_m_zero, T, S)
+            x_m = t_mask_select(frames_mask, x_m, x_m_zero, T, S)
 
         # mlp
         x_mlp = self.mlp(x_m)
         if frames_mask is not None:
             x_mlp_zero = gate_mlp_zero * x_mlp
             x_mlp = gate_mlp * x_mlp
-            x_mlp = self.t_mask_select(frames_mask, x_mlp, x_mlp_zero, T, S)
+            x_mlp = t_mask_select(frames_mask, x_mlp, x_mlp_zero, T, S)
         else:
             x_mlp = gate_mlp * x_mlp
         x = x + self.drop_path(x_mlp)
@@ -228,8 +229,6 @@ class STDiT2(nn.Cell):
         self.no_temporal_pos_emb = no_temporal_pos_emb
         self.depth = depth
         self.mlp_ratio = mlp_ratio
-        self.enable_flashattn = enable_flashattn
-        self.enable_layernorm_kernel = enable_layernorm_kernel
 
         assert patchify_conv3d_replace in [None, "linear", "conv2d"]
 
@@ -269,9 +268,9 @@ class STDiT2(nn.Cell):
                     self.hidden_size,
                     self.num_heads,
                     mlp_ratio=self.mlp_ratio,
-                    drop_path=drop_path[i],
-                    enable_flashattn=self.enable_flashattn,
-                    enable_layernorm_kernel=self.enable_layernorm_kernel,
+                    drop_path=drop_path[i].item(),
+                    enable_flashattn=enable_flashattn,
+                    enable_layernorm_kernel=enable_layernorm_kernel,
                     enable_sequence_parallelism=enable_sequence_parallelism,
                     rope=self.rope.rotate_queries_or_keys,
                     qk_norm=qk_norm,
@@ -279,7 +278,9 @@ class STDiT2(nn.Cell):
                 for i in range(self.depth)
             ]
         )
-        self.final_layer = T2IFinalLayer(hidden_size, np.prod(self.patch_size).item(), self.out_channels)
+        self.final_layer = T2IFinalLayer(
+            hidden_size, np.prod(self.patch_size).item(), self.out_channels, enable_frames_mask=True
+        )
 
         # multi_res
         assert self.hidden_size % 3 == 0, "hidden_size must be divisible by 3"
@@ -349,7 +350,7 @@ class STDiT2(nn.Cell):
         temporal_pos: Optional[Tensor] = None,
         temporal_mask: Optional[Tensor] = None,
         **kwargs,
-    ):
+    ) -> Tensor:
         """
         Forward pass of STDiT.
         Args:

@@ -19,7 +19,7 @@ sampling_steps: 100
 guidance_scale: 7.0
 guidance_channels: 3
 seed: 42
-ddim_sampling: False
+sampling: ddpm
 
 loop: 1
 condition_frame_length: 4
