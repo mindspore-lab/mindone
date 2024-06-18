@@ -323,9 +323,9 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*x1-MS2.3_master(0615daily), CANN C18(0517) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
-| LatteT2V-XL/122 | D910\*x1-MS2.3_master(0615daily), CANN C18(0517) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
-
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
+> Context: {NPU type}-{CANN version}-{MindSpore version}
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
