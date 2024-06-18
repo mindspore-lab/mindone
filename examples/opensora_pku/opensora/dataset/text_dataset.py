@@ -2,6 +2,7 @@ import csv
 import json
 import logging
 import random
+from pathlib import Path
 
 import numpy as np
 
@@ -15,7 +16,7 @@ class TextDataset:
         self,
         data_file_path,
         tokenizer=None,
-        video_column="video",
+        file_column="video",
         caption_column="caption",
         random_drop_text=False,
         random_drop_text_ratio=0.1,
@@ -25,7 +26,7 @@ class TextDataset:
         self.parse_data_file(data_file_path)
         self.tokenizer = tokenizer
         self.caption_column = caption_column
-        self.video_column = video_column
+        self.file_column = file_column
         self.random_drop_text = random_drop_text
         self.random_drop_text_ratio = random_drop_text_ratio
         self.output_columns = output_columns
@@ -50,7 +51,15 @@ class TextDataset:
     def __getitem__(self, idx):
         row = self.dataset[idx]
         caption = row[self.caption_column]
-        file_path = row[self.video_column]
+        file_path = row[self.file_column]
+        # extra keys are identifiers added to the original file path
+        for key in row.keys():
+            if key not in [self.caption_column, self.file_column]:
+                identifer = f"-{key}-{row[key]}"
+                file_path = Path(str(file_path))
+                extension = file_path.suffix
+                file_path = str(file_path.with_suffix("")) + identifer
+                file_path = file_path + extension
 
         if self.random_drop_text:
             if random.random() <= self.random_drop_text_ratio:

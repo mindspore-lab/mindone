@@ -1,6 +1,14 @@
 import logging
 import numbers
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
+from opensora.models.diffusion.utils.pos_embed import (
+    LinearScalingRoPE1D,
+    LinearScalingRoPE2D,
+    RoPE1D,
+    RoPE2D,
+    get_2d_sincos_pos_embed,
+)
 
 import mindspore as ms
 from mindspore import Parameter, nn, ops
@@ -9,7 +17,7 @@ from mindspore.common.initializer import initializer
 from mindone.diffusers.models.activations import GEGLU, GELU, ApproximateGELU
 
 # from mindone.diffusers.utils import USE_PEFT_BACKEND
-from mindone.diffusers.models.embeddings import LabelEmbedding, TimestepEmbedding, Timesteps, get_2d_sincos_pos_embed
+from mindone.diffusers.models.embeddings import LabelEmbedding, TimestepEmbedding, Timesteps
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 
 # from mindone.diffusers.models.lora import LoRACompatibleConv, LoRACompatibleLinear
@@ -34,9 +42,8 @@ class LayerNorm(nn.Cell):
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: ms.Tensor):
-        oridtype = x.dtype
-        x, _, _ = self.layer_norm(x.to(ms.float32), self.gamma.to(ms.float32), self.beta.to(ms.float32))
-        return x.to(oridtype)
+        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
+        return x
 
 
 class Attention(nn.Cell):
@@ -139,21 +146,96 @@ class MultiHeadAttention(nn.Cell):
         dropout: float = 0.0,
         attn_drop: float = 0.0,
         bias: bool = False,
-        upcast_attention: bool = False,
-        upcast_softmax: bool = True,
         out_bias: bool = True,
+        upcast_attention: bool = False,
+        upcast_softmax: bool = False,
+        cross_attention_norm: Optional[str] = None,
+        cross_attention_norm_num_groups: int = 32,
+        added_kv_proj_dim: Optional[int] = None,
+        norm_num_groups: Optional[int] = None,
+        spatial_norm_dim: Optional[int] = None,
+        scale_qk: bool = True,
         only_cross_attention: bool = False,
+        eps: float = 1e-5,
+        rescale_output_factor: float = 1.0,
+        residual_connection: bool = False,
+        _from_deprecated_attn_block: bool = False,
         dtype=ms.float32,
+        FA_dtype=ms.bfloat16,
         enable_flash_attention=False,
+        use_rope: bool = False,
+        rope_scaling: Optional[Dict] = None,
+        compress_kv_factor: Optional[Tuple] = None,
     ):
         super().__init__()
         self.inner_dim = dim_head * heads
         self.cross_attention_dim = cross_attention_dim if cross_attention_dim is not None else query_dim
         self.dropout = dropout
         self.heads = heads
+        self.rescale_output_factor = rescale_output_factor
+        self.residual_connection = residual_connection
+        # for slice_size > 0 the attention score computation
+        # is split across the batch axis to save memory
+        # You can set slice_size with `set_attention_slice`
+        self.sliceable_head_dim = heads
         self.dtype = dtype
-
+        self.FA_dtype = FA_dtype
+        self.use_rope = use_rope
+        self.rope_scaling = rope_scaling
+        self.compress_kv_factor = compress_kv_factor
         self.only_cross_attention = only_cross_attention
+        self._from_deprecated_attn_block = _from_deprecated_attn_block
+
+        self.scale_qk = scale_qk
+        self.scale = dim_head**-0.5 if self.scale_qk else 1.0
+        self.added_kv_proj_dim = added_kv_proj_dim
+
+        if self.added_kv_proj_dim is None and self.only_cross_attention:
+            raise ValueError(
+                "`only_cross_attention` can only be set to True if `added_kv_proj_dim` is not None."
+                " Make sure to set either `only_cross_attention=False` or define `added_kv_proj_dim`."
+            )
+
+        if norm_num_groups is not None:
+            self.group_norm = nn.GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
+        else:
+            self.group_norm = None
+
+        if spatial_norm_dim is not None:
+            self.spatial_norm = SpatialNorm(f_channels=query_dim, zq_channels=spatial_norm_dim)
+        else:
+            self.spatial_norm = None
+
+        if cross_attention_norm is None:
+            self.norm_cross = None
+        elif cross_attention_norm == "layer_norm":
+            self.norm_cross = LayerNorm(self.cross_attention_dim)
+        elif cross_attention_norm == "group_norm":
+            if self.added_kv_proj_dim is not None:
+                # The given `encoder_hidden_states` are initially of shape
+                # (batch_size, seq_len, added_kv_proj_dim) before being projected
+                # to (batch_size, seq_len, cross_attention_dim). The norm is applied
+                # before the projection, so we need to use `added_kv_proj_dim` as
+                # the number of channels for the group norm.
+                norm_cross_num_channels = added_kv_proj_dim
+            else:
+                norm_cross_num_channels = self.cross_attention_dim
+
+            self.norm_cross = nn.GroupNorm(
+                num_channels=norm_cross_num_channels, num_groups=cross_attention_norm_num_groups, eps=1e-5, affine=True
+            )
+        else:
+            raise ValueError(
+                f"unknown cross_attention_norm: {cross_attention_norm}. Should be None, 'layer_norm' or 'group_norm'"
+            )
+
+        assert not (
+            self.use_rope and (self.compress_kv_factor is not None)
+        ), "Can not both enable compressing kv and using rope"
+        if self.compress_kv_factor is not None:
+            self._init_compress()
+        if self.use_rope:
+            self._init_rope()
 
         self.to_q = nn.Dense(query_dim, self.inner_dim, has_bias=bias)
 
@@ -165,6 +247,10 @@ class MultiHeadAttention(nn.Cell):
             self.to_k = None
             self.to_v = None
 
+        if self.added_kv_proj_dim is not None:
+            self.add_k_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=bias)
+            self.add_v_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=bias)
+
         self.to_out = nn.SequentialCell(nn.Dense(self.inner_dim, query_dim, has_bias=out_bias), nn.Dropout(p=dropout))
 
         self.enable_flash_attention = (
@@ -173,12 +259,123 @@ class MultiHeadAttention(nn.Cell):
 
         if self.enable_flash_attention:
             self.flash_attention = MSFlashAttention(
-                head_dim=dim_head, head_num=heads, fix_head_dims=[72], attention_dropout=attn_drop
+                head_dim=dim_head,
+                head_num=heads,
+                fix_head_dims=[72],
+                attention_dropout=attn_drop,
+                dtype=self.FA_dtype,
             )
         else:
             self.attention = Attention(
                 dim_head=dim_head, attn_drop=attn_drop, upcast_attention=upcast_attention, upcast_softmax=upcast_softmax
             )
+
+    def _init_compress(self):
+        if len(self.compress_kv_factor) == 2:
+            self.sr = nn.Conv2d(
+                self.inner_dim,
+                self.inner_dim,
+                groups=self.inner_dim,
+                kernel_size=self.compress_kv_factor,
+                stride=self.compress_kv_factor,
+            )
+            weight = initializer("ones", self.sr.weight.shape) * (1 / self.compress_kv_factor[0] ** 2)
+            self.sr.weight.set_data(weight)
+        elif len(self.compress_kv_factor) == 1:
+            self.kernel_size = self.compress_kv_factor[0]
+            self.sr = nn.Conv1d(
+                self.inner_dim,
+                self.inner_dim,
+                groups=self.inner_dim,
+                kernel_size=self.compress_kv_factor[0],
+                stride=self.compress_kv_factor[0],
+            )
+            weight = initializer("ones", self.sr.weight.shape) * (1 / self.compress_kv_factor[0])
+            self.sr.weight.set_data(weight)
+        bias = initializer("zeros", self.sr.bias.shape)
+        self.sr.bias.set_data(bias)
+        self.norm = LayerNorm(self.inner_dim)
+
+    def _init_rope(self):
+        if self.rope_scaling is None:
+            self.rope2d = RoPE2D()
+            self.rope1d = RoPE1D()
+        else:
+            scaling_type = self.rope_scaling["type"]
+            scaling_factor_2d = self.rope_scaling["factor_2d"]
+            scaling_factor_1d = self.rope_scaling["factor_1d"]
+            if scaling_type == "linear":
+                self.rope2d = LinearScalingRoPE2D(scaling_factor=scaling_factor_2d)
+                self.rope1d = LinearScalingRoPE1D(scaling_factor=scaling_factor_1d)
+            else:
+                raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
+
+    def prepare_attention_mask(
+        self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3
+    ) -> ms.Tensor:
+        r"""
+        Prepare the attention mask for the attention computation.
+
+        Args:
+            attention_mask (`ms.Tensor`):
+                The attention mask to prepare.
+            target_length (`int`):
+                The target length of the attention mask. This is the length of the attention mask after padding.
+            batch_size (`int`):
+                The batch size, which is used to repeat the attention mask.
+            out_dim (`int`, *optional*, defaults to `3`):
+                The output dimension of the attention mask. Can be either `3` or `4`.
+
+        Returns:
+            `ms.Tensor`: The prepared attention mask.
+        """
+        head_size = self.heads
+        if attention_mask is None:
+            return attention_mask
+
+        current_length: int = attention_mask.shape[-1]
+        assert (
+            current_length == target_length
+        ), "The attention mask length should be identical to encoder hidden states length"
+        f", but got {current_length} and {current_length}"
+
+        if out_dim == 3:
+            if attention_mask.shape[0] < batch_size * head_size:
+                attention_mask = attention_mask.repeat_interleave(head_size, 0)
+        elif out_dim == 4:
+            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = attention_mask.repeat_interleave(head_size, 1)
+
+        return attention_mask
+
+    def norm_encoder_hidden_states(self, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
+        r"""
+        Normalize the encoder hidden states. Requires `self.norm_cross` to be specified when constructing the
+        `Attention` class.
+
+        Args:
+            encoder_hidden_states (`ms.Tensor`): Hidden states of the encoder.
+
+        Returns:
+            `ms.Tensor`: The normalized encoder hidden states.
+        """
+        assert self.norm_cross is not None, "self.norm_cross must be defined to call self.norm_encoder_hidden_states"
+
+        if isinstance(self.norm_cross, LayerNorm):
+            encoder_hidden_states = self.norm_cross(encoder_hidden_states)
+        elif isinstance(self.norm_cross, nn.GroupNorm):
+            # Group norm norms along the channels dimension and expects
+            # input to be in the shape of (N, C, *). In this case, we want
+            # to norm along the hidden dimension, so we need to move
+            # (batch_size, sequence_length, hidden_size) ->
+            # (batch_size, hidden_size, sequence_length)
+            encoder_hidden_states = encoder_hidden_states.transpose(1, 2)
+            encoder_hidden_states = self.norm_cross(encoder_hidden_states)
+            encoder_hidden_states = encoder_hidden_states.transpose(1, 2)
+        else:
+            assert False
+
+        return encoder_hidden_states
 
     @staticmethod
     def _rearange_in(x, h):
@@ -202,21 +399,101 @@ class MultiHeadAttention(nn.Cell):
         x = ops.reshape(x, (b, n, h * d))
         return x
 
+    def apply_rope(self, query, key, value, position_q, position_k):
+        assert self.use_rope, "use_rope must be True"
+        head_dim = self.inner_dim // self.heads
+        batch_size, seq_len, _ = query.shape
+        # (b, n, h*d) -> (b, n, h, d) -> (b, h, n, d)
+        query = query.view(batch_size, -1, self.heads, head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, self.heads, head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, self.heads, head_dim).transpose(1, 2)
+        # require the shape of (batch_size x nheads x ntokens x dim)
+        if position_q.ndim == 3:
+            query = self.rope2d(query, position_q)
+        elif position_q.ndim == 2:
+            query = self.rope1d(query, position_q)
+        else:
+            raise NotImplementedError
+        if position_k.ndim == 3:
+            key = self.rope2d(key, position_k)
+        elif position_k.ndim == 2:
+            key = self.rope1d(key, position_k)
+        else:
+            raise NotImplementedError
+        # change the to original shape
+        # (b, h, n, d) -> (b, n, h, d) -> (b, n, h*d)
+        query = query.transpose(1, 2).reshape(batch_size, -1, self.heads * head_dim)
+        key = key.transpose(1, 2).reshape(batch_size, -1, self.heads * head_dim)
+        value = value.transpose(1, 2).reshape(batch_size, -1, self.heads * head_dim)
+        return query, key, value
+
     def construct(
         self,
-        x,
+        hidden_states,
         encoder_hidden_states: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
+        temb: Optional[ms.Tensor] = None,
+        scale: float = 1.0,
+        position_q: Optional[ms.Tensor] = None,
+        position_k: Optional[ms.Tensor] = None,
+        last_shape: Tuple[int] = None,
     ):
-        x_dtype = x.dtype
+        residual = hidden_states
+        if self.spatial_norm is not None:
+            hidden_states = self.spatial_norm(hidden_states, temb)
+
+        input_ndim = hidden_states.ndim
+
+        if input_ndim == 4:
+            batch_size, channel, height, width = hidden_states.shape
+            hidden_states = hidden_states.view(batch_size, channel, height * width).transpose(1, 2)
+        else:
+            batch_size, channel, height, width = None, None, None, None
+
+        if self.compress_kv_factor is not None:
+            batch_size = hidden_states.shape[0]
+            if len(last_shape) == 2:
+                encoder_hidden_states = hidden_states.permute(0, 2, 1).reshape(batch_size, self.dim, *last_shape)
+                encoder_hidden_states = (
+                    self.sr(encoder_hidden_states).reshape(batch_size, self.dim, -1).permute(0, 2, 1)
+                )
+            elif len(last_shape) == 1:
+                encoder_hidden_states = hidden_states.permute(0, 2, 1)
+                if last_shape[0] % 2 == 1:
+                    first_frame_pad = encoder_hidden_states[:, :, :1].repeat_interleave(self.kernel_size - 1, -1)
+                    encoder_hidden_states = ops.concat((first_frame_pad, encoder_hidden_states), axis=2)
+                encoder_hidden_states = self.sr(encoder_hidden_states).permute(0, 2, 1)
+            else:
+                raise NotImplementedError(f"NotImplementedError with last_shape {last_shape}")
+
+            encoder_hidden_states = self.norm(encoder_hidden_states)
+
+        batch_size, key_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+        if attention_mask is not None:
+            out_dim = 4 if self.enable_flash_attention else 3
+            attention_mask = self.prepare_attention_mask(
+                attention_mask, key_length, batch_size, out_dim=out_dim
+            )  # make attention mask a correct shape
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            # attention_mask = attention_mask.view(batch_size, self.heads, -1, attention_mask.shape[-1])
+
+        if self.group_norm is not None:
+            hidden_states = self.group_norm(hidden_states.transpose(1, 2)).transpose(1, 2)
+
         h = self.heads
         mask = attention_mask
 
-        q = self.to_q(x)
-        context = encoder_hidden_states if encoder_hidden_states is not None else x
+        q = self.to_q(hidden_states)
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+        elif self.norm_cross:
+            encoder_hidden_states = self.norm_encoder_hidden_states(encoder_hidden_states)
 
-        k = self.to_k(context)
-        v = self.to_v(context)
+        k = self.to_k(encoder_hidden_states)
+        v = self.to_v(encoder_hidden_states)
         q_b, q_n, _ = q.shape  # (b n h*d)
         k_b, k_n, _ = k.shape
         v_b, v_n, _ = v.shape
@@ -225,17 +502,19 @@ class MultiHeadAttention(nn.Cell):
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
             mask = 1 - mask
+        if self.use_rope:
+            self.apply_rope(q, k, v, position_q, position_k)
 
         if self.enable_flash_attention:
             # reshape qkv shape ((b n h*d) -> (b h n d))and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
             v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
-            if mask is not None and mask.dim() == 3:
-                # (b, 1, k_n) - > (b, q_n, k_n), manual broadcast
+            if mask is not None:
+                assert mask.dim() == 4, f"Expect to have 4-dim mask for FA, but got mask shape {mask.shape}"
+                # (b, h, 1, k_n) - > (b, h, q_n, k_n), manual broadcast
                 if mask.shape[-2] == 1:
                     mask = mask.repeat(q_n, axis=-2)
-                mask = ops.expand_dims(mask, axis=1)  # (q_b, 1, q_n, k_n)
             out = self.flash_attention(q, k, v, mask)
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b h n d) -> (b n h*d)
@@ -245,14 +524,27 @@ class MultiHeadAttention(nn.Cell):
             q = self._rearange_in(q, h)
             k = self._rearange_in(k, h)
             v = self._rearange_in(v, h)
-            if mask is not None and mask.shape[0] != q.shape[0]:
-                mask = mask.repeat(h, axis=0)
+            if mask is not None:
+                assert (
+                    mask.dim() == 3
+                ), f"Expect to have 3-dim mask for vanilla Attention, but got mask shape {mask.shape}"
+                assert (
+                    mask.shape[0] == q.shape[0]
+                ), f"Expect to have the first dim (bs * num_heads) = {q.shape[0]},  but got {mask.shape[0]}"
 
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)
             out = self._rearange_out(out, h)
+        hidden_states = self.to_out(out)
 
-        return self.to_out(out).to(x_dtype)
+        if input_ndim == 4:
+            hidden_states = hidden_states.transpose(-1, -2).reshape(batch_size, channel, height, width)
+
+        if self.residual_connection:
+            hidden_states = hidden_states + residual
+
+        hidden_states = hidden_states / self.rescale_output_factor
+        return hidden_states
 
 
 class CaptionProjection(nn.Cell):
@@ -526,7 +818,7 @@ class ImagePositionalEmbeddings(nn.Cell):
         self.height_emb = nn.Embedding(self.height, embed_dim)
         self.width_emb = nn.Embedding(self.width, embed_dim)
 
-    def forward(self, index):
+    def construct(self, index):
         emb = self.emb(index)
 
         height_emb = self.height_emb(ops.arange(self.height).view(1, self.height))
@@ -667,7 +959,7 @@ class PatchEmbed(nn.Cell):
         else:
             pos_embed = self.pos_embed
 
-        return (latent + pos_embed).to(latent.dtype)
+        return latent + pos_embed
 
 
 class AdaLayerNorm(nn.Cell):
@@ -720,3 +1012,636 @@ class AdaLayerNormZero(nn.Cell):
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, dim=1)
         x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
+
+
+class BasicTransformerBlock_(nn.Cell):
+    r"""
+    A basic Transformer block.
+
+    Parameters:
+        dim (`int`): The number of channels in the input and output.
+        num_attention_heads (`int`): The number of heads to use for multi-head attention.
+        attention_head_dim (`int`): The number of channels in each head.
+        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
+        cross_attention_dim (`int`, *optional*): The size of the encoder_hidden_states vector for cross attention.
+        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
+        num_embeds_ada_norm (:
+            obj: `int`, *optional*): The number of diffusion steps used during training. See `Transformer2DModel`.
+        attention_bias (:
+            obj: `bool`, *optional*, defaults to `False`): Configure if the attentions should contain a bias parameter.
+        only_cross_attention (`bool`, *optional*):
+            Whether to use only cross-attention layers. In this case two cross attention layers are used.
+        double_self_attention (`bool`, *optional*):
+            Whether to use two self-attention layers. In this case no cross attention layers are used.
+        upcast_attention (`bool`, *optional*):
+            Whether to upcast the attention computation to float32. This is useful for mixed precision training.
+        norm_elementwise_affine (`bool`, *optional*, defaults to `True`):
+            Whether to use learnable elementwise affine parameters for normalization.
+        norm_type (`str`, *optional*, defaults to `"layer_norm"`):
+            The normalization layer to use. Can be `"layer_norm"`, `"ada_norm"` or `"ada_norm_zero"`.
+        final_dropout (`bool` *optional*, defaults to False):
+            Whether to apply a final dropout after the last feed-forward layer.
+        attention_type (`str`, *optional*, defaults to `"default"`):
+            The type of attention to use. Can be `"default"` or `"gated"` or `"gated-text-image"`.
+        positional_embeddings (`str`, *optional*, defaults to `None`):
+            The type of positional embeddings to apply to.
+        num_positional_embeddings (`int`, *optional*, defaults to `None`):
+            The maximum number of positional embeddings to apply.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        dropout=0.0,
+        cross_attention_dim: Optional[int] = None,
+        activation_fn: str = "geglu",
+        num_embeds_ada_norm: Optional[int] = None,
+        attention_bias: bool = False,
+        only_cross_attention: bool = False,
+        double_self_attention: bool = False,
+        upcast_attention: bool = False,
+        norm_elementwise_affine: bool = True,
+        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single'
+        norm_eps: float = 1e-5,
+        final_dropout: bool = False,
+        attention_type: str = "default",
+        positional_embeddings: Optional[str] = None,
+        num_positional_embeddings: Optional[int] = None,
+        enable_flash_attention: bool = False,
+        use_rope: bool = False,
+        rope_scaling: Optional[Dict] = None,
+        compress_kv_factor: Optional[Tuple] = None,
+        FA_dtype=ms.bfloat16,
+    ):
+        super().__init__()
+        self.only_cross_attention = only_cross_attention
+
+        self.use_ada_layer_norm_zero = (num_embeds_ada_norm is not None) and norm_type == "ada_norm_zero"
+        self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
+        self.use_ada_layer_norm_single = norm_type == "ada_norm_single"
+        self.use_layer_norm = norm_type == "layer_norm"
+        self.FA_dtype = FA_dtype
+
+        if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
+            raise ValueError(
+                f"`norm_type` is set to {norm_type}, but `num_embeds_ada_norm` is not defined. Please make sure to"
+                f" define `num_embeds_ada_norm` if setting `norm_type` to {norm_type}."
+            )
+
+        if positional_embeddings and (num_positional_embeddings is None):
+            raise ValueError(
+                "If `positional_embedding` type is defined, `num_positition_embeddings` must also be defined."
+            )
+
+        if positional_embeddings == "sinusoidal":
+            self.pos_embed = SinusoidalPositionalEmbedding(dim, max_seq_length=num_positional_embeddings)
+        else:
+            self.pos_embed = None
+
+        # Define 3 blocks. Each block has its own normalization layer.
+        # 1. Self-Attn
+        if self.use_ada_layer_norm:
+            self.norm1_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
+            self.norm1_ada.norm = LayerNorm(dim, elementwise_affine=False)
+        elif self.use_ada_layer_norm_zero:
+            self.norm1_ada_zero = AdaLayerNormZero(dim, num_embeds_ada_norm)
+            self.norm1_ada_zero.norm = LayerNorm(dim, elementwise_affine=False)
+        else:
+            self.norm1_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
+        self.attn1 = MultiHeadAttention(
+            query_dim=dim,
+            heads=num_attention_heads,
+            dim_head=attention_head_dim,
+            dropout=dropout,
+            bias=attention_bias,
+            cross_attention_dim=cross_attention_dim if only_cross_attention else None,
+            upcast_attention=upcast_attention,
+            enable_flash_attention=enable_flash_attention,
+            use_rope=use_rope,
+            rope_scaling=rope_scaling,
+            compress_kv_factor=compress_kv_factor,
+            FA_dtype=self.FA_dtype,
+        )
+
+        self.norm3 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
+        self.ff = FeedForward(dim, dropout=dropout, activation_fn=activation_fn, final_dropout=final_dropout)
+
+        # 4. Fuser
+        if attention_type == "gated" or attention_type == "gated-text-image":
+            self.fuser = GatedSelfAttentionDense(dim, cross_attention_dim, num_attention_heads, attention_head_dim)
+
+        # 5. Scale-shift for PixArt-Alpha.
+        if self.use_ada_layer_norm_single:
+            self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5)
+
+        # let chunk size default to None
+        self._chunk_size = None
+        self._chunk_dim = 0
+
+    def set_chunk_feed_forward(self, chunk_size: Optional[int], dim: int):
+        # Sets chunk feed-forward
+        self._chunk_size = chunk_size
+        self._chunk_dim = dim
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        timestep: Optional[ms.Tensor] = None,
+        cross_attention_kwargs: Dict[str, Any] = None,
+        class_labels: Optional[ms.Tensor] = None,
+        position_q: Optional[ms.Tensor] = None,
+        position_k: Optional[ms.Tensor] = None,
+        frame: int = None,
+    ) -> ms.Tensor:
+        # Notice that normalization is always applied before the real computation in the following blocks.
+        # 0. Self-Attention
+        batch_size = hidden_states.shape[0]
+
+        gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
+        if self.use_ada_layer_norm:
+            norm_hidden_states = self.norm1_ada(hidden_states, timestep)
+        elif self.use_ada_layer_norm_zero:
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1_ada_zero(
+                hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
+            )
+        elif self.use_layer_norm:
+            norm_hidden_states = self.norm1_ln(hidden_states)
+        elif self.use_ada_layer_norm_single:
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
+            ).chunk(6, axis=1)
+            norm_hidden_states = self.norm1_ln(hidden_states)
+            norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
+            # norm_hidden_states = norm_hidden_states.squeeze(1)  # error message
+        else:
+            raise ValueError("Incorrect norm used")
+
+        if self.pos_embed is not None:
+            norm_hidden_states = self.pos_embed(norm_hidden_states)
+
+        # 1. Retrieve lora scale.
+        lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
+
+        # 2. Prepare GLIGEN inputs
+        cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
+        if "gligen" in cross_attention_kwargs:
+            gligen_kwargs = cross_attention_kwargs["gligen"]
+            # del cross_attention_kwargs["gligen"]
+        else:
+            gligen_kwargs = None
+        attn_output = self.attn1(
+            norm_hidden_states,
+            encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
+            attention_mask=attention_mask,
+            position_q=position_q,
+            position_k=position_k,
+            last_shape=frame,
+            **cross_attention_kwargs,
+        )
+        if self.use_ada_layer_norm_zero:
+            attn_output = gate_msa.unsqueeze(1) * attn_output
+        elif self.use_ada_layer_norm_single:
+            attn_output = gate_msa * attn_output
+
+        hidden_states = attn_output + hidden_states
+        if hidden_states.ndim == 4:
+            hidden_states = hidden_states.squeeze(1)
+
+        # 2.5 GLIGEN Control
+        if gligen_kwargs is not None:
+            hidden_states = self.fuser(hidden_states, gligen_kwargs["objs"])
+
+        if self.use_ada_layer_norm_zero:
+            norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+
+        if self.use_ada_layer_norm_single:
+            # norm_hidden_states = self.norm2(hidden_states)
+            norm_hidden_states = self.norm3(hidden_states)
+            norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
+
+        if self._chunk_size is not None:
+            # "feed_forward_chunk_size" can be used to save memory
+            if norm_hidden_states.shape[self._chunk_dim] % self._chunk_size != 0:
+                raise ValueError(
+                    f"`hidden_states` dimension to be chunked: {norm_hidden_states.shape[self._chunk_dim]}"
+                    f"has to be divisible by chunk size: {self._chunk_size}. Make sure to set an"
+                    f"appropriate `chunk_size` when calling `unet.enable_forward_chunking`."
+                )
+
+            num_chunks = norm_hidden_states.shape[self._chunk_dim] // self._chunk_size
+            ff_output = ops.cat(
+                [
+                    self.ff(hid_slice, scale=lora_scale)
+                    for hid_slice in norm_hidden_states.chunk(num_chunks, axis=self._chunk_dim)
+                ],
+                dim=self._chunk_dim,
+            )
+        else:
+            ff_output = self.ff(norm_hidden_states, scale=lora_scale)
+
+        if self.use_ada_layer_norm_zero:
+            ff_output = gate_mlp.unsqueeze(1) * ff_output
+        elif self.use_ada_layer_norm_single:
+            ff_output = gate_mlp * ff_output
+
+        hidden_states = ff_output + hidden_states
+        if hidden_states.ndim == 4:
+            hidden_states = hidden_states.squeeze(1)
+
+        return hidden_states
+
+
+class BasicTransformerBlock(nn.Cell):
+    r"""
+    A basic Transformer block.
+
+    Parameters:
+        dim (`int`): The number of channels in the input and output.
+        num_attention_heads (`int`): The number of heads to use for multi-head attention.
+        attention_head_dim (`int`): The number of channels in each head.
+        dropout (`float`, *optional*, defaults to 0.0): The dropout probability to use.
+        cross_attention_dim (`int`, *optional*): The size of the encoder_hidden_states vector for cross attention.
+        activation_fn (`str`, *optional*, defaults to `"geglu"`): Activation function to be used in feed-forward.
+        num_embeds_ada_norm (:
+            obj: `int`, *optional*): The number of diffusion steps used during training. See `Transformer2DModel`.
+        attention_bias (:
+            obj: `bool`, *optional*, defaults to `False`): Configure if the attentions should contain a bias parameter.
+        only_cross_attention (`bool`, *optional*):
+            Whether to use only cross-attention layers. In this case two cross attention layers are used.
+        double_self_attention (`bool`, *optional*):
+            Whether to use two self-attention layers. In this case no cross attention layers are used.
+        upcast_attention (`bool`, *optional*):
+            Whether to upcast the attention computation to float32. This is useful for mixed precision training.
+        norm_elementwise_affine (`bool`, *optional*, defaults to `True`):
+            Whether to use learnable elementwise affine parameters for normalization.
+        norm_type (`str`, *optional*, defaults to `"layer_norm"`):
+            The normalization layer to use. Can be `"layer_norm"`, `"ada_norm"` or `"ada_norm_zero"`.
+        final_dropout (`bool` *optional*, defaults to False):
+            Whether to apply a final dropout after the last feed-forward layer.
+        attention_type (`str`, *optional*, defaults to `"default"`):
+            The type of attention to use. Can be `"default"` or `"gated"` or `"gated-text-image"`.
+        positional_embeddings (`str`, *optional*, defaults to `None`):
+            The type of positional embeddings to apply to.
+        num_positional_embeddings (`int`, *optional*, defaults to `None`):
+            The maximum number of positional embeddings to apply.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        dropout=0.0,
+        cross_attention_dim: Optional[int] = None,
+        activation_fn: str = "geglu",
+        num_embeds_ada_norm: Optional[int] = None,
+        attention_bias: bool = False,
+        only_cross_attention: bool = False,
+        double_self_attention: bool = False,
+        upcast_attention: bool = False,
+        norm_elementwise_affine: bool = True,
+        norm_type: str = "layer_norm",  # 'layer_norm', 'ada_norm', 'ada_norm_zero', 'ada_norm_single'
+        norm_eps: float = 1e-5,
+        final_dropout: bool = False,
+        attention_type: str = "default",
+        positional_embeddings: Optional[str] = None,
+        num_positional_embeddings: Optional[int] = None,
+        enable_flash_attention: bool = False,
+        use_rope: bool = False,
+        rope_scaling: Optional[Dict] = None,
+        compress_kv_factor: Optional[Tuple] = None,
+        FA_dtype=ms.bfloat16,
+    ):
+        super().__init__()
+        self.only_cross_attention = only_cross_attention
+
+        self.use_ada_layer_norm_zero = (num_embeds_ada_norm is not None) and norm_type == "ada_norm_zero"
+        self.use_ada_layer_norm = (num_embeds_ada_norm is not None) and norm_type == "ada_norm"
+        self.use_ada_layer_norm_single = norm_type == "ada_norm_single"
+        self.use_layer_norm = norm_type == "layer_norm"
+        self.FA_dtype = FA_dtype
+
+        if norm_type in ("ada_norm", "ada_norm_zero") and num_embeds_ada_norm is None:
+            raise ValueError(
+                f"`norm_type` is set to {norm_type}, but `num_embeds_ada_norm` is not defined. Please make sure to"
+                f" define `num_embeds_ada_norm` if setting `norm_type` to {norm_type}."
+            )
+
+        if positional_embeddings and (num_positional_embeddings is None):
+            raise ValueError(
+                "If `positional_embedding` type is defined, `num_positition_embeddings` must also be defined."
+            )
+
+        if positional_embeddings == "sinusoidal":
+            self.pos_embed = SinusoidalPositionalEmbedding(dim, max_seq_length=num_positional_embeddings)
+        else:
+            self.pos_embed = None
+
+        # Define 3 blocks. Each block has its own normalization layer.
+        # 1. Self-Attn
+        if self.use_ada_layer_norm:
+            self.norm1_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
+            self.norm1_ada.norm = LayerNorm(dim, elementwise_affine=False)
+        elif self.use_ada_layer_norm_zero:
+            self.norm1_ada_zero = AdaLayerNormZero(dim, num_embeds_ada_norm)
+            self.norm1_ada_zero.norm = LayerNorm(dim, elementwise_affine=False)
+        else:
+            self.norm1_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
+        self.attn1 = MultiHeadAttention(
+            query_dim=dim,
+            heads=num_attention_heads,
+            dim_head=attention_head_dim,
+            dropout=dropout,
+            bias=attention_bias,
+            cross_attention_dim=cross_attention_dim if only_cross_attention else None,
+            upcast_attention=upcast_attention,
+            enable_flash_attention=enable_flash_attention,
+            use_rope=use_rope,
+            rope_scaling=rope_scaling,
+            compress_kv_factor=compress_kv_factor,
+            FA_dtype=self.FA_dtype,
+        )
+
+        # 2. Cross-Attn
+        if cross_attention_dim is not None or double_self_attention:
+            # We currently only use AdaLayerNormZero for self attention where there will only be one attention block.
+            # I.e. the number of returned modulation chunks from AdaLayerZero would not make sense if returned during
+            # the second cross attention block.
+            if self.use_ada_layer_norm:
+                self.norm2_ada = AdaLayerNorm(dim, num_embeds_ada_norm)
+                self.norm2_ada.norm = LayerNorm(dim, elementwise_affine=False)
+            else:
+                self.norm2_ln = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
+            self.attn2 = MultiHeadAttention(
+                query_dim=dim,
+                cross_attention_dim=cross_attention_dim if not double_self_attention else None,
+                heads=num_attention_heads,
+                dim_head=attention_head_dim,
+                dropout=dropout,
+                bias=attention_bias,
+                upcast_attention=upcast_attention,
+                enable_flash_attention=enable_flash_attention,
+                use_rope=False,  # do not position in cross attention
+                compress_kv_factor=None,
+                FA_dtype=self.FA_dtype,
+            )  # is self-attn if encoder_hidden_states is none
+        else:
+            self.norm2 = None
+            self.attn2 = None
+
+        # 3. Feed-forward
+        if not self.use_ada_layer_norm_single:
+            self.norm3 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+
+        self.ff = FeedForward(
+            dim,
+            dropout=dropout,
+            activation_fn=activation_fn,
+            final_dropout=final_dropout,
+        )
+
+        # 4. Fuser
+        if attention_type == "gated" or attention_type == "gated-text-image":
+            self.fuser = GatedSelfAttentionDense(dim, cross_attention_dim, num_attention_heads, attention_head_dim)
+
+        # 5. Scale-shift for PixArt-Alpha.
+        if self.use_ada_layer_norm_single:
+            self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5)
+
+        # let chunk size default to None
+        self._chunk_size = None
+        self._chunk_dim = 0
+
+    def set_chunk_feed_forward(self, chunk_size: Optional[int], dim: int = 0):
+        # Sets chunk feed-forward
+        self._chunk_size = chunk_size
+        self._chunk_dim = dim
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        timestep: Optional[ms.Tensor] = None,
+        cross_attention_kwargs: Dict[str, Any] = None,
+        class_labels: Optional[ms.Tensor] = None,
+        position_q: Optional[ms.Tensor] = None,
+        position_k: Optional[ms.Tensor] = None,
+        hw: Tuple[int, int] = None,
+    ) -> ms.Tensor:
+        # Notice that normalization is always applied before the real computation in the following blocks.
+        # 0. Self-Attention
+        batch_size = hidden_states.shape[0]
+        gate_msa, shift_mlp, scale_mlp, gate_mlp = None, None, None, None
+        if self.use_ada_layer_norm:
+            norm_hidden_states = self.norm1_ada(hidden_states, timestep)
+        elif self.use_ada_layer_norm_zero:
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1_ada_zero(
+                hidden_states, timestep, class_labels, hidden_dtype=hidden_states.dtype
+            )
+        elif self.use_layer_norm:
+            norm_hidden_states = self.norm1_ln(hidden_states)
+        elif self.use_ada_layer_norm_single:
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
+            ).chunk(6, axis=1)
+            norm_hidden_states = self.norm1_ln(hidden_states)
+            norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
+            # norm_hidden_states = norm_hidden_states.squeeze(1)  # error message
+        else:
+            raise ValueError("Incorrect norm used")
+
+        if self.pos_embed is not None:
+            norm_hidden_states = self.pos_embed(norm_hidden_states)
+
+        # 1. Retrieve lora scale.
+        lora_scale = cross_attention_kwargs.get("scale", 1.0) if cross_attention_kwargs is not None else 1.0
+
+        # 2. Prepare GLIGEN inputs
+        cross_attention_kwargs = cross_attention_kwargs.copy() if cross_attention_kwargs is not None else {}
+        if "gligen" in cross_attention_kwargs:
+            gligen_kwargs = cross_attention_kwargs["gligen"]
+            # del cross_attention_kwargs["gligen"]
+        else:
+            gligen_kwargs = None
+        attn_output = self.attn1(
+            norm_hidden_states,
+            encoder_hidden_states=encoder_hidden_states if self.only_cross_attention else None,
+            attention_mask=attention_mask,
+            position_q=position_q,
+            position_k=position_k,
+            last_shape=hw,
+            **cross_attention_kwargs,
+        )
+        if self.use_ada_layer_norm_zero:
+            attn_output = gate_msa.unsqueeze(1) * attn_output
+        elif self.use_ada_layer_norm_single:
+            attn_output = gate_msa * attn_output
+
+        hidden_states = attn_output + hidden_states
+        if hidden_states.ndim == 4:
+            hidden_states = hidden_states.squeeze(1)
+
+        # 2.5 GLIGEN Control
+        if gligen_kwargs is not None:
+            hidden_states = self.fuser(hidden_states, gligen_kwargs["objs"])
+
+        # 3. Cross-Attention
+        if self.attn2 is not None:
+            if self.use_ada_layer_norm:
+                norm_hidden_states = self.norm2_ada(hidden_states, timestep)
+            elif self.use_ada_layer_norm_zero or self.use_layer_norm:
+                norm_hidden_states = self.norm2_ln(hidden_states)
+            elif self.use_ada_layer_norm_single:
+                # For PixArt norm2 isn't applied here:
+                # https://github.com/PixArt-alpha/PixArt-alpha/blob/0f55e922376d8b797edd44d25d0e7464b260dcab/diffusion/model/nets/PixArtMS.py#L70C1-L76C103
+                norm_hidden_states = hidden_states
+            else:
+                raise ValueError("Incorrect norm")
+
+            if self.pos_embed is not None and self.use_ada_layer_norm_single is False:
+                norm_hidden_states = self.pos_embed(norm_hidden_states)
+
+            attn_output = self.attn2(
+                norm_hidden_states,
+                encoder_hidden_states=encoder_hidden_states,
+                attention_mask=encoder_attention_mask,
+                position_q=None,  # cross attn do not need relative position
+                position_k=None,
+                last_shape=None,
+                **cross_attention_kwargs,
+            )
+            hidden_states = attn_output + hidden_states
+
+        # 4. Feed-forward
+        if not self.use_ada_layer_norm_single:
+            norm_hidden_states = self.norm3(hidden_states)
+
+        if self.use_ada_layer_norm_zero:
+            norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+
+        if self.use_ada_layer_norm_single:
+            norm_hidden_states = self.norm2_ln(hidden_states)
+            norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
+
+        if self._chunk_size is not None:
+            # "feed_forward_chunk_size" can be used to save memory
+            raise NotImplementedError
+        else:
+            ff_output = self.ff(norm_hidden_states, scale=lora_scale)
+
+        if self.use_ada_layer_norm_zero:
+            ff_output = gate_mlp.unsqueeze(1) * ff_output
+        elif self.use_ada_layer_norm_single:
+            ff_output = gate_mlp * ff_output
+
+        hidden_states = ff_output + hidden_states
+        if hidden_states.ndim == 4:
+            hidden_states = hidden_states.squeeze(1)
+
+        return hidden_states
+
+
+class LatteT2VBlock(nn.Cell):
+    def __init__(self, block_id, temp_pos_embed, spatial_block, temp_block):
+        super().__init__()
+        self.spatial_block = spatial_block
+        self.temp_block = temp_block
+        self.is_first_block = block_id == 0
+        self.temp_pos_embed = temp_pos_embed
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        class_labels: Optional[ms.Tensor] = None,
+        cross_attention_kwargs: Dict[str, Any] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        encoder_hidden_states_spatial: Optional[ms.Tensor] = None,
+        timestep_spatial: Optional[ms.Tensor] = None,
+        timestep_temp: Optional[ms.Tensor] = None,
+        encoder_attention_mask: Optional[ms.Tensor] = None,
+        use_image_num: int = 0,
+        input_batch_size: int = 0,
+        frame: int = 0,
+        enable_temporal_attentions: bool = True,
+        pos_hw: Optional[ms.Tensor] = None,
+        pos_t: Optional[ms.Tensor] = None,
+        hw: Optional[List[int]] = None,
+    ):
+        hidden_states = self.spatial_block(
+            hidden_states,
+            attention_mask,
+            encoder_hidden_states_spatial,
+            encoder_attention_mask,
+            timestep_spatial,
+            cross_attention_kwargs,
+            class_labels,
+            pos_hw,
+            pos_hw,
+            hw,
+        )
+
+        if enable_temporal_attentions:
+            # b c f h w, f = 16 + 4
+            # (b f) t d -> (b t) f d
+            hidden_states = hidden_states.view(input_batch_size, frame + use_image_num, -1, hidden_states.shape[-1])
+            hidden_states = hidden_states.permute(0, 2, 1, 3).view(-1, frame + use_image_num, hidden_states.shape[-1])
+
+            if use_image_num != 0 and self.training:
+                hidden_states_video = hidden_states[:, :frame, ...]
+                hidden_states_image = hidden_states[:, frame:, ...]
+                if self.is_first_block:
+                    hidden_states_video = hidden_states_video + self.temp_pos_embed
+
+                hidden_states_video = self.temp_block(
+                    hidden_states_video,
+                    None,  # attention_mask
+                    None,  # encoder_hidden_states
+                    None,  # encoder_attention_mask
+                    timestep_temp,
+                    cross_attention_kwargs,
+                    class_labels,
+                    pos_t,
+                    pos_t,
+                    (frame,),
+                )
+
+                hidden_states = ops.cat([hidden_states_video, hidden_states_image], axis=1)
+                # (b t) f d -> (b f) t d
+                hidden_states = hidden_states.view(input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1])
+                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+                    input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                )
+
+            else:
+                if self.is_first_block:
+                    hidden_states = hidden_states + self.temp_pos_embed
+
+                hidden_states = self.temp_block(
+                    hidden_states,
+                    None,  # attention_mask
+                    None,  # encoder_hidden_states
+                    None,  # encoder_attention_mask
+                    timestep_temp,
+                    cross_attention_kwargs,
+                    class_labels,
+                    pos_t,
+                    pos_t,
+                    (frame,),
+                )
+                # (b t) f d -> (b f) t d
+                hidden_states = hidden_states.view(input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1])
+                hidden_states = hidden_states.permute(0, 2, 1, 3).view(
+                    input_batch_size * (frame + use_image_num), -1, hidden_states.shape[-1]
+                )
+        return hidden_states
