@@ -716,6 +716,7 @@ class PositionEmbedding2D(nn.Cell):
         assert dim % 4 == 0, "dim must be divisible by 4"
         half_dim = dim // 2
         self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
+        self.set_grad(False)  # set explicitly for PyNative as ops.meshgrid() doesn't have backprop
 
     def _get_sin_cos_emb(self, t: Tensor) -> Tensor:
         out = t[..., None] * self.inv_freq

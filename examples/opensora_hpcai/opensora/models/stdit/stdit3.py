@@ -27,7 +27,8 @@ from opensora.models.layers.blocks import (
 )
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
-from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, nn, ops
+import mindspore as ms
+from mindspore import Parameter, Tensor, load_checkpoint, load_param_into_net, nn, ops
 
 from mindone.models.utils import constant_, normal_, xavier_uniform_
 
@@ -168,6 +169,8 @@ class STDiT3(nn.Cell):
         only_train_temporal=False,
         freeze_y_embedder=False,
         skip_y_embedder=False,
+        use_recompute=False,
+        num_recompute_blocks=None,
         patchify_conv3d_replace=None,
     ):
         super().__init__()
@@ -270,9 +273,26 @@ class STDiT3(nn.Cell):
                 for param in block.get_parameters():
                     param.requires_grad = True
 
+        self._freeze_y_embedder = False
         if freeze_y_embedder:
-            for param in self.y_embedder.get_parameters():
+            self._freeze_y_embedder = True
+            self.y_embedder.set_grad(False)  # Pynative: disable memory allocation for gradients
+            for param in self.y_embedder.get_parameters():  # turn off explicitly for correct count of trainable params
                 param.requires_grad = False
+
+        if use_recompute:
+            num_recompute_blocks = num_recompute_blocks or depth
+            for blocks in [self.spatial_blocks, self.temporal_blocks]:
+                for block in blocks[:num_recompute_blocks]:
+                    self.recompute(block)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     def initialize_weights(self):
         # Initialize transformer layers:
@@ -330,7 +350,8 @@ class STDiT3(nn.Cell):
         base_size = round(S**0.5)
         resolution_sq = (height[0] * width[0]) ** 0.5
         scale = resolution_sq / self.input_sq_size
-        pos_emb = self.pos_embed(H, W, scale=scale, base_size=base_size)
+        # Position embedding doesn't need gradient
+        pos_emb = ops.stop_gradient(self.pos_embed(H, W, scale=scale, base_size=base_size))
 
         # === get timestep embed ===
         t = self.t_embedder(timestep)
@@ -347,6 +368,8 @@ class STDiT3(nn.Cell):
         # === get y embed ===
         if not self.skip_y_embedder:
             y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
+            if self._freeze_y_embedder:
+                y = ops.stop_gradient(y)
             y = y.squeeze(1).view(1, -1, self.hidden_size)
 
         # === get x embed ===
@@ -374,7 +397,7 @@ class STDiT3(nn.Cell):
         x = self.unpatchify(x, T, H, W, Tx, Hx, Wx)
 
         # cast to float32 for better accuracy
-        return x.astype(dtype.float32)
+        return x.astype(ms.float32)
 
     def construct_with_cfg(self, x, timestep, y, cfg_scale, **kwargs):
         # https://github.com/openai/glide-text2im/blob/main/notebooks/text2im.ipynb
@@ -420,6 +443,10 @@ class STDiT3(nn.Cell):
 
             regex = re.compile(r"^network\.|\._backbone")
             sd = {regex.sub("", k): v for k, v in sd.items()}
+
+            # PixArt-Σ: rename 'blocks' to 'spatial_blocks'
+            regex = re.compile(r"^blocks")
+            sd = {regex.sub("spatial_blocks", k): v for k, v in sd.items()}
 
             # load conv3d weight from pretrained conv2d or dense layer
             key_3d = "x_embedder.proj.weight"

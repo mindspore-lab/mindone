@@ -1,5 +1,5 @@
 model_version: v1.2
-ckpt_path: "models/opensora_v1.2_stage3.ckpt"
+ckpt_path: "models/opensora_stdit_v3.ckpt"
 t5_model_dir: "models/t5-v1_1-xxl/"
 
 vae_type: "OpenSoraVAE_V1_2"

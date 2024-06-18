@@ -1,3 +1,5 @@
+from typing import Optional
+
 try:
     from typing import Literal
 except ImportError:
@@ -6,6 +8,9 @@ except ImportError:
 from tqdm import tqdm
 
 from mindspore import Tensor, dtype, ops
+
+from ..utils.distributions import LogisticNormal
+from .iddpm.diffusion_utils import mean_flat
 
 
 class RFLOW:
@@ -130,11 +135,72 @@ class RFlowScheduler:
         self.num_timesteps = num_timesteps
         self.num_sampling_steps = num_sampling_steps
 
-        # TODO: `sample_method` is added in the train branch
+        if sample_method == "discrete-uniform":
+            self._sample_func = self._discrete_sample
+        elif sample_method == "uniform":
+            self._sample_func = self._uniform_sample
+        elif sample_method == "logit-normal":
+            self.distribution = LogisticNormal(loc, scale)
+            self._sample_func = self._logit_normal_sample
+        else:
+            raise ValueError(f"Unknown sample method: {sample_method}")
 
         # timestep transform
         self.use_timestep_transform = use_timestep_transform
         self.transform_scale = transform_scale
+
+    def _discrete_sample(self, size: int) -> Tensor:
+        return ops.randint(0, self.num_timesteps, (size,), dtype=dtype.int32)
+
+    def _uniform_sample(self, size: int) -> Tensor:
+        return ops.rand((size,), dtype=dtype.float32) * self.num_timesteps
+
+    def _logit_normal_sample(self, size: int) -> Tensor:
+        return self.distribution.sample((size,))[0] * self.num_timesteps  # noqa
+
+    def training_losses(
+        self,
+        model,
+        x_start: Tensor,
+        text_embed: Tensor,
+        mask: Optional[Tensor] = None,
+        frames_mask: Optional[Tensor] = None,
+        num_frames: Optional[Tensor] = None,
+        height: Optional[Tensor] = None,
+        width: Optional[Tensor] = None,
+        fps: Optional[Tensor] = None,
+        t: Optional[Tensor] = None,
+        **kwargs,
+    ):
+        """
+        Compute training losses for a single timestep.
+        Arguments format copied from opensora/schedulers/iddpm/gaussian_diffusion.py/training_losses
+        Note: t is int tensor and should be rescaled from [0, num_timesteps-1] to [1,0]
+        """
+        if t is None:
+            t = self._sample_func(x_start.shape[0])
+            if self.use_timestep_transform:
+                t = timestep_transform(
+                    t, height, width, num_frames, scale=self.transform_scale, num_timesteps=self.num_timesteps
+                )
+
+        noise = ops.randn_like(x_start)
+
+        x_t = self.add_noise(x_start, noise, t)
+
+        # frames mask branch
+        t0 = ops.zeros_like(t)
+        x_t0 = self.add_noise(x_start, noise, t0)
+        x_t = ops.where(frames_mask[:, None, :, None, None], x_t, x_t0)
+
+        text_embed = text_embed[:, None, :]
+        model_output = model(
+            x_t, t, text_embed, mask, frames_mask=frames_mask, fps=fps, height=height, width=width, **kwargs
+        )
+        velocity_pred = model_output.chunk(2, axis=1)[0]
+        loss = mean_flat((velocity_pred - (x_start - noise)).pow(2), frames_mask=frames_mask)
+
+        return loss.mean()
 
     def add_noise(
         self,

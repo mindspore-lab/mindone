@@ -51,8 +51,9 @@ class VideoDatasetRefactored(BaseDataset):
         vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
         sample_n_frames: int = 16,
-        sample_stride: int = 4,
+        sample_stride: int = 1,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
+        t_compress_func: Optional[Callable[[int], int]] = None,
         pre_patchify: bool = False,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
         embed_dim: int = 1152,
@@ -65,9 +66,12 @@ class VideoDatasetRefactored(BaseDataset):
         *,
         output_columns: List[str],
     ):
-        if pre_patchify:
-            if not vae_latent_folder:
-                raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
+        if pre_patchify and vae_latent_folder is None:
+            raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
+        if text_emb_folder is None:
+            raise NotImplementedError(
+                "Text embedding during training is not supported, please provide `text_emb_folder`."
+            )
 
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder, filter_data)
         self._frames = sample_n_frames
@@ -78,6 +82,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_downsample_rate = vae_downsample_rate
         self._vae_scale_factor = vae_scale_factor
         self._fmask_gen = frames_mask_generator
+        self._t_compress_func = t_compress_func or (lambda x: x)
         self._pre_patchify = pre_patchify
         self._buckets = buckets
 
@@ -147,7 +152,7 @@ class VideoDatasetRefactored(BaseDataset):
                         sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
             except KeyError as e:
-                _logger.error("CSV file requires `video` (file paths) column.")
+                _logger.error(f"CSV file requires `video` (file paths) column, but got {list(item.keys())}")
                 raise e
 
         if filter_data:
@@ -169,9 +174,9 @@ class VideoDatasetRefactored(BaseDataset):
                 return self._get_item(idx)
             except Exception as e:
                 error = e
-                _logger.debug(f"Failed to load a replacement sample: {e}")
+                _logger.debug(f"Failed to load a replacement sample: {repr(e)}")
 
-        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {error}")
+        raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
     def _get_item(self, idx: int) -> Tuple[Any, ...]:
         data = self._data[idx].copy()
@@ -192,13 +197,15 @@ class VideoDatasetRefactored(BaseDataset):
             vae_latent_data = np.load(vae_latent_path)
 
             # get fps from csv, or cached latents, or from original video in order
-            if "fps" in data:  # cache FPS for further iterations
+            if "fps" in data:
                 data["fps"] = np.array(data["fps"], dtype=np.float32)
             elif "fps" in vae_latent_data:
                 data["fps"] = np.array(vae_latent_data["fps"], dtype=np.float32)
             else:
                 with VideoReader(data["video"]) as reader:
-                    data["fps"] = self._data[idx]["fps"] = np.array(reader.fps, dtype=np.float32)
+                    self._data[idx]["fps"] = reader.fps  # cache FPS for further iterations
+                    data["fps"] = np.array(reader.fps, dtype=np.float32)
+            # data["fps"] /= self._stride  # FIXME: OS v1.1 incorrectly calculates FPS
 
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
             if len(latent_mean) < self._min_length:
@@ -232,12 +239,13 @@ class VideoDatasetRefactored(BaseDataset):
 
                 start_pos = random.randint(0, len(reader) - min_length)
                 data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
-                data["fps"] = np.array(reader.fps, dtype=np.float32)
+                data["fps"] = np.array(reader.fps, dtype=np.float32)  # / self._stride  # FIXME: OS v1.1 incorrect
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
-            data["frames_mask"] = self._fmask_gen(num_frames)
+            # return frames mask with respect to the VAE's latent temporal compression
+            data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
 
         return tuple(data[c] for c in self.output_columns)
 
