@@ -21,6 +21,42 @@ def cast_tuple(t, length=1):
     return t if isinstance(t, tuple) else ((t,) * length)
 
 
+class Conv2d(nn.Conv2d):
+    """
+    Conv2d for video input (B C T H W)
+    """
+
+    def rearrange_in(self, x):
+        # b c f h w -> b f c h w
+        B, C, F, H, W = x.shape
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+        # -> (b*f c h w)
+        x = ops.reshape(x, (-1, C, H, W))
+
+        return x
+
+    def rearrange_out(self, x, F):
+        BF, D, H_, W_ = x.shape
+        # (b*f D h w) -> (b f D h w)
+        x = ops.reshape(x, (BF // F, F, D, H_, W_))
+        # -> (b D f h w)
+        x = ops.transpose(x, (0, 2, 1, 3, 4))
+
+        return x
+
+    def construct(self, x):
+        # import pdb; pdb.set_trace()
+        # x: (b c f h w)
+        F = x.shape[-3]
+        x = self.rearrange_in(x)
+
+        x = super().construct(x)
+
+        x = self.rearrange_out(x, F)
+
+        return x
+
+
 class CausalConv3d(nn.Cell):
     """
     Temporal padding: Padding with the first frame, by repeating K_t-1 times.

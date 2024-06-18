@@ -3,7 +3,6 @@ from .videobase import (  # VQVAEConfiguration,; VQVAEModel,; VQVAETrainer,; Cau
     videobase_ae,
     videobase_ae_channel,
     videobase_ae_stride,
-    videobase_ae_yaml,
 )
 
 ae_stride_config = {}
@@ -26,9 +25,4 @@ def getae_wrapper(ae):
     # ae = imagebase_ae.get(ae, None) or videobase_ae.get(ae, None)
     ae = videobase_ae.get(ae, None)
     assert ae is not None
-    return ae
-
-
-def getae_model_config(ae):
-    ae = videobase_ae_yaml.get(ae, None)
     return ae

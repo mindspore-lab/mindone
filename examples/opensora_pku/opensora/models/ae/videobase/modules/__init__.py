@@ -1,12 +1,15 @@
-from .attention import AttnBlock, AttnBlock3D  # , LinAttnBlock, LinearAttention, TemporalAttnBlock
+from .attention import AttnBlock, AttnBlock3D, AttnBlock3DFix  # LinAttnBlock,; LinearAttention,; TemporalAttnBlock
 from .block import Block
-from .conv import CausalConv3d
-from .resnet_block import ResnetBlock, ResnetBlock3D
-from .updownsample import (  # TimeDownsampleRes2x,; TimeDownsampleResAdv2x,; TimeUpsampleRes2x,; TimeUpsampleResAdv2x,
+from .conv import CausalConv3d, Conv2d
+from .normalize import GroupNormExtend, Normalize
+from .resnet_block import ResnetBlock2D, ResnetBlock3D
+from .updownsample import (  # TimeDownsampleResAdv2x,; TimeUpsampleResAdv2x
     Downsample,
     SpatialDownsample2x,
     SpatialUpsample2x,
     TimeDownsample2x,
+    TimeDownsampleRes2x,
     TimeUpsample2x,
+    TimeUpsampleRes2x,
     Upsample,
 )

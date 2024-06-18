@@ -1,5 +1,3 @@
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 python opensora/train/train_causalvae.py \
     --exp_name "exp_name" \
     --batch_size 1 \

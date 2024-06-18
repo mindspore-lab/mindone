@@ -25,7 +25,6 @@ opensora_pku/
 │   │   │   ├── __init__.py
 │   │   │   └── videobase                           -> video-based VAE
 │   │   │       ├── causal_vae
-│   │   │       │   ├── causal_vae_488.yaml         -> the configuration file of causal vae model
 │   │   │       │   ├── __init__.py
 │   │   │       │   └── modeling_causalvae.py       -> the model definition of causal vae model
 │   │   │       ├── configuration_videobase.py

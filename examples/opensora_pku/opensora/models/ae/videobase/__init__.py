@@ -49,4 +49,3 @@ videobase_ae = {
     # "kinetics_stride4x4x4": VQVAEModelWrapper,
     # "kinetics_stride2x4x4": VQVAEModelWrapper,
 }
-videobase_ae_yaml = {"CausalVAEModel_4x8x8": "causal_vae_488.yaml"}
