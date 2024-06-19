@@ -11,7 +11,7 @@ import imageio
 import numpy as np
 from mindspore import nn, ops
 
-mindone_dir = '/home_host/yx/mindone'
+mindone_dir = '/home/mindocr/yx/mindone'
 sys.path.insert(0, mindone_dir)
 
 from vae.data.loader import create_dataloader
@@ -78,7 +78,9 @@ def main(args):
     ms.set_context(mode=args.mode, ascend_config=ascend_config)
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    model = VideoAutoencoderKL(config=SD_CONFIG, ckpt_path='models/sd-vae-ft-ema.ckpt', micro_batch_size=4)
+    model = VideoAutoencoderKL(config=SD_CONFIG, 
+        ckpt_path=args.ckpt_path, # 'models/sd-vae-ft-ema.ckpt',
+        micro_batch_size=4)
     model.set_train(False)
     logger.info(f"Loaded checkpoint from  {args.ckpt_path}")
 
@@ -111,9 +113,6 @@ def main(args):
                 return_image=False,
             )
         )
-        assert not (
-            args.num_frames % 2 == 0 and config.generator.params.ddconfig.split_time_upsample
-        ), "num of frames must be odd if split_time_upsample is True"
     else:
         ds_config.update(dict(expand_dim_t=args.expand_dim_t))
 

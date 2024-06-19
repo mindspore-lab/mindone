@@ -2,7 +2,7 @@ import logging
 import os
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import ops, nn
 from transformers import PretrainedConfig
 
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
@@ -81,7 +81,8 @@ class VideoAutoencoderKL(nn.Cell):
 
         # TODO: "scaling_factor": 0.13025 is set in https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json. Why not update? TODO: compare the quality
         self.scale_factor = 0.18215
-
+    
+    @staticmethod
     def rearrange_in(x):
         B, C, T, H, W = x.shape
         # (b c t h w) -> (b t c h w)
@@ -89,7 +90,8 @@ class VideoAutoencoderKL(nn.Cell):
         x = ops.reshape(x, (B*T, C, H, W))
 
         return x
-
+    
+    @staticmethod
     def rearrange_out(x, B):
         # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
         BT, C, H, W = x.shape
@@ -331,4 +333,7 @@ def OpenSoraVAE_V1_2(
 
     return model
 
+
+if __name__ == "__main__":
+    model = OpenSoraVAE_V1_2(ckpt_path=)
 
