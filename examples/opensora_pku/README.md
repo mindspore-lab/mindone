@@ -70,7 +70,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) and use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
+2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
 
 
 3. Install requirements
@@ -250,9 +250,11 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
 The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt`. Then run model conversion with:
 ```bash
 python tools/model_conversion/convert_latte.py \
-  --src pretrained/t2v.pt \
+  --src LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt \
   --target LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt
 ```
+
+**Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL]. There is no need to convert it.**
 
 The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image datasets and three video datasets, as recorded in `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt`. Each line includes the paths to three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
 For acceleration, we pre-compute the t5 embedding before training the diffusion transformer.
@@ -323,8 +325,8 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
 > Context: {NPU type}-{CANN version}-{MindSpore version}
 
 ## 👍 Acknowledgement
