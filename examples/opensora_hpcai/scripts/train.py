@@ -126,7 +126,7 @@ def init_env(
             )
     else:
         logger.warning(
-            "The current backend is not suitable because current MindSpore version or mode does not match,"
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
             "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
@@ -166,7 +166,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        backend=args.backend,
+        jit_level=args.jit_level,
         global_bf16=args.global_bf16,
         debug=args.debug,
     )
