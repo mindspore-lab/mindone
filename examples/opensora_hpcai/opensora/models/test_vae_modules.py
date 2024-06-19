@@ -154,6 +154,7 @@ def compare_Encoder(pdb_debug=False, backend='ms'):
 
     # NOTE: after vae 2d, h w compressed to 1/8, z=4
     bs, cin, T, H, W = 1, 4, 9, 64, 64
+    latent_embed_dim=4
     # net_kwargs = dict(in_channels=cin, out_channels=cout)
 
     inp = 'enc_input.npy'
@@ -165,7 +166,7 @@ def compare_Encoder(pdb_debug=False, backend='ms'):
         np.save(inp, x)
     print("Input sum: ", x.sum())
 
-    net_pt = Enc_PT()
+    net_pt = Enc_PT(latent_embed_dim=latent_embed_dim*2)
 
     name = 'enc'
     pt_ckpt = f'{name}.pth'
@@ -183,7 +184,7 @@ def compare_Encoder(pdb_debug=False, backend='ms'):
 
     ms_ckpt = _convert_ckpt(pt_ckpt, name=name)
     ms.set_context(mode=0)
-    net_ms = Encoder()
+    net_ms = Encoder(latent_embed_dim=latent_embed_dim*2)
     ms.load_checkpoint(ms_ckpt, net_ms)
 
     if pdb_debug and backend=='ms':
@@ -201,7 +202,7 @@ def compare_Decoder(pdb_debug=False, backend='ms'):
     # from opensora.models.ae.videobase.causal_vae.modeling_causalvae import Encoder as Enc_PT
     from pt_vae_temporal import Decoder as Dec_PT
 
-    latent_embed_dim = 256
+    latent_embed_dim = 4
     bs, cin, T, H, W = 1, latent_embed_dim, 2, 64, 64
     # net_kwargs = dict(in_channels=cin, out_channels=cout)
 
