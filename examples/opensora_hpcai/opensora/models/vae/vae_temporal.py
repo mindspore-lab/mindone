@@ -477,5 +477,28 @@ class VAE_Temporal(nn.Cell):
         posterior_mean, posterior_logvar = self._encode(x)
         if sample_posterior:
             z = self.sample(posterior_mean, posterior_logvar)
+        else:
+            z = posterior_mean
         recon_video = self.decode(z, num_frames=x.shape[2])
         return recon_video, posterior_mean, posterior_logvar, z
+
+
+def VAE_Temporal_SD(from_pretrained=None, **kwargs):
+    model = VAE_Temporal(
+        in_out_channels=4,
+        latent_embed_dim=4,
+        embed_dim=4,
+        filters=128,
+        num_res_blocks=4,
+        channel_multipliers=(1, 2, 2, 4),
+        temporal_downsample=(False, True, True),
+        **kwargs,
+    )
+    if from_pretrained is not None:
+        # load_checkpoint(model, ckpt_path=from_pretrained)
+        sd = ms.load_checkpoint(from_pretrained)
+        pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
+        print(f"Net param not loaded : {pu}")
+        print(f"Checkpoint param not loaded : {cu}")
+
+    return model
