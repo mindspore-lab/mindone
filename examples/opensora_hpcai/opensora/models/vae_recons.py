@@ -15,7 +15,7 @@ mindone_dir = '/home/mindocr/yx/mindone'
 sys.path.insert(0, mindone_dir)
 
 from vae.data.loader import create_dataloader
-from vae.vae import VideoAutoencoderKL, SD_CONFIG
+from vae.vae import VideoAutoencoderKL, OpenSoraVAE_V1_2, SD_CONFIG, SDXL_CONFIG
 
 # from ae.models.lpips import LPIPS
 from omegaconf import OmegaConf
@@ -77,10 +77,19 @@ def main(args):
     ascend_config = {"precision_mode": "must_keep_origin_dtype"}
     ms.set_context(mode=args.mode, ascend_config=ascend_config)
     set_logger(name="", output_dir=args.output_path, rank=0)
+    
+    if args.use_temporal_vae:
+        model = OpenSoraVAE_V1_2(
+            micro_batch_size=4,
+            micro_frame_size=8,
+            ckpt_path=args.ckpt_path,
+            freeze_vae_2d=True,
+            ) 
+    else:
+        model = VideoAutoencoderKL(config=SDXL_CONFIG, 
+            ckpt_path=args.ckpt_path,
+            micro_batch_size=4)
 
-    model = VideoAutoencoderKL(config=SD_CONFIG, 
-        ckpt_path=args.ckpt_path, # 'models/sd-vae-ft-ema.ckpt',
-        micro_batch_size=4)
     model.set_train(False)
     logger.info(f"Loaded checkpoint from  {args.ckpt_path}")
 
@@ -144,7 +153,10 @@ def main(args):
 
         z = model.encode(x)
         if not args.encode_only:
-            recons = model.decode(z)
+            if args.use_temporal_vae:
+                recons = model.decode(z, num_frames=args.num_frames)
+            else:
+                recons = model.decode(z)
 
         # adapt to bf16
         recons = recons.to(ms.float32)
@@ -252,6 +264,7 @@ def parse_args():
         help="whether measure loss including reconstruction, kl, perceptual loss",
     )
     parser.add_argument("--save_vis", default=True, type=str2bool, help="whether save reconstructed images")
+    parser.add_argument("--use_temporal_vae", default=True, type=str2bool, help="if False, just use spatial vae")
     parser.add_argument("--encode_only", default=False, type=str2bool, help="only encode to save z or distribution")
     parser.add_argument(
         "--save_z_dist",

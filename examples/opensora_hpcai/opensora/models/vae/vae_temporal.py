@@ -16,6 +16,12 @@ def is_odd(n):
 def cast_tuple(t, length=1):
     return t if isinstance(t, tuple) else ((t,) * length)
 
+def pad_at_dim(t, pad, dim=-1):
+    dims_from_right = (-dim - 1) if dim < 0 else (t.ndim - dim - 1)
+    zeros = (0, 0) * dims_from_right
+    return ops.pad(t, (*zeros, *pad), mode="constant")
+
+
 class CausalConv3d(nn.Cell):
     # default values aligned to torch
     def __init__(
@@ -417,6 +423,7 @@ class VAE_Temporal(nn.Cell):
             activation_fn=activation_fn,
         )
         self.split = ops.Split(axis=1, output_num=2)
+        self.stdnormal = ops.StandardNormal()
 
     def get_latent_size(self, input_size):
         latent_size = []
@@ -451,7 +458,7 @@ class VAE_Temporal(nn.Cell):
     def sample(self, mean, logvar):
         # sample z from latent distribution
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
-        std = self.exp(0.5 * logvar)
+        std = ops.exp(0.5 * logvar)
         z = mean + std * self.stdnormal(mean.shape)
 
         return z

@@ -259,7 +259,7 @@ class VideoAutoencoderPipeline(nn.Cell):
             x = self.spatial_vae.decode(x_z)
         else:
             x_z_list = []
-            for i in range(0, z.size(2), self.micro_z_frame_size):
+            for i in range(0, z.shape[2], self.micro_z_frame_size):
                 z_bs = z[:, :, i : i + self.micro_z_frame_size]
                 x_z_bs = self.temporal_vae.decode(z_bs, num_frames=min(self.micro_frame_size, num_frames))
                 x_z_list.append(x_z_bs)
@@ -302,6 +302,7 @@ def OpenSoraVAE_V1_2(
     freeze_vae_2d=False,
     cal_loss=False,
 ):
+    # import pdb; pdb.set_trace()
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
