@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import nn
+from mindspore._c_expression import ms_ctx_param
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -84,10 +85,15 @@ def init_env(
         )
 
     backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
-    if backend in ["kbk", "dvm", "ge"]:
-        ms.set_context(jit_config={"jit_level": backend_map[backend]})
+    if "jit_config" in ms_ctx_param.__members__ and mode == 0:
+        if backend in ["kbk", "dvm", "ge"]:
+            ms.set_context(jit_config={"jit_level": backend_map[backend]})
+        else:
+            logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
     else:
-        logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
+        logger.warning(
+            f"The current backend is not suitable baeacuse current MindSpore version or mode does not match , please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
