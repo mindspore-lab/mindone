@@ -371,3 +371,111 @@ class Decoder(nn.Cell):
         return x
 
 
+class VAE_Temporal(nn.Cell):
+    def __init__(
+        self,
+        in_out_channels=4,
+        latent_embed_dim=4,
+        embed_dim=4,
+        filters=128,
+        num_res_blocks=4,
+        channel_multipliers=(1, 2, 2, 4),
+        temporal_downsample=(True, True, False),
+        num_groups=32,  # for nn.GroupNorm
+        activation_fn="swish",
+    ):
+        super().__init__()
+
+        self.time_downsample_factor = 2 ** sum(temporal_downsample)
+        # self.time_padding = self.time_downsample_factor - 1
+        self.patch_size = (self.time_downsample_factor, 1, 1)
+        self.out_channels = in_out_channels
+
+        # NOTE: following MAGVIT, conv in bias=False in encoder first conv
+        self.encoder = Encoder(
+            in_out_channels=in_out_channels,
+            latent_embed_dim=latent_embed_dim * 2,
+            filters=filters,
+            num_res_blocks=num_res_blocks,
+            channel_multipliers=channel_multipliers,
+            temporal_downsample=temporal_downsample,
+            num_groups=num_groups,  # for nn.GroupNorm
+            activation_fn=activation_fn,
+        )
+        self.quant_conv = CausalConv3d(2 * latent_embed_dim, 2 * embed_dim, 1)
+
+        self.post_quant_conv = CausalConv3d(embed_dim, latent_embed_dim, 1)
+        self.decoder = Decoder(
+            in_out_channels=in_out_channels,
+            latent_embed_dim=latent_embed_dim,
+            filters=filters,
+            num_res_blocks=num_res_blocks,
+            channel_multipliers=channel_multipliers,
+            temporal_downsample=temporal_downsample,
+            num_groups=num_groups,  # for nn.GroupNorm
+            activation_fn=activation_fn,
+        )
+        self.split = ops.Split(axis=1, output_num=2)
+
+    def get_latent_size(self, input_size):
+        latent_size = []
+        for i in range(3):
+            if input_size[i] is None:
+                lsize = None
+            elif i == 0:
+                time_padding = (
+                    0
+                    if (input_size[i] % self.time_downsample_factor == 0)
+                    else self.time_downsample_factor - input_size[i] % self.time_downsample_factor
+                )
+                lsize = (input_size[i] + time_padding) // self.patch_size[i]
+            else:
+                lsize = input_size[i] // self.patch_size[i]
+            latent_size.append(lsize)
+        return latent_size
+
+    def _encode(self, x):
+        time_padding = (
+            0
+            if (x.shape[2] % self.time_downsample_factor == 0)
+            else self.time_downsample_factor - x.shape[2] % self.time_downsample_factor
+        )
+        x = pad_at_dim(x, (time_padding, 0), dim=2)
+        encoded_feature = self.encoder(x)
+        moments = self.quant_conv(encoded_feature).to(x.dtype)
+        mean, logvar = self.split(moments)
+
+        return mean, logvar
+
+    def sample(self, mean, logvar):
+        # sample z from latent distribution
+        logvar = ops.clip_by_value(logvar, -30.0, 20.0)
+        std = self.exp(0.5 * logvar)
+        z = mean + std * self.stdnormal(mean.shape)
+
+        return z
+
+    def encode(self, x):
+        # embedding, get latent representation z
+        posterior_mean, posterior_logvar = self._encode(x)
+        z = self.sample(posterior_mean, posterior_logvar)
+
+        return z
+
+    def decode(self, z, num_frames=None):
+        time_padding = (
+            0
+            if (num_frames % self.time_downsample_factor == 0)
+            else self.time_downsample_factor - num_frames % self.time_downsample_factor
+        )
+        z = self.post_quant_conv(z)
+        x = self.decoder(z)
+        x = x[:, :, time_padding:]
+        return x
+
+    def construct(self, x, sample_posterior=True):
+        posterior_mean, posterior_logvar = self._encode(x)
+        if sample_posterior:
+            z = self.sample(posterior_mean, posterior_logvar)
+        recon_video = self.decode(z, num_frames=x.shape[2])
+        return recon_video, posterior_mean, posterior_logvar, z
