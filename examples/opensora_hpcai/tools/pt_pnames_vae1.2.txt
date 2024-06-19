@@ -39,7 +39,7 @@ spatial_vae.module.encoder.down_blocks.1.resnets.1.norm2.bias
 spatial_vae.module.encoder.down_blocks.1.resnets.1.conv2.weight
 spatial_vae.module.encoder.down_blocks.1.resnets.1.conv2.bias
 spatial_vae.module.encoder.down_blocks.1.downsamplers.0.conv.weight
-spatial_vae.module.encoder.down_blocks.2.downsamplers.0.conv.bias
+spatial_vae.module.encoder.down_blocks.1.downsamplers.0.conv.bias
 spatial_vae.module.encoder.down_blocks.2.resnets.0.norm1.weight
 spatial_vae.module.encoder.down_blocks.2.resnets.0.norm1.bias
 spatial_vae.module.encoder.down_blocks.2.resnets.0.conv1.weight
@@ -59,7 +59,7 @@ spatial_vae.module.encoder.down_blocks.2.resnets.1.norm2.bias
 spatial_vae.module.encoder.down_blocks.2.resnets.1.conv2.weight
 spatial_vae.module.encoder.down_blocks.2.resnets.1.conv2.bias
 spatial_vae.module.encoder.down_blocks.2.downsamplers.0.conv.weight
-spatial_vae.module.encoder.down_blocks.1.downsamplers.0.conv.bias
+spatial_vae.module.encoder.down_blocks.2.downsamplers.0.conv.bias
 spatial_vae.module.encoder.down_blocks.3.resnets.0.norm1.weight
 spatial_vae.module.encoder.down_blocks.3.resnets.0.norm1.bias
 spatial_vae.module.encoder.down_blocks.3.resnets.0.conv1.weight
