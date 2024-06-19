@@ -1,0 +1,57 @@
+# model
+model_version: v1.1
+pretrained_model_path: "models/PixArt-XL-2-1024-MS.ckpt"
+model_max_length: 200
+
+enable_flash_attention: True
+enable_sequence_parallelism: True
+use_recompute: True
+
+use_parallel: True
+parallel_mode: "semi"
+data_parallel: 4
+model_parallel: 1
+sequence_parallel: 2
+add_datetime: False
+
+# data
+image_size: [ 512, 512 ]
+num_frames: 16
+frame_stride: 3
+
+num_parallel_workers: 16
+max_rowsize: 256
+
+# precision
+amp_level: "O2"
+dtype: "bf16"
+init_loss_scale: 65536
+
+# training hyper-params
+scheduler: "cosine_decay"
+start_learning_rate: 1.e-4
+end_learning_rate: 2.e-5
+warmup_steps: 500   # TODO: ablate
+
+batch_size: 1
+clip_grad: True
+max_grad_norm: 5.0
+use_ema: False
+
+optim: "adamw_re"
+optim_eps: 1.e-8
+weight_decay: 0.
+
+epochs: 2000
+ckpt_save_interval: 100
+
+mask_ratios:
+  mask_no: 0.75
+  mask_quarter_random: 0.025
+  mask_quarter_head: 0.025
+  mask_quarter_tail: 0.025
+  mask_quarter_head_tail: 0.05
+  mask_image_random: 0.025
+  mask_image_head: 0.025
+  mask_image_tail: 0.025
+  mask_image_head_tail: 0.05

@@ -12,6 +12,10 @@ from opensora.models.layers.blocks import (
     PatchEmbed,
     PatchEmbed3D,
     SelfAttention,
+    SeqParallelMLP,
+    SeqParallelMultiHeadCrossAttention,
+    SeqParallelSelfAttention,
+    SeqParallelT2IFinalLayer,
     T2IFinalLayer,
     TimestepEmbedder,
     approx_gelu,
@@ -38,12 +42,10 @@ class STDiTBlock(nn.Cell):
         drop_path=0.0,
         enable_flashattn=False,
         enable_layernorm_kernel=False,
-        enable_sequence_parallelism=False,
     ):
         super().__init__()
         self.hidden_size = hidden_size
         assert not enable_layernorm_kernel, "Not implemented"
-        assert not enable_sequence_parallelism, "Not implemented"
 
         self.attn_cls = SelfAttention
         self.mha_cls = MultiHeadCrossAttention
@@ -151,6 +153,172 @@ class STDiTBlock(nn.Cell):
         return x
 
 
+class SeqParallelSTDiTBlock(nn.Cell):
+    def __init__(
+        self,
+        hidden_size,
+        num_heads,
+        d_s=None,
+        d_t=None,
+        mlp_ratio=4.0,
+        drop_path=0.0,
+        enable_flashattn=False,
+        enable_layernorm_kernel=False,
+        parallel_config={},
+    ):
+        super().__init__()
+        self.hidden_size = hidden_size
+        assert not enable_layernorm_kernel, "Not implemented"
+        assert drop_path == 0.0, "DropPath is not supported in sequence parallel yet."
+
+        self.attn_cls = SeqParallelSelfAttention
+        self.mha_cls = SeqParallelMultiHeadCrossAttention
+
+        self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+
+        self.attn = self.attn_cls(
+            hidden_size,
+            num_heads=num_heads,
+            qkv_bias=True,
+            enable_flash_attention=enable_flashattn,
+            parallel_config=parallel_config,
+        )
+        self.cross_attn = self.mha_cls(
+            hidden_size, num_heads, enable_flash_attention=enable_flashattn, parallel_config=parallel_config
+        )
+        self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.mlp = SeqParallelMLP(
+            in_features=hidden_size,
+            hidden_features=int(hidden_size * mlp_ratio),
+            act_layer=approx_gelu,
+            drop=0,
+            parallel_config=parallel_config,
+        )
+        self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.scale_shift_table = ms.Parameter(ops.randn(1, 6, hidden_size) / hidden_size**0.5)
+
+        # temporal attention
+        self.d_s = d_s
+        self.d_t = d_t
+
+        self.attn_temp = self.attn_cls(
+            hidden_size,
+            num_heads=num_heads,
+            qkv_bias=True,
+            enable_flash_attention=enable_flashattn,
+            parallel_config=parallel_config,
+        )
+
+        self.add = ops.Add()
+        self.mult = ops.Mul()
+        self.transpose = ops.Transpose()
+        self.add_1 = ops.Add()
+        self.split = ops.Split(axis=1, output_num=6)
+
+        self.t2i_modulate_add_0 = ops.Add()
+        self.t2i_modulate_mult = ops.Mul()
+        self.t2i_modulate_add_1 = ops.Add()
+
+        self.parallel_config = parallel_config
+        self.shard()
+
+    def _rearrange_in_S(self, x, T):
+        # x_s = rearrange(x_m, "B (T S) C -> (B T) S C", T=self.d_t, S=self.d_s)
+        B, TS, C = x.shape
+        S = TS // T
+        x = ops.reshape(x, (B * T, S, C))
+        return x
+
+    def _rearrange_out_S(self, x, T):
+        # x_s = rearrange(x_s, "(B T) S C -> B (T S) C", T=self.d_t, S=self.d_s)
+        BT, S, C = x.shape
+        B = BT // T
+        x = ops.reshape(x, (B, T * S, C))
+        return x
+
+    def _rearrange_in_T(self, x, T):
+        # x_t = rearrange(x, "B (T S) C -> (B S) T C", T=self.d_t, S=self.d_s)
+        B, TS, C = x.shape
+        S = TS // T
+        x = ops.reshape(x, (B, T, S, C))
+        x = self.transpose(x, (0, 2, 1, 3))
+        x = ops.reshape(x, (B * S, T, C))
+        return x
+
+    def _rearrange_out_T(self, x, S):
+        # x_t = rearrange(x_t, "(B S) T C -> B (T S) C", T=self.d_t, S=self.d_s)
+        BS, T, C = x.shape
+        B = BS // S
+        x = ops.reshape(x, (B, S, T, C))
+        x = self.transpose(x, (0, 2, 1, 3))
+        x = ops.reshape(x, (B, T * S, C))
+        return x
+
+    def t2i_modulate(self, x, shift, scale):
+        a = self.t2i_modulate_add_0(scale, 1)
+        x = self.t2i_modulate_mult(x, a)
+        x = self.t2i_modulate_add_1(x, shift)
+        return x
+
+    def construct(self, x: Tensor, y: Tensor, t: Tensor, mask: Tensor, tpe: Tensor):
+        """
+        x: (B N C_x)
+        y: (1 B*N_tokens C_y)
+        t: (B C_t)
+        mask: (B, N_tokens)
+        """
+        B, _, _ = x.shape
+
+        t = ops.reshape(t, (B, 6, -1))
+        t = self.add_1(t, self.scale_shift_table)
+
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.split(t)
+        x_m = self.t2i_modulate(self.norm1(x), shift_msa, scale_msa)
+
+        # spatial branch
+        x_s = self._rearrange_in_S(x_m, T=self.d_t)
+        x_s = self.attn(x_s)
+
+        x_s = self._rearrange_out_S(x_s, T=self.d_t)
+        x = self.add(x, self.drop_path(self.mult(x_s, gate_msa)))
+
+        # temporal branch
+        x_t = self._rearrange_in_T(x, T=self.d_t)
+        x_t = self.add_1(x_t, tpe)
+        x_t = self.attn_temp(x_t)
+
+        x_t = self._rearrange_out_T(x_t, S=self.d_s)
+        x = self.add(x, self.drop_path(self.mult(x_t, gate_msa)))
+
+        # cross attn
+        x = self.add(x, self.cross_attn(x, y, mask))
+
+        # mlp
+        x = self.add(
+            x, self.drop_path(self.mult(self.mlp(self.t2i_modulate(self.norm2(x), shift_mlp, scale_mlp)), gate_mlp))
+        )
+
+        return x
+
+    def shard(self):
+        self.dp = self.parallel_config.get("data_parallel", 1)
+        self.mp = self.parallel_config.get("model_parallel", 1)
+        self.sp = self.parallel_config.get("sequence_parallel", 1)
+
+        self.add.shard(((self.dp, self.sp, 1), (self.dp, self.sp, 1)))
+        self.mult.shard(((self.dp, self.sp, 1), (self.dp, 1, 1)))
+
+        self.transpose.shard(((self.dp, 1, 1, 1),))
+        self.add_1.shard(((self.dp, 1, 1), (1, 1, 1)))
+        self.split.shard(((self.dp, 1, 1),))
+
+        self.norm1.layer_norm.shard(((self.dp, self.sp, 1), (1,), (1,)))
+        self.norm2.layer_norm.shard(((self.dp, self.sp, 1), (1,), (1,)))
+        self.t2i_modulate_add_0.shard(((self.dp, 1, 1), ()))
+        self.t2i_modulate_mult.shard(((self.dp, self.sp, 1), (self.dp, 1, 1)))
+        self.t2i_modulate_add_1.shard(((self.dp, self.sp, 1), (self.dp, 1, 1)))
+
+
 class STDiT(nn.Cell):
     """
     Spatial-Temporal DiT model
@@ -186,6 +354,7 @@ class STDiT(nn.Cell):
         use_recompute=False,
         num_recompute_blocks=None,
         patchify_conv3d_replace=None,
+        parallel_config={},
     ):
         super().__init__()
         self.pred_sigma = pred_sigma
@@ -207,6 +376,7 @@ class STDiT(nn.Cell):
         self.enable_layernorm_kernel = enable_layernorm_kernel
         self.space_scale = space_scale
         self.time_scale = time_scale
+        self.enable_sequence_parallelism = enable_sequence_parallelism
 
         assert patchify_conv3d_replace in [None, "linear", "conv2d"]
 
@@ -238,28 +408,61 @@ class STDiT(nn.Cell):
             uncond_prob=class_dropout_prob,
             act_layer=approx_gelu,
             token_num=model_max_length,
+            requires_grad=False,
         )
 
         drop_path = np.linspace(0, drop_path, depth)
-        self.blocks = nn.CellList(
-            [
-                STDiTBlock(
-                    self.hidden_size,
-                    self.num_heads,
-                    mlp_ratio=self.mlp_ratio,
-                    drop_path=drop_path[i],
-                    enable_flashattn=self.enable_flashattn,
-                    enable_layernorm_kernel=self.enable_layernorm_kernel,
-                    enable_sequence_parallelism=enable_sequence_parallelism,
-                    d_t=self.num_temporal,
-                    d_s=self.num_spatial,
-                )
-                for i in range(self.depth)
-            ]
-        )
-        self.final_layer = T2IFinalLayer(
-            hidden_size, int(np.prod(self.patch_size)), self.out_channels, d_t=self.num_temporal, d_s=self.num_spatial
-        )
+        if enable_sequence_parallelism:
+            self.blocks = nn.CellList(
+                [
+                    SeqParallelSTDiTBlock(
+                        self.hidden_size,
+                        self.num_heads,
+                        mlp_ratio=self.mlp_ratio,
+                        drop_path=drop_path[i],
+                        enable_flashattn=self.enable_flashattn,
+                        enable_layernorm_kernel=self.enable_layernorm_kernel,
+                        d_t=self.num_temporal,
+                        d_s=self.num_spatial,
+                        parallel_config=parallel_config,
+                    )
+                    for i in range(self.depth)
+                ]
+            )
+        else:
+            self.blocks = nn.CellList(
+                [
+                    STDiTBlock(
+                        self.hidden_size,
+                        self.num_heads,
+                        mlp_ratio=self.mlp_ratio,
+                        drop_path=drop_path[i],
+                        enable_flashattn=self.enable_flashattn,
+                        enable_layernorm_kernel=self.enable_layernorm_kernel,
+                        d_t=self.num_temporal,
+                        d_s=self.num_spatial,
+                    )
+                    for i in range(self.depth)
+                ]
+            )
+
+        if enable_sequence_parallelism:
+            self.final_layer = SeqParallelT2IFinalLayer(
+                hidden_size,
+                int(np.prod(self.patch_size)),
+                self.out_channels,
+                d_t=self.num_temporal,
+                d_s=self.num_spatial,
+                parallel_config=parallel_config,
+            )
+        else:
+            self.final_layer = T2IFinalLayer(
+                hidden_size,
+                int(np.prod(self.patch_size)),
+                self.out_channels,
+                d_t=self.num_temporal,
+                d_s=self.num_spatial,
+            )
 
         # init model
         self.initialize_weights()
@@ -271,10 +474,6 @@ class STDiT(nn.Cell):
                 self.freeze_not_temporal()
             elif freeze == "text":
                 self.freeze_text()
-
-        # sequence parallel related configs
-        self.enable_sequence_parallelism = enable_sequence_parallelism
-        self.sp_rank = None
 
         if use_recompute:
             if num_recompute_blocks is None:
@@ -324,10 +523,10 @@ class STDiT(nn.Cell):
         # x = rearrange(x, "B T S C -> B (T S) C")
         x = ops.reshape(x, (B, TS, C))
 
-        t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
+        t = self.t_embedder(timestep)  # [B, C]
         # why project again on t ?
         t0 = self.t_block(t)  # [B, C]
-        y = self.y_embedder(y, self.training)  # [B, 1, N_token, C]
+        y = self.y_embedder(y)  # [B, 1, N_token, C]
 
         # (b 1 max_tokens d_t) -> (b max_tokens d_t)  -> (1 b*max_tokens d_t)
         y = y.squeeze(1).view(1, -1, x.shape[-1])
@@ -336,6 +535,8 @@ class STDiT(nn.Cell):
         for i, block in enumerate(self.blocks):
             if i == 0:
                 tpe = self.pos_embed_temporal
+            elif self.enable_sequence_parallelism:
+                tpe = ops.zeros_like(self.pos_embed_temporal)
             else:
                 tpe = None
 
@@ -439,11 +640,11 @@ class STDiT(nn.Cell):
 
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         # xavier_uniform_(w.view([w.shape[0], -1]))
-        w = self.x_embedder.proj.weight
-        w_flatted = w.reshape(w.shape[0], -1)
+        w = self.x_embedder.proj.weight.init_data()
+        # w_flatted = w.reshape(w.shape[0], -1)
         # FIXME: incompatible in optim parallel mode
         # FIXME: impl in torch can be incorrect. can be reshape order mismatch
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w.shape, w.dtype).init_data())
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
@@ -463,7 +664,7 @@ class STDiT(nn.Cell):
         constant_(self.final_layer.linear.weight, 0)
         constant_(self.final_layer.linear.bias, 0)
 
-    def load_from_checkpoint(self, ckpt_path):
+    def load_from_checkpoint(self, ckpt_path, split_qkv=False):
         if not os.path.exists(ckpt_path):
             print(f"WARNING: {ckpt_path} not found. No checkpoint loaded!!")
         else:
@@ -484,6 +685,25 @@ class STDiT(nn.Cell):
                     conv3d_weight = sd.pop(key_3d)  # c_out, c_in, 1, 2, 2
                     assert conv3d_weight.shape[-3] == 1
                     sd[key_3d] = ms.Parameter(conv3d_weight.squeeze(axis=-3), name=key_3d)
+
+            # split QKV for sequence parallism
+            if split_qkv:
+                new_sd = dict()
+                for k, v in sd.items():
+                    if ".kv_linear." in k:
+                        k_linear, v_linear = v.chunk(2)
+                        new_sd[k.replace(".kv_linear.", ".k_linear.")] = ms.Parameter(k_linear)
+                        new_sd[k.replace(".kv_linear.", ".v_linear.")] = ms.Parameter(v_linear)
+                    elif ".qkv." in k:
+                        q_linear, k_linear, v_linear = v.chunk(3)
+                        new_sd[k.replace(".qkv.", ".q_linear.")] = ms.Parameter(q_linear)
+                        new_sd[k.replace(".qkv.", ".k_linear.")] = ms.Parameter(k_linear)
+                        new_sd[k.replace(".qkv.", ".v_linear.")] = ms.Parameter(v_linear)
+                    elif ".scale_shift_table" in k and len(v.shape) == 2:
+                        new_sd[k] = ms.Parameter(v[None, ...])
+                    else:
+                        new_sd[k] = v
+                sd = new_sd
 
             m, u = ms.load_param_into_net(self, sd)
             print("net param not load: ", m, len(m))

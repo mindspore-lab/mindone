@@ -42,6 +42,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     enable_dvm: bool = False,
+    enable_sequence_parallel: bool = False,
     debug: bool = False,
 ):
     """
@@ -62,7 +63,7 @@ def init_env(
         logger.warning("Debug mode is on, switching execution mode to PyNative.")
         mode = ms.PYNATIVE_MODE
 
-    if distributed:
+    if distributed and enable_sequence_parallel:
         ms.set_context(
             mode=mode,
             device_target=device_target,
@@ -71,6 +72,13 @@ def init_env(
         device_num = get_group_size()
         rank_id = get_rank()
         logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+            enable_alltoall=True,
+            device_num=device_num,
+            full_batch=True,
+        )
+    elif distributed:
         ms.reset_auto_parallel_context()
 
         ms.set_auto_parallel_context(
@@ -113,26 +121,30 @@ def data_parallel_split(x, device_id, device_num):
 
 
 def main(args):
-    if args.append_timestr:
+    if args.add_datetime:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        save_dir = f"{args.output_path}/{time_str}"
-    else:
-        save_dir = f"{args.output_path}"
+        args.output_path = os.path.join(args.output_path, time_str)
+    os.makedirs(args.output_path, exist_ok=True)
 
-    os.makedirs(save_dir, exist_ok=True)
     if args.save_latent:
         latent_dir = os.path.join(args.output_path, "denoised_latents")
         os.makedirs(latent_dir, exist_ok=True)
-    set_logger(name="", output_dir=save_dir)
 
     # 1. init env
     rank_id, device_num = init_env(
-        args.mode,
-        args.seed,
-        args.use_parallel,
+        mode=args.mode,
+        seed=args.seed,
+        distributed=args.use_parallel,
         device_target=args.device_target,
         enable_dvm=args.enable_dvm,
+        enable_sequence_parallel=args.enable_sequence_parallelism,
         debug=args.debug,
+    )
+    set_logger(
+        log_fn="stdout.log",
+        output_dir=os.path.join(args.output_path, f"log/rank_{rank_id}"),
+        rank=rank_id,
+        log_level=eval(args.log_level),
     )
 
     # 1.1 get captions from cfg or prompt_path
@@ -172,6 +184,12 @@ def main(args):
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
+        parallel_config=dict(
+            data_parallel=args.data_parallel,
+            model_parallel=args.model_parallel,
+            sequence_parallel=args.sequence_parallel,
+        ),
     )
     if args.pre_patchify and args.model_version != "v1.1":
         raise ValueError("`pre_patchify=True` can only be used in model version 1.1.")
@@ -222,7 +240,7 @@ def main(args):
     if args.ckpt_path:
         logger.info(f"Loading ckpt {args.ckpt_path} into {model_name}")
         assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
-        latte_model.load_from_checkpoint(args.ckpt_path)
+        latte_model.load_from_checkpoint(args.ckpt_path, split_qkv=args.enable_sequence_parallelism)
     else:
         logger.warning(f"{model_name} uses random initialization!")
 
@@ -240,6 +258,8 @@ def main(args):
 
     # 2.3 text encoder
     if args.text_embed_folder is None:
+        if args.enable_sequence_parallelism:
+            raise ValueError("`text_embed_folder` must be provided for sequence parallel.")
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(
             "t5", args.t5_model_dir, model_max_length=args.model_max_length
         )
@@ -264,18 +284,15 @@ def main(args):
         for fp in embed_paths:
             prompt_prefix.append(os.path.basename(fp)[:-4])
             dat = np.load(fp)
-            text_tokens.append(dat["tokens"])
+            if "tokens" in dat:
+                text_tokens.append(dat["tokens"])
             mask.append(dat["mask"])
             text_emb.append(dat["text_emb"])
-        text_tokens = np.concatenate(text_tokens)
-        mask = np.concatenate(mask)
-        text_emb = np.concatenate(text_emb)
-        logger.info(f"Num tokens: {mask.sum(1)}")
 
-        num_prompts = text_emb.shape[0]
-        text_tokens = ms.Tensor(text_tokens)
+        text_tokens = ms.Tensor(text_tokens) if text_tokens else None
         mask = ms.Tensor(mask, dtype=ms.uint8)
         text_emb = ms.Tensor(text_emb, dtype=ms.float32)
+        num_prompts = text_emb.shape[0]
         text_encoder = None
 
     if (args.model_version == "v1" or args.reference_path is None) and num_prompts < 1:
@@ -429,16 +446,19 @@ def main(args):
         if videos:
             videos = np.concatenate(videos, axis=1)
 
+        if rank_id > 0 and args.enable_sequence_parallelism:
+            continue
+
         # save result
         for j in range(ns):
             global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
                 prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
-                save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
+                save_fp = f"{args.output_path}/{global_idx:03d}-{prompt}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
             else:
                 fn = prompt_prefix[global_idx]
-                save_fp = f"{save_dir}/{fn}.{args.save_format}"
+                save_fp = f"{args.output_path}/{fn}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{fn}.npy"
 
             # save videos
@@ -578,7 +598,7 @@ def parse_args():
         help="output dir to save the generated videos",
     )
     parser.add_argument(
-        "--append_timestr",
+        "--add_datetime",
         type=str2bool,
         default=True,
         help="If true, an subfolder named with timestamp under output_path will be created to save the sampling results",
@@ -589,6 +609,12 @@ def parse_args():
         choices=["gif", "mp4"],
         type=str,
         help="video format for saving the sampling output, gif or mp4",
+    )
+    parser.add_argument(
+        "--log_level",
+        type=str,
+        default="logging.INFO",
+        help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     parser.add_argument("--fps", type=int, default=8, help="FPS in the saved video")
     parser.add_argument("--batch_size", default=4, type=int, help="infer batch size")
@@ -610,6 +636,30 @@ def parse_args():
     parser.add_argument("--pre_patchify", default=False, type=str2bool, help="Patchify the latent before inference.")
     parser.add_argument("--max_image_size", default=512, type=int, help="Max image size for patchified latent.")
     parser.add_argument("--max_num_frames", default=16, type=int, help="Max number of frames for patchified latent.")
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable sequence parallelism.",
+    )
+    parser.add_argument(
+        "--data_parallel",
+        default=1,
+        type=int,
+        help="number of devices for data parallel (slicing along batch) when use sequence parallelism.",
+    )
+    parser.add_argument(
+        "--model_parallel",
+        default=1,
+        type=int,
+        help="number of devices for model parallel (slicing along heads) when use sequence parallelism.",
+    )
+    parser.add_argument(
+        "--sequence_parallel",
+        default=1,
+        type=int,
+        help="number of devices for sequence parallel (slicing along sequence length) when use sequence parallelism.",
+    )
     default_args = parser.parse_args()
 
     __dir__ = os.path.dirname(os.path.abspath(__file__))
