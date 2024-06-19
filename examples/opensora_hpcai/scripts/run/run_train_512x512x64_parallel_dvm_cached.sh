@@ -19,7 +19,7 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
 	--vae_latent_folder datasets/sora_overfitting_dataset_0410_vae_512x512 \
 	--text_embed_folder datasets/sora_overfitting_dataset_0410 \
     --use_parallel=True \
-    --enable_dvm=True \
+    --badkend="dvm" \
     --num_frames=$num_frames \
     --optim=adamw \
     --global_bf16=False \
@@ -30,7 +30,6 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
     --gradient_accumulation_steps=1 \
     --use_ema=False \
     --output_path=$output_dir \
-    --badkend="dvm" \
 
     # --max_device_memory="55GB" \
 	# --video_folder datasets/sora_overfitting_dataset_0410 \

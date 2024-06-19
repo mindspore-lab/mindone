@@ -255,8 +255,6 @@ To improve training performance, you can set `--backend="dvm"` to the training c
 
 Here is an example for training on MS2.3:
 ```
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 
 python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
     --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
