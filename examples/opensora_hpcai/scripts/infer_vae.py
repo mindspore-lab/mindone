@@ -36,7 +36,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
+    backend: str = "kbk",
     global_bf16: bool = False,
 ):
     """
@@ -83,9 +83,11 @@ def init_env(
             device_target=device_target,
         )
 
-    if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
+    if backend in ["kbk", "dvm", "ge"]:
+        ms.set_context(jit_config={"jit_level": backend_map[backend]})
+    else:
+        logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})

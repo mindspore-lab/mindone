@@ -115,8 +115,8 @@ def init_env(
             device_target=device_target,
             pynative_synchronize=debug,
         )
-    backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
 
+    backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
     if backend in ["kbk", "dvm", "ge"]:
         ms.set_context(jit_config={"jit_level": backend_map[backend]})
     else:
@@ -158,7 +158,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
+        backend=args.backend,
         global_bf16=args.global_bf16,
         debug=args.debug,
     )

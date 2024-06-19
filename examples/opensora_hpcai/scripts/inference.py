@@ -41,7 +41,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
+    backend: str = "kbk",
     debug: bool = False,
 ):
     """
@@ -87,9 +87,11 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
+    if backend in ["kbk", "dvm", "ge"]:
+        ms.set_context(jit_config={"jit_level": backend_map[backend]})
+    else:
+        logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
 
     return rank_id, device_num
 
@@ -131,7 +133,7 @@ def main(args):
         args.seed,
         args.use_parallel,
         device_target=args.device_target,
-        enable_dvm=args.enable_dvm,
+        backend=args.backend,
         debug=args.debug,
     )
 
@@ -495,7 +497,9 @@ def parse_args():
         default=None,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
+    parser.add_argument(
+        "--backend", default="kbk", type=str, choices=["kbk", "dvm", "ge"], help="Specify the backend: kbk, dvm, ge"
+    )
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     parser.add_argument(

@@ -6,9 +6,6 @@ export MS_MEMORY_STATISTIC=0
 
 export MS_DATASET_SINK_QUEUE=4
 
-# enable kbk: 1
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 
 # log level
 export GLOG_v=2
@@ -33,6 +30,7 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
     --gradient_accumulation_steps=1 \
     --use_ema=False \
     --output_path=$output_dir \
+    --badkend="dvm" \
 
     # --max_device_memory="55GB" \
 	# --video_folder datasets/sora_overfitting_dataset_0410 \
