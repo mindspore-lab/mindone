@@ -12,7 +12,7 @@ import yaml
 
 import mindspore as ms
 from mindspore import Model, nn
-from mindspore._c_expression import ms_ctx_param
+from mindspore._c_expression import ms_ctx_param  # FIXME: internal API
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor

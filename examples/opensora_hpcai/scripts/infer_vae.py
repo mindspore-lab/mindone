@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import nn
-from mindspore._c_expression import ms_ctx_param
+from mindspore._c_expression import ms_ctx_param  # FIXME: internal API
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
