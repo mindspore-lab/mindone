@@ -75,7 +75,9 @@ def parse_train_args(parser):
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
+    parser.add_argument(
+        "--backend", default="kbk", type=str, choices=["kbk", "dvm", "ge"], help="Specify the backend: kbk, dvm, ge"
+    )
 
     # training hyper-params
     parser.add_argument(

@@ -496,7 +496,11 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model       | Context      | Precision | BS | NPUs | Resolution | Train T. (s/step) |
 |:------------|:-------------|:----------|:--:|:----:|:----------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  1   | 16x512x512 |       2.80        |
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 16x512x512 |       2           |
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 64x512x512 |      8.3          |
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 24x576x1024 |     7.89         |
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 64x576x1024 |     21.15        |
+| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 24x1024x1024 |    16.98        |
 
 
 ### Open-Sora 1.0
