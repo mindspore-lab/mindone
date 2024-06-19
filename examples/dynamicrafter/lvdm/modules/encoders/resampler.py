@@ -5,7 +5,7 @@ import math
 # import torch
 # import torch.nn as nn
 import mindspore
-from mindspore import ops, nn
+from mindspore import ops, nn, Parameter
 
 # class ImageProjModel(nn.Module):
 #     """Projection Model"""
@@ -27,8 +27,8 @@ from mindspore import ops, nn
 # FFN
 def FeedForward(dim, mult=4):
     inner_dim = int(dim * mult)
-    return nn.Sequential(
-        nn.LayerNorm(dim),
+    return nn.SequentialCell(
+        nn.LayerNorm([dim], epsilon=1e-05),
         nn.Dense(dim, inner_dim, has_bias=False),
         nn.GELU(),
         nn.Dense(inner_dim, dim, has_bias=False),
@@ -54,8 +54,8 @@ class PerceiverAttention(nn.Cell):
         self.heads = heads
         inner_dim = dim_head * heads
 
-        self.norm1 = nn.LayerNorm(dim)
-        self.norm2 = nn.LayerNorm(dim)
+        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05)
+        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05)
 
         self.to_q = nn.Dense(dim, inner_dim, has_bias=False)
         self.to_kv = nn.Dense(dim, inner_dim * 2, has_bias=False)
@@ -116,15 +116,15 @@ class Resampler(nn.Cell):
         if video_length is not None: 
             num_queries = num_queries * video_length
 
-        self.latents = nn.Parameter(ops.randn(1, num_queries, dim) / dim**0.5)
+        self.latents = Parameter(ops.randn(1, num_queries, dim) / dim**0.5)
         self.proj_in = nn.Dense(embedding_dim, dim)
         self.proj_out = nn.Dense(dim, output_dim)
-        self.norm_out = nn.LayerNorm(output_dim)
+        self.norm_out = nn.LayerNorm([output_dim], epsilon=1e-05)
         
-        self.layers = nn.ModuleList([])
+        self.layers = nn.CellList([])
         for _ in range(depth):
             self.layers.append(
-                nn.ModuleList(
+                nn.CellList(
                     [
                         PerceiverAttention(dim=dim, dim_head=dim_head, heads=heads),
                         FeedForward(dim=dim, mult=ff_mult),

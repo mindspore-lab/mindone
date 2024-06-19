@@ -6,6 +6,7 @@ import datetime
 import glob
 from typing import Union, List, Tuple
 
+from omegaconf import OmegaConf
 import numpy as np
 import yaml
 import random
@@ -24,6 +25,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from utils import read_captions_from_csv, read_captions_from_txt, _check_cfgs_in_parser
 from ldm.models.diffusion.ddim import DDIMSampler
+
+from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
@@ -179,6 +182,120 @@ def load_data_prompts(data_dir, video_size=(256,256), video_frames=16, interp=Fa
     return filename_list, data_list, prompt_list
 
 
+def get_latent_z(model, videos):
+    b, c, t, h, w = videos.shape
+    x = rearrange_out_gn5d(videos)
+    # x = rearrange(videos, 'b c t h w -> (b t) c h w')
+    z = model.encode_first_stage(x)
+    z = rearrange_in_gn5d_bs(z, b=b)
+    # z = rearrange(z, '(b t) c h w -> b c t h w', b=b, t=t)
+    return z
+
+
+def image_guided_synthesis(model,
+                           prompts,
+                           videos,
+                           noise_shape,
+                           n_samples=1,
+                           ddim_steps=50,
+                           ddim_eta=1.,
+                            unconditional_guidance_scale=1.0,
+                            cfg_img=None,
+                            fs=None,
+                            text_input=False,
+                            multiple_cond_cfg=False,
+                            loop=False,
+                            interp=False,
+                            timestep_spacing='uniform',
+                            guidance_rescale=0.0,
+                            **kwargs):
+    ddim_sampler = DDIMSampler(model) if not multiple_cond_cfg else DDIMSampler_multicond(model)
+    batch_size = noise_shape[0]
+    # fs = torch.tensor([fs] * batch_size, dtype=torch.long, device=model.device)
+    fs = ms.Tensor([fs] * batch_size, dtype=ms.int64)
+
+    if not text_input:
+        prompts = [""]*batch_size
+
+    img = videos[:,:,0] #bchw
+    img_emb = model.embedder(img) ## blc
+    img_emb = model.image_proj_model(img_emb)
+
+    cond_emb = model.get_learned_conditioning(prompts)
+    cond = {"c_crossattn": [ops.cat([cond_emb,img_emb], axis=1)]}
+    if model.model.conditioning_key == 'hybrid':
+        z = get_latent_z(model, videos) # b c t h w
+        if loop or interp:
+            img_cat_cond = ops.zeros_like(z)
+            img_cat_cond[:,:,0,:,:] = z[:,:,0,:,:]
+            img_cat_cond[:,:,-1,:,:] = z[:,:,-1,:,:]
+        else:
+            img_cat_cond = z[:,:,:1,:,:]
+            img_cat_cond = ops.repeat_interleave(img_cat_cond, repeats=z.shape[2], axis=2)
+            # img_cat_cond = repeat(img_cat_cond, 'b c t h w -> b c (repeat t) h w', repeat=z.shape[2])
+        cond["c_concat"] = [img_cat_cond] # b c 1 h w
+    
+    if unconditional_guidance_scale != 1.0:
+        if model.uncond_type == "empty_seq":
+            prompts = batch_size * [""]
+            uc_emb = model.get_learned_conditioning(prompts)
+        elif model.uncond_type == "zero_embed":
+            uc_emb = ops.zeros_like(cond_emb)
+        uc_img_emb = model.embedder(ops.zeros_like(img)) ## b l c
+        uc_img_emb = model.image_proj_model(uc_img_emb)
+        uc = {"c_crossattn": [ops.cat([uc_emb,uc_img_emb], axis=1)]}
+        if model.model.conditioning_key == 'hybrid':
+            uc["c_concat"] = [img_cat_cond]
+    else:
+        uc = None
+
+    ## we need one more unconditioning image=yes, text=""
+    if multiple_cond_cfg and cfg_img != 1.0:
+        uc_2 = {"c_crossattn": [ops.cat([uc_emb,img_emb], axis=1)]}
+        if model.model.conditioning_key == 'hybrid':
+            uc_2["c_concat"] = [img_cat_cond]
+        kwargs.update({"unconditional_conditioning_img_nonetext": uc_2})
+    else:
+        kwargs.update({"unconditional_conditioning_img_nonetext": None})
+
+    z0 = None
+    cond_mask = None
+
+    batch_variants = []
+    for _ in range(n_samples):
+
+        if z0 is not None:
+            cond_z0 = z0.clone()
+            kwargs.update({"clean_cond": True})
+        else:
+            cond_z0 = None
+        if ddim_sampler is not None:
+
+            samples, _ = ddim_sampler.sample(S=ddim_steps,
+                                            conditioning=cond,
+                                            batch_size=batch_size,
+                                            shape=noise_shape[1:],
+                                            verbose=False,
+                                            unconditional_guidance_scale=unconditional_guidance_scale,
+                                            unconditional_conditioning=uc,
+                                            eta=ddim_eta,
+                                            cfg_img=cfg_img, 
+                                            mask=cond_mask,
+                                            x0=cond_z0,
+                                            fs=fs,
+                                            timestep_spacing=timestep_spacing,
+                                            guidance_rescale=guidance_rescale,
+                                            **kwargs
+                                            )
+
+        ## reconstruct from latent to pixel space
+        batch_images = model.decode_first_stage(samples)
+        batch_variants.append(batch_images)
+    ## variants, batch, c, t, h, w
+    batch_variants = ops.stack(batch_variants)
+    return batch_variants.permute(1, 0, 2, 3, 4, 5)
+
+
 def main(args):
     if args.append_timestr:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
@@ -213,14 +330,32 @@ def main(args):
                                                 video_frames=args.num_frames, 
                                                 interp=args.interp
                                                 )
-
     # TODO: data parallel split, support parallel inference 
     # captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)
     # print(f"Num captions for rank {rank_id}: {len(captions)}")
 
 
     # 2. model initiate and weight loading
+    # TODO: model mixed precision setting
+        ## model config
+    config = OmegaConf.load(args.config)
+    model_config = config.pop("model", OmegaConf.create())
     
+    ## set use_checkpoint as False as when using deepspeed, it encounters an error "deepspeed backend not set"
+    # model_config['params']['unet_config']['params']['use_checkpoint'] = False
+    model = instantiate_from_config(model_config)
+    # model.perframe_ae = args.perframe_ae
+
+    # assert os.path.exists(args.ckpt_path), "Error: checkpoint Not Found!"
+    
+    if args.ckpt_path:
+        logger.info(f"Loading ckpt {args.ckpt_path} into model")
+        assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
+        model.load_from_checkpoint(args.ckpt_path)
+    else:
+        logger.warning(f"Model uses random initialization!")
+
+    model.set_train(False)
     pass
 
 def parse_args():
@@ -275,17 +410,17 @@ def parse_args():
     ## currently not support looping video and generative frame interpolation
     parser.add_argument("--loop", action='store_true', default=False, help="generate looping videos or not")
     parser.add_argument("--interp", action='store_true', default=False, help="generate generative frame interpolation or not")    
-    default_args = parser.parse_args()
+    # default_args = parser.parse_args()
 
-    __dir__ = os.path.dirname(os.path.abspath(__file__))
-    abs_path = os.path.abspath(os.path.join(__dir__, ".."))
-    if default_args.config:
-        logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
-        default_args.config = to_abspath(abs_path, default_args.config)
-        with open(default_args.config, "r") as f:
-            cfg = yaml.safe_load(f)
-            _check_cfgs_in_parser(cfg, parser)
-            parser.set_defaults(**cfg)
+    # __dir__ = os.path.dirname(os.path.abspath(__file__))
+    # abs_path = os.path.abspath(os.path.join(__dir__, ".."))
+    # if default_args.config:
+    #     logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
+    #     default_args.config = to_abspath(abs_path, default_args.config)
+    #     with open(default_args.config, "r") as f:
+    #         cfg = yaml.safe_load(f)
+    #         _check_cfgs_in_parser(cfg, parser)
+    #         parser.set_defaults(**cfg)
     args = parser.parse_args()
     # convert to absolute path, necessary for modelarts
     # args.ckpt_path = to_abspath(abs_path, args.ckpt_path)

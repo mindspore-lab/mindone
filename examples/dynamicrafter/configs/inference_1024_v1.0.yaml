@@ -2,7 +2,7 @@ model:
   target: lvdm.models.ddpm3d.LatentVisualDiffusion
   params:
     rescale_betas_zero_snr: True
-    parameterization: "v"
+    parameterization: "velocity"
     linear_start: 0.00085
     linear_end: 0.012
     num_timesteps_cond: 1
@@ -42,7 +42,7 @@ model:
         transformer_depth: 1
         context_dim: 1024
         use_linear: true
-        use_checkpoint: True
+        # use_checkpoint: True
         temporal_conv: True
         temporal_attention: True
         temporal_selfatt_only: true
@@ -74,18 +74,21 @@ model:
           num_res_blocks: 2
           attn_resolutions: []
           dropout: 0.0
-        lossconfig:
-          target: torch.nn.Identity
+        # lossconfig:
+        #   target: mindspore.nn.Identity
 
     cond_stage_config:
-      target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder2
       params:
+        arch: "ViT-H-14"
         freeze: true
         layer: "penultimate"
 
     img_cond_stage_config:
-      target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedder
+      # target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
       params:
+        arch: "ViT-H-14"
         freeze: true
     
     image_proj_stage_config:

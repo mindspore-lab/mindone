@@ -16,7 +16,7 @@ from abc import abstractmethod
 import logging
 
 from lvdm.modules.attention import SpatialTransformer, TemporalTransformer
-from lvdm.modules.diffusionmodules.util import (
+from lvdm.modules.networks.util import (
     Identity,
     avg_pool_nd,
     conv_nd,
@@ -182,6 +182,7 @@ class ResBlock(nn.Cell):
         self.use_scale_shift_norm = use_scale_shift_norm
         self.updown = up or down
         self.dtype = dtype
+        self.use_temporal_conv = use_temporal_conv
         self.identity = Identity()
         self.split = ops.Split(1, 2)
 
@@ -305,25 +306,21 @@ class TemporalConvBlock(nn.Cell):
         self.out_dim = out_dim
         self.dtype = dtype
         th_kernel_shape = (3, 1, 1) if not spatial_aware else (3, 3, 1)
-        th_padding_shape = (1, 0, 0) if not spatial_aware else (1, 1, 0)
+        th_padding_shape = (1, 1, 0, 0, 0, 0) if not spatial_aware else (1, 1, 1, 1, 0, 0)
         tw_kernel_shape = (3, 1, 1) if not spatial_aware else (3, 1, 3)
-        tw_padding_shape = (1, 0, 0) if not spatial_aware else (1, 0, 1)
+        tw_padding_shape = (1, 1, 0, 0, 0, 0) if not spatial_aware else (1, 1, 0, 0, 1, 1)
 
         # conv layers
         self.conv1 = nn.SequentialCell(
             normalization(in_dim),
             SiLU(),
-            nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(
-                self.dtype
-            ),
+            nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(self.dtype),
         )
         self.conv2 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(
-                self.dtype
-            ),
+            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(self.dtype),
         )
         self.conv3 = nn.SequentialCell(
             normalization(out_dim),
@@ -403,7 +400,7 @@ class Timestep(nn.Cell):
         return timestep_embedding(t, self.dim)
 
 
-class UNetModel(nn.Module):
+class UNetModel(nn.Cell):
     """
     The full UNet model with attention and timestep embedding.
     :param in_channels: in_channels in the input Tensor.
@@ -505,11 +502,8 @@ class UNetModel(nn.Module):
                 nn.SiLU().to_float(self.dtype),
                 linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
             )
-        self.conv4[-1].weight.set_data(initializer("zeros", self.conv4[-1].weight.shape, self.conv4[-1].weight.dtype))
-        self.conv4[-1].bias.set_data(initializer("zeros", self.conv4[-1].bias.shape, self.conv4[-1].bias.dtype))
-        
-        self.fps_embedding[-1].weight.set_data(initializer("zeros", self.fps_embedding[-1].weight.shape, self.fps_embedding[-1].weight.dtype))
-        self.fps_embedding[-1].bias.set_data(initializer("zeros", self.fps_embedding[-1].bias.shape, self.fps_embedding[-1].bias.dtype))
+            self.fps_embedding[-1].weight.set_data(initializer("zeros", self.fps_embedding[-1].weight.shape, self.fps_embedding[-1].weight.dtype))
+            self.fps_embedding[-1].bias.set_data(initializer("zeros", self.fps_embedding[-1].bias.shape, self.fps_embedding[-1].bias.dtype))
 
         ## Input Block
         self.input_blocks = nn.CellList(
@@ -749,10 +743,10 @@ class UNetModel(nn.Module):
                     ds //= 2
                 self.output_blocks.append(TimestepEmbedSequential(*layers))
 
-        self.out = nn.Sequential(
+        self.out = nn.SequentialCell(
             normalization(ch),
             nn.SiLU(),
-            zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1)),
+            zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad")),
         )
 
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
