@@ -42,7 +42,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    backend: str = "kbk",
+    jit_level: str = "O0",
     debug: bool = False,
 ):
     """
@@ -88,15 +88,17 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
     if "jit_config" in ms_ctx_param.__members__ and mode == 0:
-        if backend in ["kbk", "dvm", "ge"]:
-            ms.set_context(jit_config={"jit_level": backend_map[backend]})
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
         else:
-            logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
     else:
         logger.warning(
-            "The current backend is not suitable because current MindSpore version or mode does not match , please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+            "The current backend is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
     return rank_id, device_num
@@ -504,7 +506,14 @@ def parse_args():
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
     parser.add_argument(
-        "--backend", default="kbk", type=str, choices=["kbk", "dvm", "ge"], help="Specify the backend: kbk, dvm, ge"
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")

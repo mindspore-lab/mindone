@@ -37,7 +37,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    backend: str = "kbk",
+    jit_level: str = "O0",
     global_bf16: bool = False,
 ):
     """
@@ -84,15 +84,17 @@ def init_env(
             device_target=device_target,
         )
 
-    backend_map = {"kbk": "O0", "dvm": "O1", "ge": "O2"}
     if "jit_config" in ms_ctx_param.__members__ and mode == 0:
-        if backend in ["kbk", "dvm", "ge"]:
-            ms.set_context(jit_config={"jit_level": backend_map[backend]})
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
         else:
-            logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
     else:
         logger.warning(
-            "The current backend is not suitable because current MindSpore version or mode does not match , please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+            "The current backend is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
     if global_bf16:

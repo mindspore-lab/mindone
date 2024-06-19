@@ -30,5 +30,5 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
     --enable_flash_attention=True \
     --gradient_accumulation_steps=1 \
     --use_ema=False \
-    --backend="ge" \
+    --jit_level="O2" \
     --output_path=$output_dir \

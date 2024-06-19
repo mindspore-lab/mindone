@@ -22,7 +22,7 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
 	--video_folder datasets/sora_overfitting_dataset_0410 \
 	--text_embed_folder datasets/sora_overfitting_dataset_0410 \
     --use_parallel True \
-    --backend="ge" \
+    --jit_level="O2" \
     --num_frames=$num_frames \
     --dataset_sink_mode=False \
     --num_parallel_workers=16 \

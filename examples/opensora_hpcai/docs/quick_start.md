@@ -249,9 +249,9 @@ meaning that the buckets are selected based on resolution alone.
 
 Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
 
-To enable kbk mode on ms2.3, please set `--backend="kbk"` to the training command
+To enable kbk mode on ms2.3, please set `--jit_level="O0"` to the training command
 
-To improve training performance, you can set `--backend="dvm"` to the training command.
+To improve training performance, you can set `--jit_level="O1"` to the training command.
 
 Here is an example for training on MS2.3:
 ```
@@ -260,7 +260,7 @@ python scripts/train.py --config configs/opensora/train/stdit_256x256x16.yaml \
     --csv_path "../videocomposer/datasets/webvid5/video_caption.csv" \
     --video_folder "../videocomposer/datasets/webvid5" \
     --text_embed_folder "../videocomposer/datasets/webvid5" \
-    --backend="dvm" \
+    --jit_level="O1" \
 ```
 
 
