@@ -96,7 +96,7 @@ def init_env(
             logger.warning(f"Unsupport backend: {backend}. The framework automatically selects the execution method")
     else:
         logger.warning(
-            f"The current backend is not suitable baeacuse current MindSpore version or mode does not match , please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+            "The current backend is not suitable because current MindSpore version or mode does not match , please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
     return rank_id, device_num
