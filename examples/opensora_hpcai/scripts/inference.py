@@ -11,7 +11,6 @@ import yaml
 
 import mindspore as ms
 from mindspore import Tensor, nn
-from mindspore._c_expression import ms_ctx_param  # FIXME: internal API
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -88,14 +87,14 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    if "jit_config" in ms_ctx_param.__members__ and mode == 0:
+    try:
         if jit_level in ["O0", "O1", "O2"]:
             ms.set_context(jit_config={"jit_level": jit_level})
         else:
             logger.warning(
                 f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
             )
-    else:
+    except:
         logger.warning(
             "The current jit_level is not suitable because current MindSpore version or mode does not match,"
             "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
