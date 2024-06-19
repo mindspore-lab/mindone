@@ -143,9 +143,8 @@ Other useful documents and links are listed below.
 
 ## Installation
 
-1. Install MindSpore 2.3rc1 according to the [official instruction](https://www.mindspore.cn/install)
-> To use flash attention, it's recommended to use mindspore 2.3rc2 (release soon).
-
+1. Install MindSpore according to the [official instructions](https://www.mindspore.cn/install).
+    For Ascend devices, please install **CANN driver C18 (0517)** from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/Ascend910B/) and install **MindSpore 2.3-master (0615)** from [here](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/).
 
 2. Install requirements
 ```bash
@@ -494,13 +493,18 @@ You may also see the example shell scripts in `scripts/run` for quick reference.
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model       | Context      | Precision | BS | NPUs | Resolution | Train T. (s/step) |
-|:------------|:-------------|:----------|:--:|:----:|:----------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 16x512x512 |       2           |
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 64x512x512 |      8.3          |
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 24x576x1024 |     7.89         |
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 64x576x1024 |     21.15        |
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  8   | 24x1024x1024 |    16.98        |
+| Model       | Context      | Backend | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
+|:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
+| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
+| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
+| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
+| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
+| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
+> Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
+
+>Note that the above performance uses both t5 cached embedding data and vae cached latent data.
+
+** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 
 
 ### Open-Sora 1.0
@@ -598,7 +602,7 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model       | Context      | Precision | BS | NPUs | Max. Resolution | Train T. (s/step) |
 |:------------|:-------------|:----------|:--:|:----:|:---------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 | BF16      | 1  |  4   | 16x512x512      |       2.3         |
+| STDiT2-XL/2 | D910\*-MS2.3_master | BF16      | 1  |  4   | 16x512x512      |       2.3         |
 
 
 ### FiT-Like Inference
