@@ -1,4 +1,5 @@
 import argparse
+import numpy as np
 import os
 
 import torch
@@ -58,8 +59,9 @@ def torch_to_ms_weight(source_fp, target_fp):
         shape = shape.replace("(", "").replace(")", "").split(",")
         shape = [int(s) for s in shape if len(s) > 0]
         _name_ms = _name_ms[len("first_stage_model.") :]
-        _source_data = source_data[_name_pt].cpu().detach().numpy().reshape(shape)
-        target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
+        _source_data = source_data[_name_pt].cpu().detach().numpy().reshape(shape).astype(np.float32)
+        # import pdb; pdb.set_trace()
+        target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data, dtype=ms.float32)})
     ms.save_checkpoint(target_data, target_fp)
 
 

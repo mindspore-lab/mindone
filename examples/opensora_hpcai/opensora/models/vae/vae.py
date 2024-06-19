@@ -54,7 +54,8 @@ class AutoencoderKL(AutoencoderKL_SD):
 
 # -------------------------------- OpenSora v1.2 Begin ------------------------------------ #
 
-SDXL_CONFIG = SD_CONFIG.update({"resolution": 512})
+SDXL_CONFIG = SD_CONFIG.copy()
+SDXL_CONFIG.update({"resolution": 512})
 
 class VideoAutoencoderKL(nn.Cell):
     '''
@@ -190,7 +191,7 @@ def build_module_from_config(config):
     cfg = config.copy()
     name = cfg.pop('type')
     kwargs = cfg
-
+    
     # FIXME: use importlib with path
     module = eval(name)(**kwargs)
     return module
@@ -202,7 +203,7 @@ class VideoAutoencoderPipeline(nn.Cell):
     '''
     # config_class = VideoAutoencoderPipelineConfig
     def __init__(self, config: VideoAutoencoderPipelineConfig):
-        super().__init__(config=config)
+        super().__init__()
         self.spatial_vae = build_module_from_config(config.vae_2d)
         self.temporal_vae = build_module_from_config(config.vae_temporal)
 
@@ -332,8 +333,3 @@ def OpenSoraVAE_V1_2(
         print(f"Checkpoint param not loaded : {cu}")
 
     return model
-
-
-if __name__ == "__main__":
-    model = OpenSoraVAE_V1_2(ckpt_path=)
-
