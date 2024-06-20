@@ -493,13 +493,13 @@ You may also see the example shell scripts in `scripts/run` for quick reference.
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model       | Context      | Backend | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
+| Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
 |:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
-| STDiT2-XL/2 | D910\*-MS2.3 |    DVM  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
+| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
+| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
+| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
+| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
+| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
 > Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
 
 >Note that the above performance uses both t5 cached embedding data and vae cached latent data.

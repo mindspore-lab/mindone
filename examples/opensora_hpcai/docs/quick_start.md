@@ -247,11 +247,7 @@ meaning that the buckets are selected based on resolution alone.
 
 #### Notes about MindSpore 2.3
 
-Training on MS2.3 allows much better performance with its new features (such as kbk and dvm)
-
-To enable kbk mode on ms2.3, please set `--jit_level="O0"` to the training command
-
-To improve training performance, you can set `--jit_level="O1"` to the training command.
+Training on MS2.3 allows much better performance with `jit_level` (`"O0"`, `"O1"`, `"O2"`)
 
 Here is an example for training on MS2.3:
 ```
