@@ -506,6 +506,21 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 ** Tips ** for performance optimization: to speed up training, you can set `dataset_sink_mode` as True and reduce `num_recompute_blocks` from 28 to a number that doesn't lead to out-of-memory.
 
+Here are some generation results after fine-tuning STDiT2 in 576x1024x48 resolution.
+
+<table class="center">
+<tr>
+  <td style="text-align:center;"><b>a breathtaking aerial view of a vast landscape. The foreground is dominated by a dry, brown field, punctuated by scattered trees that add a touch of green to the otherwise monotonous color palette. The field extends towards the horizon, where it meets a range of mountains. These mountains, bathed in the warm glow of the sun, rise majestically against the backdrop of a clear blue sky. The sun's rays illuminate the scene, casting long shadows and highlighting the textures of the landscape. The scene does not contain any discernible text or countable objects, and there are no visible actions taking place. The relative positions of the objects suggest a vast expanse of space, with the field and trees in the foreground, the mountains in the middle ground, and the sky as the background. The scene is devoid of any aesthetic descriptions, focusing solely on the factual representation of the landscape.</b></td>
+  <td style="text-align:center;"><b>a close-up view of a tree branch adorned with vibrant green leaves. Each leaf, slightly curved, is speckled with brown spots, adding a touch of contrast to the verdant canvas. The leaves are arranged in a diagonal line, extending from the top left to the bottom right of the frame, creating a sense of movement and direction. The backdrop is a clear blue sky, providing a stark contrast to the lush greenery in the foreground. The scene does not contain any discernible text or countable objects, and there are no visible actions taking place. The relative positions of the leaves to each other and to the sky remain constant, with the leaves in the foreground and the sky in the background. The scene is a still life, capturing a moment of tranquility in nature.</b></td>
+  <td style="text-align:center;"><b>a serene landscape, bathed in the soft glow of daylight. The sky, a vast expanse of blue, is dotted with fluffy white clouds, casting a tranquil ambiance over the scene.   Beneath this sky, a valley unfolds, its verdant green hues painting a picture of nature's bounty. The valley is nestled amidst rolling hills, their surfaces a patchwork of green fields interspersed with clusters of trees.   The scene is taken from a high vantage point, offering a panoramic view of the valley below. This perspective allows for a comprehensive view of the landscape, from the individual trees dotting the hills to the expansive fields that fill the valley.   There are no discernible texts or human-made objects in the scene, reinforcing the sense of untouched natural beauty. The relative positions of the objects - the sky above, the valley below, and the hills surrounding it - create a harmonious composition that is pleasing to the eye.   Overall, the scene is a testament to the beauty of nature, captured in a moment of calm and tranquility.</b></td>
+</tr>
+<tr>
+  <td><video src="https://github.com/mindspore-lab/mindone/assets/52945530/4df1dabf-1a7c-45d9-b005-08f6c2d26dfe" autoplay></td>
+  <td><video src="https://github.com/mindspore-lab/mindone/assets/52945530/6e735171-042f-4b8d-a12c-4ddd5b2b4382" autoplay></td>
+  <td><video src="https://github.com/mindspore-lab/mindone/assets/52945530/ab627b2c-d932-4c9d-84f4-afe0c9d5d5ce" autoplay></td>
+</tr>
+</table>
+
 
 ### Open-Sora 1.0
 
@@ -623,9 +638,17 @@ Make sure that the `max_image_size` parameter remains consistent between your tr
 
 Here are some generation results after fine-tuning STDiT on small dataset:
 
-[16x384x672](https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481)
+<table class="center">
+<tr>
+  <td style="text-align:center;"><b>A breathtaking view of a mountainous landscape. From a high vantage point, the viewer's gaze is drawn to a winding river carving its through the terrain. The river, a ribbon of blue, meanders from the foreground into the distance, disappearing into the heart of the mountains. The mountains themselves are a spectacle of nature's palette, with their peaks blanketed in a lush layer of green trees. The sky above is a vast expanse of gray, filled with clouds that add a sense of depth and drama to the scene. The perspective from which the photo is taken enhances the grandeur of the landscape, making the mountains appear even more majestic against the cloudy sky. The scene is a testament to the awe-inspiring beauty of nature, captured in a single, stunning frame.(384x672x16)</b></td>
+  <td style="text-align:center;"><b>A close-up view of a branch laden with white flowers, set against the backdrop of a clear blue sky. The flowers, in various stages of bloom, create a dynamic scene. Some are fully open, revealing their intricate inner structures, while other are still tightly closed, their beauty yet to be unveiled. The branch, acting as a conduit, carries these delicate blossoms from the unseen source to the viewer's eye. The contrast between the white flowers and the blue sky adds a sense of dpth and tranquility to the scene. Despite the absence of any discernible text or action, the scene convey a serene and peaceful atmosphere.(672x384x16)</b></td>
+</tr>
+<tr>
+  <td><video src="https://github.com/zhtmike/mindone/assets/8342575/97d8f37d-8ac3-49a8-af6d-5103f299e481" autoplay></td>
+  <td><video src="https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53" autoplay></td>
+</tr>
+</table>
 
-[16x672x384](https://github.com/zhtmike/mindone/assets/8342575/abefa666-8e88-4eef-974e-a4d4bfa1cd53)
 
 
 ## Contribution
