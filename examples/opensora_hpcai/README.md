@@ -504,22 +504,22 @@ Here are some generation results after fine-tuning STDiT2 on small dataset.
 
 <table class="center">
 <tr>
-  <td style="text-align:center;"><b>576x1024x48</b></td>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
   </tr>
 <tr>
-  <td><video src="https://github.com/mindspore-lab/mindone/assets/52945530/4df1dabf-1a7c-45d9-b005-08f6c2d26dfe" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/4df1dabf-1a7c-45d9-b005-08f6c2d26dfe" autoplay></td>
 </tr>
 <tr>
-  <td style="text-align:center;"><b>576x1024x48</b></td>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
   </tr>
 <tr>
-  <td><video src="https://github.com/mindspore-lab/mindone/assets/52945530/6e735171-042f-4b8d-a12c-4ddd5b2b4382" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/6e735171-042f-4b8d-a12c-4ddd5b2b4382" autoplay></td>
 </tr>
 <tr>
-  <td style="text-align:center;"><b>576x1024x48</b></td>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
   </tr>
 <tr>
-  <td><video src="https://github.com/mindspore-lab/mindone/assets/52945530/ab627b2c-d932-4c9d-84f4-afe0c9d5d5ce" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/ab627b2c-d932-4c9d-84f4-afe0c9d5d5ce" autoplay></td>
 </tr>
 </table>
 
@@ -566,14 +566,14 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
 
 <table class="center">
 <tr>
-  <td style="text-align:center;"><b>512x512x64</b></td>
-  <td style="text-align:center;"><b>512x512x64</b></td>
-  <td style="text-align:center;"><b>512x512x64</b></td>
+  <td width=33% style="text-align:center;"><b>512x512x64</b></td>
+  <td width=33% style="text-align:center;"><b>512x512x64</b></td>
+  <td width=33% style="text-align:center;"><b>512x512x64</b></td>
 </tr>
 <tr>
-  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0" width=224></td>
-  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609" width=224></td>
-  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c" width=224></td>
+  <td width=33%><video src="https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0"></td>
+  <td width=33%><video src="https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609"></td>
+  <td width=33%><video src="https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c"></td>
 </tr>
 </table>
 
