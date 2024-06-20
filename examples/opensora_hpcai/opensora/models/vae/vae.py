@@ -83,9 +83,11 @@ class VideoAutoencoderKL(nn.Cell):
         self.patch_size = (1, 8, 8)
         self.micro_batch_size = micro_batch_size
 
-        # TODO: "scaling_factor": 0.13025 is set in
+        # FIXME: "scaling_factor": 0.13025 is set in
         # https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json.
-        # This is a mistake made during the training of OpenSora v1.2. To re-use the trained model, we need to keep this mistake. For training, we should refine to 0.13025.
+        # This is a mistake made during the training of OpenSora v1.2.
+        # To re-use the trained model, we need to keep this mistake.
+        # For training, we should refine to 0.13025.
         self.scale_factor = 0.18215
 
     @staticmethod

@@ -2,7 +2,7 @@ model_version: v1.2
 ckpt_path: "models/opensora_v1.2_stage3.ckpt"
 t5_model_dir: "models/t5-v1_1-xxl/"
 
-vae_model_type: "OpenSoraVAE_V1_2" 
+vae_model_type: "OpenSoraVAE_V1_2"
 vae_checkpoint: "models/OpenSora-VAE-v1.2/model.ckpt"
 vae_micro_batch_size: 4
 vae_micro_frame_size: 17

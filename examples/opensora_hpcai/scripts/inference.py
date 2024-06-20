@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-from opensora.models.vae.vae import SD_CONFIG, SDXL_CONFIG, VideoAutoencoderKL, OpenSoraVAE_V1_2
+from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
@@ -231,7 +231,9 @@ def main(args):
         logger.info("vae init")
         if args.vae_type in [None, "VideoAutoencoderKL"]:
             # vae = AutoencoderKL(SD_CONFIG, VAE_Z_CH, ckpt_path=args.vae_checkpoint)
-            vae = VideoAutoencoderKL(config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size)
+            vae = VideoAutoencoderKL(
+                config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
+            )
         elif args.vae_dtype == 'OpenSoraVAE_V1_2"':
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
@@ -427,7 +429,9 @@ def main(args):
 
             # infer
             start_time = time.time()
-            samples, latent = pipeline(inputs, frames_mask=frames_mask, num_frames=args.num_frames, additional_kwargs=model_args)
+            samples, latent = pipeline(
+                inputs, frames_mask=frames_mask, num_frames=args.num_frames, additional_kwargs=model_args
+            )
             latents.append(latent.asnumpy()[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
             if samples is not None:
                 videos.append(samples.asnumpy()[:, args.condition_frame_length if loop_i > 0 else 0 :])
@@ -505,7 +509,8 @@ def parse_args():
         type=str,
         default=None,
         choices=[None, "OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
-        help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
+        help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. \
+                If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
     )
     parser.add_argument(
         "--vae_micro_batch_size",
