@@ -117,6 +117,7 @@ def main(args):
         return_frame_data=args.dl_return_all_frames,
         resize_by_max_value=args.resize_by_max_value,
         transform_name=args.transform_name,
+        filter_data=args.filter_data,
     )
     dataloader, ds = create_dataloader(
         ds_config,
@@ -297,6 +298,7 @@ def parse_args():
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
+    parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--image_size", nargs="+", default=[512, 512], type=int, help="image size")
     parser.add_argument(
         "--dl_return_all_frames",

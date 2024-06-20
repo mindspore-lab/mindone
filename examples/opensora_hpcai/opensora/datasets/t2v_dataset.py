@@ -3,12 +3,15 @@ import csv
 import logging
 import os
 import random
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import List, Optional
 
 import albumentations
 import cv2
 import numpy as np
 from decord import VideoReader
+from tqdm import tqdm
 
 import mindspore as ms
 
@@ -89,6 +92,7 @@ class TextVideoDataset:
         random_drop_text=False,
         random_drop_text_ratio=0.1,
         disable_flip=True,
+        filter_data: bool = False,
     ):
         """
         text_emb_folder: root dir of text embed saved in npz files. Expected to have the same file name and directory strcutre as videos. e.g.
@@ -108,10 +112,9 @@ class TextVideoDataset:
             not random_drop_text
         ), "Cfg training is already done in CaptionEmbedder, please adjust class_dropout_prob in STDiT args if needed."
         logger.info(f"loading annotations from {csv_path} ...")
-        with open(csv_path, "r") as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
+        self.dataset = self._read_data(
+            video_folder, csv_path, video_column, text_emb_folder, vae_latent_folder, filter_data
+        )
 
         self.video_folder = video_folder
         self.sample_stride = sample_stride
@@ -152,9 +155,53 @@ class TextVideoDataset:
         self.prev_ok_sample = self.get_replace_data(max_attempts)
         self.require_update_prev = False
 
+    @staticmethod
+    def _read_data(
+        data_dir: str,
+        csv_path: str,
+        video_column: str,
+        text_emb_folder: Optional[str] = None,
+        vae_latent_folder: Optional[str] = None,
+        filter_data: bool = False,
+    ) -> List[dict]:
+        def _filter_data(sample_):
+            if not os.path.isfile(sample_[video_column]):
+                logger.warning(f"Video not found: {sample_[video_column]}")
+                return None
+            elif "text_emb" in sample_ and not os.path.isfile(sample_["text_emb"]):
+                logger.warning(f"Text embedding not found: {sample_['text_emb']}")
+                return None
+            elif "vae_latent" in sample_ and not os.path.isfile(sample_["vae_latent"]):
+                logger.warning(f"Text embedding not found: {sample_['vae_latent']}")
+                return None
+            return sample_
+
+        with open(csv_path, "r") as csv_file:
+            try:
+                data = []
+                for item in csv.DictReader(csv_file):
+                    sample = {**item, video_column: os.path.join(data_dir, item[video_column])}
+                    if text_emb_folder:
+                        sample["text_emb"] = os.path.join(text_emb_folder, Path(item[video_column]).with_suffix(".npz"))
+                    if vae_latent_folder:
+                        sample["vae_latent"] = os.path.join(
+                            vae_latent_folder, Path(item[video_column]).with_suffix(".npz")
+                        )
+                    data.append(sample)
+            except KeyError as e:
+                logger.error("CSV file requires `video` (file paths) column.")
+                raise e
+
+        if filter_data:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                data = [item for item in tqdm(executor.map(_filter_data, data), total=len(data)) if item is not None]
+
+        logger.info(f"Number of data samples: {len(data)}")
+        return data
+
     def get_replace_data(self, max_attempts=100):
         replace_data = None
-        attempts = min(max_attempts, self.length)
+        attempts = min(max_attempts, len(self))
         for idx in range(attempts):
             try:
                 pixel_values, text, mask = self.get_batch(idx)
@@ -182,12 +229,10 @@ class TextVideoDataset:
     def get_batch(self, idx):
         # get video raw pixels (batch of frame) and its caption
         video_dict = self.dataset[idx]
-        video_fn, caption = video_dict[self.video_column], video_dict[self.caption_column]
-        video_path = os.path.join(self.video_folder, video_fn)
+        video_path, caption = video_dict[self.video_column], video_dict[self.caption_column]
 
         if self.return_text_emb:
-            text_emb_path = Path(os.path.join(self.text_emb_folder, video_fn)).with_suffix(".npz")
-            text_emb, mask = self.parse_text_emb(text_emb_path)
+            text_emb, mask = self.parse_text_emb(self.dataset[idx]["text_emb"])
 
         if not self.return_vae_latent:
             # in case missing .mp4 in csv file
@@ -222,8 +267,7 @@ class TextVideoDataset:
                 return pixel_values, caption, None
 
         else:
-            vae_latent_path = Path(os.path.join(self.vae_latent_folder, video_fn)).with_suffix(".npz")
-            vae_latent_data = np.load(vae_latent_path)
+            vae_latent_data = np.load(self.dataset[idx]["vae_latent"])
             latent_mean = vae_latent_data["latent_mean"]
             video_length = len(latent_mean)
             if not self.is_image:
@@ -250,7 +294,7 @@ class TextVideoDataset:
                 return vae_latent, caption, None
 
     def __len__(self):
-        return self.length
+        return len(self.dataset)
 
     def apply_transform(self, pixel_values):
         # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
@@ -288,7 +332,7 @@ class TextVideoDataset:
             pixel_values, text, mask = self.prev_ok_sample  # unless the first sample is already not ok
             self.require_update_prev = True
 
-            if idx >= self.length:
+            if idx >= len(self):
                 raise IndexError  # needed for checking the end of dataset iteration
         if not self.return_vae_latent:
             # apply visual transform and normalization
@@ -334,12 +378,10 @@ class TextVideoDataset:
 
     def traverse_single_video_frames(self, video_index):
         video_dict = self.dataset[video_index]
-        video_fn = video_dict[self.video_column]
-        video_path = os.path.join(self.video_folder, video_fn)
+        video_path = video_dict[self.video_column]
 
         # video_name = os.path.basename(video_fn).split(".")[0]
         # read video
-        video_path = os.path.join(self.video_folder, video_fn)
         # in case missing .mp4 in csv file
         if not video_path.endswith(".mp4") or video_path.endswith(".gif"):
             if video_path[-4] != ".":
@@ -373,7 +415,7 @@ class TextVideoDataset:
             pixel_values = self.apply_transform(pixel_values)
             pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
             return_dict = {"video": pixel_values}
-            yield video_fn, select_video_frames, return_dict
+            yield video_path, select_video_frames, return_dict
 
 
 def create_dataloader(

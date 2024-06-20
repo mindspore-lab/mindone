@@ -2,13 +2,15 @@ import csv
 import logging
 import os
 import time
-from typing import Dict
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List
 
 import albumentations as A
 import cv2
 import imageio
 import numpy as np
 from decord import VideoReader
+from tqdm import tqdm
 
 import mindspore as ms
 
@@ -113,13 +115,10 @@ class VideoDataset:
         micro_batch_size=None,
         resize_by_max_value=False,
         transform_name="center",
+        filter_data: bool = False,
     ):
         logger.info(f"loading annotations from {csv_path} ...")
-        with open(csv_path, "r") as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
-
-        self.length = len(self.dataset)
-        logger.info(f"Num data samples: {self.length}")
+        self.dataset = self._read_data(video_folder, csv_path, video_column, filter_data)
 
         self.video_folder = video_folder
         self.caption_column = caption_column
@@ -146,8 +145,36 @@ class VideoDataset:
                 name=transform_name,
             )
 
+    @staticmethod
+    def _read_data(data_dir: str, csv_path: str, video_column: str, filter_data: bool = False) -> List[dict]:
+        def _filter_data(sample_):
+            if not os.path.isfile(sample_[video_column]):
+                logger.warning(f"Video not found: {sample_[video_column]}")
+                return None
+            return sample_
+
+        with open(csv_path, "r") as csv_file:
+            try:
+                data = [
+                    {**item, video_column: os.path.join(data_dir, item[video_column])}
+                    for item in csv.DictReader(csv_file)
+                ]
+            except KeyError as e:
+                logger.error(
+                    f"The video column `{video_column}` was not found."
+                    f" Please specify the correct name with `--video_column` argument."
+                )
+                raise e
+
+        if filter_data:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                data = [item for item in tqdm(executor.map(_filter_data, data), total=len(data)) if item is not None]
+
+        logger.info(f"Number of data samples: {len(data)}")
+        return data
+
     def __len__(self):
-        return self.length
+        return len(self.dataset)
 
     def apply_transform(self, pixel_values):
         # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
@@ -198,7 +225,7 @@ class VideoDataset:
             all_frames = []
             fps, ori_size = None, None
             for pixel_values, fps, ori_size in self.get_video_frames_in_batch(
-                os.path.join(self.video_folder, video_path), self.micro_batch_size, self.sample_stride
+                video_path, self.micro_batch_size, self.sample_stride
             ):
                 all_frames.append(pixel_values)
                 fps = fps
@@ -278,6 +305,7 @@ if __name__ == "__main__":
         sample_stride=1,
         micro_batch_size=32,
         transform_name="crop_resize",
+        filter_data=True,
     )
     dl, ds = create_dataloader(
         ds_config,
