@@ -24,7 +24,8 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from utils import read_captions_from_csv, read_captions_from_txt, _check_cfgs_in_parser
-from ldm.models.diffusion.ddim import DDIMSampler
+# from ldm.models.diffusion.ddim import DDIMSampler
+from lvdm.models.samplers.ddim import DDIMSampler
 
 from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 
@@ -324,12 +325,14 @@ def main(args):
     #     captions = read_captions_from_csv(args.prompt_path)
     # elif args.prompt_path.endswith(".txt"):
     #     captions = read_captions_from_txt(args.prompt_path)
+    """
     filename_list, data_list, prompt_list = load_data_prompts(
                                                 args.prompt_dir, 
                                                 video_size=(args.height, args.width), 
                                                 video_frames=args.num_frames, 
                                                 interp=args.interp
                                                 )
+    """
     # TODO: data parallel split, support parallel inference 
     # captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)
     # print(f"Num captions for rank {rank_id}: {len(captions)}")
@@ -345,6 +348,7 @@ def main(args):
     # model_config['params']['unet_config']['params']['use_checkpoint'] = False
     model = instantiate_from_config(model_config)
     # model.perframe_ae = args.perframe_ae
+    import pdb;pdb.set_trace()
 
     # assert os.path.exists(args.ckpt_path), "Error: checkpoint Not Found!"
     
@@ -356,8 +360,17 @@ def main(args):
         logger.warning(f"Model uses random initialization!")
 
     model.set_train(False)
+    """get ms params
+    ms_params = [p for p in model.parameters_and_names()]
+    with open("tools/ms_weight.txt", "w") as f:
+        for k, v in ms_params:
+            k = k.replace(".gamma", ".weight").replace(".beta", ".bias")
+            f.write(k + ":" + str(v.shape) + ":" + str(v.dtype).lower() + "\n")
+    print(f"Num of params of ms weight: {len(ms_params)}")       
+    """
+    import pdb;pdb.set_trace()
     pass
-
+    
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--savedir", type=str, default=None, help="results saving path")

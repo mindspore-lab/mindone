@@ -78,15 +78,15 @@ model:
         #   target: mindspore.nn.Identity
 
     cond_stage_config:
-      target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder2
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder
       params:
         arch: "ViT-H-14"
         freeze: true
         layer: "penultimate"
 
     img_cond_stage_config:
-      target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedder
-      # target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
+      # target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedder
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
       params:
         arch: "ViT-H-14"
         freeze: true

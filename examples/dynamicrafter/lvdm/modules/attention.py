@@ -15,13 +15,14 @@
 
 import logging
 import math
+from functools import partial
 
 import numpy as np
 
 import mindspore as ms
 import mindspore.numpy as msnp
 from mindspore import nn, ops
-from mindspore.common.initializer import initializer
+from mindspore.common.initializer import XavierUniform, initializer
 
 from mindone.utils.version_control import (
     MS_VERSION,
@@ -120,6 +121,29 @@ class LinearAttention(nn.Cell):
         self.to_out = nn.Conv2d(hidden_dim, dim, 1, has_bias=True, pad_mode="pad")
 
 
+class RelativePosition(nn.Cell):
+    """ https://github.com/evelinehong/Transformer_Relative_Position_PyTorch/blob/master/relative_position.py """
+
+    def __init__(self, num_units, max_relative_position):
+        super().__init__()
+        self.num_units = num_units
+        self.max_relative_position = max_relative_position
+        # self.embeddings_table = ms.Parameter(ms.Tensor(max_relative_position * 2 + 1, num_units))
+        # nn.init.xavier_uniform_(self.embeddings_table)
+        self.embeddings_table = ms.Parameter(initializer(XavierUniform(), shape=(max_relative_position * 2 + 1, num_units), dtype=ms.float32))
+
+    def forward(self, length_q, length_k):
+        device = self.embeddings_table.device
+        range_vec_q = ops.arange(length_q, device=device)
+        range_vec_k = ops.arange(length_k, device=device)
+        distance_mat = range_vec_k[None, :] - range_vec_q[:, None]
+        distance_mat_clipped = ops.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
+        final_mat = distance_mat_clipped + self.max_relative_position
+        final_mat = final_mat.long()
+        embeddings = self.embeddings_table[final_mat]
+        return embeddings
+    
+
 class CrossAttention(nn.Cell):
     """
     Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
@@ -135,6 +159,13 @@ class CrossAttention(nn.Cell):
         dropout=1.0,
         dtype=ms.float32,
         enable_flash_attention=False,
+        relative_position=False,
+        temporal_length=None,
+        video_length=None,
+        image_cross_attention=False,
+        image_cross_attention_scale=1.0,
+        image_cross_attention_scale_learnable=False,
+        text_context_len=77,
     ):
         super().__init__()
         inner_dim = dim_head * heads
@@ -150,8 +181,35 @@ class CrossAttention(nn.Cell):
             nn.Dense(inner_dim, query_dim).to_float(dtype),
             nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
         )
+
+        self.relative_position = relative_position
+        if self.relative_position:
+            assert(temporal_length is not None)
+            self.relative_position_k = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
+            self.relative_position_v = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
+            self.attention = Attention(dim_head, heads, self.relative_position, self.relative_position_k, self.relative_position_v)
+        # else:
+        #     ## only used for spatial attention, while NOT for temporal attention
+        #     if XFORMERS_IS_AVAILBLE and temporal_length is None:
+        #         self.forward = self.efficient_forward
+        else:
+            self.attention = Attention(dim_head, heads)
+
+            
+
+        self.video_length = video_length
+        self.image_cross_attention = image_cross_attention
+        self.image_cross_attention_scale = image_cross_attention_scale
+        self.text_context_len = text_context_len
+        self.image_cross_attention_scale_learnable = image_cross_attention_scale_learnable
+        if self.image_cross_attention:
+            self.to_k_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+            self.to_v_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+            if image_cross_attention_scale_learnable:
+                self.alpha = ms.Parameter(ms.Tensor(0.))
+            
         self.head_dim = dim_head
-        self.attention = Attention(dim_head)
+        # self.attention = Attention(dim_head)
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -209,12 +267,26 @@ class CrossAttention(nn.Cell):
 
     def construct(self, x, context=None, mask=None):
         x_dtype = x.dtype
-        h = self.heads
+        spatial_self_attn = (context is None)
+        k_ip, v_ip, out_ip = None, None, None
 
+        h = self.heads
         q = self.to_q(x)
         context = default(context, x)
-        k = self.to_k(context)
-        v = self.to_v(context)
+
+        # k = self.to_k(context)
+        # v = self.to_v(context)
+        if self.image_cross_attention and not spatial_self_attn:
+            context, context_image = context[:, :self.text_context_len, :], context[:, self.text_context_len:, :]
+            k = self.to_k(context)
+            v = self.to_v(context)
+            k_ip = self.to_k_ip(context_image)
+            v_ip = self.to_v_ip(context_image)
+        else:
+            if not spatial_self_attn:
+                context = context[:,:self.text_context_len,:]
+            k = self.to_k(context)
+            v = self.to_v(context)
 
         q_b, q_n, _ = q.shape  # (b s n*d)
         k_b, k_n, _ = k.shape
@@ -268,14 +340,25 @@ class CrossAttention(nn.Cell):
 
 
 class Attention(nn.Cell):
-    def __init__(self, dim_head):
+    def __init__(self, dim_head, heads=8, relative_position=False, relative_position_k=None, relative_position_v=None):
         super().__init__()
         self.softmax = ops.Softmax(axis=-1)
         self.transpose = ops.Transpose()
         self.scale = dim_head**-0.5
+        self.heads = heads
+        self.relative_position = relative_position
+        self.relative_position_k = relative_position_k
+        self.relative_position_v = relative_position_v
 
     def construct(self, q, k, v, mask):
         sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+
+        if self.relative_position:
+            len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
+            k2 = self.relative_position_k(len_q, len_k)
+            sim2 = ops.matmul(q, self.transpose(k2, (0, 2, 1))) * self.scale # TODO check 
+            sim += sim2
+        del k
 
         if exists(mask):
             mask = self.reshape(mask, (mask.shape[0], -1))
@@ -291,10 +374,36 @@ class Attention(nn.Cell):
         # TODO: testing use fp16 instead
         # use fp32 for exponential inside
         # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
-        attn = self.softmax(sim)
-
+        attn = self.softmax(sim)  # FIXME: 核对与torch.einsum的写法是否等效
         out = ops.matmul(attn, v)
 
+        if self.relative_position:
+            v2 = self.relative_position_v(len_q, len_v)
+            out2 = einsum('b t s, t s d -> b t d', sim, v2) # FIXME: 核对与torch.einsum的写法是否等效
+            out += out2
+        # out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
+        out = ops.reshape(out, (-1, self.heads, out.shape[1], out.shape[2]))  # (b, h, n, d)
+        out = ops.transpose(out, (0, 2, 1, 3))  # (b, n, h, d)
+        out = ops.reshape(out, (out.shape[0], out.shape[1], -1))  # (b, n, (h d))
+
+
+        ## for image cross-attention
+        if k_ip is not None:
+            k_ip, v_ip = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (k_ip, v_ip))
+            sim_ip =  torch.einsum('b i d, b j d -> b i j', q, k_ip) * self.scale
+            del k_ip
+            sim_ip = sim_ip.softmax(dim=-1)
+            out_ip = torch.einsum('b i j, b j d -> b i d', sim_ip, v_ip)
+            out_ip = rearrange(out_ip, '(b h) n d -> b n (h d)', h=h)
+
+
+        if out_ip is not None:
+            if self.image_cross_attention_scale_learnable:
+                out = out + self.image_cross_attention_scale * out_ip * (torch.tanh(self.alpha)+1)
+            else:
+                out = out + self.image_cross_attention_scale * out_ip
+        
+        # return self.to_out(out)
         return out
 
 
@@ -320,31 +429,41 @@ class BasicTransformerBlock(nn.Cell):
         unet_chunk_size=2,
     ):
         super().__init__()
-        self.attn1 = CrossAttention(
+        attn_cls = CrossAttention if attention_cls is None else attention_cls
+        self.disable_self_attn = disable_self_attn
+        self.attn1 = attn_cls(
             query_dim=dim,
             heads=n_heads,
             dim_head=d_head,
             dropout=dropout,
+            context_dim=context_dim if self.disable_self_attn else None,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
         )  # is a self-attention
         self.ff = FeedForward(dim, dropout=dropout, glu=gated_ff, dtype=dtype)
-        self.attn2 = CrossAttention(
+        self.attn2 = attn_cls(
             query_dim=dim,
             context_dim=context_dim,
             heads=n_heads,
             dim_head=d_head,
             dropout=dropout,
+            video_length=video_length,
+            image_cross_attention=image_cross_attention,
+            image_cross_attention_scale=image_cross_attention_scale,
+            image_cross_attention_scale_learnable=image_cross_attention_scale_learnable,
+            text_context_len=text_context_len,
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
         )  # is self-attn if context is none
+        self.image_cross_attention = image_cross_attention
+
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
-        x = self.attn1(self.norm1(x)) + x
+        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
         return x
@@ -390,6 +509,7 @@ class SpatialTransformer(nn.Cell):
         else:
             self.proj_in = nn.Dense(in_channels, inner_dim).to_float(dtype)
 
+        attention_cls = None
         self.transformer_blocks = nn.CellList(
             [
                 BasicTransformerBlock(
@@ -400,6 +520,10 @@ class SpatialTransformer(nn.Cell):
                     context_dim=context_dim,
                     disable_self_attn=disable_self_attn,
                     checkpoint=use_checkpoint,
+                    attention_cls=attention_cls,
+                    video_length=video_length,
+                    image_cross_attention=image_cross_attention,
+                    image_cross_attention_scale_learnable=image_cross_attention_scale_learnable,
                     dtype=self.dtype,
                     enable_flash_attention=enable_flash_attention,
                     unet_chunk_size=unet_chunk_size,
@@ -410,9 +534,7 @@ class SpatialTransformer(nn.Cell):
 
         if not use_linear:
             self.proj_out = zero_module(
-                nn.Conv2d(
-                    inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"
-                ).to_float(self.dtype)
+                nn.Conv2d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype)
             )
         else:
             self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(dtype))
@@ -421,7 +543,7 @@ class SpatialTransformer(nn.Cell):
         self.reshape = ops.Reshape()
         self.transpose = ops.Transpose()
 
-    def construct(self, x, emb=None, context=None):
+    def construct(self, x, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
         b, c, h, w = x.shape
         x_in = x
@@ -436,8 +558,8 @@ class SpatialTransformer(nn.Cell):
             x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
-        x = self.reshape(x, (b, h, w, c))
-        x = self.transpose(x, (0, 3, 1, 2))
+        x = self.reshape(x, (b, h, w, c))  # (b, h, w, c)
+        x = self.transpose(x, (0, 3, 1, 2))  # (b, c, h, w)
         if not self.use_linear:
             x = self.proj_out(x)
         return x + x_in
@@ -474,7 +596,9 @@ class TemporalTransformer(nn.Cell):
         super().__init__()
         self.multiply_zero = multiply_zero
         self.only_self_att = only_self_att
-        self.use_adaptor = False
+        self.relative_position = relative_position
+        self.causal_attention = causal_attention
+        self.causal_block_size = causal_block_size
         self.dtype = dtype
         if self.only_self_att:
             context_dim = None
@@ -484,14 +608,18 @@ class TemporalTransformer(nn.Cell):
         inner_dim = n_heads * d_head
         self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
-            self.proj_in = nn.Conv1d(
-                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True
-            ).to_float(self.dtype)
+            self.proj_in = nn.Conv1d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True).to_float(self.dtype)
         else:
             self.proj_in = nn.Dense(in_channels, inner_dim).to_float(self.dtype)
-            if self.use_adaptor:
-                frames = None
-                self.adaptor_in = nn.Dense(frames, frames).to_float(self.dtype)  # todo: what frames
+
+        if relative_position:
+            assert(temporal_length is not None)
+            attention_cls = partial(CrossAttention, relative_position=True, temporal_length=temporal_length)
+        else:
+            attention_cls = partial(CrossAttention, temporal_length=temporal_length)
+        if self.causal_attention:
+            assert(temporal_length is not None)
+            self.mask = ops.tril(ops.ones([1, temporal_length, temporal_length]))
 
         self.transformer_blocks = nn.CellList(
             [
@@ -501,6 +629,7 @@ class TemporalTransformer(nn.Cell):
                     d_head,
                     dropout=dropout,
                     context_dim=context_dim[d],
+                    attention_cls=attention_cls,
                     checkpoint=use_checkpoint,
                     dtype=self.dtype,
                 )
@@ -515,8 +644,8 @@ class TemporalTransformer(nn.Cell):
             )
         else:
             self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(self.dtype))
-            if self.use_adaptor:
-                self.adaptor_out = nn.Dense(frames, frames).to_float(self.dtype)  # todo: what frames
+            # if self.use_adaptor:
+            #     self.adaptor_out = nn.Dense(frames, frames).to_float(self.dtype)  # todo: what frames
         self.use_linear = use_linear
 
     def construct(self, x, context=None):
