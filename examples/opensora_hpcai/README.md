@@ -517,7 +517,7 @@ Here are some generation results after fine-tuning STDiT2 on small dataset.
   </tr>
 <tr>
   <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/ab627b2c-d932-4c9d-84f4-afe0c9d5d5ce" autoplay></td>
-  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/b435f737-3948-49ed-bfdd-7b0d817a1e1e" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/532f9d62-9b16-44dc-bd7a-4a24bd930e21" autoplay></td>
 </tr>
 </table>
 
