@@ -95,7 +95,7 @@ bash scripts/run_distributed.sh -h
 
 | Model    | Context       | Global Batch Size x Grad. Accu. | Max. Resolution | Acceleration | FPS (img/s) |
 |----------|---------------|---------------------------------|-----------------|--------------|-------------|
-| FiT-XL-2 | D910*x8-MS2.3 | 512x1                           | 256x256         | FP16         | 586         |
+| FiT-XL-2 | D910*x8-MS2.3(20240615, jit_level=O1) | 512x1                           | 256x256         | FP16         | 586         |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Acceleration: FP16: float16 computation. Flash attention is not used in the test currently.
