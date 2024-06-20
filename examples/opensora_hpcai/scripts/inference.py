@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
-from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, SDXL_CONFIG, VideoAutoencoderKL, OpenSoraVAE_V1_2
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.cond_data import get_references, read_captions_from_csv, read_captions_from_txt
@@ -229,7 +229,17 @@ def main(args):
     # 2.2 vae
     if args.use_vae_decode or args.reference_path is not None:
         logger.info("vae init")
-        vae = AutoencoderKL(SD_CONFIG, VAE_Z_CH, ckpt_path=args.vae_checkpoint)
+        if args.vae_type in [None, "VideoAutoencoderKL"]:
+            # vae = AutoencoderKL(SD_CONFIG, VAE_Z_CH, ckpt_path=args.vae_checkpoint)
+            vae = VideoAutoencoderKL(config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size)
+        elif args.vae_dtype == 'OpenSoraVAE_V1_2"':
+            vae = OpenSoraVAE_V1_2(
+                micro_batch_size=args.vae_micro_batch_size,
+                micro_frame_size=args.vae_micro_frame_size,
+                ckpt_path=args.vae_checkpoint,
+                freeze_vae_2d=True,
+            )
+
         vae = vae.set_train(False)
         if args.vae_dtype in ["fp16", "bf16"]:
             vae = auto_mixed_precision(
@@ -303,6 +313,7 @@ def main(args):
         )
         pipeline_kwargs.update(additional_pipeline_kwargs)
 
+    # TODO: need to adapt new vae to FiT
     pipeline_ = InferPipelineFiTLike if args.pre_patchify else InferPipeline
     pipeline = pipeline_(latte_model, vae, text_encoder=text_encoder, **pipeline_kwargs)
 
@@ -416,7 +427,7 @@ def main(args):
 
             # infer
             start_time = time.time()
-            samples, latent = pipeline(inputs, frames_mask=frames_mask, additional_kwargs=model_args)
+            samples, latent = pipeline(inputs, frames_mask=frames_mask, num_frames=args.num_frames, additional_kwargs=model_args)
             latents.append(latent.asnumpy()[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
             if samples is not None:
                 videos.append(samples.asnumpy()[:, args.condition_frame_length if loop_i > 0 else 0 :])
@@ -490,10 +501,23 @@ def parse_args():
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
     parser.add_argument(
+        "--vae_type",
+        type=str,
+        default=None,
+        choices=[None, "OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
+        help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
+    )
+    parser.add_argument(
         "--vae_micro_batch_size",
         type=int,
         default=None,
-        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
+        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by spatial vae",
+    )
+    parser.add_argument(
+        "--vae_micro_frame_size",
+        type=int,
+        default=None,
+        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by spatial vae",
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")

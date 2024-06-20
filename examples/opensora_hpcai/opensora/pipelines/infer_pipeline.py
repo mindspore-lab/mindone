@@ -18,7 +18,7 @@ class InferPipeline:
 
     Args:
         model (nn.Cell): A noise prediction model to denoise the encoded image latents.
-        vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
+        vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images or videos to and from latent representations.
         scale_factor (float): scale_factor for vae.
         guidance_rescale (float): A higher guidance scale value for noise rescale.
         num_inference_steps: (int): The number of denoising steps.
@@ -60,8 +60,8 @@ class InferPipeline:
 
     @ms.jit
     def vae_encode(self, x: Tensor) -> Tensor:
-        image_latents = self.vae.encode(x)
-        image_latents = image_latents * self.scale_factor
+        image_latents = ops.stop_gradient(self.vae.encode(x))
+        # already mul with scale factor in VAE
         return image_latents
 
     def vae_decode(self, x: Tensor) -> Tensor:
@@ -71,19 +71,7 @@ class InferPipeline:
         Return:
             y: (b H W 3), batch of images, normalized to [0, 1]
         """
-        b, c, h, w = x.shape
-
-        if self.micro_batch_size is None:
-            y = self.vae.decode(x / self.scale_factor)
-        else:
-            bs = self.micro_batch_size
-            y_out = []
-            for i in range(0, x.shape[0], bs):
-                x_bs = x[i : i + bs]
-                y_bs = self.vae.decode(x_bs / self.scale_factor)
-                y_out.append(y_bs)
-            y = ops.concat(y_out, axis=0)
-
+        y = ops.stop_gradient(self.vae.decode(x))
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
         # (b 3 H W) -> (b H W 3)
@@ -91,20 +79,18 @@ class InferPipeline:
 
         return y
 
-    def vae_decode_video(self, x):
+    def vae_decode_video(self, x, num_frames=None):
         """
         Args:
             x: (b c t h w), denoised latent
         Return:
             y: (b f H W 3), batch of images, normalized to [0, 1]
         """
-        y = []
-        for x_sample in x:
-            # c t h w -> t c h w
-            x_sample = x_sample.permute(1, 0, 2, 3)
-            y.append(self.vae_decode(x_sample))
-        y = ops.stack(y, axis=0)
 
+        y = ops.stop_gradient(self.vae.decode(x, num_frames=num_frames))
+        y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+        # (b 3 t h w) -> (b t h w 3)
+        y = ops.transpose(y, (0, 2, 3, 4, 1))
         return y
 
     def data_prepare(self, inputs):
@@ -147,6 +133,7 @@ class InferPipeline:
         self,
         inputs: dict,
         frames_mask: Optional[Tensor] = None,
+        num_frames: int = None,
         additional_kwargs: Optional[dict] = None,
     ) -> Tuple[Union[Tensor, None], Tensor]:
         """
@@ -190,12 +177,9 @@ class InferPipeline:
             )
 
         if self.vae is not None:
-            if latents.dim() == 4:
-                images = self.vae_decode(latents)
-            else:
-                # latents: (b c t h w)
-                # out: (b T H W C)
-                images = self.vae_decode_video(latents)
+            # latents: (b c t h w)
+            # out: (b T H W C)
+            images = self.vae_decode_video(latents, num_frames=num_frames)
             return images, latents
         else:
             return None, latents
