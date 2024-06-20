@@ -1,12 +1,13 @@
 import logging
 import os
 
-import mindspore as ms
-from mindspore import ops, nn
 from transformers import PretrainedConfig
 
+import mindspore as ms
+from mindspore import nn, ops
+
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
-from .vae_temporal import VAE_Temporal, VAE_Temporal_SD
+from .vae_temporal import VAE_Temporal_SD  # noqa: F401
 
 __all__ = ["AutoencoderKL"]
 
@@ -52,41 +53,49 @@ class AutoencoderKL(AutoencoderKL_SD):
 
         return mean, std
 
+
 # -------------------------------- OpenSora v1.2 Begin ------------------------------------ #
 
 SDXL_CONFIG = SD_CONFIG.copy()
 SDXL_CONFIG.update({"resolution": 512})
 
+
 class VideoAutoencoderKL(nn.Cell):
-    '''
+    """
     Spatial VAE
-    '''
+    """
+
     def __init__(
-        self, config=SDXL_CONFIG, ckpt_path=None, micro_batch_size=None,
+        self,
+        config=SDXL_CONFIG,
+        ckpt_path=None,
+        micro_batch_size=None,
     ):
         super().__init__()
 
-        self.module = AutoencoderKL_SD(ddconfig=config,
-                         embed_dim=config['z_channels'],
-                         ckpt_path=ckpt_path,
-                         )
+        self.module = AutoencoderKL_SD(
+            ddconfig=config,
+            embed_dim=config["z_channels"],
+            ckpt_path=ckpt_path,
+        )
 
-        self.out_channels = config['z_channels'] # self.module.config.latent_channels
+        self.out_channels = config["z_channels"]  # self.module.config.latent_channels
         self.patch_size = (1, 8, 8)
         self.micro_batch_size = micro_batch_size
 
-        # TODO: "scaling_factor": 0.13025 is set in https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json. Why not update? TODO: compare the quality
+        # TODO: "scaling_factor": 0.13025 is set in
+        # https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json. Compare diff.
         self.scale_factor = 0.18215
-    
+
     @staticmethod
     def rearrange_in(x):
         B, C, T, H, W = x.shape
         # (b c t h w) -> (b t c h w)
         x = ops.transpose(x, (0, 2, 1, 3, 4))
-        x = ops.reshape(x, (B*T, C, H, W))
+        x = ops.reshape(x, (B * T, C, H, W))
 
         return x
-    
+
     @staticmethod
     def rearrange_out(x, B):
         # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
@@ -154,6 +163,7 @@ class VideoAutoencoderKL(nn.Cell):
 
 class VideoAutoencoderPipelineConfig(PretrainedConfig):
     model_type = "VideoAutoencoderPipeline"
+
     def __init__(
         self,
         vae_2d=None,
@@ -178,24 +188,25 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
 
 
 def build_module_from_config(config):
-    '''
+    """
     config dict format:
         - type: model class name
         - others: model init args
-    '''
+    """
     cfg = config.copy()
-    name = cfg.pop('type')
+    name = cfg.pop("type")
     kwargs = cfg
-    
+
     # FIXME: use importlib with path
     module = eval(name)(**kwargs)
     return module
 
 
 class VideoAutoencoderPipeline(nn.Cell):
-    '''
+    """
     Main model for spatial vae + tempral vae
-    '''
+    """
+
     # config_class = VideoAutoencoderPipelineConfig
     def __init__(self, config: VideoAutoencoderPipelineConfig):
         super().__init__()
@@ -238,7 +249,9 @@ class VideoAutoencoderPipeline(nn.Cell):
                 z_list.append(z_bs)
             z = ops.cat(z_list, axis=2)
             if self.cal_loss:
-                raise ValueError("Please fix the bug of posterior concatenation for temporal vae training with micro_frame_size")
+                raise ValueError(
+                    "Please fix the bug of posterior concatenation for temporal vae training with micro_frame_size"
+                )
 
         if self.cal_loss:
             return z, posterior_mean, posterior_logvar, x_z
@@ -271,7 +284,7 @@ class VideoAutoencoderPipeline(nn.Cell):
         assert self.cal_loss, "This method is only available when cal_loss is True"
         z, posterior_mean, posterior_logvar, x_z = self.encode(x)
         x_rec, x_z_rec = self.decode(z, num_frames=x_z.shape[2])
-        return x_rec, x_z_rec, z, posterior, x_z
+        return x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z
 
     def get_latent_size(self, input_size):
         if self.micro_frame_size is None or input_size[0] is None:

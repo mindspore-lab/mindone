@@ -1,5 +1,6 @@
 from vae.vae import OpenSoraVAE_V1_2
 
+
 def get_pnames():
     model = OpenSoraVAE_V1_2(ckpt_path=None)
     for param in model.get_parameters():

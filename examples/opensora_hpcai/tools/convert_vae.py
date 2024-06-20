@@ -1,7 +1,7 @@
 import argparse
-import numpy as np
 import os
 
+import numpy as np
 import torch
 
 import mindspore as ms

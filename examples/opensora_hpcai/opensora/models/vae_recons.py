@@ -1,3 +1,4 @@
+# flake8: noqa
 """
 Infer and evaluate autoencoders
 """
@@ -9,14 +10,12 @@ import time
 
 import imageio
 import numpy as np
+
 from mindspore import nn, ops
 
 # mindone_dir = '/home/mindocr/yx/mindone'
-mindone_dir = '/home_host/yx/mindone'
+mindone_dir = "/home_host/yx/mindone"
 sys.path.insert(0, mindone_dir)
-
-from vae.data.loader import create_dataloader
-from vae.vae import VideoAutoencoderKL, OpenSoraVAE_V1_2, SD_CONFIG, SDXL_CONFIG
 
 # from ae.models.lpips import LPIPS
 from omegaconf import OmegaConf
@@ -24,6 +23,8 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio as calc_psnr
 from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
+from vae.data.loader import create_dataloader
+from vae.vae import SD_CONFIG, SDXL_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 
 import mindspore as ms
 
@@ -78,18 +79,16 @@ def main(args):
     ascend_config = {"precision_mode": "must_keep_origin_dtype"}
     ms.set_context(mode=args.mode, ascend_config=ascend_config)
     set_logger(name="", output_dir=args.output_path, rank=0)
-    
+
     if args.use_temporal_vae:
         model = OpenSoraVAE_V1_2(
             micro_batch_size=4,
             micro_frame_size=8,
             ckpt_path=args.ckpt_path,
             freeze_vae_2d=True,
-            ) 
+        )
     else:
-        model = VideoAutoencoderKL(config=SDXL_CONFIG, 
-            ckpt_path=args.ckpt_path,
-            micro_batch_size=4)
+        model = VideoAutoencoderKL(config=SDXL_CONFIG, ckpt_path=args.ckpt_path, micro_batch_size=4)
 
     model.set_train(False)
     logger.info(f"Loaded checkpoint from  {args.ckpt_path}")
@@ -293,4 +292,3 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     main(args)
-

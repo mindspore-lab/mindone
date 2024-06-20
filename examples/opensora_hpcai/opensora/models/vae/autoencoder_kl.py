@@ -34,7 +34,9 @@ class AutoencoderKL(nn.Cell):
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
 
-    def init_from_ckpt(self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]):
+    def init_from_ckpt(
+        self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]
+    ):
         # TODO: support auto download pretrained checkpoints
         sd = ms.load_checkpoint(path)
         keys = list(sd.keys())

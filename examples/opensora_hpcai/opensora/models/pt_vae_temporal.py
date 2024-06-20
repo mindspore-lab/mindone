@@ -316,7 +316,8 @@ class Decoder(nn.Module):
         x = self.conv_out(x)
         return x
 
-'''
+
+"""
 @MODELS.register_module()
 class VAE_Temporal(nn.Module):
     def __init__(
@@ -428,4 +429,4 @@ def VAE_Temporal_SD(from_pretrained=None, **kwargs):
     if from_pretrained is not None:
         load_checkpoint(model, from_pretrained)
     return model
-'''
+"""
