@@ -571,9 +571,9 @@ Here are some generation results after fine-tuning STDiT on a subset of WebVid d
   <td style="text-align:center;"><b>512x512x64</b></td>
 </tr>
 <tr>
-  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0" width="33.3%"></td>
-  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609" width="33.3%"></td>
-  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c" width="33.3%"></td>
+  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0" width="34%"></td>
+  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609" width="34%"></td>
+  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c" width="32%"></td>
 </tr>
 </table>
 
