@@ -109,37 +109,35 @@ class VideoAutoencoderKL(nn.Cell):
     def encode(self, x):
         # NOTE: remind to use stop gradient when invoke it
         is_video = (x.ndim == 5)
-        if is_video:
-            # x: (B, C, T, H, W)
-            B = x.shape[0]
-            # x = rearrange(x, "B C T H W -> (B T) C H W")
-            x = self.rearrange_in(x)
+        B = x.shape[0]
+        # x: (B, C, T, H, W)
+        # x = rearrange(x, "B C T H W -> (B T) C H W")
+        x = self.rearrange_in(x)
 
         if self.micro_batch_size is None:
             # x = self.module.encode(x).latent_dist.sample().mul_(0.18215)
             x = self.module.encode(x) * self.scale_factor
         else:
-            # NOTE: cannot be used for training
             bs = self.micro_batch_size
             x_out = []
+            # FIXME: supported in graph mode? or use split
             for i in range(0, x.shape[0], bs):
                 x_bs = x[i : i + bs]
                 x_bs = self.module.encode(x_bs) * self.scale_factor
                 x_out.append(x_bs)
             x = ops.cat(x_out, axis=0)
 
-        if is_video:
-            # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
-            x = self.rearrange_out(x, B=B)
+        # x = rearrange(x, "(B T) C H W -> B C T H W", B=B)
+        x = self.rearrange_out(x, B=B)
+
         return x
 
     def decode(self, x, **kwargs):
         is_video = (x.ndim == 5)
-        if is_video:
-            # x: (B, Z, T, H, W)
-            B = x.shape[0]
-            # x = rearrange(x, "B Z T H W -> (B T) Z H W")
-            x = self.rearrange_in(x)
+        B = x.shape[0]
+        # x: (B, Z, T, H, W)
+        # x = rearrange(x, "B Z T H W -> (B T) Z H W")
+        x = self.rearrange_in(x)
 
         if self.micro_batch_size is None:
             x = self.module.decode(x / self.scale_factor)
@@ -152,9 +150,9 @@ class VideoAutoencoderKL(nn.Cell):
                 x_bs = self.module.decode(x_bs / self.scale_factor)
                 x_out.append(x_bs)
             x = ops.cat(x_out, axis=0)
-        if is_video:
-            # x = rearrange(x, "(B T) Z H W -> B Z T H W", B=B)
-            x = self.rearrange_out(x, B=B)
+
+        # x = rearrange(x, "(B T) Z H W -> B Z T H W", B=B)
+        x = self.rearrange_out(x, B=B)
 
         return x
 

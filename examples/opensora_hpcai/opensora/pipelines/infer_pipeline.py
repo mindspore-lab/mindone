@@ -58,10 +58,10 @@ class InferPipeline:
         else:
             self.sampling_func = self.diffusion.p_sample_loop
 
-    @ms.jit
+    # @ms.jit
     def vae_encode(self, x: Tensor) -> Tensor:
-        image_latents = ops.stop_gradient(self.vae.encode(x))
-        # already mul with scale factor in VAE
+        # image_latents = ops.stop_gradient(self.vae.encode(x))
+        image_latents = ops.stop_gradient(self.vae.module.encode(x) * self.vae.scale_factor)
         return image_latents
 
     def vae_decode(self, x: Tensor) -> Tensor:
@@ -71,7 +71,7 @@ class InferPipeline:
         Return:
             y: (b H W 3), batch of images, normalized to [0, 1]
         """
-        y = ops.stop_gradient(self.vae.decode(x))
+        y = ops.stop_gradient(self.vae.module.decode(x) / self.vae.scale_factor)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
         # (b 3 H W) -> (b H W 3)
