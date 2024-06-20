@@ -60,11 +60,6 @@ SDXL_CONFIG.update({"resolution": 512})
 class VideoAutoencoderKL(nn.Cell):
     '''
     Spatial VAE
-    Usage:
-
-        vae = VideoAutoencoderKL(config=SD_CONFIG, ckpt_path='models/sd_vae_ema.ckpt', micro_batch_size=8)
-        z = vae.encode(vid_tensor)
-        x = vae.decoder(z)
     '''
     def __init__(
         self, config=SDXL_CONFIG, ckpt_path=None, micro_batch_size=None,
@@ -302,7 +297,6 @@ def OpenSoraVAE_V1_2(
     freeze_vae_2d=False,
     cal_loss=False,
 ):
-    # import pdb; pdb.set_trace()
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,

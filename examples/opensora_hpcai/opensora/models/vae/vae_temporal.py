@@ -5,6 +5,7 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import nn, ops
+from packaging import version
 
 
 def divisible_by(num, den):
@@ -75,15 +76,19 @@ class CausalConv3d(nn.Cell):
         x = self.conv(x)
         return x
 
-# TODO: remove it after ms2.3-0525 which support 5D input
-class GroupNorm(nn.GroupNorm):
-    # GroupNorm supporting tensors with more than 4 dim
-    def construct(self, x):
-        x_shape = x.shape
-        if x.ndim >= 5:
-            x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
-        y = super().construct(x)
-        return y.view(x_shape)
+if version.parse(ms.__version__) >= version.parse("2.3"): 
+    GroupNorm = nn.GroupNorm
+else:
+    # GroupNorm does not support 5D input before 2.3
+    class GroupNorm(nn.GroupNorm):
+        # GroupNorm supporting tensors with more than 4 dim
+        def construct(self, x):
+            x_shape = x.shape
+            if x.ndim >= 5:
+                x = x.view(x_shape[0], x_shape[1], x_shape[2], -1)
+            y = super().construct(x)
+
+            return y.view(x_shape)
 
 
 class ResBlock(nn.Cell):
