@@ -505,21 +505,19 @@ Here are some generation results after fine-tuning STDiT2 on small dataset.
 <table class="center">
 <tr>
   <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
-  </tr>
-<tr>
-  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/4df1dabf-1a7c-45d9-b005-08f6c2d26dfe" autoplay></td>
-</tr>
-<tr>
   <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
   </tr>
 <tr>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/4df1dabf-1a7c-45d9-b005-08f6c2d26dfe" autoplay></td>
   <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/6e735171-042f-4b8d-a12c-4ddd5b2b4382" autoplay></td>
 </tr>
 <tr>
   <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
+  <td width=50% style="text-align:center;"><b>576x1024x48</b></td>
   </tr>
 <tr>
   <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/ab627b2c-d932-4c9d-84f4-afe0c9d5d5ce" autoplay></td>
+  <td width=50%><video src="https://github.com/mindspore-lab/mindone/assets/52945530/b435f737-3948-49ed-bfdd-7b0d817a1e1e" autoplay></td>
 </tr>
 </table>
 
