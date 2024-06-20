@@ -57,7 +57,7 @@ We use the `train` folder for training the FiT model.
 You need first extract the latent vectors of ImageNet Dataset using the following command:
 
 ```bash
-python preprocess.py --dataset_path PATH_TO_YOUR_DATASET --outdir latent
+python preprocess.py --data_path PATH_TO_YOUR_DATASET --outdir latent
 ```
 
 where `PATH_TO_YOUR_DATASET` is the path of your ImageNet dataset, e.g. `ImageNet2012/train`. The latent vector of each image is then stored at `latent` directory.
@@ -70,7 +70,7 @@ You can then start the distributed training using the following command
 export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
 mpirun -n 4 python train.py \
     -c configs/training/class_cond_train.yaml \
-    --dataset_path PATH_TO_YOUR_LATENT_DATASET \
+    --data_path PATH_TO_YOUR_LATENT_DATASET \
     --use_parallel True
 ```
 
@@ -95,7 +95,7 @@ bash scripts/run_distributed.sh -h
 
 | Model    | Context       | Global Batch Size x Grad. Accu. | Max. Resolution | Acceleration | FPS (img/s) |
 |----------|---------------|---------------------------------|-----------------|--------------|-------------|
-| FiT-XL-2 | D910*x4-MS2.2 | 256x1                           | 256x256         | FP16         | 319.7       |
+| FiT-XL-2 | D910*x8-MS2.3 | 512x1                           | 256x256         | FP16         | 586         |
 
 > Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
 > Acceleration: FP16: float16 computation. Flash attention is not used in the test currently.
