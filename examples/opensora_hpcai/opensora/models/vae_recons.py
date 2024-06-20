@@ -11,7 +11,8 @@ import imageio
 import numpy as np
 from mindspore import nn, ops
 
-mindone_dir = '/home/mindocr/yx/mindone'
+# mindone_dir = '/home/mindocr/yx/mindone'
+mindone_dir = '/home_host/yx/mindone'
 sys.path.insert(0, mindone_dir)
 
 from vae.data.loader import create_dataloader
