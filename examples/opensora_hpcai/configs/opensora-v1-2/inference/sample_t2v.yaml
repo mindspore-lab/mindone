@@ -1,0 +1,30 @@
+model_version: v1.2
+ckpt_path: "models/opensora_v1.2_stage3.ckpt"
+t5_model_dir: "models/t5-v1_1-xxl/"
+
+vae_model_type: "OpenSoraVAE_V1_2" 
+vae_checkpoint: "models/OpenSora-VAE-v1.2/model.ckpt"
+vae_micro_batch_size: 4
+vae_micro_frame_size: 17
+
+image_size: [ 240, 320 ]
+num_frames: 24
+frame_interval: 3
+fps: 24
+enable_flash_attention: True
+model_max_length: 200
+dtype: "fp16"
+batch_size: 1
+
+# sampling
+sampling_steps: 100
+guidance_scale: 7.0
+guidance_channels: 3
+seed: 42
+ddim_sampling: False
+
+loop: 1
+condition_frame_length: 4
+
+captions:
+  - "Snow falling over multiple houses and trees on winter landscape against night sky. christmas festivity and celebration concept"
