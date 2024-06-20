@@ -522,7 +522,7 @@ def parse_args():
         "--vae_micro_frame_size",
         type=int,
         default=None,
-        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by spatial vae",
+        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by temporal vae",
     )
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--sampling_steps", type=int, default=50, help="Diffusion Sampling Steps")
