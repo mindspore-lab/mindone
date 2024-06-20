@@ -547,17 +547,19 @@ Note that training on 300 frames at 512x512 resolution is achieved by optimizati
 
 Here are some generation results after fine-tuning STDiT on a subset of WebVid dataset in 512x512x64 resolution.
 
-https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609
+<table class="center">
+<tr>
+  <td style="text-align:center;"><b>The girl received flowers as a gift. a gift for my birthday. the guy gave a girl flowers</b></td>
+  <td style="text-align:center;"><b>Cloudy moscow kremlin time lapse</b></td>
+  <td style="text-align:center;"><b>A baker turns freshly baked loaves of sourdough bread</b></td>
+</tr>
+<tr>
+  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/f00ad2bd-56e7-448c-9f85-c58888dca609" autoplay></td>
+  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0" autoplay></td>
+  <td><video src="https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c" autoplay></td>
+</tr>
+</table>
 
-Prompt: The girl received flowers as a gift. a gift for my birthday. the guy gave a girl flowers
-
-https://github.com/SamitHuang/mindone/assets/8156835/c82c059f-57da-44e5-933b-66ccf9e59ea0
-
-Prompt: Cloudy moscow kremlin time lapse
-
-https://github.com/SamitHuang/mindone/assets/8156835/51b4a431-195b-4a53-b177-e58a7aa7276c
-
-Prompt: A baker turns freshly baked loaves of sourdough bread
 
 #### Quality Evaluation
 For quality evaluation, please refer to the original HPC-AI Tech [evaluation doc](https://github.com/hpcaitech/Open-Sora/blob/main/eval/README.md) for video generation quality evaluation.
