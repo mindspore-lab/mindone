@@ -84,7 +84,8 @@ class VideoAutoencoderKL(nn.Cell):
         self.micro_batch_size = micro_batch_size
 
         # TODO: "scaling_factor": 0.13025 is set in
-        # https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json. Compare diff.
+        # https://huggingface.co/PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers/blob/main/vae/config.json.
+        # This is a mistake made during the training of OpenSora v1.2. To re-use the trained model, we need to keep this mistake. For training, we should refine to 0.13025.
         self.scale_factor = 0.18215
 
     @staticmethod
@@ -107,10 +108,11 @@ class VideoAutoencoderKL(nn.Cell):
         return x
 
     def encode(self, x):
-        # NOTE: remind to use stop gradient when invoke it
-        is_video = (x.ndim == 5)
-        B = x.shape[0]
         # x: (B, C, T, H, W)
+        # NOTE: remind to use stop gradient when invoke it
+        # is_video = (x.ndim == 5)
+
+        B = x.shape[0]
         # x = rearrange(x, "B C T H W -> (B T) C H W")
         x = self.rearrange_in(x)
 
@@ -133,7 +135,8 @@ class VideoAutoencoderKL(nn.Cell):
         return x
 
     def decode(self, x, **kwargs):
-        is_video = (x.ndim == 5)
+        # is_video = (x.ndim == 5)
+
         B = x.shape[0]
         # x: (B, Z, T, H, W)
         # x = rearrange(x, "B Z T H W -> (B T) Z H W")
