@@ -75,7 +75,16 @@ def parse_train_args(parser):
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
 
     # training hyper-params
     parser.add_argument(

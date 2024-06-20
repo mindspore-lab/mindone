@@ -36,7 +36,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
+    jit_level: str = "O0",
     global_bf16: bool = False,
 ):
     """
@@ -83,9 +83,18 @@ def init_env(
             device_target=device_target,
         )
 
-    if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    try:
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})

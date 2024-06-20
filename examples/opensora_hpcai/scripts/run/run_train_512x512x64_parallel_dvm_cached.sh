@@ -6,9 +6,6 @@ export MS_MEMORY_STATISTIC=0
 
 export MS_DATASET_SINK_QUEUE=4
 
-# enable kbk: 1
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
 
 # log level
 export GLOG_v=2
@@ -22,7 +19,7 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
 	--vae_latent_folder datasets/sora_overfitting_dataset_0410_vae_512x512 \
 	--text_embed_folder datasets/sora_overfitting_dataset_0410 \
     --use_parallel=True \
-    --enable_dvm=True \
+    --jit_level="O1" \
     --num_frames=$num_frames \
     --optim=adamw \
     --global_bf16=False \
