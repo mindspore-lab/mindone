@@ -1,21 +1,22 @@
-import logging
 from typing import Tuple, Union
 
-import numpy as np
+from packaging import version
 
 import mindspore as ms
 from mindspore import nn, ops
-from packaging import version
 
 
 def divisible_by(num, den):
     return (num % den) == 0
 
+
 def is_odd(n):
     return not divisible_by(n, 2)
 
+
 def cast_tuple(t, length=1):
     return t if isinstance(t, tuple) else ((t,) * length)
+
 
 def pad_at_dim(t, pad, dim=-1):
     dims_from_right = (-dim - 1) if dim < 0 else (t.ndim - dim - 1)
@@ -41,7 +42,7 @@ class CausalConv3d(nn.Cell):
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
 
         assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
-        assert pad_mode == 'constant'
+        assert pad_mode == "constant"
 
         dilation = kwargs.pop("dilation", 1)
         stride = strides[0] if strides is not None else kwargs.pop("stride", 1)
@@ -60,15 +61,17 @@ class CausalConv3d(nn.Cell):
         dilation = (dilation, 1, 1)
         self.time_causal_padding = (time_pad, 0, height_pad, height_pad, width_pad, width_pad)
         # integarte pad in conv can be faster
-        self.conv = nn.Conv3d(chan_in,
-                              chan_out,
-                              kernel_size,
-                              stride=stride,
-                              dilation=dilation,
-                              has_bias=has_bias,
-                              pad_mode="pad",
-                              padding=self.time_causal_padding,
-                              **kwargs)
+        self.conv = nn.Conv3d(
+            chan_in,
+            chan_out,
+            kernel_size,
+            stride=stride,
+            dilation=dilation,
+            has_bias=has_bias,
+            pad_mode="pad",
+            padding=self.time_causal_padding,
+            **kwargs,
+        )
 
     def construct(self, x):
         # x: (B, C, T, H, W)
@@ -76,7 +79,8 @@ class CausalConv3d(nn.Cell):
         x = self.conv(x)
         return x
 
-if version.parse(ms.__version__) >= version.parse("2.3"): 
+
+if version.parse(ms.__version__) >= version.parse("2.3"):
     GroupNorm = nn.GroupNorm
 else:
     # GroupNorm does not support 5D input before 2.3
@@ -214,8 +218,8 @@ class Encoder(nn.Cell):
                     self.conv_blocks.append(nn.Identity())  # Identity
                     prev_filters = filters  # update in_channels
 
-            self.block_res_blocks.update_parameters_name(prefix=self.param_prefix + f"block_res_blocks.")
-            self.conv_blocks.update_parameters_name(prefix=self.param_prefix + f"conv_blocks.")
+            self.block_res_blocks.update_parameters_name(prefix=self.param_prefix + "block_res_blocks.")
+            self.conv_blocks.update_parameters_name(prefix=self.param_prefix + "conv_blocks.")
 
         # last layer res block
         self.res_blocks = nn.CellList(auto_prefix=False)
@@ -223,12 +227,14 @@ class Encoder(nn.Cell):
             self.res_blocks.append(ResBlock(prev_filters, filters, **self.block_args))
             prev_filters = filters  # update in_channels
 
-            self.res_blocks.update_parameters_name(prefix=self.param_prefix + f"res_blocks.")
+            self.res_blocks.update_parameters_name(prefix=self.param_prefix + "res_blocks.")
 
         # MAGVIT uses Group Normalization
         self.norm1 = GroupNorm(self.num_groups, prev_filters)
 
-        self.conv2 = self.conv_fn(prev_filters, self.embedding_dim, kernel_size=(1, 1, 1))  # NOTE: since it is 1x1x1 conv, there is no need to set padding=same
+        self.conv2 = self.conv_fn(
+            prev_filters, self.embedding_dim, kernel_size=(1, 1, 1)
+        )  # NOTE: since it is 1x1x1 conv, there is no need to set padding=same
 
     def construct(self, x):
         # input x: (b, z, t, h, w), z = 4
@@ -251,6 +257,7 @@ class Encoder(nn.Cell):
 
 class Decoder(nn.Cell):
     """Decoder Blocks."""
+
     def __init__(
         self,
         in_out_channels=4,
@@ -294,7 +301,7 @@ class Decoder(nn.Cell):
         for _ in range(self.num_res_blocks):
             self.res_blocks.append(ResBlock(filters, filters, **self.block_args))
 
-            self.res_blocks.update_parameters_name(prefix=self.param_prefix + f"res_blocks.")
+            self.res_blocks.update_parameters_name(prefix=self.param_prefix + "res_blocks.")
 
         # ResBlocks and conv upsample
         self.block_res_blocks = nn.CellList()
@@ -327,8 +334,8 @@ class Decoder(nn.Cell):
                         nn.Identity(),
                     )
 
-            self.block_res_blocks.update_parameters_name(prefix=self.param_prefix + f"block_res_blocks.")
-            self.conv_blocks.update_parameters_name(prefix=self.param_prefix + f"conv_blocks.")
+            self.block_res_blocks.update_parameters_name(prefix=self.param_prefix + "block_res_blocks.")
+            self.conv_blocks.update_parameters_name(prefix=self.param_prefix + "conv_blocks.")
 
         self.norm1 = GroupNorm(self.num_groups, prev_filters)
 
@@ -339,13 +346,13 @@ class Decoder(nn.Cell):
         # "B (C ts hs ws) T H W -> B C (T ts) (H hs) (W ws)",
         # TODO: due to hs, ws is fixed to 1, it's equivalent to:
         #       B (C ts) T H W -> B C (T ts) H W )
-        ''' for hs ws != 1
+        """for hs ws != 1
         B, C_ts_hs_ws, T, H, W = x.shape
         C = C_ts_hs_ws // (ts * hs * ws)
         x = ops.reshape(x, (B, C, ts, hs, ws, T, H, W))
         x = ops.transpose(x, (0, 1, 5, 2, 6, 3, 7, 4))
         x = ops.reshape(x, (B, C, T * ts, H * hs, W * ws))
-        '''
+        """
 
         B, C_ts, T, H, W = x.shape
         C = C_ts // ts

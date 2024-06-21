@@ -1,11 +1,10 @@
 import argparse
 import os
-import numpy as np
 
-import torch
+import numpy as np
+from convert_vae import load_torch_ckpt
 
 import mindspore as ms
-from convert_vae import load_torch_ckpt
 
 
 def get_shape_from_str(shape):
@@ -27,25 +26,27 @@ def convert(source_fp, target_fp, spatial_vae_only=False):
         lines_pt = [line for line in lines_pt if line.startswith("spatial_vae")]
 
     assert len(lines_ms) == len(lines_pt)
-    
+
     # convert and save
     sd_pt = load_torch_ckpt(source_fp)  # state dict
     num_params_pt = len(list(sd_pt.keys()))
     print("Total params in pt ckpt: ", num_params_pt)
     target_data = []
     for i in range(len(lines_pt)):
-        name_pt, shape_pt = lines_pt[i].strip().split('#')
+        name_pt, shape_pt = lines_pt[i].strip().split("#")
         shape_pt = get_shape_from_str(shape_pt)
-        name_ms, shape_ms = lines_ms[i].strip().split('#')
+        name_ms, shape_ms = lines_ms[i].strip().split("#")
         shape_ms = get_shape_from_str(shape_ms)
-        assert np.prod(shape_pt) == np.prod(shape_ms), f'Mismatch param: PT: {name_pt}, {shape_pt} vs MS: {name_ms}, {shape_ms}'
-        
+        assert np.prod(shape_pt) == np.prod(
+            shape_ms
+        ), f"Mismatch param: PT: {name_pt}, {shape_pt} vs MS: {name_ms}, {shape_ms}"
+
         data = sd_pt[name_pt].cpu().detach().numpy().reshape(shape_ms)
         target_data.append({"name": name_ms, "data": ms.Tensor(data, dtype=ms.float32)})
 
     print("Total params converted: ", len(target_data))
     ms.save_checkpoint(target_data, target_fp)
-    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -62,9 +63,7 @@ if __name__ == "__main__":
         type=str,
         help="Filename to save. Specify folder, e.g., ./models, or file path which ends with .ckpt, e.g., ./models/vae.ckpt",
     )
-    parser.add_argument(
-        "--spatial_vae_only", action="store_true", help="only convert spatial vae, default: False"
-    )
+    parser.add_argument("--spatial_vae_only", action="store_true", help="only convert spatial vae, default: False")
 
     args = parser.parse_args()
 
