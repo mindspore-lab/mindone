@@ -154,20 +154,39 @@ def main(args):
         print(f"Num captions for rank {rank_id}: {len(captions)}")
 
     # 2. model initiate and weight loading
-    # 2.1 latte
-    VAE_T_COMPRESS = 4 if args.vae_type == "OpenSoraVAE_V1_2" else 1
-    VAE_S_COMPRESS = 8
-    VAE_Z_CH = SD_CONFIG["z_channels"]
-    img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+    # 2.1 vae
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    # if args.use_vae_decode or args.reference_path is not None:
+    # TODO: fix vae get_latent_size for vae cache
+    logger.info("vae init")
+    if args.vae_type in [None, "VideoAutoencoderKL"]:
+        # vae = AutoencoderKL(SD_CONFIG, VAE_Z_CH, ckpt_path=args.vae_checkpoint)
+        vae = VideoAutoencoderKL(
+            config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
+        )
+    elif args.vae_type == "OpenSoraVAE_V1_2":
+        vae = OpenSoraVAE_V1_2(
+            micro_batch_size=args.vae_micro_batch_size,
+            micro_frame_size=args.vae_micro_frame_size,
+            ckpt_path=args.vae_checkpoint,
+            freeze_vae_2d=True,
+        )
 
-    input_size = (
-        args.num_frames // VAE_T_COMPRESS,
-        img_h // VAE_S_COMPRESS,
-        img_w // VAE_S_COMPRESS,
-    )
+    vae = vae.set_train(False)
+    if args.vae_dtype in ["fp16", "bf16"]:
+        vae = auto_mixed_precision(
+            vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype], custom_fp32_cells=[nn.GroupNorm]
+        )
+
+    VAE_Z_CH = vae.out_channels
+    img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+    input_size = (args.num_frames, img_h, img_w)
+    latent_size = vae.get_latent_size(input_size)
+
+    # 2.2 latte
     patchify_conv3d_replace = "linear" if args.pre_patchify else args.patchify
     model_extra_args = dict(
-        input_size=input_size,
+        input_size=latent_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
@@ -204,16 +223,15 @@ def main(args):
 
     latte_model = latte_model.set_train(False)
 
-    if input_size[1] % latte_model.patch_size[1] != 0 or input_size[2] % latte_model.patch_size[2] != 0:
-        height_ = latte_model.patch_size[1] * VAE_S_COMPRESS
-        width_ = latte_model.patch_size[2] * VAE_S_COMPRESS
+    if latent_size[1] % latte_model.patch_size[1] != 0 or latent_size[2] % latte_model.patch_size[2] != 0:
+        height_ = latte_model.patch_size[1] * 8
+        width_ = latte_model.patch_size[2] * 8
         msg = f"Image height ({img_h}) and width ({img_w}) should be divisible by {height_} and {width_} respectively."
         if patchify_conv3d_replace == "linear":
             raise ValueError(msg)
         else:
             logger.warning(msg)
 
-    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
             latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
@@ -225,30 +243,6 @@ def main(args):
         latte_model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"{model_name} uses random initialization!")
-
-    # 2.2 vae
-    if args.use_vae_decode or args.reference_path is not None:
-        logger.info("vae init")
-        if args.vae_type in [None, "VideoAutoencoderKL"]:
-            # vae = AutoencoderKL(SD_CONFIG, VAE_Z_CH, ckpt_path=args.vae_checkpoint)
-            vae = VideoAutoencoderKL(
-                config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
-            )
-        elif args.vae_type == "OpenSoraVAE_V1_2":
-            vae = OpenSoraVAE_V1_2(
-                micro_batch_size=args.vae_micro_batch_size,
-                micro_frame_size=args.vae_micro_frame_size,
-                ckpt_path=args.vae_checkpoint,
-                freeze_vae_2d=True,
-            )
-
-        vae = vae.set_train(False)
-        if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(
-                vae, amp_level=args.amp_level, dtype=dtype_map[args.vae_dtype], custom_fp32_cells=[nn.GroupNorm]
-            )
-    else:
-        vae = None
 
     # 2.3 text encoder
     if args.text_embed_folder is None:
@@ -402,7 +396,7 @@ def main(args):
             # prepare inputs
             inputs = {}
             # b c t h w
-            z = np.random.randn(*([ns, VAE_Z_CH] + list(input_size))).astype(np.float32)
+            z = np.random.randn(*([ns, VAE_Z_CH] + list(latent_size))).astype(np.float32)
 
             if args.model_version == "v1.1":
                 z, frames_mask = apply_mask_strategy(z, references, frames_mask_strategy, loop_i)
