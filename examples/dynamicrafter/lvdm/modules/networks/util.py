@@ -260,3 +260,17 @@ def make_beta_schedule(schedule="linear", n_timestep=1000, linear_start=1e-4, li
         raise ValueError(f"schedule '{schedule}' unknown.")
 
     return betas
+
+
+def rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=0.0):
+    """
+    Rescale `noise_pred` according to `guidance_rescale`. Based on findings of [Common Diffusion Noise Schedules and
+    Sample Steps are Flawed](https://arxiv.org/pdf/2305.08891.pdf). See Section 3.4
+    """
+    std_text = ops.std(noise_pred_text, axis=tuple(range(1, len(noise_pred_text.shape))), keepdims=True)
+    std_cfg = ops.std(noise_pred, axis=tuple(range(1, len(noise_pred.shape))), keepdims=True)
+    # rescale the results from guidance (fixes overexposure)
+    noise_pred_rescaled = noise_pred * (std_text / std_cfg)
+    # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
+    noise_pred = guidance_rescale * noise_pred_rescaled + (1 - guidance_rescale) * noise_pred
+    return noise_pred

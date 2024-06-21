@@ -255,6 +255,7 @@ class LatentDiffusion(DDPM):
         self.model = DiffusionWrapper(unet_config, conditioning_key)
         self.instantiate_first_stage(first_stage_config)
         self.instantiate_cond_stage(cond_stage_config)
+        self.cond_stage_forward = cond_stage_forward
         # import pdb;pdb.set_trace()
 
         self.clip_denoised = False
@@ -362,6 +363,16 @@ class LatentDiffusion(DDPM):
         z = ops.transpose(z, (0, 2, 1, 3, 4))
 
         return z
+
+    def get_learned_conditioning(self, c):
+        if self.cond_stage_forward is None:
+            tokens, _ = self.cond_stage_model.tokenize(c)   # text -> tensor
+            c = self.cond_stage_model.encode(Tensor(tokens))
+        else:
+            raise NotImplementedError
+            # assert hasattr(self.zcond_stage_model, self.cond_stage_forward)
+            # c = getattr(self.cond_stage_model, self.cond_stage_forward)(c)
+        return c
 
     def get_condition_embeddings(self, text_tokens, control=None):
         # text conditions inputs for cross-attention
@@ -544,7 +555,7 @@ class LatentVisualDiffusion(LatentDiffusion):
         cond_frame_index = 0
         if self.rand_cond_frame:
             cond_frame_index = random.randint(0, self.model.diffusion_model.temporal_length-1)
-
+        import pdb;pdb.set_trace()
         img = x[:,:,cond_frame_index,...]
         img = input_mask * img
         ## img: b c h w
@@ -613,6 +624,7 @@ class LatentVisualDiffusion(LatentDiffusion):
             xc_with_fs.append(content + '_fs=' + str(fs[idx].item()))
         log["condition"] = xc_with_fs
         kwargs.update({"fs": fs.long()})
+        import pdb;pdb.set_trace()
 
         c_cat = None
         if sample:

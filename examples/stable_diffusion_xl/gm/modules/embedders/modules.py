@@ -624,7 +624,7 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         lengths = np.array(lengths, dtype=np.int32)
         return tokens, lengths
 
-    @ms.jit
+    # @ms.jit
     def construct(self, tokens):
         max_embeddings_multiples = (tokens.shape[1] - 2) // (self.max_length - 2)
         if max_embeddings_multiples > 1:
@@ -886,46 +886,47 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
         x = (x - self.mean) / self.std
         return x
 
-    def construct(self, image: Tensor, no_dropout: bool = False):
-        z = self.encode_with_vision_transformer(image)
-        tokens = None
+    # def construct(self, image: Tensor, no_dropout: bool = False):
+    #     # z.shape (1, 1024); image.shape (1, 3, 576, 1024)
+    #     z = self.encode_with_vision_transformer(image)
+    #     tokens = None
+    #     import pdb;pdb.set_trace()
+    #     if self.output_tokens:
+    #         z, tokens = z[0], z[1]
+    #     z = z.to(image.dtype)
 
-        if self.output_tokens:
-            z, tokens = z[0], z[1]
-        z = z.to(image.dtype)
+    #     if self.ucg_rate > 0.0 and not no_dropout and not (self.max_crops > 0):
+    #         z = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(z.shape[0], dtype=z.dtype)).expand_dims(-1) * z
+    #         if tokens is not None:
+    #             tokens = (
+    #                 expand_dims_like(
+    #                     ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(tokens.shape[0], dtype=tokens.dtype)), tokens
+    #                 )
+    #                 * tokens
+    #             )
 
-        if self.ucg_rate > 0.0 and not no_dropout and not (self.max_crops > 0):
-            z = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(z.shape[0], dtype=z.dtype)).expand_dims(-1) * z
-            if tokens is not None:
-                tokens = (
-                    expand_dims_like(
-                        ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(tokens.shape[0], dtype=tokens.dtype)), tokens
-                    )
-                    * tokens
-                )
+    #     if self.unsqueeze_dim:
+    #         z = z.expand_dims(1)
 
-        if self.unsqueeze_dim:
-            z = z.expand_dims(1)
+    #     if self.output_tokens:
+    #         assert not self.repeat_to_max_len
+    #         assert not self.pad_to_max_len
+    #         return tokens, z
 
-        if self.output_tokens:
-            assert not self.repeat_to_max_len
-            assert not self.pad_to_max_len
-            return tokens, z
+    #     if self.repeat_to_max_len:
+    #         z_ = z.expand_dims(1) if z.ndim == 2 else z
+    #         return z_.repeat(self.max_length, axis=1), z
 
-        if self.repeat_to_max_len:
-            z_ = z.expand_dims(1) if z.ndim == 2 else z
-            return z_.repeat(self.max_length, axis=1), z
+    #     elif self.pad_to_max_len:
+    #         assert z.ndim == 3
+    #         z_pad = ops.cat(
+    #             (z, ops.zeros((z.shape[0], self.max_length - z.shape[1], z.shape[2]), dtype=z.dtype)), axis=1
+    #         )
+    #         return z_pad, z_pad[:, 0, ...]
 
-        elif self.pad_to_max_len:
-            assert z.ndim == 3
-            z_pad = ops.cat(
-                (z, ops.zeros((z.shape[0], self.max_length - z.shape[1], z.shape[2]), dtype=z.dtype)), axis=1
-            )
-            return z_pad, z_pad[:, 0, ...]
+    #     return z
 
-        return z
-
-    def encode_with_vision_transformer(self, img: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    # def encode_with_vision_transformer(self, img: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         if img.ndim == 5:
             assert self.max_crops == img.shape[1]
             img = img.reshape(-1, *img.shape[2:])  # b n c h w -> (b n) c h w
@@ -951,6 +952,44 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
         if self.output_tokens:
             return x, tokens
         return x
+
+
+    def construct(self, image, no_dropout=False): 
+        ## image: b c h w
+        z = self.encode_with_vision_transformer(image)
+        return z
+
+    def encode_with_vision_transformer(self, x):
+        x = self.preprocess(x)
+
+        # to patches - whether to use dual patchnorm - https://arxiv.org/abs/2302.01327v1
+        if self.model.visual.input_patchnorm:
+            # einops - rearrange(x, 'b c (h p1) (w p2) -> b (h w) (c p1 p2)')
+            x = x.reshape(x.shape[0], x.shape[1], self.model.visual.grid_size[0], self.model.visual.patch_size[0], self.model.visual.grid_size[1], self.model.visual.patch_size[1])
+            x = x.permute(0, 2, 4, 1, 3, 5)
+            x = x.reshape(x.shape[0], self.model.visual.grid_size[0] * self.model.visual.grid_size[1], -1)
+            x = self.model.visual.patchnorm_pre_ln(x)
+            x = self.model.visual.conv1(x)
+        else:
+            x = self.model.visual.conv1(x)  # shape = [*, width, grid, grid]
+            x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
+            x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        # class embeddings and positional embeddings
+        x = ops.cat(
+            [self.model.visual.class_embedding.to(x.dtype) + ops.zeros((x.shape[0], 1, x.shape[-1]), dtype=x.dtype),
+             x], axis=1)  # shape = [*, grid ** 2 + 1, width]
+        x = x + self.model.visual.positional_embedding.to(x.dtype)
+
+        # a patch_dropout of 0. would mean it is disabled and this function would do nothing but return what was passed in
+        # x = self.model.visual.patch_dropout(x)
+        x = self.model.visual.ln_pre(x)
+
+        x = x.permute(1, 0, 2)  # NLD -> LND
+        x = self.model.visual.transformer(x)
+        x = x.permute(1, 0, 2)  # LND -> NLD
+
+        return x
+
 
     def encode(self, text):
         return self(text)

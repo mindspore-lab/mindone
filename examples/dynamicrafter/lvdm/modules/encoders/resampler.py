@@ -40,7 +40,7 @@ def reshape_tensor(x, heads):
     #(bs, length, width) --> (bs, length, n_heads, dim_per_head)
     x = x.view(bs, length, heads, -1)
     # (bs, length, n_heads, dim_per_head) --> (bs, n_heads, length, dim_per_head)
-    x = x.transpose(1, 2)
+    x = x.swapaxes(1, 2)
     # (bs, n_heads, length, dim_per_head) --> (bs*n_heads, length, dim_per_head)
     x = x.reshape(bs, heads, length, -1)
     return x
@@ -85,7 +85,7 @@ class PerceiverAttention(nn.Cell):
 
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
-        weight = (q * scale) @ (k * scale).transpose(-2, -1) # More stable with f16 than dividing afterwards
+        weight = (q * scale) @ (k * scale).swapaxes(-2, -1) # More stable with f16 than dividing afterwards
         weight = ops.softmax(weight.float(), axis=-1).type(weight.dtype)
         out = weight @ v
         
@@ -133,9 +133,9 @@ class Resampler(nn.Cell):
             )
 
     def construct(self, x):
-        latents = self.latents.tile(x.shape[0], 1, 1) ## B (T L) C
+        latents = self.latents.tile((x.shape[0], 1, 1)) ## B (T L) C
         x = self.proj_in(x)
-        
+
         for attn, ff in self.layers:
             latents = attn(x, latents) + latents
             latents = ff(latents) + latents

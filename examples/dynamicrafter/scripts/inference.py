@@ -6,6 +6,7 @@ import datetime
 import glob
 from typing import Union, List, Tuple
 
+from tqdm import tqdm
 from omegaconf import OmegaConf
 import numpy as np
 import yaml
@@ -183,9 +184,35 @@ def load_data_prompts(data_dir, video_size=(256,256), video_frames=16, interp=Fa
     return filename_list, data_list, prompt_list
 
 
+def save_results_seperate(prompt, samples, filename, fakedir, fps=10, loop=False):
+    prompt = prompt[0] if isinstance(prompt, list) else prompt
+
+    ## save video
+    videos = [samples]
+    savedirs = [fakedir]
+    for idx, video in enumerate(videos):
+        if video is None:
+            continue
+        # b,c,t,h,w
+        video = video.detach().cpu()
+        if loop: # remove the last frame
+            video = video[:,:,:-1,...]
+        video = ops.clamp(video.float(), -1., 1.)
+        n = video.shape[0]
+        for i in range(n):
+            grid = video[i,...]
+            grid = (grid + 1.0) / 2.0
+            grid = (grid * 255).to(ms.uint8).permute(1, 2, 3, 0) #thwc
+            path = os.path.join(savedirs[idx].replace('samples', 'samples_separate'), f'{filename.split(".")[0]}_sample{i}.mp4')
+            torchvision.io.write_video(path, grid, fps=fps, video_codec='h264', options={'crf': '10'})
+
+
 def get_latent_z(model, videos):
     b, c, t, h, w = videos.shape
     x = rearrange_out_gn5d(videos)
+    # import pdb;pdb.set_trace()
+    
+
     # x = rearrange(videos, 'b c t h w -> (b t) c h w')
     z = model.encode_first_stage(x)
     z = rearrange_in_gn5d_bs(z, b=b)
@@ -225,6 +252,7 @@ def image_guided_synthesis(model,
     cond_emb = model.get_learned_conditioning(prompts)
     cond = {"c_crossattn": [ops.cat([cond_emb,img_emb], axis=1)]}
     if model.model.conditioning_key == 'hybrid':
+        import pdb;pdb.set_trace()
         z = get_latent_z(model, videos) # b c t h w
         if loop or interp:
             img_cat_cond = ops.zeros_like(z)
@@ -325,21 +353,22 @@ def main(args):
     #     captions = read_captions_from_csv(args.prompt_path)
     # elif args.prompt_path.endswith(".txt"):
     #     captions = read_captions_from_txt(args.prompt_path)
-    """
+
+    assert os.path.exists(args.prompt_dir), "Error: prompt file Not Found!"
     filename_list, data_list, prompt_list = load_data_prompts(
                                                 args.prompt_dir, 
                                                 video_size=(args.height, args.width), 
-                                                video_frames=args.num_frames, 
+                                                video_frames=args.video_length, 
                                                 interp=args.interp
                                                 )
-    """
+
     # TODO: data parallel split, support parallel inference 
     # captions, base_data_idx = data_parallel_split(captions, rank_id, device_num)
     # print(f"Num captions for rank {rank_id}: {len(captions)}")
 
 
     # 2. model initiate and weight loading
-    # TODO: model mixed precision setting
+    # TODO: model mixed precision setting, torch autocast
         ## model config
     config = OmegaConf.load(args.config)
     model_config = config.pop("model", OmegaConf.create())
@@ -348,7 +377,7 @@ def main(args):
     # model_config['params']['unet_config']['params']['use_checkpoint'] = False
     model = instantiate_from_config(model_config)
     # model.perframe_ae = args.perframe_ae
-    import pdb;pdb.set_trace()
+    # import pdb;pdb.set_trace()
 
     # assert os.path.exists(args.ckpt_path), "Error: checkpoint Not Found!"
     
@@ -368,9 +397,58 @@ def main(args):
             f.write(k + ":" + str(v.shape) + ":" + str(v.dtype).lower() + "\n")
     print(f"Num of params of ms weight: {len(ms_params)}")       
     """
-    import pdb;pdb.set_trace()
-    pass
+
+    # run over data
+    assert (args.height % 16 == 0) and (args.width % 16 == 0), "Error: image size [h,w] should be multiples of 16!"
+    assert args.bs == 1, "Current implementation only support [batch size = 1]!"
+    ## latent noise shape
+    h, w = args.height // 8, args.width // 8
+    channels = model.model.diffusion_model.out_channels
+    n_frames = args.video_length
+    print(f'Inference with {n_frames} frames')
+    noise_shape = [args.bs, channels, n_frames, h, w]
     
+    fakedir = os.path.join(args.savedir, "samples")
+    fakedir_separate = os.path.join(args.savedir, "samples_separate")
+
+    # os.makedirs(fakedir, exist_ok=True)
+    os.makedirs(fakedir_separate, exist_ok=True)
+
+    for idx, indice in tqdm(enumerate(range(0, len(prompt_list), args.bs)), desc='Sample Batch'):
+                prompts = prompt_list[indice:indice+args.bs]
+                videos = data_list[indice:indice+args.bs]
+                filenames = filename_list[indice:indice+args.bs]
+                if isinstance(videos, list):
+                    videos = ops.stack(videos, axis=0)
+                else:
+                    videos = videos.unsqueeze(0)
+
+                batch_samples = image_guided_synthesis(model,
+                                                       prompts,
+                                                       videos,
+                                                       noise_shape,
+                                                       args.n_samples,
+                                                       args.ddim_steps,
+                                                       args.ddim_eta,
+                                                       args.unconditional_guidance_scale,
+                                                       args.cfg_img,
+                                                       args.frame_stride,
+                                                       args.text_input,
+                                                       args.multiple_cond_cfg,
+                                                       args.loop,
+                                                       args.interp,
+                                                       args.timestep_spacing,
+                                                       args.guidance_rescale,
+                                                       )
+
+                ## save each example individually
+                for nn, samples in enumerate(batch_samples):
+                    ## samples : [n_samples,c,t,h,w]
+                    prompt = prompts[nn]
+                    filename = filenames[nn]
+                    # save_results(prompt, samples, filename, fakedir, fps=8, loop=args.loop)
+                    save_results_seperate(prompt, samples, filename, fakedir, fps=8, loop=args.loop)
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--savedir", type=str, default=None, help="results saving path")
@@ -386,7 +464,7 @@ def parse_args():
     parser.add_argument("--frame_stride", type=int, default=3, help="frame stride control for 256 model (larger->larger motion), FPS control for 512 or 1024 model (smaller->larger motion)")
     parser.add_argument("--unconditional_guidance_scale", type=float, default=1.0, help="prompt classifier-free guidance")
     parser.add_argument("--seed", type=int, default=123, help="seed for seed_everything")
-    parser.add_argument("--num_frames", type=int, default=16, help="inference video length")
+    parser.add_argument("--video_length", type=int, default=16, help="inference video length")
     parser.add_argument("--negative_prompt", action='store_true', default=False, help="negative prompt")
     parser.add_argument("--text_input", action='store_true', default=False, help="input text to I2V model or not")
     parser.add_argument("--multiple_cond_cfg", action='store_true', default=False, help="use multi-condition cfg or not")
