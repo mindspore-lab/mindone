@@ -341,6 +341,8 @@ def main(args):
             f"Num of captions: {num_prompts}",
             f"dtype: {args.dtype}",
             f"amp_level: {args.amp_level}",
+            f"Image size: {args.image_size}",
+            f"Num frames: {args.num_frames}",
             f"Sampling steps {args.sampling_steps}",
             f"DDIM sampling: {args.ddim_sampling}",
             f"CFG guidance scale: {args.guidance_scale}",
