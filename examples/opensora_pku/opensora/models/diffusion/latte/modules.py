@@ -206,7 +206,7 @@ class MultiHeadAttention(nn.Cell):
             self.alltoall_sbh_q = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_k = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
-            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=0, gather_dim=1)
+            self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=1, gather_dim=0)
         else:
             self.alltoall_sbh_q = None
             self.alltoall_sbh_k = None
@@ -529,8 +529,8 @@ class MultiHeadAttention(nn.Cell):
 
         if self.layout == "SBH":
             q_f, q_b, _ = q.shape
-            k_f, k_b, _ = q.shape
-            v_f, v_b, _ = q.shape
+            k_f, k_b, _ = k.shape
+            v_f, v_b, _ = v.shape
 
             q = q.view(-1, h, head_dim)  # [s // sp, b, h * d] -> [s // sp * b, h, d]
             k = k.view(-1, h, head_dim)
@@ -565,8 +565,8 @@ class MultiHeadAttention(nn.Cell):
 
                 out = self.flash_attention(q, k, v, mask)
                 b, h_, n, d = out.shape
-                out = out.transpose(0, 2, 1, 3).view(-1, h_, d)
-                out = self.alltoall_sbh_out(out).view(-1, batch_size, h_size)
+                out = out.transpose((1, 2, 0, 3))
+                out = self.alltoall_sbh_out(out).transpose(1, 2, 0, 3).view(-1, b, h_size)
             else:
                 q = (
                     q.view(-1, q_b, h // self.sp_size, head_dim)

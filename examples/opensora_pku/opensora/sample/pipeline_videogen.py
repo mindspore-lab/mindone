@@ -535,6 +535,18 @@ class VideoGenPipeline(DiffusionPipeline):
         latents = latents * self.scheduler.init_noise_sigma
         return latents
 
+    def prepare_parallel_latent(self, video_states):
+        sp_size = hccl_info.world_size
+        index = hccl_info.rank % sp_size
+        padding_needed = (sp_size - video_states.shape[2] % sp_size) % sp_size
+        if padding_needed > 0:
+            print("Doing video padding")
+            # B, C, T, H, W -> B, C, T', H, W
+            video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
+        assert video_states.shape[2] % sp_size == 0
+        video_states = ops.chunk(video_states, sp_size, 2)[index]
+        return video_states
+
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -674,9 +686,7 @@ class VideoGenPipeline(DiffusionPipeline):
         latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             latent_channels,
-            (num_frames + hccl_info.world_size - 1) // hccl_info.world_size
-            if get_sequence_parallel_state()
-            else num_frames,
+            num_frames,
             height,
             width,
             prompt_embeds.dtype,
@@ -692,6 +702,9 @@ class VideoGenPipeline(DiffusionPipeline):
 
         # 7. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
+
+        if get_sequence_parallel_state():
+            latents = self.prepare_parallel_latent(latents)
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
