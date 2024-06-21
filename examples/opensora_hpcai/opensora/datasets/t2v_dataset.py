@@ -189,12 +189,19 @@ class TextVideoDataset:
                         )
                     data.append(sample)
             except KeyError as e:
-                logger.error("CSV file requires `video` (file paths) column.")
+                logger.error(
+                    f"The video column `{video_column}` was not found."
+                    f" Please specify the correct name with `--video_column` argument."
+                )
                 raise e
 
         if filter_data:
             with ThreadPoolExecutor(max_workers=10) as executor:
-                data = [item for item in tqdm(executor.map(_filter_data, data), total=len(data)) if item is not None]
+                data = [
+                    item
+                    for item in tqdm(executor.map(_filter_data, data), total=len(data), desc="Filtering data")
+                    if item is not None
+                ]
 
         logger.info(f"Number of data samples: {len(data)}")
         return data
