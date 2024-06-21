@@ -51,7 +51,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    enable_dvm: bool = False,
+    jit_level: str = "O0",
     global_bf16: bool = False,
     debug: bool = False,
 ) -> Tuple[int, int]:
@@ -114,10 +114,18 @@ def init_env(
             pynative_synchronize=debug,
         )
 
-    if enable_dvm:
-        print("enable dvm")
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    try:
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
@@ -155,7 +163,7 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
+        jit_level=args.jit_level,
         global_bf16=args.global_bf16,
         debug=args.debug,
     )
@@ -303,6 +311,7 @@ def main(args):
             video_column=args.video_column,
             caption_column=args.caption_column,
             disable_flip=args.disable_flip,
+            filter_data=args.filter_data,
         )
         dataloader = create_dataloader(
             ds_config,
@@ -333,6 +342,7 @@ def main(args):
             sample_stride=args.frame_stride,
             frames_mask_generator=mask_gen,
             buckets=buckets,
+            filter_data=args.filter_data,
             output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
             pre_patchify=args.pre_patchify,
             patch_size=latte_model.patch_size,

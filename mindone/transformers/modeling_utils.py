@@ -1701,3 +1701,220 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             )
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
+
+    def resize_token_embeddings(
+        self, new_num_tokens: Optional[int] = None, pad_to_multiple_of: Optional[int] = None
+    ) -> nn.Embedding:
+        """
+        Resizes input token embeddings matrix of the model if `new_num_tokens != config.vocab_size`.
+
+        Takes care of tying weights embeddings afterwards if the model class has a `tie_weights()` method.
+
+        Arguments:
+            new_num_tokens (`int`, *optional*):
+                The new number of tokens in the embedding matrix. Increasing the size will add newly initialized
+                vectors at the end. Reducing the size will remove vectors from the end. If not provided or `None`, just
+                returns a pointer to the input tokens `torch.nn.Embedding` module of the model without doing anything.
+            pad_to_multiple_of (`int`, *optional*):
+                If set will pad the embedding matrix to a multiple of the provided value.If `new_num_tokens` is set to
+                `None` will just pad the embedding to a multiple of `pad_to_multiple_of`.
+
+        Return:
+            `mindspore.nn.Embedding`: Pointer to the input tokens Embeddings Module of the model.
+        """
+        model_embeds = self._resize_token_embeddings(new_num_tokens, pad_to_multiple_of)
+        if new_num_tokens is None and pad_to_multiple_of is None:
+            return model_embeds
+
+        # Update base model and current model config
+        self.config.vocab_size = model_embeds.embedding_table.shape[0]
+        self.vocab_size = model_embeds.embedding_table.shape[0]
+
+        return model_embeds
+
+    def _resize_token_embeddings(self, new_num_tokens, pad_to_multiple_of=None):
+        old_embeddings = self.get_input_embeddings()
+        new_embeddings = self._get_resized_embeddings(old_embeddings, new_num_tokens, pad_to_multiple_of)
+
+        old_embeddings_requires_grad = old_embeddings.embedding_table.requires_grad
+        new_embeddings.embedding_table.requires_grad = old_embeddings_requires_grad
+        self.set_input_embeddings(new_embeddings)
+
+        # Update new_num_tokens with the actual size of new_embeddings
+        if pad_to_multiple_of is not None:
+            new_num_tokens = new_embeddings.embedding_table.shape[0]
+
+        # if word embeddings are not tied, make sure that lm head is resized as well
+        if self.get_output_embeddings() is not None and not self.config.tie_word_embeddings:
+            old_lm_head = self.get_output_embeddings()
+
+            if isinstance(old_lm_head, nn.Embedding):
+                new_lm_head = self._get_resized_embeddings(old_lm_head, new_num_tokens)
+                old_lm_head_requires_grad = old_lm_head.embedding_table.requires_grad
+                new_lm_head.embedding_table.requires_grad = old_lm_head_requires_grad
+            else:
+                new_lm_head = self._get_resized_lm_head(old_lm_head, new_num_tokens)
+                old_lm_head_requires_grad = old_lm_head.weight.requires_grad
+                new_lm_head.weight.requires_grad = old_lm_head_requires_grad
+
+            self.set_output_embeddings(new_lm_head)
+
+        return self.get_input_embeddings()
+
+    def _get_resized_embeddings(
+        self,
+        old_embeddings: nn.Embedding,
+        new_num_tokens: Optional[int] = None,
+        pad_to_multiple_of: Optional[int] = None,
+    ) -> nn.Embedding:
+        """
+        Build a resized Embedding Module from a provided token Embedding Module. Increasing the size will add newly
+        initialized vectors at the end. Reducing the size will remove vectors from the end
+
+        Args:
+            old_embeddings (`torch.nn.Embedding`):
+                Old embeddings to be resized.
+            new_num_tokens (`int`, *optional*):
+                New number of tokens in the embedding matrix.
+
+                Increasing the size will add newly initialized vectors at the end. Reducing the size will remove
+                vectors from the end. If not provided or `None`, just returns a pointer to the input tokens
+                `torch.nn.Embedding` module of the model without doing anything.
+            pad_to_multiple_of (`int`, *optional*):
+                If set will pad the embedding matrix to a multiple of the provided value. If `new_num_tokens` is set to
+                `None` will just pad the embedding to a multiple of `pad_to_multiple_of`.
+
+        Return:
+            `mindspore.nn.Embedding`: Pointer to the resized Embedding Module or the old Embedding Module if
+            `new_num_tokens` is `None`
+        """
+
+        if pad_to_multiple_of is not None:
+            if not isinstance(pad_to_multiple_of, int):
+                raise ValueError(
+                    f"Asking to pad the embedding matrix to a multiple of `{pad_to_multiple_of}`, which is not and integer. Please make sure to pass an integer"
+                )
+            if new_num_tokens is None:
+                new_num_tokens = old_embeddings.embedding_table.shape[0]
+            new_num_tokens = ((new_num_tokens + pad_to_multiple_of - 1) // pad_to_multiple_of) * pad_to_multiple_of
+        else:
+            logger.info(
+                "You are resizing the embedding layer without providing a `pad_to_multiple_of` parameter. This means that the new embedding"
+                f" dimension will be {new_num_tokens}. This might induce some performance reduction as *Tensor Cores* will not be available."
+                " For more details about this, or help on choosing the correct value for resizing, refer to this guide:"
+                " https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc"
+            )
+
+        if new_num_tokens is None:
+            return old_embeddings
+
+        old_num_tokens, old_embedding_dim = old_embeddings.embedding_table.shape
+
+        if old_num_tokens == new_num_tokens:
+            return old_embeddings
+
+        if not isinstance(old_embeddings, nn.Embedding):
+            raise TypeError(
+                f"Old embeddings are of type {type(old_embeddings)}, which is not an instance of {nn.Embedding}. You"
+                " should either use a different resize function or make sure that `old_embeddings` are an instance of"
+                f" {nn.Embedding}."
+            )
+
+        # Build new embeddings
+        new_embeddings = nn.Embedding(
+            new_num_tokens,
+            old_embedding_dim,
+        )
+        new_embeddings.embedding_table.set_dtype(old_embeddings.embedding_table.dtype)
+        # initialize all new embeddings (in particular added tokens)
+        self._init_weights(new_embeddings)
+
+        # Copy token embeddings from the previous weights
+
+        # numbers of tokens to copy
+        n = min(old_num_tokens, new_num_tokens)
+        new_embeddings.embedding_table.data[:n, :] = old_embeddings.embedding_table.data[:n, :]
+
+        return new_embeddings
+
+    def _get_resized_lm_head(
+        self, old_lm_head: nn.Dense, new_num_tokens: Optional[int] = None, transposed: Optional[bool] = False
+    ) -> nn.Dense:
+        """
+        Build a resized Linear Module from a provided old Linear Module. Increasing the size will add newly initialized
+        vectors at the end. Reducing the size will remove vectors from the end
+
+        Args:
+            old_lm_head (`mindspore.nn.Dense`):
+                Old lm head liner layer to be resized.
+            new_num_tokens (`int`, *optional*):
+                New number of tokens in the linear matrix.
+
+                Increasing the size will add newly initialized vectors at the end. Reducing the size will remove
+                vectors from the end. If not provided or `None`, just returns a pointer to the input tokens
+                `mindspore.nn.Dense` module of the model without doing anything. transposed (`bool`, *optional*, defaults
+                to `False`): Whether `old_lm_head` is transposed or not. If True `old_lm_head.size()` is `lm_head_dim,
+                vocab_size` else `vocab_size, lm_head_dim`.
+
+        Return:
+            `mindspore.nn.Dense`: Pointer to the resized Linear Module or the old Linear Module if `new_num_tokens` is
+            `None`
+        """
+        if new_num_tokens is None:
+            return old_lm_head
+
+        old_num_tokens, old_lm_head_dim = (
+            old_lm_head.weight.shape if not transposed else old_lm_head.weight.transpose().shape
+        )
+
+        if old_num_tokens == new_num_tokens:
+            return old_lm_head
+
+        if not isinstance(old_lm_head, nn.Dense):
+            raise TypeError(
+                f"Old language model head is of type {type(old_lm_head)}, which is not an instance of {nn.Dense}. You"
+                " should either use a different resize function or make sure that `old_lm_head` are an instance of"
+                f" {nn.Dense}."
+            )
+
+        # Build new lm head
+        new_lm_head_shape = (old_lm_head_dim, new_num_tokens) if not transposed else (new_num_tokens, old_lm_head_dim)
+        has_new_lm_head_bias = old_lm_head.bias is not None
+
+        new_lm_head = nn.Dense(
+            *new_lm_head_shape,
+            bias=has_new_lm_head_bias,
+            dtype=old_lm_head.weight.dtype,
+        )
+
+        # initialize new lm head (in particular added tokens)
+        self._init_weights(new_lm_head)
+
+        num_tokens_to_copy = min(old_num_tokens, new_num_tokens)
+        self._copy_lm_head_original_to_resized(
+            new_lm_head, old_lm_head, num_tokens_to_copy, transposed, has_new_lm_head_bias
+        )
+
+        return new_lm_head
+
+    def _copy_lm_head_original_to_resized(
+        self, new_lm_head, old_lm_head, num_tokens_to_copy, transposed, has_new_lm_head_bias
+    ):
+        # Copy old lm head weights to new lm head
+        if not transposed:
+            new_lm_head.weight.data[:num_tokens_to_copy, :] = old_lm_head.weight.data[:num_tokens_to_copy, :]
+        else:
+            new_lm_head.weight.data[:, :num_tokens_to_copy] = old_lm_head.weight.data[:, :num_tokens_to_copy]
+
+        # Copy bias weights to new lm head
+        if has_new_lm_head_bias:
+            new_lm_head.bias.data[:num_tokens_to_copy] = old_lm_head.bias.data[:num_tokens_to_copy]
+
+    def get_output_embeddings(self) -> nn.Cell:
+        """
+        Returns the model's output embeddings.
+
+        Returns:
+            `nn.Cell`: A mindspore module mapping hidden states to vocabulary.
+        """
+        return None  # Overwrite for models with output embeddings

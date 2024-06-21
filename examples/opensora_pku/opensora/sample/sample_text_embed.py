@@ -112,8 +112,9 @@ def main(args):
     if args.data_file_path is not None:
         ds_config = dict(
             data_file_path=args.data_file_path,
+            file_column=args.file_column,
+            caption_column=args.caption_column,
             tokenizer=None,  # tokenizer,
-            output_columns=["caption"],  # return text only
         )
         dataset = create_dataloader(
             ds_config,
@@ -132,6 +133,7 @@ def main(args):
     logger.info("T5 init")
     text_encoder = T5Embedder(
         dir_or_name=args.text_encoder_name,
+        model_max_length=args.model_max_length,
         cache_dir="./",
     )
 
@@ -177,7 +179,7 @@ def main(args):
                     text_emb=text_emb[i].float().asnumpy().astype(np.float32),
                     # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
                 )
-        logger.info(f"Curretn step time cost: {time_cost:0.3f}s")
+        logger.info(f"Current step time cost: {time_cost:0.3f}s")
         logger.info(f"Done. Embeddings saved in {output_dir}")
 
     else:
@@ -191,9 +193,9 @@ def main(args):
         # get captions from cfg or prompt_path
         if args.prompt_path is not None:
             if args.prompt_path.endswith(".csv"):
-                captions = read_captions_from_csv(args.prompt_path)
+                captions = read_captions_from_csv(args.prompt_path, args.caption_column)
             elif args.prompt_path.endswith(".txt"):
-                captions = read_captions_from_txt(args.prompt_path)
+                captions = read_captions_from_txt(args.prompt_path, args.caption_column)
         else:
             captions = args.captions
         logger.info(f"Number of captions: {len(captions)}")
@@ -247,7 +249,6 @@ def parse_args():
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of data_file_path as output dir.",
     )
-    parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -286,7 +287,19 @@ def parse_args():
         nargs="+",
         help="A list of text captions to be generated with",
     )
+    parser.add_argument(
+        "--file_column",
+        default="path",
+        help="The column of file path in `data_file_path`. Defaults to `path`.",
+    )
+    parser.add_argument(
+        "--caption_column",
+        default="cap",
+        help="The column of caption file path in `data_file_path`. Defaults to `cap`.",
+    )
+
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
+    parser.add_argument("--model_max_length", type=int, default=300)
 
     default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))

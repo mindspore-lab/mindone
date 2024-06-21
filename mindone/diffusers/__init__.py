@@ -17,8 +17,10 @@ _import_structure = {
         "AutoencoderKL",
         "ModelMixin",
         "SD3Transformer2DModel",
+        "UNet1DModel",
         "UNet2DConditionModel",
         "UNet2DModel",
+        "StableCascadeUNet",
     ],
     "optimization": [
         "get_constant_schedule",
@@ -77,7 +79,15 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
-    from .models import AutoencoderKL, ModelMixin, SD3Transformer2DModel, UNet2DConditionModel, UNet2DModel
+    from .models import (
+        AutoencoderKL,
+        ModelMixin,
+        SD3Transformer2DModel,
+        StableCascadeUNet,
+        UNet1DModel,
+        UNet2DConditionModel,
+        UNet2DModel,
+    )
     from .optimization import (
         get_constant_schedule,
         get_constant_schedule_with_warmup,
