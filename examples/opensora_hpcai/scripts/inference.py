@@ -155,7 +155,7 @@ def main(args):
 
     # 2. model initiate and weight loading
     # 2.1 latte
-    VAE_T_COMPRESS = 1
+    VAE_T_COMPRESS = 4 if args.vae_type == "OpenSoraVAE_V1_2" else 1
     VAE_S_COMPRESS = 8
     VAE_Z_CH = SD_CONFIG["z_channels"]
     img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
@@ -234,7 +234,7 @@ def main(args):
             vae = VideoAutoencoderKL(
                 config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
             )
-        elif args.vae_dtype == 'OpenSoraVAE_V1_2"':
+        elif args.vae_type == "OpenSoraVAE_V1_2":
             vae = OpenSoraVAE_V1_2(
                 micro_batch_size=args.vae_micro_batch_size,
                 micro_frame_size=args.vae_micro_frame_size,
