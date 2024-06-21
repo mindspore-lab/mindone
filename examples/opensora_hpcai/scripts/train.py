@@ -313,6 +313,7 @@ def main(args):
             video_column=args.video_column,
             caption_column=args.caption_column,
             disable_flip=args.disable_flip,
+            filter_data=args.filter_data,
         )
         dataloader = create_dataloader(
             ds_config,
@@ -343,6 +344,7 @@ def main(args):
             sample_stride=args.frame_stride,
             frames_mask_generator=mask_gen,
             buckets=buckets,
+            filter_data=args.filter_data,
             output_columns=["video", "caption", "mask", "fps", "num_frames", "frames_mask"],
             pre_patchify=args.pre_patchify,
             patch_size=latte_model.patch_size,
