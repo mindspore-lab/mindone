@@ -210,9 +210,6 @@ def save_results_seperate(prompt, samples, filename, fakedir, fps=10, loop=False
 def get_latent_z(model, videos):
     b, c, t, h, w = videos.shape
     x = rearrange_out_gn5d(videos)
-    # import pdb;pdb.set_trace()
-    
-
     # x = rearrange(videos, 'b c t h w -> (b t) c h w')
     z = model.encode_first_stage(x)
     z = rearrange_in_gn5d_bs(z, b=b)
@@ -252,7 +249,6 @@ def image_guided_synthesis(model,
     cond_emb = model.get_learned_conditioning(prompts)
     cond = {"c_crossattn": [ops.cat([cond_emb,img_emb], axis=1)]}
     if model.model.conditioning_key == 'hybrid':
-        import pdb;pdb.set_trace()
         z = get_latent_z(model, videos) # b c t h w
         if loop or interp:
             img_cat_cond = ops.zeros_like(z)
@@ -263,7 +259,6 @@ def image_guided_synthesis(model,
             img_cat_cond = ops.repeat_interleave(img_cat_cond, repeats=z.shape[2], axis=2)
             # img_cat_cond = repeat(img_cat_cond, 'b c t h w -> b c (repeat t) h w', repeat=z.shape[2])
         cond["c_concat"] = [img_cat_cond] # b c 1 h w
-    
     if unconditional_guidance_scale != 1.0:
         if model.uncond_type == "empty_seq":
             prompts = batch_size * [""]

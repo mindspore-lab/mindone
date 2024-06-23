@@ -173,7 +173,7 @@ class CrossAttention(nn.Cell):
 
         self.heads = heads
 
-        self.transpose = ops.Transpose()
+        # self.transpose = ops.Transpose()
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
@@ -297,6 +297,8 @@ class CrossAttention(nn.Cell):
         if (
             self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= self.FA_max_head_dim
         ):  # FIXME: now restrict head_dim to 128 to avoid 160 bug. revert to 256 once FA bug is fixed.
+            raise NotImplementedError
+            """
             # reshape qkv shape ((b s n*d) -> (b n s d))and mask dtype for FA input format
             q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
             k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
@@ -326,15 +328,16 @@ class CrossAttention(nn.Cell):
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b n s d) -> (b s n*d)
             out = out.transpose(0, 2, 1, 3).view(b, n, -1)
+            """
         else:
             # (b, n, h*d) -> (b*h, n, d)
             q = self._rearange_in(q, h)
             k = self._rearange_in(k, h)
             v = self._rearange_in(v, h)
 
-            out = self.attention(q, k, v, mask)
+            out = self.attention(q, k, v, k_ip, v_ip, out_ip, mask)
             # (b*h, n, d) -> (b, n, h*d)
-            out = self._rearange_out(out, h)
+            # out = self._rearange_out(out, h)  # Done in class Attention
 
         return self.to_out(out).to(x_dtype)
 
@@ -342,26 +345,27 @@ class CrossAttention(nn.Cell):
 class Attention(nn.Cell):
     def __init__(self, dim_head, heads=8, relative_position=False, relative_position_k=None, relative_position_v=None):
         super().__init__()
-        self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
+        # self.softmax = ops.Softmax(axis=-1)
+        # self.transpose = ops.Transpose()
         self.scale = dim_head**-0.5
         self.heads = heads
         self.relative_position = relative_position
         self.relative_position_k = relative_position_k
         self.relative_position_v = relative_position_v
 
-    def construct(self, q, k, v, mask):
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+    def construct(self, q, k, v, k_ip, v_ip, out_ip, mask):
+        sim = ops.matmul(q, ops.transpose(k, (0, 2, 1))) * self.scale
+        # sim = torch.einsum('b i d, b j d -> b i j', q, k) * self.scale
 
         if self.relative_position:
             len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
             k2 = self.relative_position_k(len_q, len_k)
-            sim2 = ops.matmul(q, self.transpose(k2, (0, 2, 1))) * self.scale # TODO check 
+            sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale # TODO check 
             sim += sim2
         del k
 
         if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
+            mask = ops.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
             else:
@@ -374,7 +378,7 @@ class Attention(nn.Cell):
         # TODO: testing use fp16 instead
         # use fp32 for exponential inside
         # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
-        attn = self.softmax(sim)  # FIXME: 核对与torch.einsum的写法是否等效
+        attn = ops.softmax(sim, axis=-1)
         out = ops.matmul(attn, v)
 
         if self.relative_position:
@@ -463,6 +467,7 @@ class BasicTransformerBlock(nn.Cell):
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
+        # import pdb;pdb.set_trace()
         x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
@@ -540,26 +545,26 @@ class SpatialTransformer(nn.Cell):
             self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(dtype))
 
         self.use_linear = use_linear
-        self.reshape = ops.Reshape()
-        self.transpose = ops.Transpose()
+        # self.reshape = ops.Reshape()
+        # self.transpose = ops.Transpose()
 
-    def construct(self, x, context=None):
+    def construct(self, x, context=None, **kwargs):
         # note: if no context is given, cross-attention defaults to self-attention
         b, c, h, w = x.shape
         x_in = x
         x = self.norm(x)
         if not self.use_linear:
             x = self.proj_in(x)
-        x = self.reshape(x, (b, c, h * w))  # (b, c, h*w)
-        x = self.transpose(x, (0, 2, 1))  # (b, h*w, c)
+        x = ops.reshape(x, (b, c, h * w))  # (b, c, h*w)
+        x = ops.transpose(x, (0, 2, 1))  # (b, h*w, c)
         if self.use_linear:
             x = self.proj_in(x)
         for block in self.transformer_blocks:
             x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
-        x = self.reshape(x, (b, h, w, c))  # (b, h, w, c)
-        x = self.transpose(x, (0, 3, 1, 2))  # (b, c, h, w)
+        x = ops.reshape(x, (b, h, w, c))  # (b, h, w, c)
+        x = ops.transpose(x, (0, 3, 1, 2))  # (b, c, h, w)
         if not self.use_linear:
             x = self.proj_out(x)
         return x + x_in

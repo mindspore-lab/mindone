@@ -69,18 +69,20 @@ model:
           num_res_blocks: 2
           attn_resolutions: []
           dropout: 0.0
-        lossconfig:
-          target: torch.nn.Identity
+        # lossconfig:
+        #   target: mindspore.nn.Identity
 
     cond_stage_config:
       target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder
       params:
+        arch: "ViT-H-14"
         freeze: true
         layer: "penultimate"
 
     img_cond_stage_config:
       target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
       params:
+        arch: "ViT-H-14"
         freeze: true
     
     image_proj_stage_config:

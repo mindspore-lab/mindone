@@ -260,7 +260,8 @@ class LatentDiffusion(DDPM):
 
         self.clip_denoised = False
         self.uniform_int = ops.UniformInt()
-
+        assert(uncond_type in ["zero_embed", "empty_seq"])
+        self.uncond_type = uncond_type
         self.restarted_from_ckpt = False
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys)
@@ -555,7 +556,7 @@ class LatentVisualDiffusion(LatentDiffusion):
         cond_frame_index = 0
         if self.rand_cond_frame:
             cond_frame_index = random.randint(0, self.model.diffusion_model.temporal_length-1)
-        import pdb;pdb.set_trace()
+
         img = x[:,:,cond_frame_index,...]
         img = input_mask * img
         ## img: b c h w
@@ -624,7 +625,6 @@ class LatentVisualDiffusion(LatentDiffusion):
             xc_with_fs.append(content + '_fs=' + str(fs[idx].item()))
         log["condition"] = xc_with_fs
         kwargs.update({"fs": fs.long()})
-        import pdb;pdb.set_trace()
 
         c_cat = None
         if sample:
@@ -730,14 +730,17 @@ class DiffusionWrapper(nn.Cell):
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
-            x_concat = ops.concat((x, c_concat), axis=1)
+            x_concat = ops.concat([x] + c_concat, axis=1)
             out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":  # t2v task
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
-            x_concat = ops.concat((x, c_concat), axis=1)
-            context = c_crossattn
+            # import pdb;pdb.set_trace()
+            # x_concat = ops.concat((x, c_concat), axis=1)
+            # context = c_crossattn
+            x_concat = ops.concat([x] + c_concat, axis=1)
+            context = c_crossattn[0]
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)
         elif self.conditioning_key == "crossattn-adm":
             context = c_crossattn

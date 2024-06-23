@@ -120,9 +120,8 @@ class DDIMSampler(object):
                 if conditioning.shape[0] != batch_size:
                     print(f"Warning: Got {conditioning.shape[0]} conditionings but batch-size is {batch_size}")
 
-        self.make_schedule(ddim_num_steps=S,  ddim_discretize=timestep_spacing, ddim_eta=eta, verbose=verbose)
-        import pdb;pdb.set_trace()
-
+        self.make_schedule(ddim_num_steps=S, ddim_discretize=timestep_spacing, ddim_eta=eta, verbose=verbose)
+        # import pdb;pdb.set_trace()
         # sampling
         size = (batch_size, *shape)
         print(f"Data shape for DDIM sampling is {size}, eta {eta}")
@@ -207,7 +206,7 @@ class DDIMSampler(object):
         for i, step in tqdm(enumerate(iterator), total=len(iterator)):
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
-            import pdb;pdb.set_trace()
+
             if mask is not None:
                 assert x0 is not None
                 img_orig = self.model.q_sample(x0, ts, noise)
@@ -286,7 +285,8 @@ class DDIMSampler(object):
                 for k in c:
                     if isinstance(c[k], list):
                         c_in[k] = [
-                            ops.concat([unconditional_conditioning[k][i], c[k][i]]) for i in range(len(c[k]), axis=0)
+                            ops.concat([unconditional_conditioning[k][i], c[k][i]], axis=0) for i in range(len(c[k]))
+                            # ops.concat([unconditional_conditioning[k][i], c[k][i]]) for i in range(len(c[k]), axis=0)
                         ]
                     else:
                         c_in[k] = ops.concat([unconditional_conditioning[k], c[k]])
@@ -312,7 +312,7 @@ class DDIMSampler(object):
 
             if guidance_rescale > 0.0:
                 model_output = rescale_noise_cfg(model_output, model_t, guidance_rescale=guidance_rescale)
-        import pdb;pdb.set_trace()
+
         if self.model.parameterization == "velocity":
             e_t = self.model.predict_eps_from_z_and_v(x, t, model_output)
         else:

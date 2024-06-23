@@ -137,7 +137,7 @@ class Downsample(nn.Cell):
         return self.op(x)
 
 
-class ResBlock(nn.Cell):
+class ResBlock(TimestepBlock):
     """
     A residual block that can optionally change the number of channels.
 
@@ -288,7 +288,6 @@ class ResBlock(nn.Cell):
             h = rearrange_out_gn5d(h)
         return h
 
-        return 
 
 # SiLU fp32 compute
 class SiLU(nn.SiLU):
@@ -312,18 +311,21 @@ class TemporalConvBlock(nn.Cell):
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            normalization(in_dim),
+            # nn.GroupNorm(32, in_dim),
+            normalization(in_dim, norm_in_5d=True),
             SiLU(),
             nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(self.dtype),
         )
         self.conv2 = nn.SequentialCell(
-            normalization(out_dim),
+            # nn.GroupNorm(32, out_dim),
+            normalization(out_dim, norm_in_5d=True),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(self.dtype),
         )
         self.conv3 = nn.SequentialCell(
-            normalization(out_dim),
+            # nn.GroupNorm(32, out_dim),
+            normalization(out_dim, norm_in_5d=True),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(
@@ -331,7 +333,8 @@ class TemporalConvBlock(nn.Cell):
             ),
         )
         self.conv4 = nn.SequentialCell(
-            normalization(out_dim),
+            # nn.GroupNorm(32, out_dim),
+            normalization(out_dim, norm_in_5d=True),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(
@@ -345,7 +348,9 @@ class TemporalConvBlock(nn.Cell):
 
     def construct(self, x):
         identity = x
-        x = self.conv1(x)
+        import pdb;pdb.set_trace()
+        x = self.conv1(x, 16)
+        import pdb;pdb.set_trace()
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
@@ -750,6 +755,7 @@ class UNetModel(nn.Cell):
         )
 
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
+        # import pdb;pdb.set_trace()
         b,_,t,_,_ = x.shape
         t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).type(x.dtype)
         emb = self.time_embed(t_emb)
@@ -759,7 +765,7 @@ class UNetModel(nn.Cell):
         _, l_context, _ = context.shape
         if l_context == 77 + t*16: ## !!! HARD CODE here
             context_text, context_img = context[:,:77,:], context[:,77:,:]
-            context_text = context_text.repeat_interleave(repeats=t, axis=0)
+            context_text = context_text.repeat_interleave(repeats=t, dim=0)
 
             # context_img = rearrange(context_img, 'b (t l) c -> (b t) l c', t=t)
             b, tl, c = context_img.shape
@@ -767,8 +773,8 @@ class UNetModel(nn.Cell):
 
             context = ops.cat([context_text, context_img], axis=1)
         else:
-            context = context.repeat_interleave(repeats=t, axis=0)
-        emb = emb.repeat_interleave(repeats=t, axis=0)
+            context = context.repeat_interleave(repeats=t, dim=0)
+        emb = emb.repeat_interleave(repeats=t, dim=0)
         
         ## always in shape (b t) c h w, except for temporal layer
         # x = rearrange(x, 'b c t h w -> (b t) c h w')
@@ -782,13 +788,14 @@ class UNetModel(nn.Cell):
             fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).type(x.dtype)
 
             fs_embed = self.fps_embedding(fs_emb)
-            fs_embed = fs_embed.repeat_interleave(repeats=t, axis=0)
+            fs_embed = fs_embed.repeat_interleave(repeats=t, dim=0)
             emb = emb + fs_embed
 
         h = x.type(self.dtype)
         adapter_idx = 0
         hs = []
         for id, module in enumerate(self.input_blocks):
+            import pdb;pdb.set_trace()
             h = module(h, emb, context=context, batch_size=b)
             if id == 0 and self.addition_attention:
                 h = self.init_attn(h, emb, context=context, batch_size=b)
