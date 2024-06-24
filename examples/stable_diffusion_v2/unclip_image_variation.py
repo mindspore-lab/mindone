@@ -186,6 +186,7 @@ def main(args):
     try:
         if args.jit_level in ["O0", "O1", "O2"]:
             ms.set_context(jit_config={"jit_level": args.jit_level})
+            logger.info(f"set jit_level: {args.jit_level}.")
         else:
             logger.warning(
                 f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
