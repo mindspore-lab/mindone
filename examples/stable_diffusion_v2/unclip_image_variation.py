@@ -183,6 +183,18 @@ def main(args):
     # set ms context
     device_id = int(os.getenv("DEVICE_ID", 0))
     ms.context.set_context(mode=args.ms_mode, device_target="Ascend", device_id=device_id, max_device_memory="30GB")
+    try:
+        if args.jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": args.jit_level})
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     set_random_seed(args.seed)
 
@@ -319,6 +331,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument(
         "--data_path",
