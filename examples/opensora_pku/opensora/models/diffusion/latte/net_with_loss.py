@@ -194,9 +194,17 @@ class DiffusionWithLoss(nn.Cell):
         use_image_num = self.use_image_num
 
         if get_sequence_parallel_state():
-            x, text_embed, attention_mask, encoder_attention_mask, use_image_num = prepare_parallel_data(
-                x, text_embed, attention_mask, encoder_attention_mask, use_image_num
-            )
+            (
+                x,
+                text_embed,
+                attention_mask,
+                encoder_attention_mask,
+                use_image_num,
+                temp_attention_mask,
+                loss_mask,
+            ) = prepare_parallel_data(x, text_embed, attention_mask, encoder_attention_mask, use_image_num)
+        else:
+            temp_attention_mask, loss_mask = None, None
 
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],), dtype=ms.int32)
 
@@ -215,8 +223,12 @@ class DiffusionWithLoss(nn.Cell):
             encoder_hidden_states=text_embed,
             attention_mask=attention_mask,
             encoder_attention_mask=encoder_attention_mask,
+            temp_attention_mask=temp_attention_mask,
             use_image_num=use_image_num,
         )
+
+        if loss_mask is not None:
+            model_output *= loss_mask
 
         # (b c t h w),
         B, C, F = x_t.shape[:3]

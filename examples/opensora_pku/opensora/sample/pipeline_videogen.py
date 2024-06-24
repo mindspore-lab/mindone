@@ -539,13 +539,19 @@ class VideoGenPipeline(DiffusionPipeline):
         sp_size = hccl_info.world_size
         index = hccl_info.rank % sp_size
         padding_needed = (sp_size - video_states.shape[2] % sp_size) % sp_size
+        temp_attention_mask = None
         if padding_needed > 0:
             print("Doing video padding")
             # B, C, T, H, W -> B, C, T', H, W
             video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
+
+            b, _, f, h, w = video_states.shape
+            temp_attention_mask = ops.ones((b * h * w // 4, 1, f), ms.int32)
+            temp_attention_mask[:, :, -padding_needed:] = 0
+
         assert video_states.shape[2] % sp_size == 0
         video_states = ops.chunk(video_states, sp_size, 2)[index]
-        return video_states
+        return video_states, temp_attention_mask
 
     def __call__(
         self,
@@ -704,7 +710,14 @@ class VideoGenPipeline(DiffusionPipeline):
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
 
         if get_sequence_parallel_state():
-            latents = self.prepare_parallel_latent(latents)
+            latents, temp_attention_mask = self.prepare_parallel_latent(latents)
+            temp_attention_mask = (
+                ops.cat([temp_attention_mask] * 2)
+                if (do_classifier_free_guidance and temp_attention_mask is not None)
+                else temp_attention_mask
+            )
+        else:
+            temp_attention_mask = None
 
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
@@ -732,6 +745,7 @@ class VideoGenPipeline(DiffusionPipeline):
                     added_cond_kwargs=added_cond_kwargs,
                     enable_temporal_attentions=enable_temporal_attentions,
                     encoder_attention_mask=prompt_embeds_mask,  # (b n)
+                    temp_attention_mask=temp_attention_mask,
                 )
 
                 # perform guidance

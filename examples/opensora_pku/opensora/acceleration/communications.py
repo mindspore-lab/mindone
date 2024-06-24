@@ -1,5 +1,6 @@
 from opensora.acceleration.parallel_states import hccl_info
 
+import mindspore as ms
 from mindspore import Tensor, nn, ops
 
 
@@ -114,6 +115,8 @@ class AllToAll_SBH(_SingleAll2ALL):
 def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num):
     sp_size = hccl_info.world_size
     index = hccl_info.rank % sp_size
+    temp_attention_mask = None
+    loss_mask = None
 
     if use_image_num == 0:
         assert hidden_states.shape[2] % sp_size == 0
@@ -148,16 +151,25 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
             video_attention_mask, image_attention_mask = None, None
 
         # 1. for video states
-        padding_needed = (sp_size - video_states.shape[2] % sp_size) % sp_size
-        if padding_needed > 0:
+        padding_needed_v = (sp_size - video_states.shape[2] % sp_size) % sp_size
+        if padding_needed_v > 0:
             print("Doing video padding")
             # B, C, T, H, W -> B, C, T', H, W
-            video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
+            video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed_v), mode="constant", value=0)
             if attention_mask is not None:
                 # B, T, H, W -> B, T', H, W
                 video_attention_mask = ops.pad(
-                    video_attention_mask, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0
+                    video_attention_mask, (0, 0, 0, 0, 0, padding_needed_v), mode="constant", value=0
                 )
+
+            b, _, f, h, w = video_states.shape
+            temp_attention_mask = ops.ones((b * h * w // 4, 1, f), ms.int32)
+            temp_attention_mask[:, :, -padding_needed_v:] = 0
+
+            video_loss_mask = ops.ones((1, 1, f, 1, 1), ms.int32)
+            video_loss_mask[:, :, -padding_needed_v:] = 0
+        else:
+            video_loss_mask = ops.ones((1, 1, video_states.shape[2], 1, 1), ms.int32)
 
         video_states, video_encoder_states, video_encoder_attention_mask = (
             video_states,
@@ -172,25 +184,31 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         video_states = ops.chunk(video_states, sp_size, 2)[index]
         video_encoder_states = ops.chunk(video_encoder_states, sp_size, 1)[index]
         video_encoder_attention_mask = ops.chunk(video_encoder_attention_mask, sp_size, 1)[index]
+        video_loss_mask = ops.chunk(video_loss_mask, sp_size, 2)[index]
 
         if attention_mask is not None:
             assert video_attention_mask.shape[1] % sp_size == 0
             video_attention_mask = ops.chunk(video_attention_mask, sp_size, 1)[index]
 
         # 2. for image states
-        padding_needed = (sp_size - image_states.shape[2] % sp_size) % sp_size
-        if padding_needed > 0:
-            image_states = ops.pad(image_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0)
+        padding_needed_i = (sp_size - image_states.shape[2] % sp_size) % sp_size
+        if padding_needed_i > 0:
+            image_states = ops.pad(image_states, (0, 0, 0, 0, 0, padding_needed_i), mode="constant", value=0)
             image_encoder_states = ops.pad(
-                image_encoder_states, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0
+                image_encoder_states, (0, 0, 0, 0, 0, padding_needed_i), mode="constant", value=0
             )
             image_encoder_attention_mask = ops.pad(
-                image_encoder_attention_mask, (0, 0, 0, padding_needed), mode="constant", value=0
+                image_encoder_attention_mask, (0, 0, 0, padding_needed_i), mode="constant", value=0
             )
             if attention_mask is not None:
                 image_attention_mask = ops.pad(
-                    image_attention_mask, (0, 0, 0, 0, 0, padding_needed), mode="constant", value=0
+                    image_attention_mask, (0, 0, 0, 0, 0, padding_needed_i), mode="constant", value=0
                 )
+
+            image_loss_mask = ops.ones((1, 1, image_states.shape[2], 1, 1), ms.int32)
+            image_loss_mask[:, :, -padding_needed_i:] = 0
+        else:
+            image_loss_mask = ops.ones((1, 1, image_states.shape[2], 1, 1), ms.int32)
 
         assert image_states.shape[2] % sp_size == 0
         assert image_encoder_states.shape[1] % sp_size == 0
@@ -199,6 +217,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         image_states = ops.chunk(image_states, sp_size, 2)[index]
         image_encoder_states = ops.chunk(image_encoder_states, sp_size, 1)[index]
         image_encoder_attention_mask = ops.chunk(image_encoder_attention_mask, sp_size, 1)[index]
+        image_loss_mask = ops.chunk(image_loss_mask, sp_size, 2)[index]
 
         if attention_mask is not None:
             assert image_attention_mask.shape[1] % sp_size == 0
@@ -208,9 +227,22 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         hidden_states = ops.concat([video_states, image_states], axis=2)
         encoder_hidden_states = ops.concat([video_encoder_states, image_encoder_states], axis=1)
         encoder_attention_mask = ops.concat([video_encoder_attention_mask, image_encoder_attention_mask], axis=1)
+        loss_mask = (
+            ops.concat([video_loss_mask, image_loss_mask], axis=2)
+            if (padding_needed_i > 0 or padding_needed_v > 0)
+            else None
+        )
         use_image_num = (use_image_num + sp_size - 1) // sp_size
 
         if attention_mask is not None:
             attention_mask = ops.concat([video_attention_mask, image_attention_mask], axis=1)
 
-    return hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num
+    return (
+        hidden_states,
+        encoder_hidden_states,
+        attention_mask,
+        encoder_attention_mask,
+        use_image_num,
+        temp_attention_mask,
+        loss_mask,
+    )

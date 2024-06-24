@@ -208,6 +208,7 @@ class MultiHeadAttention(nn.Cell):
             self.alltoall_sbh_v = AllToAll_SBH(scatter_dim=1, gather_dim=0)
             self.alltoall_sbh_out = AllToAll_SBH(scatter_dim=1, gather_dim=0)
         else:
+            self.sp_size = 1
             self.alltoall_sbh_q = None
             self.alltoall_sbh_k = None
             self.alltoall_sbh_v = None
@@ -338,7 +339,7 @@ class MultiHeadAttention(nn.Cell):
                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
 
     def prepare_attention_mask(
-        self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3
+        self, attention_mask: ms.Tensor, target_length: int, batch_size: int, out_dim: int = 3, sp_size: int = 1
     ) -> ms.Tensor:
         r"""
         Prepare the attention mask for the attention computation.
@@ -357,6 +358,9 @@ class MultiHeadAttention(nn.Cell):
             `ms.Tensor`: The prepared attention mask.
         """
         head_size = self.heads
+        if sp_size > 1:
+            head_size = head_size // sp_size
+
         if attention_mask is None:
             return attention_mask
 
@@ -508,7 +512,7 @@ class MultiHeadAttention(nn.Cell):
         if attention_mask is not None:
             out_dim = 4 if self.enable_flash_attention else 3
             attention_mask = self.prepare_attention_mask(
-                attention_mask, sequence_length, batch_size, out_dim=out_dim
+                attention_mask, sequence_length, batch_size, out_dim=out_dim, sp_size=self.sp_size
             )  # make attention mask a correct shape
 
         if self.group_norm is not None:
@@ -1725,7 +1729,7 @@ class LatteT2VBlock(nn.Cell):
 
                 hidden_states_video = self.temp_block(
                     hidden_states_video,
-                    temp_attention_mask if self.training else None,  # attention_mask
+                    temp_attention_mask,  # attention_mask
                     None,  # encoder_hidden_states
                     None,  # encoder_attention_mask
                     timestep_temp,
@@ -1767,7 +1771,7 @@ class LatteT2VBlock(nn.Cell):
 
                     hidden_states_video = self.temp_block(
                         hidden_states_video,
-                        None,  # attention_mask
+                        temp_attention_mask,  # attention_mask
                         None,  # encoder_hidden_states
                         None,  # encoder_attention_mask
                         timestep_temp,
@@ -1793,7 +1797,7 @@ class LatteT2VBlock(nn.Cell):
 
                     hidden_states = self.temp_block(
                         hidden_states,
-                        None,  # attention_mask
+                        temp_attention_mask,  # attention_mask
                         None,  # encoder_hidden_states
                         None,  # encoder_attention_mask
                         timestep_temp,

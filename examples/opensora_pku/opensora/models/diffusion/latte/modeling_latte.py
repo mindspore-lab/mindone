@@ -337,6 +337,7 @@ class LatteT2V(ModelMixin, ConfigMixin):
         cross_attention_kwargs: Dict[str, Any] = None,
         attention_mask: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
+        temp_attention_mask: Optional[ms.Tensor] = None,
         use_image_num: int = 0,
         enable_temporal_attentions: bool = True,
     ):
@@ -478,8 +479,6 @@ class LatteT2V(ModelMixin, ConfigMixin):
                 temp_pos_embed = ops.pad(
                     temp_pos_embed, (0, 0, 0, frame - temp_pos_embed.shape[1]), mode="constant", value=0
                 )
-
-        temp_attention_mask = None
 
         pos_hw, pos_t = None, None
         if self.use_rope:
