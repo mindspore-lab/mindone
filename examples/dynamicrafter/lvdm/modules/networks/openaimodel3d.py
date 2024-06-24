@@ -56,7 +56,7 @@ class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):
     support it as an extra input.
     """
 
-    def construct(self, x, emb, context=None, batch_size=None):
+    def construct(self, x, emb, context=None, batch_size=None):  # FIXME: why batch_size=2??
         for layer in self:
             if isinstance(layer, TimestepBlock):
                 x = layer(x, emb, batch_size=batch_size)
@@ -312,20 +312,20 @@ class TemporalConvBlock(nn.Cell):
         # conv layers
         self.conv1 = nn.SequentialCell(
             # nn.GroupNorm(32, in_dim),
-            normalization(in_dim, norm_in_5d=True),
+            normalization(in_dim),
             SiLU(),
             nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(self.dtype),
         )
         self.conv2 = nn.SequentialCell(
             # nn.GroupNorm(32, out_dim),
-            normalization(out_dim, norm_in_5d=True),
+            normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(self.dtype),
         )
         self.conv3 = nn.SequentialCell(
             # nn.GroupNorm(32, out_dim),
-            normalization(out_dim, norm_in_5d=True),
+            normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(
@@ -334,7 +334,7 @@ class TemporalConvBlock(nn.Cell):
         )
         self.conv4 = nn.SequentialCell(
             # nn.GroupNorm(32, out_dim),
-            normalization(out_dim, norm_in_5d=True),
+            normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
             nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(
@@ -348,9 +348,7 @@ class TemporalConvBlock(nn.Cell):
 
     def construct(self, x):
         identity = x
-        import pdb;pdb.set_trace()
-        x = self.conv1(x, 16)
-        import pdb;pdb.set_trace()
+        x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
@@ -795,7 +793,7 @@ class UNetModel(nn.Cell):
         adapter_idx = 0
         hs = []
         for id, module in enumerate(self.input_blocks):
-            import pdb;pdb.set_trace()
+            # import pdb;pdb.set_trace()
             h = module(h, emb, context=context, batch_size=b)
             if id == 0 and self.addition_attention:
                 h = self.init_attn(h, emb, context=context, batch_size=b)

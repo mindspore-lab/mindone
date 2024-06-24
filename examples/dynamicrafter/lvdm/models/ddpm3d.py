@@ -256,7 +256,6 @@ class LatentDiffusion(DDPM):
         self.instantiate_first_stage(first_stage_config)
         self.instantiate_cond_stage(cond_stage_config)
         self.cond_stage_forward = cond_stage_forward
-        # import pdb;pdb.set_trace()
 
         self.clip_denoised = False
         self.uniform_int = ops.UniformInt()
@@ -316,8 +315,9 @@ class LatentDiffusion(DDPM):
         return ms.Tensor(tokenized_res)
 
     def decode_first_stage(self, z):
+        import pdb;pdb.set_trace()
         z = 1.0 / self.scale_factor * z
-        return self.first_stage_model.decode(z)
+        return self.first_stage_model.decode(z)  # lvdm.models.autoencoder.AutoencoderKL
 
     def encode_first_stage(self, x):
         return self.first_stage_model.encode(x)

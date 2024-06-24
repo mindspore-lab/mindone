@@ -158,7 +158,6 @@ class NonInflatedGroupNorm(nn.GroupNorm):
     def construct(self, x, video_length):
         # input: 4D tensor (b*f c h w)
         # output: 4D tensor (b*f c h w)
-        import pdb;pdb.set_trace()
         x = rearrange_in_gn5d(x, video_length)
 
         ori_dtype = x.dtype

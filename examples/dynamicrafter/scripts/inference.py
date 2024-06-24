@@ -311,7 +311,7 @@ def image_guided_synthesis(model,
                                             guidance_rescale=guidance_rescale,
                                             **kwargs
                                             )
-
+        import pdb;pdb.set_trace()
         ## reconstruct from latent to pixel space
         batch_images = model.decode_first_stage(samples)
         batch_variants.append(batch_images)
