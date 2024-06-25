@@ -66,6 +66,7 @@ class DiffusionWithLoss(nn.Cell):
         #     else ops.Broadcast(root_rank=int(hccl_info.group_id * hccl_info.world_size), group=hccl_info.group)
         self.reduce_t = None if not get_sequence_parallel_state() else ops.AllReduce(group=hccl_info.group)
         self.sp_size = 1 if not get_sequence_parallel_state() else hccl_info.world_size
+        self.all_gather = None if not get_sequence_parallel_state() else ops.AllGather(group=hccl_info.group)
 
     def get_condition_embeddings(self, text_tokens, encoder_attention_mask):
         # text conditions inputs for cross-attention
@@ -192,26 +193,27 @@ class DiffusionWithLoss(nn.Cell):
 
     def compute_loss(self, x, text_embed, encoder_attention_mask, attention_mask=None):
         use_image_num = self.use_image_num
+        noise = ops.randn_like(x)
 
         if get_sequence_parallel_state():
+            x = self.all_gather(x[None])[0]
             (
                 x,
+                noise,
                 text_embed,
                 attention_mask,
                 encoder_attention_mask,
                 use_image_num,
                 temp_attention_mask,
                 loss_mask,
-            ) = prepare_parallel_data(x, text_embed, attention_mask, encoder_attention_mask, use_image_num)
+            ) = prepare_parallel_data(x, noise, text_embed, attention_mask, encoder_attention_mask, use_image_num)
         else:
             temp_attention_mask, loss_mask = None, None
 
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],), dtype=ms.int32)
-
         if get_sequence_parallel_state():
             t = self.reduce_t(t) // self.sp_size
 
-        noise = ops.randn_like(x)
         x_t = self.diffusion.q_sample(x, t, noise=noise)
 
         # latte forward input match

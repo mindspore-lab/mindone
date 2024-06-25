@@ -3,20 +3,28 @@ from opensora.acceleration.parallel_states import hccl_info
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
+# class AlltoAll(nn.Cell):
+#     def __init__(self, split_count=None, group=None):
+#         super(AlltoAll, self).__init__()
+#         self.all_gather = ops.AllGather(group=group)
+#         self.split_count = split_count
+#         self.index = hccl_info.rank % hccl_info.world_size
+#
+#     def construct(self, x):
+#         x_shape = x.shape
+#         x = self.all_gather(x[None, ...])  # (8, ...)
+#         x = ops.chunk(x, self.split_count, axis=1)[self.index]
+#         x = x.view(x_shape)
+#         return x
 
-class AlltoAll(nn.Cell):
-    def __init__(self, split_count=None, group=None):
-        super(AlltoAll, self).__init__()
-        self.all_gather = ops.AllGather(group=group)
-        self.split_count = split_count
-        self.index = hccl_info.rank % hccl_info.world_size
 
-    def construct(self, x):
-        x_shape = x.shape
-        x = self.all_gather(x[None, ...])  # (8, ...)
-        x = ops.chunk(x, self.split_count, axis=1)[self.index]
-        x = x.view(x_shape)
-        return x
+# class Broadcast(nn.Cell):
+#     def __init__(self):
+#         super(Broadcast, self).__init__()
+#         self.broadcast = ops.Broadcast(root_rank=hccl_info.rank, group=hccl_info.group)
+#
+#     def construct(self, x):
+#         return self.broadcast((x,))[0]
 
 
 class _SingleAll2ALL(nn.Cell):
@@ -26,8 +34,8 @@ class _SingleAll2ALL(nn.Cell):
         self.spg = hccl_info.group
         self.scatter_dim = scatter_dim
         self.gather_dim = gather_dim
-        # self.alltoall = ops.AlltoAll(split_count=self.sp_size, split_dim=0, concat_dim=0, group=self.spg)
-        self.alltoall = AlltoAll(split_count=self.sp_size, group=self.spg)
+        self.alltoall = ops.AlltoAll(split_count=self.sp_size, split_dim=0, concat_dim=0, group=self.spg)
+        # self.alltoall = AlltoAll(split_count=self.sp_size, group=self.spg)
 
     def construct(self, input_: Tensor):
         scatter_dim, gather_dim, sp_size = self.scatter_dim, self.gather_dim, self.sp_size
@@ -112,7 +120,9 @@ class AllToAll_SBH(_SingleAll2ALL):
         super(AllToAll_SBH, self).__init__(scatter_dim=scatter_dim, gather_dim=gather_dim)
 
 
-def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num):
+def prepare_parallel_data(
+    hidden_states, noise, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num
+):
     sp_size = hccl_info.world_size
     index = hccl_info.rank % sp_size
     temp_attention_mask = None
@@ -124,6 +134,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         assert encoder_attention_mask.shape[1] % sp_size == 0
 
         hidden_states = ops.chunk(hidden_states, sp_size, 2)[index]
+        noise = ops.chunk(noise, sp_size, 2)[index]
         encoder_hidden_states = ops.chunk(encoder_hidden_states, sp_size, 1)[index]
         encoder_attention_mask = ops.chunk(encoder_attention_mask, sp_size, 1)[index]
 
@@ -133,6 +144,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
 
     else:
         video_states, image_states = hidden_states[:, :, :-use_image_num], hidden_states[:, :, -use_image_num:]
+        video_noise, image_noise = noise[:, :, :-use_image_num], noise[:, :, -use_image_num:]
         video_encoder_states, image_encoder_states = (
             encoder_hidden_states[:, :-use_image_num],
             encoder_hidden_states[:, -use_image_num:],
@@ -156,6 +168,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
             print("Doing video padding")
             # B, C, T, H, W -> B, C, T', H, W
             video_states = ops.pad(video_states, (0, 0, 0, 0, 0, padding_needed_v), mode="constant", value=0)
+            video_noise = ops.pad(video_noise, (0, 0, 0, 0, 0, padding_needed_v), mode="constant", value=0)
             if attention_mask is not None:
                 # B, T, H, W -> B, T', H, W
                 video_attention_mask = ops.pad(
@@ -182,6 +195,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         assert video_encoder_attention_mask.shape[1] % sp_size == 0
 
         video_states = ops.chunk(video_states, sp_size, 2)[index]
+        video_noise = ops.chunk(video_noise, sp_size, 2)[index]
         video_encoder_states = ops.chunk(video_encoder_states, sp_size, 1)[index]
         video_encoder_attention_mask = ops.chunk(video_encoder_attention_mask, sp_size, 1)[index]
         video_loss_mask = ops.chunk(video_loss_mask, sp_size, 2)[index]
@@ -194,6 +208,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         padding_needed_i = (sp_size - image_states.shape[2] % sp_size) % sp_size
         if padding_needed_i > 0:
             image_states = ops.pad(image_states, (0, 0, 0, 0, 0, padding_needed_i), mode="constant", value=0)
+            image_noise = ops.pad(image_noise, (0, 0, 0, 0, 0, padding_needed_i), mode="constant", value=0)
             image_encoder_states = ops.pad(
                 image_encoder_states, (0, 0, 0, 0, 0, padding_needed_i), mode="constant", value=0
             )
@@ -215,6 +230,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
         assert image_encoder_attention_mask.shape[1] % sp_size == 0
 
         image_states = ops.chunk(image_states, sp_size, 2)[index]
+        image_noise = ops.chunk(image_noise, sp_size, 2)[index]
         image_encoder_states = ops.chunk(image_encoder_states, sp_size, 1)[index]
         image_encoder_attention_mask = ops.chunk(image_encoder_attention_mask, sp_size, 1)[index]
         image_loss_mask = ops.chunk(image_loss_mask, sp_size, 2)[index]
@@ -225,6 +241,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
 
         # 3. concat
         hidden_states = ops.concat([video_states, image_states], axis=2)
+        noise = ops.concat([video_noise, image_noise], axis=2)
         encoder_hidden_states = ops.concat([video_encoder_states, image_encoder_states], axis=1)
         encoder_attention_mask = ops.concat([video_encoder_attention_mask, image_encoder_attention_mask], axis=1)
         loss_mask = (
@@ -239,6 +256,7 @@ def prepare_parallel_data(hidden_states, encoder_hidden_states, attention_mask, 
 
     return (
         hidden_states,
+        noise,
         encoder_hidden_states,
         attention_mask,
         encoder_attention_mask,
