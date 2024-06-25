@@ -692,7 +692,7 @@ class PositionEmbedding2D(nn.Cell):
         self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
 
     def _get_sin_cos_emb(self, t: Tensor) -> Tensor:
-        out = t[..., None] * self.inv_freq.astype(t.dtype)  # BUG: FP32 isn't automatically downcast to BF16
+        out = t[..., None] * self.inv_freq
         emb_cos = ops.cos(out)
         emb_sin = ops.sin(out)
         return ops.cat((emb_sin, emb_cos), axis=-1)
