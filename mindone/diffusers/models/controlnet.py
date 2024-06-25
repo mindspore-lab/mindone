@@ -523,15 +523,17 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
         )
 
         if load_weights_from_unet:
-            ms.load_param_into_net(controlnet.conv_in, unet.conv_in.parameters_dict())
-            ms.load_param_into_net(controlnet.time_proj, unet.time_proj.parameters_dict())
-            ms.load_param_into_net(controlnet.time_embedding, unet.time_embedding.parameters_dict())
+            ms.load_param_into_net(controlnet.conv_in, unet.conv_in.parameters_dict(), strict_load=True)
+            ms.load_param_into_net(controlnet.time_proj, unet.time_proj.parameters_dict(), strict_load=True)
+            ms.load_param_into_net(controlnet.time_embedding, unet.time_embedding.parameters_dict(), strict_load=True)
 
             if controlnet.class_embedding:
-                ms.load_param_into_net(controlnet.class_embedding, unet.class_embedding.parameters_dict())
+                ms.load_param_into_net(
+                    controlnet.class_embedding, unet.class_embedding.parameters_dict(), strict_load=True
+                )
 
-            ms.load_param_into_net(controlnet.down_blocks, unet.down_blocks.parameters_dict())
-            ms.load_param_into_net(controlnet.mid_block, unet.mid_block.parameters_dict())
+            ms.load_param_into_net(controlnet.down_blocks, unet.down_blocks.parameters_dict(), strict_load=True)
+            ms.load_param_into_net(controlnet.mid_block, unet.mid_block.parameters_dict(), strict_load=True)
 
         return controlnet
 
@@ -695,7 +697,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         if timesteps.shape[0] == 1:
-            timesteps = timesteps.broadcast_to((sample.shape[0],))
+            timesteps = timesteps.tile((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
@@ -714,7 +716,11 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
             if self.config["class_embed_type"] == "timestep":
                 class_labels = self.time_proj(class_labels)
 
-            class_emb = self.class_embedding(class_labels).to(emb.dtype)
+                # `Timesteps` does not contain any weights and will always return f32 tensors
+                # there might be better ways to encapsulate this.
+                class_labels = class_labels.to(dtype=sample.dtype)
+
+            class_emb = self.class_embedding(class_labels).to(dtype=sample.dtype)
             emb = emb + class_emb
 
         if self.config["addition_embed_type"] is not None:
@@ -734,7 +740,10 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
                         f"which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"
                     )
                 time_ids = added_cond_kwargs.get("time_ids")
-                time_embeds = self.add_time_proj(time_ids.flatten()).to(time_ids.dtype)
+                time_embeds = self.add_time_proj(time_ids.flatten())
+                # `Timesteps` does not contain any weights and will always return f32 tensors
+                # there might be better ways to encapsulate this.
+                time_embeds = time_embeds.to(emb.dtype)
                 time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
                 add_embeds = ops.concat([text_embeds, time_embeds], axis=-1)
