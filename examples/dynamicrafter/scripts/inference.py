@@ -33,8 +33,8 @@ from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
-# from mindone.visualize.videos import save_videos
 from mindone.utils.config import instantiate_from_config, str2bool
+from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,13 @@ def load_data_prompts(data_dir, video_size=(256,256), video_frames=16, interp=Fa
     return filename_list, data_list, prompt_list
 
 
+def _transform_before_save(video):
+    video = ops.transpose(video, (0, 2, 3, 4, 1))
+    video = video.asnumpy()
+    video = np.clip(video, -1, 1)
+    video = (video + 1.0) / 2.0
+    return video
+
 def save_results_seperate(prompt, samples, filename, fakedir, fps=10, loop=False):
     prompt = prompt[0] if isinstance(prompt, list) else prompt
 
@@ -193,8 +200,13 @@ def save_results_seperate(prompt, samples, filename, fakedir, fps=10, loop=False
     for idx, video in enumerate(videos):
         if video is None:
             continue
+        path = os.path.join(savedirs[idx], f'{filename.split(".")[0]}_sample{idx}.mp4')
+        video_transform = _transform_before_save(video)
+        # import pdb;pdb.set_trace()
+        save_videos(video_transform, path)
+        """
         # b,c,t,h,w
-        video = video.detach().cpu()
+        # video = video.detach().cpu()
         if loop: # remove the last frame
             video = video[:,:,:-1,...]
         video = ops.clamp(video.float(), -1., 1.)
@@ -205,7 +217,8 @@ def save_results_seperate(prompt, samples, filename, fakedir, fps=10, loop=False
             grid = (grid * 255).to(ms.uint8).permute(1, 2, 3, 0) #thwc
             path = os.path.join(savedirs[idx].replace('samples', 'samples_separate'), f'{filename.split(".")[0]}_sample{i}.mp4')
             torchvision.io.write_video(path, grid, fps=fps, video_codec='h264', options={'crf': '10'})
-
+        # save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=0, concat=False):
+        """
 
 def get_latent_z(model, videos):
     b, c, t, h, w = videos.shape
@@ -311,9 +324,10 @@ def image_guided_synthesis(model,
                                             guidance_rescale=guidance_rescale,
                                             **kwargs
                                             )
-        import pdb;pdb.set_trace()
+        # import pdb;pdb.set_trace()
         ## reconstruct from latent to pixel space
         batch_images = model.decode_first_stage(samples)
+        # import pdb;pdb.set_trace()
         batch_variants.append(batch_images)
     ## variants, batch, c, t, h, w
     batch_variants = ops.stack(batch_variants)
@@ -323,14 +337,14 @@ def image_guided_synthesis(model,
 def main(args):
     if args.append_timestr:
         time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        save_dir = f"{args.output_path}/{time_str}"
+        save_dir = f"{args.savedir}/{time_str}"
     else:
-        save_dir = f"{args.output_path}"
+        save_dir = f"{args.savedir}"
 
     os.makedirs(save_dir, exist_ok=True)
-    if args.save_latent:
-        latent_dir = os.path.join(args.output_path, "denoised_latents")
-        os.makedirs(latent_dir, exist_ok=True)
+    # if args.save_latent:
+    #     latent_dir = os.path.join(args.output_path, "denoised_latents")
+    #     os.makedirs(latent_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
     # 1. init env
@@ -371,7 +385,7 @@ def main(args):
     ## set use_checkpoint as False as when using deepspeed, it encounters an error "deepspeed backend not set"
     # model_config['params']['unet_config']['params']['use_checkpoint'] = False
     model = instantiate_from_config(model_config)
-    # model.perframe_ae = args.perframe_ae
+    model.perframe_ae = args.perframe_ae
     # import pdb;pdb.set_trace()
 
     # assert os.path.exists(args.ckpt_path), "Error: checkpoint Not Found!"
@@ -379,20 +393,24 @@ def main(args):
     if args.ckpt_path:
         logger.info(f"Loading ckpt {args.ckpt_path} into model")
         assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
-        model.load_from_checkpoint(args.ckpt_path)
+        params = ms.load_checkpoint(args.ckpt_path)
+        m, u = ms.load_param_into_net(model, params)
+        logger.info(f"{len(m)} net params not load: {m}")
+        logger.info(f"{len(u)} ckpt params not load: {u}")
+        # model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"Model uses random initialization!")
 
     model.set_train(False)
     """get ms params
     ms_params = [p for p in model.parameters_and_names()]
-    with open("tools/ms_weight.txt", "w") as f:
+    with open(f"tools/ms_param_{args.width}.txt", "w") as f:
         for k, v in ms_params:
-            k = k.replace(".gamma", ".weight").replace(".beta", ".bias")
+            # k = k.replace(".gamma", ".weight").replace(".beta", ".bias")
             f.write(k + ":" + str(v.shape) + ":" + str(v.dtype).lower() + "\n")
     print(f"Num of params of ms weight: {len(ms_params)}")       
+    import pdb;pdb.set_trace()
     """
-
     # run over data
     assert (args.height % 16 == 0) and (args.width % 16 == 0), "Error: image size [h,w] should be multiples of 16!"
     assert args.bs == 1, "Current implementation only support [batch size = 1]!"
@@ -403,11 +421,11 @@ def main(args):
     print(f'Inference with {n_frames} frames')
     noise_shape = [args.bs, channels, n_frames, h, w]
     
-    fakedir = os.path.join(args.savedir, "samples")
-    fakedir_separate = os.path.join(args.savedir, "samples_separate")
+    # fakedir = os.path.join(args.savedir, "samples")
+    # fakedir_separate = os.path.join(args.savedir, "samples_separate")
 
-    # os.makedirs(fakedir, exist_ok=True)
-    os.makedirs(fakedir_separate, exist_ok=True)
+    # # os.makedirs(fakedir, exist_ok=True)
+    # os.makedirs(fakedir_separate, exist_ok=True)
 
     for idx, indice in tqdm(enumerate(range(0, len(prompt_list), args.bs)), desc='Sample Batch'):
                 prompts = prompt_list[indice:indice+args.bs]
@@ -435,14 +453,14 @@ def main(args):
                                                        args.timestep_spacing,
                                                        args.guidance_rescale,
                                                        )
-
+                # import pdb;pdb.set_trace()
                 ## save each example individually
                 for nn, samples in enumerate(batch_samples):
                     ## samples : [n_samples,c,t,h,w]
                     prompt = prompts[nn]
                     filename = filenames[nn]
                     # save_results(prompt, samples, filename, fakedir, fps=8, loop=args.loop)
-                    save_results_seperate(prompt, samples, filename, fakedir, fps=8, loop=args.loop)
+                    save_results_seperate(prompt, samples, filename, save_dir, fps=8, loop=args.loop)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -473,18 +491,18 @@ def parse_args():
         default=True,
         help="If true, an subfolder named with timestamp under output_path will be created to save the sampling results",
     )
-    parser.add_argument(
-        "--output_path",
-        type=str,
-        default="samples",
-        help="output dir to save the generated videos",
-    )
-    parser.add_argument(
-        "--save_latent",
-        type=str2bool,
-        default=True,
-        help="Save denoised video latent. If True, the denoised latents will be saved in $output_path/denoised_latents",
-    )
+    # parser.add_argument(
+    #     "--output_path",
+    #     type=str,
+    #     default="samples",
+    #     help="output dir to save the generated videos",
+    # )
+    # parser.add_argument(
+    #     "--save_latent",
+    #     type=str2bool,
+    #     default=True,
+    #     help="Save denoised video latent. If True, the denoised latents will be saved in $output_path/denoised_latents",
+    # )
     
     # MS new args
     parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")

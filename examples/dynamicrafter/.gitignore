@@ -1,0 +1,5 @@
+# specific to dynamicrafter folder
+results/
+__pycache__/
+rank_*/
+*ckpt

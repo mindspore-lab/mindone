@@ -154,17 +154,17 @@ class DDPM(nn.Cell):
         self.linear_end = linear_end
         assert alphas_cumprod.shape[0] == self.num_timesteps, "alphas have to be defined for each timestep"
 
-        to_mindspore = partial(Tensor, dtype=self.dtype)
-        self.betas = to_mindspore(betas)
-        self.alphas_cumprod = to_mindspore(alphas_cumprod)
-        self.alphas_cumprod_prev = to_mindspore(alphas_cumprod_prev)
+        self.to_mindspore = partial(Tensor, dtype=self.dtype)
+        self.betas = self.to_mindspore(betas)
+        self.alphas_cumprod = self.to_mindspore(alphas_cumprod)
+        self.alphas_cumprod_prev = self.to_mindspore(alphas_cumprod_prev)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod = to_mindspore(np.sqrt(alphas_cumprod))
-        self.sqrt_one_minus_alphas_cumprod = to_mindspore(np.sqrt(1.0 - alphas_cumprod))
-        self.log_one_minus_alphas_cumprod = to_mindspore(np.log(1.0 - alphas_cumprod))
-        self.sqrt_recip_alphas_cumprod = to_mindspore(np.sqrt(1.0 / alphas_cumprod))
-        self.sqrt_recipm1_alphas_cumprod = to_mindspore(np.sqrt(1.0 / alphas_cumprod - 1))
+        self.sqrt_alphas_cumprod = self.to_mindspore(np.sqrt(alphas_cumprod))
+        self.sqrt_one_minus_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 - alphas_cumprod))
+        self.log_one_minus_alphas_cumprod = self.to_mindspore(np.log(1.0 - alphas_cumprod))
+        self.sqrt_recip_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 / alphas_cumprod))
+        self.sqrt_recipm1_alphas_cumprod = self.to_mindspore(np.sqrt(1.0 / alphas_cumprod - 1))
 
     # def q_sample(self, x_start, t, noise):
     def add_noise(self, original_samples: ms.Tensor, noise: ms.Tensor, timestep: ms.Tensor) -> ms.Tensor:
@@ -242,27 +242,51 @@ class LatentDiffusion(DDPM):
 
         self.concat_mode = concat_mode
         self.cond_stage_trainable = cond_stage_trainable
+        self.cond_stage_key = cond_stage_key
+        self.noise_strength = noise_strength
+        self.use_dynamic_rescale = use_dynamic_rescale
+        self.interp_mode = interp_mode
+        self.fps_condition_type = fps_condition_type
+        self.perframe_ae = perframe_ae
+        self.logdir = logdir
+        self.rand_cond_frame = rand_cond_frame
+        self.en_and_decode_n_samples_a_time = en_and_decode_n_samples_a_time
+
         # try:
         #     self.num_downs = len(first_stage_config.params.ddconfig.ch_mult) - 1
         # except Exception:
         #     self.num_downs = 0
-        if not scale_by_std:
-            self.scale_factor = scale_factor
-        else:
-            self.register_buffer("scale_factor", Tensor(scale_factor))
+
+        self.scale_factor = scale_factor
+        # if not scale_by_std:
+        #     self.scale_factor = scale_factor
+        # else:
+        #     self.register_buffer("scale_factor", Tensor(scale_factor))
+
+        if use_dynamic_rescale:
+            scale_arr1 = np.linspace(1.0, base_scale, turning_step)
+            scale_arr2 = np.full(self.num_timesteps, base_scale)
+            scale_arr = np.concatenate((scale_arr1, scale_arr2))
+            # to_torch = partial(torch.tensor, dtype=torch.float32)
+            # self.register_buffer('scale_arr', to_torch(scale_arr))
+            self.scale_arr = ms.Parameter(self.to_mindspore(scale_arr), requires_grad=False)
 
         # unet, note: to avoid change param name, don't change the var name
         self.model = DiffusionWrapper(unet_config, conditioning_key)
         self.instantiate_first_stage(first_stage_config)
         self.instantiate_cond_stage(cond_stage_config)
-        self.cond_stage_forward = cond_stage_forward
-
         self.clip_denoised = False
+
         self.uniform_int = ops.UniformInt()
+        self.cond_stage_forward = cond_stage_forward
+        assert(encoder_type in ["2d", "3d"])
+        self.encoder_type = encoder_type
         assert(uncond_type in ["zero_embed", "empty_seq"])
         self.uncond_type = uncond_type
+        self.uncond_prob = uncond_prob
         self.restarted_from_ckpt = False
         if ckpt_path is not None:
+            self.init_from_ckpt(ckpt_path, ignore_keys, only_model=only_model)
             self.init_from_ckpt(ckpt_path, ignore_keys)
             self.restarted_from_ckpt = True
 
@@ -314,10 +338,42 @@ class LatentDiffusion(DDPM):
         tokenized_res = self.cond_stage_model.tokenize(c)
         return ms.Tensor(tokenized_res)
 
-    def decode_first_stage(self, z):
-        import pdb;pdb.set_trace()
-        z = 1.0 / self.scale_factor * z
-        return self.first_stage_model.decode(z)  # lvdm.models.autoencoder.AutoencoderKL
+    def decode_core(self, z, **kwargs):
+        # import pdb;pdb.set_trace()
+        if self.encoder_type == "2d" and z.dim() == 5:
+            b, _, t, _, _ = z.shape
+            # z = rearrange(z, 'b c t h w -> (b t) c h w')
+            z = ops.transpose(z, (0, 2, 1, 3, 4))  #  (b c t h w) -> (b t c h w)
+            z = ops.reshape(z, (-1, z.shape[2], z.shape[3], z.shape[4]))  # (b t c h w) -> ((b t) c h w)
+            reshape_back = True
+        else:
+            reshape_back = False
+            
+        if not self.perframe_ae:    
+            z = 1. / self.scale_factor * z
+            # results = self.first_stage_model.decode(z, **kwargs)
+            results = self.first_stage_model.decode(z)
+        else:
+            results = []
+            for index in range(z.shape[0]):
+                frame_z = 1. / self.scale_factor * z[index:index+1,:,:,:]
+                # frame_result = self.first_stage_model.decode(frame_z, **kwargs)
+                frame_result = self.first_stage_model.decode(frame_z)
+                results.append(frame_result)
+            results = ops.cat(results, axis=0)
+
+        if reshape_back:
+            # results = rearrange(results, '(b t) c h w -> b c t h w', b=b,t=t)
+            results = ops.reshape(results, (b, t, *results.shape[1:]))  # ((b t) c h w) -> (b t c h w)
+            results = ops.transpose(results, (0, 2, 1, 3, 4))  # (b t c h w) -> (b c t h w)
+        return results
+
+    def decode_first_stage(self, z, **kwargs):
+        return self.decode_core(z, **kwargs)
+     
+    # def decode_first_stage(self, z):
+    #     z = 1.0 / self.scale_factor * z
+    #     return self.first_stage_model.decode(z)  # lvdm.models.autoencoder.AutoencoderKL
 
     def encode_first_stage(self, x):
         return self.first_stage_model.encode(x)
@@ -385,6 +441,12 @@ class LatentDiffusion(DDPM):
         cond = {"c_crossattn": text_emb}
 
         return cond
+
+    # def forward(self, x, c, **kwargs):
+    #     t = torch.randint(0, self.num_timesteps, (x.shape[0],), device=self.device).long()
+    #     if self.use_dynamic_rescale:
+    #         x = x * extract_into_tensor(self.scale_arr, t, x.shape)
+    #     return self.p_losses(x, c, t, **kwargs)
 
     def construct(self, x: ms.Tensor, text_tokens: ms.Tensor, control=None, **kwargs):
         """

@@ -192,6 +192,7 @@ class CrossAttention(nn.Cell):
             self.to_v_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
             if image_cross_attention_scale_learnable:
                 self.alpha = ms.Parameter(ms.Tensor(0.))
+                # self.alpha = ms.Tensor(0.)
 
         self.relative_position = relative_position
         if self.relative_position:
@@ -658,7 +659,7 @@ class TemporalTransformer(nn.Cell):
         inner_dim = n_heads * d_head
         self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
         if not use_linear:
-            self.proj_in = nn.Conv1d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True).to_float(self.dtype)
+            self.proj_in = nn.Conv1d(in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad").to_float(self.dtype)
         else:
             self.proj_in = nn.Dense(in_channels, inner_dim).to_float(self.dtype)
 
@@ -688,7 +689,7 @@ class TemporalTransformer(nn.Cell):
         )
         if not use_linear:
             self.proj_out = zero_module(
-                nn.Conv1d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True).to_float(
+                nn.Conv1d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad").to_float(
                     self.dtype
                 )
             )
