@@ -111,6 +111,19 @@ def set_default(args):
         context.set_context(max_device_memory=args.max_device_memory)
         context.set_context(memory_optimize_level="O1", ascend_config={"atomic_clean_policy": 1})
 
+    try:
+        if args.jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": args.jit_level})
+            print(f"set jit_level: {args.jit_level}.")
+        else:
+            print(
+                f"WARNING: Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        print(
+            "WARNING: The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
     # Set Parallel
     if args.is_parallel:
         init()
