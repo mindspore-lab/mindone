@@ -9,7 +9,17 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
+from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list
+
+try:
+    from mindspore.train.amp import _auto_white_list
+
+    NEW_AUTO_WHITE = False
+except Exception:
+    # API changed since ms2.3-20240219
+    from mindspore.train.amp import _auto_mixed_precision_rewrite
+
+    NEW_AUTO_WHITE = True
 
 
 def exists(x):

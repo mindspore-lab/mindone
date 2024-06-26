@@ -12,7 +12,6 @@ from gm.util import default, exists
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.ops._tracefunc import trace
 
 try:
     from mindspore.nn.layer.flash_attention import FlashAttention
@@ -352,7 +351,6 @@ class SpatialTransformer(nn.Cell):
             self.proj_out = zero_module(nn.Dense(inner_dim, in_channels))
         self.use_linear = use_linear
 
-    @trace
     def construct(self, x, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
         if not isinstance(context, (list, tuple)):
