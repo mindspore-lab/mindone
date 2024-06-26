@@ -1,6 +1,7 @@
 """
 Train AutoEncoders with GAN loss
 """
+import json
 import logging
 import os
 import shutil
@@ -8,7 +9,6 @@ import sys
 import time
 
 import yaml
-from omegaconf import OmegaConf
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -17,10 +17,10 @@ from mindspore.train.callback import TimeMonitor
 sys.path.append(".")
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from opensora.models.ae import getae_model_config
-from opensora.models.ae.videobase.causal_vae.modeling_causalvae import TimeDownsample2x, TimeUpsample2x
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAEModel
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
+from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
 from opensora.utils.utils import get_precision
 
@@ -55,22 +55,25 @@ def main(args):
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # Load Config
-    model_config = os.path.join("opensora/models/ae/videobase/causal_vae/", getae_model_config(args.ae))
-    model_config = OmegaConf.load(model_config)
-    ae = instantiate_from_config(model_config.generator)
-    if args.load_from_checkpoint is not None and len(args.load_from_checkpoint) > 0:
-        ae.init_from_ckpt(args.load_from_checkpoint)
+    ae = CausalVAEModel()
+    if args.load_from_checkpoint is not None:
+        model_config_path = os.path.join(args.load_from_checkpoint, "config.json")
+        assert os.path.exists(model_config_path), f"{model_config_path} does not exist!"
+        model_config = json.load(model_config_path)
+        ae = CausalVAEModel.from_pretrained(args.load_from_checkpoint)
     else:
-        logger.info("No pre-trained model is loaded.")
+        assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
+        model_config = json.load(args.model_config)
+        ae = CausalVAEModel.from_config(args.model_config)
 
     # discriminator (D)
-    use_discriminator = args.use_discriminator and (model_config.lossconfig.disc_weight > 0.0)
+    use_discriminator = args.use_discriminator and (model_config["loss_params"]["disc_weight"] > 0.0)
 
-    if args.use_discriminator and (model_config.lossconfig.disc_weight <= 0.0):
+    if args.use_discriminator and (model_config["loss_params"]["disc_weight"] <= 0.0):
         logging.warning("use_discriminator is True but disc_weight is 0.")
 
     if use_discriminator:
-        disc = instantiate_from_config(model_config.discriminator)
+        disc = instantiate_from_config(model_config["loss_type"])
     else:
         disc = None
 
@@ -79,9 +82,13 @@ def main(args):
     if args.precision in ["fp16", "bf16"]:
         amp_level = "O2"
         dtype = get_precision(args.precision)
-        custom_fp32_cells = [nn.GroupNorm] if dtype == ms.float16 else [TimeDownsample2x, TimeUpsample2x]
-        ae = auto_mixed_precision(ae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Set mixed precision to O2 with dtype={args.precision}")
+        if dtype == ms.float16:
+            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+        else:
+            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
+        ae = auto_mixed_precision(ae, amp_level="O2", dtype=dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(f"Use amp level O2 for causal 3D VAE with dtype={dtype}, custom_fp32_cells {custom_fp32_cells}")
+
         if use_discriminator:
             disc = auto_mixed_precision(disc, amp_level, dtype)
     elif args.precision == "fp32":
@@ -95,9 +102,9 @@ def main(args):
         ae,
         discriminator=disc,
         lpips_ckpt_path=os.path.join("pretrained", "lpips_vgg-426bf45c.ckpt"),
-        **model_config.lossconfig,
+        **model_config["loss_params"],
     )
-    disc_start = model_config.lossconfig.disc_start
+    disc_start = model_config["loss_params"]["disc_start"]
 
     # D with loss
     if use_discriminator:
@@ -121,8 +128,9 @@ def main(args):
         dynamic_sample=args.dynamic_sample,
         output_columns=["video"],  # return video only, not the file path
     )
+    split_time_upsample = True
     assert not (
-        args.video_num_frames % 2 == 0 and model_config.generator.params.ddconfig.split_time_upsample
+        args.video_num_frames % 2 == 0 and split_time_upsample
     ), "num of frames must be odd if split_time_upsample is True"
 
     dataset = VideoDataset(**ds_config)
@@ -375,7 +383,17 @@ def parse_causalvae_train_args(parser):
         help="Whether to use the discriminator in the training process. "
         "Phase 1 training does not use discriminator, set False to reduce memory cost in graph mode.",
     )
-
+    parser.add_argument(
+        "--model_config",
+        default="scripts/causalvae/release.json",
+        help="the model configuration file for the causalvae.",
+    )
+    parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=True,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to True in training mode.",
+    )
     parser.add_argument(
         "--output_dir", default="results/causalvae", help="The directory where training results are saved."
     )
