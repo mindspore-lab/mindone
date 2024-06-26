@@ -148,6 +148,12 @@ def get_parser_train():
             " If `None`, it will use default templates for each learnable_property."
         ),
     )
+    parser.add_argument(
+        "--max_num_ckpt",
+        type=int,
+        default=None,
+        help="Max number of ckpts saved. If exceeds, delete the oldest one. Set None: keep all ckpts.",
+    )
 
     return parser
 

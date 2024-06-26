@@ -267,16 +267,23 @@ def create_model(
     load_first_stage_model: bool = True,
     load_conditioner: bool = True,
 ):
-    from gm.models.diffusion import DiffusionEngine
+    from gm.models.diffusion import DiffusionEngine, DiffusionEngineControlNet, DiffusionEngineDreamBooth
 
-    assert (
-        config.model["target"] == "gm.models.diffusion.DiffusionEngine"
-    ), f"Not supported for `class {config.model['target']}`"
+    assert config.model["target"] in [
+        "gm.models.diffusion.DiffusionEngine",
+        "gm.models.diffusion.DiffusionEngineDreamBooth",
+        "gm.models.diffusion.DiffusionEngineControlNet",
+    ], f"Not supported for `class {config.model['target']}`"
 
     # create diffusion engine
     config.model["params"]["load_first_stage_model"] = load_first_stage_model
     config.model["params"]["load_conditioner"] = load_conditioner
-    sdxl = DiffusionEngine(**config.model.get("params", dict()))
+    target_map = {
+        "gm.models.diffusion.DiffusionEngine": DiffusionEngine,
+        "gm.models.diffusion.DiffusionEngineDreamBooth": DiffusionEngineDreamBooth,
+        "gm.models.diffusion.DiffusionEngineControlNet": DiffusionEngineControlNet,
+    }
+    sdxl = target_map[config.model["target"]](**config.model.get("params", dict()))
 
     # load pretrained
     sdxl.load_pretrained(checkpoints)
