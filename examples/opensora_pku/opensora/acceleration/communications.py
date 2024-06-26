@@ -3,29 +3,6 @@ from opensora.acceleration.parallel_states import hccl_info
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
-# class AlltoAll(nn.Cell):
-#     def __init__(self, split_count=None, group=None):
-#         super(AlltoAll, self).__init__()
-#         self.all_gather = ops.AllGather(group=group)
-#         self.split_count = split_count
-#         self.index = hccl_info.rank % hccl_info.world_size
-#
-#     def construct(self, x):
-#         x_shape = x.shape
-#         x = self.all_gather(x[None, ...])  # (8, ...)
-#         x = ops.chunk(x, self.split_count, axis=1)[self.index]
-#         x = x.view(x_shape)
-#         return x
-
-
-# class Broadcast(nn.Cell):
-#     def __init__(self):
-#         super(Broadcast, self).__init__()
-#         self.broadcast = ops.Broadcast(root_rank=hccl_info.rank, group=hccl_info.group)
-#
-#     def construct(self, x):
-#         return self.broadcast((x,))[0]
-
 
 class _SingleAll2ALL(nn.Cell):
     def __init__(self, scatter_dim: int, gather_dim: int):
@@ -36,45 +13,6 @@ class _SingleAll2ALL(nn.Cell):
         self.gather_dim = gather_dim
         self.alltoall = ops.AlltoAll(split_count=self.sp_size, split_dim=0, concat_dim=0, group=self.spg)
         # self.alltoall = AlltoAll(split_count=self.sp_size, group=self.spg)
-
-    def construct(self, input_: Tensor):
-        scatter_dim, gather_dim, sp_size = self.scatter_dim, self.gather_dim, self.sp_size
-        inp_shape = list(input_.shape)
-        inp_shape[scatter_dim] = inp_shape[scatter_dim] // sp_size
-        if scatter_dim < 1:
-            input_t = input_.reshape([sp_size, inp_shape[scatter_dim]] + inp_shape[scatter_dim + 1 :])
-        else:
-            # transpose groups of heads with the seq-len parallel dimension, so that we can scatter them!
-            input_t = (
-                input_.reshape([-1, sp_size, inp_shape[scatter_dim]] + inp_shape[scatter_dim + 1 :])
-                .swapaxes(0, 1)
-                .contiguous()
-            )
-
-        output = self.alltoall(input_t)
-
-        if scatter_dim < 1:
-            output = output.swapaxes(0, 1).contiguous()
-
-        output = output.reshape(
-            inp_shape[:gather_dim]
-            + [
-                inp_shape[gather_dim] * sp_size,
-            ]
-            + inp_shape[gather_dim + 1 :]
-        )
-
-        return output
-
-
-class bak_SingleAll2ALL(nn.Cell):
-    def __init__(self, scatter_dim: int, gather_dim: int):
-        super(_SingleAll2ALL, self).__init__()
-        self.sp_size = hccl_info.world_size
-        self.spg = hccl_info.group
-        self.scatter_dim = scatter_dim
-        self.gather_dim = gather_dim
-        self.alltoall = ops.AlltoAll(split_count=self.sp_size, split_dim=0, concat_dim=0, group=self.spg)
 
     def construct(self, input_: Tensor):
         scatter_dim, gather_dim, sp_size = self.scatter_dim, self.gather_dim, self.sp_size
@@ -123,6 +61,7 @@ class AllToAll_SBH(_SingleAll2ALL):
 def prepare_parallel_data(
     hidden_states, noise, encoder_hidden_states, attention_mask, encoder_attention_mask, use_image_num
 ):
+    # split of input data for seq parallelism
     sp_size = hccl_info.world_size
     index = hccl_info.rank % sp_size
     temp_attention_mask = None
