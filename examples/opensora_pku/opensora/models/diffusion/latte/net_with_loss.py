@@ -213,7 +213,6 @@ class DiffusionWithLoss(nn.Cell):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
             t = self.reduce_t(t) // self.sp_size
-
         x_t = self.diffusion.q_sample(x, t, noise=noise)
 
         # latte forward input match
