@@ -1807,6 +1807,7 @@ class LatteT2VBlock(nn.Cell):
                         pos_t,
                         (frame,),
                     )
+
                     # (b t) f d -> (b f) t d
                     hidden_states = hidden_states.view(
                         input_batch_size, -1, frame + use_image_num, hidden_states.shape[-1]
