@@ -137,7 +137,7 @@ def main(args):
     train_loader = create_dataloader(
         dataset,
         shuffle=True,
-        num_parallel_workers=args.num_parallel_workers,
+        num_parallel_workers=args.dataloader_num_workers,
         batch_size=args.batch_size,
         drop_remainder=True,
         device_num=device_num,
