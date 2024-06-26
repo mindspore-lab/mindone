@@ -214,7 +214,10 @@ def auto_mixed_precision(network, amp_level="O0"):
     if amp_level == "O0":
         pass
     elif amp_level == "O1":
-        return _auto_white_list(network, AMP_WHITE_LIST)
+        if NEW_AUTO_WHITE:
+            return _auto_mixed_precision_rewrite(network, white_list=AMP_WHITE_LIST)
+        else:
+            return _auto_white_list(network, AMP_WHITE_LIST)
     elif amp_level == "O2":
         try:
             _auto_black_list(

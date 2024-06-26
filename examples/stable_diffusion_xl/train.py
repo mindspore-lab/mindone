@@ -152,9 +152,9 @@ def get_parser_train():
         type=str,
         choices=["O0", "O1", "O2"],
         help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
-             "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
-             "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
-             "O2: Ultimate performance optimization, adopt Sink execution mode.",
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
