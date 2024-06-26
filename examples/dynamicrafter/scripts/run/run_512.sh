@@ -3,7 +3,7 @@ name=dynamicrafter_512_seed${seed}
 res_dir="results"
 
 python scripts/inference.py \
-    --device_target GPU \
+    --device_target Ascend \
     --seed ${seed} \
     --bs 1 \
     --height 320 \

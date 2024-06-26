@@ -242,7 +242,7 @@ class ResBlock(TimestepBlock):
                 self.out_channels,
                 self.out_channels,
                 dropout=0.1,
-                spatial_aware=tempspatial_aware
+                spatial_aware=tempspatial_aware,
             )
 
     def construct(self, x, emb, batch_size=None):
@@ -314,32 +314,28 @@ class TemporalConvBlock(nn.Cell):
             # nn.GroupNorm(32, in_dim),
             normalization(in_dim),
             SiLU(),
-            nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(self.dtype),
+            nn.Conv3d(in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(ms.float16),
         )
         self.conv2 = nn.SequentialCell(
             # nn.GroupNorm(32, out_dim),
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(self.dtype),
+            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(ms.float16),
         )
         self.conv3 = nn.SequentialCell(
             # nn.GroupNorm(32, out_dim),
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(
-                self.dtype
-            ),
+            nn.Conv3d(out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True).to_float(ms.float16),
         )
         self.conv4 = nn.SequentialCell(
             # nn.GroupNorm(32, out_dim),
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(
-                self.dtype
-            ),
+            nn.Conv3d(out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True).to_float(ms.float16),
         )
 
         # zero out the last layer params,so the conv block is identity
@@ -807,7 +803,8 @@ class UNetModel(nn.Cell):
 
         h = self.middle_block(h, emb, context=context, batch_size=b)
         for module in self.output_blocks:
-            h = ops.cat([h, hs.pop()], axis=1)
+            hs_pop = hs.pop()
+            h = ops.cat([h, hs_pop], axis=1)
             h = module(h, emb, context=context, batch_size=b)
         h = h.type(x.dtype)
         y = self.out(h)
