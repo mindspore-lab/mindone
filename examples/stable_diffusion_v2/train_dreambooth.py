@@ -63,6 +63,20 @@ def init_env(args):
         pynative_synchronize=False,  # for debug in pynative mode
     )
 
+    try:
+        if args.jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": args.jit_level})
+            logger.info(f"set jit_level: {args.jit_level}.")
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
+
     return rank_id, device_id, device_num
 
 
@@ -86,6 +100,16 @@ def parse_args():
     parser.add_argument("--unet_initialize_random", default=False, type=str2bool, help="initialize unet randomly")
     parser.add_argument("--dataset_sink_mode", default=False, type=str2bool, help="sink mode")
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
     parser.add_argument("--max_device_memory", type=str, default="30GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")

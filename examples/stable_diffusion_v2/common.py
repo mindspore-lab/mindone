@@ -18,6 +18,7 @@ def init_env(
     seed: int = 42,
     distributed: bool = False,
     device_target: Optional[str] = "Ascend",
+    jit_level: str = "O2",
     enable_modelarts: bool = False,
     num_workers: int = 1,
     json_data_path: Optional[str] = None,
@@ -80,6 +81,20 @@ def init_env(
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
             pynative_synchronize=debug,
+        )
+
+    try:
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
+            _logger.info(f"set jit_level: {jit_level}.")
+        else:
+            _logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        _logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
     return device_id, rank_id, device_num

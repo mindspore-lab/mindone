@@ -108,6 +108,16 @@ def get_parser_train():
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
     )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
         "--ms_enable_graph_kernel", type=ast.literal_eval, default=False, help="use enable_graph_kernel or not"
@@ -209,6 +219,7 @@ def train(args):
         # Graph Mode
         from gm.models.trainer_factory import TrainOneStepCellControlNet
 
+        model.model = auto_mixed_precision(model.model, amp_level=args.ms_amp_level)
         train_step_fn = TrainOneStepCellControlNet(
             model,
             optimizer,
@@ -220,7 +231,6 @@ def train(args):
             clip_norm=args.max_grad_norm,
             ema=ema,
         )
-        train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
         if model.disable_first_stage_amp:
             train_step_fn.first_stage_model.to_float(ms.float32)
         jit_config = ms.JitConfig()
