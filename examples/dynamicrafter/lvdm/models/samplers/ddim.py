@@ -88,12 +88,6 @@ class DDIMSampler(object):
         log_every_t=100,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
-        features_adapter=None,  # T2I Adapter
-        append_to_context=None,  # T2I Adapter
-        cond_tau=0.4,  # T2I Adapter
-        style_cond_tau=1.0,  # T2I Adapter
-        control=None,  # ControlNet
-        # this has to come in the same format as the conditioning, # e.g. as encoded tokens, ...
         dynamic_threshold=None,
         ucg_schedule=None,
         timesteps=None,  # Timesteps for Image2Image
@@ -142,11 +136,6 @@ class DDIMSampler(object):
             log_every_t=log_every_t,
             unconditional_guidance_scale=unconditional_guidance_scale,
             unconditional_conditioning=unconditional_conditioning,
-            features_adapter=features_adapter,
-            append_to_context=append_to_context,
-            cond_tau=cond_tau,
-            style_cond_tau=style_cond_tau,
-            control=control,
             dynamic_threshold=dynamic_threshold,
             ucg_schedule=ucg_schedule,
             timesteps=timesteps,
@@ -174,11 +163,6 @@ class DDIMSampler(object):
         corrector_kwargs=None,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
-        features_adapter=None,
-        append_to_context=None,
-        cond_tau=0.4,
-        style_cond_tau=1.0,
-        control=None,
         dynamic_threshold=None,
         ucg_schedule=None,
         noise=None,
@@ -230,9 +214,6 @@ class DDIMSampler(object):
                 unconditional_guidance_scale=unconditional_guidance_scale,
                 unconditional_conditioning=unconditional_conditioning,
                 dynamic_threshold=dynamic_threshold,
-                features_adapter=None if index < int((1 - cond_tau) * total_steps) else features_adapter,
-                append_to_context=None if index < int((1 - style_cond_tau) * total_steps) else append_to_context,
-                control=control,
                 guidance_rescale=guidance_rescale,
             )
             img, pred_x0 = outs
@@ -263,22 +244,20 @@ class DDIMSampler(object):
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
         dynamic_threshold=None,
-        features_adapter=None,
-        append_to_context=None,
-        control=None,
         guidance_rescale=0.0,
+        **kwargs,
     ):
         b = x.shape[0]
+        if x.dim() == 5:
+            is_video = True
+        else:
+            is_video = False
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
-            c_in = c if append_to_context is None else ops.cat([c, append_to_context], axis=1)
-            model_output = self.model.apply_model(x, t, c_in, features_adapter=features_adapter, control=control)
+            model_output = self.model.apply_model(x, t, c, **kwargs) # unet denoiser
         else:
             x_in = ops.concat((x, x), axis=0)
             t_in = ops.concat((t, t), axis=0)
-            if control is not None:
-                # support non-guess mode only
-                control = ops.concat((control, control), axis=0)
             if isinstance(c, dict):
                 assert isinstance(unconditional_conditioning, dict)
                 c_in = dict()
@@ -296,17 +275,9 @@ class DDIMSampler(object):
                 for i in range(len(c)):
                     c_in.append(ops.concat([unconditional_conditioning[i], c[i]], axis=0))
             else:
-                if append_to_context is not None:
-                    pad_len = append_to_context.size(1)
-                    new_unconditional_conditioning = ops.cat(
-                        [unconditional_conditioning, unconditional_conditioning[:, -pad_len:, :]], axis=1
-                    )
-                    new_c = ops.cat([c, append_to_context], axis=1)
-                    c_in = ops.cat([new_unconditional_conditioning, new_c])
-                else:
-                    c_in = ops.concat([unconditional_conditioning, c], axis=0)
+                c_in = ops.concat([unconditional_conditioning, c], axis=0)
             model_uncond, model_t = self.split(
-                self.model.apply_model(x_in, t_in, c_in, features_adapter=features_adapter, control=control)
+                self.model.apply_model(x_in, t_in, c_in, **kwargs)
             )
             model_output = model_uncond + unconditional_guidance_scale * (model_t - model_uncond)
 
@@ -329,16 +300,26 @@ class DDIMSampler(object):
         )
         sigmas = self.model.ddim_sigmas_for_original_num_steps if use_original_steps else self.ddim_sigmas
         # select parameters corresponding to the currently considered timestep
-        a_t = ms.numpy.full((b, 1, 1, 1), alphas[index])
-        a_prev = ms.numpy.full((b, 1, 1, 1), alphas_prev[index])
-        sigma_t = ms.numpy.full((b, 1, 1, 1), sigmas[index])
-        sqrt_one_minus_at = ms.numpy.full((b, 1, 1, 1), sqrt_one_minus_alphas[index])
+        if is_video:
+            size = (b, 1, 1, 1, 1)
+        else:
+            size = (b, 1, 1, 1)
+        a_t = ms.numpy.full(size, alphas[index])
+        a_prev = ms.numpy.full(size, alphas_prev[index])
+        sigma_t = ms.numpy.full(size, sigmas[index])
+        sqrt_one_minus_at = ms.numpy.full(size, sqrt_one_minus_alphas[index])
 
         # current prediction for x_0
         if self.model.parameterization != "velocity":
             pred_x0 = (x - sqrt_one_minus_at * e_t) / a_t.sqrt()
         else:
             pred_x0 = self.model.predict_start_from_z_and_v(x, t, model_output)
+
+        if self.model.use_dynamic_rescale:
+            scale_t = ops.full(size, self.ddim_scale_arr[index])
+            prev_scale_t = ops.full(size, self.ddim_scale_arr_prev[index])
+            rescale = (prev_scale_t / scale_t)
+            pred_x0 *= rescale
 
         if quantize_denoised:
             pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
