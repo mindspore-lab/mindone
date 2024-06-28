@@ -164,6 +164,8 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+
     # 2.1 vae
     logger.info("vae init")
     train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
@@ -256,7 +258,6 @@ def main(args):
         raise ValueError(f"Unknown model version: {args.model_version}")
 
     # mixed precision
-    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         if not args.global_bf16:
             latte_model = auto_mixed_precision(
