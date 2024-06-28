@@ -34,7 +34,9 @@ class AutoencoderKL(nn.Cell):
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
 
-    def init_from_ckpt(self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder."]):
+    def init_from_ckpt(
+        self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]
+    ):
         # TODO: support auto download pretrained checkpoints
         sd = ms.load_checkpoint(path)
         keys = list(sd.keys())
@@ -55,7 +57,9 @@ class AutoencoderKL(nn.Cell):
                     is_vae_param = True
             if not is_vae_param:
                 sd.pop(pname)
-        ms.load_param_into_net(self, sd, strict_load=False)
+        pu, cu = ms.load_param_into_net(self, sd, strict_load=False)
+        print(f"Net param not loaded : {pu}")
+        print(f"Checkpoint param not loaded : {cu}")
         print(f"Restored from {path}")
 
     def _encode(self, x):
