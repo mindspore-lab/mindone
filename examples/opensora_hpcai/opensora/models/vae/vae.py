@@ -182,6 +182,7 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         freeze_vae_2d=False,
         cal_loss=False,
         micro_frame_size=None,
+        concat_posterior=False,
         shift=0.0,
         scale=1.0,
         **kwargs,
@@ -194,6 +195,7 @@ class VideoAutoencoderPipelineConfig(PretrainedConfig):
         self.micro_frame_size = micro_frame_size
         self.shift = shift
         self.scale = scale
+        self.concat_posterior = concat_posterior,
         super().__init__(**kwargs)
 
 
@@ -242,26 +244,37 @@ class VideoAutoencoderPipeline(nn.Cell):
             shift = shift[None, :, None, None, None]
         self.scale = ms.Parameter(scale, requires_grad=False)
         self.shift = ms.Parameter(shift, requires_grad=False)
+        
+        self.freeze_vae_2d = config.freeze_vae_2d
+        self.concat_posterior = config.concat_posterior
 
     def encode(self, x):
-        x_z = self.spatial_vae.encode(x)
+        if self.freeze_vae_2d:
+            x_z = ops.stop_gradient(self.spatial_vae.encode(x))
+        else:
+            x_z = self.spatial_vae.encode(x)
 
         if self.micro_frame_size is None:
             posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z)
             z = self.temporal_vae.sample(posterior_mean, posterior_logvar)
         else:
             z_list = []
+            posterior_mean_list = []
+            posterior_logvar_list = []
             # TODO: there is a bug in torch impl. need to concat posterior as well. But ot save memory for concatnated posterior. Let's remain unchange.
             for i in range(0, x_z.shape[2], self.micro_frame_size):
                 x_z_bs = x_z[:, :, i : i + self.micro_frame_size]
-                posterior_mean, posterior_logvar = self.temporal_vae._encode(x_z_bs)
-                z_bs = self.temporal_vae.sample(posterior_mean, posterior_logvar)
-                z_list.append(z_bs)
+                posterior_mean_bs, posterior_logvar_bs = self.temporal_vae._encode(x_z_bs)
+                z_bs = self.temporal_vae.sample(posterior_mean_bs, posterior_logvar_bs)
+                posterior_mean_list.append(posterior_mean_bs)
+                posterior_logvar_list.append(posterior_logvar_bs)
             z = ops.cat(z_list, axis=2)
-            if self.cal_loss:
-                raise ValueError(
-                    "Please fix the bug of posterior concatenation for temporal vae training with micro_frame_size"
-                )
+            if self.concat_posterior:
+                posterior_mean = ops.cat(posterior_mean_list, axis=2)
+                posterior_logvar = ops.cat(posterior_logvar_list, axis=2)
+            else:
+                posterior_mean = posterior_mean_list[-1]
+                posterior_logvar = posterior_logvar_list[-1] 
 
         if self.cal_loss:
             return z, posterior_mean, posterior_logvar, x_z
@@ -317,9 +330,14 @@ def OpenSoraVAE_V1_2(
     micro_batch_size=4,
     micro_frame_size=17,
     ckpt_path=None,
+    vae2d_ckpt_path=None,
     freeze_vae_2d=False,
     cal_loss=False,
 ):
+    '''
+    ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
+    vae_2d_ckpt_path: path to the checkpoint of the vae 2d model. It will only be loaded when `ckpt_path` not provided.
+    '''
     vae_2d = dict(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
@@ -349,5 +367,12 @@ def OpenSoraVAE_V1_2(
         pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
+    elif vae2d_ckpt_path is not None:
+        sd = ms.load_checkpoint(vae2d_ckpt_path)
+        # TODO: add spatial_vae prefix to the param name
+        pu, cu = ms.load_param_into_net(model.spatial_vae, sd, strict_load=False)
+    
+    if cal_loss and micro_frame_size is not None:
+        print("Posterior concatenation for temporal vae training with micro_frame_size is not supported. Please ")
 
     return model

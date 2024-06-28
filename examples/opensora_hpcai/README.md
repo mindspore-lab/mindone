@@ -240,6 +240,9 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 
 ## Inference
 
+### Open-Sora 1.2 Command Line Inference
+
+
 
 ### Open-Sora 1.1 Command Line Inference
 
