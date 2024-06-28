@@ -110,8 +110,14 @@ class VideoAutoencoderKL(nn.Cell):
         return x
 
     def encode(self, x):
-        # x: (B, C, T, H, W)
-        # NOTE: remind to use stop gradient when invoke it
+        """
+        Args:
+            x: (B, C, T, H, W)
+        Return:
+            (B C T H W)
+
+        NOTE: remind to use stop gradient when invoke it
+        """
         # is_video = (x.ndim == 5)
 
         B = x.shape[0]
