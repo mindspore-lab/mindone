@@ -7,8 +7,8 @@ from mindspore import Tensor, ops
 
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
-from ..models.vae.vae import VideoAutoencoderKL, VideoAutoencoderPipeline
 from ..models.layers.rotary_embedding import precompute_freqs_cis
+from ..models.vae.vae import VideoAutoencoderKL, VideoAutoencoderPipeline
 from ..schedulers.iddpm import create_diffusion
 
 __all__ = ["InferPipeline"]
@@ -61,7 +61,11 @@ class InferPipeline:
 
     # @ms.jit
     def vae_encode(self, x: Tensor) -> Tensor:
-        # image_latents = ops.stop_gradient(self.vae.encode(x))
+        """
+        Image encoding with spatial vae
+        Args:
+            x: (b c h w), image
+        """
         if isinstance(self.vae, VideoAutoencoderKL):
             spatial_vae = self.vae
         elif isinstance(self.vae, VideoAutoencoderPipeline):
@@ -72,6 +76,7 @@ class InferPipeline:
 
     def vae_decode(self, x: Tensor) -> Tensor:
         """
+        Image decoding with spatial vae
         Args:
             x: (b c h w), denoised latent
         Return:
