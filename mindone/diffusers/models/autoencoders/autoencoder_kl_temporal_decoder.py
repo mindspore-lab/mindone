@@ -11,20 +11,120 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
-from ...loaders import FromOriginalVAEMixin
+from ..activations import SiLU
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from .vae import Decoder, DecoderOutput, DiagonalGaussianDistribution, Encoder
+from ..normalization import GroupNorm
+from ..unets.unet_3d_blocks import MidBlockTemporalDecoder, UpBlockTemporalDecoder
+from .vae import DecoderOutput, DiagonalGaussianDistribution, Encoder
 
 
-class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
+class TemporalDecoder(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int = 4,
+        out_channels: int = 3,
+        block_out_channels: Tuple[int] = (128, 256, 512, 512),
+        layers_per_block: int = 2,
+    ):
+        super().__init__()
+        self.layers_per_block = layers_per_block
+
+        self.conv_in = nn.Conv2d(
+            in_channels, block_out_channels[-1], kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+        )
+        self.mid_block = MidBlockTemporalDecoder(
+            num_layers=self.layers_per_block,
+            in_channels=block_out_channels[-1],
+            out_channels=block_out_channels[-1],
+            attention_head_dim=block_out_channels[-1],
+        )
+
+        # up
+        self.up_blocks = []
+        reversed_block_out_channels = list(reversed(block_out_channels))
+        output_channel = reversed_block_out_channels[0]
+        for i in range(len(block_out_channels)):
+            prev_output_channel = output_channel
+            output_channel = reversed_block_out_channels[i]
+
+            is_final_block = i == len(block_out_channels) - 1
+            up_block = UpBlockTemporalDecoder(
+                num_layers=self.layers_per_block + 1,
+                in_channels=prev_output_channel,
+                out_channels=output_channel,
+                add_upsample=not is_final_block,
+            )
+            self.up_blocks.append(up_block)
+            prev_output_channel = output_channel
+        self.up_blocks = nn.CellList(self.up_blocks)
+
+        self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
+
+        self.conv_act = SiLU()
+        self.conv_out = nn.Conv2d(
+            in_channels=block_out_channels[0],
+            out_channels=out_channels,
+            kernel_size=3,
+            pad_mode="pad",
+            padding=1,
+            has_bias=True,
+        )
+
+        conv_out_kernel_size = (3, 1, 1)
+        # padding = [int(k // 2) for k in conv_out_kernel_size]
+        padding = (1, 1, 0, 0, 0, 0)
+        self.time_conv_out = nn.Conv3d(
+            in_channels=out_channels,
+            out_channels=out_channels,
+            kernel_size=conv_out_kernel_size,
+            pad_mode="pad",
+            padding=padding,
+            has_bias=True,
+        )
+
+        self.gradient_checkpointing = False
+
+    def construct(
+        self,
+        sample: ms.Tensor,
+        image_only_indicator: ms.Tensor,
+        num_frames: int = 1,
+    ) -> ms.Tensor:
+        r"""The forward method of the `Decoder` class."""
+
+        sample = self.conv_in(sample)
+
+        # middle
+        sample = self.mid_block(sample, image_only_indicator=image_only_indicator)
+
+        # up
+        for up_block in self.up_blocks:
+            sample = up_block(sample, image_only_indicator=image_only_indicator)
+
+        # post-process
+        sample = self.conv_norm_out(sample)
+        sample = self.conv_act(sample)
+        sample = self.conv_out(sample)
+
+        batch_frames, channels, height, width = sample.shape
+        batch_size = batch_frames // num_frames
+        sample = sample[None, :].reshape(batch_size, num_frames, channels, height, width).permute(0, 2, 1, 3, 4)
+        sample = self.time_conv_out(sample)
+
+        sample = sample.permute(0, 2, 1, 3, 4).reshape(batch_frames, channels, height, width)
+
+        return sample
+
+
+class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
     r"""
     A VAE model with KL loss for encoding images into latents and decoding latent representations into images.
 
@@ -36,11 +136,9 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         out_channels (int,  *optional*, defaults to 3): Number of channels in the output.
         down_block_types (`Tuple[str]`, *optional*, defaults to `("DownEncoderBlock2D",)`):
             Tuple of downsample block types.
-        up_block_types (`Tuple[str]`, *optional*, defaults to `("UpDecoderBlock2D",)`):
-            Tuple of upsample block types.
         block_out_channels (`Tuple[int]`, *optional*, defaults to `(64,)`):
             Tuple of block output channels.
-        act_fn (`str`, *optional*, defaults to `"silu"`): The activation function to use.
+        layers_per_block: (`int`, *optional*, defaults to 1): Number of layers per block.
         latent_channels (`int`, *optional*, defaults to 4): Number of channels in the latent space.
         sample_size (`int`, *optional*, defaults to `32`): Sample input size.
         scaling_factor (`float`, *optional*, defaults to 0.18215):
@@ -64,20 +162,12 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         in_channels: int = 3,
         out_channels: int = 3,
         down_block_types: Tuple[str] = ("DownEncoderBlock2D",),
-        up_block_types: Tuple[str] = ("UpDecoderBlock2D",),
         block_out_channels: Tuple[int] = (64,),
         layers_per_block: int = 1,
-        act_fn: str = "silu",
         latent_channels: int = 4,
-        norm_num_groups: int = 32,
         sample_size: int = 32,
         scaling_factor: float = 0.18215,
-        shift_factor: Optional[float] = None,
         force_upcast: float = True,
-        latents_mean: Optional[Tuple[float]] = None,
-        latents_std: Optional[Tuple[float]] = None,
-        use_quant_conv: bool = True,
-        use_post_quant_conv: bool = True,
     ):
         super().__init__()
 
@@ -88,35 +178,20 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             down_block_types=down_block_types,
             block_out_channels=block_out_channels,
             layers_per_block=layers_per_block,
-            act_fn=act_fn,
-            norm_num_groups=norm_num_groups,
             double_z=True,
         )
 
         # pass init params to Decoder
-        self.decoder = Decoder(
+        self.decoder = TemporalDecoder(
             in_channels=latent_channels,
             out_channels=out_channels,
-            up_block_types=up_block_types,
             block_out_channels=block_out_channels,
             layers_per_block=layers_per_block,
-            norm_num_groups=norm_num_groups,
-            act_fn=act_fn,
         )
 
-        self.quant_conv = (
-            nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True) if use_quant_conv else None
-        )
-        self.post_quant_conv = (
-            nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True) if use_post_quant_conv else None
-        )
+        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
-        self.use_slicing = False
-        self.use_tiling = False
-
-        # only relevant if vae tiling is enabled
-        self.tile_sample_min_size = self.config.sample_size
         sample_size = (
             self.config.sample_size[0]
             if isinstance(self.config.sample_size, (list, tuple))
@@ -126,12 +201,12 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.tile_overlap_factor = 0.25
 
     def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (Encoder, Decoder)):
+        if isinstance(module, (Encoder, TemporalDecoder)):
             module.gradient_checkpointing = value
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
-    def attn_processors(self) -> Dict[str, AttentionProcessor]:
+    def attn_processors(self) -> Dict[str, AttentionProcessor]:  # type: ignore
         r"""
         Returns:
             `dict` of attention processors: A dictionary containing all attention processors used in the model with
@@ -140,7 +215,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         # set recursively
         processors = {}
 
-        def fn_recursive_add_processors(name: str, module: nn.Cell, processors: Dict[str, AttentionProcessor]):
+        def fn_recursive_add_processors(name: str, module: nn.Cell, processors: Dict[str, AttentionProcessor]):  # type: ignore
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor()
 
@@ -155,18 +230,15 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         return processors
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_attn_processor
-    def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):
+    def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):  # type: ignore
         r"""
         Sets the attention processor to use to compute attention.
-
         Parameters:
             processor (`dict` of `AttentionProcessor` or only `AttentionProcessor`):
                 The instantiated processor class or a dictionary of processor classes that will be set as the processor
                 for **all** `Attention` layers.
-
                 If `processor` is a dict, the key needs to define the path to the corresponding cross attention
                 processor. This is strongly recommended when setting trainable attention processors.
-
         """
         count = len(self.attn_processors.keys())
 
@@ -189,7 +261,6 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
 
-    # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
     def set_default_attn_processor(self):
         """
         Disables custom attention processors and sets the default attention implementation.
@@ -203,13 +274,15 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         self.set_attn_processor(processor)
 
-    def encode(self, x: ms.Tensor, return_dict: bool = False) -> Union[AutoencoderKLOutput, Tuple[ms.Tensor]]:
+    def encode(
+        self, x: ms.Tensor, return_dict: bool = False
+    ) -> Union[AutoencoderKLOutput, Tuple[DiagonalGaussianDistribution]]:
         """
         Encode a batch of images into latents.
 
         Args:
             x (`ms.Tensor`): Input batch of images.
-            return_dict (`bool`, *optional*, defaults to `False`):
+            return_dict (`bool`, *optional*, defaults to `True`):
                 Whether to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
 
         Returns:
@@ -217,30 +290,19 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         h = self.encoder(x)
-
-        if self.quant_conv is not None:
-            moments = self.quant_conv(h)
-        else:
-            moments = h
-        # we cannot use class in graph mode, even for jit_class or subclass of Tensor. :-(
-        # posterior = DiagonalGaussianDistribution(moments)
+        moments = self.quant_conv(h)
 
         if not return_dict:
             return (moments,)
 
         return AutoencoderKLOutput(latent=moments)
 
-    def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
-        if self.post_quant_conv is not None:
-            z = self.post_quant_conv(z)
-        dec = self.decoder(z)
-
-        if not return_dict:
-            return (dec,)
-
-        return DecoderOutput(sample=dec)
-
-    def decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
+    def decode(
+        self,
+        z: ms.Tensor,
+        num_frames: int,
+        return_dict: bool = False,
+    ) -> Union[DecoderOutput, ms.Tensor]:
         """
         Decode a batch of images.
 
@@ -255,7 +317,9 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 returned.
 
         """
-        decoded = self._decode(z)[0]
+        batch_size = z.shape[0] // num_frames
+        image_only_indicator = ops.zeros((batch_size, num_frames), dtype=z.dtype)
+        decoded = self.decoder(z, num_frames=num_frames, image_only_indicator=image_only_indicator)
 
         if not return_dict:
             return (decoded,)
@@ -267,7 +331,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         sample: ms.Tensor,
         sample_posterior: bool = False,
         return_dict: bool = False,
-    ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
+        num_frames: int = 1,
+    ) -> Union[DecoderOutput, ms.Tensor]:
         r"""
         Args:
             sample (`ms.Tensor`): Input sample.
@@ -282,7 +347,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             z = self.diag_gauss_dist.sample(latent)
         else:
             z = self.diag_gauss_dist.mode(latent)
-        dec = self.decode(z)[0]
+
+        dec = self.decode(z, num_frames=num_frames)[0]
 
         if not return_dict:
             return (dec,)

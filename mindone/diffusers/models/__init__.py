@@ -18,26 +18,67 @@ from ..utils import _LazyModule
 
 _import_structure = {
     "adapter": ["MultiAdapter", "T2IAdapter"],
+    "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
+    "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
+    "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
+    "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "controlnet": ["ControlNetModel"],
+    "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
+    "transformers.prior_transformer": ["PriorTransformer"],
+    "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "transformers.transformer_temporal": ["TransformerTemporalModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
     "unets.unet_2d_condition": ["UNet2DConditionModel"],
+    "unets.unet_3d_condition": ["UNet3DConditionModel"],
+    "unets.unet_i2vgen_xl": ["I2VGenXLUNet"],
+    "unets.unet_kandinsky3": ["Kandinsky3UNet"],
+    "unets.unet_motion_model": ["MotionAdapter", "UNetMotionModel"],
     "unets.unet_stable_cascade": ["StableCascadeUNet"],
+    "unets.unet_spatio_temporal_condition": ["UNetSpatioTemporalConditionModel"],
+    "unets.uvit_2d": ["UVit2DModel"],
+    "vq_model": ["VQModel"],
 }
 
 if TYPE_CHECKING:
     from .adapter import MultiAdapter, T2IAdapter
-    from .autoencoders import AutoencoderKL
+    from .autoencoders import (
+        AsymmetricAutoencoderKL,
+        AutoencoderKL,
+        AutoencoderKLTemporalDecoder,
+        AutoencoderTiny,
+        ConsistencyDecoderVAE,
+    )
     from .controlnet import ControlNetModel
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
-    from .transformers import SD3Transformer2DModel, Transformer2DModel
-    from .unets import StableCascadeUNet, UNet1DModel, UNet2DConditionModel, UNet2DModel
+    from .transformers import (
+        DualTransformer2DModel,
+        PriorTransformer,
+        SD3Transformer2DModel,
+        T5FilmDecoder,
+        Transformer2DModel,
+        TransformerTemporalModel,
+    )
+    from .unets import (
+        I2VGenXLUNet,
+        Kandinsky3UNet,
+        MotionAdapter,
+        StableCascadeUNet,
+        UNet1DModel,
+        UNet2DConditionModel,
+        UNet2DModel,
+        UNet3DConditionModel,
+        UNetMotionModel,
+        UNetSpatioTemporalConditionModel,
+        UVit2DModel,
+    )
+    from .vq_model import VQModel
 
 else:
     import sys

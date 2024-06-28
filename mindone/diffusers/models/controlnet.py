@@ -18,6 +18,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..configuration_utils import ConfigMixin, register_to_config
+from ..loaders import FromOriginalControlNetMixin
 from ..utils import BaseOutput, logging
 from .attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from .embeddings import TextImageProjection, TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
@@ -112,7 +113,7 @@ class ControlNetConditioningEmbedding(nn.Cell):
         return embedding
 
 
-class ControlNetModel(ModelMixin, ConfigMixin):
+class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalControlNetMixin):
     """
     A ControlNet model.
 
@@ -549,12 +550,12 @@ class ControlNetModel(ModelMixin, ConfigMixin):
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor()
 
-            for sub_name, child in module.name_cells():
+            for sub_name, child in module.name_cells().items():
                 fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
 
             return processors
 
-        for name, module in self.name_cells():
+        for name, module in self.name_cells().items():
             fn_recursive_add_processors(name, module, processors)
 
         return processors
@@ -585,10 +586,10 @@ class ControlNetModel(ModelMixin, ConfigMixin):
                 else:
                     module.set_processor(processor.pop(f"{name}.processor"))
 
-            for sub_name, child in module.name_cells():
+            for sub_name, child in module.name_cells().items():
                 fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
 
-        for name, module in self.name_cells():
+        for name, module in self.name_cells().items():
             fn_recursive_attn_processor(name, module, processor)
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
@@ -733,7 +734,7 @@ class ControlNetModel(ModelMixin, ConfigMixin):
                         f"which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"
                     )
                 time_ids = added_cond_kwargs.get("time_ids")
-                time_embeds = self.add_time_proj(time_ids.flatten())
+                time_embeds = self.add_time_proj(time_ids.flatten()).to(time_ids.dtype)
                 time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
                 add_embeds = ops.concat([text_embeds, time_embeds], axis=-1)
