@@ -39,6 +39,10 @@ class DDIMSampler(object):
         alphas_cumprod = self.model.alphas_cumprod
         assert alphas_cumprod.shape[0] == self.ddpm_num_timesteps, "alphas have to be defined for each timestep"
 
+        if self.model.use_dynamic_rescale:
+            self.ddim_scale_arr = self.model.scale_arr[self.ddim_timesteps]
+            self.ddim_scale_arr_prev = ops.cat([self.ddim_scale_arr[0:1], self.ddim_scale_arr[:-1]])
+
         self.betas = self.model.betas
         self.alphas_cumprod = self.model.alphas_cumprod
         self.alphas_cumprod_prev = self.model.alphas_cumprod_prev

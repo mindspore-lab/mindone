@@ -390,7 +390,38 @@ class LatentDiffusion(DDPM):
     #     return self.first_stage_model.decode(z)  # lvdm.models.autoencoder.AutoencoderKL
 
     def encode_first_stage(self, x):
-        return self.first_stage_model.encode(x)
+        if self.encoder_type == "2d" and x.dim() == 5:
+            b, _, t, _, _ = x.shape
+            # x = rearrange(x, 'b c t h w -> (b t) c h w')
+            x = ops.transpose(x, (0, 2, 1, 3, 4))  # (b t c h w)
+            x = ops.reshape(x, (-1, *x.shape[2:]))  # ((b t) c h w)
+            reshape_back = True
+        else:
+            reshape_back = False
+        
+        ## consume more GPU memory but faster
+        if not self.perframe_ae:
+            results = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
+            # encoder_posterior = self.first_stage_model.encode(x)
+            # results = self.get_first_stage_encoding(encoder_posterior)
+        else:  ## consume less GPU memory but slower
+            results = []
+            for index in range(x.shape[0]):
+                frame_result = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x[index:index+1,:,:,:]))
+                # frame_batch = self.first_stage_model.encode(x[index:index+1,:,:,:])
+                # frame_result = self.get_first_stage_encoding(frame_batch).detach()
+                results.append(frame_result)
+            results = ops.cat(results, axis=0)
+
+        if reshape_back:
+            # results = rearrange(results, '(b t) c h w -> b c t h w', b=b,t=t)
+            x = ops.reshape(x, (b, t, *x.shape[1:]))  # (b t c h w)
+            x = ops.transpose(x, (0, 2, 1, 3, 4))  # (b c t h w)
+        
+        return results
+
+    # def encode_first_stage(self, x):
+    #     return self.first_stage_model.encode(x)
 
     # predict previous sample, typically predict noise
     def apply_model(self, x_noisy: ms.Tensor, t: ms.Tensor, cond: Union[ms.Tensor, dict], return_ids=False, **kwargs):

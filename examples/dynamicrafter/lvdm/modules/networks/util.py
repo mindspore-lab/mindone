@@ -212,7 +212,7 @@ def make_ddim_timesteps(ddim_discr_method="uniform", num_ddim_timesteps=50, num_
         ddim_timesteps = ms.Tensor(np.flip(np.round(np.arange(num_ddpm_timesteps, 0, -c))).astype(np.int64))
         steps_out = ddim_timesteps - 1
     elif ddim_discr_method == "quad":
-        ddim_timesteps = ms.Tensor(((np.linspace(0, np.sqrt(num_ddpm_timesteps * .8), num_ddim_timesteps)) ** 2).astype(int))
+        ddim_timesteps = ms.Tensor(((np.linspace(0, np.sqrt(num_ddpm_timesteps * 0.8), num_ddim_timesteps)) ** 2).astype(int))
         steps_out = ddim_timesteps + 1
     else:
         raise NotImplementedError(f'There is no ddim discretization method called "{ddim_discr_method}"')
