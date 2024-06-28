@@ -8,6 +8,7 @@ from mindspore import Tensor, ops
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..models.layers.rotary_embedding import precompute_freqs_cis
+from ..models.vae.vae import VideoAutoencoderKL, VideoAutoencoderPipeline
 from ..schedulers.iddpm import create_diffusion
 
 __all__ = ["InferPipeline"]
@@ -60,18 +61,33 @@ class InferPipeline:
 
     # @ms.jit
     def vae_encode(self, x: Tensor) -> Tensor:
-        # image_latents = ops.stop_gradient(self.vae.encode(x))
-        image_latents = ops.stop_gradient(self.vae.module.encode(x) * self.vae.scale_factor)
+        """
+        Image encoding with spatial vae
+        Args:
+            x: (b c h w), image
+        """
+        if isinstance(self.vae, VideoAutoencoderKL):
+            spatial_vae = self.vae
+        elif isinstance(self.vae, VideoAutoencoderPipeline):
+            spatial_vae = self.vae.spatial_vae
+        # TODO: unify scale inside vae class
+        image_latents = ops.stop_gradient(spatial_vae.module.encode(x) * spatial_vae.scale_factor)
         return image_latents
 
     def vae_decode(self, x: Tensor) -> Tensor:
         """
+        Image decoding with spatial vae
         Args:
             x: (b c h w), denoised latent
         Return:
             y: (b H W 3), batch of images, normalized to [0, 1]
         """
-        y = ops.stop_gradient(self.vae.module.decode(x) / self.vae.scale_factor)
+        if isinstance(self.vae, VideoAutoencoderKL):
+            spatial_vae = self.vae
+        elif isinstance(self.vae, VideoAutoencoderPipeline):
+            spatial_vae = self.vae.spatial_vae
+
+        y = ops.stop_gradient(spatial_vae.module.decode(x) / spatial_vae.scale_factor)
         y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
 
         # (b 3 H W) -> (b H W 3)
