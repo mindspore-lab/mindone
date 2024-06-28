@@ -20,7 +20,7 @@ from mindspore import nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
 from ..activations import get_activation
-from ..embeddings import TimestepEmbedding, Timesteps
+from ..embeddings import GaussianFourierProjection, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
 from ..normalization import GroupNorm
 from .unet_2d_blocks import UNetMidBlock2D, get_down_block, get_up_block
@@ -144,7 +144,8 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
         # time
         if time_embedding_type == "fourier":
-            raise NotImplementedError("GaussianFourierProjection is not implemented")
+            self.time_proj = GaussianFourierProjection(embedding_size=block_out_channels[0], scale=16)
+            timestep_input_dim = 2 * block_out_channels[0]
         elif time_embedding_type == "positional":
             self.time_proj = Timesteps(block_out_channels[0], flip_sin_to_cos, freq_shift)
             timestep_input_dim = block_out_channels[0]
@@ -351,6 +352,10 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
         if skip_sample is not None:
             sample += skip_sample
+
+        if self.config["time_embedding_type"] == "fourier":
+            timesteps = timesteps.reshape((sample.shape[0],) + (1,) * len(sample.shape[1:]))
+            sample = sample / timesteps
 
         if not return_dict:
             return (sample,)
