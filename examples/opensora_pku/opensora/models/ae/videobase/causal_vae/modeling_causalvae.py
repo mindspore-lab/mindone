@@ -4,6 +4,8 @@ import logging
 import os
 from typing import Tuple
 
+from opensora.acceleration.parallel_states import get_sequence_parallel_state
+
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -141,6 +143,7 @@ class CausalVAEModel(VideoBaseAE):
         self.concat = ops.Concat(axis=1)
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
+        self.depend = ops.Depend() if get_sequence_parallel_state() else None
 
         # self.encoder.recompute()
         # self.decoder.recompute()
@@ -285,10 +288,15 @@ class CausalVAEModel(VideoBaseAE):
         row_limit = self.tile_latent_min_size - blend_extent
 
         # Split the image into 512x512 tiles and encode them separately.
-        rows = []
+        rows = ()
+        tile = None
         for i in range(0, x.shape[3], overlap_size):
-            row = []
+            row = ()
+            if self.depend is not None:
+                x = self.depend(x, tile)
             for j in range(0, x.shape[4], overlap_size):
+                if self.depend is not None:
+                    x = self.depend(x, tile)
                 tile = x[
                     :,
                     :,
@@ -298,11 +306,12 @@ class CausalVAEModel(VideoBaseAE):
                 ]
                 tile = self.encoder(tile)
                 tile = self.quant_conv(tile)
-                row.append(tile)
-            rows.append(row)
-        result_rows = []
+                row += (tile,)
+            rows += (row,)
+
+        result_rows = ()
         for i, row in enumerate(rows):
-            result_row = []
+            result_row = ()
             for j, tile in enumerate(row):
                 # blend the above tile and the left tile
                 # to the current tile and add the current tile to the result row
@@ -310,12 +319,11 @@ class CausalVAEModel(VideoBaseAE):
                     tile = self.blend_v(rows[i - 1][j], tile, blend_extent)
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
-                result_row.append(tile[:, :, :, :row_limit, :row_limit])
-            result_rows.append(ops.cat(result_row, axis=4))
+                result_row += (tile[:, :, :, :row_limit, :row_limit],)
+            result_rows += (ops.cat(result_row, axis=4),)
 
         moments = ops.cat(result_rows, axis=3)
-        mean, logvar = self.split(moments)
-        return mean, logvar
+        return moments
 
     def tiled_encode(self, x):
         t = x.shape[2]
@@ -333,9 +341,9 @@ class CausalVAEModel(VideoBaseAE):
         for idx, (start, end) in enumerate(t_chunk_start_end):
             chunk_x = x[:, :, start:end]
             if idx != 0:
-                moment = self.concat(self.tiled_encode2d(chunk_x))[:, :, 1:]
+                moment = self.tiled_encode2d(chunk_x)[:, :, 1:]
             else:
-                moment = self.concat(self.tiled_encode2d(chunk_x))
+                moment = self.tiled_encode2d(chunk_x)
             moments.append(moment)
         moments = ops.cat(moments, axis=2)
         mean, logvar = self.split(moments)
@@ -607,26 +615,27 @@ class Encoder(nn.Cell):
 
     def construct(self, x):
         # downsampling
-        hs = [self.conv_in(x)]
+        hs = self.conv_in(x)
+        h = hs
         for i_level in range(self.num_resolutions):
             for i_block in range(self.num_res_blocks):
                 # import pdb; pdb.set_trace()
-                h = self.down[i_level].block[i_block](hs[-1])
+                h = self.down[i_level].block[i_block](hs)
                 if len(self.down[i_level].attn) > 0:
                     h = self.down[i_level].attn[i_block](h)
-                hs.append(h)
+                hs = h
             # if hasattr(self.down[i_level], "downsample"):
             #    if not isinstance(self.down[i_level].downsample, nn.Identity):
             if self.downsample_flag[i_level]:
-                hs.append(self.down[i_level].downsample(hs[-1]))
+                hs = self.down[i_level].downsample(hs)
             # if hasattr(self.down[i_level], "time_downsample"):
             #    if not isinstance(self.down[i_level].time_downsample, nn.Identity):
             if self.time_downsample_flag[i_level]:
-                hs_down = self.down[i_level].time_downsample(hs[-1])
-                hs.append(hs_down)
+                hs_down = self.down[i_level].time_downsample(hs)
+                hs = hs_down
 
         # middle
-        h = hs[-1]
+        # h = hs[-1]
         h = self.mid.block_1(h)
         h = self.mid.attn_1(h)
         h = self.mid.block_2(h)
