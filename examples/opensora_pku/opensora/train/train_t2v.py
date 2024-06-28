@@ -202,7 +202,7 @@ def main(args):
     else:
         text_encoder = None
         tokenizer = None
-        text_encoder_dtype = "N.A."
+        text_encoder_dtype = None
 
     # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
@@ -398,8 +398,9 @@ def main(args):
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Transformer model dtype: {model_dtype}",
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
-                f"VAE dtype: {vae_dtype} (amp level O2)",
-                f"Text encoder dtype: {text_encoder_dtype} (amp level O2)",
+                f"VAE dtype: {vae_dtype} (amp level O2)" + f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
+                if text_encoder_dtype is not None
+                else "",
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
