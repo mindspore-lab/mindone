@@ -70,6 +70,7 @@ class VideoAutoencoderKL(nn.Cell):
         config=SDXL_CONFIG,
         ckpt_path=None,
         micro_batch_size=None,
+        scale_factor=0.18215,
     ):
         super().__init__()
 
@@ -88,7 +89,7 @@ class VideoAutoencoderKL(nn.Cell):
         # This is a mistake made during the training of OpenSora v1.2.
         # To re-use the trained model, we need to keep this mistake.
         # For training, we should refine to 0.13025.
-        self.scale_factor = 0.18215
+        self.scale_factor = scale_factor 
 
     @staticmethod
     def rearrange_in(x):

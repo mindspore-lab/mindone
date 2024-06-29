@@ -82,6 +82,7 @@ class GeneratorWithLoss(nn.Cell):
             weighted_nll_loss = nll_loss.sum() / bs
 
         # kl loss
+        # TODO: FIXME: it may not fit for graph mode training
         if (self.kl_weight > 0) and (not no_kl):
             kl_loss = self.kl(mean, logvar)
             kl_loss = kl_loss.sum() / bs
@@ -108,22 +109,23 @@ class GeneratorWithLoss(nn.Cell):
         # 1. VAE 2d, video frames x reconstruction loss 
         # TODO: can it be compiled correctly in graph mode?
         # TODO: loss dtype setting
-        loss = 0
         if self.use_real_rec_loss:
             # x: (b 3 t h w)
             _, weighted_nll_loss, weighted_kl_loss = self.vae_loss_fn(x, x_rec, posterior_mean, posterior_logvar, no_perceptual=False)
-            loss += weighted_nll_loss + weighted_kl_loss
+            loss = weighted_nll_loss + weighted_kl_loss
+        else:
+            loss = 0
             
         # 2. temporal vae, spatial latent x_z reconstruction loss  
         if self.use_z_rec_loss:
             # x_z: (b 4 t h//8 w//8)
             # NOTE: since KL loss on posterior is the same as that in part 1. We can skip it.
-            _, weighted_nll_loss_z, _ = self.vae_loss_fn(x, x_rec, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True)
+            _, weighted_nll_loss_z, _ = self.vae_loss_fn(x_z, x_z_rec, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True)
             loss += weighted_nll_loss_z 
 
         # 3. identity regularization loss for pure image input 
         if self.use_image_identity_loss and frames == 1:
-            _, image_identity_loss, _ = self.vae_loss_fn(x_z, z, posterior_mean, no_perceptual=True, no_kl=True)
+            _, image_identity_loss, _ = self.vae_loss_fn(x_z, z, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True)
             loss += image_identity_loss
 
         return loss

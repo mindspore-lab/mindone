@@ -9,7 +9,7 @@ kl_loss_weight: 1.e-6
 use_real_rec_loss: False 
 use_z_rec_loss: True
 use_image_identity_loss: True
-mixed_strategy: null # "mixed_video_image" TODO: test it in dynamic mode
+mixed_strategy: "mixed_video_image" # TODO: test it in dynamic mode
 mixed_image_ratio: 0.2
 
 # data
