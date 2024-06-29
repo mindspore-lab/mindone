@@ -320,8 +320,8 @@ class DDIMSampler(object):
             pred_x0 = self.model.predict_start_from_z_and_v(x, t, model_output)
 
         if self.model.use_dynamic_rescale:
-            scale_t = ops.full(size, self.ddim_scale_arr[index])
-            prev_scale_t = ops.full(size, self.ddim_scale_arr_prev[index])
+            scale_t = ops.full(size, self.ddim_scale_arr[index], dtype=self.ddim_scale_arr[index].dtype)
+            prev_scale_t = ops.full(size, self.ddim_scale_arr_prev[index], dtype=self.ddim_scale_arr_prev[index].dtype)
             rescale = (prev_scale_t / scale_t)
             pred_x0 *= rescale
 

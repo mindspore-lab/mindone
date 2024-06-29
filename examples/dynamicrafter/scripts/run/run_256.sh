@@ -1,4 +1,4 @@
-seed=12
+seed=123
 name=dynamicrafter_256_seed${seed}
 res_dir="results"
 

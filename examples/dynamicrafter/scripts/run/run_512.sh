@@ -20,6 +20,6 @@ python scripts/inference.py \
     --video_length 16 \
     --frame_stride 24 \
     --ckpt_path /home/mindocr/lhy/ckpt/DynamiCrafter/ms_ckpt/model_512.ckpt \
-    # --timestep_spacing 'uniform_trailing' \
-    # --guidance_rescale 0.7 \
-    # --perframe_ae \
+    --timestep_spacing 'uniform_trailing' \
+    --guidance_rescale 0.7 \
+    --perframe_ae \
