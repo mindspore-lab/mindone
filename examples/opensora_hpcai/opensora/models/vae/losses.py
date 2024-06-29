@@ -123,7 +123,7 @@ class GeneratorWithLoss(nn.Cell):
 
         # 3. identity regularization loss for pure image input 
         if self.use_image_identity_loss and frames == 1:
-            _, image_identity_loss, _ = self.vae_loss_fn(x_z, z, posterior_mean, no_perceptual=True, no_kl=True)
+            _, image_identity_loss, _ = self.vae_loss_fn(x_z, z, posterior_mean, posterior_logvar, no_perceptual=True, no_kl=True)
             loss += image_identity_loss
 
         return loss

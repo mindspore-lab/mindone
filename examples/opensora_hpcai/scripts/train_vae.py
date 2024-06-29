@@ -1,4 +1,5 @@
 import logging
+from typing import Tuple
 import os
 import shutil
 import sys
@@ -7,6 +8,7 @@ import time
 import yaml
 
 import mindspore as ms
+from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
@@ -32,6 +34,7 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
+from mindone.utils.seed import set_random_seed
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -52,21 +55,109 @@ def create_loss_scaler(loss_scaler_type, init_loss_scale, loss_scale_factor=2, s
     return loss_scaler
 
 
+def init_env(
+    mode: int = ms.GRAPH_MODE,
+    seed: int = 42,
+    distributed: bool = False,
+    max_device_memory: str = None,
+    device_target: str = "Ascend",
+    parallel_mode: str = "data",
+    jit_level: str='O2',
+    global_bf16: bool = False,
+    debug: bool = False,
+) -> Tuple[int, int]:
+    """
+    Initialize MindSpore environment.
+
+    Args:
+        mode: MindSpore execution mode. Default is 0 (ms.GRAPH_MODE).
+        seed: The seed value for reproducibility. Default is 42.
+        distributed: Whether to enable distributed training. Default is False.
+    Returns:
+        A tuple containing the device ID, rank ID and number of devices.
+    """
+    set_random_seed(seed)
+
+    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
+        logger.warning("Debug mode is on, switching execution mode to PyNative.")
+        mode = ms.PYNATIVE_MODE
+
+    if max_device_memory is not None:
+        ms.set_context(max_device_memory=max_device_memory)
+
+    if distributed:
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+        )
+        if parallel_mode == "optim":
+            print("use optim parallel")
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.SEMI_AUTO_PARALLEL,
+                enable_parallel_optimizer=True,
+            )
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+        else:
+            init()
+            device_num = get_group_size()
+            rank_id = get_rank()
+            logger.debug(f"rank_id: {rank_id}, device_num: {device_num}")
+            ms.reset_auto_parallel_context()
+
+            ms.set_auto_parallel_context(
+                parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+                gradients_mean=True,
+                device_num=device_num,
+            )
+
+        var_info = ["device_num", "rank_id", "device_num / 8", "rank_id / 8"]
+        var_value = [device_num, rank_id, int(device_num / 8), int(rank_id / 8)]
+        logger.info(dict(zip(var_info, var_value)))
+
+    else:
+        device_num = 1
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            pynative_synchronize=debug,
+        )
+    
+    if mode == 0:
+        ms.set_context(jit_config={"jit_level": jit_level})
+
+    if global_bf16:
+        # only effective in GE mode, i.e. jit_level: O2
+        ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
+
+    return rank_id, device_num
+
+
 def main(args):
     # 1. init
-    # ascend_config={"precision_mode": "allow_fp32_to_fp16"}
-    device_id, rank_id, device_num = init_train_env(
+    rank_id, device_num = init_env(
         args.mode,
-        device_target=args.device_target,
         seed=args.seed,
         distributed=args.use_parallel,
+        device_target=args.device_target,
+        max_device_memory=args.max_device_memory,
+        parallel_mode=args.parallel_mode,
+        jit_level=args.jit_level,
+        global_bf16=args.global_bf16,
+        debug=args.debug,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. build data loader
-    if len(args.image_size) == 2:
-        assert args.image_size[0] == args.image_size[1], 'Currently only h==w is supported'
-    image_size = args.image_size[0] 
+
+    if isinstance(args.image_size, int):
+        image_size = args.image_size
+    else:
+        if len(args.image_size) == 2:
+            assert args.image_size[0] == args.image_size[1], 'Currently only h==w is supported'
+        image_size = args.image_size[0] 
 
     ds_config = dict(
         csv_path=args.csv_path,
