@@ -2,8 +2,12 @@ import argparse
 import ast
 import os
 import random
+import sys
 import time
 from functools import partial
+
+mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+sys.path.insert(0, mindone_lib_path)
 
 import numpy as np
 from gm.data.loader import create_loader
@@ -298,6 +302,18 @@ def train(args):
                 timestep_bias_weighting=timestep_bias_weighting,
                 snr_gamma=args.snr_gamma,
             )
+
+            dynamic_shape = True if "multi_aspect" in config.data.dataset_config.params.keys() else False
+            if dynamic_shape:
+                input_dyn = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+                token1 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+                token2 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+                token3 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token4 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token5 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token = [token1, token2, token3, token4, token5]
+
+                train_step_fn.set_inputs(input_dyn, *token)
 
             if model.disable_first_stage_amp and train_step_fn.first_stage_model is not None:
                 train_step_fn.first_stage_model.to_float(ms.float32)
