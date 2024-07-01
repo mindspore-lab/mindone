@@ -434,7 +434,8 @@ class StableDiffusionControlNetInpaintPipeline(
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
             text_inputs = self.tokenizer(
                 prompt,
@@ -511,7 +512,8 @@ class StableDiffusionControlNetInpaintPipeline(
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
 
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
@@ -636,6 +638,13 @@ class StableDiffusionControlNetInpaintPipeline(
             image, has_nsfw_concept = self.safety_checker(
                 images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
             )
+
+            # Warning for safety checker operations here as it couldn't been done in construct()
+            if ops.any(has_nsfw_concept):
+                logger.warning(
+                    "Potential NSFW content was detected in one or more images. A black image will be returned instead."
+                    " Try again with a different prompt and/or seed."
+                )
         return image, has_nsfw_concept
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.decode_latents

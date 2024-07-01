@@ -279,7 +279,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
             text_inputs = self.tokenizer(
                 prompt,
@@ -356,7 +357,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
 
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(

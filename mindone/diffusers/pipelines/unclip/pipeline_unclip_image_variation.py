@@ -126,7 +126,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             return_tensors="np",
         )
         text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-        text_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
+        text_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)  # MindSpore mask does not require bool()
         text_encoder_output = self.text_encoder(ms.Tensor.from_numpy(text_input_ids))
 
         prompt_embeds = text_encoder_output[0]
@@ -147,7 +147,9 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            uncond_text_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
+            uncond_text_mask = ms.Tensor.from_numpy(
+                uncond_input.attention_mask
+            )  # MindSpore mask does not require bool()
             negative_prompt_embeds_text_encoder_output = self.text_encoder(ms.Tensor.from_numpy(uncond_input.input_ids))
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[0]
