@@ -100,7 +100,7 @@ def tensor2vid(video: ms.Tensor, processor: "VaeImageProcessor", output_type: st
         outputs = ops.stack(outputs)
 
     elif not output_type == "pil":
-        raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'pil']")
+        raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'pt', 'pil']")
 
     return outputs
 
@@ -289,7 +289,8 @@ class AnimateDiffVideoToVideoPipeline(
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
             text_inputs = self.tokenizer(
                 prompt,
@@ -366,7 +367,8 @@ class AnimateDiffVideoToVideoPipeline(
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
 
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
@@ -900,17 +902,9 @@ class AnimateDiffVideoToVideoPipeline(
             else None
         )
 
-        # num_free_init_iters = self._free_init_num_iters if self.free_init_enabled else 1
-        # for free_init_iter in range(num_free_init_iters):
-        #     if self.free_init_enabled:
-        #         latents, timesteps = self._apply_free_init(
-        #             latents, free_init_iter, num_inference_steps, device, latents.dtype, generator
-        #         )
-        #         num_inference_steps = len(timesteps)
-        #         # make sure to readjust timesteps based on strength
-        #         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, timesteps, strength, device)
         # self.free_init_enabled relies on `FreeInitMixin` that involves FFT implemented by the framework,
         # which is currently incomplete within the MindSpore. Therefore, we have disabled this functionality.
+        # if self.free_init_enabled: ...
 
         self._num_timesteps = len(timesteps)
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order

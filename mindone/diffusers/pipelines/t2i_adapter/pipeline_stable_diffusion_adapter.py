@@ -25,9 +25,10 @@ from mindspore import ops
 
 from ....transformers import CLIPTextModel
 from ...image_processor import VaeImageProcessor
+from ...loaders import LoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, MultiAdapter, T2IAdapter, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import PIL_INTERPOLATION, BaseOutput, deprecate, logging
+from ...utils import PIL_INTERPOLATION, BaseOutput, deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
@@ -307,9 +308,11 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
         """
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
-        if lora_scale is not None:
-            # TODO: support lora
-            raise NotImplementedError("LoRA is not yet implemented.")
+        if lora_scale is not None and isinstance(self, LoraLoaderMixin):
+            self._lora_scale = lora_scale
+
+            # dynamically adjust the LoRA scale
+            scale_lora_layers(self.text_encoder, lora_scale)
 
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
@@ -320,7 +323,8 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
 
         if prompt_embeds is None:
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                prompt = self.maybe_convert_prompt(prompt, self.tokenizer)
 
             text_inputs = self.tokenizer(
                 prompt,
@@ -397,7 +401,8 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
                 uncond_tokens = negative_prompt
 
             # textual inversion: process multi-vector tokens if necessary
-            # TODO: support textual inversion
+            if isinstance(self, TextualInversionLoaderMixin):
+                uncond_tokens = self.maybe_convert_prompt(uncond_tokens, self.tokenizer)
 
             max_length = prompt_embeds.shape[1]
             uncond_input = self.tokenizer(
@@ -428,12 +433,13 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        # TODO: support lora
+        if isinstance(self, LoraLoaderMixin):
+            # Retrieve the original scale by scaling back the LoRA layers
+            unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
-    # Copied from mindon.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.run_safety_checker
-    # add from_numpy in `not ops.is_tensor(image)` branch for safety_checker only supports images are MindSpore Tensors
+    # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.run_safety_checker
     def run_safety_checker(self, image, dtype):
         if self.safety_checker is None:
             has_nsfw_concept = None
@@ -447,6 +453,13 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline):
             image, has_nsfw_concept = self.safety_checker(
                 images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
             )
+
+            # Warning for safety checker operations here as it couldn't been done in construct()
+            if ops.any(has_nsfw_concept):
+                logger.warning(
+                    "Potential NSFW content was detected in one or more images. A black image will be returned instead."
+                    " Try again with a different prompt and/or seed."
+                )
         return image, has_nsfw_concept
 
     # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.decode_latents

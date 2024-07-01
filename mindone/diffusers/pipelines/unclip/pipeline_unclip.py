@@ -136,7 +136,7 @@ class UnCLIPPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-            text_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
+            text_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)  # MindSpore mask does not require bool()
 
             untruncated_ids = ms.Tensor.from_numpy(
                 self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
@@ -174,7 +174,9 @@ class UnCLIPPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            uncond_text_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
+            uncond_text_mask = ms.Tensor.from_numpy(
+                uncond_input.attention_mask
+            )  # MindSpore mask does not require bool()
             negative_prompt_embeds_text_encoder_output = self.text_encoder(ms.Tensor.from_numpy(uncond_input.input_ids))
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[0]

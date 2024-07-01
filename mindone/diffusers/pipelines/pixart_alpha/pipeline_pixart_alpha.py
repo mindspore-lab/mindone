@@ -667,7 +667,6 @@ class PixArtAlphaPipeline(DiffusionPipeline):
             resized_height = int(orig_height * ratio)
 
             # Resize
-            # FIXME: bilinear maybe not supported
             samples = ops.interpolate(
                 samples, size=(resized_height, resized_width), mode="bilinear", align_corners=False
             )
