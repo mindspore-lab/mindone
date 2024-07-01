@@ -585,7 +585,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
             inputs = self.tokenizer(input, return_tensors="np", padding=True)
             for k, v in inputs.items():
                 inputs[k] = ms.Tensor.from_numpy(v)
-            outputs = self.text_encoder(**inputs)[0]
+            outputs = self.text_encoder(**inputs)
             feature = outputs[1]
         return feature
 
@@ -626,10 +626,10 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
             boxes[idx] = ms.tensor(box)
             masks[idx] = 1
             if text_feature is not None:
-                phrases_embeddings[idx] = text_feature
+                phrases_embeddings[idx : idx + 1] = text_feature  # unsqueeze for shape matching
                 phrases_masks[idx] = 1
             if image_feature is not None:
-                image_embeddings[idx] = image_feature
+                image_embeddings[idx : idx + 1] = image_feature  # unsqueeze for shape matching
                 image_masks[idx] = 1
 
         input_phrases_mask = self.complete_mask(input_phrases_mask, max_objs)
@@ -932,11 +932,16 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if latents.shape[1] != 4:
-                    latents = ops.randn_like(latents[:, :4])
+                    # mindspore.ops.randn_like(x) returns tensor with dtype float32, instead of x.dtype as torch does
+                    latents = ops.randn_like(latents[:, :4], dtype=latents.dtype)
 
                 if gligen_inpaint_image is not None:
                     gligen_inpaint_latent_with_noise = (
-                        self.scheduler.add_noise(gligen_inpaint_latent, ops.randn_like(gligen_inpaint_latent), t[None])
+                        self.scheduler.add_noise(
+                            gligen_inpaint_latent,
+                            ops.randn_like(gligen_inpaint_latent, dtype=gligen_inpaint_latent.dtype),
+                            t[None],
+                        )
                         .broadcast_to((latents.shape[0], -1, -1, -1))
                         .copy()
                     )

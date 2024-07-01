@@ -60,6 +60,7 @@ LOADABLE_CLASSES = {
         "MSPreTrainedModel": ["save_pretrained", "from_pretrained"],
         "PreTrainedTokenizer": ["save_pretrained", "from_pretrained"],
         "PreTrainedTokenizerFast": ["save_pretrained", "from_pretrained"],
+        "ProcessorMixin": ["save_pretrained", "from_pretrained"],
         "ImageProcessingMixin": ["save_pretrained", "from_pretrained"],
     },
 }
