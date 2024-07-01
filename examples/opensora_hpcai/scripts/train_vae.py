@@ -337,7 +337,7 @@ def main(args):
 
         if rank_id == 0:
             save_cb = EvalSaveCallback(
-                network=ae_with_loss.autoencoder,
+                network=ae,
                 rank_id=rank_id,
                 ckpt_save_dir=ckpt_dir,
                 ema=ema,
@@ -346,7 +346,7 @@ def main(args):
                 ckpt_save_interval=args.ckpt_save_interval,
                 log_interval=args.log_interval,
                 start_epoch=start_epoch,
-                model_name="vae_kl_f8",
+                model_name="vae_3d",
                 record_lr=False,
             )
             callback.append(save_cb)

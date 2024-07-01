@@ -35,7 +35,7 @@ start_learning_rate: 1.e-5
 scale_lr: False
 use_recompute: True
 
-epochs: 10000
+epochs: 2000
 ckpt_save_interval: 100
 init_loss_scale: 1.
 

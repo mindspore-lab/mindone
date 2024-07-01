@@ -227,6 +227,10 @@ class BatchTransform():
             # TODO: somehow it's slow. consider do it with tensor in NetWithLoss
             length = random.randint(1, x.shape[2])
             x = x[:, :, :length, :, :]
+        elif self.mixed_strategy == "image_only":  
+            x = x[:, :, :1, :, :]
+        else:
+            raise ValueError
         return x
 
 
