@@ -107,7 +107,6 @@ class GeneratorWithLoss(nn.Cell):
         
         # Loss compute
         # 1. VAE 2d, video frames x reconstruction loss 
-        # TODO: can it be compiled correctly in graph mode?
         # TODO: loss dtype setting
         if self.use_real_rec_loss:
             # x: (b 3 t h w)

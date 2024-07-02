@@ -368,9 +368,17 @@ def OpenSoraVAE_V1_2(
 
     config = VideoAutoencoderPipelineConfig(**kwargs)
     model = VideoAutoencoderPipeline(config)
-
+    
+    # load model weights
     if ckpt_path is not None:
         sd = ms.load_checkpoint(ckpt_path)
+
+        # remove the added prefix in the trained checkpoint
+        pnames = list(sd.keys())
+        for pn in pnames:
+            new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
+            sd[new_pn] = sd.pop(pn)
+
         pu, cu = ms.load_param_into_net(model, sd, strict_load=False)
         print(f"Net param not loaded : {pu}")
         print(f"Checkpoint param not loaded : {cu}")
