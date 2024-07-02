@@ -4,7 +4,7 @@
 
 ### Training
 
-| SD Model      |   Context      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   | jie_level  |FPS (img/s)  |
+| SD Model      |   Context      |  Method      | Global Batch Size x Grad. Accu. |   Resolution       |   Acceleration   | jit_level  |FPS (img/s)  |
 |---------------|---------------|--------------|:-------------------:|:------------------:|:----------------:|:----------------:|----------:|
 | 1.5           |    D910x1-MS2.1      |    Vanilla   |      3x1             |     512x512         | Graph, DS, FP16,  |     N/A |       5.98          |
 | 1.5           |    D910x8-MS2.1      |    Vanilla   |      24x1             |     512x512         | Graph, DS, FP16,  |    N/A |     31.18          |
@@ -40,7 +40,7 @@
 >
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS
 
-Note that the jie_level only can be used for MindSpore 2.3
+Note that the jit_level only can be used for MindSpore 2.3.
 
 Note that the performance of SD2.1 should be similar to SD2.0 since they have the same network architecture.
 
