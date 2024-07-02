@@ -92,10 +92,8 @@ class DDIMSampler(object):
         log_every_t=100,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
-        dynamic_threshold=None,
-        ucg_schedule=None,
-        timesteps=None,  # Timesteps for Image2Image
-        noise=None,  # noise for inpainting (deterministic q_sample)
+        precision=None,
+        fs=None,
         timestep_spacing='uniform', #uniform_trailing for starting from last timestep
         guidance_rescale=0.0,
         **kwargs,
@@ -140,11 +138,11 @@ class DDIMSampler(object):
             log_every_t=log_every_t,
             unconditional_guidance_scale=unconditional_guidance_scale,
             unconditional_conditioning=unconditional_conditioning,
-            dynamic_threshold=dynamic_threshold,
-            ucg_schedule=ucg_schedule,
-            timesteps=timesteps,
-            noise=noise,
+            verbose=verbose,
+            precision=precision,
+            fs=fs,
             guidance_rescale=guidance_rescale,
+            **kwargs,
         )
         return samples, intermediates
 
@@ -167,10 +165,11 @@ class DDIMSampler(object):
         corrector_kwargs=None,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
-        dynamic_threshold=None,
-        ucg_schedule=None,
-        noise=None,
+        verbose=True,
+        precision=None,
+        fs=None,
         guidance_rescale=0.0,
+        **kwargs,
     ):
         b = shape[0]
         if x_T is None:
@@ -190,6 +189,7 @@ class DDIMSampler(object):
         print(f"Running DDIM Sampling with {total_steps} timesteps")
 
         iterator = time_range
+        clean_cond = kwargs.pop("clean_cond", False)
 
         for i, step in tqdm(enumerate(iterator), total=len(iterator)):
             index = total_steps - i - 1
@@ -197,12 +197,11 @@ class DDIMSampler(object):
 
             if mask is not None:
                 assert x0 is not None
-                img_orig = self.model.q_sample(x0, ts, noise)
+                if clean_cond:
+                    img_orig = x0
+                else:
+                    img_orig = self.model.q_sample(x0, ts)
                 img = img_orig * mask + (1.0 - mask) * img
-
-            if ucg_schedule is not None:
-                assert len(ucg_schedule) == len(time_range)
-                unconditional_guidance_scale = ucg_schedule[i]
 
             outs = self.p_sample_ddim(
                 img,
@@ -217,8 +216,11 @@ class DDIMSampler(object):
                 corrector_kwargs=corrector_kwargs,
                 unconditional_guidance_scale=unconditional_guidance_scale,
                 unconditional_conditioning=unconditional_conditioning,
-                dynamic_threshold=dynamic_threshold,
+                mask=mask,
+                x0=x0,
+                fs=fs,
                 guidance_rescale=guidance_rescale,
+                **kwargs,
             )
             img, pred_x0 = outs
             if callback:
@@ -247,7 +249,10 @@ class DDIMSampler(object):
         corrector_kwargs=None,
         unconditional_guidance_scale=1.0,
         unconditional_conditioning=None,
-        dynamic_threshold=None,
+        uc_type=None,
+        conditional_guidance_scale_temporal=None,
+        mask=None,
+        x0=None,
         guidance_rescale=0.0,
         **kwargs,
     ):
@@ -256,7 +261,7 @@ class DDIMSampler(object):
             is_video = True
         else:
             is_video = False
-
+        """
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.0:
             model_output = self.model.apply_model(x, t, c, **kwargs) # unet denoiser
         else:
@@ -287,6 +292,22 @@ class DDIMSampler(object):
 
             if guidance_rescale > 0.0:
                 model_output = rescale_noise_cfg(model_output, model_t, guidance_rescale=guidance_rescale)
+        """
+
+        if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
+            model_output = self.model.apply_model(x, t, c, **kwargs) # unet denoiser
+        else:
+            ### do_classifier_free_guidance
+            if isinstance(c, ms.Tensor) or isinstance(c, dict):
+                e_t_cond = self.model.apply_model(x, t, c, **kwargs)
+                e_t_uncond = self.model.apply_model(x, t, unconditional_conditioning, **kwargs)
+            else:
+                raise NotImplementedError
+
+            model_output = e_t_uncond + unconditional_guidance_scale * (e_t_cond - e_t_uncond)
+
+            if guidance_rescale > 0.0:
+                model_output = rescale_noise_cfg(model_output, e_t_cond, guidance_rescale=guidance_rescale)
 
         if self.model.parameterization == "velocity":
             e_t = self.model.predict_eps_from_z_and_v(x, t, model_output)
@@ -327,9 +348,6 @@ class DDIMSampler(object):
 
         if quantize_denoised:
             pred_x0, _, *_ = self.model.first_stage_model.quantize(pred_x0)
-
-        if dynamic_threshold is not None:
-            raise NotImplementedError()
 
         # direction pointing to x_t
         dir_xt = (1.0 - a_prev - sigma_t**2).sqrt() * e_t
