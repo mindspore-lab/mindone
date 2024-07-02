@@ -1,5 +1,10 @@
 from typing import Optional, Tuple, Union
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal  # FIXME: python 3.7
+
 import numpy as np
 
 import mindspore as ms
@@ -9,6 +14,7 @@ from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..models.layers.rotary_embedding import precompute_freqs_cis
 from ..schedulers.iddpm import create_diffusion
+from ..schedulers.rectified_flow import RFLOW
 
 __all__ = ["InferPipeline"]
 
@@ -34,7 +40,7 @@ class InferPipeline:
         guidance_rescale=1.0,
         guidance_channels: Optional[int] = None,
         num_inference_steps=50,
-        ddim_sampling=True,
+        sampling: Literal["ddpm", "ddim", "rflow"] = "ddpm",
         micro_batch_size=None,
     ):
         super().__init__()
@@ -53,10 +59,14 @@ class InferPipeline:
         self.text_encoder = text_encoder
         self.diffusion = create_diffusion(str(num_inference_steps))
 
-        if ddim_sampling:
+        if sampling.lower() == "ddim":
             self.sampling_func = self.diffusion.ddim_sample_loop
-        else:
+        elif sampling.lower() == "ddpm":
             self.sampling_func = self.diffusion.p_sample_loop
+        elif sampling.lower() == "rflow":
+            self.sampling_func = RFLOW(num_inference_steps, cfg_scale=guidance_rescale, use_timestep_transform=True)
+        else:
+            raise ValueError(f"Unknown sampling method {sampling}")
 
     @ms.jit
     def vae_encode(self, x: Tensor) -> Tensor:
@@ -213,7 +223,7 @@ class InferPipelineFiTLike(InferPipeline):
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
         input_sq_size: int = 512,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.p = patch_size

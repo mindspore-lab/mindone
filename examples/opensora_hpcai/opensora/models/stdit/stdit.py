@@ -1,3 +1,7 @@
+"""
+OpenSora v1.0 STDiT architecture
+"""
+
 import os
 import re
 

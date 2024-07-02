@@ -213,6 +213,7 @@ class SelfAttention(nn.Cell):
         norm_layer: Type[nn.Cell] = LlamaRMSNorm,
         enable_flash_attention=False,
         rope=None,
+        qk_norm_legacy: bool = False,
     ):
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
@@ -225,6 +226,7 @@ class SelfAttention(nn.Cell):
         self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, weight_init="XavierUniform", bias_init="Zero")
         self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
         self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
+        self._qk_norm_legacy = qk_norm_legacy
 
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
@@ -263,14 +265,16 @@ class SelfAttention(nn.Cell):
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
 
-        # WARNING: this may be a bug
+        if not self._qk_norm_legacy:  # Normalize q and k before applying Rope
+            q, k = self.q_norm(q), self.k_norm(k)
         if self.rotary_emb is not None and freqs_cis is None:
             q = self.rotary_emb(q)
             k = self.rotary_emb(k)
         elif freqs_cis is not None:
             q = rope_1d(q, freqs_cis)
             k = rope_1d(k, freqs_cis)
-        q, k = self.q_norm(q), self.k_norm(k)
+        if self._qk_norm_legacy:  # Legacy: normalize q and k after applying Rope
+            q, k = self.q_norm(q), self.k_norm(k)
 
         # mask process
         if mask is not None:
@@ -400,13 +404,6 @@ class T2IFinalLayer(nn.Cell):
         self.d_t = d_t
         self.d_s = d_s
 
-    @staticmethod
-    def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
-        x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
-        masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
-        x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
-        return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
-
     def construct(
         self,
         x: Tensor,
@@ -424,7 +421,7 @@ class T2IFinalLayer(nn.Cell):
         if frames_mask is not None:
             shift_zero, scale_zero = (self.scale_shift_table[None] + t0[:, None]).chunk(2, axis=1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
-            x = self.t_mask_select(frames_mask, x, x_zero, T, S)
+            x = t_mask_select(frames_mask, x, x_zero, T, S)
 
         x = self.linear(x)
         return x
@@ -622,7 +619,7 @@ class TimestepEmbedder(nn.Cell):
         return embedding
 
     def construct(self, t: Tensor, dtype: ms.dtype):
-        t_freq = self.timestep_embedding(t, self.frequency_embedding_size).to(dtype)
+        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
         t_emb = self.mlp(t_freq)
         return t_emb
 
@@ -711,12 +708,7 @@ class PositionEmbedding2D(nn.Cell):
             grid_h *= base_size / h
             grid_w *= base_size / w
 
-        orig_dtype = grid_h.dtype
-        if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
-            grid_h = grid_h.astype(ms.float32)
-            grid_w = grid_w.astype(ms.float32)
-        grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
-        grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
+        grid_h, grid_w = ms.numpy.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
 
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
@@ -732,4 +724,11 @@ class PositionEmbedding2D(nn.Cell):
         scale: Optional[float] = 1.0,
         base_size: Optional[int] = None,
     ) -> Tensor:
-        return self._get_cached_emb(h, w, scale, base_size).to(x.dtype)
+        return self._get_cached_emb(h, w, scale, base_size)
+
+
+def t_mask_select(x_mask: Tensor, x: Tensor, masked_x: Tensor, T: int, S: int) -> Tensor:
+    x = x.reshape(x.shape[0], T, S, x.shape[-1])  # B (T S) C -> B T S C
+    masked_x = masked_x.reshape(masked_x.shape[0], T, S, masked_x.shape[-1])  # B (T S) C -> B T S C
+    x = ops.where(x_mask[:, :, None, None], x, masked_x)  # x_mask: [B, T]
+    return x.reshape(x.shape[0], T * S, x.shape[-1])  # B T S C -> B (T S) C
