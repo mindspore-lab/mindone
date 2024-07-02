@@ -39,6 +39,8 @@
 > Acceleration: DS: data sink mode, FP16: float16 computation. FA: flash attention.
 >
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS
+>
+>jie_level: Used to control the compilation optimization level.
 
 Note that the jit_level only can be used for MindSpore 2.3.
 
