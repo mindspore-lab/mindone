@@ -176,6 +176,9 @@ class DDIMSampler(object):
             img = ms.ops.StandardNormal()(shape)
         else:
             img = x_T
+        if precision is not None:
+            if precision == 16:
+                img = img.to(dtype=ms.float16)
 
         if timesteps is None:
             timesteps = self.ddpm_num_timesteps if ddim_use_original_steps else self.ddim_timesteps
