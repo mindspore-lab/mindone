@@ -87,14 +87,54 @@ Check out the [Quickstart](https://huggingface.co/docs/diffusers/quicktour) to l
 
 ## Roadmap
 
-In short, only the model, scheduler, pipeline and the training code related to StableDiffusionXL are currently available.
+🔥 Plenty of pipelines are available now. Dive in and give them a try!
+
 Most base, utility and mixin class are available.
 
 ### Pipeline
-- [x] DDIMPipeline
-- [x] DDPMPipeline
-- [x] StableDiffusionXLPipeline
-- [ ] StableDiffusionPipeline
+- AnimateDiff
+  - [x] AnimateDiffPipeline
+  - [x] AnimateDiffVideoToVideoPipeline
+- DDIM
+  - [x] DDIMPipeline
+- DDPM
+  - [x] DDPMPipeline
+- DeepFloyd IF
+  - [x] IFPipeline
+  - [x] IFImg2ImgPipeline
+  - [x] IFInpaintingPipeline
+  - [x] IFSuperResolutionPipeline
+  - [x] IFImg2ImgSuperResolutionPipeline
+  - [x] IFInpaintingSuperResolutionPipeline
+- I2VGen-XL
+  - [x] I2VGenXLPipeline
+- PixArt-alpha
+  - [x] PixArtAlphaPipeline
+- Shap-E
+  - [x] ShapEPipeline
+  - [x] ShapEImg2ImgPipeline
+- Stable Diffusion
+  - [x] StableDiffusionPipeline
+  - [x] StableDiffusionImg2ImgPipeline
+  - [x] StableDiffusionAdapterPipeline
+  - [x] StableDiffusionControlNetImg2ImgPipeline
+  - [x] StableDiffusionControlNetInpaintPipeline
+  - [x] StableDiffusionControlNetPipeline
+  - [x] StableDiffusionGLIGENPipeline
+  - [x] StableDiffusionGLIGENTextImagePipeline
+- Stable Diffusion XL
+  - [x] StableDiffusionXLPipeline
+  - [x] StableDiffusionXLImg2ImgPipeline
+  - [x] StableDiffusionXLInpaintPipeline
+  - [x] StableDiffusionXLAdapterPipeline
+  - [x] StableDiffusionXLControlNetImg2ImgPipeline
+  - [x] StableDiffusionXLControlNetInpaintPipeline
+  - [x] StableDiffusionXLControlNetPipeline
+- Stable Diffusion 3
+  - [x] StableDiffusion3Pipeline
+- UnCLIP
+  - [x] UnCLIPPipeline
+  - [x] UnCLIPImageVariationPipeline
 
 ### Model
 - All Supported
