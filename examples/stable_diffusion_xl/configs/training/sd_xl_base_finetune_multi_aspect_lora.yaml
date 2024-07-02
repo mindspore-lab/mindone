@@ -120,7 +120,7 @@ model:
 
 
 optim:
-    base_learning_rate: 1.0e-4
+    base_learning_rate: 1.0e-5
 
     optimizer_config:
         target: mindspore.nn.AdamWeightDecay  # mindspore.nn.SGD
