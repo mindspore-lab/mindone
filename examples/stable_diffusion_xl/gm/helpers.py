@@ -110,6 +110,9 @@ def set_default(args):
     if args.max_device_memory is not None:
         context.set_context(max_device_memory=args.max_device_memory)
         context.set_context(memory_optimize_level="O1", ascend_config={"atomic_clean_policy": 1})
+    if args.dynamic_shape:
+        context.set_context(mempool_block_size="59GB")
+        context.set_context(jit_config={"jit_level": "O1"}, enable_graph_kernel=True)
 
     # Set Parallel
     if args.is_parallel:
@@ -301,11 +304,9 @@ def create_model(
 
 
 def convert_sdxl_to_fp16(sdxl):
-    vae = sdxl.first_stage_model
     text_encoders = sdxl.conditioner
     unet = sdxl.model
 
-    convert_to_fp16(vae)
     convert_to_fp16(text_encoders)
     convert_to_fp16(unet)
 

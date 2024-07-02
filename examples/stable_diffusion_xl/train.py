@@ -174,6 +174,7 @@ def get_parser_train():
         default="/cache/pretrain_ckpt/",
         help="ModelArts: local device path to checkpoint folder",
     )
+    parser.add_argument("--dynamic_shape", type=ast.literal_eval, default=False)
     return parser
 
 
@@ -272,6 +273,8 @@ def train(args):
         if isinstance(model.model, nn.Cell):
             from gm.models.trainer_factory import TrainOneStepCell
 
+            model.model = auto_mixed_precision(model.model, amp_level=args.ms_amp_level)
+
             train_step_fn = TrainOneStepCell(
                 model,
                 optimizer,
@@ -287,7 +290,17 @@ def train(args):
                 timestep_bias_weighting=timestep_bias_weighting,
                 snr_gamma=args.snr_gamma,
             )
-            train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+
+            if args.dynamic_shape:
+                input_dyn = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+                token1 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+                token2 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+                token3 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token4 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token5 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+                token = [token1, token2, token3, token4, token5]
+
+                train_step_fn.set_inputs(input_dyn, *token)
             if model.disable_first_stage_amp and train_step_fn.first_stage_model is not None:
                 train_step_fn.first_stage_model.to_float(ms.float32)
             jit_config = ms.JitConfig()

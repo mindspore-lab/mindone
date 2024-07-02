@@ -6,7 +6,6 @@ from gm.modules.attention import FLASH_IS_AVAILABLE, FlashAttention, LinearAtten
 from gm.modules.transformers import scaled_dot_product_attention
 
 import mindspore as ms
-import mindspore.numpy as mnp
 from mindspore import Tensor, nn, ops
 
 
@@ -49,7 +48,12 @@ class Downsample(nn.Cell):
 
     def construct(self, x):
         if self.with_conv:
-            x = mnp.pad(x, ((0, 0), (0, 0), (0, 1), (0, 1)))
+            b, c, h, w = x.shape[0], x.shape[1], x.shape[2], x.shape[-1]
+            concat_h = ops.ones((b, c, h, 1), x.dtype)
+            concat_w = ops.ones((b, c, 1, w + 1), x.dtype)
+
+            x = ops.Concat(3)([x, concat_h])
+            x = ops.Concat(2)([x, concat_w])
             x = self.conv(x)
         else:
             x = ops.avg_pool2d(x, kernel_size=2, stride=2)
@@ -176,7 +180,7 @@ class MemoryEfficientAttnBlock(nn.Cell):
         self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
         self.proj_out = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
 
-        self.flash_attention = FlashAttention()
+        self.flash_attention = FlashAttention(input_layout="BNSD")
 
     def attention(self, h_: Tensor) -> Tensor:
         h_ = self.norm(h_)
@@ -199,7 +203,7 @@ class MemoryEfficientAttnBlock(nn.Cell):
         q_n, k_n = q.shape[-2], k.shape[-2]
         head_dim = q.shape[-1]
         if q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= 256:
-            h_ = self.flash_attention(q, k, v)
+            h_ = self.flash_attention(q, k, v, None, None, None, None, None)[3]
         else:
             h_ = scaled_dot_product_attention(q, k, v, dtype=self.attn_dtype)  # scale is dim_head ** -0.5 per default
 
