@@ -273,6 +273,7 @@ class VideoAutoencoderPipeline(nn.Cell):
                 x_z_bs = x_z[:, :, i : i + self.micro_frame_size]
                 posterior_mean_bs, posterior_logvar_bs = self.temporal_vae._encode(x_z_bs)
                 z_bs = self.temporal_vae.sample(posterior_mean_bs, posterior_logvar_bs)
+                z_list.append(z_bs)
                 posterior_mean_list.append(posterior_mean_bs)
                 posterior_logvar_list.append(posterior_logvar_bs)
             z = ops.cat(z_list, axis=2)
