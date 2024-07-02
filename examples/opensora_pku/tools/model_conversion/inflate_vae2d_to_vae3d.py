@@ -1,33 +1,37 @@
 # init Causal VAE from vae 2d
+import argparse
+import json
+import os
 import sys
 
 sys.path.append(".")
-import argparse
-
-from ae.models.causal_vae_3d import CausalVAEModel
+mindone_lib_path = os.path.abspath("../../")
+sys.path.insert(0, mindone_lib_path)
+from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAEModel
 
 import mindspore as ms
 
+ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 
-def inflate(vae_ckpt, save_fp):
-    args = dict(
-        ch=128,
-        out_ch=3,
-        ch_mult=(1, 2, 4, 4),
-        num_res_blocks=2,
-        attn_resolutions=[16],
-        dropout=0.0,
-        resamp_with_conv=True,
-        in_channels=3,
-        resolution=256,
-        z_channels=4,
-        double_z=True,
-        use_linear_attn=False,
-        attn_type="vanilla3D",  # diff 3d
-        time_compress=2,  # diff 3d
-        split_time_upsample=True,
+
+def init_env(args):
+    # no parallel mode currently
+    device_id = int(os.getenv("DEVICE_ID", 0))
+    ms.set_context(
+        mode=0,
+        device_target=args.device,
+        device_id=device_id,
     )
-    ae = CausalVAEModel(ddconfig=args, embed_dim=4)
+
+    return device_id
+
+
+def inflate(args):
+    vae_ckpt = args.src
+    save_fp = args.target
+    assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
+    model_config = json.load(open(args.model_config, "r"))
+    ae = CausalVAEModel.from_config(model_config)
     vae2d_sd = ms.load_checkpoint(vae_ckpt)
 
     vae_2d_keys = list(vae2d_sd.keys())
@@ -92,6 +96,9 @@ if __name__ == "__main__":
         default="models/causal_vae_488_init.ckpt",
         help="target file path to save the inflated checkpoint",
     )
+    parser.add_argument("--model_config", type=str, default="scripts/causalvae/release.json")
+    parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     args = parser.parse_args()
+    init_env(args)
 
-    inflate(args.src, args.target)
+    inflate(args)
