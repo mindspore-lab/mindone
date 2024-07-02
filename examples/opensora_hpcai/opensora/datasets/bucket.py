@@ -113,7 +113,7 @@ def bucket_split_function(buckets: Bucket):
     cnt = 1
     for name, lengths in buckets.ar_criteria.items():
         for length, ars in lengths.items():
-            if buckets.bucket_bs[name][length] is not None:
+            if buckets.bucket_bs[name][length] is not None and buckets.bucket_bs[name][length] > 0:
                 for ar, (h, w) in ars.items():
                     hashed_buckets.setdefault(length, {}).setdefault(h, {})[w] = cnt
                     batch_sizes.append(buckets.bucket_bs[name][length])

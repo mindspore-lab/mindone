@@ -127,12 +127,12 @@ def main(args):
         save_dir = f"{args.output_path}/{time_str}"
     else:
         save_dir = f"{args.output_path}"
-
     os.makedirs(save_dir, exist_ok=True)
-    if args.save_latent:
-        latent_dir = os.path.join(args.output_path, "denoised_latents")
-        os.makedirs(latent_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
+
+    latent_dir = os.path.join(args.output_path, "denoised_latents")
+    if args.save_latent:
+        os.makedirs(latent_dir, exist_ok=True)
 
     # 1. init env
     rank_id, device_num = init_env(
@@ -225,7 +225,10 @@ def main(args):
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         latte_model = auto_mixed_precision(
-            latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
+            latte_model,
+            amp_level=args.amp_level,
+            dtype=dtype_map[args.dtype],
+            custom_fp32_cells=WHITELIST_OPS if args.dtype == "fp16" else [],
         )
 
     if args.ckpt_path:
@@ -296,7 +299,7 @@ def main(args):
         num_inference_steps=args.sampling_steps,
         guidance_rescale=args.guidance_scale,
         guidance_channels=args.guidance_channels,
-        ddim_sampling=args.ddim_sampling,  # TODO: add ddim support for OpenSora v1.1
+        ddim_sampling=args.ddim_sampling,
         micro_batch_size=args.vae_micro_batch_size,
     )
     if args.pre_patchify:
