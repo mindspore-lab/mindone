@@ -237,6 +237,7 @@ def train(args):
         class_data_path=args.class_data_path,
         instance_prompt=args.instance_prompt,
         class_prompt=args.class_prompt,
+        per_batch_size=per_batch_size,
         rank=args.rank,
         rank_size=args.rank_size,
         train_data_repeat=args.train_data_repeat,
