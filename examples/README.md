@@ -42,3 +42,10 @@ Here we provide various examples for image/video/audio generation models built o
 - [x] [hpcaitech Open-Sora](opensora_hpcai/README.md)
 
 </details>
+
+<details open markdown>
+<summary> 3D Generation </summary>
+
+- [x] [Stable Video 3D (SV3D)](sv3d/README.md)
+</details>
+
