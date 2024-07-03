@@ -273,15 +273,16 @@ python tools/model_conversion/convert_latte.py \
 > **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/tv2.ckpt). There is no need to convert it.**
 
 The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image datasets and three video datasets, as recorded in `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt`. Each line includes the paths to three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
-For acceleration, we pre-compute the t5 embedding before training the diffusion transformer.
+
+For acceleration, we pre-compute the t5 embedding before training the diffusion transformer. For each json file, for example, `video_mixkit_65f_54735.json` or `video_mixkit_513f_1997.json`, you need to run the following command accordingly and save the t5 embeddings cache in a different `output_path`.  
 
 ```bash
 python opensora/sample/sample_text_embed.py \
-    --data_file_path /path/to/video_caption.json \
+    --data_file_path /path/to/caption.json \
     --output_path /path/to/text_embed_folder \
 ```
 
-After running, the text embeddings saved as npz file for each caption will be in `output_path`. Please revise `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt` accordingly.
+After t5 embedding cache, please revise `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt` to include the three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
 
 #### Example of Training Scripts
 Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments.
