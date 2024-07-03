@@ -462,8 +462,8 @@ class VAE_Temporal(nn.Cell):
         )
         # x = pad_at_dim(x, (time_padding, 0), dim=2)
 
-        # NOTE: due to 
         x_dtype = x.dtype
+        # FIXME: bf16 not supported for ops.pad. float32 can be slow but ensure no loss. TODO: check speed difference with fp16
         x = x.to(ms.float32) 
         x = ops.pad(x, (0, 0, 0, 0, time_padding, 0), mode="constant")
         x = x.to(x_dtype) 
