@@ -45,6 +45,19 @@ class PixArtInferPipeline:
         else:
             self.sampling_func = self.diffusion.p_sample_loop
 
+        # freeze all components
+        self.network.set_train(False)
+        for param in self.network.trainable_params():
+            param.requires_grad = False
+
+        self.vae.set_train(False)
+        for param in self.vae.trainable_params():
+            param.requires_grad = False
+
+        self.text_encoder.set_train(False)
+        for param in self.text_encoder.trainable_params():
+            param.requires_grad = False
+
     @ms.jit
     def vae_decode(self, x):
         """

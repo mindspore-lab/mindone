@@ -41,7 +41,7 @@ def init_env(args) -> None:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Image generation")
+    parser = argparse.ArgumentParser(description="PixArt-Alpha Image generation")
     parser.add_argument(
         "-c",
         "--config",
@@ -84,6 +84,7 @@ def parse_args():
     parser.add_argument(
         "--t5_root", default="models/t5-v1_1-xxl", help="Path storing the T5 checkpoint and tokenizer configure file."
     )
+    parser.add_argument("--t5_max_length", type=int, default=120, help="T5's embedded sequence length.")
     parser.add_argument(
         "--prompt", default="A small cactus with a happy face in the Sahara desert.", help="Prompt for sampling."
     )
@@ -179,9 +180,6 @@ if __name__ == "__main__":
         param_dict = ms.load_checkpoint(args.checkpoint)
         param_dict = remove_pname_prefix(param_dict, prefix="network.")
         network = load_ckpt_params(network, param_dict)
-    network = network.set_train(False)
-    for param in network.get_parameters():  # freeze dit_model
-        param.requires_grad = False
 
     # 2.2 vae
     logger.info("vae init")
@@ -195,6 +193,7 @@ if __name__ == "__main__":
     text_encoder = T5Embedder(
         args.t5_root,
         use_text_preprocessing=args.clean_caption,
+        model_max_length=args.t5_max_length,
         pretrained_ckpt=os.path.join(args.t5_root, "model.ckpt"),
     )
 
