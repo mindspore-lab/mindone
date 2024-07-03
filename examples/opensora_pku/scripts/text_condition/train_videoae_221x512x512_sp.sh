@@ -21,7 +21,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --dataset t2v \
     --ae CausalVAEModel_4x8x8 \
     --ae_path LanguageBind/Open-Sora-Plan-v1.1.0 \
-    --video_data "scripts/train_data/video_data.txt" \
+    --video_data "scripts/train_data/video_data_513.txt" \
     --image_data "scripts/train_data/image_data.txt" \
     --num_frames $num_frames \
     --max_image_size $image_size \
