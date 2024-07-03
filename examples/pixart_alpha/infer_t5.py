@@ -3,14 +3,22 @@ import argparse
 import csv
 import logging
 import os
+import sys
 from typing import Tuple
 
 import numpy as np
-from modules.text_encoder import T5Embedder
 from tqdm import tqdm
 
 import mindspore as ms
 from mindspore.dataset import GeneratorDataset
+
+# TODO: remove in future when mindone is ready for install
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
+
+from pixart.modules.text_encoder import T5Embedder
+from pixart.utils.model_utils import str2bool
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -89,21 +97,22 @@ def main(args):
     ds_iter = dataset.create_tuple_iterator(num_epochs=1, output_numpy=True)
     for paths, texts in tqdm(ds_iter, total=len(dataset)):
         paths, texts = paths.tolist(), texts.tolist()
-        text_tokens, mask = network.get_text_tokens_and_mask(texts, return_tensor=True)
-        text_emb = network(text_tokens, mask).asnumpy()
-        mask = mask.asnumpy()
+        text_emb, text_mask = network.get_text_embeddings(texts)
+        text_emb, text_mask = text_emb.asnumpy(), text_mask.asnumpy().astype(np.bool_)
         assert text_emb.shape[0] == len(paths)
 
         # save the embeddings aligning to video frames
         for i in range(text_emb.shape[0]):
             filename = os.path.splitext(paths[i])[0] + ".npz"
             filepath = os.path.join(output_dir, filename)
-            np.savez_compressed(filepath, mask=mask[i], text_emb=text_emb[i])
+            np.savez_compressed(filepath, text_mask=text_mask[i], text_emb=text_emb[i])
     logger.info(f"Done. Embeddings saved in {output_dir}")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Extract t5 feature from a csv file")
+    parser = argparse.ArgumentParser(
+        description="Extract t5 feature from a csv file", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("--csv_path", required=True, help="path to csv annotation file.")
     parser.add_argument("--path_column", default="dir", help="column name of image path in csv file.")
     parser.add_argument("--caption_column", default="text", help="column name of caption in csv file.")
@@ -115,15 +124,13 @@ def parse_args():
         "--t5_root", default="models/t5-v1_1-xxl", help="Path storing the T5 checkpoint and tokenizer configure file."
     )
     parser.add_argument("--t5_max_length", type=int, default=120, help="T5's embedded sequence length.")
+    parser.add_argument("--clean_caption", type=str2bool, default=False, help="clean the prompt before encoding.")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
-        "--dtype",
-        default="fp32",
-        choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
+        "--dtype", default="fp32", choices=["bf16", "fp16", "fp32"], help="what data type to use for T5."
     )
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
 

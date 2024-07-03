@@ -56,3 +56,10 @@ The following demo image is generated using the default prompt with the command:
 python sample.py -c configs/inference/pixart-1024-MS.yaml --image_width 1024 --image_height 512 --seed 0
 ```
 <p align="center"><img width="1024" src="https://github.com/zhtmike/mindone/assets/8342575/741e7a0a-11ab-4377-a8cd-77e689353c1f"/>
+
+
+### Finetuning (WIP)
+
+```bash
+python infer_t5.py --csv_path path_of_the_csv_file --output_path path_of_the_output_directory
+```

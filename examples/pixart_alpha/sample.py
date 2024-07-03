@@ -9,11 +9,7 @@ import time
 import numpy as np
 import tqdm
 import yaml
-from dataset import ASPECT_RATIO_256_BIN, ASPECT_RATIO_512_BIN, ASPECT_RATIO_1024_BIN
-from dataset.utils import classify_height_width_bin
 from PIL import Image
-from utils.model_utils import check_cfgs_in_parser, count_params, load_ckpt_params, remove_pname_prefix, str2bool
-from utils.plot import image_grid, resize_and_crop_tensor
 
 import mindspore as ms
 from mindspore import ops
@@ -23,10 +19,14 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from modules.pixart import PixArt_XL_2, PixArtMS_XL_2
-from modules.text_encoder import T5Embedder
-from modules.vae import SD_CONFIG, AutoencoderKL
-from pipelines.infer_pipeline import PixArtInferPipeline
+from pixart.dataset import ASPECT_RATIO_256_BIN, ASPECT_RATIO_512_BIN, ASPECT_RATIO_1024_BIN
+from pixart.dataset.utils import classify_height_width_bin
+from pixart.modules.pixart import PixArt_XL_2, PixArtMS_XL_2
+from pixart.modules.text_encoder import T5Embedder
+from pixart.modules.vae import SD_CONFIG, AutoencoderKL
+from pixart.pipelines.infer_pipeline import PixArtInferPipeline
+from pixart.utils.model_utils import check_cfgs_in_parser, count_params, load_ckpt_params, remove_pname_prefix, str2bool
+from pixart.utils.plot import image_grid, resize_and_crop_tensor
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -37,11 +37,13 @@ logger = logging.getLogger(__name__)
 
 def init_env(args) -> None:
     set_random_seed(args.seed)
-    ms.set_context(mode=args.mode, device_target=args.device_target)
+    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level="O2"))
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="PixArt-Alpha Image generation")
+    parser = argparse.ArgumentParser(
+        description="PixArt-Alpha Image generation", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "-c",
         "--config",
@@ -96,20 +98,14 @@ def parse_args():
     parser.add_argument("--guidance_scale", type=float, default=8.5, help="the scale for classifier-free guidance")
     # MS new args
     parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target")
-    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)")
     parser.add_argument("--seed", type=int, default=42, help="Inference seed")
 
     parser.add_argument(
-        "--enable_flash_attention",
-        default=True,
-        type=str2bool,
-        help="whether to enable flash attention. Default is False",
+        "--enable_flash_attention", default=True, type=str2bool, help="whether to enable flash attention."
     )
     parser.add_argument(
-        "--dtype",
-        default="fp16",
-        choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for PixArt. Default is `fp16`, which corresponds to ms.float16",
+        "--dtype", default="fp16", choices=["bf16", "fp16", "fp32"], help="what data type to use for PixArt."
     )
     parser.add_argument("--ddim_sampling", type=str2bool, default=True, help="Whether to use DDIM for sampling")
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
@@ -184,9 +180,6 @@ if __name__ == "__main__":
     # 2.2 vae
     logger.info("vae init")
     vae = AutoencoderKL(SD_CONFIG, 4, ckpt_path=args.vae_checkpoint)
-    vae = vae.set_train(False)
-    for param in vae.get_parameters():  # freeze vae
-        param.requires_grad = False
 
     # 2.3
     logger.info("text encoder init")

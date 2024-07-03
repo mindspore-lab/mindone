@@ -1,7 +1,7 @@
 from typing import Any, Dict, List, Union
 
-from diffusion import create_diffusion
-from modules.pixart import PixArt
+from pixart.diffusion import create_diffusion
+from pixart.modules.pixart import PixArt
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
@@ -12,7 +12,7 @@ from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 class PixArtInferPipeline:
     """
     Args:
-        network (nn.Cell): A `DiT` to denoise the encoded image latents.
+        network (nn.Cell): `PixArt` network to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         scale_factor (float): scale_factor for vae.
         guidance_rescale (float): A higher guidance scale value for noise rescale.
