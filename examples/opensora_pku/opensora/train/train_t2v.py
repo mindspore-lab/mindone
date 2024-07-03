@@ -393,16 +393,18 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-                f"Distributed mode: {args.use_parallel}" + f"\nParallel mode: {args.parallel_mode}"
-                if args.use_parallel
-                else "",
+                f"Distributed mode: {args.use_parallel}"
+                + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Transformer model dtype: {model_dtype}",
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
-                f"VAE dtype: {vae_dtype} (amp level O2)" + f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
-                if text_encoder_dtype is not None
-                else "",
+                f"VAE dtype: {vae_dtype} (amp level O2)"
+                + (
+                    f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
+                    if text_encoder_dtype is not None
+                    else ""
+                ),
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
