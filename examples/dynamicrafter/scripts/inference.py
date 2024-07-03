@@ -186,7 +186,7 @@ def load_data_prompts(data_dir, video_size=(256,256), video_frames=16, interp=Fa
 
 def _transform_before_save(video):
     video = ops.transpose(video, (0, 2, 3, 4, 1))
-    video = video.asnumpy()
+    video = video.asnumpy()  # check the dtype
     video = np.clip(video, -1, 1)
     video = (video + 1.0) / 2.0
     return video
@@ -400,6 +400,7 @@ def main(args):
         # model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"Model uses random initialization!")
+    logger.info(f"enable_flash_attention: {model.model.diffusion_model.enable_flash_attention}")
 
     model.set_train(False)
     """get ms params

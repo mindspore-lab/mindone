@@ -398,7 +398,7 @@ class LatentDiffusion(DDPM):
             reshape_back = True
         else:
             reshape_back = False
-        
+
         ## consume more GPU memory but faster
         if not self.perframe_ae:
             results = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))

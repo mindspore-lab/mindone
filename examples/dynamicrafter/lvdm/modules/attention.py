@@ -20,32 +20,13 @@ from functools import partial
 import numpy as np
 
 import mindspore as ms
-import mindspore.numpy as msnp
 from mindspore import nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
-from mindone.utils.version_control import (
-    MS_VERSION,
-    check_valid_flash_attention,
-    choose_flash_attention_dtype,
-    is_old_ms_version,
-)
+from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
+from mindone.utils.version_control import is_old_ms_version
 
 logger = logging.getLogger()
-
-FLASH_IS_AVAILABLE = check_valid_flash_attention()
-FA_MS23_UPDATE = False
-if FLASH_IS_AVAILABLE:
-    try:
-        from mindspore.nn.layer.flash_attention import FlashAttention
-    except Exception:
-        # for ms2.3 >= 20240219, FA API changed
-        from mindspore.ops.operations.nn_ops import FlashAttentionScore
-
-        FA_MS23_UPDATE = True
-        print("D--: get MS2.3 PoC API! ")
-
-    logger.info("Flash attention is available.")
 
 
 def exists(val):
@@ -115,7 +96,7 @@ def Normalize(in_channels):
 class LinearAttention(nn.Cell):
     def __init__(self, dim, heads=4, dim_head=32):
         super().__init__()
-        self.heads = heads
+        self.head_num = heads
         hidden_dim = dim_head * heads
         self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, has_bias=False, pad_mode="pad")
         self.to_out = nn.Conv2d(hidden_dim, dim, 1, has_bias=True, pad_mode="pad")
@@ -145,17 +126,12 @@ class RelativePosition(nn.Cell):
     
 
 class CrossAttention(nn.Cell):
-    """
-    Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
-    due to the attention head dimension is 40, num heads=5. Require test on future versions
-    """
-
     def __init__(
         self,
         query_dim,
         context_dim=None,
-        heads=8,
-        dim_head=64,
+        head_num=8,
+        head_dim=64,
         dropout=1.0,
         dtype=ms.float32,
         enable_flash_attention=False,
@@ -168,12 +144,11 @@ class CrossAttention(nn.Cell):
         text_context_len=77,
     ):
         super().__init__()
-        inner_dim = dim_head * heads
+        inner_dim = head_dim * head_num
         context_dim = default(context_dim, query_dim)
+        self.head_num = head_num
+        self.head_dim = head_dim
 
-        self.heads = heads
-
-        # self.transpose = ops.Transpose()
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
@@ -197,10 +172,10 @@ class CrossAttention(nn.Cell):
         self.relative_position = relative_position
         if self.relative_position:
             assert(temporal_length is not None)
-            self.relative_position_k = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
-            self.relative_position_v = RelativePosition(num_units=dim_head, max_relative_position=temporal_length)
-            self.attention = Attention(dim_head,
-                                       heads,
+            self.relative_position_k = RelativePosition(num_units=self.head_dim, max_relative_position=temporal_length)
+            self.relative_position_v = RelativePosition(num_units=self.head_dim, max_relative_position=temporal_length)
+            self.attention = Attention(self.head_num,
+                                       self.head_dim,
                                        self.relative_position,
                                        self.relative_position_k,
                                        self.relative_position_v,
@@ -208,53 +183,29 @@ class CrossAttention(nn.Cell):
                                        image_cross_attention_scale_learnable=image_cross_attention_scale_learnable,
                                        alpha=self.alpha if image_cross_attention_scale_learnable else None,
                                        )
-        # else:
-        #     ## only used for spatial attention, while NOT for temporal attention
-        #     if XFORMERS_IS_AVAILBLE and temporal_length is None:
-        #         self.forward = self.efficient_forward
         else:
-            self.attention = Attention(dim_head,
-                                       heads,
+            self.attention = Attention(self.head_num,
+                                       self.head_dim,
                                        image_cross_attention_scale=image_cross_attention_scale,
                                        image_cross_attention_scale_learnable=image_cross_attention_scale_learnable,
                                        alpha=self.alpha if image_cross_attention_scale_learnable else None,
                                        )
 
-            
-        self.head_dim = dim_head
-        # self.attention = Attention(dim_head)
-
         self.enable_flash_attention = (
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
-
         if self.enable_flash_attention:
-            if not FA_MS23_UPDATE:
-                self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
-            else:
-                # TODO: for MS2.3 PoC, how to adapt high_precision=True?
-                # Q: (b s n*d) -> (b n s d))  #  s - seq_len, n - num_head, d - head dim
-                self.flash_attention = FlashAttentionScore(
-                    scale_value=1.0 / math.sqrt(dim_head),  # required if we didn't scale q or k before FA
-                    head_num=heads,
-                    input_layout="BNSD",  # BSH or BNSD
-                )
-            # TODO: need to change mask type for MS2.3 PoC version?
-            self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
-            # logger.info("Flash attention is enabled.")
-        else:
-            self.flash_attention = None
-
-        # TODO: due to FA supports well for head dimensions: 64, 80, 96, 120, 128 and 256
-        self.FA_max_head_dim = 256
-        if MS_VERSION >= "2.2" and MS_VERSION < "2.3":
-            self.FA_pad_head_dim = 160
-        elif MS_VERSION >= "2.3":
-            self.FA_pad_head_dim = 40
-            # if self.enable_flash_attention:
-            # logger.warning("Will head_dim 40 to 64 for Flash Attention for MS2.3-dev. This can be removed in later MS version after check.")
-        else:
-            self.FA_pad_head_dim = -1
+            attn_dtype = ms.bfloat16
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim,
+                head_num=self.head_num,
+                input_layout="BSH",
+                dtype=attn_dtype,
+            )
+        # else:
+        #     # TODO: test ms.bfloat16 for vanilla attention
+        #     attn_dtype = ms.float32
+        #     self.attention = Attention(self.head_dim, attn_dtype=attn_dtype)
 
     @staticmethod
     def _rearange_in(x, h):
@@ -283,12 +234,10 @@ class CrossAttention(nn.Cell):
         spatial_self_attn = (context is None)
         k_ip, v_ip, out_ip = None, None, None
 
-        h = self.heads
+        h = self.head_num
         q = self.to_q(x)
         context = default(context, x)
 
-        # k = self.to_k(context)
-        # v = self.to_v(context)
         if self.image_cross_attention and not spatial_self_attn:
             context, context_image = context[:, :self.text_context_len, :], context[:, self.text_context_len:, :]
             k = self.to_k(context)
@@ -305,44 +254,39 @@ class CrossAttention(nn.Cell):
         k_b, k_n, _ = k.shape
         v_b, v_n, _ = v.shape
 
-        head_dim = q.shape[-1] // self.heads
+        head_dim = q.shape[-1] // self.head_num
 
-        if (
-            self.enable_flash_attention and q_n % 16 == 0 and k_n % 16 == 0 and head_dim <= self.FA_max_head_dim
-        ):  # FIXME: now restrict head_dim to 128 to avoid 160 bug. revert to 256 once FA bug is fixed.
-            raise NotImplementedError
-            """
-            # reshape qkv shape ((b s n*d) -> (b n s d))and mask dtype for FA input format
-            q = q.view(q_b, q_n, h, -1).transpose(0, 2, 1, 3)
-            k = k.view(k_b, k_n, h, -1).transpose(0, 2, 1, 3)
-            v = v.view(v_b, v_n, h, -1).transpose(0, 2, 1, 3)
+        if self.enable_flash_attention:
+            # (b, n, h*d) -> (b, n, h, d)
+            q = ops.reshape(q, (q_b, q_n, h, -1))
+            k = ops.reshape(k, (k_b, k_n, h, -1))
+            v = ops.reshape(v, (v_b, v_n, h, -1))
+            if mask is not None:
+                raise NotImplementedError
+                # # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
+                # mask = mask[:, None, None, :]
+                # # (b 1 1 n_k) -> (b 1 n_q n_k)
+                # # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
+                # mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
+            out = self.flash_attention(q, k, v, mask=mask)
+            # (B, N, -1)
+            out = ops.reshape(out, (x.shape[0], out.shape[1], -1))
 
-            if head_dim == self.FA_pad_head_dim:
-                # pad to 2**n * 64
-                padding_size = 64 * 2 ** math.ceil(math.log(head_dim / 64, 2)) - head_dim
-                q = msnp.pad(q, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-                k = msnp.pad(k, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
-                v = msnp.pad(v, ((0, 0), (0, 0), (0, 0), (0, padding_size)), constant_value=0)
+            ## for image cross-attention
+            if k_ip is not None:
+                k_ip = ops.reshape(k_ip, (k_ip.shape[0], k_ip.shape[1], h, -1))
+                v_ip = ops.reshape(v_ip, (v_ip.shape[0], v_ip.shape[1], h, -1))
+                out_ip = self.flash_attention(q, k_ip, v_ip, mask=mask)
+                out_ip = ops.reshape(out_ip, (x.shape[0], out_ip.shape[1], -1))
 
-            if not FA_MS23_UPDATE:
-                if mask is None:
-                    mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
-                out = self.flash_attention(
-                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
-                )
-            else:
-                _, _, _, out = self.flash_attention(
-                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, None, None
-                )
+            if out_ip is not None:
+                if self.image_cross_attention_scale_learnable:
+                    out = out + self.image_cross_attention_scale * out_ip * (ops.tanh(self.alpha)+1)
+                else:
+                    out = out + self.image_cross_attention_scale * out_ip
+                # del out_ip
 
-            if head_dim == self.FA_pad_head_dim:
-                out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
-
-            b, h, n, d = out.shape
-            # reshape FA output to original attn input format, (b n s d) -> (b s n*d)
-            out = out.transpose(0, 2, 1, 3).view(b, n, -1)
-            """
-        else:
+        else:  # vanilla attention
             # (b, n, h*d) -> (b*h, n, d)
             q = self._rearange_in(q, h)
             k = self._rearange_in(k, h)
@@ -357,8 +301,8 @@ class CrossAttention(nn.Cell):
 
 class Attention(nn.Cell):
     def __init__(self,
-                 dim_head,
-                 heads=8,
+                 head_num=8,
+                 head_dim=64,
                  relative_position=False,
                  relative_position_k=None,
                  relative_position_v=None,
@@ -367,10 +311,8 @@ class Attention(nn.Cell):
                  alpha=None,
                  ):
         super().__init__()
-        # self.softmax = ops.Softmax(axis=-1)
-        # self.transpose = ops.Transpose()
-        self.scale = dim_head**-0.5
-        self.heads = heads
+        self.scale = head_dim**-0.5
+        self.head_num = head_num
         self.relative_position = relative_position
         self.relative_position_k = relative_position_k
         self.relative_position_v = relative_position_v
@@ -382,12 +324,10 @@ class Attention(nn.Cell):
 
     def construct(self, q, k, v, k_ip, v_ip, out_ip, mask):
         sim = ops.matmul(q, ops.transpose(k, (0, 2, 1))) * self.scale
-        # sim = torch.einsum('b i d, b j d -> b i j', q, k) * self.scale
-
         if self.relative_position:
             len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
             k2 = self.relative_position_k(len_q, len_k)
-            sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale # TODO check 
+            sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale 
             sim += sim2
         del k
 
@@ -398,7 +338,7 @@ class Attention(nn.Cell):
             else:
                 finfo_type = np.float32
             max_neg_value = -np.finfo(finfo_type).max
-            mask = mask.repeat(self.heads, axis=0)
+            mask = mask.repeat(self.head_num, axis=0)
             mask = ops.expand_dims(mask, axis=1)
             sim.masked_fill(mask, max_neg_value)
 
@@ -407,30 +347,25 @@ class Attention(nn.Cell):
         # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
         attn = ops.softmax(sim, axis=-1)
         out = ops.matmul(attn, v)
+        # del v
 
         if self.relative_position:
             v2 = self.relative_position_v(len_q, len_v)
             out2 = einsum('b t s, t s d -> b t d', sim, v2) # FIXME: 核对与torch.einsum的写法是否等效
             out += out2
-        # out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
-        out = self._rearrange_out(out, self.heads)
-        # out = ops.reshape(out, (-1, self.heads, out.shape[1], out.shape[2]))  # (b, h, n, d)
-        # out = ops.transpose(out, (0, 2, 1, 3))  # (b, n, h, d)
-        # out = ops.reshape(out, (out.shape[0], out.shape[1], -1))  # (b, n, (h d))
+        out = self._rearrange_out(out, self.head_num)
 
         ## for image cross-attention
         if k_ip is not None:
-            k_ip = self._rearrange_in(k_ip, self.heads)
-            v_ip = self._rearrange_in(v_ip, self.heads)
+            k_ip = self._rearrange_in(k_ip, self.head_num)
+            v_ip = self._rearrange_in(v_ip, self.head_num)
             sim_ip = ops.matmul(q, ops.transpose(k_ip, (0, 2, 1))) * self.scale
-            # k_ip, v_ip = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (k_ip, v_ip))
-            # sim_ip =  torch.einsum('b i d, b j d -> b i j', q, k_ip) * self.scale
             del k_ip
+            # del q
             sim_ip = sim_ip.softmax(axis=-1)
             out_ip = ops.matmul(sim_ip, v_ip)
-            out_ip = self._rearrange_out(out_ip, self.heads)
-            # out_ip = torch.einsum('b i j, b j d -> b i d', sim_ip, v_ip)
-            # out_ip = rearrange(out_ip, '(b h) n d -> b n (h d)', h=h)
+            out_ip = self._rearrange_out(out_ip, self.head_num)
+            # del v_ip
 
 
         if out_ip is not None:
@@ -438,8 +373,7 @@ class Attention(nn.Cell):
                 out = out + self.image_cross_attention_scale * out_ip * (ops.tanh(self.alpha)+1)
             else:
                 out = out + self.image_cross_attention_scale * out_ip
-        
-        # return self.to_out(out)
+            # del out_ip
         return out
 
     def _rearrange_in(self, x: ms.Tensor, h: int):
@@ -483,8 +417,8 @@ class BasicTransformerBlock(nn.Cell):
         self.disable_self_attn = disable_self_attn
         self.attn1 = attn_cls(
             query_dim=dim,
-            heads=n_heads,
-            dim_head=d_head,
+            head_num=n_heads,
+            head_dim=d_head,
             dropout=dropout,
             context_dim=context_dim if self.disable_self_attn else None,
             dtype=dtype,
@@ -494,8 +428,8 @@ class BasicTransformerBlock(nn.Cell):
         self.attn2 = attn_cls(
             query_dim=dim,
             context_dim=context_dim,
-            heads=n_heads,
-            dim_head=d_head,
+            head_num=n_heads,
+            head_dim=d_head,
             dropout=dropout,
             video_length=video_length,
             image_cross_attention=image_cross_attention,

@@ -53,6 +53,7 @@ model:
         image_cross_attention: true
         default_fs: 24
         fs_condition: true
+        enable_flash_attention: true
 
     first_stage_config:
       target: lvdm.models.autoencoder.AutoencoderKL

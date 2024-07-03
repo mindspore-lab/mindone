@@ -48,6 +48,7 @@ model:
         image_cross_attention_scale_learnable: true
         default_fs: 3
         fs_condition: true
+        enable_flash_attention: true
 
     first_stage_config:
       target: lvdm.models.autoencoder.AutoencoderKL

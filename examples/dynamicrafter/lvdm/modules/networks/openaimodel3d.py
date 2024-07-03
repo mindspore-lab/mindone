@@ -460,6 +460,7 @@ class UNetModel(nn.Cell):
                  image_cross_attention_scale_learnable=False,
                  default_fs=4,
                  fs_condition=False,
+                 enable_flash_attention=False,
                 ):
         super(UNetModel, self).__init__()
         if num_heads == -1:
@@ -486,6 +487,7 @@ class UNetModel(nn.Cell):
         self.image_cross_attention_scale_learnable = image_cross_attention_scale_learnable
         self.default_fs = default_fs
         self.fs_condition = fs_condition
+        self.enable_flash_attention = enable_flash_attention
 
         ## Time embedding blocks
         self.time_embed = nn.SequentialCell(
@@ -562,7 +564,8 @@ class UNetModel(nn.Cell):
                             disable_self_attn=False,
                             video_length=temporal_length,
                             image_cross_attention=self.image_cross_attention,
-                            image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,                      
+                            image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,
+                            enable_flash_attention=self.enable_flash_attention,
                         )
                     )
                     if self.temporal_attention:
@@ -632,7 +635,8 @@ class UNetModel(nn.Cell):
                 disable_self_attn=False,
                 video_length=temporal_length,
                 image_cross_attention=self.image_cross_attention,
-                image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,               
+                image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,
+                enable_flash_attention=self.enable_flash_attention,
             )
         ]
         if self.temporal_attention:
@@ -704,7 +708,8 @@ class UNetModel(nn.Cell):
                             disable_self_attn=False,
                             video_length=temporal_length,
                             image_cross_attention=self.image_cross_attention,
-                            image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,   
+                            image_cross_attention_scale_learnable=self.image_cross_attention_scale_learnable,
+                            enable_flash_attention=self.enable_flash_attention,
                         )
                     )
                     if self.temporal_attention:
@@ -789,7 +794,6 @@ class UNetModel(nn.Cell):
         adapter_idx = 0
         hs = []
         for id, module in enumerate(self.input_blocks):
-            # import pdb;pdb.set_trace()
             h = module(h, emb, context=context, batch_size=b)
             if id == 0 and self.addition_attention:
                 h = self.init_attn(h, emb, context=context, batch_size=b)
@@ -808,7 +812,7 @@ class UNetModel(nn.Cell):
             h = module(h, emb, context=context, batch_size=b)
         h = h.type(x.dtype)
         y = self.out(h)
-        
+
         # reshape back to (b c t h w)
         # y = rearrange(y, '(b t) c h w -> b c t h w', b=b)
         y = rearrange_in_gn5d_bs(y, b)
