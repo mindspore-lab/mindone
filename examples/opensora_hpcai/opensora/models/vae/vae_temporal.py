@@ -460,7 +460,14 @@ class VAE_Temporal(nn.Cell):
             if (x.shape[2] % self.time_downsample_factor == 0)
             else self.time_downsample_factor - x.shape[2] % self.time_downsample_factor
         )
-        x = pad_at_dim(x, (time_padding, 0), dim=2)
+        # x = pad_at_dim(x, (time_padding, 0), dim=2)
+
+        # NOTE: due to ops.pad not support bf16
+        x_dtype = x.dtype
+        x = x.to(ms.float16)
+        x = ops.pad(x, (0, 0, 0, 0, time_padding, 0), mode="constant")
+        x = x.to(x_dtype)
+
         encoded_feature = self.encoder(x)
         moments = self.quant_conv(encoded_feature).to(x.dtype)
         mean, logvar = self.split(moments)
