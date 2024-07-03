@@ -620,7 +620,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim, act_fn=act_fn)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity(time_embed_dim, time_embed_dim)
+            self.class_embedding = nn.Identity()
         elif class_embed_type == "projection":
             if projection_class_embeddings_input_dim is None:
                 raise ValueError(
@@ -1036,7 +1036,7 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             copied_cross_attention_kwargs = {}
             for k, v in cross_attention_kwargs.items():
                 if k == "gligen":
-                    copied_cross_attention_kwargs[k] = {"obj": self.position_net(**v)}
+                    copied_cross_attention_kwargs[k] = {"objs": self.position_net(**v)}
                 else:
                     copied_cross_attention_kwargs[k] = v
             cross_attention_kwargs = copied_cross_attention_kwargs
@@ -1059,6 +1059,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
         is_controlnet = mid_block_additional_residual is not None and down_block_additional_residuals is not None
         # using new arg down_intrablock_additional_residuals for T2I-Adapters, to distinguish from controlnets
         is_adapter = down_intrablock_additional_residuals is not None
+        # using variable `adapter_index` to get item in `down_intrablock_additional_residuals` for avoiding
+        # pop operations in construct(), which are not fully supported in GRAPH_MODE
+        adapter_index = 0
         # maintain backward compatibility for legacy usage, where
         #       T2I-Adapter and ControlNet both use down_block_additional_residuals arg
         #       but can only use one or the other
@@ -1079,8 +1082,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             if downsample_block.has_cross_attention:
                 # For t2i-adapter CrossAttnDownBlock2D
                 additional_residuals = {}
-                if is_adapter and len(down_intrablock_additional_residuals) > 0:
-                    additional_residuals["additional_residuals"] = down_intrablock_additional_residuals.pop(0)
+                if is_adapter and len(down_intrablock_additional_residuals) > adapter_index:
+                    additional_residuals["additional_residuals"] = down_intrablock_additional_residuals[adapter_index]
+                    adapter_index += 1
 
                 sample, res_samples = downsample_block(
                     hidden_states=sample,
@@ -1093,8 +1097,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
                 )
             else:
                 sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
-                if is_adapter and len(down_intrablock_additional_residuals) > 0:
-                    sample += down_intrablock_additional_residuals.pop(0)
+                if is_adapter and len(down_intrablock_additional_residuals) > adapter_index:
+                    sample += down_intrablock_additional_residuals[adapter_index]
+                    adapter_index += 1
 
             down_block_res_samples += res_samples
 
@@ -1126,10 +1131,11 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
             # To support T2I-Adapter-XL
             if (
                 is_adapter
-                and len(down_intrablock_additional_residuals) > 0
+                and len(down_intrablock_additional_residuals) > adapter_index
                 and sample.shape == down_intrablock_additional_residuals[0].shape
             ):
-                sample += down_intrablock_additional_residuals.pop(0)
+                sample += down_intrablock_additional_residuals[adapter_index]
+                adapter_index += 1
 
         if is_controlnet:
             sample = sample + mid_block_additional_residual

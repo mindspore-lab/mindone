@@ -430,7 +430,7 @@ class Attention(nn.Cell):
             )
         else:
             attention_scores = ops.baddbmm(
-                attention_mask,
+                attention_mask.to(query.dtype),
                 query,
                 key.swapaxes(-1, -2),
                 beta=1,
@@ -475,7 +475,9 @@ class Attention(nn.Cell):
             #       we want to instead pad by (0, remaining_length), where remaining_length is:
             #       remaining_length: int = target_length - current_length
             # TODO: re-enable tests/models/test_models_unet_2d_condition.py#test_model_xattn_padding
-            attention_mask = ops.pad(attention_mask, (0, target_length), value=0.0)
+            attention_mask = ops.Pad(paddings=((0, 0),) * (attention_mask.ndim - 1) + ((0, target_length),))(
+                attention_mask
+            )
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:

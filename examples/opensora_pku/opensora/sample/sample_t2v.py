@@ -223,6 +223,12 @@ def parse_args():
         help="what data type to use for vae. Default is `bf16`, which corresponds to ms.bfloat16",
     )
     parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference mode. If training vae, better set it to True",
+    )
+    parser.add_argument(
         "--text_encoder_precision",
         default="bf16",
         type=str,
@@ -293,9 +299,12 @@ if __name__ == "__main__":
     vae.vae_scale_factor = ae_stride_config[args.ae]
     # use amp level O2 for causal 3D VAE with bfloat16 or float16
     vae_dtype = get_precision(args.vae_precision)
-    custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
+    if vae_dtype == ms.float16:
+        custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+    else:
+        custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
     vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}")
+    logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells: {custom_fp32_cells}")
     vae.set_train(False)
     for param in vae.get_parameters():  # freeze vae
         param.requires_grad = False
@@ -460,8 +469,9 @@ if __name__ == "__main__":
             f"Num of samples: {n}",
             f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
             f"Num trainable params: {num_params_trainable:,}",
-            f"Use model dtype: {dtype}",
-            f"Use FA: {args.enable_flash_attention}",
+            f"Transformer dtype: {dtype}",
+            f"VAE dtype: {vae_dtype}",
+            f"Text encoder dtype: {text_encoder_dtype}",
             f"Sampling steps {args.num_sampling_steps}",
             f"Sampling method: {args.sample_method}",
             f"CFG guidance scale: {args.guidance_scale}",

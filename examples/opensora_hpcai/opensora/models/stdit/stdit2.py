@@ -216,6 +216,7 @@ class STDiT2(nn.Cell):
         enable_layernorm_kernel=False,
         enable_sequence_parallelism=False,
         use_recompute=False,
+        num_recompute_blocks=None,
         patchify_conv3d_replace=None,
     ):
         super().__init__()
@@ -303,8 +304,13 @@ class STDiT2(nn.Cell):
         self.sp_rank = None
 
         if use_recompute:
-            for block in self.blocks:
-                self.recompute(block)
+            if num_recompute_blocks is None:
+                num_recompute_blocks = len(self.blocks)
+            print("Num recomputed stdit blocks: {}".format(num_recompute_blocks))
+            for i, block in enumerate(self.blocks):
+                # recompute the first N blocks
+                if i < num_recompute_blocks:
+                    self.recompute(block)
 
     def recompute(self, b):
         if not b._has_config_recompute:
