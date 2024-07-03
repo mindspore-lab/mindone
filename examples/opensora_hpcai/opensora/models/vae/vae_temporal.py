@@ -464,7 +464,7 @@ class VAE_Temporal(nn.Cell):
 
         # NOTE: due to 
         x_dtype = x.dtype
-        x = x.to(ms.float16) 
+        x = x.to(ms.float32) 
         x = ops.pad(x, (0, 0, 0, 0, time_padding, 0), mode="constant")
         x = x.to(x_dtype) 
 
