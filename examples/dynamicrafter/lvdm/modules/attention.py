@@ -327,7 +327,7 @@ class Attention(nn.Cell):
         if self.relative_position:
             len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
             k2 = self.relative_position_k(len_q, len_k)
-            sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale 
+            sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale
             sim += sim2
         del k
 

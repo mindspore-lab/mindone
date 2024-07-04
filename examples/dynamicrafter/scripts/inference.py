@@ -14,9 +14,11 @@ import random
 from PIL import Image
 import mindspore as ms
 import mindspore.ops as ops
+import mindspore.nn as nn
 import mindspore.dataset.transforms as transforms
 from mindspore.dataset.vision import Resize, CenterCrop, ToTensor, Normalize
 from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore import JitConfig
 
 sys.path.append("../stable_diffusion_v2/")
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -35,6 +37,7 @@ from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
 from mindone.utils.config import instantiate_from_config, str2bool
 from mindone.visualize.videos import save_videos
+from mindone.utils.amp import auto_mixed_precision
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,6 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
     debug: bool = False,
 ):
     """
@@ -90,10 +92,6 @@ def init_env(
             device_target=device_target,
             pynative_synchronize=debug,
         )
-
-    if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
 
     return rank_id, device_num
 
@@ -353,7 +351,6 @@ def main(args):
         args.seed,
         args.use_parallel,
         device_target=args.device_target,
-        enable_dvm=args.enable_dvm,
         debug=args.debug,
     )
 
@@ -403,6 +400,19 @@ def main(args):
     logger.info(f"enable_flash_attention: {model.model.diffusion_model.enable_flash_attention}")
 
     model.set_train(False)
+
+    jitconfig = JitConfig(jit_level=args.jit_level)
+    model.set_jit_config(jitconfig)
+
+    # mixed precision setting
+    WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    if args.dtype in ["fp16", "bf16"]:
+        model = auto_mixed_precision(
+            model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
+        )
+
+
     """get ms params
     ms_params = [p for p in model.parameters_and_names()]
     with open(f"tools/ms_param_{args.width}.txt", "w") as f:
@@ -456,10 +466,10 @@ def main(args):
                                                        )
                 # import pdb;pdb.set_trace()
                 ## save each example individually
-                for nn, samples in enumerate(batch_samples):
+                for n, samples in enumerate(batch_samples):
                     ## samples : [n_samples,c,t,h,w]
-                    prompt = prompts[nn]
-                    filename = filenames[nn]
+                    prompt = prompts[n]
+                    filename = filenames[n]
                     # save_results(prompt, samples, filename, fakedir, fps=8, loop=args.loop)
                     save_results_seperate(prompt, samples, filename, save_dir, fps=8, loop=args.loop)
 
@@ -492,6 +502,21 @@ def parse_args():
         default=True,
         help="If true, an subfolder named with timestamp under output_path will be created to save the sampling results",
     )
+    parser.add_argument(
+        "--dtype",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for model. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--amp_level",
+        default="O2",
+        type=str,
+        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
+            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
+    )
+
     # parser.add_argument(
     #     "--output_path",
     #     type=str,
@@ -506,7 +531,7 @@ def parse_args():
     # )
     
     # MS new args
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
+    parser.add_argument("--jit_level", default="O0", type=str, help="model jit config level, refer to MindSpore doc")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")

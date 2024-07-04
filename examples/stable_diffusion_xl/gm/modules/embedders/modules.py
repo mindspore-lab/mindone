@@ -927,31 +927,31 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
     #     return z
 
     # def encode_with_vision_transformer(self, img: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
-        if img.ndim == 5:
-            assert self.max_crops == img.shape[1]
-            img = img.reshape(-1, *img.shape[2:])  # b n c h w -> (b n) c h w
-        img = self.preprocess(img)
-        if not self.output_tokens:
-            assert not self.model.visual.output_tokens
-            x = self.model.visual(img)
-            tokens = None
-        else:
-            assert self.model.visual.output_tokens
-            x, tokens = self.model.visual(img)
-        if self.max_crops > 0:
-            x = x.reshape(-1, self.max_crops, x.shape[-1])  # (b n) d -> b n d
-            # drop out between 0 and all along the sequence axis
-            x = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones((x.shape[0], x.shape[1], 1), dtype=x.dtype)) * x
-            if tokens is not None:
-                tokens = tokens.reshape(-1, self.max_crops, *tokens.shape[1:]).swapaxes(1, 2)  # (b n) t d -> b t n d
-                tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)  # b t n d -> b t (n d)
-                ops.print_(
-                    f"You are running very experimental token-concat in {self.__class__.__name__}. "
-                    f"Check what you are doing, and then remove this message."
-                )
-        if self.output_tokens:
-            return x, tokens
-        return x
+    #     if img.ndim == 5:
+    #         assert self.max_crops == img.shape[1]
+    #         img = img.reshape(-1, *img.shape[2:])  # b n c h w -> (b n) c h w
+    #     img = self.preprocess(img)
+    #     if not self.output_tokens:
+    #         assert not self.model.visual.output_tokens
+    #         x = self.model.visual(img)
+    #         tokens = None
+    #     else:
+    #         assert self.model.visual.output_tokens
+    #         x, tokens = self.model.visual(img)
+    #     if self.max_crops > 0:
+    #         x = x.reshape(-1, self.max_crops, x.shape[-1])  # (b n) d -> b n d
+    #         # drop out between 0 and all along the sequence axis
+    #         x = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones((x.shape[0], x.shape[1], 1), dtype=x.dtype)) * x
+    #         if tokens is not None:
+    #             tokens = tokens.reshape(-1, self.max_crops, *tokens.shape[1:]).swapaxes(1, 2)  # (b n) t d -> b t n d
+    #             tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)  # b t n d -> b t (n d)
+    #             ops.print_(
+    #                 f"You are running very experimental token-concat in {self.__class__.__name__}. "
+    #                 f"Check what you are doing, and then remove this message."
+    #             )
+    #     if self.output_tokens:
+    #         return x, tokens
+    #     return x
 
 
     def construct(self, image, no_dropout=False): 
