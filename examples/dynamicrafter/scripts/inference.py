@@ -405,12 +405,12 @@ def main(args):
     model.set_jit_config(jitconfig)
 
     # mixed precision setting
-    WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]
-    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-    if args.dtype in ["fp16", "bf16"]:
-        model = auto_mixed_precision(
-            model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
-        )
+    # WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]
+    # dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    # if args.dtype in ["fp16", "bf16"]:
+    #     model = auto_mixed_precision(
+    #         model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
+    #     )
 
 
     """get ms params
