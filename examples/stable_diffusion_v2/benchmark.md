@@ -40,7 +40,7 @@
 >
 >FPS: images per second during training. average training time (s/step) = batch_size / FPS
 >
->jie_level: Used to control the compilation optimization level.
+>jie_level: Used to control the compilation optimization level. N/A means that the current MindSpore version does not support setting jit_level.
 
 Note that the jit_level only can be used for MindSpore 2.3.
 
