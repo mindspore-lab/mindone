@@ -11,7 +11,8 @@ from mindspore.train.callback import TimeMonitor
 mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
-# from mindcv.optim.adamw import AdamW
+
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
@@ -23,7 +24,7 @@ from opensora.models.text_encoder.t5 import T5Embedder
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
 from opensora.utils.utils import get_precision
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
@@ -72,6 +73,7 @@ def main(args):
         global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
+        sp_size=args.sp_size,
     )
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:
@@ -87,10 +89,13 @@ def main(args):
     else:
         logger.info("vae init")
         vae = getae_wrapper(args.ae)(args.ae_path, subfolder="vae")
-        vae_dtype = ms.bfloat16
-        custom_fp32_cells = [nn.GroupNorm] if vae_dtype == ms.float16 else [nn.AvgPool2d, TrilinearInterpolate]
+        vae_dtype = get_precision(args.vae_precision)
+        if vae_dtype == ms.float16:
+            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
+        else:
+            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
         vae = auto_mixed_precision(vae, amp_level="O2", dtype=vae_dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Use amp level O2 for causal 3D VAE. Use dtype {vae_dtype}")
+        logger.info(f"Use amp level O2 for causal 3D VAE with dtype={vae_dtype}, custom_fp32_cells {custom_fp32_cells}")
 
         vae.set_train(False)
         for param in vae.get_parameters():  # freeze vae
@@ -157,15 +162,19 @@ def main(args):
     else:
         model_dtype = get_precision(args.precision)
         if not args.global_bf16:
+            if model_dtype == ms.float16:
+                custom_fp32_cells = [LayerNorm, Attention, nn.SiLU, nn.GELU]
+            else:
+                custom_fp32_cells = [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU]
             latte_model = auto_mixed_precision(
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=model_dtype,
-                custom_fp32_cells=[LayerNorm, Attention, nn.SiLU, nn.GELU]
-                if model_dtype == ms.float16
-                else [nn.MaxPool2d, LayerNorm, nn.SiLU, nn.GELU],
+                custom_fp32_cells=custom_fp32_cells,
             )
-            logger.info(f"Set mixed precision to {args.amp_level} with dtype={args.precision}")
+            logger.info(
+                f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom_fp32_cells: {custom_fp32_cells}"
+            )
         else:
             logger.info(f"Using global bf16 for latte t2v model. Force model dtype from {model_dtype} to ms.bfloat16")
             model_dtype = ms.bfloat16
@@ -186,7 +195,7 @@ def main(args):
             model_max_length=args.model_max_length,
         )
         # mixed precision
-        text_encoder_dtype = ms.bfloat16  # using bf16 for text encoder and vae
+        text_encoder_dtype = get_precision(args.text_encoder_precision)  # using bf16 for text encoder and vae
         text_encoder = auto_mixed_precision(text_encoder, amp_level="O2", dtype=text_encoder_dtype)
         text_encoder.dtype = text_encoder_dtype
         logger.info(f"Use amp level O2 for text encoder T5 with dtype={text_encoder_dtype}")
@@ -195,6 +204,7 @@ def main(args):
     else:
         text_encoder = None
         tokenizer = None
+        text_encoder_dtype = None
 
     # 2.3 ldm with loss
     diffusion = create_diffusion(timestep_respacing="")
@@ -228,8 +238,8 @@ def main(args):
         ds_config,
         batch_size=args.batch_size,
         shuffle=True,
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
     )
@@ -368,7 +378,7 @@ def main(args):
         )
         callback.append(save_cb)
         if args.profile:
-            callback.append(ProfilerCallback())
+            callback.append(ProfilerCallbackEpoch(2, 2, "./profile_data"))
 
     # 5. log and save config
     if rank_id == 0:
@@ -383,13 +393,18 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-                f"Distributed mode: {args.use_parallel}" + f"\nParallel mode: {args.parallel_mode}"
-                if args.use_parallel
-                else "",
+                f"Distributed mode: {args.use_parallel}"
+                + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
-                f"Use model dtype: {model_dtype}",
-                f"AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
+                f"Transformer model dtype: {model_dtype}",
+                f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
+                f"VAE dtype: {vae_dtype} (amp level O2)"
+                + (
+                    f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
+                    if text_encoder_dtype is not None
+                    else ""
+                ),
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
@@ -504,6 +519,27 @@ def parse_t2v_train_args(parser):
         default=0,
         help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
         "This is a positive integer which can be tuned based on the memory usage.",
+    )
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
+    parser.add_argument(
+        "--vae_keep_gn_fp32",
+        default=False,
+        type=str2bool,
+        help="whether keep GroupNorm in fp32. Defaults to False in inference mode. If training vae, better set it to True",
+    )
+    parser.add_argument(
+        "--vae_precision",
+        default="fp16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for vae. Default is `fp16`, which corresponds to ms.float16",
+    )
+    parser.add_argument(
+        "--text_encoder_precision",
+        default="bf16",
+        type=str,
+        choices=["bf16", "fp16"],
+        help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
     )
     return parser
 

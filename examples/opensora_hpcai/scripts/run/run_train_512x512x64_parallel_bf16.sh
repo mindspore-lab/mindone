@@ -7,8 +7,8 @@ export MS_MEMORY_STATISTIC=0
 export MS_DATASET_SINK_QUEUE=4
 
 # enable kbk: 1
-export MS_ENABLE_ACLNN=0
-export GRAPH_OP_RUN=0
+#export MS_ENABLE_ACLNN=0
+#export GRAPH_OP_RUN=0
 
 # log level
 export GLOG_v=2
@@ -30,4 +30,5 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
     --enable_flash_attention=True \
     --gradient_accumulation_steps=1 \
     --use_ema=False \
+    --jit_level="O2" \
     --output_path=$output_dir \

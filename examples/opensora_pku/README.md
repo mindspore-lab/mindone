@@ -24,13 +24,30 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 <summary>Open-Sora-Plan v1.1.0 Demo</summary>
 
-** Put Demo Here **
+
+| 221×512×512 (9.2s) | 221×512×512 (9.2s) | 221×512×512 (9.2s) |
+| --- | --- | --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/An%20aerial%20shot%20of%20a%20lighthouse%20standing%20tall%20on%20a%20rocky%20cliff,%20its%20beacon%20cutting%20through%20the%20early%20.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20camera%20rotates%20around%20a%20large%20stack%20of%20vintage%20televisions%20all%20showing%20different%20programs-1950s.gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20video%20captures%20the%20spectacle%20of%20a%20continuous%20fireworks%20show%20against%20the%20backdrop%20of%20a%20starry%20nig.gif?raw=true" width=224> |
+| An aerial shot of a lighthouse standing tall on a rocky cliff... | The camera rotates around a large stack of vintage televisions...  | The video captures the spectacle of a continuous fireworks...  |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/Aerial%20view%20of%20Santorini%20during%20the%20blue%20hour%2C%20showcasing%20the%20stunning%20architecture%20of%20white%20Cycladi.gif?raw=true" width=224> |<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/Drone%20shot%20along%20the%20Hawaii%20jungle%20coastline%2C%20sunny%20day.%20Kayaks%20in%20the%20water.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f221/The%20video%20presents%20an%20abstract%20composition%20centered%20around%20a%20hexagonal%20shape%20adorned%20with%20a%20starburs.gif?raw=true" width=224>  |
+| Aerial view of Santorini during the blue hour... | Drone shot along the Hawaii jungle coastline...  | The video presents an abstract composition centered around a hexagonal shape...  |
+
+
+| 65×512×512 (2.7s) | 65×512×512 (2.7s) | 65×512×512 (2.7s) |
+| --- | --- | --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-3D%20animation%20of%20a%20small,%20round,%20fluffy%20creature%20with%20big,%20expressive%20eyes%20explores%20a%20vibrant,%20enchan.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20corgi%20vlogging%20itself%20in%20tropical%20Maui..gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20painting%20of%20a%20boat%20on%20water%20comes%20to%20life,%20with%20waves%20crashing%20and%20the%20boat%20becoming%20submerged..gif?raw=true" width=224> |
+| 3D animation of a small, round, fluffy creature with... | A corgi vlogging itself in tropical Maui.  | A painting of a boat on water comes to life...  |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-A%20solitary%20astronaut%20plants%20a%20flag%20on%20an%20alien%20planet%20covered%20in%20crystal%20formations.%20The%20shot%20tracks.gif?raw=true" width=224> |<img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-Extreme%20close-up%20of%20chicken%20and%20green%20pepper%20kebabs%20grilling%20on%20a%20barbeque%20with%20flames.%20Shallow%20focu.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/f65/0-In%20an%20ornate,%20historical%20hall,%20a%20massive%20tidal%20wave%20peaks%20and%20begins%20to%20crash.%20Two%20surfers,%20surfing..gif?raw=true" width=224>  |
+| A solitary astronaut plants a flag on an alien planet... | Extreme close-up of chicken and green pepper kebabs...  | In an ornate, historical hall, a massive tidal wave...  |
+
+
 
 Videos are saved to `.gif` for display. See the text prompts in `examples/prompt_list_65.txt` and `examples/prompt_list_221.txt`.
 
 ## 🔆 Features
 
 - 📍 **Open-Sora-Plan v1.1.0** with the following features
+    - ✅ Sequence parallelism
     - ✅ CausalVAE-4x8x8 inference. Supports video reconstruction.
     - ✅ T5 TextEncoder model inference.
     - ✅ Text-to-video generation in 512x512 resolution and up to 221 frames.
@@ -39,7 +56,6 @@ Videos are saved to `.gif` for display. See the text prompts in `examples/prompt
 
 
 ### TODO
-* [ ] Sequence-parallel training **[WIP]**
 * [ ] Third-stage training script **[WIP]**
 * [ ] Scaling model parameters and dataset size.
 * [ ] Evaluation of various metrics.
@@ -70,7 +86,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/) and use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
+2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
 
 
 3. Install requirements
@@ -250,20 +266,23 @@ msrun --master_port=8200 --worker_num=8 --local_worker_num=8 --log_dir="output_l
 The first-stage training depends on the `t2v.pt` from [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main). Please download `t2v.pt` and place it under `LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt`. Then run model conversion with:
 ```bash
 python tools/model_conversion/convert_latte.py \
-  --src pretrained/t2v.pt \
+  --src LanguageBind/Open-Sora-Plan-v1.1.0/t2v.pt \
   --target LanguageBind/Open-Sora-Plan-v1.1.0/t2v.ckpt
 ```
 
+> **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/tv2.ckpt). There is no need to convert it.**
+
 The [Open-Sora-Dataset-v1.1.0](https://huggingface.co/datasets/LanguageBind/Open-Sora-Plan-v1.1.0/tree/main) includes three image datasets and three video datasets, as recorded in `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt`. Each line includes the paths to three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
-For acceleration, we pre-compute the t5 embedding before training the diffusion transformer.
+
+For acceleration, we pre-compute the t5 embedding before training the diffusion transformer. For each json file, for example, `video_mixkit_65f_54735.json` or `video_mixkit_513f_1997.json`, you need to run the following command accordingly and save the t5 embeddings cache in a different `output_path`.  
 
 ```bash
 python opensora/sample/sample_text_embed.py \
-    --data_file_path /path/to/video_caption.json \
+    --data_file_path /path/to/caption.json \
     --output_path /path/to/text_embed_folder \
 ```
 
-After running, the text embeddings saved as npz file for each caption will be in `output_path`. Please revise `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt` accordingly.
+After t5 embedding cache, please revise `scripts/train_data/image_data.txt` and `scripts/train_data/video_data.txt` to include the three folders/files: the video folder, the t5 embedding cache folder, and the path to the annotation json file.
 
 #### Example of Training Scripts
 Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments.
@@ -313,9 +332,22 @@ Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and ch
 
 ```bash
 # start 221x512x512 finetuning, 8 NPUs
-bash scripts/text_condition/train_videoae_221x512x512.sh
+bash scripts/text_condition/train_videoae_221x512x512_sp.sh
 ```
 Simiarly, please revise the `--pretrained` to the full checkpoint path from the `221x512x512` stage, and then start the third-stage training (to be released soon).
+
+
+#### Overfitting Experiment
+
+To verify the training script and convergence speed, we performed an overfitting experiment: training the stage 1 model $(65+4)\times512\times512$ on 64 videos selected from the mixkit dataset. The stage 1 model was intialized with `t2v.ckpt`, and we trained it with the hyper-parameters listed in `scripts/text_condition/train_videoae_65x512x512.sh`, except that we only trained it on 64 videos for 3000 steps.
+
+The checkpoint after 3000 steps generated videos similar to the original videos, which means the convergence of the overfitting experiment was as good as we expected. Some generated videos are shown below:
+
+| 65×512×512 (2.7s) | 65×512×512 (2.7s) | 65×512×512 (2.7s) |
+| --- | --- | --- |
+| <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-a%20lively%20scene%20at%20a%20ski%20resort%20nestled%20in%20the%20heart%20of%20a%20snowy%20mountain%20range.%20From%20a%20high%20vantage%20p.gif?raw=true" width=224> | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-a%20serene%20scene%20of%20a%20clear%20blue%20sky.%20Dominating%20the%20top%20right%20corner%20of%20the%20frame%20is%20a%20single,%20fluffy.gif?raw=true" width=224>  | <img src="https://github.com/wtomin/mindone-assets/blob/main/opensora_pku/v1.1/t2v/overfit-fp65/0-an%20aerial%20view%20of%20a%20rugged%20landscape.%20Dominating%20the%20scene%20are%20large,%20jagged%20rocks%20that%20cut%20across%20e.gif?raw=true" width=224> |
+| a lively scene at a ski resort... | a serene scene of a clear blue sky...  | an aerial view of a rugged landscape...  |
+
 
 #### Performance
 
@@ -323,9 +355,11 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*x1-MS2.3_master(0615daily), CANN C18(0517) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.6  |
-| LatteT2V-XL/122 | D910\*x1-MS2.3_master(0615daily), CANN C18(0517) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  12.4  |
-
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.54  |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  10.57  |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 4   | 512x512     |  7.50 |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 1  |  8   |   221 + 4   | 512x512     | 7.18 |
+> Context: {NPU type}-{CANN version}-{MindSpore version}
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.

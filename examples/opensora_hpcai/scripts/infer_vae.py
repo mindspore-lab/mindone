@@ -36,7 +36,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
+    jit_level: str = "O0",
     global_bf16: bool = False,
 ):
     """
@@ -83,9 +83,18 @@ def init_env(
             device_target=device_target,
         )
 
-    if enable_dvm:
-        # FIXME: the graph_kernel_flags settting is a temp solution to fix dvm loss convergence in ms2.3-rc2. Refine it for future ms version.
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
+    try:
+        if jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            logger.warning(
+                f"Unsupport jit_level: {jit_level}. The framework automatically selects the execution method"
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
 
     if global_bf16:
         ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
@@ -117,6 +126,7 @@ def main(args):
         return_frame_data=args.dl_return_all_frames,
         resize_by_max_value=args.resize_by_max_value,
         transform_name=args.transform_name,
+        filter_data=args.filter_data,
     )
     dataloader, ds = create_dataloader(
         ds_config,
@@ -153,8 +163,8 @@ def main(args):
 
     logger.info("Start VAE embedding...")
 
-    def save_output(video_name, mean, std=None, fps=None, ori_size=None):
-        fn = Path(str(video_name)).with_suffix(".npz")
+    def save_output(video_name: Path, mean, std=None, fps=None, ori_size=None):
+        fn = video_name.with_suffix(".npz")
         npz_fp = os.path.join(output_folder, fn)
         if not os.path.exists(os.path.dirname(npz_fp)):
             os.makedirs(os.path.dirname(npz_fp))
@@ -200,9 +210,10 @@ def main(args):
                 ori_size = data["ori_size"][0]
                 assert args.batch_size == 1, "batch size > 1 is not supported due to dynamic frame numbers among videos"
                 for i in range(num_videos):
-                    video_path = data["video_path"][i]
+                    abs_video_path = data["video_path"][i]
+                    video_path = Path(abs_video_path).relative_to(args.video_folder)
 
-                    fn = Path(str(video_path)).with_suffix(".npz")
+                    fn = video_path.with_suffix(".npz")
                     npz_fp = os.path.join(output_folder, fn)
                     if os.path.exists(npz_fp) and not args.allow_overwrite:
                         logger.info(f"{npz_fp} exists, skip vae encoding")
@@ -228,10 +239,10 @@ def main(args):
             else:
                 num_videos = data["video_path"].shape[0]
                 for i in range(num_videos):
-                    video_path = data["video_path"][i]
-                    abs_video_path = os.path.join(args.video_folder, video_path)
+                    abs_video_path = data["video_path"][i]
+                    video_path = Path(abs_video_path).relative_to(args.video_folder)
 
-                    fn = Path(str(video_path)).with_suffix(".npz")
+                    fn = video_path.with_suffix(".npz")
                     npz_fp = os.path.join(output_folder, fn)
                     if os.path.exists(npz_fp) and not args.allow_overwrite:
                         logger.info(f"{npz_fp} exists, skip vae encoding")
@@ -297,6 +308,7 @@ def parse_args():
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
+    parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--image_size", nargs="+", default=[512, 512], type=int, help="image size")
     parser.add_argument(
         "--dl_return_all_frames",

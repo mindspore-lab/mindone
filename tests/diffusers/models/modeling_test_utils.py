@@ -1,34 +1,14 @@
 import importlib
-import inspect
 import logging
 
 import numpy as np
-import pytest
 import torch
 from diffusers.utils import BaseOutput
 
 import mindspore as ms
 from mindspore import nn, ops
 
-from .test_layers_cases import ALL_CASES
-
-logger = logging.getLogger("ModulesUnitTest")
-
-
-THRESHOLD_FP16 = 1e-2
-THRESHOLD_FP32 = 1e-3
-
-
-PT_DTYPE_MAPPING = {
-    "fp16": torch.float16,
-    "fp32": torch.float32,
-}
-
-
-MS_DTYPE_MAPPING = {
-    "fp16": ms.float16,
-    "fp32": ms.float32,
-}
+logger = logging.getLogger("ModelingsUnitTest")
 
 
 TORCH_FP16_BLACKLIST = (
@@ -40,6 +20,7 @@ TORCH_FP16_BLACKLIST = (
     "FirUpsample2D",
     "FirDownsample2D",
     "KDownsample2D",
+    "AutoencoderTiny",
 )
 
 
@@ -47,8 +28,10 @@ TORCH_FP16_BLACKLIST = (
 def get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
-        if isinstance(cell, nn.Conv1d):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
+        if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
+                ops.expand_dims(x, axis=-2), name=x.name
+            )
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -61,13 +44,13 @@ def get_pt2ms_mappings(m):
     return mappings
 
 
-# copied from mindone.diffusers.models.modeling_utils
+# adapted from mindone.diffusers.models.modeling_utils
 def convert_state_dict(m, state_dict_pt):
     mappings = get_pt2ms_mappings(m)
     state_dict_ms = {}
     for name_pt, data_pt in state_dict_pt.items():
         name_ms, data_mapping = mappings.get(name_pt, (name_pt, lambda x: x))
-        data_ms = data_mapping(ms.Parameter(ms.Tensor.from_numpy(data_pt.numpy())))
+        data_ms = ms.Parameter(data_mapping(ms.Tensor.from_numpy(data_pt.numpy())))
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -128,7 +111,7 @@ def set_dtype(model, dtype):
     return model
 
 
-def common_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
+def generalized_parse_args(pt_dtype, ms_dtype, *args, **kwargs):
     dtype_mappings = {
         "fp32": np.float32,
         "fp16": np.float16,
@@ -194,159 +177,3 @@ def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
         diffs.append(d)
 
     return diffs
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_graph_fp32(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp32"
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = common_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP32
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP32}"
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_graph_fp16(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp16"
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = common_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP16
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP16}"
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_pynative_fp32(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp32"
-    ms.set_context(mode=ms.PYNATIVE_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = common_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP32
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP32}"
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs",
-    ALL_CASES,
-)
-def test_named_modules_with_pynative_fp16(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-):
-    dtype = "fp16"
-    ms.set_context(mode=ms.PYNATIVE_MODE, jit_syntax_level=ms.STRICT)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = common_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
-    )
-
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-
-    diffs = compute_diffs(pt_outputs, ms_outputs)
-
-    assert (
-        np.array(diffs) < THRESHOLD_FP16
-    ).all(), f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD_FP16}"
