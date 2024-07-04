@@ -6,7 +6,7 @@ export GLOG_v=2
 # hyper-parameters
 image_size=512  # the image size of frames, same to image height and image width
 use_image_num=8  # to include n number of images in an input sample
-num_frames=221  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
+num_frames=513  # to sample m frames from a single video. The total number of images： num_frames + use_image_num
 model_dtype="bf16" # the data type used for mixed precision of the diffusion transformer model (LatteT2V).
 amp_level="O2" # the default auto mixed precision level for LatteT2V.
 enable_flash_attention="True" # whether to use MindSpore Flash Attention
@@ -28,6 +28,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --enable_flash_attention $enable_flash_attention \
     --batch_size=$batch_size \
     --dataloader_num_workers 1 \
+    --dataloader_prefetch_size 1 \
     --gradient_accumulation_steps=1 \
     --max_train_steps=1000000 \
     --start_learning_rate=$lr \
