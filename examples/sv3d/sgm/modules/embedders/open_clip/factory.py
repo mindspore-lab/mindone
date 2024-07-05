@@ -83,7 +83,7 @@ def create_model(
     if model_cfg is not None:
         logging.info(f"Loaded {model_name} model config.")
     else:
-        logging.error(f"Model config for {model_name} not found; available models {list_models()}.")
+        logging.error(f"Model config for {model_name} not found. available models {list_models()}.")
         raise RuntimeError(f"Model config for {model_name} not found.")
 
     # cast_dtype set for fp16 and bf16 (manual mixed-precision), not set for 'amp' or 'pure' modes

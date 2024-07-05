@@ -274,7 +274,7 @@ class AttentionBlock(nn.Cell):
         else:
             assert (
                 channels % num_head_channels == 0
-            ), f"q,k,v channels {channels} is not divisible by num_head_channels {num_head_channels}"
+            ), f"q, k, v channels {channels} is not divisible by num_head_channels {num_head_channels}"
             self.num_heads = channels // num_head_channels
         self.norm = normalization(channels)
         self.qkv = conv_nd(1, channels, channels * 3, 1)

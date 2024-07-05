@@ -12,7 +12,7 @@ import os
 import sys
 from glob import glob
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from loguru import logger
 
@@ -88,11 +88,14 @@ class SVD3InferPipeline(nn.Cell):
         shape = (self.num_frames, C, H // F, W // F)
         if (H, W) != (576, 1024) and "sv3d" not in self.version:
             print(
-                "WARNING: The conditioning frame you provided is not 576x1024. This leads to suboptimal performance as model was only trained on 576x1024. Consider increasing `cond_aug`."
+                "WARNING: The conditioning frame you provided is not 576x1024."
+                "This leads to suboptimal performance as model was only trained on 576x1024."
+                "Consider increasing `cond_aug`."
             )
         if (H, W) != (576, 576) and "sv3d" in self.version:
             print(
-                "WARNING: The conditioning frame you provided is not 576x576. This leads to suboptimal performance as model was only trained on 576x576."
+                "WARNING: The conditioning frame you provided is not 576x576."
+                "This leads to suboptimal performance as model was only trained on 576x576."
             )
         if self.motion_bucket_id > 255:
             print("WARNING: High motion bucket! This may lead to suboptimal performance.")
@@ -153,7 +156,8 @@ class SVD3InferPipeline(nn.Cell):
             self.model, randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs
         )
 
-        # # unlike the sv3d version of sdxl, we followed the original sdxl in mindone by passing in the whole model to sampler, rather than a denoiser in sv3d, as in the openai_wrapper the ms concat func does not support the current rank setup
+        # # unlike the sv3d version of sdxl, we followed the original sdxl in mindone by passing in the whole model to sampler
+        # rather than a denoiser in sv3d, as in the openai_wrapper the ms concat func does not support the current rank setup
         # samples_z = self.model.sampler(model, randn, cond=c, uc=uc, num_frames=num_frames)
         self.model.en_and_decode_n_samples_a_time = self.decoding_t
         samples_x = self.model.decode_first_stage(samples_z)
@@ -262,13 +266,13 @@ def sample(
         os.makedirs(output_folder, exist_ok=True)
         base_count = len(glob(os.path.join(output_folder, "*.mp4")))
 
-        imageio.imwrite(os.path.join(output_folder, f"{base_count:06d}.jpg"), input_image)
+        imageio.imwrite(os.path.join(output_folder, f"{base_count: 06d}.jpg"), input_image)
         # samples = embed_watermark(samples)  # TODO get the filtering/watermarking work
         # samples = filter(samples)
         samples = samples.asnumpy()
         vid = (rearrange(samples, "t c h w -> t h w c") * 255).astype(np.uint8)
 
-        video_path = os.path.join(output_folder, f"{base_count:06d}.mp4")
+        video_path = os.path.join(output_folder, f"{base_count: 06d}.mp4")
         imageio.mimwrite(video_path, vid)
 
 

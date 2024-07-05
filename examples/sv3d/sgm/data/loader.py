@@ -30,11 +30,11 @@ def create_loader(
 ):
     r"""Creates dataloader.
 
-    Applies operations such as transform and batch to the `ms.dataset.Dataset` object
-    created by the `create_dataset` function to get the dataloader.
+    Applies operations such as transform and batch to the 'ms.dataset.Dataset' object
+    created by the 'create_dataset' function to get the dataloader.
 
     Args:
-        dataset (COCODataset): dataset object created by `create_dataset`.
+        dataset (COCODataset): dataset object created by 'create_dataset'.
         per_batch_size (int or function): The number of rows each batch is created with. An
             int or callable object which takes exactly 1 parameter, BatchInfo.
         drop_remainder (bool, optional): Determines whether to drop the last block
@@ -55,7 +55,7 @@ def create_loader(
         assert dataset_config["target"].split(".")[-1] in ("Text2ImageDataset",)
 
         if data_path != cache_path:
-            print(f"train with cache, modify data_path `{data_path}` to `{cache_path}`")
+            print(f"train with cache, modify data_path '{data_path}' to '{cache_path}'")
             data_path = cache_path
 
         from sgm.data.dataset_cache import Text2ImageCacheDataset

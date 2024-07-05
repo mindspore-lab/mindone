@@ -128,13 +128,13 @@ def set_default(args):
     if args.data_sink:
         if args.sink_queue_size > 1:
             os.environ["MS_DATASET_SINK_QUEUE"] = f"{args.sink_queue_size}"
-            print(f"WARNING: Set env `MS_DATASET_SINK_QUEUE` to {args.sink_queue_size}.")
+            print(f"WARNING: Set env 'MS_DATASET_SINK_QUEUE' to {args.sink_queue_size}.")
         else:
             if os.environ.get("MS_DATASET_SINK_QUEUE") is None:
                 os.environ["MS_DATASET_SINK_QUEUE"] = "10"
-                print("WARNING: Set env `MS_DATASET_SINK_QUEUE` to 10.")
+                print("WARNING: Set env 'MS_DATASET_SINK_QUEUE' to 10.")
             else:
-                print(f"env `MS_DATASET_SINK_QUEUE`: {os.environ.get('MS_DATASET_SINK_QUEUE')}")
+                print(f"env 'MS_DATASET_SINK_QUEUE': {os.environ.get('MS_DATASET_SINK_QUEUE')}")
 
         assert args.dataset_load_tokenizer
         args.log_interval = args.sink_size
@@ -150,14 +150,14 @@ def set_default(args):
     if "cache_latent" in args and "cache_text_embedding" in args:
         assert (
             args.cache_latent == args.cache_text_embedding
-        ), "Please confirm that `args.cache_latent` and `args.cache_text_embedding` are consistent"
+        ), "Please confirm that 'args.cache_latent' and 'args.cache_text_embedding' are consistent"
 
     # Directories and Save run settings
     if args.save_path_with_time:
         # FIXME: Bug when running with rank_table on MindSpore 2.2.1; This is not a problem when running with OpenMPI
         time = _get_broadcast_datetime(rank_size=args.rank_size)
         args.save_path = os.path.join(
-            args.save_path, f"{time[0]:04d}.{time[1]:02d}.{time[2]:02d}-{time[3]:02d}.{time[4]:02d}.{time[5]:02d}"
+            args.save_path, f"{time[0]: 04d}.{time[1]: 02d}.{time[2]: 02d}-{time[3]: 02d}.{time[4]: 02d}.{time[5]: 02d}"
         )
     os.makedirs(args.save_path, exist_ok=True)
     os.makedirs(os.path.join(args.save_path, "weights"), exist_ok=True)
@@ -299,7 +299,7 @@ def create_model_sv3d(
                     c_num += 1
                     p.set_dtype(ms.float16)
 
-            print(f"Convert `{type(module).__name__}` param to fp16, keep/modify num {k_num}/{c_num}.")
+            print(f"Convert '{type(module).__name__}' param to fp16, keep/modify num {k_num}/{c_num}.")
 
     if load_filter:
         # TODO: Add DeepFloydDataFiltering
@@ -404,7 +404,7 @@ def convert_to_fp16(model, keep_norm_fp32=True):
                 c_num += 1
                 p.set_dtype(ms.float16)
 
-        print(f"Convert `{type(model).__name__}` param to fp16, keep/modify num {k_num}/{c_num}.")
+        print(f"Convert '{type(model).__name__}' param to fp16, keep/modify num {k_num}/{c_num}.")
 
     return model
 
@@ -863,7 +863,7 @@ def perform_save_locally(save_path, samples, num_cols=1):
 
     for sample in samples:
         sample = 255.0 * sample.transpose(1, 2, 0)
-        Image.fromarray(sample.astype(np.uint8)).save(os.path.join(save_path, f"{base_count:09}.png"))
+        Image.fromarray(sample.astype(np.uint8)).save(os.path.join(save_path, f"{base_count: 09}.png"))
         base_count += 1
 
 
@@ -922,7 +922,7 @@ def save_checkpoint(model, path, ckpt_queue, max_num_ckpt, only_save_lora=False)
 
 def delete_checkpoint(ckpt_queue, max_num_ckpt, only_save_lora):
     """
-    Only keep the latest `max_num_ckpt` ckpts while training. If max_num_ckpt == 0, keep all ckpts.
+    Only keep the latest 'max_num_ckpt' ckpts while training. If max_num_ckpt == 0, keep all ckpts.
     """
     if max_num_ckpt is not None and len(ckpt_queue) >= max_num_ckpt:
         del_ckpt = ckpt_queue.pop(0)

@@ -93,7 +93,7 @@ class DiffusersDDPMDiscretization(Discretization):
             timesteps = (np.arange(0, n) * step_ratio).round()[::-1].astype(np.float32)
             timesteps += self.steps_offset
         else:
-            raise NotImplementedError(f"Unsupported type `{self.timestep_spacing}`")
+            raise NotImplementedError(f"Unsupported type '{self.timestep_spacing}'")
 
         if n < self.num_timesteps:
             if self.interpolation_type == "linear":
@@ -102,7 +102,7 @@ class DiffusersDDPMDiscretization(Discretization):
                 sigmas = np.linspace(np.log(self.sigmas[-1]), np.log(self.sigmas[0]), n + 1)
                 sigmas = np.exp(sigmas)
             else:
-                raise NotImplementedError(f"Unsupported type `{self.interpolation_type}`")
+                raise NotImplementedError(f"Unsupported type '{self.interpolation_type}'")
         elif n == self.num_timesteps:
             sigmas = np.flip(self.sigmas, (0,))
         else:

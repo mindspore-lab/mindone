@@ -56,7 +56,7 @@ class CLIPAttention(nn.Cell):
         self.head_dim = self.embed_dim // self.num_heads
         if self.head_dim * self.num_heads != self.embed_dim:
             raise ValueError(
-                f"embed_dim must be divisible by num_heads (got `embed_dim`: {self.embed_dim} and `num_heads`:"
+                f"embed_dim must be divisible by num_heads (got 'embed_dim': {self.embed_dim} and 'num_heads': "
                 f" {self.num_heads})."
             )
         self.scale = self.head_dim**-0.5
@@ -116,7 +116,7 @@ class CLIPAttention(nn.Cell):
 
         if attn_output.shape != (bsz * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
-                f"`attn_output` should be of size {(bsz, self.num_heads, tgt_len, self.head_dim)}, but is"
+                f"'attn_output' should be of size {(bsz, self.num_heads, tgt_len, self.head_dim)}, but is"
                 f" {attn_output.shape}"
             )
 
@@ -160,7 +160,7 @@ class CLIPEncoderLayer(nn.Cell):
     ) -> Tuple[Tensor]:
         """
         Args:
-            hidden_states (`Tensor`): input to the layer of shape `(batch, seq_len, embed_dim)`
+            hidden_states ('Tensor'): input to the layer of shape '(batch, seq_len, embed_dim)'
         """
         residual = hidden_states
 
@@ -183,8 +183,8 @@ class CLIPEncoderLayer(nn.Cell):
 
 class CLIPEncoder(nn.Cell):
     """
-    Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
-    [`CLIPEncoderLayer`].
+    Transformer encoder consisting of 'config.num_hidden_layers' self attention layers. Each layer is a
+    ['CLIPEncoderLayer'].
 
     Args:
         config: CLIPConfig
@@ -205,19 +205,19 @@ class CLIPEncoder(nn.Cell):
     ):
         r"""
         Args:
-            inputs_embeds (`Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
-                Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation.
-                This is useful if you want more control over how to convert `input_ids` indices into associated vectors
+            inputs_embeds ('Tensor' of shape '(batch_size, sequence_length, hidden_size)'):
+                Optionally, instead of passing 'input_ids' you can choose to directly pass an embedded representation.
+                This is useful if you want more control over how to convert 'input_ids' indices into associated vectors
                 than the model's internal embedding lookup matrix.
-            causal_attention_mask (`Tensor` of shape `(batch_size, sequence_length)`, *optional*):
-                Causal mask for the text model. Mask values selected in `[0, 1]`:
+            causal_attention_mask ('Tensor' of shape '(batch_size, sequence_length)', *optional*):
+                Causal mask for the text model. Mask values selected in '[0, 1]':
 
                 - 1 for tokens that are **not masked**,
                 - 0 for tokens that are **masked**.
 
                 [What are attention masks?](../glossary#attention-mask)
-            output_hidden_states (`bool`, *optional*):
-                Whether or not to return the hidden states of all layers. See `hidden_states` under returned tensors
+            output_hidden_states ('bool', *optional*):
+                Whether or not to return the hidden states of all layers. See 'hidden_states' under returned tensors
                 for more detail.
         """
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -267,7 +267,7 @@ def _make_causal_mask(input_ids_shape, dtype, past_key_values_length: int = 0):
 # Copied from transformers.models.bart.modeling_bart._expand_mask
 def _expand_mask(mask, dtype, tgt_len: Optional[int] = None):
     """
-    Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
+    Expands attention_mask from '[bsz, seq_len]' to '[bsz, 1, tgt_seq_len, src_seq_len]'.
     """
     bsz, src_len = mask.shape
     tgt_len = tgt_len if tgt_len is not None else src_len
@@ -346,16 +346,16 @@ class CLIPTextModel(nn.Cell):
 
     def resize_token_embeddings(self, new_num_tokens: Optional[int] = None) -> nn.Embedding:
         """
-        Resizes input token embeddings matrix of the `CLIPTextTransformer` if `new_num_tokens != config.vocab_size`.
+        Resizes input token embeddings matrix of the 'CLIPTextTransformer' if 'new_num_tokens != config.vocab_size'.
 
         Arguments:
-            new_num_tokens (`int`, *optional*):
+            new_num_tokens ('int', *optional*):
                 The number of new tokens in the embedding matrix. Increasing the size will add newly initialized
-                vectors at the end. Reducing the size will remove vectors from the end. If not provided or `None`, just
-                returns a pointer to the input tokens `torch.nn.Embedding` module of the model without doing anything.
+                vectors at the end. Reducing the size will remove vectors from the end. If not provided or 'None', just
+                returns a pointer to the input tokens 'torch.nn.Embedding' module of the model without doing anything.
 
         Return:
-            `torch.nn.Embedding`: Pointer to the input tokens Embeddings Module of the model.
+            'torch.nn.Embedding': Pointer to the input tokens Embeddings Module of the model.
         """
         model_embeds = self._resize_token_embeddings(new_num_tokens)
         if new_num_tokens is None:
@@ -384,12 +384,12 @@ class CLIPTextModel(nn.Cell):
             Reducing the size will remove vectors from the end
 
         Args:
-            new_num_tokens: (`optional`) int
+            new_num_tokens: ('optional') int
                 New number of tokens in the embedding matrix.
                 Increasing the size will add newly initialized vectors at the end
                 Reducing the size will remove vectors from the end
                 If not provided or None: return the provided token Embedding Module.
-        Return: ``mindspore.nn.Embeddings``
+        Return: ''mindspore.nn.Embeddings''
             Pointer to the resized Embedding Module or the old Embedding Module if new_num_tokens is None
         """
         if new_num_tokens is None:
@@ -438,7 +438,7 @@ class CLIPTextModel(nn.Cell):
 
         Examples:
 
-        ```python
+        '''python
         >>> from transformers import CLIPTokenizer
 
         >>> model = CLIPTextModel(config_path='openai/clip-vit-large-patch14', weight=None)  #.from_pretrained("openai/clip-vit-base-patch32")
@@ -453,7 +453,7 @@ class CLIPTextModel(nn.Cell):
         >>> print(f"Input input_ids.shape: {input_ids.shape}")
         >>> print(f"Outputs last_hidden_state shape: {last_hidden_state.shape}")
         >>> print(f"Outputs pooled_output shape: {pooled_output.shape}")
-        ```
+        '''
         """
 
         return self.text_model(

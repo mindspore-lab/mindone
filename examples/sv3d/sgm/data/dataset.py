@@ -110,7 +110,7 @@ class Text2ImageDataset:
 
         if not _is_valid_text_input(caption):
             print(
-                f"WARNING: text input must of type `str`, but got type: {type(caption)}, caption: {caption}", flush=True
+                f"WARNING: text input must of type 'str', but got type: {type(caption)}, caption: {caption}", flush=True
             )
 
             caption = str(caption)
@@ -119,7 +119,7 @@ class Text2ImageDataset:
                 print("WARNING: convert caption type to string success.", flush=True)
             else:
                 caption = " "
-                print("WARNING: convert caption type to string fail, set caption to ` `.", flush=True)
+                print("WARNING: convert caption type to string fail, set caption to ' '.", flush=True)
 
         caption = np.array(caption)
 
@@ -168,7 +168,7 @@ class Text2ImageDataset:
             try:
                 tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
             except Exception as e:
-                print(f"WARNING: tokenize fail, error mg: {e}, convert data[`txt`]: {data['txt']} to ` `", flush=True)
+                print(f"WARNING: tokenize fail, error mg: {e}, convert data['txt']: {data['txt']} to ' '", flush=True)
                 data["txt"] = [" " for _ in range(len(data["txt"]))]
                 tokens, _ = self.tokenizer(data, lpw=self.lpw, max_embeddings_multiples=self.max_embeddings_multiples)
 
@@ -207,7 +207,7 @@ class Text2ImageDataset:
         for image, caption in zip(all_images, all_captions):
             w, h = imagesize.get(image)
             if min(w, h) < image_filter_size:
-                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                print(f"The size of image {image}: {w}x{h} < 'image_filter_size' and excluded from training.")
                 continue
             else:
                 filted_images.append(image)
@@ -423,7 +423,7 @@ class Text2ImageDatasetDreamBooth:
         for image in all_images:
             w, h = imagesize.get(image)
             if min(w, h) < image_filter_size:
-                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                print(f"The size of image {image}: {w}x{h} < 'image_filter_size' and excluded from training.")
                 continue
             else:
                 filted_images.append(image)
@@ -519,7 +519,7 @@ class Text2ImageDatasetTextualInversion(Text2ImageDataset):
         for image in all_images:
             w, h = imagesize.get(image)
             if min(w, h) < image_filter_size:
-                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                print(f"The size of image {image}: {w}x{h} < 'image_filter_size' and excluded from training.")
                 continue
             else:
                 filted_images.append(image)
@@ -655,7 +655,7 @@ class Text2ImageControlNetDataset(Text2ImageDataset):
         for image, control_image, caption in zip(all_images, all_control_images, all_captions):
             w, h = imagesize.get(image)
             if min(w, h) < image_filter_size:
-                print(f"The size of image {image}: {w}x{h} < `image_filter_size` and excluded from training.")
+                print(f"The size of image {image}: {w}x{h} < 'image_filter_size' and excluded from training.")
                 continue
             else:
                 filted_images.append(image)

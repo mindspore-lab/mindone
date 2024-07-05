@@ -89,7 +89,7 @@ def download_pretrained_from_url(
                 return download_target
             else:
                 warnings.warn(
-                    f"{download_target} exists, but the SHA256 checksum does not match; re-downloading the file"
+                    f"{download_target} exists, but the SHA256 checksum does not match. re-downloading the file"
                 )
         else:
             return download_target

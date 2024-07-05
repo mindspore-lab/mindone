@@ -31,28 +31,6 @@ class Denoiser(nn.Cell):
 
         return c_skip, c_out, c_in, c_noise
 
-    # the sv3d version refactored construct(), hwvr it seems like can hardly get thru with ms construct()
-    # june 24: now I think it's better to follow sv3d as the refactor is too drastic
-
-    # # is it possible that for ms.Tensor.construct(), you can never put the network model in for `construct` again to have these sort of dead loop? which will be shown as the multiple input for a single arg now in `wrapper_as_sv3d_analyze_fail`
-    # def construct(self, network, input, sigma, cond, **additional_model_inputs):
-    #     sigma = ops.cast(sigma, ms.float32)
-    #     sigma = self.possibly_quantize_sigma(sigma)
-    #     sigma_shape = sigma.shape
-    #     sigma = append_dims(sigma, input.ndim)
-    #     c_skip, c_out, c_in, c_noise = self.scaling(sigma)
-    #     c_noise = self.possibly_quantize_c_noise(c_noise.reshape(sigma_shape))
-    #
-    #     # return network(input * c_in, c_noise, cond, **additional_model_inputs) * c_out + input * c_skip
-    #     return network(
-    #         x=input * c_in,
-    #         t=c_noise,
-    #         concat=cond['concat'],
-    #         context=cond['crossattn'],
-    #         y=cond['vector'],
-    #         **additional_model_inputs
-    #     ) * c_out + input * c_skip
-
 
 class DiscreteDenoiser(Denoiser):
     def __init__(

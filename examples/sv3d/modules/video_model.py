@@ -3,26 +3,13 @@ from typing import List, Optional, Set, Tuple, Union
 try:
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal  # FIXME: python 3.7
+    from typing_extensions import Literal
 
-from sgm.modules.attention import (
-    FLASH_IS_AVAILABLE,
-    CrossAttention,
-    FeedForward,
-    MemoryEfficientCrossAttention,
-    SpatialTransformer,
-)
-from sgm.modules.diffusionmodules.openaimodel import *
+from sgm.modules.attention import CrossAttention, FeedForward, MemoryEfficientCrossAttention, SpatialTransformer
 from sgm.modules.diffusionmodules.openaimodel import Downsample, ResBlock, Timestep, TimestepBlock, Upsample
 from sgm.modules.diffusionmodules.util import AlphaBlender, conv_nd, normalization, timestep_embedding, zero_module
-from sgm.modules.video_attention import SpatialVideoTransformer
-from sgm.util import default
 
 from mindspore import Tensor, nn, ops
-
-"""
-I highly doubt that the videounet here has to be done according to sv3d itself, as the changes in ckpts and orbital condition is too big to make the svd version vunet (as the new changes below) to be used.
-"""
 
 
 class TimestepEmbedSequential(nn.SequentialCell, TimestepBlock):

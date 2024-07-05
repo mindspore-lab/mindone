@@ -9,7 +9,7 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list
+from mindspore.train.amp import AMP_BLACK_LIST, AMP_WHITE_LIST, _auto_black_list, _auto_white_list
 
 
 def exists(x):
@@ -33,7 +33,7 @@ def expand_dims_like(x, y):
 def count_params(model, verbose=False):
     total_params = sum([p.asnumpy().size for _, p in model.parameters_and_names()])  # tensor.numel()
     if verbose:
-        print(f"{model.__class__.__name__} has {total_params * 1.e-6:.2f} M params.")
+        print(f"{model.__class__.__name__} has {total_params * 1.e-6: .2f} M params.")
     return total_params
 
 

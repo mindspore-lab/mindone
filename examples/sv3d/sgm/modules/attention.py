@@ -253,7 +253,7 @@ class BasicTransformerBlock(nn.Cell):
         if attn_mode != "softmax" and not FLASH_IS_AVAILABLE:
             print(
                 f"Attention mode '{attn_mode}' is not available. Falling back to native attention. "
-                f"This is not a problem in MindSpore >= 2.0.1 on Ascend devices; "
+                f"This is not a problem in MindSpore >= 2.0.1 on Ascend devices "
                 f"FYI, you are running with MindSpore version {ms.__version__}"
             )
             attn_mode = "softmax-xformers"

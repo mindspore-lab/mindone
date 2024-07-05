@@ -10,7 +10,7 @@ class TextualInversionManager:
         self.num_vectors = num_vectors
         if self.placeholder_token is None or self.num_vectors is None:
             print(
-                "TextualInversionManager is not READY. Please run `load_checkpoint_textual_inversion` first, "
+                "TextualInversionManager is not READY. Please run 'load_checkpoint_textual_inversion' first, "
                 "or set placeholder_token and num_vectors."
             )
 
@@ -93,7 +93,7 @@ class TextualInversionManager:
             if num_added_tokens != num_vectors:
                 raise ValueError(
                     f"The tokenizer already contains the token {placeholder_token}. Please pass a different"
-                    " `placeholder_token` that is not already in the tokenizer."
+                    " 'placeholder_token' that is not already in the tokenizer."
                 )
             placeholder_token_ids = tokenizer.convert_tokens_to_ids(placeholder_tokens)
             # initiate a new embedding which has the same name, dtype, requires_grad as the old embedding, but shape is different
@@ -166,7 +166,7 @@ class TextualInversionManager:
         if "num_vectors" in ti_checkpoint:
             if num_vectors is not None and verbose:
                 print(
-                    f"Found `num_vectors={ti_checkpoint['ti_checkpoint']}` in the provided checkpoint. Overwrites the num_vectors value {num_vectors}"
+                    f"Found 'num_vectors={ti_checkpoint['ti_checkpoint']}' in the provided checkpoint. Overwrites the num_vectors value {num_vectors}"
                 )
             num_vectors = int(ti_checkpoint["num_vectors"].value())
             del ti_checkpoint["num_vectors"]
@@ -177,7 +177,7 @@ class TextualInversionManager:
         if "placeholder_token" in ti_checkpoint:
             if placeholder_token is not None and verbose:
                 print(
-                    f"Found `num_vectors={ti_checkpoint['placeholder_token']}` in the provided checkpoint. Overwrites the num_vectors value {placeholder_token}"
+                    f"Found 'num_vectors={ti_checkpoint['placeholder_token']}' in the provided checkpoint. Overwrites the num_vectors value {placeholder_token}"
                 )
             placeholder_token = ti_checkpoint["placeholder_token"]
             del ti_checkpoint["placeholder_token"]
@@ -198,7 +198,7 @@ class TextualInversionManager:
         ti_params = self.get_textual_inversion_params()
         for name in ti_ckpt:
             data = ti_ckpt[name].value()
-            assert any([param.name == name for param in ti_params]), f"{name} not found in textual inversion params!"
+            assert any([param.name == name for param in ti_params]), f"{name} not in textual inversion params!"
             for param in ti_params:
                 if param.name == name:
                     embedding_table = param

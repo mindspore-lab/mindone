@@ -4,7 +4,7 @@ from einops import rearrange, repeat
 
 from mindspore import Tensor, nn, ops
 
-from ..modules.attention import *
+from ..modules.attention import CrossAttention, FeedForward, MemoryEfficientCrossAttention, SpatialTransformer, exists
 from ..modules.diffusionmodules.util import AlphaBlender, linear, timestep_embedding
 
 
