@@ -397,20 +397,20 @@ def main(args):
         # model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"Model uses random initialization!")
-    logger.info(f"enable_flash_attention: {model.model.diffusion_model.enable_flash_attention}")
 
     model.set_train(False)
 
-    jitconfig = JitConfig(jit_level=args.jit_level)
-    model.set_jit_config(jitconfig)
+    # Backend mode setting:
+    if args.mode == 0:  # jit_config only takes effect in Graph mode
+        ms.set_context(jit_config={"jit_level": args.jit_level})
 
     # mixed precision setting
-    # WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]
-    # dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-    # if args.dtype in ["fp16", "bf16"]:
-    #     model = auto_mixed_precision(
-    #         model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
-    #     )
+    WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+    if args.dtype in ["fp16", "bf16"]:
+        model = auto_mixed_precision(
+            model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
+        )
 
 
     """get ms params
@@ -437,6 +437,22 @@ def main(args):
 
     # # os.makedirs(fakedir, exist_ok=True)
     # os.makedirs(fakedir_separate, exist_ok=True)
+
+    # Print key info
+    key_info = "Key Settings:\n" + "=" * 50 + "\n"
+    key_info += "\n".join(
+        [
+            f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+            f"MindSpore jit_level: {args.jit_level if args.mode == 0 else 'NOT in effect in PYNATIVE mode'}",
+            f"amp_level: {args.amp_level}",
+            f"amp_level with dtype: {args.dtype}",
+            f"enable_flash_attention: {model.model.diffusion_model.enable_flash_attention}",
+            f"DDIM steps: {args.ddim_steps}",
+            f"Height*Width: {args.height}*{args.width}",
+        ]
+    )
+    key_info += "\n" + "=" * 50
+    logger.info(key_info)
 
     for idx, indice in tqdm(enumerate(range(0, len(prompt_list), args.bs)), desc='Sample Batch'):
                 prompts = prompt_list[indice:indice+args.bs]

@@ -194,7 +194,7 @@ class DDIMSampler(object):
         iterator = time_range
         clean_cond = kwargs.pop("clean_cond", False)
 
-        for i, step in tqdm(enumerate(iterator), total=len(iterator)):
+        for i, step in tqdm(enumerate(iterator), desc="DDIM Sampling", total=len(iterator)):
             index = total_steps - i - 1
             ts = ms.numpy.full((b,), step, dtype=ms.int64)
 
@@ -296,6 +296,15 @@ class DDIMSampler(object):
             if guidance_rescale > 0.0:
                 model_output = rescale_noise_cfg(model_output, model_t, guidance_rescale=guidance_rescale)
         """
+        for k, v in c.items():
+            if isinstance(v, list):
+                assert len(v) == 1
+                c[k] = v[0]
+
+        for k, v in unconditional_conditioning.items():
+            if isinstance(v, list):
+                assert len(v) == 1
+                unconditional_conditioning[k] = v[0]
 
         if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
             model_output = self.model.apply_model(x, t, c, **kwargs) # unet denoiser

@@ -195,7 +195,8 @@ class CrossAttention(nn.Cell):
             enable_flash_attention and FLASH_IS_AVAILABLE and (ms.context.get_context("device_target") == "Ascend")
         )
         if self.enable_flash_attention:
-            attn_dtype = ms.bfloat16
+            # follow the auto_mixed_precision dtype
+            attn_dtype = ms.float16  # ms.bfloat16
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.head_num,
@@ -329,7 +330,7 @@ class Attention(nn.Cell):
             k2 = self.relative_position_k(len_q, len_k)
             sim2 = ops.matmul(q, ops.transpose(k2, (0, 2, 1))) * self.scale
             sim += sim2
-        del k
+        # del k
 
         if exists(mask):
             mask = ops.reshape(mask, (mask.shape[0], -1))
@@ -360,7 +361,7 @@ class Attention(nn.Cell):
             k_ip = self._rearrange_in(k_ip, self.head_num)
             v_ip = self._rearrange_in(v_ip, self.head_num)
             sim_ip = ops.matmul(q, ops.transpose(k_ip, (0, 2, 1))) * self.scale
-            del k_ip
+            # del k_ip
             # del q
             sim_ip = sim_ip.softmax(axis=-1)
             out_ip = ops.matmul(sim_ip, v_ip)

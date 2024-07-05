@@ -837,17 +837,14 @@ class DiffusionWrapper(nn.Cell):
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
-            x_concat = ops.concat([x] + c_concat, axis=1)
+            x_concat = ops.concat((x, c_concat), axis=1)
             out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":  # t2v task
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
-            # import pdb;pdb.set_trace()
-            # x_concat = ops.concat((x, c_concat), axis=1)
-            # context = c_crossattn
-            x_concat = ops.concat([x] + c_concat, axis=1)
-            context = c_crossattn[0]
+            x_concat = ops.concat((x, c_concat), axis=1)
+            context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)
         elif self.conditioning_key == "crossattn-adm":
             context = c_crossattn

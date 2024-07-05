@@ -756,7 +756,7 @@ class UNetModel(nn.Cell):
     def construct(self, x, timesteps, context=None, features_adapter=None, fs=None, **kwargs):
         # import pdb;pdb.set_trace()
         b,_,t,_,_ = x.shape
-        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).type(x.dtype)
+        t_emb = timestep_embedding(timesteps, self.model_channels, repeat_only=False).astype(x.dtype)
         emb = self.time_embed(t_emb)
         
         ## repeat t times for context [(b t) 77 768] & time embedding
@@ -784,13 +784,13 @@ class UNetModel(nn.Cell):
             if fs is None:
                 # fs = torch.tensor([self.default_fs] * b, dtype=torch.long, device=x.device)
                 fs = ms.Tensor([self.default_fs] * b, dtype=ms.int64)
-            fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).type(x.dtype)
+            fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).astype(x.dtype)
 
             fs_embed = self.fps_embedding(fs_emb)
             fs_embed = fs_embed.repeat_interleave(repeats=t, dim=0)
             emb = emb + fs_embed
 
-        h = x.type(self.dtype)
+        h = x.astype(self.dtype)
         adapter_idx = 0
         hs = []
         for id, module in enumerate(self.input_blocks):
@@ -806,11 +806,11 @@ class UNetModel(nn.Cell):
             assert len(features_adapter)==adapter_idx, 'Wrong features_adapter'
 
         h = self.middle_block(h, emb, context=context, batch_size=b)
-        for module in self.output_blocks:
-            hs_pop = hs.pop()
+        for i, module in enumerate(self.output_blocks):
+            hs_pop = hs[-(i+1)]
             h = ops.cat([h, hs_pop], axis=1)
             h = module(h, emb, context=context, batch_size=b)
-        h = h.type(x.dtype)
+        h = h.astype(x.dtype)
         y = self.out(h)
 
         # reshape back to (b c t h w)
