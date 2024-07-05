@@ -61,5 +61,9 @@ python sample.py -c configs/inference/pixart-1024-MS.yaml --image_width 1024 --i
 ### Finetuning (WIP)
 
 ```bash
-python infer_t5.py --csv_path path_of_the_csv_file --output_path path_of_the_output_directory
+python infer_t5.py --csv_path path_to_the_csv_file --output_path path_of_the_output_directory
+```
+
+```bash
+python infer_vae.py --csv_path path_to_the_csv_file --image_dir path_storing_image_files --output_path path_of_the_output_directory
 ```

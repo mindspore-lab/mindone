@@ -1,0 +1,23 @@
+# model
+sample_size: 64
+batch_size: 64
+checkpoint: "models/PixArt-XL-2-512x512.ckpt"
+sd_scale_factor: 0.18215
+enable_flash_attention: True
+dtype: "fp16"
+
+# training hyper-parameters
+epochs: 200
+scheduler: "constant"
+start_learning_rate: 2.0e-5
+optim: "adamw"
+weight_decay: 0.03
+optim_eps: 1.0e-10
+auto_lr: "sqrt"
+loss_scaler_type: 1.0
+init_loss_scale: 65536.0
+use_ema: True
+ema_rate: 0.9999
+gradient_accumulation_steps: 1
+clip_grad: True
+max_grad_norm: 0.01

@@ -1,8 +1,9 @@
 import logging
 import os
+from typing import Tuple
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import Tensor, ops
 
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 
@@ -40,7 +41,8 @@ class AutoencoderKL(AutoencoderKL_SD):
                 f"{param_not_load} in network is not loaded or {ckpt_not_load} in checkpoint is not loaded!"
             )
 
-    def encode_with_moments_output(self, x):
+    @ms.jit
+    def encode_with_moments_output(self, x) -> Tuple[Tensor, Tensor]:
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)

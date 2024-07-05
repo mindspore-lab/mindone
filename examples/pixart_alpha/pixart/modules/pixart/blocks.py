@@ -339,15 +339,8 @@ class SizeEmbedder(TimestepEmbedder):
         self.frequency_embedding_size = frequency_embedding_size
         self.outdim = hidden_size
 
-    def construct(self, s: Tensor, bs: int) -> Tensor:
-        if s.ndim == 1:
-            s = s[:, None]
-
+    def construct(self, s: Tensor) -> Tensor:
         assert s.ndim == 2
-        if s.shape[0] != bs:
-            s = s.repeat(bs // s.shape[0], 1)
-            assert s.shape[0] == bs
-
         b = s.shape[0]
         s = ops.reshape(s, (-1,))
         s_freq = self.timestep_embedding(s, self.frequency_embedding_size)

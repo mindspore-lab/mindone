@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+all = ["image_grid", "resize_and_crop_tensor"]
+
 
 def image_grid(imgs: List[Union[Image.Image, np.ndarray]], ncols: int = 4) -> Image.Image:
     imgs = [Image.fromarray((x * 255).astype(np.uint8)) if isinstance(x, np.ndarray) else x for x in imgs]

@@ -18,7 +18,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from pixart.modules.text_encoder import T5Embedder
-from pixart.utils.model_utils import str2bool
+from pixart.utils import str2bool
 
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
@@ -55,7 +55,7 @@ def init_env(args) -> None:
 
 
 def main(args):
-    set_logger(name="", output_dir="logs/t5")
+    set_logger(output_dir="logs/infer_t5")
 
     # init env
     args = parse_args()
@@ -91,8 +91,6 @@ def main(args):
     else:
         output_dir = args.output_path
     os.makedirs(output_dir, exist_ok=True)
-    logger.info(f"Output embeddings will be saved: {output_dir}")
-    logger.info("Start embedding...")
 
     ds_iter = dataset.create_tuple_iterator(num_epochs=1, output_numpy=True)
     for paths, texts in tqdm(ds_iter, total=len(dataset)):
@@ -101,17 +99,17 @@ def main(args):
         text_emb, text_mask = text_emb.asnumpy(), text_mask.asnumpy().astype(np.bool_)
         assert text_emb.shape[0] == len(paths)
 
-        # save the embeddings aligning to video frames
         for i in range(text_emb.shape[0]):
             filename = os.path.splitext(paths[i])[0] + ".npz"
             filepath = os.path.join(output_dir, filename)
-            np.savez_compressed(filepath, text_mask=text_mask[i], text_emb=text_emb[i])
+            np.savez(filepath, text_mask=text_mask[i], text_emb=text_emb[i])
     logger.info(f"Done. Embeddings saved in {output_dir}")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Extract t5 feature from a csv file", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Extract t5 feature from a csv file list captions of images",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--csv_path", required=True, help="path to csv annotation file.")
     parser.add_argument("--path_column", default="dir", help="column name of image path in csv file.")
@@ -123,12 +121,12 @@ def parse_args():
     parser.add_argument(
         "--t5_root", default="models/t5-v1_1-xxl", help="Path storing the T5 checkpoint and tokenizer configure file."
     )
-    parser.add_argument("--t5_max_length", type=int, default=120, help="T5's embedded sequence length.")
-    parser.add_argument("--clean_caption", type=str2bool, default=False, help="clean the prompt before encoding.")
-    # MS new args
-    parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)")
-    parser.add_argument("--seed", type=int, default=4, help="Inference seed")
+    parser.add_argument("--t5_max_length", default=120, type=int, help="T5's embedded sequence length.")
+    parser.add_argument("--clean_caption", default=False, type=str2bool, help="clean the prompt before encoding.")
+
+    parser.add_argument("--device_target", default="Ascend", choices=["CPU", "GPU", "Ascend"], help="Device target")
+    parser.add_argument("--mode", default=0, type=int, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1)")
+    parser.add_argument("--seed", default=4, type=int, help="Inference seed")
     parser.add_argument(
         "--dtype", default="fp32", choices=["bf16", "fp16", "fp32"], help="what data type to use for T5."
     )
