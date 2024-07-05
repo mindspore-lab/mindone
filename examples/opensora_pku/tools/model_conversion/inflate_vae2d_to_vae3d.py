@@ -94,6 +94,7 @@ def inflate(args):
             raise NotImplementedError(f"Key {key_3d} ({key_2d}) not implemented")
 
     ms.save_checkpoint(new_state_dict, save_fp)
+    print(f"The inflated checkpoint is saved in {save_fp}")
 
 
 if __name__ == "__main__":

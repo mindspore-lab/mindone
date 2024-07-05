@@ -10,4 +10,4 @@ python opensora/train/train_causalvae.py \
     --resolution 256 \
     --sample_rate 1 \
     --dataloader_num_workers 8 \
-    --load_from_checkpoint ./results/pretrained_488/ \
+    --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \

@@ -55,17 +55,11 @@ def main(args):
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     # Load Config
-
+    assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
+    model_config = json.load(args.model_config)
+    ae = CausalVAEModel.from_config(model_config)
     if args.load_from_checkpoint is not None:
-        model_config_path = os.path.join(args.load_from_checkpoint, "config.json")
-        assert os.path.exists(model_config_path), f"{model_config_path} does not exist!"
-        model_config = json.load(model_config_path)
-        ae = CausalVAEModel.from_pretrained(args.load_from_checkpoint)
-    else:
-        assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
-        model_config = json.load(args.model_config)
-        ae = CausalVAEModel.from_config(model_config)
-
+        ae = ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
     use_discriminator = args.use_discriminator and (model_config["loss_params"]["disc_weight"] > 0.0)
 
