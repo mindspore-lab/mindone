@@ -238,10 +238,10 @@ Causal video vae can be initialized from vae 2d for better convergence. This can
 
 ```
 python tools/model_conversion/inflate_vae2d_to_vae3d.py \
-    --src /path/to/vae_2d.ckpt  \
+    --src /path/to/sd-vae-ft-mse.ckpt  \
     --target pretrained/causal_vae_488_init.ckpt
 ```
-> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae.py` for model conversion, e.g., after downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights.
+> In case you lack vae 2d checkpoint in mindspore format, please use `tools/model_conversion/convert_vae_2d.py` for model conversion. After downloading the [sd-vae-ft-mse](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main) weights, you can run `python tools/model_conversion/convert_vae_2d.py --src path/to/diffusion.safetensor --target /path/to/sd-vae-ft-mse.ckpt`.
 
 Please also download [lpips_vgg-426bf45c.ckpt](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt) and put it under `pretrained/` for training with lpips loss.
 

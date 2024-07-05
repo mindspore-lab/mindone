@@ -41,6 +41,8 @@ def inflate(args):
     map_dict = {
         "conv.weight": "weight",
         "conv.bias": "bias",
+        "downsample.weight": "downsample.conv.weight",
+        "downsample.bias": "downsample.conv.bias",
     }
 
     new_state_dict = {}
@@ -55,7 +57,11 @@ def inflate(args):
         for kw in map_dict:
             key_2d = key_2d.replace(kw, map_dict[kw])
 
-        assert key_2d in vae_2d_keys, f"Key {key_2d} ({key_3d}) not found in 2D VAE"
+        if key_2d not in vae_2d_keys:
+            if "time_upsample" in key_2d or "time_downsample" in key_2d:
+                continue
+            else:
+                print(f"Key {key_2d} ({key_3d}) not found in 2D VAE")
 
         # set vae 3d state dict
         shape_3d = ae.parameters_dict()[key_3d].shape
@@ -69,14 +75,17 @@ def inflate(args):
         elif "conv" in key_2d or "nin_shortcut" in key_2d:
             if shape_3d[:2] != shape_2d[:2]:
                 print(key_2d, shape_3d, shape_2d)
-            w = vae2d_sd[key_2d]
-            new_w = ms.ops.zeros(shape_3d, dtype=w.dtype)
-            # tail initialization
-            new_w[:, :, -1, :, :] = w  # cin, cout, t, h, w
+            if len(shape_3d) > len(shape_2d):
+                w = vae2d_sd[key_2d]
+                new_w = ms.ops.zeros(shape_3d, dtype=w.dtype)
+                # tail initialization
+                new_w[:, :, -1, :, :] = w  # cin, cout, t, h, w
 
-            new_w = ms.Parameter(new_w, name=key_3d)
+                new_w = ms.Parameter(new_w, name=key_3d)
 
-            new_state_dict[key_3d] = new_w
+                new_state_dict[key_3d] = new_w
+            else:
+                new_state_dict[key_3d] = vae2d_sd[key_2d]
         elif "attn_1" in key_2d:
             new_val = vae2d_sd[key_2d].expand_dims(axis=2)
             new_param = ms.Parameter(new_val, name=key_3d)
