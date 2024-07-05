@@ -1,0 +1,36 @@
+name: docs
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+            fetch-depth: 0
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/docs.txt
+      - name: Build site
+        run: mkdocs build
+      - name: Deploy to gh-pages
+        if: github.event_name == 'push' && github.repository == 'mindspore-lab/mindone'
+        run: |
+          git config --global user.name MkDocs Deployer
+          git config --global user.email mkdocs@bot.com
+          # TODO: semantic versioning
+          mike deploy -u -p 0.1 latest
+          mike set-default -p latest

@@ -20,6 +20,11 @@ from mindspore.communication.management import get_group_size, get_rank, init
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(os.path.abspath("./"))
+from opensora.acceleration.parallel_states import (
+    get_sequence_parallel_state,
+    hccl_info,
+    initialize_sequence_parallel_state,
+)
 from opensora.dataset.text_dataset import create_dataloader
 from opensora.models.ae import ae_stride_config, getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
@@ -51,6 +56,7 @@ def init_env(
     enable_dvm: bool = False,
     precision_mode: str = None,
     global_bf16: bool = False,
+    sp_size: int = 1,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -116,6 +122,12 @@ def init_env(
         ms.set_context(
             ascend_config={"precision_mode": "allow_mix_precision_bf16"}
         )  # reset ascend precison mode globally
+
+    assert device_num >= sp_size and device_num % sp_size == 0, (
+        f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
+    )
+    initialize_sequence_parallel_state(sp_size)
+
     return rank_id, device_num
 
 
@@ -146,6 +158,8 @@ def parse_args():
     parser.add_argument("--height", type=int, default=512)
     parser.add_argument("--width", type=int, default=512)
     parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
+
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
 
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--save_img_path", type=str, default="./sample_videos/t2v")
@@ -273,6 +287,7 @@ if __name__ == "__main__":
         enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
         global_bf16=args.global_bf16,
+        sp_size=args.sp_size,
     )
 
     # 2. vae model initiate and weight loading
@@ -338,8 +353,8 @@ if __name__ == "__main__":
         num_parallel_workers=12,
         max_rowsize=32,
         shuffle=False,  # be in order
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         drop_remainder=False,
     )
     dataset_size = dataset.get_dataset_size()
@@ -486,19 +501,25 @@ if __name__ == "__main__":
             .video.to(ms.float32)
             .asnumpy()
         )
-        for i_sample in range(args.batch_size):
-            file_path = os.path.join(save_dir, file_paths[i_sample])
-            assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
-            if args.save_latents:
-                np.save(file_path, videos[i_sample : i_sample + 1])
-            else:
-                if args.force_images:
-                    image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
-                    image = (image * 255).round().clip(0, 255).astype(np.uint8)
-                    Image.from_numpy(image).save(file_path)
+
+        if get_sequence_parallel_state() and hccl_info.rank % hccl_info.world_size != 0:
+            pass
+        else:
+            # save result
+            for i_sample in range(args.batch_size):
+                file_path = os.path.join(save_dir, file_paths[i_sample])
+                assert ext in file_path, f"Only support saving as {ext} files, but got {file_path}."
+                if args.save_latents:
+                    np.save(file_path, videos[i_sample : i_sample + 1])
                 else:
-                    save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
-                    save_videos(save_video_data, file_path, loop=0, fps=args.fps)
+                    if args.force_images:
+                        image = videos[i_sample, 0]  # (b t h w c)  -> (h, w, c)
+                        image = (image * 255).round().clip(0, 255).astype(np.uint8)
+                        Image.from_numpy(image).save(file_path)
+                    else:
+                        save_video_data = videos[i_sample : i_sample + 1]  # (b t h w c)
+                        save_videos(save_video_data, file_path, loop=0, fps=args.fps)
+
     end_time = time.time()
     time_cost = end_time - start_time
     logger.info(f"Inference time cost: {time_cost:0.3f}s")

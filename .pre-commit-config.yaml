@@ -4,6 +4,7 @@ repos:
     hooks:
       # list of supported hooks: https://pre-commit.com/hooks.html
       - id: check-yaml
+        args: ["--unsafe"]
       - id: debug-statements
       - id: end-of-file-fixer
       - id: mixed-line-ending

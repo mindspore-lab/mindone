@@ -11,7 +11,8 @@ from mindspore.train.callback import TimeMonitor
 mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
-# from mindcv.optim.adamw import AdamW
+
+from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
 from opensora.dataset.t2v_dataset import create_dataloader
 from opensora.models.ae import ae_channel_config, ae_stride_config, getae_wrapper
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
@@ -72,6 +73,7 @@ def main(args):
         global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
+        sp_size=args.sp_size,
     )
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
     if args.use_deepspeed:
@@ -236,8 +238,8 @@ def main(args):
         ds_config,
         batch_size=args.batch_size,
         shuffle=True,
-        device_num=device_num,
-        rank_id=rank_id,
+        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
+        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
     )
@@ -391,16 +393,18 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
-                f"Distributed mode: {args.use_parallel}" + f"\nParallel mode: {args.parallel_mode}"
-                if args.use_parallel
-                else "",
+                f"Distributed mode: {args.use_parallel}"
+                + (f"\nParallel mode: {args.parallel_mode}" if args.use_parallel else ""),
                 f"Num params: {num_params:,} (latte: {num_params_latte:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Transformer model dtype: {model_dtype}",
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
-                f"VAE dtype: {vae_dtype} (amp level O2)" + f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
-                if text_encoder_dtype is not None
-                else "",
+                f"VAE dtype: {vae_dtype} (amp level O2)"
+                + (
+                    f"\nText encoder dtype: {text_encoder_dtype} (amp level O2)"
+                    if text_encoder_dtype is not None
+                    else ""
+                ),
                 f"Learning rate: {args.start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
@@ -516,6 +520,7 @@ def parse_t2v_train_args(parser):
         help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
         "This is a positive integer which can be tuned based on the memory usage.",
     )
+    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
     parser.add_argument(
         "--vae_keep_gn_fp32",
         default=False,
