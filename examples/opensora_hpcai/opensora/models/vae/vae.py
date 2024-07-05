@@ -25,6 +25,8 @@ SD_CONFIG = {
     "attn_resolutions": [],
     "dropout": 0.0,
 }
+SDXL_CONFIG = SD_CONFIG.copy()
+SDXL_CONFIG.update({"resolution": 512})
 
 
 class AutoencoderKL(AutoencoderKL_SD):
@@ -52,12 +54,6 @@ class AutoencoderKL(AutoencoderKL_SD):
         std = self.exp(0.5 * logvar)
 
         return mean, std
-
-
-# -------------------------------- OpenSora v1.2 Begin ------------------------------------ #
-
-SDXL_CONFIG = SD_CONFIG.copy()
-SDXL_CONFIG.update({"resolution": 512})
 
 
 class VideoAutoencoderKL(nn.Cell):
@@ -232,6 +228,12 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.spatial_vae = build_module_from_config(config.vae_2d)
         self.temporal_vae = build_module_from_config(config.vae_temporal)
 
+        # recompute
+        if config.use_recompute:
+            if not config.freeze_vae_2d:
+                self.recompute(self.spatial_vae) #.recompute()
+            self.recompute(self.temporal_vae)  #.recompute()
+
         self.cal_loss = config.cal_loss
         self.micro_frame_size = config.micro_frame_size
         self.micro_z_frame_size = self.temporal_vae.get_latent_size([config.micro_frame_size, None, None])[0]
@@ -254,6 +256,14 @@ class VideoAutoencoderPipeline(nn.Cell):
         
         self.freeze_vae_2d = config.freeze_vae_2d
         self.concat_posterior = config.concat_posterior
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def encode(self, x):
         if self.freeze_vae_2d:
@@ -341,6 +351,7 @@ def OpenSoraVAE_V1_2(
     vae2d_ckpt_path=None,
     freeze_vae_2d=False,
     cal_loss=False,
+    use_recompute=False,
 ):
     '''
     ckpt_path: path to the checkpoint of the overall model (vae2d + temporal vae)
@@ -365,7 +376,9 @@ def OpenSoraVAE_V1_2(
         micro_frame_size=micro_frame_size,
         shift=shift,
         scale=scale,
+        use_recompute=use_recompute,
     )
+    
 
     config = VideoAutoencoderPipelineConfig(**kwargs)
     model = VideoAutoencoderPipeline(config)

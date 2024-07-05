@@ -86,7 +86,7 @@ def main(args):
     if args.use_temporal_vae:
         model = OpenSoraVAE_V1_2(
             micro_batch_size=4,
-            micro_frame_size=8,
+            micro_frame_size=17,
             ckpt_path=args.ckpt_path,
             freeze_vae_2d=True,
         )

@@ -85,6 +85,8 @@ def init_env(
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
 
+    # ms.set_context(mempool_block_size="55GB")
+    # ms.set_context(pynative_synchronize=True)
     if distributed:
         ms.set_context(
             mode=mode,
@@ -196,6 +198,7 @@ def main(args):
             ckpt_path=args.pretrained_model_path,
             freeze_vae_2d=args.freeze_vae_2d,
             cal_loss=True,
+            use_recompute=args.use_recompute,
         )
     else:
         raise NotImplementedError("Only OpenSoraVAE_V1_2 is supported for vae training currently")
@@ -264,8 +267,9 @@ def main(args):
 
     ema = (
         EMA(
-            ae_with_loss.autoencoder,
+            ae,
             ema_decay=args.ema_decay,
+            offloading=True,
         )
         if args.use_ema
         else None

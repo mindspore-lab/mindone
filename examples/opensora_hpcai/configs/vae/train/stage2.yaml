@@ -33,7 +33,7 @@ clip_grad: True
 max_grad_norm: 1.0
 start_learning_rate: 1.e-5
 scale_lr: False
-use_recompute: True
+use_recompute: False
 
 epochs: 500
 ckpt_save_interval: 100
