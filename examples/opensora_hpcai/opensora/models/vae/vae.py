@@ -25,6 +25,8 @@ SD_CONFIG = {
     "attn_resolutions": [],
     "dropout": 0.0,
 }
+SDXL_CONFIG = SD_CONFIG.copy()
+SDXL_CONFIG.update({"resolution": 512})
 
 
 class AutoencoderKL(AutoencoderKL_SD):
@@ -52,12 +54,6 @@ class AutoencoderKL(AutoencoderKL_SD):
         std = self.exp(0.5 * logvar)
 
         return mean, std
-
-
-# -------------------------------- OpenSora v1.2 Begin ------------------------------------ #
-
-SDXL_CONFIG = SD_CONFIG.copy()
-SDXL_CONFIG.update({"resolution": 512})
 
 
 class VideoAutoencoderKL(nn.Cell):

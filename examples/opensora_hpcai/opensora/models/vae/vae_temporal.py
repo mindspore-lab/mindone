@@ -341,6 +341,7 @@ class Decoder(nn.Cell):
 
         self.conv_out = self.conv_fn(filters, in_out_channels, 3)
 
+
     @staticmethod
     def rearrange(x, ts, hs=1, ws=1):
         # "B (C ts hs ws) T H W -> B C (T ts) (H hs) (W ws)",
@@ -455,12 +456,20 @@ class VAE_Temporal(nn.Cell):
         return latent_size
 
     def _encode(self, x):
+        # x: B C T H W
+        B, C, T, H, W = x.shape
         time_padding = (
             0
             if (x.shape[2] % self.time_downsample_factor == 0)
             else self.time_downsample_factor - x.shape[2] % self.time_downsample_factor
         )
-        x = pad_at_dim(x, (time_padding, 0), dim=2)
+        # x = pad_at_dim(x, (time_padding, 0), dim=2)
+
+        # x_dtype = x.dtype
+        # FIXME: bf16 not supported for ops.pad. use concat. equivalent to: ops.pad(x, (0, 0, 0, 0, time_padding, 0), mode="constant")
+        pad_tensor = ops.zeros((B, C, time_padding, H, W), x.dtype)
+        x = ops.concat((pad_tensor, x), axis=2)
+
         encoded_feature = self.encoder(x)
         moments = self.quant_conv(encoded_feature).to(x.dtype)
         mean, logvar = self.split(moments)
