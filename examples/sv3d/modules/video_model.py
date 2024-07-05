@@ -1,14 +1,9 @@
-from functools import partial
-from typing import List, Optional, Union, Tuple, Set
+from typing import List, Optional, Set, Tuple, Union
+
 try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
-
-from sgm.modules.diffusionmodules.openaimodel import *
-from sgm.modules.video_attention import SpatialVideoTransformer
-from sgm.util import default
-from sgm.modules.diffusionmodules.util import AlphaBlender
 
 from sgm.modules.attention import (
     FLASH_IS_AVAILABLE,
@@ -17,8 +12,11 @@ from sgm.modules.attention import (
     MemoryEfficientCrossAttention,
     SpatialTransformer,
 )
+from sgm.modules.diffusionmodules.openaimodel import *
 from sgm.modules.diffusionmodules.openaimodel import Downsample, ResBlock, Timestep, TimestepBlock, Upsample
-from sgm.modules.diffusionmodules.util import conv_nd, normalization, timestep_embedding, zero_module
+from sgm.modules.diffusionmodules.util import AlphaBlender, conv_nd, normalization, timestep_embedding, zero_module
+from sgm.modules.video_attention import SpatialVideoTransformer
+from sgm.util import default
 
 from mindspore import Tensor, nn, ops
 

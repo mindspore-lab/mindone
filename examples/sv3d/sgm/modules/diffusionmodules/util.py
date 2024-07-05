@@ -1,10 +1,12 @@
 # reference to https://github.com/Stability-AI/generative-models
 
+from typing import Optional
+
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops, float16
-from typing import Optional
+from mindspore import Tensor, float16, nn, ops
+
 try:
     from typing import Literal
 except ImportError:

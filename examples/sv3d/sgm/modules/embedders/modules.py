@@ -4,17 +4,16 @@ from json import load as json_load
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
+from omegaconf import ListConfig
 from sgm.modules.diffusionmodules.openaimodel import Timestep
 from sgm.modules.embedders.chinese_clip import BertConfig, BertModel
 from sgm.modules.embedders.clip import CLIPTextModel
-from sgm.util import append_dims
 
 # OpenCLIP model
 from sgm.modules.embedders.open_clip import create_model as openclip_create_model
 from sgm.modules.embedders.open_clip import lpw_tokenize2 as lpw_openclip_tokenize2
 from sgm.modules.embedders.open_clip import tokenize as openclip_tokenize
-from sgm.util import count_params, expand_dims_like, instantiate_from_config
-from omegaconf import ListConfig
+from sgm.util import append_dims, count_params, expand_dims_like, instantiate_from_config
 
 # CLIP & Chinese-CLIP model
 from transformers import BertTokenizer, CLIPTokenizer

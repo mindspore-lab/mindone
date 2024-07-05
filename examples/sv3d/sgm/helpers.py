@@ -1,8 +1,9 @@
-from loguru import logger
+import copy
 import os
 from datetime import datetime
 from typing import List, Union
-import copy
+
+from loguru import logger
 
 try:
     from typing import Literal
@@ -11,6 +12,8 @@ except ImportError:
 
 import numpy as np
 import yaml
+from omegaconf import DictConfig, ListConfig
+from PIL import Image
 from sgm.modules.diffusionmodules.discretizer import Img2ImgDiscretizationWrapper, Txt2NoisyDiscretizationWrapper
 from sgm.modules.diffusionmodules.sampler import (
     AncestralSampler,
@@ -23,8 +26,6 @@ from sgm.modules.diffusionmodules.sampler import (
     LinearMultistepSampler,
 )
 from sgm.util import auto_mixed_precision, get_obj_from_str, instantiate_from_config, seed_everything
-from omegaconf import DictConfig, ListConfig
-from PIL import Image
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, context, nn, ops
@@ -365,7 +366,7 @@ def load_model_from_config(
                 print("unexpected keys:")
                 print(u)
         else:
-            print(f'fred load diffusion multigraph {isinstance(model, DiffusionEngineMultiGraph)}')
+            print(f"fred load diffusion multigraph {isinstance(model, DiffusionEngineMultiGraph)}")
             model.load_pretrained(ckpts, verbose=verbose)
     else:
         logger.warning("No checkpoints were provided.")

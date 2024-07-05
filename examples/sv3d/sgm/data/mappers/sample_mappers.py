@@ -4,8 +4,8 @@ import warnings
 from typing import Dict, List, Union
 
 import numpy as np
-from sgm.util import instantiate_from_config
 from omegaconf import DictConfig, ListConfig
+from sgm.util import instantiate_from_config
 
 import mindspore as ms
 from mindspore.dataset.vision import Inter

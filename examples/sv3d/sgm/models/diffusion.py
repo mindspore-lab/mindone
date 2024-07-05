@@ -5,11 +5,11 @@ from contextlib import contextmanager
 from typing import Dict, List, Optional, Union
 
 import numpy as np
+from omegaconf import ListConfig, OmegaConf
 from sgm.helpers import get_batch, get_unique_embedder_keys_from_conditioner
 from sgm.modules import UNCONDITIONAL_CONFIG
 from sgm.modules.diffusionmodules.wrappers import OpenAIWrapper
 from sgm.util import append_dims, default, get_obj_from_str, instantiate_from_config
-from omegaconf import ListConfig, OmegaConf
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops

@@ -22,6 +22,7 @@ class OpenAIWrapper(IdentityWrapper):
             x = ops.concat((x, concat), axis=1)
         return self.diffusion_model(x, timesteps=t, context_pa=context, y=y, **kwargs)
 
+
 # # # the sv3d version, does not work under ms. .get just like numpy.xx(), cannot be put under ms.Tensor.construct()?
 # class OpenAIWrapper(IdentityWrapper):
 #     @ms.jit

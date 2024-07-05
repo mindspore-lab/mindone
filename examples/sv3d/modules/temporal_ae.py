@@ -9,7 +9,7 @@ except ImportError:
 
 from sgm.modules.diffusionmodules.video_model import TemporalTransformerBlock
 
-from mindspore import Parameter, Tensor, nn, ops, float16
+from mindspore import Parameter, Tensor, float16, nn, ops
 
 sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
 from sgm.modules.diffusionmodules.model import AttnBlock, Decoder, ResnetBlock

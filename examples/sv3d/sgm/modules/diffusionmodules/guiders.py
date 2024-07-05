@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 from functools import partial
+from typing import List, Optional, Tuple, Union
 
-from sgm.util import default, instantiate_from_config, append_dims
+from sgm.util import append_dims, default, instantiate_from_config
 
 from mindspore import Tensor, nn, ops
-
-from typing import List, Optional, Tuple, Union
 
 try:
     from typing import Literal
@@ -110,13 +109,13 @@ class IdentityGuider:
 
 class TrianglePredictionGuider(LinearPredictionGuider):
     def __init__(
-            self,
-            max_scale: float,
-            num_frames: int,
-            min_scale: float = 1.0,
-            period: float | List[float] = 1.0,
-            period_fusing: Literal["mean", "multiply", "max"] = "max",
-            additional_cond_keys: Optional[Union[List[str], str]] = None,
+        self,
+        max_scale: float,
+        num_frames: int,
+        min_scale: float = 1.0,
+        period: float | List[float] = 1.0,
+        period_fusing: Literal["mean", "multiply", "max"] = "max",
+        additional_cond_keys: Optional[Union[List[str], str]] = None,
     ):
         super().__init__(num_frames, min_scale, max_scale, additional_cond_keys)
         values = ops.linspace(0, 1, num_frames)

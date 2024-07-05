@@ -10,14 +10,14 @@ from mindspore import Tensor, nn, ops
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.abspath(os.path.join(__file__, "../../../../")))
-from mindone.utils.version_control import MS_VERSION, is_910b
+from mindone.utils.version_control import is_910b
 
 
 def net_to_dtype(
-        net: nn.Cell,
-        dtype: ms.dtype,
-        exclude_layers: Optional[List[nn.Cell]] = None,
-        exclude_dtype: ms.dtype = ms.float16,
+    net: nn.Cell,
+    dtype: ms.dtype,
+    exclude_layers: Optional[List[nn.Cell]] = None,
+    exclude_dtype: ms.dtype = ms.float16,
 ):
     """
     Converts the data type of a neural network except for the layers specified in `filter_layers`.
@@ -56,11 +56,8 @@ class VideoDiffusionEngine(DiffusionEngine):
         if z.shape[0] % n_samples:
             raise ValueError("Total number of frames must be divisible by number of decoded frames at a time.")
 
-        all_out = [
-            self.first_stage_model.decode(z[n : n + n_samples])
-            for n in range(0, z.shape[0], n_samples)
-        ]
-        print(f'fred at svd video diffusion, allout len {len(all_out)}')
+        all_out = [self.first_stage_model.decode(z[n : n + n_samples]) for n in range(0, z.shape[0], n_samples)]
+        print(f"fred at svd video diffusion, allout len {len(all_out)}")
 
         return ops.cat(all_out, axis=0)
 

@@ -2,11 +2,15 @@
 
 from typing import Callable
 
-from sgm.modules.attention import (USE_NEW_FA, FLASH_IS_AVAILABLE, FlashAttention, LinearAttention,
-                                        MemoryEfficientCrossAttention)
-from sgm.modules.transformers import scaled_dot_product_attention
-
 from einops import rearrange
+from sgm.modules.attention import (
+    FLASH_IS_AVAILABLE,
+    USE_NEW_FA,
+    FlashAttention,
+    LinearAttention,
+    MemoryEfficientCrossAttention,
+)
+from sgm.modules.transformers import scaled_dot_product_attention
 
 import mindspore as ms
 import mindspore.numpy as mnp
@@ -165,8 +169,7 @@ class AttnBlock(nn.Cell):
 
 
 class MemoryEfficientAttnBlock(nn.Cell):
-    def __init__(self, in_channels, heads=1,  # #heads==query_shape[1]
-                 dim_head=64, attn_dtype=None):
+    def __init__(self, in_channels, heads=1, dim_head=64, attn_dtype=None):  # #heads==query_shape[1]
         super().__init__()
 
         assert FLASH_IS_AVAILABLE
@@ -183,10 +186,9 @@ class MemoryEfficientAttnBlock(nn.Cell):
         if not USE_NEW_FA:
             self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
         else:
-            self.flash_attention = FlashAttention(scale_value=dim_head ** -.5,
-                                                  head_num=heads,
-                                                  input_layout='BNSD',
-                                                  keep_prob=1.)
+            self.flash_attention = FlashAttention(
+                scale_value=dim_head**-0.5, head_num=heads, input_layout="BNSD", keep_prob=1.0
+            )
 
     def attention(self, h_: Tensor, mask=None) -> Tensor:
         h_ = self.norm(h_)
@@ -217,8 +219,9 @@ class MemoryEfficientAttnBlock(nn.Cell):
                     # print(f'fred now the mask size as {mask.shape}')
                     mask = mask.reshape(b_q, -1, c_q, c_q)
                     # print(f'fred reshaped mask size as {mask.shape}')
-                h_ = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None,
-                                           mask.to(ms.uint8))[3]
+                h_ = self.flash_attention(
+                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, mask.to(ms.uint8)
+                )[3]
         else:
             h_ = scaled_dot_product_attention(q, k, v, attn_mask=mask)  # scale is dim_head ** -0.5 per default
 
@@ -260,9 +263,7 @@ def make_attn(in_channels, attn_type="vanilla", attn_kwargs=None):
         assert attn_kwargs is None
         return AttnBlock(in_channels)
     elif attn_type == "flash-attention":
-        print(
-            f"building MemoryEfficientAttnBlock with {in_channels} in_channels..."
-        )
+        print(f"building MemoryEfficientAttnBlock with {in_channels} in_channels...")
         return MemoryEfficientAttnBlock(in_channels)
     elif type == "memory-efficient-cross-attn":
         attn_kwargs["query_dim"] = in_channels

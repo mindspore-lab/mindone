@@ -5,10 +5,10 @@
 from typing import Dict, Union
 
 import numpy as np
-from sgm.modules.diffusionmodules.sampling_utils import get_ancestral_step, to_d, to_neg_log_sigma, to_sigma
-from sgm.util import append_dims, default, instantiate_from_config
 from omegaconf import ListConfig, OmegaConf
 from scipy import integrate
+from sgm.modules.diffusionmodules.sampling_utils import get_ancestral_step, to_d, to_neg_log_sigma, to_sigma
+from sgm.util import append_dims, default, instantiate_from_config
 from tqdm import tqdm
 
 import mindspore as ms
@@ -196,9 +196,7 @@ class EDMSampler(SingleStepDiffusionSampler):
         dt = append_dims(next_sigma - sigma_hat, x.ndim)
 
         euler_step = self.euler_step(x, d, dt)
-        x = self.possible_correction_step(
-            euler_step, x, d, dt, next_sigma, model, cond, uc
-        )
+        x = self.possible_correction_step(euler_step, x, d, dt, next_sigma, model, cond, uc)
         return x
 
     def __call__(self, denoiser, x, cond, uc=None, num_steps=None, **kwargs):
@@ -207,20 +205,9 @@ class EDMSampler(SingleStepDiffusionSampler):
 
         for i in self.get_sigma_gen(num_sigmas):
             gamma = (
-                min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1)
-                if self.s_tmin <= sigmas[i] <= self.s_tmax
-                else 0.0
+                min(self.s_churn / (num_sigmas - 1), 2**0.5 - 1) if self.s_tmin <= sigmas[i] <= self.s_tmax else 0.0
             )
-            x = self.sampler_step(
-                s_in * sigmas[i],
-                s_in * sigmas[i + 1],
-                denoiser,
-                x,
-                cond,
-                uc,
-                gamma,
-                **kwargs
-            )
+            x = self.sampler_step(s_in * sigmas[i], s_in * sigmas[i + 1], denoiser, x, cond, uc, gamma, **kwargs)
         return x
 
 
@@ -281,6 +268,7 @@ class DPMPP2SAncestralSampler(AncestralSampler):
 class EulerEDMSampler(EDMSampler):
     def possible_correction_step(self, euler_step, x, d, dt, next_sigma, model, cond, uc):
         return euler_step
+
 
 class HeunEDMSampler(EDMSampler):
     def possible_correction_step(self, euler_step, x, d, dt, next_sigma, model, cond, uc):

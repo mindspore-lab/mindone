@@ -14,8 +14,10 @@ import mindspore as ms
 from mindspore import nn, ops
 
 try:
-    from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
+
+    from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE
+
     USE_NEW_FA = True
     print("flash attention is available.")
 except ImportError:
@@ -114,10 +116,9 @@ class MemoryEfficientCrossAttention(nn.Cell):
             if not USE_NEW_FA:
                 self.flash_attention = FlashAttention(head_dim=dim_head, head_num=heads, high_precision=True)
             else:
-                self.flash_attention = FlashAttention(scale_value=dim_head ** -.5,
-                                                      head_num=heads,
-                                                      input_layout='BNSD',
-                                                      keep_prob=1.)
+                self.flash_attention = FlashAttention(
+                    scale_value=dim_head**-0.5, head_num=heads, input_layout="BNSD", keep_prob=1.0
+                )
 
     def construct(self, x, context=None, mask=None, additional_tokens=None):
         h = self.heads
@@ -152,8 +153,9 @@ class MemoryEfficientCrossAttention(nn.Cell):
             else:  # new fa[3] is the attn output
                 if mask.ndim == 3:
                     mask = mask.reshape(q_b, -1, q_n, q_n)
-                out = self.flash_attention(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None,
-                                           mask.to(ms.uint8))[3]
+                out = self.flash_attention(
+                    q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, mask.to(ms.uint8)
+                )[3]
         else:
             out = scaled_dot_product_attention(q, k, v, attn_mask=mask)  # scale is dim_head ** -0.5 per default
 

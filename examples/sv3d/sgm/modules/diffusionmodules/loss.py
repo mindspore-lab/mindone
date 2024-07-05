@@ -1,7 +1,7 @@
 from typing import List, Optional, Union
 
-from sgm.util import append_dims
 from omegaconf import ListConfig
+from sgm.util import append_dims
 
 import mindspore as ms
 from mindspore import nn, ops

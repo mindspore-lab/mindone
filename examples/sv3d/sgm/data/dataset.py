@@ -6,11 +6,11 @@ import time
 import imagesize
 import numpy as np
 import pandas as pd
+from PIL import Image
+from PIL.ImageOps import exif_transpose
 from sgm.data.commons import TEMPLATES_FACE, TEMPLATES_OBJECT, TEMPLATES_STYLE
 from sgm.data.util import _is_valid_text_input
 from sgm.util import instantiate_from_config
-from PIL import Image
-from PIL.ImageOps import exif_transpose
 
 
 class Text2ImageDataset:
@@ -754,7 +754,10 @@ if __name__ == "__main__":
                 "target": "sgm.data.mappers.Resize",
                 "params": {"key": ["control", "image"], "size": 1024, "interpolation": 3},
             },
-            {"target": "sgm.data.mappers.RescalerControlNet", "params": {"key": ["control", "image"], "isfloat": False}},
+            {
+                "target": "sgm.data.mappers.RescalerControlNet",
+                "params": {"key": ["control", "image"], "isfloat": False},
+            },
             {"target": "sgm.data.mappers.AddOriginalImageSizeAsTupleAndCropToSquare"},
             {"target": "sgm.data.mappers.Transpose", "params": {"key": ["control", "image"], "type": "hwc2chw"}},
         ]

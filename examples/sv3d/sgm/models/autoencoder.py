@@ -1,10 +1,10 @@
 # reference to https://github.com/Stability-AI/generative-models
 from typing import Any, Dict, Tuple, Union
 
+from omegaconf import ListConfig
 from sgm.modules.diffusionmodules.model import Decoder, Encoder
 from sgm.modules.distributions.distributions import DiagonalGaussianDistribution
 from sgm.util import default, instantiate_from_config
-from omegaconf import ListConfig
 
 import mindspore as ms
 from mindspore import Tensor, nn

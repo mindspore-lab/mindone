@@ -12,9 +12,9 @@ from itertools import islice
 import numpy as np
 import webdataset as wds
 import wids
+from PIL import Image
 from sgm.data.util import _is_valid_text_input
 from sgm.util import instantiate_from_config
-from PIL import Image
 from tqdm import tqdm
 
 from mindspore.communication import get_group_size, get_rank

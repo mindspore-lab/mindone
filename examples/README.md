@@ -1,4 +1,4 @@
-Here we provide various examples for image/video/audio generation models built on MindSpore.
+Here we provide various examples for image/video/audio/3D generation models built on MindSpore.
 
 <details open markdown>
 <summary> Image Generation </summary>
@@ -48,4 +48,3 @@ Here we provide various examples for image/video/audio generation models built o
 
 - [x] [Stable Video 3D (SV3D)](sv3d/README.md)
 </details>
-

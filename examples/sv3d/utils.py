@@ -1,8 +1,8 @@
+from sgm.modules.diffusionmodules.util import GroupNorm as GroupNorm3D
 from sgm.modules.embedders.modules import VideoPredictionEmbedderWithEncoder
 
 from mindspore import amp
 from mindspore.nn import GroupNorm, SiLU, Softmax
-from sgm.modules.diffusionmodules.util import GroupNorm as GroupNorm3D
 
 
 def _mixed_precision(network):

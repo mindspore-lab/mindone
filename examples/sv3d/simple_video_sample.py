@@ -5,14 +5,16 @@ python simple_video_sample.py --version sv3d_u
 """
 
 from __future__ import annotations
+
 import argparse
 import math
 import os
 import sys
-from loguru import logger
 from glob import glob
 from pathlib import Path
 from typing import List, Optional
+
+from loguru import logger
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -31,44 +33,39 @@ try:
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
-from sgm.util import default
 from sgm.helpers import create_model_sv3d as create_model
+from sgm.util import default
+from utils import mixed_precision
 
 import mindspore as ms
+from mindspore import Tensor, nn, ops
 from mindspore.dataset.vision import ToTensor
-from mindspore import Tensor, ops, nn
+
 from mindone.utils.seed import set_random_seed
-from utils import mixed_precision
 
 
 class SVD3InferPipeline(nn.Cell):
-    def __init__(self,
-                 model_config: str,
-                 ckpt_path: str,
-                 num_frames: Optional[int],  # 21 for SV3D
-                 device: str,
-                 num_steps: int,
-                 version: str,
-                 motion_bucket_id: int,
-                 fps_id: int,
-                 cond_aug: int,
-                 decoding_t: int = 14,
-                 verbose=False,
-                 amp_level: Literal["O0", "O2"] = "O0"
-                 ):
+    def __init__(
+        self,
+        model_config: str,
+        ckpt_path: str,
+        num_frames: Optional[int],  # 21 for SV3D
+        device: str,
+        num_steps: int,
+        version: str,
+        motion_bucket_id: int,
+        fps_id: int,
+        cond_aug: int,
+        decoding_t: int = 14,
+        verbose=False,
+        amp_level: Literal["O0", "O2"] = "O0",
+    ):
         super().__init__()
         model_config = OmegaConf.load(model_config)
         model_config.model.params.sampler_config.params.verbose = verbose
         model_config.model.params.sampler_config.params.num_steps = num_steps
-        model_config.model.params.sampler_config.params.guider_config.params.num_frames = (
-            num_frames
-        )
-        self.model, _ = create_model(
-            model_config,
-            checkpoints=ckpt_path,
-            freeze=True,
-            amp_level=amp_level
-        )
+        model_config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
+        self.model, _ = create_model(model_config, checkpoints=ckpt_path, freeze=True, amp_level=amp_level)
         self.num_frames = num_frames
         self.version = version
         self.motion_bucket_id = motion_bucket_id
@@ -98,9 +95,7 @@ class SVD3InferPipeline(nn.Cell):
                 "WARNING: The conditioning frame you provided is not 576x576. This leads to suboptimal performance as model was only trained on 576x576."
             )
         if self.motion_bucket_id > 255:
-            print(
-                "WARNING: High motion bucket! This may lead to suboptimal performance."
-            )
+            print("WARNING: High motion bucket! This may lead to suboptimal performance.")
 
         if self.fps_id < 5:
             print("WARNING: Small fps value! This may lead to suboptimal performance.")
@@ -137,17 +132,15 @@ class SVD3InferPipeline(nn.Cell):
         for k in ["crossattn", "concat"]:
             uc[k] = expand_dims_ops(uc[k], 1)
             uc[k] = uc[k].repeat(self.num_frames, axis=1)
-            uc[k] = uc[k].flatten(order='C', start_dim=0, end_dim=1)
+            uc[k] = uc[k].flatten(order="C", start_dim=0, end_dim=1)
             c[k] = expand_dims_ops(c[k], 1)
             c[k] = c[k].repeat(self.num_frames, axis=1)
-            c[k] = c[k].flatten(order='C', start_dim=0, end_dim=1)
+            c[k] = c[k].flatten(order="C", start_dim=0, end_dim=1)
 
         randn = ops.randn(shape)
 
         additional_model_inputs = {}
-        additional_model_inputs["image_only_indicator"] = ops.zeros(
-            (2, self.num_frames)
-        )
+        additional_model_inputs["image_only_indicator"] = ops.zeros((2, self.num_frames))
         # additional_model_inputs["num_video_frames"] = batch["num_video_frames"]
 
         # calling self.model.model under .construct() is NOT working
@@ -156,7 +149,9 @@ class SVD3InferPipeline(nn.Cell):
         #         self.model.model, input, sigma, c, **additional_model_inputs
         #     )
 
-        samples_z = self.model.sampler(self.model, randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs)
+        samples_z = self.model.sampler(
+            self.model, randn, cond=c, uc=uc, num_frames=self.num_frames, **additional_model_inputs
+        )
 
         # # unlike the sv3d version of sdxl, we followed the original sdxl in mindone by passing in the whole model to sampler, rather than a denoiser in sv3d, as in the openai_wrapper the ms concat func does not support the current rank setup
         # samples_z = self.model.sampler(model, randn, cond=c, uc=uc, num_frames=num_frames)
@@ -170,17 +165,17 @@ class SVD3InferPipeline(nn.Cell):
 
 
 def sample(
-        input_path: str,
-        ckpt_path: str,
-        num_steps: Optional[int] = None,
-        version: str = "sv3d_u",
-        fps_id: int = 6,
-        motion_bucket_id: int = 127,
-        seed: int = 42,
-        decoding_t: int = 7,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
-        device: str = "Ascend",
-        output_folder: Optional[str] = None,
-        image_frame_ratio: Optional[float] = None,
+    input_path: str,
+    ckpt_path: str,
+    num_steps: Optional[int] = None,
+    version: str = "sv3d_u",
+    fps_id: int = 6,
+    motion_bucket_id: int = 127,
+    seed: int = 42,
+    decoding_t: int = 7,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
+    device: str = "Ascend",
+    output_folder: Optional[str] = None,
+    image_frame_ratio: Optional[float] = None,
 ):
     """
     Simple script to generate a single sample conditioned on an image `input_path` or multiple images, one for each
@@ -196,11 +191,12 @@ def sample(
     else:
         raise ValueError(f"Version {version} is not supported for this example yet.")
 
-    ms.context.set_context(mode=1, device_target=device, device_id=2)
+    ms.context.set_context(mode=1, device_target=device, device_id=4)
     set_random_seed(seed)
     path = Path(input_path)
-    pipeline = SVD3InferPipeline(model_config, ckpt_path, num_frames, device, num_steps,
-                                 version, motion_bucket_id, fps_id, cond_aug, decoding_t)
+    pipeline = SVD3InferPipeline(
+        model_config, ckpt_path, num_frames, device, num_steps, version, motion_bucket_id, fps_id, cond_aug, decoding_t
+    )
     all_img_paths = []
     if path.is_file():
         if any([input_path.endswith(x) for x in ["jpg", "jpeg", "png"]]):
@@ -209,11 +205,7 @@ def sample(
             raise ValueError("Path is not valid image file.")
     elif path.is_dir():
         all_img_paths = sorted(
-            [
-                f
-                for f in path.iterdir()
-                if f.is_file() and f.suffix.lower() in [".jpg", ".jpeg", ".png"]
-            ]
+            [f for f in path.iterdir() if f.is_file() and f.suffix.lower() in [".jpg", ".jpeg", ".png"]]
         )
         if len(all_img_paths) == 0:
             raise ValueError("Folder does not contain any images.")
@@ -233,22 +225,16 @@ def sample(
             # resize object in frame
             image_arr = np.array(image)
             in_w, in_h = image_arr.shape[:2]
-            ret, mask = cv2.threshold(
-                np.array(image.split()[-1]), 0, 255, cv2.THRESH_BINARY
-            )
+            ret, mask = cv2.threshold(np.array(image.split()[-1]), 0, 255, cv2.THRESH_BINARY)
             x, y, w, h = cv2.boundingRect(mask)
             max_size = max(w, h)
-            side_len = (
-                int(max_size / image_frame_ratio)
-                if image_frame_ratio is not None
-                else in_w
-            )
+            side_len = int(max_size / image_frame_ratio) if image_frame_ratio is not None else in_w
             padded_image = np.zeros((side_len, side_len, 4), dtype=np.uint8)
             center = side_len // 2
             padded_image[
-            center - h // 2: center - h // 2 + h,
-            center - w // 2: center - w // 2 + w,
-            ] = image_arr[y: y + h, x: x + w]
+                center - h // 2 : center - h // 2 + h,
+                center - w // 2 : center - w // 2 + w,
+            ] = image_arr[y : y + h, x : x + w]
 
             # resize frame to 576x576
             rgba = Image.fromarray(padded_image).resize((576, 576), Image.LANCZOS)
@@ -276,16 +262,11 @@ def sample(
         os.makedirs(output_folder, exist_ok=True)
         base_count = len(glob(os.path.join(output_folder, "*.mp4")))
 
-        imageio.imwrite(
-            os.path.join(output_folder, f"{base_count:06d}.jpg"), input_image
-        )
+        imageio.imwrite(os.path.join(output_folder, f"{base_count:06d}.jpg"), input_image)
         # samples = embed_watermark(samples)  # TODO get the filtering/watermarking work
         # samples = filter(samples)
         samples = samples.asnumpy()
-        vid = (
-            (rearrange(samples, "t c h w -> t h w c") * 255)
-            .astype(np.uint8)
-        )
+        vid = (rearrange(samples, "t c h w -> t h w c") * 255).astype(np.uint8)
 
         video_path = os.path.join(output_folder, f"{base_count:06d}.mp4")
         imageio.mimwrite(video_path, vid)
@@ -301,15 +282,9 @@ def get_batch(keys, value_dict, N, T):
 
     for key in keys:
         if key == "fps_id":
-            batch[key] = (
-                Tensor([value_dict["fps_id"]])
-                .repeat(int(math.prod(N)))
-            )
+            batch[key] = Tensor([value_dict["fps_id"]]).repeat(int(math.prod(N)))
         elif key == "motion_bucket_id":
-            batch[key] = (
-                Tensor([value_dict["motion_bucket_id"]])
-                .repeat(int(math.prod(N)))
-            )
+            batch[key] = Tensor([value_dict["motion_bucket_id"]]).repeat(int(math.prod(N)))
         elif key == "cond_aug":
             batch[key] = Tensor([value_dict["cond_aug"]]).repeat(math.prod(N))
         elif key == "cond_frames" or key == "cond_frames_without_noise":
@@ -324,17 +299,23 @@ def get_batch(keys, value_dict, N, T):
     if T is not None:
         batch["num_video_frames"] = T
 
+    logger.info(f"keys are {keys}")
+
     for key in batch.keys():
         if key not in batch_uc and isinstance(batch[key], Tensor):
             batch_uc[key] = batch[key].copy()
+
+    logger.info(f"batch are {batch}")
+
     return batch, batch_uc
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ckpt', default='PATHTOYOURCKPT', type=str, help='path to the ckpt')
-    parser.add_argument('--input', default='data/test_image.png', type=str, help='path to the input img')
+    parser.add_argument("--ckpt", default="PATHTOYOURCKPT", type=str, help="path to the ckpt")
+    parser.add_argument(
+        "--input", default="PATHTOYOURINPUT", type=str, help="path to the input img, or the input imgs dir path"
+    )
     args = parser.parse_args()
     print(args)
     sample(args.input, args.ckpt)
-

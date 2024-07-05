@@ -1,10 +1,11 @@
-from ..modules.attention import *
-from ..modules.diffusionmodules.util import (AlphaBlender, linear,
-                                             timestep_embedding)
-
 from typing import Optional
+
 from einops import rearrange, repeat
+
 from mindspore import Tensor, nn, ops
+
+from ..modules.attention import *
+from ..modules.diffusionmodules.util import AlphaBlender, linear, timestep_embedding
 
 
 class TimeMixSequential(nn.SequentialCell):
@@ -51,9 +52,7 @@ class VideoTransformerBlock(nn.Cell):
 
         if self.ff_in:
             self.norm_in = nn.LayerNorm([dim])
-            self.ff_in = FeedForward(
-                dim, dim_out=inner_dim, dropout=dropout, glu=gated_ff
-            )
+            self.ff_in = FeedForward(dim, dim_out=inner_dim, dropout=dropout, glu=gated_ff)
 
         self.timesteps = timesteps
         self.disable_self_attn = disable_self_attn
@@ -96,11 +95,7 @@ class VideoTransformerBlock(nn.Cell):
         self.norm3 = nn.LayerNorm([inner_dim])
         self.switch_temporal_ca_to_sa = switch_temporal_ca_to_sa
 
-
-
-    def construct(
-        self, x: Tensor, context: Tensor = None, timesteps: int = None
-    ) -> Tensor:
+    def construct(self, x: Tensor, context: Tensor = None, timesteps: int = None) -> Tensor:
         return self._forward(x, context, timesteps=timesteps)
 
     def _forward(self, x, context=None, timesteps=None):
@@ -131,9 +126,7 @@ class VideoTransformerBlock(nn.Cell):
         if self.is_res:
             x += x_skip
 
-        x = rearrange(
-            x, "(b s) t c -> (b t) s c", s=S, b=B // timesteps, c=C, t=timesteps
-        )
+        x = rearrange(x, "(b s) t c -> (b t) s c", s=S, b=B // timesteps, c=C, t=timesteps)
         return x
 
     def get_last_layer(self):
@@ -220,9 +213,7 @@ class SpatialVideoTransformer(SpatialTransformer):
             linear(time_embed_dim, self.in_channels),
         )
 
-        self.time_mixer = AlphaBlender(
-            alpha=merge_factor, merge_strategy=merge_strategy
-        )
+        self.time_mixer = AlphaBlender(alpha=merge_factor, merge_strategy=merge_strategy)
 
     def forward(
         self,
@@ -239,15 +230,11 @@ class SpatialVideoTransformer(SpatialTransformer):
             spatial_context = context
 
         if self.use_spatial_context:
-            assert (
-                context.ndim == 3
-            ), f"n dims of spatial context should be 3 but are {context.ndim}"
+            assert context.ndim == 3, f"n dims of spatial context should be 3 but are {context.ndim}"
 
             time_context = context
             time_context_first_timestep = time_context[::timesteps]
-            time_context = repeat(
-                time_context_first_timestep, "b ... -> (b n) ...", n=h * w
-            )
+            time_context = repeat(time_context_first_timestep, "b ... -> (b n) ...", n=h * w)
         elif time_context is not None and not self.use_spatial_context:
             time_context = repeat(time_context, "b ... -> (b n) ...", n=h * w)
             if time_context.ndim == 2:
@@ -273,9 +260,7 @@ class SpatialVideoTransformer(SpatialTransformer):
         emb = self.time_pos_embed(t_emb)
         emb = emb[:, None, :]
 
-        for it_, (block, mix_block) in enumerate(
-            zip(self.transformer_blocks, self.time_stack)
-        ):
+        for it_, (block, mix_block) in enumerate(zip(self.transformer_blocks, self.time_stack)):
             x = block(
                 x,
                 context=spatial_context,
