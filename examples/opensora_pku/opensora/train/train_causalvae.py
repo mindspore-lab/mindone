@@ -21,6 +21,7 @@ from opensora.models.ae.videobase.causal_vae.modeling_causalvae import CausalVAE
 from opensora.models.ae.videobase.dataset_videobase import VideoDataset, create_dataloader
 from opensora.models.ae.videobase.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 from opensora.models.ae.videobase.modules.updownsample import TrilinearInterpolate
+from opensora.models.ae.videobase.utils.model_utils import resolve_str_to_obj
 from opensora.train.commons import create_loss_scaler, init_env, parse_args
 from opensora.utils.utils import get_precision
 
@@ -31,7 +32,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.config import instantiate_from_config, str2bool
+from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -67,7 +68,12 @@ def main(args):
         logging.warning("use_discriminator is True but disc_weight is 0.")
 
     if use_discriminator:
-        disc = instantiate_from_config(model_config["loss_type"])
+        disc_type = model_config["loss_type"]
+        if "LPIPSWithDiscriminator3D" in disc_type:
+            disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator3D"
+        elif "LPIPSWithDiscriminator" in disc_type:
+            disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator"
+        disc = resolve_str_to_obj(disc_type, append=False)()
     else:
         disc = None
 
