@@ -5,6 +5,7 @@ model_max_length: 200
 
 enable_flash_attention: True
 use_recompute: True
+jit_level: "O1"
 
 # data
 image_size: [ 576, 1024 ]

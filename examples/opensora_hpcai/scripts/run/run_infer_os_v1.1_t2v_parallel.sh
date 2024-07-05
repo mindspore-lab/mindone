@@ -1,6 +1,6 @@
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export MS_ENABLE_ACLNN=1
-export GRAPH_OP_RUN=1
+#export MS_ENABLE_ACLNN=1
+#export GRAPH_OP_RUN=1
 
 mpirun --allow-run-as-root -n 8 --output-filename log_output --merge-stderr-to-stdout \
     python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.yaml \

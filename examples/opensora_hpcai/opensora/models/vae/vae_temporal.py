@@ -465,7 +465,6 @@ class VAE_Temporal(nn.Cell):
         )
         # x = pad_at_dim(x, (time_padding, 0), dim=2)
 
-        # x_dtype = x.dtype
         # FIXME: bf16 not supported for ops.pad. use concat. equivalent to: ops.pad(x, (0, 0, 0, 0, time_padding, 0), mode="constant")
         pad_tensor = ops.zeros((B, C, time_padding, H, W), x.dtype)
         x = ops.concat((pad_tensor, x), axis=2)

@@ -97,9 +97,7 @@ Most base, utility and mixin class are available.
 - [ ] StableDiffusionPipeline
 
 ### Model
-- [x] AutoencoderKL
-- [x] Transformer2DModel
-- [x] UNet2DConditionModel
+- All Supported
 
 ### Scheduler
 - [x] DDIMScheduler/DDPMScheduler/...(30)
@@ -122,6 +120,7 @@ Most base, utility and mixin class are available.
 
 Unlike the output `posterior = DiagonalGaussianDistribution(latent)`, which can do sampling by `posterior.sample()`.
 We can only output the `latent` and then do sampling through `AutoencoderKL.diag_gauss_dist.sample(latent)`.
+
 
 ## Credits
 
