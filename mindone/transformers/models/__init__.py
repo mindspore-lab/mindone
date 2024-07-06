@@ -1,1 +1,1 @@
-from . import clip, t5
+from . import blip_2, clip, t5, xlm_roberta
