@@ -44,7 +44,7 @@ from mindspore.dataset.vision import ToTensor
 from mindone.utils.seed import set_random_seed
 
 
-class SVD3InferPipeline(nn.Cell):
+class SV3DInferPipeline(nn.Cell):
     def __init__(
         self,
         model_config: str,
@@ -198,7 +198,7 @@ def sample(
     ms.context.set_context(mode=1, device_target=device, device_id=4)
     set_random_seed(seed)
     path = Path(input_path)
-    pipeline = SVD3InferPipeline(
+    pipeline = SV3DInferPipeline(
         model_config, ckpt_path, num_frames, device, num_steps, version, motion_bucket_id, fps_id, cond_aug, decoding_t
     )
     all_img_paths = []
