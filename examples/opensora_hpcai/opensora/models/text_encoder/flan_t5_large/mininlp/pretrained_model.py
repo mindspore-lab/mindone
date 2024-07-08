@@ -24,7 +24,7 @@ import os
 from typing import Optional, Union
 
 from mindspore import log as logger
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.train.serialization import load_checkpoint, load_param_into_net, save_checkpoint
 
 from .configs import HF_MODEL_URL_BASE, PreTrainedConfig
@@ -166,7 +166,7 @@ class PreTrainedModel(nn.Cell, CellUtilMixin, GenerationMixin):
 
         if output_embeddings.has_bias:
             output_embeddings.bias.set_data(
-                ops.pad(
+                mint.pad(
                     output_embeddings.bias.data,
                     (0, output_embeddings.weight.shape[0] - output_embeddings.bias.shape[0]),
                     "constant",

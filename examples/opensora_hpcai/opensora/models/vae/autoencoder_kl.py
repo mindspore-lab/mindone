@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ..layers.operation_selector import get_split_op
 from .modules import Decoder, Encoder

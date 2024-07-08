@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -176,7 +176,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
+            mask = ops.logical_not(mask.to(ms.bool_)).to(ms.uint8)
 
         # 3. attn compute
         if self.enable_flash_attention:
@@ -292,7 +292,7 @@ class SelfAttention(nn.Cell):
 
         # mask process
         if mask is not None:
-            mask = 1 - mask
+            mask = ops.logical_not(mask.to(ms.bool_)).to(ms.uint8)
 
         if self.enable_flash_attention:
             if mask is not None:
@@ -386,11 +386,11 @@ class PatchEmbed3D(nn.Cell):
         # padding
         _, _, D, H, W = x.shape
         if W % self.patch_size[2] != 0:
-            x = ops.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
+            x = mint.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
         if H % self.patch_size[1] != 0:
-            x = ops.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
+            x = mint.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
         if D % self.patch_size[0] != 0:
-            x = ops.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
+            x = mint.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
 
         x = self.proj(x)  # (B C T H W)
         if self.norm is not None:
@@ -738,7 +738,7 @@ class PositionEmbedding2D(nn.Cell):
             grid_h *= base_size / h
             grid_w *= base_size / w
 
-        grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
+        grid_h, grid_w = ms.numpy.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
 
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
