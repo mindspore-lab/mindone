@@ -1,12 +1,12 @@
 python opensora/train/train_causalvae.py \
-    --exp_name "exp_name" \
+    --exp_name "9x256x256" \
     --batch_size 1 \
     --precision bf16 \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
-    --video_path /remote-home1/dataset/data_split_tt \
-    --video_num_frames 17 \
+    --video_path /home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/mixkit/Family/ \
+    --video_num_frames 9 \
     --resolution 256 \
     --sample_rate 1 \
     --dataloader_num_workers 8 \
@@ -18,3 +18,5 @@ python opensora/train/train_causalvae.py \
     --clip_grad True \
     --weight_decay 0.0 \
     --mode 0 \
+    --init_loss_scale 128 \
+    --use_discriminator True \

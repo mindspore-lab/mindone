@@ -126,7 +126,7 @@ class NLayerDiscriminator3D(nn.Cell):
         padw = 1
         sequence = [
             nn.Conv3d(input_nc, ndf, kernel_size=kw, stride=2, pad_mode="pad", padding=padw, has_bias=True),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2),
         ]
         nf_mult = 1
         nf_mult_prev = 1
@@ -144,7 +144,7 @@ class NLayerDiscriminator3D(nn.Cell):
                     has_bias=use_bias,
                 ),
                 norm_layer(ndf * nf_mult),
-                nn.LeakyReLU(0.2, True),
+                nn.LeakyReLU(0.2),
             ]
 
         nf_mult_prev = nf_mult
@@ -157,14 +157,14 @@ class NLayerDiscriminator3D(nn.Cell):
                 stride=1,
                 padding=padw,
                 pad_mode="pad",
-                bias=use_bias,
+                has_bias=use_bias,
             ),
             norm_layer(ndf * nf_mult),
-            nn.LeakyReLU(0.2, True),
+            nn.LeakyReLU(0.2),
         ]
 
         sequence += [
-            nn.Conv3d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw, pad_mode="pad")
+            nn.Conv3d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw, pad_mode="pad", has_bias=True)
         ]  # output 1 channel prediction map
         self.main = nn.SequentialCell(*sequence)
 
