@@ -101,7 +101,7 @@ class NLayerDiscriminator(nn.Cell):
 class NLayerDiscriminator3D(nn.Cell):
     """Defines a 3D PatchGAN discriminator as in Pix2Pix but for 3D inputs."""
 
-    def __init__(self, input_nc=1, ndf=64, n_layers=3, use_actnorm=False, dtype=ms.float32):
+    def __init__(self, input_nc=3, ndf=64, n_layers=3, use_actnorm=False, dtype=ms.float32):
         """
         Construct a 3D PatchGAN discriminator
 

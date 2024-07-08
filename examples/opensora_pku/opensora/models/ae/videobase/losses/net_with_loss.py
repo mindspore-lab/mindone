@@ -12,6 +12,14 @@ def _rearrange_in(x):
     return x
 
 
+def _rearrange_out(x, t):
+    _, c, h, w = x.shape
+    x = x.reshape(-1, t, c, h, w)
+    x = x.permute(0, 2, 1, 3, 4)  # (b c t h w)
+
+    return x
+
+
 class GeneratorWithLoss(nn.Cell):
     def __init__(
         self,
@@ -64,6 +72,13 @@ class GeneratorWithLoss(nn.Cell):
     def loss_function(self, x, recons, mean, logvar, global_step: ms.Tensor = -1, weights: ms.Tensor = None, cond=None):
         bs = x.shape[0]
 
+        # For videos, treat them as independent frame images
+        # TODO: regularize on temporal consistency
+        t = x.shape[2]
+        # x: b c t h w -> (b*t c h w), shape for image perceptual loss
+        x = _rearrange_in(x)
+        recons = _rearrange_in(recons)
+
         # 2.1 reconstruction loss in pixels
         rec_loss = self.l1(x, recons)
 
@@ -91,6 +106,7 @@ class GeneratorWithLoss(nn.Cell):
         # g_loss = ms.Tensor(0., dtype=ms.float32)
         # TODO: how to get global_step?
         if global_step >= self.disc_start:
+            recons = _rearrange_out(recons, t)
             if (self.discriminator is not None) and (self.disc_factor > 0.0):
                 # calc gan loss
                 if cond is None:
@@ -132,14 +148,6 @@ class GeneratorWithLoss(nn.Cell):
 
         # 1. AE forward, get posterior (mean, logvar) and recons
         recons, mean, logvar = self.autoencoder(x)
-
-        # For videos, treat them as independent frame images
-        # TODO: regularize on temporal consistency
-        if x.ndim >= 5:
-            # x: b c t h w -> (b*t c h w), shape for image perceptual loss
-            x = _rearrange_in(x)
-            recons = _rearrange_in(recons)
-            # mean and var kl loss
 
         # 2. compuate loss
         loss = self.loss_function(x, recons, mean, logvar, global_step, weights, cond)
