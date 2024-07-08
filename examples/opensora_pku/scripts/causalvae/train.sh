@@ -12,10 +12,9 @@ python opensora/train/train_causalvae.py \
     --dataloader_num_workers 8 \
     --load_from_checkpoint pretrained/causal_vae_488_init.ckpt \
     --start_learning_rate 1e-5 \
-    --adamw adam \
     --lr_scheduler constant \
     --optim adam \
     --betas 0.5 0.9 \
     --clip_grad True \
     --weight_decay 0.0 \
-    --mode 1 \
+    --mode 0 \
