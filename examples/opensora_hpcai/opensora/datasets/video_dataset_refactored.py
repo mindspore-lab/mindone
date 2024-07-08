@@ -86,13 +86,12 @@ class VideoDatasetRefactored(BaseDataset):
             assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
             self.output_columns += ["bucket_id"]  # pass bucket id information to transformations
 
+        self._patch_size = patch_size
+        assert self._patch_size[0] == 1
+        self._embed_dim = embed_dim
+        self._num_heads = num_heads
+        self._input_sq_size = input_sq_size
         if self._pre_patchify:
-            self._patch_size = patch_size
-            assert self._patch_size[0] == 1
-            self._embed_dim = embed_dim
-            self._num_heads = num_heads
-            self._input_sq_size = input_sq_size
-
             max_size = int(max_target_size / self._vae_downsample_rate)
             max_length = max_size**2 // np.prod(self._patch_size[1:]).item()
             self.pad_info = {
@@ -287,6 +286,23 @@ class VideoDatasetRefactored(BaseDataset):
         temporal_mask = np.ones(temporal_pos.shape[0], dtype=np.uint8)
         return latent, spatial_pos, spatial_mask, temporal_pos, temporal_mask
 
+    def _patchify_2(self, latent: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        f, c, h, w = latent.shape
+
+        rs = (h * w * self._vae_downsample_rate**2) ** 0.5
+        ph, pw = self._get_dynamic_size(h, w)
+        scale = rs / self._input_sq_size
+        base_size = round((ph * pw) ** 0.5)
+
+        nh, nw = h // self._patch_size[1], w // self._patch_size[2]
+
+        spatial_pos = get_2d_sincos_pos_embed(self._embed_dim, nh, nw, scale=scale, base_size=base_size).astype(
+            np.float32
+        )
+        temporal_pos = precompute_freqs_cis(f, self._embed_dim // self._num_heads).astype(np.float32)
+
+        return latent, spatial_pos, temporal_pos
+
     def __len__(self):
         return len(self._data)
 
@@ -343,6 +359,14 @@ class VideoDatasetRefactored(BaseDataset):
                 ],
                 "input_columns": ["video"],
                 "output_columns": ["video", "height", "width", "ar"],
+            }
+        )
+
+        transforms.append(
+            {
+                "operations": [self._patchify_2],
+                "input_columns": ["video"],
+                "output_columns": ["video", "spatial_pos", "temporal_pos"],
             }
         )
 

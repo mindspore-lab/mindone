@@ -361,9 +361,21 @@ def main(args):
             in_channels=latte_model.in_channels,
         )
 
-        project_columns = ["video", "caption", "mask", "frames_mask", "num_frames", "height", "width", "fps", "ar"]
+        project_columns = [
+            "video",
+            "caption",
+            "mask",
+            "frames_mask",
+            "num_frames",
+            "height",
+            "width",
+            "fps",
+            "ar",
+            "spatial_pos",
+            "temporal_pos",
+        ]
         if args.pre_patchify:
-            project_columns.extend(["spatial_pos", "spatial_mask", "temporal_pos", "temporal_mask"])
+            project_columns.extend(["spatial_mask", "temporal_mask"])
 
         dataloader = create_dataloader(
             dataset,

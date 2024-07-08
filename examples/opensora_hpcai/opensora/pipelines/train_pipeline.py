@@ -162,6 +162,8 @@ class DiffusionWithLoss(nn.Cell):
         width: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
+        spatial_pos: Optional[Tensor] = None,
+        temporal_pos: Optional[Tensor] = None,
     ):
         """
         Video diffusion model forward and loss computation for training
@@ -191,7 +193,9 @@ class DiffusionWithLoss(nn.Cell):
             text_embed = self.get_condition_embeddings(text_tokens)
         else:
             text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
-        loss = self.compute_loss(x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar)
+        loss = self.compute_loss(
+            x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar, spatial_pos, temporal_pos
+        )
 
         return loss
 
@@ -246,6 +250,8 @@ class DiffusionWithLoss(nn.Cell):
         width: Optional[Tensor] = None,
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
+        spatial_pos: Optional[Tensor] = None,
+        temporal_pos: Optional[Tensor] = None,
     ):
         t = ops.randint(0, self.diffusion.num_timesteps, (x.shape[0],))
         noise = ops.randn_like(x)
@@ -270,6 +276,8 @@ class DiffusionWithLoss(nn.Cell):
             width=width,
             ar=ar,
             fps=fps,
+            spatial_pos=spatial_pos,
+            temporal_pos=temporal_pos,
         )
 
         # (b c t h w),
