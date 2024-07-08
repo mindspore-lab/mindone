@@ -186,7 +186,7 @@ def main(args):
         weight_decay=args.weight_decay,
         lr=lr,
     )
-    loss_scaler_ae = create_loss_scaler(args)
+    loss_scaler_ae = create_loss_scaler(args) if args.precision != "fp32" else 1.0
 
     if use_discriminator:
         optim_disc = create_optimizer(
@@ -197,7 +197,7 @@ def main(args):
             group_strategy=args.group_strategy,
             weight_decay=args.weight_decay,
         )
-        loss_scaler_disc = create_loss_scaler(args)
+        loss_scaler_disc = create_loss_scaler(args) if args.precision != "fp32" else 1.0
 
     ema = (
         EMA(
@@ -259,11 +259,13 @@ def main(args):
                 f"Distributed mode: {args.use_parallel}",
                 f"amp level: {amp_level}",
                 f"dtype: {args.precision}",
+                f"Use discriminator: {args.use_discriminator}",
                 f"Data path: {args.video_path}",
                 f"Learning rate: {learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Rescale size: {args.resolution}",
                 f"Crop size: {args.resolution}",
+                f"Number of frames: {args.video_num_frames}",
                 f"Weight decay: {args.weight_decay}",
                 f"Grad accumulation steps: {args.gradient_accumulation_steps}",
                 f"Num epochs: {args.epochs}",
