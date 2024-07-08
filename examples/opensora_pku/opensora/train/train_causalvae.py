@@ -57,10 +57,10 @@ def main(args):
 
     # Load Config
     assert os.path.exists(args.model_config), f"{args.model_config} does not exist!"
-    model_config = json.load(args.model_config)
+    model_config = json.load(open(args.model_config, "r"))
     ae = CausalVAEModel.from_config(model_config)
     if args.load_from_checkpoint is not None:
-        ae = ae.init_from_ckpt(args.load_from_checkpoint)
+        ae.init_from_ckpt(args.load_from_checkpoint)
     # discriminator (D)
     use_discriminator = args.use_discriminator and (model_config["loss_params"]["disc_weight"] > 0.0)
 
