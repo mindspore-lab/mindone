@@ -288,6 +288,8 @@ class VideoDatasetRefactored(BaseDataset):
 
     def _patchify_2(self, latent: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         f, c, h, w = latent.shape
+        if not self._vae_latent_folder:
+            h, w = h // 8, w // 8
 
         rs = (h * w * self._vae_downsample_rate**2) ** 0.5
         ph, pw = self._get_dynamic_size(h, w)
