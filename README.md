@@ -5,6 +5,8 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all" and "Optimal generators with No Exception" (credits to GPT-4).
 ## News
 
+- 2024.07.09 [mindone/diffusers](mindone/diffusers) now supports [Kolors](https://huggingface.co/Kwai-Kolors/Kolors).
+
 **Hello MindSpore** from **Stable Diffusion 3**!
 
 <div>

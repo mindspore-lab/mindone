@@ -1,0 +1,1 @@
+from .pipeline_stable_diffusion_xl_chatglm_256 import StableDiffusionXLKolorsPipeline
