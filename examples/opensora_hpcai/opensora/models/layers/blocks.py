@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -158,7 +158,7 @@ class MultiHeadCrossAttention(nn.Cell):
 
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        k, v = ops.split(kv, 1, axis=2)
+        k, v = mint.split(kv, 1, 2)
         # (b n h d)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -166,7 +166,7 @@ class MultiHeadCrossAttention(nn.Cell):
         # 2+: mask adaptation for multi-head attention
         if mask is not None:
             # flip mask, since ms FA treats 1 as discard, 0 as retain.
-            mask = 1 - mask
+            mask = ops.logical_not(mask.to(ms.bool_)).to(ms.uint8)
 
         # 3. attn compute
         if self.enable_flash_attention:
@@ -258,7 +258,7 @@ class SelfAttention(nn.Cell):
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = ops.split(qkv, 1, axis=2)  # (b n h d)
+        q, k, v = mint.split(qkv, 1, 2)  # (b n h d)
         q = ops.squeeze(q, axis=2)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -274,7 +274,7 @@ class SelfAttention(nn.Cell):
 
         # mask process
         if mask is not None:
-            mask = 1 - mask
+            mask = ops.logical_not(mask.to(ms.bool_)).to(ms.uint8)
 
         if self.enable_flash_attention:
             if mask is not None:
@@ -368,11 +368,11 @@ class PatchEmbed3D(nn.Cell):
         # padding
         _, _, D, H, W = x.shape
         if W % self.patch_size[2] != 0:
-            x = ops.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
+            x = mint.pad(x, (0, self.patch_size[2] - W % self.patch_size[2]))
         if H % self.patch_size[1] != 0:
-            x = ops.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
+            x = mint.pad(x, (0, 0, 0, self.patch_size[1] - H % self.patch_size[1]))
         if D % self.patch_size[0] != 0:
-            x = ops.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
+            x = mint.pad(x, (0, 0, 0, 0, 0, self.patch_size[0] - D % self.patch_size[0]))
 
         x = self.proj(x)  # (B C T H W)
         if self.norm is not None:
@@ -618,7 +618,7 @@ class TimestepEmbedder(nn.Cell):
         args = t[:, None].float() * freqs[None]
         embedding = ops.cat([ops.cos(args), ops.sin(args)], axis=-1)
         if dim % 2:
-            embedding = ops.cat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
+            embedding = ops.cat([embedding, mint.zeros_like(embedding[:, :1])], axis=-1)
         return embedding
 
     def construct(self, t: Tensor, dtype: ms.dtype):
@@ -715,7 +715,7 @@ class PositionEmbedding2D(nn.Cell):
         if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
             grid_h = grid_h.astype(ms.float32)
             grid_w = grid_w.astype(ms.float32)
-        grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
+        grid_h, grid_w = ms.numpy.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
         grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
 
         grid_h = grid_h.t().reshape(-1)

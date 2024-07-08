@@ -2,7 +2,7 @@ import logging
 import os
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from .autoencoder_kl import AutoencoderKL as AutoencoderKL_SD
 
@@ -44,7 +44,7 @@ class AutoencoderKL(AutoencoderKL_SD):
         """For latent caching usage"""
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = self.split(moments)
+        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
         logvar = ops.clip_by_value(logvar, -30.0, 20.0)
         std = self.exp(0.5 * logvar)
 
