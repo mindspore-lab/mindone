@@ -79,17 +79,20 @@ def main(args):
     # mixed precision
     # TODO: set softmax, sigmoid computed in FP32. manually set inside network since they are ops, instead of layers whose precision will be set by AMP level.
     if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
+        amp_level = args.amp_level
         dtype = get_precision(args.precision)
         if dtype == ms.float16:
             custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
         else:
             custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
-        ae = auto_mixed_precision(ae, amp_level="O2", dtype=dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(f"Use amp level O2 for causal 3D VAE with dtype={dtype}, custom_fp32_cells {custom_fp32_cells}")
+        ae = auto_mixed_precision(ae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(
+            f"Use amp level {amp_level} for causal 3D VAE with dtype={dtype}, custom_fp32_cells {custom_fp32_cells}"
+        )
 
         if use_discriminator:
             disc = auto_mixed_precision(disc, amp_level, dtype)
+            logger.info(f"Use amp level {amp_level} for discriminator with dtype={dtype}")
     elif args.precision == "fp32":
         amp_level = "O0"
     else:
