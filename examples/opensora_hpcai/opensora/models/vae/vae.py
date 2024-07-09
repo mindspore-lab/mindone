@@ -67,6 +67,7 @@ class VideoAutoencoderKL(nn.Cell):
         ckpt_path=None,
         micro_batch_size=None,
         scale_factor=0.18215,
+        use_recompute=False,
     ):
         super().__init__()
 
@@ -74,6 +75,7 @@ class VideoAutoencoderKL(nn.Cell):
             ddconfig=config,
             embed_dim=config["z_channels"],
             ckpt_path=ckpt_path,
+            use_recompute=use_recompute,
         )
 
         self.out_channels = config["z_channels"]  # self.module.config.latent_channels
@@ -228,12 +230,6 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.spatial_vae = build_module_from_config(config.vae_2d)
         self.temporal_vae = build_module_from_config(config.vae_temporal)
 
-        # recompute
-        if config.use_recompute:
-            if not config.freeze_vae_2d:
-                self.recompute(self.spatial_vae) #.recompute()
-            self.recompute(self.temporal_vae)  #.recompute()
-
         self.cal_loss = config.cal_loss
         self.micro_frame_size = config.micro_frame_size
         self.micro_z_frame_size = self.temporal_vae.get_latent_size([config.micro_frame_size, None, None])[0]
@@ -257,13 +253,6 @@ class VideoAutoencoderPipeline(nn.Cell):
         self.freeze_vae_2d = config.freeze_vae_2d
         self.concat_posterior = config.concat_posterior
 
-    def recompute(self, b):
-        if not b._has_config_recompute:
-            b.recompute()
-        if isinstance(b, nn.CellList):
-            self.recompute(b[-1])
-        else:
-            b.add_flags(output_no_recompute=True)
 
     def encode(self, x):
         if self.freeze_vae_2d:
@@ -361,10 +350,12 @@ def OpenSoraVAE_V1_2(
         type="VideoAutoencoderKL",
         config=SDXL_CONFIG,
         micro_batch_size=micro_batch_size,
+        use_recompute=use_recompute,
     )
     vae_temporal = dict(
         type="VAE_Temporal_SD",
         from_pretrained=None,
+        use_recompute=use_recompute,
     )
     shift = (-0.10, 0.34, 0.27, 0.98)
     scale = (3.85, 2.32, 2.33, 3.06)
@@ -376,10 +367,8 @@ def OpenSoraVAE_V1_2(
         micro_frame_size=micro_frame_size,
         shift=shift,
         scale=scale,
-        use_recompute=use_recompute,
     )
     
-
     config = VideoAutoencoderPipelineConfig(**kwargs)
     model = VideoAutoencoderPipeline(config)
     

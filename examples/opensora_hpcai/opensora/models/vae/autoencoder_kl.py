@@ -15,6 +15,7 @@ class AutoencoderKL(nn.Cell):
         ignore_keys=[],
         image_key="image",
         monitor=None,
+        use_recompute=False,
     ):
         super().__init__()
         self.image_key = image_key
@@ -33,6 +34,25 @@ class AutoencoderKL(nn.Cell):
         self.split = ops.Split(axis=1, output_num=2)
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
+        
+        if use_recompute:
+            print("D--: spatial vae recompute")
+            self.recompute(self.encoder)
+            self.recompute(self.quant_conv)
+            self.recompute(self.post_quant_conv)
+            self.recompute(self.decoder)
+            # self.encoder.recompute()
+            # self.quant_conv.recompute()
+            # self.post_quant_conv.recompute()
+            # self.decoder.recompute()
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
 
     def init_from_ckpt(
         self, path, ignore_keys=list(), remove_prefix=["first_stage_model.", "autoencoder.", "spatial_vae.module."]

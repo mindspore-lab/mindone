@@ -387,9 +387,6 @@ class Decoder(nn.Cell):
         self.norm_out = Normalize(block_in)
         self.conv_out = nn.Conv2d(block_in, out_ch, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True)
         
-        # recompute
-        # for block in self.up:
-        #    block.recompute()
 
     def construct(self, z):
         # timestep embedding
