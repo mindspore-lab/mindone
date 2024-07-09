@@ -54,7 +54,7 @@ class GeneratorWithLoss(nn.Cell):
         )
         return kl_loss
 
-    def vae_loss_fn(self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False):
+    def vae_loss_fn(self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=True):
         '''
         return:
             nll_loss: weighted sum of pixel reconstruction loss and perceptual loss 
@@ -67,7 +67,11 @@ class GeneratorWithLoss(nn.Cell):
         recons = _rearrange_in(recons)
 
         # reconstruction loss in pixels
-        rec_loss = ops.abs(x - recons)
+        # FIXME: debugging: use pixelwise mean to reduce loss scale
+        if pixelwise_mean:
+            rec_loss = ((x - recons)**2).mean()
+        else:
+            rec_loss = ops.abs(x - recons)
 
         # perceptual loss
         if (self.perceptual_weight > 0) and (not no_perceptual):
