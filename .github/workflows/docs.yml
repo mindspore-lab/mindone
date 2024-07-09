@@ -17,20 +17,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
             fetch-depth: 0
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.8'
+      - name: Install Hatch
+        uses: pypa/hatch@install
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements/docs.txt
+          hatch run python -m pip install --upgrade pip
+          hatch run pip install -e ".[docs]"
+          hatch run pip install mindspore
       - name: Build site
-        run: mkdocs build
+        run: hatch run mkdocs build
       - name: Deploy to gh-pages
         if: github.event_name == 'push' && github.repository == 'mindspore-lab/mindone'
         run: |
           git config --global user.name MkDocs Deployer
           git config --global user.email mkdocs@bot.com
-          # TODO: semantic versioning
-          mike deploy -u -p 0.1 latest
-          mike set-default -p latest
+          hatch run mike deploy -u -p $(hatch version | cut -d. -f1,2) latest
+          hatch run mike set-default -p latest
