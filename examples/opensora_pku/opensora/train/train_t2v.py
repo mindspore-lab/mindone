@@ -38,7 +38,6 @@ from mindone.utils.params import count_params
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
-ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 
@@ -74,6 +73,7 @@ def main(args):
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
         sp_size=args.sp_size,
+        jit_level=args.jit_level,
     )
     set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
@@ -617,6 +617,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument(
         "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
     )
+    parser.add_argument("--jit_level", default="O1", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     return parser
 
 

@@ -43,7 +43,6 @@ from mindone.utils.seed import set_random_seed
 from mindone.visualize.videos import save_videos
 
 logger = logging.getLogger(__name__)
-ms.context.set_context(jit_config={"jit_level": "O0"})  # O0: KBK, O1:DVM, O2: GE
 
 
 def init_env(
@@ -53,10 +52,10 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    enable_dvm: bool = False,
     precision_mode: str = None,
     global_bf16: bool = False,
     sp_size: int = 1,
+    jit_level: str = "O0",  # using kbk mode
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -111,17 +110,20 @@ def init_env(
             mode=mode,
             device_target=device_target,
         )
-
-    if enable_dvm:
-        print("enable dvm")
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
-    if precision_mode is not None and len(precision_mode) > 0:
-        ms.set_context(ascend_config={"precision_mode": precision_mode})
+    if jit_level is not None:
+        assert mode == 0, "Only graph mode supports jit_level!"
+        jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
+        print(f"Using jit_level: {jit_dict[jit_level]}")
+        ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
     if global_bf16:
         print("Using global bf16")
+        assert jit_level is not None and jit_level == "O2", "global_bf16 is supported in GE mode only!"
         ms.set_context(
             ascend_config={"precision_mode": "allow_mix_precision_bf16"}
         )  # reset ascend precison mode globally
+
+    if precision_mode is not None and len(precision_mode) > 0:
+        ms.set_context(ascend_config={"precision_mode": precision_mode})
 
     assert device_num >= sp_size and device_num % sp_size == 0, (
         f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
@@ -196,8 +198,7 @@ def parse_args():
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
-
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
         "--enable_flash_attention",
@@ -284,10 +285,10 @@ if __name__ == "__main__":
         device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
         precision_mode=args.precision_mode,
         global_bf16=args.global_bf16,
         sp_size=args.sp_size,
+        jit_level=args.jit_level,
     )
 
     # 2. vae model initiate and weight loading

@@ -29,7 +29,7 @@ def init_env(
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
     sp_size: int = 1,
-    enable_parallel_fusion: bool = False,
+    jit_level: str = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -96,8 +96,14 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
+    if jit_level is not None:
+        assert mode == 0, "Only graph mode supports jit_level!"
+        jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
+        print(f"Using jit_level: {jit_dict[jit_level]}")
+        ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
     if global_bf16:
         print("Using global bf16")
+        assert jit_level is not None and jit_level == "O2", "global_bf16 is supported in GE mode only!"
         ms.set_context(
             ascend_config={"precision_mode": "allow_mix_precision_bf16"}
         )  # reset ascend precison mode globally
@@ -158,6 +164,7 @@ def parse_train_args(parser):
         default=8,
         help="Set the size of the communication domain split by the optimizer weight. ",
     )
+
     #################################################################################
     #                                   Optimizers                                  #
     #################################################################################

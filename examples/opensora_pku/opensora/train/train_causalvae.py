@@ -36,7 +36,6 @@ from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
-ms.context.set_context(jit_config={"jit_level": "O1"})  # O0: KBK, O1:DVM, O2: GE
 logger = logging.getLogger(__name__)
 
 
@@ -49,7 +48,7 @@ def main(args):
         device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
+        jit_level=args.jit_level,
     )
     if args.exp_name is not None and len(args.exp_name) > 0:
         args.output_dir = os.path.join(args.output_dir, args.exp_name)
@@ -435,6 +434,7 @@ def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--random_crop", default=False, type=str2bool, help="Whether to use random crop. If False, use center crop"
     )
+    parser.add_argument("--jit_level", default="O2", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     return parser
 
 

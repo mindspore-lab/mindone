@@ -50,7 +50,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
-    enable_dvm: bool = False,
+    jit_level: str = "O0",
 ):
     """
     Initialize MindSpore environment.
@@ -95,17 +95,20 @@ def init_env(
             mode=mode,
             device_target=device_target,
         )
-
-    if enable_dvm:
-        ms.set_context(enable_graph_kernel=True)
-
+    if jit_level is not None:
+        assert mode == 0, "Only graph mode supports jit_level!"
+        jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
+        print(f"Using jit_level: {jit_dict[jit_level]}")
+        ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
     return rank_id, device_num
 
 
 def main(args):
     set_logger(name="", output_dir="logs/infer_t5")
 
-    rank_id, device_num = init_env(args.mode, args.seed, args.use_parallel, device_target=args.device_target)
+    rank_id, device_num = init_env(
+        args.mode, args.seed, args.use_parallel, device_target=args.device_target, jit_level=args.jit_level
+    )
     print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions
@@ -300,7 +303,7 @@ def parse_args():
 
     parser.add_argument("--batch_size", default=8, type=int, help="batch size")
     parser.add_argument("--model_max_length", type=int, default=300)
-
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     default_args = parser.parse_args()
     __dir__ = os.path.dirname(os.path.abspath(__file__))
     abs_path = os.path.abspath(os.path.join(__dir__, ".."))
