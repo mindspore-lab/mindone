@@ -255,6 +255,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"amp level: {amp_level}",
                 f"dtype: {args.precision}",
@@ -434,7 +435,7 @@ def parse_causalvae_train_args(parser):
     parser.add_argument(
         "--random_crop", default=False, type=str2bool, help="Whether to use random crop. If False, use center crop"
     )
-    parser.add_argument("--jit_level", default="O2", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
+    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     return parser
 
 
