@@ -97,10 +97,12 @@ def init_env(
         )
 
     if jit_level is not None:
-        assert mode == 0, "Only graph mode supports jit_level!"
-        jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
-        print(f"Using jit_level: {jit_dict[jit_level]}")
-        ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
+        if mode == 1:
+            print(f"Only graph mode supports jit_level! Will ignore jit_level {jit_level} in Pynative mode.")
+        else:
+            jit_dict = {"O0": "KBK", "O1": "DVM", "O2": "GE"}
+            print(f"Using jit_level: {jit_dict[jit_level]}")
+            ms.context.set_context(jit_config={"jit_level": jit_level})  # O0: KBK, O1:DVM, O2: GE
     if global_bf16:
         print("Using global bf16")
         assert jit_level is not None and jit_level == "O2", "global_bf16 is supported in GE mode only!"
