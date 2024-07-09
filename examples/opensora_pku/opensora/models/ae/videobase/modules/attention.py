@@ -28,6 +28,7 @@ class AttnBlock(nn.Cell):
         self.proj_out = nn.Conv2d(
             in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True
         ).to_float(dtype)
+        self.softmax = nn.Softmax(axis=2)
 
     def construct(self, x):
         h_ = x
@@ -45,7 +46,7 @@ class AttnBlock(nn.Cell):
 
         w_ = w_ * (int(c) ** (-0.5))
         # FIXME: cast w_ to FP32 in amp
-        w_ = ops.Softmax(axis=2)(w_)
+        w_ = self.softmax(w_)
 
         # attend to values
         v = ops.reshape(v, (b, c, h * w))
@@ -130,6 +131,7 @@ class AttnBlock3D(nn.Cell):
         self.k = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1)
         self.v = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1)
         self.proj_out = CausalConv3d(in_channels, in_channels, kernel_size=1, stride=1)
+        self.softmax = nn.Softmax(axis=2)
 
     def construct(self, x):
         # q shape: (b c t h w)
@@ -155,7 +157,7 @@ class AttnBlock3D(nn.Cell):
         w_ = self.bmm(q, k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
         w_ = w_ * (int(c) ** (-0.5))
         # FIXME: cast w_ to FP32 in amp
-        w_ = ops.Softmax(axis=2)(w_)
+        w_ = self.softmax(w_)
 
         # attend to values
         # v: (b c t h w) -> (b t c h w) -> (bt c hw)
