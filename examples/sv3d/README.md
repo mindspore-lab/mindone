@@ -54,7 +54,7 @@ Ascend Driver:                   23.0.rc3.6
 ```
 
 ## Pretrained Models
-- [ ] Mindspore Checkpoint Release
+You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/blob/main/sv3d_u.safetensors) with [our mindone script under svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd/svd_tools/convert.py).
 
 ## Inference
 

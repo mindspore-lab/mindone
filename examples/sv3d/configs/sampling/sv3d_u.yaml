@@ -1,5 +1,5 @@
 model:
-  target: models.diffusion.VideoDiffusionEngine
+  target: models.diffusion.MultiviewVideoDiffusionEngine
   params:
     scale_factor: 0.18215
     disable_first_stage_amp: True

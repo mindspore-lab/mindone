@@ -38,7 +38,7 @@ def net_to_dtype(
             net.to_float(exclude_dtype)
 
 
-class VideoDiffusionEngine(DiffusionEngine):
+class MultiviewVideoDiffusionEngine(DiffusionEngine):
     def __init__(self, *args, en_and_decode_n_samples_a_time: int = 0, **kwargs):
         super().__init__(*args, **kwargs)
         self.en_and_decode_n_samples_a_time = en_and_decode_n_samples_a_time
