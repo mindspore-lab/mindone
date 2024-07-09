@@ -2,6 +2,7 @@ python opensora/train/train_causalvae.py \
     --exp_name "9x256x256" \
     --batch_size 1 \
     --precision bf16 \
+    --amp_level "O2" \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
