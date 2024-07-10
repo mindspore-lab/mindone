@@ -330,6 +330,9 @@ def main(args):
             initial_epoch=start_epoch,
         )
     else:
+        loss_log_file = open(f"{args.output_dir}/result.log", "w")
+        loss_log_file.write("step\tloss_ae\tloss_disc\ttrain_time(s)\n")
+        loss_log_file.flush()
         if rank_id == 0:
             ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
         # output_numpy=True ?
@@ -362,6 +365,10 @@ def main(args):
                     if global_step >= disc_start:
                         loss_disc = float(loss_disc_t.asnumpy())
                         logger.info(f"Loss disc: {loss_disc:.4f}")
+                        loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{loss_disc:.7f}\t{step_time:.2f}\n")
+                    else:
+                        loss_log_file.write(f"{cur_global_step}\t{loss_ae:.7f}\t{0.0}\t{step_time:.2f}\n")
+                    loss_log_file.flush()
 
             epoch_cost = time.time() - start_time_e
             per_step_time = epoch_cost / num_batches
@@ -371,7 +378,11 @@ def main(args):
                 f"epoch time:{epoch_cost:.2f}s, per step time:{per_step_time*1000:.2f}ms, "
             )
             if rank_id == 0:
-                if (cur_epoch % args.ckpt_save_interval == 0) or (cur_epoch == args.epochs):
+                if (
+                    (cur_epoch % args.ckpt_save_interval == 0 and not args.step_mode)
+                    or (cur_global_step % args.ckpt_save_interval == 0 and args.step_mode)
+                    or (cur_epoch == args.epochs)
+                ):
                     ckpt_name = f"vae_3d-e{cur_epoch}.ckpt"
                     if ema is not None:
                         ema.swap_before_eval()
@@ -381,6 +392,7 @@ def main(args):
                         ema.swap_after_eval()
 
             # TODO: eval while training
+        loss_log_file.close()
 
 
 def parse_causalvae_train_args(parser):
