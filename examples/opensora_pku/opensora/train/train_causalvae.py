@@ -330,7 +330,9 @@ def main(args):
             initial_epoch=start_epoch,
         )
     else:
-        loss_log_file = open(f"{args.output_dir}/result.log", "w")
+        if not os.path.exists(f"{args.output_dir}/rank_{rank_id}"):
+            os.makedirs(f"{args.output_dir}/rank_{rank_id}")
+        loss_log_file = open(f"{args.output_dir}/rank_{rank_id}/result.log", "w")
         loss_log_file.write("step\tloss_ae\tloss_disc\ttrain_time(s)\n")
         loss_log_file.flush()
         if rank_id == 0:
