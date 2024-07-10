@@ -175,12 +175,14 @@ class DiscriminatorWithLoss(nn.Cell):
         disc_start=50001,
         disc_factor=1.0,
         disc_loss="hinge",
+        use_3d_disc=True,
     ):
         super().__init__()
         self.autoencoder = autoencoder
         self.discriminator = discriminator
         self.disc_start = disc_start
         self.disc_factor = disc_factor
+        self.use_3d_disc = use_3d_disc
 
         assert disc_loss in ["hinge", "vanilla"]
         if disc_loss == "hinge":
@@ -210,8 +212,8 @@ class DiscriminatorWithLoss(nn.Cell):
         # 1. AE forward, get posterior (mean, logvar) and recons
         recons, mean, logvar = ops.stop_gradient(self.autoencoder(x))
 
-        if x.ndim >= 5:
-            # TODO: use 3D discriminator
+        if x.ndim >= 5 and not self.use_3d_disc:
+            # use 2D discriminator
             # x: b c t h w -> (b*t c h w), shape for image perceptual loss
             x = _rearrange_in(x)
             recons = _rearrange_in(recons)

@@ -70,8 +70,10 @@ def main(args):
         disc_type = model_config["loss_type"]
         if "LPIPSWithDiscriminator3D" in disc_type:
             disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator3D"
+            use_3d_disc = True
         elif "LPIPSWithDiscriminator" in disc_type:
             disc_type = "opensora.models.ae.videobase.losses.discriminator.NLayerDiscriminator"
+            use_3d_disc = False
         disc = resolve_str_to_obj(disc_type, append=False)()
     else:
         disc = None
@@ -110,7 +112,7 @@ def main(args):
 
     # D with loss
     if use_discriminator:
-        disc_with_loss = DiscriminatorWithLoss(ae, disc, disc_start)
+        disc_with_loss = DiscriminatorWithLoss(ae, disc, disc_start, use_3d_disc=use_3d_disc)
 
     tot_params, trainable_params = count_params(ae_with_loss)
     logger.info("Total params {:,}; Trainable params {:,}".format(tot_params, trainable_params))
