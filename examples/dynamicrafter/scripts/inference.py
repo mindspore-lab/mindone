@@ -61,6 +61,10 @@ def init_env(
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
+    # Backend mode setting:
+    if args.mode == 0:  # jit_config only takes effect in Graph mode
+        ms.set_context(jit_config={"jit_level": args.jit_level})
+
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
 
@@ -399,10 +403,6 @@ def main(args):
         logger.warning(f"Model uses random initialization!")
 
     model.set_train(False)
-
-    # Backend mode setting:
-    if args.mode == 0:  # jit_config only takes effect in Graph mode
-        ms.set_context(jit_config={"jit_level": args.jit_level})
 
     # mixed precision setting
     WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]

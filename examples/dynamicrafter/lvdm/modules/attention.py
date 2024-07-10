@@ -351,9 +351,10 @@ class Attention(nn.Cell):
         # del v
 
         if self.relative_position:
-            v2 = self.relative_position_v(len_q, len_v)
-            out2 = einsum('b t s, t s d -> b t d', sim, v2) # FIXME: 核对与torch.einsum的写法是否等效
-            out += out2
+            raise NotImplementedError
+            # v2 = self.relative_position_v(len_q, len_v)
+            # out2 = einsum('b t s, t s d -> b t d', sim, v2) # FIXME
+            # out += out2
         out = self._rearrange_out(out, self.head_num)
 
         ## for image cross-attention

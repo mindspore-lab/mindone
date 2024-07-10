@@ -2,3 +2,4 @@ av
 ftfy
 tdqm
 imageio
+omegaconf

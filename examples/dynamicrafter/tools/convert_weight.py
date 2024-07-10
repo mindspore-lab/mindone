@@ -15,16 +15,20 @@ Usage: python convert_weight.py \
 Note: There are three resolutions: 256, 512, 1024. Please make sure the resolution is correct.
 """
 
-def convert_pt2ms(pt_param, ms_param, pt_weight, save_fp, gap=12):
+def convert_pt2ms(pt_param, ms_param, pt_weight, save_fp):
     """#gap PT weights not exists in MS weights, but it's reasonable."""
     with open(pt_param, "r") as f:
         f_pt_param = f.readlines()
     with open(ms_param, "r") as f:
         f_ms_param = f.readlines()
-    pt_weight = torch.load(pt_weight, map_location=torch.device("cpu"))["state_dict"]
-    ms_weight = []
+    pt_weight = torch.load(pt_weight, map_location=torch.device("cpu"))
+    if "state_dict" in pt_weight:
+        pt_weight = pt_weight["state_dict"]
 
-    assert len(f_ms_param) + gap == len(f_pt_param)
+    ms_weight = []
+    gap = len(f_pt_param) - len(f_ms_param)
+    print(f"INFO: The difference of number of params between PT and MS is {gap}.")
+    # assert len(f_ms_param) + gap == len(f_pt_param)
 
     for idx, line_pt in tqdm(enumerate(f_pt_param)):
         if idx < gap:
