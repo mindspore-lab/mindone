@@ -54,7 +54,7 @@ class GeneratorWithLoss(nn.Cell):
         )
         return kl_loss
 
-    def vae_loss_fn(self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=True):
+    def vae_loss_fn(self, x, recons, mean, logvar, nll_weights=None, no_perceptual=False, no_kl=False, pixelwise_mean=False):
         '''
         return:
             nll_loss: weighted sum of pixel reconstruction loss and perceptual loss 
@@ -107,6 +107,9 @@ class GeneratorWithLoss(nn.Cell):
         # 3d vae forward, get posterior (mean, logvar) and recons
         # x -> VAE2d-Enc -> x_z -> TemporalVAE-Enc -> z ~ posterior -> TempVAE-Dec -> x_z_rec -> VAE2d-Dec -> x_rec 
         x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z = self.autoencoder(x)
+        # FIXME: debugging
+        x_rec, x_z_rec, z, posterior_mean, posterior_logvar, x_z = x_rec.to(ms.float32), x_z_rec.to(ms.float32), z.to(ms.float32), posterior_mean.to(ms.float32), posterior_logvar.to(ms.float32), x_z.to(ms.float32)
+
         frames = x.shape[2]
         
         # Loss compute

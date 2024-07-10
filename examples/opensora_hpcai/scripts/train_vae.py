@@ -237,15 +237,20 @@ def main(args):
         learning_rate = args.start_learning_rate
     if not args.decay_steps:
         args.decay_steps = max(1, args.epochs * dataset_size - args.warmup_steps)
-    lr = create_scheduler(
-        steps_per_epoch=dataset_size,
-        name=args.scheduler,
-        lr=learning_rate,
-        end_lr=args.end_learning_rate,
-        warmup_steps=args.warmup_steps,
-        decay_steps=args.decay_steps,
-        num_epochs=args.epochs,
-    )
+
+    if args.scheduler != 'constant':
+        assert args.optim != 'adamw_exp', 'For dynamic LR, mindspore.experimental.optim.AdamW needs to work with LRScheduler'
+        lr = create_scheduler(
+            steps_per_epoch=dataset_size,
+            name=args.scheduler,
+            lr=learning_rate,
+            end_lr=args.end_learning_rate,
+            warmup_steps=args.warmup_steps,
+            decay_steps=args.decay_steps,
+            num_epochs=args.epochs,
+        )
+    else:
+        lr = learning_rate
 
     # build optimizer
     update_logvar = False  # in torch, ae_with_loss.logvar  is not updated.

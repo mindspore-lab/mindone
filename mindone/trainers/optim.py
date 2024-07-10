@@ -5,7 +5,7 @@ import logging
 from typing import List, Optional, Union
 
 from mindcv.optim.adamw import AdamW as AdamW_Refined
-
+from mindspore.mint import optim as mint_optim
 from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
@@ -61,20 +61,23 @@ def create_optimizer(
         return all([x not in param.name.lower() for x in filter_list])
 
     param_optimizer = params
-    decay_params = list(filter(decay_filter, param_optimizer))
-    other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
-    group_params = []
-    if len(decay_params) > 0:
-        group_params.append({"params": decay_params, "weight_decay": weight_decay})  # 1e-6})
-    if len(other_params) > 0:
-        group_params.append({"params": other_params, "weight_decay": 0.0})
-    group_params.append({"order_params": param_optimizer})
-    _logger.info(f"Parameter grouping result: weight decay {len(decay_params)}, no weight decay {len(other_params)}")
+    if name.lower() != "adamw_mint":
+        decay_params = list(filter(decay_filter, param_optimizer))
+        other_params = list(filter(lambda x: not decay_filter(x), param_optimizer))
+        group_params = []
+        if len(decay_params) > 0:
+            group_params.append({"params": decay_params, "weight_decay": weight_decay})  # 1e-6})
+        if len(other_params) > 0:
+            group_params.append({"params": other_params, "weight_decay": 0.0})
+        group_params.append({"order_params": param_optimizer})
+        _logger.info(f"Parameter grouping result: weight decay {len(decay_params)}, no weight decay {len(other_params)}")
 
     if name.lower() == "adam":
         optim_cls = Adam
     elif name.lower() == "adamw":
         optim_cls = AdamWeightDecay
+    elif name.lower() == "adamw_mint":
+        optim_cls = mint_optim.AdamW
     elif name.lower() == "adamw_re":
         optim_cls = AdamW_Refined
     elif name.lower() == "adamw_zero1":
@@ -87,6 +90,11 @@ def create_optimizer(
 
     if name.lower() in ["sgd", "momentum"]:
         optimizer = optim_cls(group_params, learning_rate=lr, momentum=0.9)
+    elif name.lower() == 'adamw_mint':
+        assert group_strategy is None, 'Param group is not adapted currently for mint.adamw'
+        optimizer = optim_cls(params, lr=lr, betas=tuple(betas), eps=eps,
+        weight_decay=weight_decay,
+        )
     else:
         optimizer = optim_cls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1], eps=eps)
 
