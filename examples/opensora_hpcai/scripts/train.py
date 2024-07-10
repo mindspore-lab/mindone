@@ -26,6 +26,7 @@ from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
+from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
@@ -36,9 +37,6 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
-
-# from opensora.utils.model_utils import WHITELIST_OPS
-
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -228,10 +226,7 @@ def main(args):
     if args.dtype in ["fp16", "bf16"]:
         if not args.global_bf16:
             latte_model = auto_mixed_precision(
-                latte_model,
-                amp_level=args.amp_level,
-                dtype=dtype_map[args.dtype],
-                # custom_fp32_cells=WHITELIST_OPS
+                latte_model, amp_level=args.amp_level, dtype=dtype_map[args.dtype], custom_fp32_cells=WHITELIST_OPS
             )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:
@@ -490,14 +485,8 @@ def main(args):
         loss_scaler.last_overflow_iter = last_overflow_iter
 
     # trainer (standalone and distributed)
-    ema = (
-        EMA(
-            latent_diffusion_with_loss.network,
-            ema_decay=0.9999,
-        )
-        if args.use_ema
-        else None
-    )
+    # BUG: not saving weights properly when offloading is enabled
+    ema = EMA(latent_diffusion_with_loss.network, ema_decay=0.9999, offloading=False) if args.use_ema else None
 
     net_with_grads = TrainOneStepWrapper(
         latent_diffusion_with_loss,
