@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from .modules import Decoder, Encoder
 
@@ -30,7 +30,6 @@ class AutoencoderKL(nn.Cell):
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys)
 
-        self.split = ops.Split(axis=1, output_num=2)
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
 
@@ -62,7 +61,7 @@ class AutoencoderKL(nn.Cell):
         # return latent distribution, N(mean, logvar)
         h = self.encoder(x)
         moments = self.quant_conv(h)
-        mean, logvar = self.split(moments)
+        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
 
         return mean, logvar
 

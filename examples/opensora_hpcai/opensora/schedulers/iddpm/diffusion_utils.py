@@ -10,7 +10,7 @@ from typing import Optional
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint, ops
 
 
 def _extract_into_tensor(a, t, x_shape):
@@ -203,7 +203,7 @@ def continuous_gaussian_log_likelihood(x, *, means, log_scales):
     centered_x = x - means
     inv_stdv = ops.exp(-log_scales)
     normalized_x = centered_x * inv_stdv
-    log_probs = ms.nn.probability.Normal(ops.zeros_like(x), ops.ones_like(x)).log_prob(normalized_x)
+    log_probs = ms.nn.probability.Normal(mint.zeros_like(x), mint.ones_like(x)).log_prob(normalized_x)
     return log_probs
 
 
