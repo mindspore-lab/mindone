@@ -60,6 +60,12 @@ Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/`
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
     It will be used for better model initialization.
 
+
+### OpenSora v1.2
+
+- 3D VAE:
+    `python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt`
+
 ## Inference
 
 ### Text-to-Video
