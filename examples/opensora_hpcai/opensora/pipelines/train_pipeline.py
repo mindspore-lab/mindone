@@ -293,7 +293,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         max_image_size: int = 512,
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.p = patch_size
