@@ -341,6 +341,9 @@ class Decoder(nn.Cell):
 
         self.conv_out = self.conv_fn(filters, in_out_channels, 3)
 
+        # recompute
+        # for block in self.res_blocks:
+        #    block.recompute()
 
     @staticmethod
     def rearrange(x, ts, hs=1, ws=1):
@@ -403,6 +406,7 @@ class VAE_Temporal(nn.Cell):
         temporal_downsample=(True, True, False),
         num_groups=32,  # for nn.GroupNorm
         activation_fn="swish",
+        use_recompute=False,
     ):
         super().__init__()
 
@@ -438,6 +442,25 @@ class VAE_Temporal(nn.Cell):
         self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
 
+        if use_recompute:
+            print("D--: temporal vae recompute")
+            self.recompute(self.encoder)
+            self.recompute(self.quant_conv)
+            self.recompute(self.post_quant_conv)
+            self.recompute(self.decoder)
+            # self.encoder.recompute()
+            # self.quant_conv.recompute()
+            # self.post_quant_conv.recompute()
+            # self.decoder.recompute()
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        else:
+            b.add_flags(output_no_recompute=True)
+
     def get_latent_size(self, input_size):
         latent_size = []
         for i in range(3):
@@ -465,6 +488,7 @@ class VAE_Temporal(nn.Cell):
         )
         # x = pad_at_dim(x, (time_padding, 0), dim=2)
 
+        # x_dtype = x.dtype
         # FIXME: bf16 not supported for ops.pad. use concat. equivalent to: ops.pad(x, (0, 0, 0, 0, time_padding, 0), mode="constant")
         pad_tensor = ops.zeros((B, C, time_padding, H, W), x.dtype)
         x = ops.concat((pad_tensor, x), axis=2)
