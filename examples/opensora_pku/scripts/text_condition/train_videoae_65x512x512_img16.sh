@@ -3,7 +3,7 @@ export MS_ENABLE_NUMA=0
 export MS_MEMORY_STATISTIC=1
 export GLOG_v=2
 
-export HCCL_BUFFSIZE=1 # reduce memory consumption when dataset_sink_mode=True, may degrade speed
+# export HCCL_BUFFSIZE=1 # reduce memory consumption when dataset_sink_mode=True, may degrade speed
 export MS_DATASET_SINK_QUEUE=2 # reduce memory consumption when dataset_sink_mode=True, may degrade speed
 # hyper-parameters
 image_size=512  # the image size of frames, same to image height and image width
