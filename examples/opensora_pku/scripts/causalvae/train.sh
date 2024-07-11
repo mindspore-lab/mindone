@@ -6,7 +6,7 @@ python opensora/train/train_causalvae.py \
     --max_steps 100000 \
     --save_steps 2000 \
     --output_dir results/causalvae \
-    --video_path /home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/mixkit/Family/ \
+    --video_path /remote-home1/dataset/data_split_tt \
     --video_num_frames 9 \
     --resolution 256 \
     --sample_rate 1 \
@@ -21,4 +21,4 @@ python opensora/train/train_causalvae.py \
     --mode 0 \
     --init_loss_scale 128 \
     --jit_level "O0" \
-    --use_discriminator True \
+    # --use_discriminator True \
