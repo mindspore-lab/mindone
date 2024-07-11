@@ -30,6 +30,7 @@ def init_env(
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
     sp_size: int = 1,
+    enable_parallel_fusion: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -46,6 +47,8 @@ def init_env(
 
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+    if enable_parallel_fusion:
+        ms.set_context(graph_kernel_flags="--enable_parallel_fusion --enable_expand_ops=AdamApplyOneWithDecayAssign")
 
     if distributed:
         ms.set_context(

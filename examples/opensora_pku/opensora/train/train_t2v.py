@@ -543,6 +543,9 @@ def parse_t2v_train_args(parser):
         choices=["bf16", "fp16"],
         help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
     )
+    parser.add_argument(
+        "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
+    )
     return parser
 
 
