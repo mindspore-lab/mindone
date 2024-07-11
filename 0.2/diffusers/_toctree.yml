@@ -1,0 +1,22 @@
+- sections:
+  - local: index
+    title: 🧨 Diffusers
+  - local: quicktour
+    title: Quicktour
+  - local: stable_diffusion
+    title: Effective and efficient diffusion
+  - local: installation
+    title: Installation
+  - local: limitations
+    title: Limitations
+  title: Get started
+- sections:
+  - local: tutorials/tutorial_overview
+    title: Overview
+  - local: using-diffusers/write_own_pipeline
+    title: Understanding pipelines, models and schedulers
+  - local: tutorials/basic_training
+    title: Train a diffusion model
+  - local: tutorials/using_peft_for_inference
+    title: Load LoRAs for inference
+  title: Tutorials
