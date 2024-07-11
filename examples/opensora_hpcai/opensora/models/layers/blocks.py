@@ -711,7 +711,12 @@ class PositionEmbedding2D(nn.Cell):
             grid_h *= base_size / h
             grid_w *= base_size / w
 
-        grid_h, grid_w = ms.numpy.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
+        orig_dtype = grid_h.dtype
+        if orig_dtype == ms.bfloat16:  # BUG MS2.3rc1: ops.meshgrid() doesn't support bf16
+            grid_h = grid_h.astype(ms.float32)
+            grid_w = grid_w.astype(ms.float32)
+        grid_h, grid_w = ops.meshgrid(grid_w, grid_h, indexing="ij")  # here w goes first
+        grid_h, grid_w = grid_h.astype(orig_dtype), grid_w.astype(orig_dtype)
 
         grid_h = grid_h.t().reshape(-1)
         grid_w = grid_w.t().reshape(-1)
