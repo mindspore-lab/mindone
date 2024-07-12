@@ -7,7 +7,7 @@ enable_flash_attention: True
 use_recompute: True
 
 vae_micro_batch_size: 1
-vae_dtype: fp16
+vae_dtype: bf16
 
 # data
 image_size: [ 512, 512 ]
@@ -19,7 +19,7 @@ max_rowsize: 256
 
 # precision
 amp_level: "O2"
-dtype: "bf16"
+dtype: bf16
 loss_scaler_type: static
 init_loss_scale: 1
 
