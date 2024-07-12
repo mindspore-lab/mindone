@@ -331,10 +331,20 @@ Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0
 Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and change `--pretrained` to the full checkpoint path from the `65x512x512` stage. Then run:
 
 ```bash
-# start 221x512x512 finetuning, 8 NPUs
+# (experimental) start 221x512x512 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_221x512x512_sp.sh
 ```
-Simiarly, please revise the `--pretrained` to the full checkpoint path from the `221x512x512` stage, and then start the third-stage training (to be released soon).
+
+> You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
+
+Simiarly, please revise the `--pretrained` to the full checkpoint path from the `221x512x512` stage, and then start the third-stage training:
+
+```bash
+# (experimental) start 513x512x512 finetuning, 8 NPUs
+bash scripts/text_condition/train_videoae_513x512x512_sp.sh
+```
+
+> You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
 
 
 #### Overfitting Experiment
@@ -353,12 +363,14 @@ The checkpoint after 3000 steps generated videos similar to the original videos,
 
 We evaluated the training performance on MindSpore and Ascend NPUs. The results are as follows.
 
-| Model           | Context        | Precision | BS | NPUs | num_frames + num_images| Resolution  | Train T. (s/step) |
-|:----------------|:---------------|:----------|:--:|:----:|:-----------:|:-----------:|:--------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   17 + 4    | 512x512     |  2.54  |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 16   | 512x512     |  10.57  |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 2  |  8   |   65 + 4   | 512x512     |  7.50 |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      | 1  |  8   |   221 + 4   | 512x512     | 7.18 |
+| Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | Train T. (s/step) |
+|:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------------:|
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.54        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  2  |  8   |         65 + 16         | 512x512     |       10.57       |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.50        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  1  |  8   |         513 + 8         | 512x512     |       12.5        |
+
 > Context: {NPU type}-{CANN version}-{MindSpore version}
 
 ## 👍 Acknowledgement
