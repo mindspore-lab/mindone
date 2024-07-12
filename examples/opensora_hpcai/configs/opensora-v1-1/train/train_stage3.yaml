@@ -6,7 +6,7 @@ model_max_length: 200
 enable_flash_attention: True
 use_recompute: True
 
-vae_micro_batch_size: 1
+vae_micro_batch_size: 4
 vae_dtype: bf16
 
 # data
