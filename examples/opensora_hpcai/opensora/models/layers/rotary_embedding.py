@@ -12,12 +12,13 @@ except ImportError:
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, dtype, nn, ops
+from mindspore import Parameter, Tensor, dtype, nn, ops, mint
+from mindspore.ops.function.array_func import repeat_interleave_ext as repeat_interleave
 
 
 def rotate_half(x: Tensor) -> Tensor:
     x = x.reshape(x.shape[:-1] + (-1, 2))  # ... (d r) -> ... d r, r = 2
-    x1, x2 = x.chunk(2, axis=-1)
+    x1, x2 = mint.chunk(x, 2, -1)
     x = ops.concat((-x2, x1), axis=-1)
     return x.reshape(x.shape[:-2] + (-1,))  # '... d r -> ... (d r)'
 
@@ -31,10 +32,6 @@ def apply_rotary_emb(
 
     rot_dim = freqs.shape[-1]
     end_index = start_index + rot_dim
-
-    assert (
-        rot_dim <= t.shape[-1]
-    ), f"feature dimension {t.shape[-1]} is not of sufficient size to rotate in all the positions {rot_dim}"
 
     t_left, t, t_right = t[..., :start_index], t[..., start_index:end_index], t[..., end_index:]
     t = (t * freqs.cos().astype(t.dtype) * scale) + (rotate_half(t) * freqs.sin().astype(t.dtype) * scale)
@@ -93,7 +90,7 @@ class RotaryEmbedding(nn.Cell):
         self.default_seq_dim = -3 if seq_before_head_dim else -2
 
         # interpolation factors
-        assert interpolate_factor >= 1.0
+        # assert interpolate_factor >= 1.0
         self.interpolate_factor = interpolate_factor
 
         # xpos
@@ -123,7 +120,6 @@ class RotaryEmbedding(nn.Cell):
         dtype, seq_len = t.dtype, t.shape[seq_dim]
 
         if freq_seq_len is not None:
-            assert freq_seq_len >= seq_len
             seq_len = freq_seq_len
 
         freqs = self.construct(self.get_seq_pos(seq_len, dtype=dtype, offset=offset), seq_len=seq_len, offset=offset)
@@ -147,7 +143,7 @@ class RotaryEmbedding(nn.Cell):
 
     def construct(self, t: Tensor, seq_len=None, offset=0) -> Tensor:
         freqs = t.astype(self.freqs.dtype)[..., None] * self.freqs
-        return freqs.repeat(2, axis=-1)  # ... n -> ... (n r), r = 2
+        return repeat_interleave(freqs, 2, -1)  # ... n -> ... (n r), r = 2
 
 
 def rope_1d(x: Tensor, freqs_cis: Tensor) -> Tensor:

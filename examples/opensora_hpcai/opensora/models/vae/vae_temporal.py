@@ -3,7 +3,7 @@ from typing import Tuple, Union
 from packaging import version
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 
 
 def divisible_by(num, den):
@@ -41,8 +41,8 @@ class CausalConv3d(nn.Cell):
 
         time_kernel_size, height_kernel_size, width_kernel_size = kernel_size
 
-        assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
-        assert pad_mode == "constant"
+        # assert is_odd(height_kernel_size) and is_odd(width_kernel_size)
+        # assert pad_mode == "constant"
 
         dilation = kwargs.pop("dilation", 1)
         stride = strides[0] if strides is not None else kwargs.pop("stride", 1)
@@ -278,7 +278,7 @@ class Decoder(nn.Cell):
         self.num_groups = num_groups
         self.embedding_dim = latent_embed_dim
         self.s_stride = 1
-        assert self.s_stride == 1
+        # assert self.s_stride == 1
 
         self.activation_fn = get_activation_fn(activation_fn)
         self.activate = self.activation_fn()
@@ -439,7 +439,6 @@ class VAE_Temporal(nn.Cell):
             num_groups=num_groups,  # for nn.GroupNorm
             activation_fn=activation_fn,
         )
-        self.split = ops.Split(axis=1, output_num=2)
         self.stdnormal = ops.StandardNormal()
 
         if use_recompute:
@@ -495,7 +494,7 @@ class VAE_Temporal(nn.Cell):
 
         encoded_feature = self.encoder(x)
         moments = self.quant_conv(encoded_feature).to(x.dtype)
-        mean, logvar = self.split(moments)
+        mean, logvar = mint.split(moments, moments.shape[1] // 2, 1)
 
         return mean, logvar
 

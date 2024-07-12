@@ -5,8 +5,9 @@ from typing import Optional, Tuple, Type, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, nn, ops, mint
 from mindspore.common.initializer import initializer
+from mindspore.ops.function.array_func import repeat_interleave_ext as repeat_interleave
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
 from mindone.models.modules.pos_embed import _get_1d_sincos_pos_embed_from_grid, _get_2d_sincos_pos_embed_from_grid
@@ -70,7 +71,7 @@ class Attention(nn.Cell):
         if mask is not None:
             # (b 1 n_k) -> (b*h 1 n_k)
             # NOTE: due to uint8 not supported in CANN0630, cast mask to int32
-            mask = ops.repeat_interleave(mask.to(ms.int32), h, axis=0)
+            mask = repeat_interleave(mask.to(ms.int32), h, 0)
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
 
@@ -102,7 +103,7 @@ class MultiHeadCrossAttention(nn.Cell):
 
     def __init__(self, d_model, num_heads, attn_drop=0.0, proj_drop=0.0, has_bias=True, enable_flash_attention=False):
         super().__init__()
-        assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
+        # assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
 
         self.d_model = d_model
         self.num_heads = num_heads
@@ -117,7 +118,7 @@ class MultiHeadCrossAttention(nn.Cell):
         )
         if self.enable_flash_attention:
             attn_dtype = ms.bfloat16
-            assert attn_drop == 0.0, "attn drop is not supported in FA currently."
+            # assert attn_drop == 0.0, "attn drop is not supported in FA currently."
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
                 head_num=self.num_heads,
@@ -159,7 +160,7 @@ class MultiHeadCrossAttention(nn.Cell):
 
         # kv: (B N_k C*2) -> (B N_k 2 C) -> (B N_k 2 num_head head_dim).
         kv = ops.reshape(kv, (B, N_k, 2, self.num_heads, self.head_dim))
-        k, v = ops.split(kv, 1, axis=2)
+        k, v = mint.split(kv, 1, 2)
         # (b n h d)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -175,7 +176,8 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
+                # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
+                mask = repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -215,7 +217,7 @@ class SelfAttention(nn.Cell):
         rope=None,
     ):
         super().__init__()
-        assert dim % num_heads == 0, "dim should be divisible by num_heads"
+        # assert dim % num_heads == 0, "dim should be divisible by num_heads"
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.head_dim = head_dim
@@ -258,7 +260,7 @@ class SelfAttention(nn.Cell):
         qkv = self.qkv(x)
         # (b, n, 3*h*d) -> (b, n, 3, h, d)
         qkv = ops.reshape(qkv, (B, N, 3, self.num_heads, self.head_dim))
-        q, k, v = ops.split(qkv, 1, axis=2)  # (b n h d)
+        q, k, v = mint.split(qkv, 1, 2)  # (b n h d)
         q = ops.squeeze(q, axis=2)
         k = ops.squeeze(k, axis=2)
         v = ops.squeeze(v, axis=2)
@@ -280,7 +282,7 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
+                mask = repeat_interleave(mask.to(ms.int32), int(q.shape[1]), -2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
@@ -416,13 +418,15 @@ class T2IFinalLayer(nn.Cell):
         T: Optional[int] = None,
         S: Optional[int] = None,
     ) -> Tensor:
-        T = T or self.d_t
-        S = S or self.d_s
-        shift, scale = (self.scale_shift_table[None] + t[:, None]).chunk(2, axis=1)
+        if T is None:
+            T = self.d_t
+        if S is None:
+            S = self.d_s
+        shift, scale = mint.chunk(self.scale_shift_table[None] + t[:, None], 2, 1)
         x = t2i_modulate(self.norm_final(x), shift, scale)
 
-        if frames_mask is not None:
-            shift_zero, scale_zero = (self.scale_shift_table[None] + t0[:, None]).chunk(2, axis=1)
+        if True:
+            shift_zero, scale_zero = mint.chunk(self.scale_shift_table[None] + t0[:, None], 2, 1)
             x_zero = t2i_modulate(self.norm_final(x), shift_zero, scale_zero)
             x = self.t_mask_select(frames_mask, x, x_zero, T, S)
 
@@ -466,8 +470,6 @@ class CaptionEmbedder(nn.Cell):
         return caption
 
     def construct(self, caption, train, force_drop_ids=None):
-        if train:
-            assert caption.shape[2:] == self.y_embedding.shape
         use_dropout = self.uncond_prob > 0
         if (train and use_dropout) or (force_drop_ids is not None):
             caption = self.token_drop(caption, force_drop_ids)
@@ -490,7 +492,7 @@ class PatchEmbed(nn.Cell):
         self.patch_size: Tuple = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
         self.embed_dim = embed_dim
         self.proj = nn.Conv2d(
-            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="same", has_bias=bias
+            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, pad_mode="valid", has_bias=bias
         )
 
     def construct(self, x: Tensor) -> Tensor:
@@ -672,10 +674,8 @@ class SizeEmbedder(nn.Cell):
     def construct(self, s: Tensor, bs: Tensor) -> Tensor:
         if s.ndim == 1:
             s = s[:, None]
-        assert s.ndim == 2
         if s.shape[0] != bs:
-            s = s.repeat(bs // s.shape[0], axis=0)
-            assert s.shape[0] == bs
+            s = repeat_interleave(s, bs // s.shape[0], 0)
         b, dims = s.shape[0], s.shape[1]
         s = s.reshape(b * dims)  # b d -> (b d)
         s_freq = self.timestep_embedding(s)
@@ -687,7 +687,7 @@ class PositionEmbedding2D(nn.Cell):
     def __init__(self, dim: int):
         super().__init__()
         self.dim = dim
-        assert dim % 4 == 0, "dim must be divisible by 4"
+        # assert dim % 4 == 0, "dim must be divisible by 4"
         half_dim = dim // 2
         self.inv_freq = Tensor(1.0 / (10000 ** (np.arange(0, half_dim, 2) / half_dim)), dtype=ms.float32)
 
