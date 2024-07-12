@@ -197,6 +197,7 @@ class EDMSampler(SingleStepDiffusionSampler):
     def __call__(self, model, x, cond, uc=None, num_steps=None, **kwargs):
         x = ops.cast(x, ms.float32)
         x, s_in, sigmas, num_sigmas, cond, uc = self.prepare_sampling_loop(x, cond, uc, num_steps)
+        sigmas = Tensor(sigmas)
 
         for i in self.get_sigma_gen(num_sigmas):
             gamma = (

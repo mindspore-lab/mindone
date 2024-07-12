@@ -2,10 +2,15 @@ import argparse
 import ast
 import logging
 import os
+import sys
 import time
 from functools import partial
 from pathlib import Path
 
+mindone_lib_path = os.path.abspath(os.path.abspath("../../"))
+sys.path.insert(0, mindone_lib_path)
+
+import numpy as np
 from gm.data.loader import create_loader, create_loader_dreambooth  # noqa: F401
 from gm.helpers import (
     SD_XL_BASE_RATIOS,
@@ -58,6 +63,7 @@ def get_parser_train():
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
     parser.add_argument("--weight", type=str, default="checkpoints/sd_xl_base_1.0_ms.ckpt")
+    parser.add_argument("--per_batch_size", type=int, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--sd_xl_base_ratios", type=str, default="1.0")
     # parser.add_argument("--data_path", type=str, default="")
@@ -85,6 +91,16 @@ def get_parser_train():
     parser.add_argument("--device_target", type=str, default="Ascend", help="device target, Ascend/GPU/CPU")
     parser.add_argument(
         "--ms_mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)"
+    )
+    parser.add_argument(
+        "--jit_level",
+        default="O2",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--ms_amp_level", type=str, default="O2")
     parser.add_argument(
@@ -214,11 +230,14 @@ def train(args):
 
     # 3. Create dataloader
     assert "data" in config
+    per_batch_size = config.data.pop("per_batch_size")
+    per_batch_size = per_batch_size if args.per_batch_size is None else args.per_batch_size
     dataloader = create_loader_dreambooth(
         instance_data_path=args.instance_data_path,
         class_data_path=args.class_data_path,
         instance_prompt=args.instance_prompt,
         class_prompt=args.class_prompt,
+        per_batch_size=per_batch_size,
         rank=args.rank,
         rank_size=args.rank_size,
         train_data_repeat=args.train_data_repeat,
@@ -250,6 +269,8 @@ def train(args):
         # Graph Mode
         from gm.models.trainer_factory import TrainOneStepCellDreamBooth
 
+        model.model = auto_mixed_precision(model.model, amp_level=args.ms_amp_level)
+
         train_step_fn = TrainOneStepCellDreamBooth(
             model,
             optimizer,
@@ -261,7 +282,27 @@ def train(args):
             clip_grad=args.clip_grad,
             clip_norm=args.max_grad_norm,
         )
-        train_step_fn = auto_mixed_precision(train_step_fn, amp_level=args.ms_amp_level)
+
+        dynamic_shape = True if "multi_aspect" in config.data.dataset_config.params.keys() else False
+        if dynamic_shape:
+            input_dyn = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+            token1 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token2 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token3 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token4 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token5 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token = [token1, token2, token3, token4, token5]
+
+            input_dyn_2 = Tensor(shape=[per_batch_size, 3, None, None], dtype=ms.float32)
+            token6 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token7 = Tensor(np.ones((per_batch_size, 77)), dtype=ms.int32)
+            token8 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token9 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token10 = Tensor(np.ones((per_batch_size, 2)), dtype=ms.float32)
+            token_reg = [token6, token7, token8, token9, token10]
+
+            train_step_fn.set_inputs(input_dyn, input_dyn_2, *token, *token_reg)
+
         if model.disable_first_stage_amp:
             train_step_fn.first_stage_model.to_float(ms.float32)
         jit_config = ms.JitConfig()
