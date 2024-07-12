@@ -213,7 +213,7 @@ class InferPipelineFiTLike(InferPipeline):
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
         input_sq_size: int = 512,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.p = patch_size
