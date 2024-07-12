@@ -22,7 +22,7 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
-from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
+from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
@@ -170,24 +170,72 @@ def main(args):
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
-    # 2.1 stdit
-    VAE_T_COMPRESS = 1
-    VAE_S_COMPRESS = 8
-    VAE_Z_CH = SD_CONFIG["z_channels"]
-    img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
+
+    # 2.1 vae
+    logger.info("vae init")
+    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
+    if not train_with_vae_latent:
+        if args.vae_type in [None, "VideoAutoencoderKL"]:
+            vae = VideoAutoencoderKL(
+                config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
+            )
+        elif args.vae_type == "OpenSoraVAE_V1_2":
+            if args.vae_micro_frame_size != 17:
+                logger.warning("vae_micro_frame_size should be 17 to align with the vae pretrain setting.")
+            vae = OpenSoraVAE_V1_2(
+                micro_batch_size=args.vae_micro_batch_size,
+                micro_frame_size=args.vae_micro_frame_size,
+                ckpt_path=args.vae_checkpoint,
+                freeze_vae_2d=True,
+            )
+        vae = vae.set_train(False)
+
+        for param in vae.get_parameters():
+            param.requires_grad = False
+            if args.vae_param_dtype in ["fp16", "bf16"]:
+                # filter out norm
+                if "norm" not in param.name:
+                    param.set_dtype(dtype_map[args.vae_param_dtype])
+
+        if args.vae_dtype in ["fp16", "bf16"]:
+            vae = auto_mixed_precision(
+                vae,
+                amp_level=args.vae_amp_level,
+                dtype=dtype_map[args.vae_dtype],
+                custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
+            )
+
+        # infer latent size
+        VAE_Z_CH = vae.out_channels
+        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+        if args.pre_patchify:
+            img_h, img_w = args.max_image_size, args.max_image_size
+        input_size = (args.num_frames, img_h, img_w)
+        latent_size = vae.get_latent_size(input_size)
+    else:
+        # vae cache
+        vae = None
+        assert args.vae_type != "OpenSoraVAE_V1_2", "vae cache is not supported with 3D VAE currently."
+        VAE_Z_CH = SD_CONFIG["z_channels"]
+        VAE_T_COMPRESS = 1
+        VAE_S_COMPRESS = 8
+        img_h, img_w = args.image_size if isinstance(args.image_size, list) else (args.image_size, args.image_size)
+        if args.pre_patchify:
+            img_h, img_w = args.max_image_size, args.max_image_size
+        latent_size = (
+            args.num_frames // VAE_T_COMPRESS,
+            img_h // VAE_S_COMPRESS,
+            img_w // VAE_S_COMPRESS,
+        )
+
+    # 2.2 stdit
     if args.model_version == "v1":
         assert img_h == img_w, "OpenSora v1 support square images only."
-    if args.pre_patchify:
-        img_h, img_w = args.max_image_size, args.max_image_size
 
-    input_size = (
-        args.num_frames // VAE_T_COMPRESS,
-        img_h // VAE_S_COMPRESS,
-        img_w // VAE_S_COMPRESS,
-    )
     patchify_conv3d_replace = "linear" if args.pre_patchify else args.patchify
     model_extra_args = dict(
-        input_size=input_size,
+        input_size=latent_size,
         in_channels=VAE_Z_CH,
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
@@ -206,7 +254,7 @@ def main(args):
                 "num_recompute_blocks": args.num_recompute_blocks,
             }
         )
-        logger.info(f"STDiT input size: {input_size}")
+        logger.info(f"STDiT input size: {latent_size}")
         latte_model = STDiT_XL_2(**model_extra_args)
     elif args.model_version == "v1.1":
         model_extra_args.update(
@@ -222,7 +270,6 @@ def main(args):
         raise ValueError(f"Unknown model version: {args.model_version}")
 
     # mixed precision
-    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         if not args.global_bf16:
             latte_model = auto_mixed_precision(
@@ -236,7 +283,7 @@ def main(args):
         logger.info("Use random initialization for Latte")
     latte_model.set_train(True)
 
-    if input_size[1] % latte_model.patch_size[1] != 0 or input_size[2] % latte_model.patch_size[2] != 0:
+    if latent_size[1] % latte_model.patch_size[1] != 0 or latent_size[2] % latte_model.patch_size[2] != 0:
         height_ = latte_model.patch_size[1] * VAE_S_COMPRESS
         width_ = latte_model.patch_size[2] * VAE_S_COMPRESS
         msg = f"Image height ({img_h}) and width ({img_w}) should be divisible by {height_} and {width_} respectively."
@@ -244,33 +291,6 @@ def main(args):
             raise ValueError(msg)
         else:
             logger.warning(msg)
-
-    # 2.2 vae
-    # TODO: use mindone/models/autoencoders in future
-    logger.info("vae init")
-    train_with_vae_latent = args.vae_latent_folder is not None and os.path.exists(args.vae_latent_folder)
-    if not train_with_vae_latent:
-        vae = AutoencoderKL(
-            SD_CONFIG,
-            VAE_Z_CH,
-            ckpt_path=args.vae_checkpoint,
-        )
-        vae = vae.set_train(False)
-        for param in vae.get_parameters():
-            param.requires_grad = False
-            if args.vae_param_dtype in ["fp16", "bf16"]:
-                # filter out norm
-                if "norm" not in param.name:
-                    param.set_dtype(dtype_map[args.vae_param_dtype])
-        if args.vae_dtype in ["fp16", "bf16"]:
-            vae = auto_mixed_precision(
-                vae,
-                amp_level=args.vae_amp_level,
-                dtype=dtype_map[args.vae_dtype],
-                custom_fp32_cells=[nn.GroupNorm] if args.vae_keep_gn_fp32 else [],
-            )
-    else:
-        vae = None
 
     # 2.3 ldm with loss
     logger.info(f"Train with vae latent cache: {train_with_vae_latent}")
@@ -280,7 +300,6 @@ def main(args):
         cond_stage_trainable=False,
         text_emb_cached=True,
         video_emb_cached=train_with_vae_latent,
-        micro_batch_size=args.vae_micro_batch_size,
     )
     if args.pre_patchify:
         additional_pipeline_kwargs = dict(
