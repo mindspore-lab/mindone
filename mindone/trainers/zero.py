@@ -97,7 +97,7 @@ class ZeroOptimizerWrapper(nn.Cell):
                 self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
             if self.zero_stage in [1, 2]:
                 self.op_allgather = ops.AllGather(group=self.op_group)
-            self.need_dp = dp_group != None
+            self.need_dp = dp_group is not None
             if self.need_dp:
                 self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=dp_group)
                 self.dp_group_size = ms.Tensor(get_group_size(group=dp_group), ms.float32)
@@ -343,7 +343,7 @@ def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: int = None)
 
 def prepare_optimizer(optimizer: nn.Optimizer, zero_stage: int = 0, op_group: str = None, dp_group: str = None):
     if zero_stage == 0 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
-        _logger.info(f"No need prepare optimizer with zero.")
+        _logger.info("No need prepare optimizer with zero.")
         return optimizer
     if not isinstance(optimizer, nn.Optimizer):
         raise ValueError("optimizer must be MindSpore Optimizer.")
@@ -367,7 +367,7 @@ def prepare_train_network(
     """
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
-        _logger.info(f"No need prepare train_network with zero.")
+        _logger.info("No need prepare train_network with zero.")
         return network, optimizer
 
     if zero_stage not in [0, 1, 2, 3]:
