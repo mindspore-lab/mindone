@@ -26,11 +26,11 @@ from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencode
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
+from opensora.utils.ema import EMA
 from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
-from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
