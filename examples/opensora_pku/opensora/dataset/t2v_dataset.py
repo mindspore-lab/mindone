@@ -303,6 +303,7 @@ class TextVideoDataset:
     def get_vid_cap_list(self):
         vid_cap_lists = []
         video_dataset = self.parse_dataset_text(self.video_data)
+        assert len(video_dataset) > 0, f"The video dataset {self.video_data} must not be empty!"
 
         for item in video_dataset:
             anno = item["annotation"]
