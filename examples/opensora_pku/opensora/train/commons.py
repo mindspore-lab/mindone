@@ -200,8 +200,12 @@ def parse_train_args(parser):
     parser.add_argument("--gradient_accumulation_steps", default=1, type=int, help="gradient accumulation steps")
     parser.add_argument("--weight_decay", default=1e-2, type=float, help="Weight decay.")
     parser.add_argument("--lr_warmup_steps", default=1000, type=int, help="warmup steps")
-    parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
-    parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
+    parser.add_argument(
+        "--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for the optimizer."
+    )
+    parser.add_argument(
+        "--end_learning_rate", default=1e-7, type=float, help="The end learning rate for the optimizer."
+    )
     parser.add_argument("--lr_decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument("--lr_scheduler", default="cosine_decay", type=str, help="scheduler.")
     parser.add_argument(

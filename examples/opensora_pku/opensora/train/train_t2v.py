@@ -76,8 +76,6 @@ def main(args):
         sp_size=args.sp_size,
     )
     set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
-    if args.use_deepspeed:
-        raise NotImplementedError
 
     train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
     if train_with_vae_latent:
@@ -458,7 +456,7 @@ def main(args):
 
 def parse_t2v_train_args(parser):
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
-    parser.add_argument("--dataset", type=str, required=True)
+    parser.add_argument("--dataset", type=str, default="t2v")
     parser.add_argument("--image_data", type=str, required=True)
     parser.add_argument("--video_data", type=str, required=True)
     parser.add_argument(
@@ -474,23 +472,20 @@ def parse_t2v_train_args(parser):
         help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
     )
     parser.add_argument("--vae_latent_folder", default=None, type=str, help="root dir for the vae latent data")
-    parser.add_argument("--model", type=str, default="DiT-XL/122")
-    parser.add_argument("--num_classes", type=int, default=1000)
-    parser.add_argument("--ae", type=str, default="stabilityai/sd-vae-ft-mse")
-    parser.add_argument("--ae_path", type=str, default="stabilityai/sd-vae-ft-mse")
+    parser.add_argument("--model", type=str, default="LatteT2V-XL/122")
+    parser.add_argument("--ae", type=str, default="CausalVAEModel_4x8x8")
+    parser.add_argument("--ae_path", type=str, default="LanguageBind/Open-Sora-Plan-v1.1.0")
 
     parser.add_argument("--num_frames", type=int, default=17)
     parser.add_argument("--max_image_size", type=int, default=512)
     parser.add_argument("--compress_kv", action="store_true")
     parser.add_argument("--compress_kv_factor", type=int, default=1)
     parser.add_argument("--use_rope", action="store_true")
-    parser.add_argument("--attention_mode", type=str, choices=["xformers", "math", "flash"], default="math")
     parser.add_argument("--pretrained", type=str, default=None)
 
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
     parser.add_argument("--enable_tiling", action="store_true")
 
-    parser.add_argument("--video_folder", type=str, default="")
     parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--model_max_length", type=int, default=300)
     parser.add_argument("--multi_scale", action="store_true")
@@ -498,7 +493,6 @@ def parse_t2v_train_args(parser):
     # parser.add_argument("--enable_tracker", action="store_true")
     parser.add_argument("--use_image_num", type=int, default=0)
     parser.add_argument("--use_img_from_vid", action="store_true")
-    parser.add_argument("--use_deepspeed", action="store_true")
     parser.add_argument(
         "--max_train_steps",
         type=int,
@@ -514,9 +508,6 @@ def parse_t2v_train_args(parser):
             " checkpoints in case they are better than the last checkpoint, and are also suitable for resuming"
             " training using `--resume_from_checkpoint`."
         ),
-    )
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
     )
 
     parser.add_argument(
