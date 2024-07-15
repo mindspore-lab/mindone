@@ -22,9 +22,19 @@ from pixart.dataset import LatentDataset
 from pixart.diffusion import create_diffusion
 from pixart.modules.pixart import PixArt_XL_2, PixArtMS_XL_2
 from pixart.pipelines import NetworkWithLoss
-from pixart.utils import EMA, auto_scale_lr, count_params, load_ckpt_params, str2bool
+from pixart.utils import (
+    EMA,
+    LossMonitor,
+    SaveCkptCallback,
+    TimeMonitor,
+    auto_scale_lr,
+    check_cfgs_in_parser,
+    count_params,
+    load_ckpt_params,
+    str2bool,
+)
 
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
+from mindone.trainers.callback import OverflowMonitor
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
@@ -37,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 def init_env(args) -> Tuple[int, int]:
     set_random_seed(args.seed)
-    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level="O2"))
+    ms.set_context(mode=args.mode, device_target=args.device_target, jit_config=dict(jit_level="O0"))
     if args.use_parallel:
         init()
         device_num = get_group_size()
@@ -103,6 +113,7 @@ def parse_args():
     )
     parser.add_argument("--init_loss_scale", default=65536.0, type=float, help="loss scale")
     parser.add_argument("--scale_window", default=1000, type=int, help="loss scale window")
+    parser.add_argument("--loss_scale_factor", default=2.0, type=float, help="loss scale factor")
     parser.add_argument("--use_ema", default=False, type=str2bool, help="whether to use EMA")
     parser.add_argument("--ema_rate", default=0.9999, type=float, help="EMA Rate.")
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
@@ -115,16 +126,30 @@ def parse_args():
         help="max gradient norm for clipping, effective when `clip_grad` enabled.",
     )
     parser.add_argument("--ckpt_max_keep", default=5, type=int, help="Maximum number of checkpoints to keep")
+    parser.add_argument("--ckpt_save_interval", default=1, type=int, help="save checkpoint every this epochs or steps")
+    parser.add_argument("--log_loss_interval", default=1, type=int, help="log interval of loss value")
+
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    default_args = parser.parse_args()
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ""))
+    if default_args.config:
+        logger.info(f"Overwrite default arguments with configuration file {default_args.config}")
+        default_args.config = os.path.join(abs_path, default_args.config)
+        with open(default_args.config, "r") as f:
+            cfg = yaml.safe_load(f)
+            check_cfgs_in_parser(cfg, parser)
+            parser.set_defaults(**cfg)
     args = parser.parse_args()
     return args
 
 
 def main(args):
-    set_logger(output_dir="logs/train")
+    if not os.path.isdir(args.output_path):
+        os.makedirs(args.output_path)
 
     # 1. init env
     device_num, rank_id = init_env(args)
+    set_logger(output_dir=os.path.join(args.output_path, "logs", f"rank_{rank_id}"))
 
     # 2. model initialize and weight loading
     # 2.1 PixArt
@@ -147,7 +172,10 @@ def main(args):
     else:
         model_dtype = ms.float32
 
-    network = load_ckpt_params(network, args.checkpoint)
+    if args.checkpoint:
+        network = load_ckpt_params(network, args.checkpoint)
+    else:
+        logger.info("Initialize network randomly.")
 
     # 2.2 Sampling
     diffusion = create_diffusion(timestep_respacing="")
@@ -165,7 +193,7 @@ def main(args):
         shuffle=True,
         num_parallel_workers=args.num_parallel_workers,
     )
-    dataset = dataset.batch(args.batch_size, drop_remainder=False)
+    dataset = dataset.batch(args.batch_size, drop_remainder=True)
     dataset_size = dataset.get_dataset_size()
 
     # 5. build training utils: lr, optim, callbacks, trainer
@@ -197,12 +225,12 @@ def main(args):
 
     if args.loss_scaler_type == "dynamic":
         loss_scaler = nn.DynamicLossScaleUpdateCell(
-            loss_scale_value=args.init_loss_scale, scale_factor=args.init_loss_scale, scale_window=args.scale_window
+            loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window
         )
     else:
         loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
 
-    # trainer (standalone and distributed)
+    # 5.3 trainer (standalone and distributed)
     if args.use_ema:
         ema = EMA(latent_diffusion_with_loss.network, ema_decay=args.ema_rate)
     else:
@@ -220,24 +248,22 @@ def main(args):
     )
 
     model = Model(net_with_grads)
-    # callbacks
-    callback = [OverflowMonitor()]
-    if rank_id == 0:
-        save_cb = EvalSaveCallback(
-            network=latent_diffusion_with_loss.network,
-            rank_id=0,
-            output_dir=args.output_path,
-            ema=None,
-            ckpt_save_policy="latest_k",
-            ckpt_max_keep=args.ckpt_max_keep,
-            model_name="PixArt",
-            record_lr=True,
-        )
-        callback.append(save_cb)
 
-    # 5. log and save config
+    # 5.4 callbacks
+    callbacks = [
+        TimeMonitor(),
+        OverflowMonitor(),
+        LossMonitor(log_interval=args.log_loss_interval),
+        SaveCkptCallback(
+            rank_id=rank_id,
+            output_dir=os.path.join(args.output_path, "ckpt"),
+            ckpt_max_keep=args.ckpt_max_keep,
+            ckpt_save_interval=args.ckpt_save_interval,
+            save_ema=args.use_ema,
+        ),
+    ]
+
     if rank_id == 0:
-        # 4. print key info
         num_params, num_params_trainable = count_params(latent_diffusion_with_loss)
         key_info = "Key Settings:\n" + "=" * 50 + "\n"
         key_info += "\n".join(
@@ -264,15 +290,14 @@ def main(args):
             ]
         )
         key_info += "\n" + "=" * 50
-        logger.info(key_info)
-
-        logger.info("Start training...")
+        print(key_info)
 
         with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
             yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
     # 6. train
-    model.train(args.epochs, dataset, callbacks=callback)
+    logger.info("Start training...")
+    model.train(args.epochs, dataset, callbacks=callbacks)
 
 
 if __name__ == "__main__":

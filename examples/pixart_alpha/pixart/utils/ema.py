@@ -1,15 +1,15 @@
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Parameter, Tensor
 
 __all__ = ["EMA"]
 
-ema_update = ops.MultitypeFuncGraph("ema_op")
+_ema_update = ops.MultitypeFuncGraph("_ema_update")
 
 
-@ema_update.register("Tensor", "Tensor", "Tensor")
-def update_weights(factor, ema_weight, weight):
+@_ema_update.register("Number", "Tensor", "Tensor")
+def update_weights(factor: float, ema_weight: Parameter, weight: Tensor) -> None:
     return ops.assign(ema_weight, ema_weight * factor + weight * (1 - factor))
 
 
@@ -18,8 +18,9 @@ class EMA(nn.Cell):
         super().__init__()
         self.net_weight = ms.ParameterTuple(network.get_parameters())
         self.ema_weight = self.net_weight.clone(prefix="ema")
-        self.ema_decay = Tensor(ema_decay, dtype=ms.float32)
         self.hyper_map = ops.HyperMap()
+        self.ema_decay = ema_decay
 
+    @ms.jit
     def ema_update(self) -> None:
-        self.hyper_map(ema_update, self.ema_decay, self.ema_weight, self.net_weight)
+        self.hyper_map(ops.partial(_ema_update, self.ema_decay), self.ema_weight, self.net_weight)

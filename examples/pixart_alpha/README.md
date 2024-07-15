@@ -58,7 +58,28 @@ python sample.py -c configs/inference/pixart-1024-MS.yaml --image_width 1024 --i
 <p align="center"><img width="1024" src="https://github.com/zhtmike/mindone/assets/8342575/741e7a0a-11ab-4377-a8cd-77e689353c1f"/>
 
 
-### Finetuning (WIP)
+### Finetuning
+
+We support finetune PixArt-Alpha model for 512x512 resolution on 910* Ascend device. Finetuning PixArt-Alpha with multi scale resolution is still in progress. To start with, please prepare the dataset and put it in the following format:
+
+```text
+data_path
+├── img1.jpg
+├── img2.jpg
+├── img3.jpg
+└── img_txt.csv
+```
+
+where `img_txt.csv` is the image-caption file annotated in the following format. i.e.,
+
+```text
+dir,text
+img1.jpg,a cartoon character with a potted plant on his head
+img2.jpg,a drawing of a green pokemon with red eyes
+img3.jpg,a red and white ball with an angry look on its face
+```
+
+Then, please extract the T5 embedding and VAE caching using the following command.
 
 ```bash
 python infer_t5.py --csv_path path_to_the_csv_file --output_path path_of_the_output_directory
@@ -66,4 +87,26 @@ python infer_t5.py --csv_path path_to_the_csv_file --output_path path_of_the_out
 
 ```bash
 python infer_vae.py --csv_path path_to_the_csv_file --image_dir path_storing_image_files --output_path path_of_the_output_directory
+```
+
+After that, you can start the training by run
+
+```bash
+python train.py -c configs/train/pixart-512x512.yaml \
+    --csv_path path_to_the_csv_file \
+    --latent_dir path_storing_the_VAE_latent \
+    --text_emb_dir path_storing_the_T5_embedding
+```
+
+And the result is saved at `./output` directory.
+
+Or you can start a distributed training by running
+
+```bash
+msrun --worker_num=8 --local_worker_num=8 --log_dir="./logs"  \
+    python scripts/train.py --config configs/train/pixart-512x512.yaml \
+    --csv_path path_to_the_csv_file \
+    --latent_dir path_storing_the_VAE_latent \
+    --text_emb_dir path_storing_the_T5_embedding
+    --use_parallel True
 ```

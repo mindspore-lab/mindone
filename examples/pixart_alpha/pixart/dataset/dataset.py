@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class LatentDataset:
     def __init__(self, csv_path: str, latent_dir: str, text_emb_dir: str, path_column: str = "dir") -> None:
-        logger.info(f"loading annotations from {csv_path} ...")
+        logger.info(f"loading annotations from `{csv_path}`.")
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))
 
@@ -40,7 +40,7 @@ class LatentDataset:
     def read_vae_latent(path: str) -> np.ndarray:
         latent_npy = np.load(path)
         mean, std = latent_npy["latent_mean"], latent_npy["latent_std"]
-        latent = mean + std * np.random.randn(*mean.shape)
+        latent = mean + std * np.random.randn(*mean.shape).astype(std.dtype)
         return latent
 
     @staticmethod
