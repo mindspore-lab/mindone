@@ -248,10 +248,17 @@ def main(args):
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
 
     # 4. build training utils: lr, optim, callbacks, trainer
-    if args.max_train_steps is not None and args.max_train_steps > 0:
+    if args.max_train_steps is not None:
+        assert args.max_train_steps > 0, f"max_train_steps should a positive integer, but got {args.max_train_steps}"
+        assert (
+            args.max_train_steps >= dataset_size
+        ), f"Expect that the max_train_steps is no less than the number of batches, but got {args.max_train_steps} and {dataset_size}"
         args.epochs = args.max_train_steps // dataset_size
         logger.info(f"Forcing training epochs to {args.epochs} when using max_train_steps {args.max_train_steps}")
-    if args.checkpointing_steps is not None and args.checkpointing_steps > 0:
+    if args.checkpointing_steps is not None:
+        assert (
+            args.checkpointing_steps > 0
+        ), f"checkpointing_steps should a positive integer, but got {args.checkpointing_steps}"
         logger.info(f"Saving checkpoints every {args.checkpointing_steps} steps")
         args.step_mode = True
         args.ckpt_save_interval = args.checkpointing_steps
@@ -265,6 +272,9 @@ def main(args):
                 f"Will force decay_steps to be set to 1."
             )
             args.lr_decay_steps = 1
+    assert (
+        args.lr_warmup_steps >= 0
+    ), f"Expect args.lr_warmup_steps to be no less than zero,  but got {args.lr_warmup_steps}"
 
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
