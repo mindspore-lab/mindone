@@ -318,9 +318,8 @@ class STDiT2(nn.Cell):
             b.recompute()
         if isinstance(b, nn.CellList):
             self.recompute(b[-1])
-        else:
-            if ms.get_context("mode") == 0:
-                b.add_flags(output_no_recompute=True)
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     def get_dynamic_size(self, x: Tensor) -> Tuple[int, int, int]:
         _, _, T, H, W = x.shape

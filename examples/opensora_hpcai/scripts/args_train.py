@@ -67,6 +67,14 @@ def parse_train_args(parser):
         choices=["conv3d", "conv2d", "linear"],
         help="patchify_conv3d_replace, conv2d - equivalent conv2d to replace conv3d patchify, linear - equivalent linear layer to replace conv3d patchify  ",
     )
+    parser.add_argument(
+        "--vae_type",
+        type=str,
+        default=None,
+        choices=[None, "OpenSora-VAE-v1.2", "VideoAutoencoderKL"],
+        help="If None, use VideoAutoencoderKL, which is a spatial VAE from SD, for opensora v1.0 and v1.1. \
+                If OpenSora-VAE-v1.2, will use 3D VAE (spatial + temporal), typically for opensora v1.2",
+    )
     # ms
     parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -122,6 +130,12 @@ def parse_train_args(parser):
         type=int,
         default=None,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
+    )
+    parser.add_argument(
+        "--vae_micro_frame_size",
+        type=int,
+        default=17,
+        help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation. Used by temporal vae",
     )
     parser.add_argument("--start_learning_rate", default=1e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")

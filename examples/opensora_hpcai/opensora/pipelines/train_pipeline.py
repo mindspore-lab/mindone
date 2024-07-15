@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, _no_grad, mint, nn, ops
+from mindspore import Tensor, _no_grad, jit_class, mint, nn, ops
 
 from ..schedulers.iddpm import SpacedDiffusion
 from ..schedulers.iddpm.diffusion_utils import (
@@ -17,6 +17,21 @@ from ..schedulers.iddpm.diffusion_utils import (
 __all__ = ["DiffusionWithLoss"]
 
 logger = logging.getLogger(__name__)
+
+
+@jit_class
+class no_grad(_no_grad):
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 class DiffusionWithLoss(nn.Cell):
@@ -47,7 +62,6 @@ class DiffusionWithLoss(nn.Cell):
         cond_stage_trainable: bool = False,
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
-        micro_batch_size: int = None,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -61,7 +75,6 @@ class DiffusionWithLoss(nn.Cell):
 
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
-        self.micro_batch_size = micro_batch_size
 
         if self.text_emb_cached:
             self.text_encoder = None
@@ -85,74 +98,11 @@ class DiffusionWithLoss(nn.Cell):
 
         return text_emb
 
-    def vae_encode(self, x):
-        image_latents = self.vae.encode(x)
-        image_latents = image_latents * self.scale_factor
-        return image_latents
-
-    def vae_decode(self, x):
-        """
-        Args:
-            x: (b c h w), denoised latent
-        Return:
-            y: (b H W 3), batch of images, normalized to [0, 1]
-        """
-        b, c, h, w = x.shape
-
-        y = self.vae.decode(x / self.scale_factor)
-        y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
-
-        # (b 3 H W) -> (b H W 3)
-        y = ops.transpose(y, (0, 2, 3, 1))
-
-        return y
-
-    def vae_decode_video(self, x):
-        """
-        Args:
-            x: (b f c h w), denoised latent
-        Return:
-            y: (b f H W 3), batch of images, normalized to [0, 1]
-        """
-        b, f, c, h, w = x.shape
-        y = []
-        for x_sample in x:
-            y.append(self.vae_decode(x_sample))
-
-        y = ops.stack(y, axis=0)
-
-        return y
-
     def get_latents(self, x):
-        if x.dim() == 5:
-            # "b f c h w -> (b f) c h w"
-            B, F, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            x = ops.reshape(x, (-1, C, H, W))
-
-            if self.micro_batch_size is not None:
-                # split into smaller frames to reduce memory cost
-                x = mint.split(x, self.micro_batch_size, 0)
-                z_clips = []
-                for clip in x:
-                    z_clips.append(ops.stop_gradient(self.vae_encode(clip)))
-                z = ops.cat(z_clips, axis=0)
-            else:
-                z = ops.stop_gradient(self.vae_encode(x))
-
-            # (b*f c h w) -> (b f c h w)
-            z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-
-            # (b f c h w) -> (b c f h w)
-            z = ops.transpose(z, (0, 2, 1, 3, 4))
-        elif x.dim() == 4:
-            B, C, H, W = x.shape
-            if C != 3:
-                raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-            z = ops.stop_gradient(self.vae_encode(x))
-        else:
-            raise ValueError("Incorrect Dimensions of x")
+        """
+        x: (b c t h w)
+        """
+        z = ops.stop_gradient(self.vae.encode(x))
         return z
 
     def construct(
@@ -183,18 +133,18 @@ class DiffusionWithLoss(nn.Cell):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-        # 1. get image/video latents z using vae
-        if not self.video_emb_cached:
-            x = self.get_latents(x)
-        else:
+        with no_grad():
+            # 1. get image/video latents z using vae
             # (b f c h w) -> (b c f h w)
             x = ops.transpose(x, (0, 2, 1, 3, 4))
+            if not self.video_emb_cached:
+                x = self.get_latents(x)
 
-        # 2. get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+            # 2. get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
         loss = self.compute_loss(x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar)
 
         return loss
@@ -251,7 +201,7 @@ class DiffusionWithLoss(nn.Cell):
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
     ):
-        if self.mode == 1:
+        if self.mode == ms.PYNATIVE_MODE:
             t = ms.Tensor(np.random.randint(0, self.diffusion.num_timesteps, size=(x.shape[0],)), ms.int32)
             noise = ms.Tensor(np.random.randn(*x.shape), ms.float32)
         else:
@@ -301,7 +251,7 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         max_image_size: int = 512,
         vae_downsample_rate: float = 8.0,
         in_channels: int = 4,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.p = patch_size
@@ -346,12 +296,12 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
             - assume model input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
-
-        # get conditions
-        if not self.text_emb_cached:
-            text_embed = self.get_condition_embeddings(text_tokens)
-        else:
-            text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
+        with no_grad():
+            # get conditions
+            if not self.text_emb_cached:
+                text_embed = self.get_condition_embeddings(text_tokens)
+            else:
+                text_embed = text_tokens  # dataset returns text embeddings instead of text tokens
         loss = self.compute_loss(
             x,
             text_embed,
@@ -446,91 +396,3 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
         x = ops.transpose(x, (0, 4, 1, 2, 5, 3, 6))
         x = ops.reshape(x, (n, self.c, f, self.nh * self.p[1], self.nw * self.p[2]))
         return x
-
-
-class DiffusionWithLossPynative(DiffusionWithLoss):
-    """An training pipeline for diffusion model in pynative mode
-
-    Args:
-        model (nn.Cell): A noise prediction model to denoise the encoded image latents.
-        vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
-        diffusion: (object): A class for Gaussian Diffusion.
-        scale_factor (float): scale_factor for vae.
-        condition (str): The type of conditions of model in [None, 'text', 'class'].
-            If it is None, model is a un-conditional video generator.
-            If it is 'text', model accepts text embeddings (B, T, N) as conditions, and generates videos.
-            If it is 'class', model accepts class labels (B, ) as conditions, and generates videos.
-        text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
-            T is the number of tokens, and D is the embedding dimension.
-        cond_stage_trainable (bool): whether to train the text encoder.
-        train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
-    """
-
-    def __init__(
-        self,
-        network: nn.Cell,
-        diffusion: SpacedDiffusion,
-        vae: nn.Cell = None,
-        text_encoder: nn.Cell = None,
-        scale_factor: float = 0.18215,
-        cond_stage_trainable: bool = False,
-        text_emb_cached: bool = True,
-        video_emb_cached: bool = False,
-        micro_batch_size: int = None,
-    ):
-        super().__init__(
-            network,
-            diffusion,
-            vae,
-            text_encoder,
-            scale_factor,
-            cond_stage_trainable,
-            text_emb_cached,
-            video_emb_cached,
-            micro_batch_size,
-        )
-
-    def construct(
-        self,
-        x: Tensor,
-        text_tokens: Tensor,
-        mask: Optional[Tensor] = None,
-        frames_mask: Optional[Tensor] = None,
-        num_frames: Optional[Tensor] = None,
-        height: Optional[Tensor] = None,
-        width: Optional[Tensor] = None,
-        fps: Optional[Tensor] = None,
-        ar: Optional[Tensor] = None,
-    ):
-        """
-        Video diffusion model forward and loss computation for training
-
-        Args:
-            x: pixel values of video frames, resized and normalized to shape [bs, F, 3, 256, 256]
-            text_tokens: text tokens padded to fixed shape [bs, 77]
-            labels: the class labels
-
-        Returns:
-            loss
-
-        Notes:
-            - inputs should matches dataloder output order
-            - assume model input/output shape: (b c f h w)
-                unet2d input/output shape: (b c h w)
-        """
-        with _no_grad():
-            # 1. get image/video latents z using vae
-            if not self.video_emb_cached:
-                x = self.get_latents(x)
-            else:
-                # (b f c h w) -> (b c f h w)
-                x = ops.transpose(x, (0, 2, 1, 3, 4))
-
-            # 2. get conditions
-            if not self.text_emb_cached:
-                text_embed = self.get_condition_embeddings(text_tokens)
-            else:
-                text_embed = text_tokens  # dataset retunrs text embeddings instead of text tokens
-        loss = self.compute_loss(x, text_embed, mask, frames_mask, num_frames, height, width, fps, ar)
-
-        return loss
