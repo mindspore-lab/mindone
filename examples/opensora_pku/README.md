@@ -404,18 +404,27 @@ There are some arguments related to the training dataset path:
 
 #### Parallel Training
 
-Before launching the first-stage training, please make sure you set the text embedding cache folder correctly in `image_data.txt` and `video_data.txt`.
+Before launching the first-stage training, please make sure you set the three paths correctly in `image_data.txt` and `video_data.txt`.
 
 ```bash
 # start 65x512x512 pretraining, 8 NPUs
 bash scripts/text_condition/train_videoae_65x512x512.sh
 ```
-After the first-stage training, there will be multiple checkpoint shards saved in the `output_dir/ckpt`. Please run the following command to combine the multiple checkpoint shards into a full one:
+During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory. The loss values and average per step time will saved under `log/rank_*/result.log`.
+
+After the first-stage training, if using data parallelism (the default parallel mode), the checkpoint files will be saved under `ckpt/` folder. If using optimizer parallelism, there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
+<details>
+<summary>How to merge multiple checkpoint shards</summary>
+
+Please run the following command to combine the multiple checkpoint shards into a full one:
 ```
 python tools/ckpt/combine_ckpt.py --src output_dir/ckpt --dest output_dir/ckpt --strategy_ckpt output_dir/src_strategy.ckpt
 ```
 Afterwards, you will obtain a full checkpoint file under `output_dir/ckpt/rank_0/full_0.ckpt`.
-> If you want to run inference with this full checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt output_dir/ckpt_full/rank_0/full_0.ckpt` to the end of the inference command.
+
+</details>
+
+> If you want to run inference with a checkpoint file, please revise the script `scripts/text_condition/sample_video.sh` and append `--pretrained_ckpt path/to/your.ckpt` to the end of the inference command.
 
 Then please revise `scripts/text_condition/train_videoae_221x512x512.sh`, and change `--pretrained` to the full checkpoint path from the `65x512x512` stage. Then run:
 
@@ -426,7 +435,7 @@ bash scripts/text_condition/train_videoae_221x512x512_sp.sh
 
 > You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_221x512x512_sp.sh` to speed up when you have enough cpu memory.
 
-Simiarly, please revise the `--pretrained` to the full checkpoint path from the `221x512x512` stage, and then start the third-stage training:
+Simiarly, please revise the `--pretrained` to the checkpoint path from the `221x512x512` stage, and then start the third-stage training:
 
 ```bash
 # (experimental) start 513x512x512 finetuning, 8 NPUs
