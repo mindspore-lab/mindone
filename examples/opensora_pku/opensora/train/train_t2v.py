@@ -242,6 +242,7 @@ def main(args):
         rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
         num_parallel_workers=args.dataloader_num_workers,
         max_rowsize=args.max_rowsize,
+        prefetch_size=args.dataloader_prefetch_size,
     )
     dataset_size = dataset.get_dataset_size()
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
@@ -520,6 +521,7 @@ def parse_t2v_train_args(parser):
         help="If use_recompute is True, `num_no_recompute` blocks will be removed from the recomputation list."
         "This is a positive integer which can be tuned based on the memory usage.",
     )
+    parser.add_argument("--dataloader_prefetch_size", type=int, default=None, help="minddata prefetch size setting")
     parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
     parser.add_argument(
         "--vae_keep_gn_fp32",
