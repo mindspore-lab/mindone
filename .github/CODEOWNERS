@@ -1,0 +1,25 @@
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in the repo.
+# Unless a later match takes precedence, @vigo999 will be requested for review when someone opens a pull request.
+* @vigo999
+
+# Order is important; the last matching pattern takes the most precedence.
+
+# Any change inside the `/examples` directory at the root of the repository and any of its subdirectories will require approval from @CaitinZhao, @SamitHuang or @zhanghuiyao.
+/examples/ @CaitinZhao @SamitHuang @zhanghuiyao
+
+# @geniuspatrick owns any file in an `diffusers`, `transformers`, `peft` and `safetensors` directory anywhere in the repository.
+diffusers/ @geniuspatrick
+transformers/ @geniuspatrick
+peft/ @geniuspatrick
+safetensors/ @geniuspatrick
+
+# @geniuspatrick owns any file about the repository settings.
+/.* @geniuspatrick
+/docs/ @geniuspatrick
+/mkdocs.yml @geniuspatrick
+/pyproject.toml @geniuspatrick
+
+# @global-owners own any file except for the following list, as their owners are left empty.
+/*.md
