@@ -75,20 +75,24 @@ class ZeroOptimizerWrapper(nn.Cell):
         self.optimizer = optimizer
         self.zero_stage = zero_stage
         self.op_group = op_group
+        self.ori_parameters = self.optimizer._parameters
+        # Init parallel settings
         self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
         self.split_op = ops.Identity()
-        self.need_allgather = [False] * len(self.optimizer._parameters)
         self.op_allgather = ops.Identity()
         self.op_reduce_scatter = ops.Identity()
         self.dp_allreduce = ops.Identity()
         self.op_group_size = get_group_size(self.op_group) if self.is_parallel else 1
         self.op_rank_id = get_rank(self.op_group) if self.is_parallel else 0
-        self.ori_parameters = self.optimizer._parameters
         self.need_dp = False
         self.last_assign = False
         self.dp_group_size = 1
+        self.need_allgather = [False] * len(self.optimizer._parameters)
         if self.zero_stage in [1, 2] and self.is_parallel:
             _logger.info("Clone optimizer.parameters, will increase memory.")
+            # Because the first input of MindSpore optimizer must be ms.Parameter,
+            # copy optimizer.parameters for optimizer parameters update.
+            # It will increase 1/n parameters' memory.
             self.optimizer.parameters = self.optimizer.parameters.clone(prefix="wrapper", init="same")
             self.optimizer._parameters = self.optimizer.parameters
             self.last_assign = True
@@ -96,21 +100,20 @@ class ZeroOptimizerWrapper(nn.Cell):
             if self.zero_stage == 2:
                 self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
             if self.zero_stage in [1, 2]:
+                # AllGather the parameters after optimizer calculate to update the parameters in train network.
                 self.op_allgather = ops.AllGather(group=self.op_group)
             self.need_dp = dp_group is not None
             if self.need_dp:
+                # Set it when op_group is not the WORLD_COMM_GROUP.
                 self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=dp_group)
                 self.dp_group_size = ms.Tensor(get_group_size(group=dp_group), ms.float32)
-            self.split_op = ops.Split(0, self.op_group_size)
+            self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
             self.split_params()
         self.need_allgather = tuple(self.need_allgather)
         self.hyper_map = ops.HyperMap()
-        if self.zero_stage != 2:
-            self._parameters = self.ori_parameters
-            self.parameters = self.ori_parameters
-        else:
-            self._parameters = self.ori_parameters
-            self.parameters = self.ori_parameters
+        # Adapt build gradient function in TrainOneStepCell.
+        self._parameters = self.ori_parameters
+        self.parameters = self.ori_parameters
 
     def split_param(self, param):
         return self.split_op(param)[self.op_rank_id]
@@ -136,6 +139,8 @@ class ZeroOptimizerWrapper(nn.Cell):
         param_tuples = self.get_optimizer_param_tuples()
         for i, param in enumerate(self.optimizer._parameters):
             _logger.debug(f"Split optimizer param {param.name} {param.shape}")
+            # If zero_stage is 3, the parameters in train network have been split,
+            # use parameter in param_tuples to get batch size.
             if self.zero_stage == 3:
                 if param_tuples:
                     B = param_tuples[0][i].shape[0]
@@ -192,6 +197,7 @@ class ZeroOptimizerWrapper(nn.Cell):
         )
         return gradients
 
+    @ms.jit
     def construct(self, gradients):
         if self.zero_stage == 1:
             gradients = self.split_gradients(gradients)
@@ -224,10 +230,10 @@ class ZeroParamWrapper(nn.Cell):
         self.zero_stage = zero_stage
         if zero_stage not in [2, 3]:
             raise ValueError(f"ZeroParamWrapper not support zero_stage {zero_stage}.")
-        self.zero_stage = zero_stage
+        self.need_rewrite = self.check_rewrite(param)
+        # Init parallel settings
         self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
         self.op_group_size = get_group_size(self.op_group) if self.is_parallel else 1
-        self.need_rewrite = self.check_rewrite(param)
         self.allgather = ops.Identity()
         self.reduce_scatter = None
         if self.need_rewrite and self.zero_stage == 3:
@@ -235,6 +241,7 @@ class ZeroParamWrapper(nn.Cell):
             self.op_reduce_scatter = ops.ReduceScatter(group=self.op_group, op=ops.ReduceOp.SUM)
 
     def check_rewrite(self, param):
+        """Check the parameter need to split or not."""
         need_rewrite = self.is_parallel and self.zero_stage == 3
         B = param.shape[0]
         if not param.parallel_optimizer or B < self.op_group_size or B % self.op_group_size != 0:
