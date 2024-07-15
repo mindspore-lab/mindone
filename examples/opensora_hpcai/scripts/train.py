@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 from args_train import parse_args
 from opensora.models.stdit import STDiT2_XL_2, STDiT_XL_2
 from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
-from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike, DiffusionWithLossPynative
+from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
 
@@ -296,13 +296,7 @@ def main(args):
         )
         pipeline_kwargs.update(additional_pipeline_kwargs)
 
-    if args.pre_patchify:
-        pipeline_ = DiffusionWithLossFiTLike
-    else:
-        if ms.get_context("mode") == 0:
-            pipeline_ = DiffusionWithLoss
-        else:
-            pipeline_ = DiffusionWithLossPynative
+    pipeline_ = DiffusionWithLossFiTLike if args.pre_patchify else DiffusionWithLoss
     latent_diffusion_with_loss = pipeline_(latte_model, diffusion, vae=vae, text_encoder=None, **pipeline_kwargs)
 
     # 3. create dataset
