@@ -59,10 +59,7 @@ def test_zero(x, y, zero_stage=0):
     print("-" * 30)
     net = TestNet()
     opt = nn.AdamWeightDecay(net.trainable_params(), learning_rate=1e-3)
-    net, opt = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP)
-    train_net = nn.TrainOneStepCell(network=nn.WithLossCell(net, nn.MSELoss()), optimizer=opt)
-    if zero_stage in [2, 3]:
-        train_net.grad_reducer = nn.Identity()
+    train_net = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP)
 
     for i in range(10):
         loss = train_net(x, y)
