@@ -17,6 +17,7 @@ max_rowsize: 256
 
 # precision
 amp_level: "O2"
+vae_dtype: "bf16"
 dtype: "bf16"
 init_loss_scale: 65536
 
@@ -31,7 +32,7 @@ clip_grad: True
 max_grad_norm: 1.0
 use_ema: False
 
-optim: "adamw"
+optim: "adamw_re"
 optim_eps: 1.e-8
 weight_decay: 0.
 
