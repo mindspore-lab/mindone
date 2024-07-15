@@ -26,6 +26,7 @@ from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencode
 from opensora.pipelines import DiffusionWithLoss, DiffusionWithLossFiTLike
 from opensora.schedulers.iddpm import create_diffusion
 from opensora.utils.amp import auto_mixed_precision
+from opensora.utils.model_utils import WHITELIST_OPS
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
 from mindone.trainers.checkpoint import resume_train_network
@@ -36,9 +37,6 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
-
-# from opensora.utils.model_utils import WHITELIST_OPS
-
 
 os.environ["HCCL_CONNECT_TIMEOUT"] = "6000"
 os.environ["MS_ASCEND_CHECK_OVERFLOW_MODE"] = "INFNAN_MODE"
@@ -266,7 +264,7 @@ def main(args):
                 "num_recompute_blocks": args.num_recompute_blocks,
             }
         )
-        logger.info(f"STDiT2 input size: {input_size if args.bucket_config is None else 'Variable'}")
+        logger.info(f"STDiT2 input size: {latent_size if args.bucket_config is None else 'Variable'}")
         latte_model = STDiT2_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
@@ -278,7 +276,7 @@ def main(args):
                 latte_model,
                 amp_level=args.amp_level,
                 dtype=dtype_map[args.dtype],
-                # custom_fp32_cells=WHITELIST_OPS
+                custom_fp32_cells=WHITELIST_OPS,
             )
     # load checkpoint
     if len(args.pretrained_model_path) > 0:

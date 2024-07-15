@@ -69,7 +69,8 @@ class Attention(nn.Cell):
 
         if mask is not None:
             # (b 1 n_k) -> (b*h 1 n_k)
-            mask = ops.repeat_interleave(mask, h, axis=0)
+            # NOTE: due to uint8 not supported in CANN0630, cast mask to int32
+            mask = ops.repeat_interleave(mask.to(ms.int32), h, axis=0)
             mask = mask.to(ms.bool_)
             sim = ops.masked_fill(sim, mask, -ms.numpy.inf)
 
@@ -174,8 +175,7 @@ class MultiHeadCrossAttention(nn.Cell):
                 # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 mask = mask[:, None, None, :]
                 # (b 1 1 n_k) -> (b 1 n_q n_k)
-                # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
-                mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
+                mask = ops.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
             x = self.flash_attention(q, k, v, mask=mask)
 
             # FA attn_mask def: retention and 1 indicates discard. Input tensor of shape :math:`(B, N1, S1, S2)`, `(B, 1, S1, S2)` `(S1, S2)`
@@ -280,7 +280,7 @@ class SelfAttention(nn.Cell):
             if mask is not None:
                 mask = mask[:, None, None, :]
                 # mask: (b n_k) -> (b 1 n_q n_k)
-                mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
+                mask = ops.repeat_interleave(mask.to(ms.int32), int(q.shape[1]), axis=-2)
             out = self.flash_attention(q, k, v, mask=mask)
         else:
             if mask is not None:
@@ -588,6 +588,25 @@ def get_2d_sincos_pos_embed(embed_dim, grid_size, cls_token=False, extra_tokens=
 #################################################################################
 
 
+class SinusoidalEmbedding(nn.Cell):
+    def __init__(self, frequency_embedding_size: int, max_period: int = 10000):
+        super().__init__()
+        half = frequency_embedding_size // 2
+        self._freqs = Tensor(
+            np.expand_dims(
+                np.exp(-math.log(max_period) * np.arange(start=0, stop=half, dtype=np.float32) / half), axis=0
+            )
+        )
+        self._dim = frequency_embedding_size
+
+    def construct(self, x):
+        args = x[:, None] * self._freqs
+        embedding = ops.cat([ops.cos(args), ops.sin(args)], axis=-1)
+        if self._dim % 2:
+            embedding = ops.cat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
+        return embedding
+
+
 class TimestepEmbedder(nn.Cell):
     """
     Embeds scalar timesteps into vector representations.
@@ -600,29 +619,10 @@ class TimestepEmbedder(nn.Cell):
             nn.SiLU(),
             nn.Dense(hidden_size, hidden_size, has_bias=True),
         )
-        self.frequency_embedding_size = frequency_embedding_size
+        self.timestep_embedding = SinusoidalEmbedding(frequency_embedding_size)
 
-    @staticmethod
-    def timestep_embedding(t, dim, max_period=10000):
-        """
-        Create sinusoidal timestep embeddings.
-        :param t: a 1-D Tensor of N indices, one per batch element.
-                          These may be fractional.
-        :param dim: the dimension of the output.
-        :param max_period: controls the minimum frequency of the embeddings.
-        :return: an (N, D) Tensor of positional embeddings.
-        """
-        # https://github.com/openai/glide-text2im/blob/main/glide_text2im/nn.py
-        half = dim // 2
-        freqs = ops.exp(-math.log(max_period) * ops.arange(start=0, end=half, dtype=ms.float32) / half)
-        args = t[:, None].float() * freqs[None]
-        embedding = ops.cat([ops.cos(args), ops.sin(args)], axis=-1)
-        if dim % 2:
-            embedding = ops.cat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
-        return embedding
-
-    def construct(self, t: Tensor, dtype: ms.dtype):
-        t_freq = self.timestep_embedding(t, self.frequency_embedding_size).to(dtype)
+    def construct(self, t: Tensor):
+        t_freq = self.timestep_embedding(t)
         t_emb = self.mlp(t_freq)
         return t_emb
 
@@ -666,8 +666,8 @@ class SizeEmbedder(nn.Cell):
             nn.SiLU(),
             nn.Dense(hidden_size, hidden_size),
         )
-        self.frequency_embedding_size = frequency_embedding_size
         self.outdim = hidden_size
+        self.timestep_embedding = SinusoidalEmbedding(frequency_embedding_size)
 
     def construct(self, s: Tensor, bs: Tensor) -> Tensor:
         if s.ndim == 1:
@@ -678,7 +678,7 @@ class SizeEmbedder(nn.Cell):
             assert s.shape[0] == bs
         b, dims = s.shape[0], s.shape[1]
         s = s.reshape(b * dims)  # b d -> (b d)
-        s_freq = TimestepEmbedder.timestep_embedding(s, self.frequency_embedding_size)
+        s_freq = self.timestep_embedding(s)
         s_emb = self.mlp(s_freq)
         return s_emb.reshape(b, dims * self.outdim)  # (b d) d2 -> b (d d2)
 
@@ -726,10 +726,9 @@ class PositionEmbedding2D(nn.Cell):
 
     def construct(
         self,
-        x: Tensor,
         h: int,
         w: int,
         scale: Optional[float] = 1.0,
         base_size: Optional[int] = None,
     ) -> Tensor:
-        return self._get_cached_emb(h, w, scale, base_size).to(x.dtype)
+        return self._get_cached_emb(h, w, scale, base_size)

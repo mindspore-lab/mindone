@@ -31,12 +31,12 @@ clip_grad: True
 max_grad_norm: 1.0
 use_ema: False
 
-optim: "adamw_re"
+optim: "adamw"
 optim_eps: 1.e-8
 weight_decay: 0.
 
-epochs: 12000
-ckpt_save_interval: 100
+epochs: 10000
+ckpt_save_interval: 200
 
 mask_ratios:
   mask_no: 0.75
