@@ -222,7 +222,7 @@ class DiffusionWithLoss(nn.Cell):
         fps: Optional[Tensor] = None,
         ar: Optional[Tensor] = None,
     ):
-        if self.mode == 1:
+        if self.mode == ms.PYNATIVE_MODE:
             t = ms.Tensor(np.random.randint(0, self.diffusion.num_timesteps, size=(x.shape[0],)), ms.int32)
             noise = ms.Tensor(np.random.randn(*x.shape), ms.float32)
         else:
