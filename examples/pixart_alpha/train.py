@@ -274,7 +274,7 @@ def main(args):
                 f"Num params: {num_params:,} (PixArt: {num_params:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Model type: {args.dtype}",
-                f"Learning rate: {args.start_learning_rate}",
+                f"Learning rate: {start_learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {image_size}",
                 f"Weight decay: {args.weight_decay}",

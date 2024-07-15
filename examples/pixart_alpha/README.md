@@ -104,9 +104,25 @@ Or you can start a distributed training by running
 
 ```bash
 msrun --worker_num=8 --local_worker_num=8 --log_dir="./logs"  \
-    python scripts/train.py --config configs/train/pixart-512x512.yaml \
+    scripts/train.py --config configs/train/pixart-512x512.yaml \
     --csv_path path_to_the_csv_file \
     --latent_dir path_storing_the_VAE_latent \
     --text_emb_dir path_storing_the_T5_embedding
     --use_parallel True
 ```
+
+For detail usage of the training script, you can run `python train.py -h`.
+
+
+## Benchmark
+
+### Training
+
+| Model       | Context       | Global Batch Size x Grad. Accu. | Max. Resolution | Acceleration | FPS (img/s) |
+|-------------|---------------|---------------------------------|-----------------|--------------|-------------|
+| PixArt-XL-2 | D910*x4-MS2.3 | 64x1                            | 512x512         | FP16, FA     | 18.55       |
+
+> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
+> Acceleration: FP16: float16 computation. Flash attention is used in the test currently.
+> Max. Resolution: The maximum resolution of the image in training.
+> FPS: images per second during training. average training time (s/step) = batch_size / FPS
