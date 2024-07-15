@@ -402,7 +402,6 @@ class BasicTransformerBlock(nn.Cell):
         dropout=1.0,
         context_dim=None,
         gated_ff=True,
-        checkpoint=True,
         disable_self_attn=False,
         attention_cls=None,
         video_length=None,
@@ -446,7 +445,6 @@ class BasicTransformerBlock(nn.Cell):
         self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
         # import pdb;pdb.set_trace()
@@ -473,7 +471,6 @@ class SpatialTransformer(nn.Cell):
         depth=1,
         dropout=1.0,
         context_dim=None,
-        use_checkpoint=True,
         disable_self_attn=False,
         use_linear=False,
         video_length=None,
@@ -506,7 +503,6 @@ class SpatialTransformer(nn.Cell):
                     dropout=dropout,
                     context_dim=context_dim,
                     disable_self_attn=disable_self_attn,
-                    checkpoint=use_checkpoint,
                     attention_cls=attention_cls,
                     video_length=video_length,
                     image_cross_attention=image_cross_attention,
@@ -571,7 +567,6 @@ class TemporalTransformer(nn.Cell):
         context_dim=None,
         disable_self_attn=False,
         use_linear=False,
-        use_checkpoint=True,
         only_self_att=True,
         multiply_zero=False,  # from MS
         causal_attention=False,
@@ -617,7 +612,6 @@ class TemporalTransformer(nn.Cell):
                     dropout=dropout,
                     context_dim=context_dim[d],
                     attention_cls=attention_cls,
-                    checkpoint=use_checkpoint,
                     dtype=self.dtype,
                 )
                 for d in range(depth)

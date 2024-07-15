@@ -149,7 +149,6 @@ class ResBlock(TimestepBlock):
         convolution instead of a smaller 1x1 convolution to change the
         channels in the skip connection.
     :param dims: determines if the signal is 1D, 2D, or 3D.
-    :param use_checkpoint: if True, use gradient checkpointing on this module.
     :param up: if True, use this block for upsampling.
     :param down: if True, use this block for downsampling.
     """
@@ -163,7 +162,6 @@ class ResBlock(TimestepBlock):
         use_conv=False,
         use_scale_shift_norm=False,
         dims=2,
-        use_checkpoint=False,
         up=False,
         down=False,
         dtype=ms.float32,
@@ -178,7 +176,6 @@ class ResBlock(TimestepBlock):
         self.out_channels = out_channels or channels
         self.ori_channels = channels
         self.use_conv = use_conv
-        self.use_checkpoint = use_checkpoint
         self.use_scale_shift_norm = use_scale_shift_norm
         self.updown = up or down
         self.dtype = dtype
@@ -384,7 +381,6 @@ class AttentionBlock(nn.Cell):
         channels,
         num_heads=1,
         num_head_channels=-1,
-        use_checkpoint=False,
         use_new_attention_order=False,
     ):
         super().__init__()
@@ -417,7 +413,6 @@ class UNetModel(nn.Cell):
     :param dims: determines if the signal is 1D, 2D, or 3D.
     :param num_classes: if specified (as an int), then this model will be
         class-conditional with `num_classes` classes.
-    :param use_checkpoint: use gradient checkpointing to reduce memory usage.
     :param num_heads: the number of attention heads in each attention layer.
     :param num_heads_channels: if specified, ignore num_heads and instead use
                                a fixed channel width per attention head.
@@ -446,7 +441,6 @@ class UNetModel(nn.Cell):
                  num_head_channels=-1,
                  transformer_depth=1,
                  use_linear=False,
-                 use_checkpoint=False,
                  temporal_conv=False,
                  tempspatial_aware=False,
                  temporal_attention=True,
@@ -478,7 +472,6 @@ class UNetModel(nn.Cell):
         self.conv_resample = conv_resample
         self.temporal_attention = temporal_attention
         time_embed_dim = model_channels * 4
-        self.use_checkpoint = use_checkpoint
         self.dtype = ms.float16 if use_fp16 else ms.float32
         temporal_self_att_only = True
         self.addition_attention = addition_attention
@@ -520,7 +513,6 @@ class UNetModel(nn.Cell):
                     d_head=num_head_channels,
                     depth=transformer_depth,
                     context_dim=context_dim,
-                    use_checkpoint=use_checkpoint,
                     only_self_att=temporal_selfatt_only,
                     causal_attention=False,
                     relative_position=use_relative_position,
@@ -540,7 +532,6 @@ class UNetModel(nn.Cell):
                         dropout,
                         out_channels=mult * model_channels,
                         dims=dims,
-                        use_checkpoint=use_checkpoint,
                         use_scale_shift_norm=use_scale_shift_norm,
                         tempspatial_aware=tempspatial_aware,
                         use_temporal_conv=temporal_conv,
@@ -560,7 +551,6 @@ class UNetModel(nn.Cell):
                             depth=transformer_depth,
                             context_dim=context_dim,
                             use_linear=use_linear,
-                            use_checkpoint=use_checkpoint,
                             disable_self_attn=False,
                             video_length=temporal_length,
                             image_cross_attention=self.image_cross_attention,
@@ -577,7 +567,6 @@ class UNetModel(nn.Cell):
                                 depth=transformer_depth,
                                 context_dim=context_dim,
                                 use_linear=use_linear,
-                                use_checkpoint=use_checkpoint,
                                 only_self_att=temporal_self_att_only,
                                 causal_attention=use_causal_attention,
                                 relative_position=use_relative_position,
@@ -596,7 +585,6 @@ class UNetModel(nn.Cell):
                             dropout,
                             out_channels=out_ch,
                             dims=dims,
-                            use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             down=True,
                         )
@@ -619,7 +607,6 @@ class UNetModel(nn.Cell):
                 time_embed_dim,
                 dropout,
                 dims=dims,
-                use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
                 tempspatial_aware=tempspatial_aware,
                 use_temporal_conv=temporal_conv,
@@ -631,7 +618,6 @@ class UNetModel(nn.Cell):
                 depth=transformer_depth,
                 context_dim=context_dim,
                 use_linear=use_linear,
-                use_checkpoint=use_checkpoint,
                 disable_self_attn=False,
                 video_length=temporal_length,
                 image_cross_attention=self.image_cross_attention,
@@ -648,7 +634,6 @@ class UNetModel(nn.Cell):
                     depth=transformer_depth,
                     context_dim=context_dim,
                     use_linear=use_linear,
-                    use_checkpoint=use_checkpoint,
                     only_self_att=temporal_self_att_only,
                     causal_attention=use_causal_attention,
                     relative_position=use_relative_position,
@@ -661,7 +646,6 @@ class UNetModel(nn.Cell):
                 time_embed_dim,
                 dropout,
                 dims=dims,
-                use_checkpoint=use_checkpoint,
                 use_scale_shift_norm=use_scale_shift_norm,
                 tempspatial_aware=tempspatial_aware,
                 use_temporal_conv=temporal_conv,
@@ -683,7 +667,6 @@ class UNetModel(nn.Cell):
                         dropout,
                         out_channels=mult * model_channels,
                         dims=dims,
-                        use_checkpoint=use_checkpoint,
                         use_scale_shift_norm=use_scale_shift_norm,
                         tempspatial_aware=tempspatial_aware,
                         use_temporal_conv=temporal_conv,
@@ -704,7 +687,6 @@ class UNetModel(nn.Cell):
                             depth=transformer_depth,
                             context_dim=context_dim,
                             use_linear=use_linear,
-                            use_checkpoint=use_checkpoint,
                             disable_self_attn=False,
                             video_length=temporal_length,
                             image_cross_attention=self.image_cross_attention,
@@ -721,7 +703,6 @@ class UNetModel(nn.Cell):
                                 depth=transformer_depth,
                                 context_dim=context_dim,
                                 use_linear=use_linear,
-                                use_checkpoint=use_checkpoint,
                                 only_self_att=temporal_self_att_only,
                                 causal_attention=use_causal_attention,
                                 relative_position=use_relative_position,
@@ -737,7 +718,6 @@ class UNetModel(nn.Cell):
                             dropout,
                             out_channels=out_ch,
                             dims=dims,
-                            use_checkpoint=use_checkpoint,
                             use_scale_shift_norm=use_scale_shift_norm,
                             up=True,
                         )

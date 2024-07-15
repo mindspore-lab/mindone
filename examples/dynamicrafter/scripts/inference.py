@@ -249,7 +249,11 @@ def image_guided_synthesis(model,
                             timestep_spacing='uniform',
                             guidance_rescale=0.0,
                             **kwargs):
-    ddim_sampler = DDIMSampler(model) if not multiple_cond_cfg else DDIMSampler_multicond(model)
+    if not multiple_cond_cfg:
+        ddim_sampler = DDIMSampler(model)
+    else:
+        raise NotImplementedError
+        # ddim_sampler = DDIMSampler_multicond(model)
     batch_size = noise_shape[0]
     # fs = torch.tensor([fs] * batch_size, dtype=torch.long, device=model.device)
     fs = ms.Tensor([fs] * batch_size, dtype=ms.int64)
@@ -383,8 +387,6 @@ def main(args):
     config = OmegaConf.load(args.config)
     model_config = config.pop("model", OmegaConf.create())
     
-    ## set use_checkpoint as False as when using deepspeed, it encounters an error "deepspeed backend not set"
-    # model_config['params']['unet_config']['params']['use_checkpoint'] = False
     model = instantiate_from_config(model_config)
     model.perframe_ae = args.perframe_ae
     # import pdb;pdb.set_trace()

@@ -50,7 +50,6 @@ model:
         transformer_depth: 1
         context_dim: 1024
         use_linear: true
-        use_checkpoint: True
         temporal_conv: True
         temporal_attention: True
         temporal_selfatt_only: true
