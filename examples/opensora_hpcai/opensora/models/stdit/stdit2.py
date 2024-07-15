@@ -390,7 +390,7 @@ class STDiT2(nn.Cell):
         # BUG MS2.3rc1: ops.meshgrid() bprop is not supported
 
         if spatial_pos is None:
-            pos_emb = ops.stop_gradient(self.pos_embed(x, H, W, scale=scale, base_size=base_size))
+            pos_emb = ops.stop_gradient(self.pos_embed(H, W, scale=scale, base_size=base_size))
         else:
             pos_emb = spatial_pos
 
@@ -410,7 +410,7 @@ class STDiT2(nn.Cell):
         x = x.reshape(B, T * S, x.shape[-1])  # B T S C -> B (T S) C
 
         # prepare adaIN
-        t = self.t_embedder(timestep, dtype=x.dtype)  # [B, C]
+        t = self.t_embedder(timestep)  # [B, C]
         t_spc = t + data_info  # [B, C]
         t_tmp = t + fl  # [B, C]
         t_spc_mlp = self.t_block(t_spc)  # [B, 6*C]
@@ -419,7 +419,7 @@ class STDiT2(nn.Cell):
         t0_spc, t0_spc_mlp, t0_tmp_mlp = None, None, None
         if frames_mask is not None:
             t0_timestep = ops.zeros_like(timestep)
-            t0 = self.t_embedder(t0_timestep, dtype=x.dtype)
+            t0 = self.t_embedder(t0_timestep)
             t0_spc = t0 + data_info
             t0_tmp = t0 + fl
             t0_spc_mlp = self.t_block(t0_spc)
