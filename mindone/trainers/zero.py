@@ -132,12 +132,13 @@ def _prepare_network(network: nn.Cell, op_group: str, op_group_size: int = 1, op
         _prepare_network(sub_net, op_group, op_group_size, op_rank_id)
 
 
-def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: int = None):
+def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network
     op_rank_id = get_rank(op_group)
     op_group_size = get_group_size(op_group)
+    _logger.info("Rewrite the network, please wait...")
     _prepare_network(network, op_group, op_group_size, op_rank_id)
     return network
 

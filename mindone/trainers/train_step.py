@@ -193,6 +193,14 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
                     _logger.info("Set optimizer run offload.")
                 else:
                     _logger.warning("optimizer_offload only take effect when optimizer is AdamWeightDecay.")
+                    optimizer_offload = False
+            _logger.info(
+                f"Build TrainOneStepWrapper with ZeRO stage: {self.zero_stage}, "
+                f"optimizer_offload: {optimizer_offload}, "
+                f"op_group_size: {self.op_group_size} "
+                f"op_rank_id: {self.op_rank_id} "
+                f"dp_group_size: {self.dp_group_size} "
+            )
 
     def split_param(self, param):
         return self.split_op(param)[self.op_rank_id]
