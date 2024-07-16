@@ -74,7 +74,7 @@ def main(args):
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
         sp_size=args.sp_size,
     )
-    set_logger(output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+    set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
 
     train_with_vae_latent = args.vae_latent_folder is not None and len(args.vae_latent_folder) > 0
     if train_with_vae_latent:

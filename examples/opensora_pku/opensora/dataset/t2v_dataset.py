@@ -14,7 +14,7 @@ import mindspore as ms
 
 from .transform import create_video_transforms, t5_text_preprocessing
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class TextVideoDataset:

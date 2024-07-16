@@ -14,7 +14,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def init_env(

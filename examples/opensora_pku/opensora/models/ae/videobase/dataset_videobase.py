@@ -14,7 +14,7 @@ from PIL import Image, ImageSequence
 
 import mindspore as ms
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 def read_gif(gif_path, mode="RGB"):

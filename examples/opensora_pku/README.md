@@ -416,7 +416,7 @@ Before launching the first-stage training, please make sure you set the three pa
 # start 65x512x512 pretraining, 8 NPUs
 bash scripts/text_condition/train_videoae_65x512x512.sh
 ```
-During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory. The loss values and average per step time will saved under `log/rank_*/result.log`.
+During training, the training logs will be saved under `parallel_logs/` folder of the specified output directory. The loss values and average per step time will saved in `result.log` in the output directory.
 
 After the first-stage training, if using data parallelism (the default parallel mode), the checkpoint files will be saved under `ckpt/` folder. If using optimizer parallelism, there will be multiple checkpoint shards saved in the `ckpt/`. See the following method on how to merge multiple checkpoint shards into a full checkpoint file.
 <details>
