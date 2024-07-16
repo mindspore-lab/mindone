@@ -569,8 +569,9 @@ class LatteT2V(ModelMixin, ConfigMixin):
         if checkpoint_path is None or len(checkpoint_path) == 0:
             # search for ckpt under pretrained_model_path
             ckpt_paths = glob.glob(os.path.join(pretrained_model_path, "*.ckpt"))
-            assert len(ckpt_paths) == 1, f"Expect to find one checkpoint file under {pretrained_model_path}"
-            f", but found {len(ckpt_paths)} files that end with `.ckpt`"
+            assert (
+                len(ckpt_paths) == 1
+            ), f"Expect to find one checkpoint file under {pretrained_model_path}, but found {len(ckpt_paths)} files that end with `.ckpt`"
             ckpt = ckpt_paths[0]
         else:
             ckpt = checkpoint_path
