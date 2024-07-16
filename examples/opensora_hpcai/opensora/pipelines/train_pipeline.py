@@ -352,7 +352,8 @@ class DiffusionWithLossFiTLike(DiffusionWithLoss):
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
         patch_mask = temporal_mask[:, :, None, None] * spatial_mask[:, None, :, None]
-        patch_mask = self.unpatchify(ops.tile(patch_mask, (1, 1, 1, D)))  # b c t h w
+        pm_dtype = patch_mask.dtype
+        patch_mask = self.unpatchify(ops.tile(patch_mask.to(ms.int32), (1, 1, 1, D)).to(pm_dtype))  # b c t h w
         vb = self._cal_vb(
             ops.stop_gradient(model_output),
             model_var_values,

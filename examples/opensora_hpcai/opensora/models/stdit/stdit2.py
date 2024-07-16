@@ -22,6 +22,7 @@ from opensora.models.layers.blocks import (
 )
 from opensora.models.layers.rotary_embedding import RotaryEmbedding
 
+import mindspore as ms
 from mindspore import Parameter, Tensor, dtype, load_checkpoint, load_param_into_net, nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
 
@@ -137,7 +138,7 @@ class STDiT2Block(nn.Cell):
         # spatial branch
         x_s = x_m.reshape(B * T, S, C)  # B (T S) C -> (B T) S C
         if spatial_mask is not None:
-            spatial_mask = ops.repeat_interleave(spatial_mask, T, axis=0)  # B S -> (B T) S
+            spatial_mask = ops.repeat_interleave(spatial_mask.to(ms.int32), T, axis=0)  # B S -> (B T) S
         x_s = self.attn(x_s, mask=spatial_mask)
         x_s = x_s.reshape(B, T * S, C)  # (B T) S C -> B (T S) C
 
@@ -158,7 +159,7 @@ class STDiT2Block(nn.Cell):
         # temporal branch
         x_t = x_m.reshape(B, T, S, C).swapaxes(1, 2).reshape(B * S, T, C)  # B (T S) C -> (B S) T C
         if temporal_mask is not None:
-            temporal_mask = ops.repeat_interleave(temporal_mask, S, axis=0)  # B T -> (B S) T
+            temporal_mask = ops.repeat_interleave(temporal_mask.to(ms.int32), S, axis=0)  # B T -> (B S) T
         x_t = self.attn_temp(x_t, mask=temporal_mask, freqs_cis=temporal_pos)
         x_t = x_t.reshape(B, S, T, C).swapaxes(1, 2).reshape(B, T * S, C)  # (B S) T C -> B (T S) C
 
