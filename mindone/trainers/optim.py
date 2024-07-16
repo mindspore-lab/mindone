@@ -9,6 +9,7 @@ from mindcv.optim.adamw import AdamW as AdamW_Refined
 from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
+from .adamw_mf import AdamW as AdamW_MF
 from .adamw_zero1 import AdamWeightDecayZeRO1
 
 _logger = logging.getLogger(__name__)
@@ -77,9 +78,10 @@ def create_optimizer(
         optim_cls = AdamWeightDecay
     elif name.lower() == "adamw_re":
         optim_cls = AdamW_Refined
+    elif name.lower() == "adamw_mf":
+        optim_cls = AdamW_MF
     elif name.lower() == "adamw_zero1":
         optim_cls = AdamWeightDecayZeRO1
-        print("D--: apply adamw_zero1")
     elif name.lower() in ["sgd", "momentum"]:
         optim_cls = Momentum
     else:
@@ -87,6 +89,8 @@ def create_optimizer(
 
     if name.lower() in ["sgd", "momentum"]:
         optimizer = optim_cls(group_params, learning_rate=lr, momentum=0.9)
+    elif name.lower() == "adamw_mf":
+        optimizer = optim_cls(group_params, learning_rate=lr, betas=betas, eps=eps)
     else:
         optimizer = optim_cls(group_params, learning_rate=lr, beta1=betas[0], beta2=betas[1], eps=eps)
 

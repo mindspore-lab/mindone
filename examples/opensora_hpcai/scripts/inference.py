@@ -35,6 +35,12 @@ from mindone.visualize.videos import save_videos
 logger = logging.getLogger(__name__)
 
 
+def to_numpy(x: Tensor) -> np.ndarray:
+    if x.dtype == ms.bfloat16:
+        x = x.astype(ms.float32)
+    return x.asnumpy()
+
+
 def init_env(
     mode: int = ms.GRAPH_MODE,
     seed: int = 42,
@@ -437,9 +443,9 @@ def main(args):
             samples, latent = pipeline(
                 inputs, frames_mask=frames_mask, num_frames=args.num_frames, additional_kwargs=model_args
             )
-            latents.append(latent.asnumpy()[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
+            latents.append(to_numpy(latent)[:, :, args.condition_frame_length if loop_i > 0 else 0 :])
             if samples is not None:
-                videos.append(samples.asnumpy()[:, args.condition_frame_length if loop_i > 0 else 0 :])
+                videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
             logger.info(
                 f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"

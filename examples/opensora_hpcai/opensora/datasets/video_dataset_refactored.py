@@ -285,6 +285,7 @@ class VideoDatasetRefactored(BaseDataset):
 
         spatial_mask = np.ones(spatial_pos.shape[0], dtype=np.uint8)
         temporal_mask = np.ones(temporal_pos.shape[0], dtype=np.uint8)
+
         return latent, spatial_pos, spatial_mask, temporal_pos, temporal_mask
 
     def __len__(self):

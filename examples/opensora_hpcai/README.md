@@ -489,11 +489,12 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model       | Context      | jit_level | Precision | BS | NPUs | Resolution(framesxHxW) | Train T. (s/step) |
 |:------------|:-------------|:--------|:---------:|:--:|:----:|:----------------------:|:-----------------:|
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
-| STDiT2-XL/2 | D910\*-MS2.3 |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       16x512x512       |        2.00       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/)  |    O1  |    BF16   |  1 |  8   |       64x512x512       |        8.30       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        8.22       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x576x1024      |        7.82       |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       64x576x1024      |        21.15      |
+| STDiT2-XL/2 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) |    O1  |    BF16   |  1 |  8   |       24x1024x1024     |        16.98      |
 > Context: {G:GPU, D:Ascend}{chip type}-{mindspore version}.
 
 >Note that the above performance uses both t5 cached embedding data and vae cached latent data.
