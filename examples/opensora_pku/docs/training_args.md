@@ -83,15 +83,15 @@ This document includes the training arguments of [`opensora/train/train_t2v.py`]
 - `optimizer_weight_shard_size` (type: int, default: 8): the size of the communication domain split by the optimizer weight.
 
 ## Hyper-Parameters
-- `epochs` (type: int, default: 10): the number of training epochs. It should be a positive integer. If dataset_sink_mode is on, epochs is with respect to dataset sink size. It means the total number of training steps is the product of `epochs` and `sink_size`. Otherwise, it's w.r.t the dataset size, which means the total number of training steps is the product of `epochs` and `num_batches` in an epoch.
-- `step_mode` (type: bool, default: False): whether save ckpt by steps. If False, save ckpt by epochs.
 - `max_train_steps` (type: int, default: None): the maximum number of training steps. If `max_train_steps` is not specified, `epochs` will be the number of epochs, and `step_mode` will be False. If `max_train_steps` is specified, it will overwrite `epochs` to `max_train_steps/num_batches`, and `step_mode` will be True. `max_train_steps` should be greater than the number of batches in an epoch, if provided.
+- `epochs` (type: int, default: 10): the number of training epochs. It should be a positive integer. When `max_train_steps` is not provided, the training steps will be `epochs x num_batches`. When `max_train_steps` is provided, the training steps will be `floor(max_train_steps/num_batches) x num_batches`, and `args.epoch` will be overwritten to `floor(max_train_steps/num_batches)`.
+- `step_mode` (type: bool, default: False): whether save ckpt by steps. If False, save ckpt by epochs.
 
 
 ## Callbacks and Logging
 - `resume_from_checkpoint` (type: bool, default: False): whether to resume training from `train_resume.ckpt`.
 - `ckpt_save_interval` (type: int, default: 1): the interval of saving checkpoints. If `step_mode` is True, it will save checkpoints every this step number.  If `step_mode` is False, it will save checkpoints every this epoch number.
-- `checkpointing_steps` (type: int, default: None): Save a checkpoint of the training state every X steps. It `checkpointing_steps` is not specified, it will use `ckpt_save_interval` as the checkpoint saving interval. If `checkpointing_steps` is provided, it will overwrite `ckpt_save_interval` to the same value as `checkpointing_steps`, and set `step_mode` to True.
+- `checkpointing_steps` (type: int, default: None): Save a checkpoint of the training state every X steps. It `checkpointing_steps` is not specified, it will use `ckpt_save_interval` as the checkpoint saving interval (epochs), and set `step_mode` to False. If `checkpointing_steps` is provided, it will overwrite `ckpt_save_interval` to the same value as `checkpointing_steps`, and set `step_mode` to True.
 - `ckpt_max_keep` (type: int, default: 10): the maximum number of checkpoints to keep.
 - `log_level` (type: str, default: logging.INFO): log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR.
 - `log_interval` (type: int, default: 1): the log interval. If dataset sink mode is False, the loss will be printed for every X steps. If dataset sink mode is True, the loss will be printed for every `sink_size` steps.
