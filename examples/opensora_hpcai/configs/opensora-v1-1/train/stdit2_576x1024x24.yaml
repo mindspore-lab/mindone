@@ -19,6 +19,8 @@ max_rowsize: 256
 amp_level: "O2"
 dtype: "bf16"
 init_loss_scale: 65536
+vae_dtype: "bf16"
+# vae_micro_batch_size: 8
 
 # training hyper-params
 scheduler: "constant"
