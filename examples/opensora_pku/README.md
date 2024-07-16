@@ -86,7 +86,7 @@ Other useful documents and links are listed below.
 ## Installation
 1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Install MindSpore 2.3 master (0615daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0517) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240517/).
+2. Install MindSpore 2.3 master (0705daily) according to the [website](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/). Select the corresponding wheel file based your computer's OS and the python verison. Please use C18 CANN (0705) which can be downloaded from [here](https://repo.mindspore.cn/ascend/ascend910/20240705/).
 
 
 3. Install requirements
@@ -374,7 +374,7 @@ python tools/model_conversion/convert_latte.py \
 > **Since [Vchitect/Latte](https://huggingface.co/maxin-cn/Latte/tree/main) has deleted `t2v.pt` from their HF repo, please download `t2v.ckpt` from this [URL](https://download-mindspore.osinfra.cn/toolkits/mindone/opensora-pku/tv2.ckpt). There is no need to convert it.**
 
 #### Example of Training Scripts
-Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments.
+Here we choose an example of training scripts (`train_videoae_65x512x512.sh`) and explain the meanings of some experimental arguments. This is an example of parallel training script which uses data parallelism. If you want to try single-device training, please refer to `train_videoae_65x512x512_single_device.sh`.
 
 There some hyper-parameters that may vary between different experiments:
 ```shell
@@ -400,7 +400,13 @@ We use `msrun` to launch the parallel training tasks. For single-node multi-devi
 
 There are some arguments related to the training dataset path:
 - `video_data` or `image_data`: the text file to the video/image dataset. The text file should contain N lines corresponding to N datasets. Each line should have two or three items. If two items are available, they correspond to the video folder and the annotation json file. If three items are available, they correspond to the video folder, the text embedding cache folder, and the annotation json file.
-- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training.
+- `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. if not provided, the LatteT2V will use random initialization.
+
+For the detailed explanations for other arguments, please refer to the document for [training arguments](docs/training_args.md).
+
+> Note:
+> - In Graph mode (default), MindSpore takes about 10~20 mins for graph compilation.
+> - For acceleration, we set the `dataset_sink_mode` to True by default. For more information about data sink mode, see [MindSpore doc for data sink](https://www.mindspore.cn/docs/en/master/api_python/mindspore/mindspore.data_sink.html). In data sink mode, `max_train_steps` should be greater than `sink_size`.
 
 #### Parallel Training
 
@@ -441,7 +447,7 @@ Simiarly, please revise the `--pretrained` to the checkpoint path from the `221x
 # (experimental) start 513x512x512 finetuning, 8 NPUs
 bash scripts/text_condition/train_videoae_513x512x512_sp.sh
 ```
-
+> Note:
 > You can try modifying `--dataloader_num_workers` and `--dataloader_prefetch_size` on `train_videoae_513x512x512_sp.sh` to speed up when you have enough cpu memory.
 
 
@@ -463,13 +469,15 @@ We evaluated the training performance on MindSpore and Ascend NPUs. The results 
 
 | Model           | Context        | Precision | BS  | NPUs | num_frames + num_images | Resolution  | Train T. (s/step) |
 |:----------------|:---------------|:----------|:---:|:----:|:-----------------------:|:-----------:|:-----------------:|
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.54        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  2  |  8   |         65 + 16         | 512x512     |       10.57       |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.50        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
-| LatteT2V-XL/122 | D910\*-[CANN C18(0517)](https://repo.mindspore.cn/ascend/ascend910/20240517/)-[MS2.3_master(0615)](https://repo.mindspore.cn/mindspore/mindspore/version/202406/20240615/master_20240615020018_43ccb91e45899b64fe31d304497ab17e3ada3cea_newest/unified/) | BF16      |  1  |  8   |         513 + 8         | 512x512     |       12.5        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         17 + 4          | 512x512     |       2.45        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 16         | 512x512     |       9.36       |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  2  |  8   |         65 + 4          | 512x512     |       7.02        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         221 + 4         | 512x512     |       7.18        |
+| LatteT2V-XL/122 | D910\*-[CANN C18(0705)](https://repo.mindspore.cn/ascend/ascend910/20240705/)-[MS2.3_master(0705)](https://repo.mindspore.cn/mindspore/mindspore/version/202407/20240705/master_20240705220018_51f414917fd9a312dd43ea62eea61cf37c3dfbd6_newest/unified/) | BF16      |  1  |  8   |         513 + 8         | 512x512     |        12.3       |
 
 > Context: {NPU type}-{CANN version}-{MindSpore version}
+
+See [Performance Boosting History](docs/performance_boosting_history.md) 🚀🚀🚀 on how we achieve the state of the art performance.
 
 ## 👍 Acknowledgement
 * [Latte](https://github.com/Vchitect/Latte): The **main codebase** we built upon and it is an wonderful video generated model.
