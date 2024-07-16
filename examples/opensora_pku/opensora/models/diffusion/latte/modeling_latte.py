@@ -391,12 +391,12 @@ class LatteT2V(ModelMixin, ConfigMixin):
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:  # ndim == 2 means no image joint
             encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
             # b 1 l -> (b f) 1 l
-            encoder_attention_mask = encoder_attention_mask.repeat_interleave(frame, dim=0)
+            encoder_attention_mask = encoder_attention_mask.to(ms.int32).repeat_interleave(frame, dim=0)
             encoder_attention_mask = encoder_attention_mask.to(self.dtype)
         elif encoder_attention_mask is not None and encoder_attention_mask.ndim == 3:  # ndim == 3 means image joint
             encoder_attention_mask_video = encoder_attention_mask[:, :1, ...]
-            encoder_attention_mask_video = encoder_attention_mask_video.repeat_interleave(frame, dim=1)
-            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...]
+            encoder_attention_mask_video = encoder_attention_mask_video.to(ms.int32).repeat_interleave(frame, dim=1)
+            encoder_attention_mask_image = encoder_attention_mask[:, 1:, ...].to(ms.int32)
             encoder_attention_mask = ops.cat([encoder_attention_mask_video, encoder_attention_mask_image], axis=1)
             # b n l -> (b n) l
             encoder_attention_mask = encoder_attention_mask.view(-1, encoder_attention_mask.shape[-1]).unsqueeze(1)

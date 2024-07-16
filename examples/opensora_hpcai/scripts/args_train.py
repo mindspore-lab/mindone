@@ -111,7 +111,7 @@ def parse_train_args(parser):
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument(
-        "--optim_eps", type=float, default=1e-6, help="Specify the eps parameter for the AdamW optimizer."
+        "--optim_eps", type=float, default=1e-8, help="Specify the eps parameter for the AdamW optimizer."
     )
     parser.add_argument(
         "--group_strategy",
