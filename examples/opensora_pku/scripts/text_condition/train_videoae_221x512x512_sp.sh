@@ -46,4 +46,5 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --
     --use_parallel True \
     --parallel_mode "data" \
     --sp_size 8 \
-    --max_device_memory 59GB
+    --max_device_memory 59GB \
+    --sink_size -1 \

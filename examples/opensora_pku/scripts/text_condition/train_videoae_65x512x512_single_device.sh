@@ -44,3 +44,4 @@ python opensora/train/train_t2v.py \
       --use_recompute True \
       --dataset_sink_mode True \
       --num_no_recompute 6 \
+      --sink_size -1 \
