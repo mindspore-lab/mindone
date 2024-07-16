@@ -68,7 +68,6 @@ def main(args):
         device_target=args.device,
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        enable_dvm=args.enable_dvm,
         mempool_block_size=args.mempool_block_size,
         global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
@@ -246,6 +245,10 @@ def main(args):
     assert dataset_size > 0, "Incorrect dataset size. Please check your dataset size and your global batch size"
 
     # 4. build training utils: lr, optim, callbacks, trainer
+    if args.scale_lr:
+        learning_rate = args.start_learning_rate * args.batch_size * args.gradient_accumulation_steps * device_num
+    else:
+        learning_rate = args.start_learning_rate
     if args.max_train_steps is not None:
         assert args.max_train_steps > 0, f"max_train_steps should a positive integer, but got {args.max_train_steps}"
         assert (
@@ -277,7 +280,7 @@ def main(args):
     lr = create_scheduler(
         steps_per_epoch=dataset_size,
         name=args.lr_scheduler,
-        lr=args.start_learning_rate,
+        lr=learning_rate,
         end_lr=args.end_learning_rate,
         warmup_steps=args.lr_warmup_steps,
         decay_steps=args.lr_decay_steps,
@@ -414,7 +417,7 @@ def main(args):
                     if text_encoder_dtype is not None
                     else ""
                 ),
-                f"Learning rate: {args.start_learning_rate}",
+                f"Learning rate: {learning_rate}",
                 f"Batch size: {args.batch_size}",
                 f"Image size: {args.max_image_size}",
                 f"Number of frames: {args.num_frames}",

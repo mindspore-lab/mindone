@@ -24,7 +24,6 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     parallel_mode: str = "data",
-    enable_dvm: bool = False,
     mempool_block_size: str = "9GB",
     global_bf16: bool = False,
     strategy_ckpt_save_file: str = "",
@@ -97,9 +96,6 @@ def init_env(
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune for better precision
         )
 
-    if enable_dvm:
-        print("enable dvm")
-        ms.set_context(enable_graph_kernel=True, graph_kernel_flags="--disable_cluster_ops=Pow,Select")
     if global_bf16:
         print("Using global bf16")
         ms.set_context(
@@ -149,7 +145,6 @@ def parse_train_args(parser):
         choices=["data", "optim", "semi"],
         help="parallel mode: data, optim",
     )
-    parser.add_argument("--enable_dvm", default=False, type=str2bool, help="enable dvm mode")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument(
         "--mempool_block_size",
