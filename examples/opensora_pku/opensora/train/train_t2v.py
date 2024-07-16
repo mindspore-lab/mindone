@@ -308,24 +308,34 @@ def main(args):
             total_train_steps > 0
         ), f"Expect that total_train_steps > sink size, but max_train_steps is {total_train_steps} and sink size is {steps_per_sink}."
 
-    if args.checkpointing_steps is not None:
-        assert (
-            args.checkpointing_steps > 0
-        ), f"checkpointing_steps should a positive integer, but got {args.checkpointing_steps}"
-        logger.info(f"Saving checkpoints every {args.checkpointing_steps} steps")
-        if not args.step_mode:
-            logger.info("Force step mode to be True")
-        args.step_mode = True
-        args.ckpt_save_interval = args.checkpointing_steps
+    if args.checkpointing_steps is None:
+        ckpt_save_interval = args.ckpt_save_interval
+        step_mode = False
     else:
-        assert (
-            args.ckpt_save_interval > 0
-        ), f"Expect to have args.ckpt_save_interval as a positive integer, but got {args.ckpt_save_interval}"
-        logger.info(f"Saving checkpoints every {args.ckpt_save_interval} epochs")
-        if args.step_mode:
-            logger.info("Force step mode to be False")
-        args.step_mode = False
-
+        step_mode = not args.dataset_sink_mode
+        if not args.dataset_sink_mode:
+            ckpt_save_interval = args.checkpointing_steps
+        else:
+            # still need to count interval in sink epochs
+            ckpt_save_interval = max(1, args.checkpointing_steps // steps_per_sink)
+            if args.checkpointing_steps % steps_per_sink != 0:
+                logger.warning(
+                    f"`checkpointing_steps` must be times of sink size or dataset_size under dataset sink mode."
+                    f"Checkpoint will be saved every {ckpt_save_interval * steps_per_sink} steps."
+                )
+    if step_mode != args.step_mode:
+        logger.logging("Using args.checkpointing_steps to determine whether to use step mode to save ckpt.")
+        if args.checkpointing_steps is None:
+            logger.warning(f"args.checkpointing_steps is not provided. Force step_mode to {step_mode}!")
+        else:
+            logger.warning(
+                f"args.checkpointing_steps is provided. data sink mode is {args.dataset_sink_mode}. Force step mode to {step_mode}!"
+            )
+    logger.info(
+        "ckpt_save_interval: {} {}".format(
+            ckpt_save_interval, "steps" if (not args.dataset_sink_mode and step_mode) else "sink epochs"
+        )
+    )
     # build learning rate scheduler
     if not args.lr_decay_steps:
         args.lr_decay_steps = total_train_steps - args.lr_warmup_steps  # fix lr scheduling
@@ -443,8 +453,9 @@ def main(args):
             ema=ema,
             ckpt_save_policy="latest_k",
             ckpt_max_keep=ckpt_max_keep,
-            step_mode=args.step_mode,
-            ckpt_save_interval=args.ckpt_save_interval,
+            step_mode=step_mode,
+            use_step_unit=(args.checkpointing_steps is not None),
+            ckpt_save_interval=ckpt_save_interval,
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name=args.model.replace("/", "-"),
